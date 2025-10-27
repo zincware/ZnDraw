@@ -14,7 +14,7 @@ interface UseDragAndDropReturn {
 export function useDragAndDrop(): UseDragAndDropReturn {
   const [isDragging, setIsDragging] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
-  const { roomId, setRoomId, userId } = useAppStore();
+  const { setRoomId } = useAppStore();
   const queryClient = useQueryClient();
 
   const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
@@ -88,11 +88,8 @@ export function useDragAndDrop(): UseDragAndDropReturn {
             // Invalidate queries to refresh room list
             queryClient.invalidateQueries({ queryKey: ["rooms"] });
 
-            // Generate new userId if not present (e.g., when uploading from rooms list)
-            const userIdToUse = userId || crypto.randomUUID();
-
             // Navigate to the new room
-            window.location.href = `/rooms/${response.room}/${userIdToUse}`;
+            window.location.href = `/rooms/${response.room}`;
           }
         } catch (error: any) {
           console.error("Upload error:", error);
@@ -101,7 +98,7 @@ export function useDragAndDrop(): UseDragAndDropReturn {
         }
       }
     },
-    [userId, setRoomId, queryClient, isSupportedFormat]
+    [setRoomId, queryClient, isSupportedFormat]
   );
 
   return {

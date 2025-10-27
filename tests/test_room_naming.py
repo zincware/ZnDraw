@@ -1,6 +1,7 @@
 """Tests for room name generation utility."""
 
 import pytest
+
 from zndraw.utils import generate_room_name
 
 
@@ -22,7 +23,7 @@ def test_generate_room_name_collision_adds_hash(redis_client):
     """Test that collision detection adds hash suffix."""
     # Create existing room
     redis_client.zadd("room:test_file.xyz:trajectory:indices", {"frame_0": 0})
-    
+
     # Generate name for file that would create same room name
     result = generate_room_name("test_file.xyz", redis_client, max_length=20)
     assert result.startswith("test_file.xyz_")
@@ -31,12 +32,15 @@ def test_generate_room_name_collision_adds_hash(redis_client):
     assert "_" in result
 
 
-@pytest.mark.parametrize("filename,max_len,expected", [
-    ("a.xyz", 20, "a.xyz"),
-    ("my_file.pdb", 20, "my_file.pdb"),
-    ("data/structure.h5", 20, "data/structure.h5"),
-    ("very_long_filename_that_exceeds_limit.xyz", 20, "very_long_filename_t"),
-])
+@pytest.mark.parametrize(
+    "filename,max_len,expected",
+    [
+        ("a.xyz", 20, "a.xyz"),
+        ("my_file.pdb", 20, "my_file.pdb"),
+        ("data/structure.h5", 20, "data/structure.h5"),
+        ("very_long_filename_that_exceeds_limit.xyz", 20, "very_long_filename_t"),
+    ],
+)
 def test_generate_room_name_various_inputs(filename, max_len, expected):
     """Test room name generation with various inputs."""
     result = generate_room_name(filename, None, max_length=max_len)
@@ -87,11 +91,15 @@ def test_generate_room_name_multiple_collisions(redis_client):
     # Create first room
     truncated = "my_very_long_file_na"  # 20 chars
     redis_client.zadd(f"room:{truncated}:trajectory:indices", {"frame_0": 0})
-    
+
     # Generate for file that truncates to same name
-    result1 = generate_room_name("my_very_long_file_name_A.xyz", redis_client, max_length=20)
-    result2 = generate_room_name("my_very_long_file_name_B.xyz", redis_client, max_length=20)
-    
+    result1 = generate_room_name(
+        "my_very_long_file_name_A.xyz", redis_client, max_length=20
+    )
+    result2 = generate_room_name(
+        "my_very_long_file_name_B.xyz", redis_client, max_length=20
+    )
+
     # Both should get hash suffixes but different hashes
     assert "_" in result1
     assert "_" in result2
@@ -141,7 +149,7 @@ def test_generate_room_name_hash_suffix_length():
     """Test that hash suffix is correct length."""
     redis_client = pytest.importorskip("redis").Redis()
     redis_client.zadd("room:test.xyz:trajectory:indices", {"frame_0": 0})
-    
+
     result = generate_room_name("test.xyz", redis_client)
     # Should have _XXXX suffix where XXXX is 4 hex chars
     assert result.startswith("test.xyz_")

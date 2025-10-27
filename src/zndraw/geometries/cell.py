@@ -1,5 +1,7 @@
-from pydantic import Field
 import typing as t
+
+from pydantic import Field
+
 from .base import BaseGeometry, apply_schema_feature
 
 
@@ -11,12 +13,14 @@ class Cell(BaseGeometry):
         schema = super().model_json_schema(**kwargs)
 
         # Apply schema features using helper
-        apply_schema_feature(schema, "position", ["dynamic-atom-props", "editable-array"])
+        apply_schema_feature(
+            schema, "position", ["dynamic-atom-props", "editable-array"]
+        )
         apply_schema_feature(schema, "color", ["color-picker", "editable-array"])
         # TODO: add dropdown with "default" option, where default means follow color scheme
 
         return schema
-    
+
     color: str = Field(default="default", description="Color of the cell")
 
     position: str = Field(

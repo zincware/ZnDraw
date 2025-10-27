@@ -229,7 +229,9 @@ def validate_interaction_schema(
             continue
 
         if not isinstance(interaction, dict):
-            errors.append(f"Schema dimension {idx}: interaction must be a dict or None, got {type(interaction)}")
+            errors.append(
+                f"Schema dimension {idx}: interaction must be a dict or None, got {type(interaction)}"
+            )
             continue
 
         for action_type in valid_actions:

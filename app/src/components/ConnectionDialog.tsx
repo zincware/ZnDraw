@@ -10,6 +10,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { useColorScheme } from "@mui/material/styles";
+import { useAppStore } from "../store";
 
 interface ConnectionDialogProps {
   open: boolean;
@@ -17,7 +18,8 @@ interface ConnectionDialogProps {
 }
 
 const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
-  const { roomId, userId } = useParams<{ roomId: string; userId: string }>();
+  const { roomId } = useParams<{ roomId: string }>();
+  const userId = useAppStore((state) => state.userId);
   const { mode } = useColorScheme();
 
   const handleCopyCode = () => {

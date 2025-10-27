@@ -46,7 +46,26 @@ class Selections:
         return tuple(response.get("selection", []))
 
     def __setitem__(self, geometry: str, indices: t.Iterable[int]) -> None:
-        self.vis.api.update_selection(geometry, list(indices))
+        # Validate indices
+        if not hasattr(indices, "__iter__") or isinstance(indices, (str, bytes)):
+            raise ValueError("Selection must be an iterable of integers.")
+
+        indices_list = list(indices)
+
+        # Check all elements are integers
+        if not all(isinstance(idx, int) for idx in indices_list):
+            raise ValueError("Selection must be an iterable of integers.")
+
+        # For particles geometry, validate indices are in bounds
+        if geometry == "particles" and len(self.vis) > 0:
+            num_atoms = len(self.vis.atoms)
+            for idx in indices_list:
+                if idx < 0 or idx >= num_atoms:
+                    raise ValueError(
+                        f"Selection index {idx} out of range [0, {num_atoms})."
+                    )
+
+        self.vis.api.update_selection(geometry, indices_list)
 
     def __delitem__(self, geometry: str) -> None:
         self.vis.api.update_selection(geometry, [])
@@ -185,7 +204,7 @@ class Screenshots:
 @dataclasses.dataclass
 class ZnDraw(MutableSequence):
     """A client for interacting with the ZnDraw server.
-    
+
     Parameters
     ----------
     url
@@ -201,7 +220,7 @@ class ZnDraw(MutableSequence):
         Optional description for the room.
     copy_from
         Optional room name to copy initial state from.
-    
+
     """
 
     url: str | None = None
@@ -232,7 +251,7 @@ class ZnDraw(MutableSequence):
         # Auto-discover local server if url is None
         if self.url is None:
             is_running, server_info, status_message = get_server_status()
-            
+
             if is_running and server_info is not None:
                 self.url = f"http://localhost:{server_info.port}"
                 log.info(f"Auto-discovered local ZnDraw server: {status_message}")
@@ -241,35 +260,31 @@ class ZnDraw(MutableSequence):
                     "No local ZnDraw server found. Please start a server with 'zndraw' "
                     "or provide an explicit URL."
                 )
-        
+
         self.url = self.url.rstrip("/")
 
-        self.api = APIManager(url=self.url, room=self.room, client_id=self._client_id)
+        # Create APIManager (client_id will be set after login)
+        self.api = APIManager(url=self.url, room=self.room)
         self.cache: FrameCache | None = FrameCache(maxsize=100)
 
         # Validate server version compatibility before connecting
         import zndraw
+
         validate_server_version(self.api, zndraw.__version__)
 
-        # Call join_room FIRST to get join token and prepare room
+        # Step 1: Login to get JWT token and client ID
+        login_data = self.api.login(user_name=self.user)
+        self._client_id = login_data["clientId"]
+        log.info(f"Logged in as {self.user} (client: {self._client_id})")
+
+        # Step 2: Join room (authenticated with JWT)
         response_data = self.api.join_room(
             description=self.description,
             copy_from=self.copy_from,
-            user_id=self.user
         )
 
-        # Update client_id if server assigned a new one
-        if "clientId" in response_data:
-            self._client_id = response_data["clientId"]
-            self.api.client_id = self._client_id
-
-        # Get join token for socket authentication
-        join_token = response_data.get("joinToken")
-        if not join_token:
-            raise RuntimeError("Server did not provide join token")
-
-        # Now create socket manager and connect WITH the token
-        self.socket = SocketManager(zndraw_instance=self, join_token=join_token)
+        # Create socket manager and connect (with JWT)
+        self.socket = SocketManager(zndraw_instance=self)
         self.connect()
 
         # Initialize the lock after socket is connected
@@ -299,7 +314,7 @@ class ZnDraw(MutableSequence):
     @property
     def figures(self) -> Figures:
         return Figures(self)
-    
+
     @property
     def metadata(self) -> RoomMetadata:
         """Access room metadata as a dict-like object.
@@ -409,18 +424,21 @@ class ZnDraw(MutableSequence):
                     raise RuntimeError(error_msg)
         else:
             raise RuntimeError("Client is not connected.")
-        
+
     @property
     def points(self) -> np.ndarray:
         """Get the current frame as an `ase.Atoms` object."""
         from zndraw.geometries import Curve
+
         curve: Curve | None = self.geometries.get("curve")
         if curve is not None:
             if isinstance(curve.position, str):
-                raise ValueError("Curve position is string; cannot retrieve static points.")
+                raise ValueError(
+                    "Curve position is string; cannot retrieve static points."
+                )
             return np.array(curve.position)
         return np.empty((0, 3))
-    
+
     @property
     def atoms(self) -> ase.Atoms:
         """Get the current frame as an `ase.Atoms` object."""
@@ -769,11 +787,11 @@ class ZnDraw(MutableSequence):
     @property
     def settings(self) -> RoomConfig:
         def callback_fn(data, extension: str):
-            self.api.submit_extension_settings(extension, self.user, data)
+            self.api.submit_extension_settings(extension, data)
 
         for key in settings:
             if key not in self._settings:
-                data = self.api.get_extension_settings(key, self.user)
+                data = self.api.get_extension_settings(key)
                 self._settings[key] = settings[key](**(data.get("data") or {}))
                 self._settings[key].callback = functools.partial(
                     callback_fn, extension=key
@@ -818,7 +836,6 @@ class ZnDraw(MutableSequence):
         return self.api.run_extension(
             category=extension.category.value,
             name=extension.__class__.__name__,
-            user_id=self.user,
             data=extension.model_dump(),
         )
 

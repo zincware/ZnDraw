@@ -1,15 +1,18 @@
 """Helper functions for room metadata management and WebSocket event emission."""
 
+import json
 import logging
+import typing as t
+
 from flask_socketio import SocketIO
 from redis import Redis
 
-from zndraw.app.models import RoomMetadata, LockMetadata
+from zndraw.app.models import LockMetadata, RoomMetadata
 
 log = logging.getLogger(__name__)
 
 
-def get_room_metadata(redis_client: Redis, room_id: str) -> RoomMetadata:
+def get_room_metadata(redis_client: t.Any, room_id: str) -> RoomMetadata:
     """Fetch complete room metadata from Redis.
 
     Parameters
@@ -37,16 +40,20 @@ def get_room_metadata(redis_client: Redis, room_id: str) -> RoomMetadata:
     default_room = redis_client.get("default_room")
     is_default = default_room == room_id
 
-    # Get lock metadata (if exists)
-    lock_key = f"lock:trajectory:meta:{room_id}"
-    lock_data = redis_client.hgetall(lock_key)
+    # Get lock metadata (if exists) - stored as JSON string
+    lock_metadata_key = f"lock:trajectory:meta:{room_id}:metadata"
+    lock_data_json = redis_client.get(lock_metadata_key)
     metadata_locked = None
-    if lock_data:
-        metadata_locked = LockMetadata(
-            msg=lock_data.get("msg") or None,
-            userName=lock_data.get("userName") or None,
-            timestamp=float(lock_data["timestamp"]) if "timestamp" in lock_data else None,
-        )
+    if lock_data_json:
+        try:
+            lock_data = json.loads(lock_data_json)
+            metadata_locked = LockMetadata(
+                msg=lock_data.get("msg"),
+                userName=lock_data.get("userName"),
+                timestamp=lock_data.get("timestamp"),
+            )
+        except (json.JSONDecodeError, KeyError) as e:
+            log.warning(f"Failed to parse lock metadata for room {room_id}: {e}")
 
     # Get presenter (if exists) - assuming stored as presenter:{room_id}
     presenter_sid = redis_client.get(f"presenter:{room_id}")
@@ -63,7 +70,9 @@ def get_room_metadata(redis_client: Redis, room_id: str) -> RoomMetadata:
     )
 
 
-def emit_room_update(socketio: SocketIO, room_id: str, skip_sid: str | None = None, **changes):
+def emit_room_update(
+    socketio: SocketIO, room_id: str, skip_sid: str | None = None, **changes
+):
     """Emit room:update event to both overview:public and room:<room_id>.
 
     This function broadcasts room metadata changes to all relevant clients:
@@ -117,10 +126,14 @@ def emit_room_update(socketio: SocketIO, room_id: str, skip_sid: str | None = No
     payload = {"roomId": room_id, **changes}
 
     # Broadcast to overview:public (room list), optionally skipping initiating client
-    socketio.emit("room:update", payload, to="overview:public", skip_sid=skip_sid, namespace="/")
+    socketio.emit(
+        "room:update", payload, to="overview:public", skip_sid=skip_sid, namespace="/"
+    )
 
     # Broadcast to specific room, optionally skipping initiating client
-    socketio.emit("room:update", payload, to=f"room:{room_id}", skip_sid=skip_sid, namespace="/")
+    socketio.emit(
+        "room:update", payload, to=f"room:{room_id}", skip_sid=skip_sid, namespace="/"
+    )
 
     log.debug(f"Emitted room:update for '{room_id}' (skip_sid={skip_sid}): {changes}")
 

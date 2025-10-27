@@ -1,10 +1,10 @@
 """ZnDraw communication package with physical-to-logical frame mapping."""
 
+import importlib.metadata
 import logging
 
 from zndraw.server import create_app
 from zndraw.zndraw import ZnDraw
-import importlib.metadata
 
 __all__ = ["ZnDraw", "create_app"]
 

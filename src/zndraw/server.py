@@ -1,12 +1,12 @@
 import logging
 import os
+from pathlib import Path
 
 import redis
-from znsocket import MemoryStorage
 from celery import Celery, Task
 from flask import Flask
 from flask_socketio import SocketIO
-from pathlib import Path
+from znsocket import MemoryStorage
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +42,6 @@ def redis_init_app(app: Flask, redis_url: str | None) -> redis.Redis | MemorySto
         r = redis.Redis.from_url(redis_url, decode_responses=True)
         app.extensions["redis"] = r
     return r
-    
 
 
 def create_app(
@@ -67,14 +66,16 @@ def create_app(
     app.config["REDIS_URL"] = redis_url
 
     # Upload configuration
-    app.config["UPLOAD_TEMP_DIR"] = os.getenv("ZNDRAW_UPLOAD_TEMP", "/tmp/zndraw_uploads")
-    app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("ZNDRAW_MAX_UPLOAD_MB", "500")) * 1024 * 1024
+    app.config["UPLOAD_TEMP_DIR"] = os.getenv(
+        "ZNDRAW_UPLOAD_TEMP", "/tmp/zndraw_uploads"
+    )
+    app.config["MAX_CONTENT_LENGTH"] = (
+        int(os.getenv("ZNDRAW_MAX_UPLOAD_MB", "500")) * 1024 * 1024
+    )
 
     if redis_url is None:
         data_folder = Path("~/.zincware/zndraw/celery/out").expanduser()
-        data_folder_processed = Path(
-            "~/.zincware/zndraw/celery/processed"
-        ).expanduser()
+        data_folder_processed = Path("~/.zincware/zndraw/celery/processed").expanduser()
         control_folder = Path("~/.zincware/zndraw/celery/ctrl").expanduser()
 
         data_folder.mkdir(parents=True, exist_ok=True)
@@ -110,6 +111,9 @@ def create_app(
 
     socketio.init_app(app, cors_allowed_origins="*")
 
-    app.config["SECRET_KEY"] = "your_secret_key"
+    # Configure SECRET_KEY from environment variable or use development default
+    app.config["SECRET_KEY"] = os.getenv(
+        "FLASK_SECRET_KEY", "dev-secret-key-change-in-production"
+    )
 
     return app

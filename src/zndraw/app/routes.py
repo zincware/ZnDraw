@@ -5,7 +5,7 @@ from pathlib import Path
 
 import msgpack
 import zarr
-from flask import Response, current_app, request, send_from_directory, send_file
+from flask import Response, current_app, request, send_file, send_from_directory
 from flask_socketio import disconnect
 from zarr.storage import MemoryStore
 
@@ -16,6 +16,7 @@ from . import main
 from .constants import SocketEvents
 from .frame_index_manager import FrameIndexManager
 from .job_manager import JobManager
+from .models import LockMetadata
 from .queue_manager import emit_queue_update
 from .redis_keys import ExtensionKeys
 from .worker_stats import WorkerStats
@@ -54,40 +55,44 @@ def check_room_locked(
 ) -> tuple[dict[str, str], int] | None:
     """
     Check if a room is locked. Returns error response tuple if locked, None if not locked.
-    
+
     This checks BOTH:
     1. Permanent room lock (room:{room_id}:locked)
     2. Temporary trajectory lock (trajectory:meta) - used by vis.lock context manager
-    
+
     Args:
         room_id: The room ID to check
         client_id: Optional client ID - if provided and this client holds the trajectory lock,
                    the check will pass
-    
+
     Returns:
         Error tuple if locked and client doesn't hold lock, None otherwise
     """
     redis_client = current_app.extensions["redis"]
-    
+
     # Check permanent room lock
     locked = redis_client.get(f"room:{room_id}:locked")
     if locked == "1":
         return {"error": "Room is locked and cannot be modified"}, 403
-    
+
     # Check trajectory lock (from vis.lock context manager)
     # This protects ALL trajectory operations: append, delete, upload, etc.
     trajectory_lock_key = get_lock_key(room_id, "trajectory:meta")
     lock_holder = redis_client.get(trajectory_lock_key)
-    
+
     if lock_holder:
-        log.debug(f"Lock check: room={room_id}, lock_holder={lock_holder}, client_id={client_id}")
+        log.debug(
+            f"Lock check: room={room_id}, lock_holder={lock_holder}, client_id={client_id}"
+        )
         # If a client_id is provided and it holds the lock, allow the operation
         if client_id and lock_holder == client_id:
             return None
         # Otherwise, the room is locked by another operation
-        log.warning(f"Lock rejected: lock_holder={lock_holder} != client_id={client_id}")
+        log.warning(
+            f"Lock rejected: lock_holder={lock_holder} != client_id={client_id}"
+        )
         return {"error": "Room is temporarily locked by another operation"}, 423
-    
+
     return None
 
 
@@ -243,6 +248,7 @@ def emit_len_frames_update(room_id: str):
 
     # Broadcast frame count update via room:update event
     from zndraw.app.room_manager import emit_room_update
+
     emit_room_update(socketio, room_id, frameCount=frame_count)
 
 
@@ -256,7 +262,65 @@ def health_check():
 def get_version():
     """Get the ZnDraw server version."""
     import zndraw
+
     return {"version": zndraw.__version__}, 200
+
+
+@main.route("/api/login", methods=["POST"])
+def login():
+    """Authenticate user and issue JWT token.
+
+    Request
+    -------
+    {
+        "userName": "John Doe"  // Required
+    }
+
+    Response
+    --------
+    {
+        "status": "ok",
+        "token": "eyJhbGc...",     // JWT token
+        "clientId": "uuid-string"  // Server-generated client ID
+    }
+    """
+    import datetime
+    import uuid
+
+    from zndraw.auth import create_jwt_token
+
+    data = request.get_json() or {}
+    user_name = data.get("userName")
+
+    if not user_name or not user_name.strip():
+        return {"error": "userName is required"}, 400
+
+    # Generate server-side client ID
+    client_id = str(uuid.uuid4())
+
+    # Create JWT token
+    token = create_jwt_token(client_id, user_name)
+
+    # Store client metadata in Redis
+    r = current_app.extensions["redis"]
+    client_key = f"client:{client_id}"
+    current_time = datetime.datetime.utcnow().isoformat()
+    r.hset(
+        client_key,
+        mapping={
+            "userName": user_name,
+            "createdAt": current_time,
+            "lastLogin": current_time,
+        },
+    )
+
+    log.info(f"User '{user_name}' logged in with client ID: {client_id}")
+
+    return {
+        "status": "ok",
+        "token": token,
+        "clientId": client_id,
+    }
 
 
 @main.route("/assets/<path:filename>")
@@ -264,11 +328,12 @@ def serve_static_assets(filename: str):
     static_folder = Path(__file__).parent.parent / "static" / "assets"
     return send_from_directory(static_folder, filename)
 
-@main.route('/', defaults={'path': ''})
+
+@main.route("/", defaults={"path": ""})
 @main.route("/<path:path>")
 def serve_react_router_paths(path: str):
     """Catch-all route to serve index.html for React Router paths.
-    
+
     This allows React Router to handle client-side routing for paths like /rooms, /rooms/:id, etc.
     API routes are registered with higher priority and won't match this pattern.
     """
@@ -475,14 +540,15 @@ def get_frame_metadata(room_id: str, frame_id: int):
         # Get the physical index for this frame
         mapping_entry = frame_mapping[frame_id]
 
-        if ":" in mapping_entry:
-            source_room_id, physical_index_str = mapping_entry.split(":", 1)
-            physical_index = int(physical_index_str)
-            source_storage = get_storage(source_room_id)
-        else:
-            # Fallback for any legacy data without colon separator
-            physical_index = int(mapping_entry)
-            source_storage = storage
+        if ":" not in mapping_entry:
+            return {
+                "error": f"Invalid frame mapping format for frame {frame_id}",
+                "type": "ValueError",
+            }, 500
+
+        source_room_id, physical_index_str = mapping_entry.split(":", 1)
+        physical_index = int(physical_index_str)
+        source_storage = get_storage(source_room_id)
 
         # Get the Zarr group
         zarr_group = source_storage.group
@@ -562,7 +628,7 @@ def delete_frames_batch(room_id):
     """Deletes frames using either a single frame_id, indices, or slice parameters from query params."""
     # Get client_id from query params (if provided)
     client_id = request.args.get("client_id")
-    
+
     # Check if room is locked (passes client_id for lock holder check)
     lock_error = check_room_locked(room_id, client_id)
     if lock_error:
@@ -708,7 +774,7 @@ def append_frame(room_id):
     """Handles frame operations (append, extend, replace, insert) based on action query parameter."""
     # Get client_id from query params (if provided)
     client_id = request.args.get("client_id")
-    
+
     # Check if room is locked (passes client_id for lock holder check)
     lock_error = check_room_locked(room_id, client_id)
     if lock_error:
@@ -805,7 +871,7 @@ def append_frame(room_id):
 
             # Emit len_frames update to notify clients of frame count change
             emit_len_frames_update(room_id)
-            
+
             log.info(
                 f"Extended trajectory with {num_frames} frames (physical: {start_physical_pos}-{start_physical_pos + num_frames - 1}) to room '{room_id}'"
             )
@@ -872,7 +938,7 @@ def append_frame(room_id):
 
             # Emit len_frames update to notify clients of frame count change
             emit_len_frames_update(room_id)
-            
+
             log.debug(
                 f"Appended frame {logical_position} (physical: {room_id}:{new_physical_index}) to room '{room_id}'"
             )
@@ -1043,10 +1109,10 @@ def bulk_replace_frames(room_id):
 @main.route("/api/rooms", methods=["GET"])
 def list_rooms():
     """List all active rooms with metadata.
-    
+
     Query Parameters:
         search: Optional regex pattern to search in metadata values
-    
+
     Returns:
         [{
             "id": "room1",
@@ -1060,8 +1126,9 @@ def list_rooms():
         }]
     """
     import re
+
     from zndraw.app.metadata_manager import RoomMetadataManager
-    
+
     redis_client = current_app.extensions["redis"]
     search_pattern = request.args.get("search")
 
@@ -1082,21 +1149,21 @@ def list_rooms():
         # Get frame count
         indices_key = f"room:{room_id}:trajectory:indices"
         frame_count = redis_client.zcard(indices_key)
-        
+
         # Get metadata
         description = redis_client.get(f"room:{room_id}:description")
         locked = redis_client.get(f"room:{room_id}:locked") == "1"
         hidden = redis_client.get(f"room:{room_id}:hidden") == "1"
-        is_default = (default_room == room_id)
-        
+        is_default = default_room == room_id
+
         # Check if metadata lock is held (trajectory:meta is the target used by vis.lock)
         metadata_lock_key = get_lock_key(room_id, "trajectory:meta")
         metadata_locked = redis_client.get(metadata_lock_key) is not None
-        
+
         # Get file metadata
         metadata_manager = RoomMetadataManager(redis_client, room_id)
         file_metadata = metadata_manager.get_all()
-        
+
         # Filter by search pattern if provided
         if search_pattern:
             try:
@@ -1110,17 +1177,19 @@ def list_rooms():
             except re.error:
                 # Invalid regex, skip filtering for this room
                 pass
-        
-        rooms.append({
-            "id": room_id,
-            "description": description if description else None,
-            "frameCount": frame_count,
-            "locked": locked,
-            "metadataLocked": metadata_locked,
-            "hidden": hidden,
-            "isDefault": is_default,
-            "metadata": file_metadata
-        })
+
+        rooms.append(
+            {
+                "id": room_id,
+                "description": description if description else None,
+                "frameCount": frame_count,
+                "locked": locked,
+                "metadataLocked": metadata_locked,
+                "hidden": hidden,
+                "isDefault": is_default,
+                "metadata": file_metadata,
+            }
+        )
 
     return rooms, 200
 
@@ -1128,7 +1197,7 @@ def list_rooms():
 @main.route("/api/rooms/<string:room_id>", methods=["GET"])
 def get_room(room_id):
     """Get details for a specific room.
-    
+
     Returns:
         {
             "id": "room1",
@@ -1140,7 +1209,7 @@ def get_room(room_id):
         }
     """
     from zndraw.app.metadata_manager import RoomMetadataManager
-    
+
     redis_client = current_app.extensions["redis"]
 
     # Check if room exists
@@ -1155,12 +1224,12 @@ def get_room(room_id):
     # Get frame count
     indices_key = f"room:{room_id}:trajectory:indices"
     frame_count = redis_client.zcard(indices_key)
-    
+
     # Get metadata
     description = redis_client.get(f"room:{room_id}:description")
     locked = redis_client.get(f"room:{room_id}:locked") == "1"
     hidden = redis_client.get(f"room:{room_id}:hidden") == "1"
-    
+
     # Get file metadata
     metadata_manager = RoomMetadataManager(redis_client, room_id)
     file_metadata = metadata_manager.get_all()
@@ -1171,7 +1240,7 @@ def get_room(room_id):
         "frameCount": frame_count,
         "locked": locked,
         "hidden": hidden,
-        "metadata": file_metadata
+        "metadata": file_metadata,
     }, 200
 
 
@@ -1223,6 +1292,7 @@ def update_room(room_id):
     # Emit socket event for real-time updates
     if changes:
         from zndraw.app.room_manager import emit_room_update
+
         emit_room_update(socketio, room_id, **changes)
         log.debug(f"Emitted room:update for room '{room_id}': {changes}")
 
@@ -1233,7 +1303,7 @@ def update_room(room_id):
 @main.route("/api/rooms/default", methods=["GET"])
 def get_default_room():
     """Get the default room ID.
-    
+
     Returns:
         {"roomId": "room1"} or {"roomId": null}
     """
@@ -1245,7 +1315,7 @@ def get_default_room():
 @main.route("/api/rooms/default", methods=["PUT"])
 def set_default_room():
     """Set the default room.
-    
+
     Request body:
         {"roomId": "room1"}  // or null to unset
     """
@@ -1265,6 +1335,7 @@ def set_default_room():
         # Update previous default room
         if previous_default:
             from zndraw.app.room_manager import emit_room_update
+
             emit_room_update(socketio, previous_default, isDefault=False)
     else:
         # Verify room exists
@@ -1283,10 +1354,12 @@ def set_default_room():
         # Update previous default room if different
         if previous_default and previous_default != room_id:
             from zndraw.app.room_manager import emit_room_update
+
             emit_room_update(socketio, previous_default, isDefault=False)
 
         # Update new default room
         from zndraw.app.room_manager import emit_room_update
+
         emit_room_update(socketio, room_id, isDefault=True)
 
     log.debug(f"Updated default room from {previous_default} to {room_id}")
@@ -1297,46 +1370,46 @@ def set_default_room():
 @main.route("/api/rooms/<string:room_id>/metadata", methods=["GET"])
 def get_room_metadata(room_id: str):
     """Get all metadata for a room.
-    
+
     Returns:
         {"metadata": {"relative_file_path": "...", ...}}
     """
     from zndraw.app.metadata_manager import RoomMetadataManager
-    
+
     redis_client = current_app.extensions["redis"]
     manager = RoomMetadataManager(redis_client, room_id)
     metadata = manager.get_all()
-    
+
     return {"metadata": metadata}, 200
 
 
 @main.route("/api/rooms/<string:room_id>/metadata", methods=["POST"])
 def update_room_metadata(room_id: str):
     """Update room metadata. Respects room lock.
-    
+
     Request body:
         {"relative_file_path": "data/file.xyz", "file_size": "12345", ...}
-    
+
     Returns:
         {"success": true, "metadata": {...}}
     """
     from zndraw.app.metadata_manager import RoomMetadataManager
-    
+
     # Check permanent room lock only (metadata doesn't use trajectory lock)
     redis_client = current_app.extensions["redis"]
     locked = redis_client.get(f"room:{room_id}:locked")
     if locked == "1":
         return {"error": "Room is locked and cannot be modified"}, 403
-    
+
     data = request.get_json() or {}
-    
+
     # Validate all values are strings
     for key, value in data.items():
         if not isinstance(value, str):
             return {
                 "error": f"All values must be strings. Field '{key}' has type {type(value).__name__}"
             }, 400
-    
+
     # Update metadata
     manager = RoomMetadataManager(redis_client, room_id)
     try:
@@ -1435,20 +1508,20 @@ def get_lock_status(room_id: str, target: str):
         "target": target,
         "holder": lock_holder,
         "metadata": metadata,
-        "ttl": ttl
+        "ttl": ttl,
     }
 
 
 @main.route("/api/rooms/<string:room_id>/duplicate", methods=["POST"])
 def duplicate_room(room_id):
     """Duplicate a room by copying all frame mappings and metadata.
-    
+
     Request body:
         {
             "newRoomId": "new-room-uuid",  // Optional, auto-generated if not provided
             "description": "Copy of room1"  // Optional, description for new room
         }
-    
+
     Returns:
         {
             "status": "ok",
@@ -1468,6 +1541,7 @@ def duplicate_room(room_id):
     new_room_id = data.get("newRoomId")
     if not new_room_id:
         import uuid
+
         new_room_id = str(uuid.uuid4())
 
     # Check new room doesn't already exist
@@ -1479,7 +1553,7 @@ def duplicate_room(room_id):
     if source_indices:
         redis_client.zadd(
             f"room:{new_room_id}:trajectory:indices",
-            {member: score for member, score in source_indices}
+            {member: score for member, score in source_indices},
         )
 
     # 2. Copy geometries hash
@@ -1496,19 +1570,18 @@ def duplicate_room(room_id):
     redis_client.set(f"room:{new_room_id}:current_frame", 0)
     redis_client.set(f"room:{new_room_id}:locked", 0)
     redis_client.set(f"room:{new_room_id}:hidden", 0)
-    
+
     description = data.get("description")
     if description:
         redis_client.set(f"room:{new_room_id}:description", description)
 
     # 5. Initialize default geometries for new room
-    from zndraw.geometries import Sphere, Bond, Curve, Cell, Floor
+    from zndraw.geometries import Bond, Cell, Curve, Floor, Sphere
 
     if not geometries:  # Only if source had no geometries
         # Create particles with explicit arrays.positions/colors for initial /join
         particles_data = Sphere(
-            position="arrays.positions",
-            color="arrays.colors"
+            position="arrays.positions", color="arrays.colors"
         ).model_dump()
         redis_client.hset(
             f"room:{new_room_id}:geometries",
@@ -1540,10 +1613,24 @@ def duplicate_room(room_id):
         f"Duplicated room '{room_id}' to '{new_room_id}' with {len(source_indices)} frames"
     )
 
+    # Emit room:update event to notify clients of new room
+    from zndraw.app.room_manager import emit_room_update
+
+    emit_room_update(
+        socketio,
+        new_room_id,
+        created=True,
+        description=description,
+        frameCount=len(source_indices),
+        locked=False,
+        hidden=False,
+        isDefault=False,
+    )
+
     return {
         "status": "ok",
         "roomId": new_room_id,
-        "frameCount": len(source_indices)
+        "frameCount": len(source_indices),
     }, 200
 
 
@@ -1584,7 +1671,7 @@ def renormalize_frame_indices(room_id):
 def exit_app():
     """Endpoint to gracefully shut down the server. Secured via a shared secret."""
     socketio.stop()
-    return {"success": True} # this might never be seen
+    return {"success": True}  # this might never be seen
 
 
 @main.route("/api/rooms/<string:room_id>/schema/<string:category>", methods=["GET"])
@@ -1659,14 +1746,18 @@ def get_room_schema(room_id: str, category: str):
 )
 def log_room_extension(room_id: str, category: str, extension: str):
     """Submits a user extension action to create a job."""
+    from zndraw.auth import AuthError, get_current_client
+
+    # Authenticate and get user from JWT token
+    try:
+        client = get_current_client()
+        user_id = client["userName"]
+    except AuthError as e:
+        return {"error": e.message}, e.status_code
+
     json_data = request.json
     if json_data is None:
         json_data = {}
-
-    # Try to get userId from query params first, then from JSON body
-    user_id = request.args.get("userId") or json_data.pop("userId", None)
-    if user_id is None:
-        return {"error": "User ID is required"}, 400
 
     data = json_data.pop("data", None)
     if data is None:
@@ -1809,13 +1900,18 @@ def log_room_extension(room_id: str, category: str, extension: str):
 )
 def get_extension_data(room_id: str, category: str, extension: str):
     """Gets the cached data for a user's extension."""
-    user_id = request.args.get("userId")
+    from zndraw.auth import AuthError, get_current_client
+
+    # Authenticate and get user from JWT token
+    try:
+        client = get_current_client()
+        user_id = client["userName"]
+    except AuthError as e:
+        return {"error": e.message}, e.status_code
+
     print(
         f"get_extension_data called with userId={user_id}, category={category}, extension={extension} for room {room_id}"
     )
-
-    if not user_id:
-        return {"error": "User ID is required"}, 400
 
     redis_client = current_app.extensions["redis"]
     extension_data = redis_client.hget(
@@ -2183,7 +2279,9 @@ def get_next_job(room_id: str):
                                 try:
                                     task_info = json.loads(task_data)
                                 except json.JSONDecodeError as e:
-                                    log.error(f"Invalid JSON in queue {keys.queue}: {e}, data: {task_data}")
+                                    log.error(
+                                        f"Invalid JSON in queue {keys.queue}: {e}, data: {task_data}"
+                                    )
                                     # Skip this malformed job and continue
                                     redis_client.lpop(keys.queue)
                                     continue
@@ -2239,7 +2337,9 @@ def get_next_job(room_id: str):
                             try:
                                 task_info = json.loads(task_data)
                             except json.JSONDecodeError as e:
-                                log.error(f"Invalid JSON in queue {keys.queue}: {e}, data: {task_data}")
+                                log.error(
+                                    f"Invalid JSON in queue {keys.queue}: {e}, data: {task_data}"
+                                )
                                 # Continue to next extension, the malformed job was already popped
                                 continue
 
@@ -2250,7 +2350,9 @@ def get_next_job(room_id: str):
                             if job:
                                 # Move worker from idle to progressing
                                 redis_client.smove(
-                                    keys.idle_workers, keys.progressing_workers, worker_id
+                                    keys.idle_workers,
+                                    keys.progressing_workers,
+                                    worker_id,
                                 )
 
                                 # Mark job as started by this worker
@@ -2276,7 +2378,10 @@ def get_next_job(room_id: str):
         return {"error": "No jobs available"}, 400
 
     except Exception as e:
-        log.error(f"Unexpected error in get_next_job for worker {worker_id if 'worker_id' in locals() else 'unknown'}: {e}", exc_info=True)
+        log.error(
+            f"Unexpected error in get_next_job for worker {worker_id if 'worker_id' in locals() else 'unknown'}: {e}",
+            exc_info=True,
+        )
         return {"error": f"Internal server error: {str(e)}"}, 500
 
 
@@ -2384,12 +2489,45 @@ def get_chat_messages(room_id: str):
 
 @main.route("/api/rooms/<string:room_id>/join", methods=["POST"])
 def join_room(room_id):
+    """Join a room (requires JWT authentication).
+
+    Headers
+    -------
+    Authorization: Bearer <jwt-token> (required)
+
+    Request
+    -------
+    {
+        "description": "optional room description",
+        "copyFrom": "optional-source-room",
+        "allowCreate": true
+    }
+
+    Response
+    --------
+    {
+        "status": "ok",
+        "roomId": "room-name",
+        "clientId": "uuid-string",
+        "frameCount": 0,
+        "step": 0,
+        "created": true,
+        ...
+    }
+    """
+    from zndraw.auth import AuthError, get_current_client
+
     data = request.get_json() or {}
     if ":" in room_id:
         return {"error": "Room ID cannot contain ':' character"}, 400
 
-    user_name = data.get("userId", "Anonymous")
-    client_id = data.get("clientId")
+    # Authenticate request (JWT required)
+    try:
+        client = get_current_client()
+        client_id = client["clientId"]
+        user_name = client["userName"]
+    except AuthError as e:
+        return {"error": e.message}, e.status_code
     description = data.get("description")
     copy_from = data.get("copyFrom")
     allow_create = data.get("allowCreate", True)
@@ -2402,15 +2540,8 @@ def join_room(room_id):
     if not allow_create and not room_exists:
         return {
             "status": "not_found",
-            "message": f"Room '{room_id}' does not exist yet. It may still be loading."
+            "message": f"Room '{room_id}' does not exist yet. It may still be loading.",
         }, 404
-
-    # Generate clientId if not provided
-    if not client_id:
-        import uuid
-
-        client_id = str(uuid.uuid4())
-        log.info(f"Generated new clientId: {client_id}")
 
     # Get or create client data
     client_key = f"client:{client_id}"
@@ -2422,25 +2553,11 @@ def join_room(room_id):
     # Add client to room's client set (they're joining the room, even if not connected yet)
     r.sadd(f"room:{room_id}:clients", client_id)
 
-    # Generate temporary join token for socket authentication
-    import uuid
-
-    join_token = str(uuid.uuid4())
-    token_key = f"join_token:{join_token}"
-    # Store token with clientId, room, userName (expires in 60 seconds)
-    token_data = json.dumps(
-        {"clientId": client_id, "roomId": room_id, "userName": user_name}
-    )
-    r.setex(token_key, 60, token_data)
-
-    log.info(
-        f"Client {client_id} ({user_name}) prepared to join room: {room_id}, token: {join_token}"
-    )
+    log.info(f"Client {client_id} ({user_name}) joined room: {room_id}")
 
     response = {
         "status": "ok",
         "clientId": client_id,
-        "joinToken": join_token,
         "frameCount": 0,
         "roomId": room_id,
         "selections": None,
@@ -2460,36 +2577,36 @@ def join_room(room_id):
             source_indices_key = f"room:{copy_from}:trajectory:indices"
             if not r.exists(source_indices_key):
                 return {"error": f"Source room '{copy_from}' not found"}, 404
-            
+
             # Copy trajectory indices (sorted set) - this shares frame data
             source_indices = r.zrange(source_indices_key, 0, -1, withscores=True)
             if source_indices:
                 r.zadd(
                     f"room:{room_id}:trajectory:indices",
-                    {member: score for member, score in source_indices}
+                    {member: score for member, score in source_indices},
                 )
-            
+
             # Copy geometries hash
             geometries = r.hgetall(f"room:{copy_from}:geometries")
             if geometries:
                 r.hset(f"room:{room_id}:geometries", mapping=geometries)
-            
+
             # Copy bookmarks hash (physical keys remain valid)
             bookmarks = r.hgetall(f"room:{copy_from}:bookmarks")
             if bookmarks:
                 r.hset(f"room:{room_id}:bookmarks", mapping=bookmarks)
-            
+
             log.info(
                 f"New room '{room_id}' created by copying from room '{copy_from}' with {len(source_indices)} frames"
             )
         else:
             # Create empty room
             log.info(f"New room '{room_id}' created as empty room")
-        
+
         # Set description if provided
         if description:
             r.set(f"room:{room_id}:description", description)
-        
+
         # Initialize room metadata
         r.set(f"room:{room_id}:current_frame", 0)
         r.set(f"room:{room_id}:locked", 0)
@@ -2513,7 +2630,36 @@ def join_room(room_id):
 
         # Broadcast room creation to all connected clients
         frame_count = r.zcard(f"room:{room_id}:trajectory:indices")
+
+        # Check if metadata lock is held (trajectory:meta is the target used by vis.lock)
+        metadata_lock_key = get_lock_key(room_id, "trajectory:meta")
+        metadata_locked = None
+        if r.exists(metadata_lock_key):
+            # Lock exists - get metadata
+            metadata_raw = r.get(f"{metadata_lock_key}:metadata")
+            if metadata_raw:
+                metadata = json.loads(metadata_raw)
+                lock_metadata = LockMetadata(
+                    msg=metadata.get("msg"),
+                    userName=metadata.get("userName"),
+                    timestamp=metadata.get("timestamp"),
+                )
+                metadata_locked = lock_metadata.model_dump()
+            else:
+                # Lock exists but no metadata - get basic info from client
+                lock_holder_client_id = r.get(metadata_lock_key)
+                user_name = (
+                    r.hget(f"client:{lock_holder_client_id}", "userName")
+                    if lock_holder_client_id
+                    else None
+                )
+                lock_metadata = LockMetadata(
+                    msg=None, userName=user_name or "unknown", timestamp=None
+                )
+                metadata_locked = lock_metadata.model_dump()
+
         from zndraw.app.room_manager import emit_room_update
+
         emit_room_update(
             socketio,
             room_id,
@@ -2522,16 +2668,16 @@ def join_room(room_id):
             frameCount=frame_count,
             locked=False,
             hidden=False,
-            isDefault=False
+            isDefault=False,
+            metadataLocked=metadata_locked,
         )
 
         # Create default geometries only if not copied from another room
         if not copy_from:
-            from zndraw.geometries import Sphere, Bond, Curve, Cell, Floor
+            from zndraw.geometries import Bond, Cell, Curve, Floor, Sphere
 
             particles_data = Sphere(
-                position="arrays.positions",
-                color="arrays.colors"
+                position="arrays.positions", color="arrays.colors"
             ).model_dump()
             r.hset(
                 f"room:{room_id}:geometries",
@@ -2580,7 +2726,9 @@ def join_room(room_id):
         if step is not None:
             step_int = int(step)
             if step_int < 0:
-                log.warning(f"Negative frame in Redis for room {room_id}: {step_int}, resetting to 0")
+                log.warning(
+                    f"Negative frame in Redis for room {room_id}: {step_int}, resetting to 0"
+                )
                 step_int = 0
             response["step"] = step_int
         else:
@@ -2597,6 +2745,7 @@ def join_room(room_id):
 
     # Add geometry defaults from Pydantic models (single source of truth)
     from zndraw.geometries import geometries as geometry_models
+
     geometry_defaults = {}
     for name, model in geometry_models.items():
         try:
@@ -2632,13 +2781,32 @@ def join_room(room_id):
     active_group = r.get(f"room:{room_id}:active_selection_group")
     response["activeSelectionGroup"] = active_group if active_group else None
 
+    # Check if metadata lock is held (trajectory:meta is the target used by vis.lock)
+    metadata_lock_key = get_lock_key(room_id, "trajectory:meta")
+    if r.exists(metadata_lock_key):
+        # Lock exists - get metadata
+        metadata_raw = r.get(f"{metadata_lock_key}:metadata")
+        if metadata_raw:
+            metadata = json.loads(metadata_raw)
+            lock_metadata = LockMetadata(
+                msg=metadata.get("msg"),
+                userName=metadata.get("userName"),
+                timestamp=metadata.get("timestamp"),
+            )
+            response["metadataLocked"] = lock_metadata.model_dump()
+        else:
+            # Lock exists but no metadata (shouldn't happen, but handle gracefully)
+            response["metadataLocked"] = None
+    else:
+        response["metadataLocked"] = None
+
     return response
 
 
 @main.route("/api/rooms/<string:room_id>/geometries", methods=["POST"])
 def create_geometry(room_id: str):
     """Create or update a geometry in the room.
-    
+
     Request body:
         {
             "key": "geometry_name",
@@ -2646,18 +2814,26 @@ def create_geometry(room_id: str):
             "data": {...}  // geometry-specific data
         }
     """
+    from zndraw.auth import AuthError, get_current_client
+
+    # Authenticate and get client ID from JWT token
+    try:
+        client = get_current_client()
+        client_id = client["clientId"]
+    except AuthError as e:
+        return {"error": e.message}, e.status_code
+
     data = request.get_json() or {}
     key = data.get("key")
     geometry_type = data.get("type")
     geometry_data = data.get("data")
-    clientId = data.get("clientId")
-    
+
     if not key or not geometry_type or geometry_data is None:
         return {
             "error": "'key', 'type', and 'data' are required",
             "type": "ValueError",
         }, 400
-    
+
     from zndraw.geometries import geometries
 
     if geometry_type not in geometries:
@@ -2680,12 +2856,13 @@ def create_geometry(room_id: str):
         else:
             log.warning(f"Geometry type mismatch for key '{key}'. Overwriting.")
 
-
     # Validate and apply defaults through Pydantic model
     try:
         geometry_class = geometries[geometry_type]
         validated_geometry = geometry_class(**geometry_data)
-        value_to_store = json.dumps({"type": geometry_type, "data": validated_geometry.model_dump()})
+        value_to_store = json.dumps(
+            {"type": geometry_type, "data": validated_geometry.model_dump()}
+        )
     except Exception as e:
         return {
             "error": f"Invalid geometry data: {str(e)}",
@@ -2693,7 +2870,7 @@ def create_geometry(room_id: str):
         }, 400
 
     r.hset(f"room:{room_id}:geometries", key, value_to_store)
-    clientSID = r.hget(f"client:{clientId}", "currentSid") if clientId else None
+    clientSID = r.hget(f"client:{client_id}", "currentSid")
     socketio.emit(
         SocketEvents.INVALIDATE_GEOMETRY,
         {
@@ -2701,7 +2878,7 @@ def create_geometry(room_id: str):
             "operation": "set",
         },
         to=f"room:{room_id}",
-        skip_sid=clientSID
+        skip_sid=clientSID,
     )
 
     return {"status": "success"}, 200
@@ -2710,7 +2887,7 @@ def create_geometry(room_id: str):
 @main.route("/api/rooms/<string:room_id>/geometries/<string:key>", methods=["GET"])
 def get_geometry(room_id: str, key: str):
     """Get a specific geometry by key.
-    
+
     Returns:
         {
             "key": "geometry_name",
@@ -2723,13 +2900,25 @@ def get_geometry(room_id: str, key: str):
     r = current_app.extensions["redis"]
     geometry_data = r.hget(f"room:{room_id}:geometries", key)
     if not geometry_data:
-        return {"error": f"Geometry with key '{key}' not found", "type": "KeyError"}, 404
+        return {
+            "error": f"Geometry with key '{key}' not found",
+            "type": "KeyError",
+        }, 404
     geometry = json.loads(geometry_data)
     return {"key": key, "geometry": geometry}, 200
 
 
 @main.route("/api/rooms/<string:room_id>/geometries/<string:key>", methods=["DELETE"])
 def delete_geometry(room_id: str, key: str):
+    from zndraw.auth import AuthError, get_current_client
+
+    # Authenticate and get client ID from JWT token
+    try:
+        client = get_current_client()
+        client_id = client["clientId"]
+    except AuthError as e:
+        return {"error": e.message}, e.status_code
+
     r = current_app.extensions["redis"]
     response = r.hdel(f"room:{room_id}:geometries", key)
     if response == 0:
@@ -2737,6 +2926,8 @@ def delete_geometry(room_id: str, key: str):
             "error": f"Geometry with key '{key}' does not exist",
             "type": "KeyError",
         }, 404
+
+    clientSID = r.hget(f"client:{client_id}", "currentSid")
     socketio.emit(
         SocketEvents.INVALIDATE_GEOMETRY,
         {
@@ -2744,6 +2935,7 @@ def delete_geometry(room_id: str, key: str):
             "operation": "delete",
         },
         to=f"room:{room_id}",
+        skip_sid=clientSID,
     )
     return {"status": "success"}, 200
 
@@ -2751,7 +2943,7 @@ def delete_geometry(room_id: str, key: str):
 @main.route("/api/rooms/<string:room_id>/geometries", methods=["GET"])
 def list_geometries(room_id: str):
     """List all geometry keys in the room.
-    
+
     Returns:
         {"geometries": ["key1", "key2", ...]}
     """
@@ -2765,10 +2957,7 @@ def list_geometry_schemas(room_id: str):
     """Return JSON schemas for all geometry types for form generation."""
     from zndraw.geometries import geometries
 
-    schemas = {
-        name: model.model_json_schema()
-        for name, model in geometries.items()
-    }
+    schemas = {name: model.model_json_schema() for name, model in geometries.items()}
     return {"schemas": schemas}, 200
 
 
@@ -2868,7 +3057,7 @@ def get_bookmark(room_id: str, index: int):
     frame_count = r.zcard(f"room:{room_id}:trajectory:indices")
     if index < 0 or index >= frame_count:
         return {
-            "error": f"Bookmark index {index} out of range (0-{frame_count-1})",
+            "error": f"Bookmark index {index} out of range (0-{frame_count - 1})",
             "type": "IndexError",
         }, 404
 
@@ -2902,7 +3091,7 @@ def set_bookmark(room_id: str, index: int):
     frame_count = r.zcard(f"room:{room_id}:trajectory:indices")
     if index < 0 or index >= frame_count:
         return {
-            "error": f"Bookmark index {index} out of range (0-{frame_count-1})",
+            "error": f"Bookmark index {index} out of range (0-{frame_count - 1})",
             "type": "IndexError",
         }, 400
 
@@ -2989,9 +3178,7 @@ def get_selection(room_id: str, geometry: str):
     return {"selection": json.loads(selection)}, 200
 
 
-@main.route(
-    "/api/rooms/<string:room_id>/selections/<string:geometry>", methods=["PUT"]
-)
+@main.route("/api/rooms/<string:room_id>/selections/<string:geometry>", methods=["PUT"])
 def update_selection(room_id: str, geometry: str):
     """Update selection for a specific geometry.
 
@@ -3258,7 +3445,9 @@ def list_screenshots(room_id: str):
         return {"error": f"Failed to list screenshots: {str(e)}"}, 500
 
 
-@main.route("/api/rooms/<string:room_id>/screenshots/<int:screenshot_id>", methods=["GET"])
+@main.route(
+    "/api/rooms/<string:room_id>/screenshots/<int:screenshot_id>", methods=["GET"]
+)
 def get_screenshot(room_id: str, screenshot_id: int):
     """Download a specific screenshot.
 
@@ -3307,7 +3496,9 @@ def get_screenshot_metadata(room_id: str, screenshot_id: int):
         return {"error": f"Failed to get screenshot metadata: {str(e)}"}, 500
 
 
-@main.route("/api/rooms/<string:room_id>/screenshots/<int:screenshot_id>", methods=["DELETE"])
+@main.route(
+    "/api/rooms/<string:room_id>/screenshots/<int:screenshot_id>", methods=["DELETE"]
+)
 def delete_screenshot(room_id: str, screenshot_id: int):
     """Delete a screenshot."""
     try:
@@ -3426,21 +3617,23 @@ def download_frames(room_id: str):
         Streaming XYZ file download or error.
     """
     from io import StringIO
+
     import ase.io
+
     from zndraw.utils import atoms_from_dict
 
     redis_client = current_app.extensions["redis"]
 
     # Get parameters
-    indices_param = request.args.get('indices')
-    selection_param = request.args.get('selection')
-    custom_filename = request.args.get('filename')
+    indices_param = request.args.get("indices")
+    selection_param = request.args.get("selection")
+    custom_filename = request.args.get("filename")
 
     # Parse selection if provided
     selection = None
     if selection_param:
         try:
-            selection = [int(i.strip()) for i in selection_param.split(',')]
+            selection = [int(i.strip()) for i in selection_param.split(",")]
         except ValueError:
             return {"error": "Invalid selection format"}, 400
 
@@ -3459,7 +3652,7 @@ def download_frames(room_id: str):
     if indices_param:
         # Use explicit indices parameter
         try:
-            frame_indices = [int(i.strip()) for i in indices_param.split(',')]
+            frame_indices = [int(i.strip()) for i in indices_param.split(",")]
         except ValueError:
             return {"error": "Invalid indices format"}, 400
     else:
@@ -3469,7 +3662,9 @@ def download_frames(room_id: str):
     # Validate frame indices
     for idx in frame_indices:
         if idx < 0 or idx >= frame_count:
-            return {"error": f"Frame index {idx} out of range (0-{frame_count-1})"}, 400
+            return {
+                "error": f"Frame index {idx} out of range (0-{frame_count - 1})"
+            }, 400
 
     # Generate filename
     if not custom_filename:
@@ -3489,14 +3684,14 @@ def download_frames(room_id: str):
             try:
                 # Decode bytes to string if necessary
                 mapping_entry_str = (
-                    mapping_entry.decode('utf-8')
+                    mapping_entry.decode("utf-8")
                     if isinstance(mapping_entry, bytes)
                     else mapping_entry
                 )
 
                 # Parse the mapping entry to get source room and physical index
-                if ':' in mapping_entry_str:
-                    source_room_id, physical_index_str = mapping_entry_str.split(':', 1)
+                if ":" in mapping_entry_str:
+                    source_room_id, physical_index_str = mapping_entry_str.split(":", 1)
                     physical_index = int(physical_index_str)
                     source_storage = get_storage(source_room_id)
                 else:
@@ -3514,10 +3709,10 @@ def download_frames(room_id: str):
                     atoms = atoms[selection]
 
                 # Write single frame to buffer in ExtendedXYZ format
-                ase.io.write(buffer, atoms, format='extxyz', write_info=True)
+                ase.io.write(buffer, atoms, format="extxyz", write_info=True)
 
                 # Get string content and encode to bytes
-                chunk = buffer.getvalue().encode('utf-8')
+                chunk = buffer.getvalue().encode("utf-8")
 
                 # Yield the chunk
                 yield chunk
@@ -3534,10 +3729,9 @@ def download_frames(room_id: str):
     # Return streaming response
     return Response(
         generate_xyz_chunks(),
-        mimetype='chemical/x-xyz',
+        mimetype="chemical/x-xyz",
         headers={
-            'Content-Disposition': f'attachment; filename="{custom_filename}"',
-            'Content-Type': 'chemical/x-xyz'
-        }
+            "Content-Disposition": f'attachment; filename="{custom_filename}"',
+            "Content-Type": "chemical/x-xyz",
+        },
     )
-

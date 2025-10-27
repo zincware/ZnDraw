@@ -3,9 +3,9 @@
 import json
 import os
 import signal
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-import time
 
 import requests
 
@@ -194,7 +194,7 @@ def shutdown_server(server_info: ServerInfo) -> bool:
         return response.status_code == 200
     except (requests.RequestException, requests.ConnectionError):
         # the server shutdown will happen instantly, so we do see an error here!
-        for _ in range(25): # wait for up to 5 seconds
+        for _ in range(25):  # wait for up to 5 seconds
             if not is_process_running(server_info.pid):
                 return True
             time.sleep(0.2)

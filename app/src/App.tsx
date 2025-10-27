@@ -1,8 +1,6 @@
 import {
   createBrowserRouter,
   RouterProvider,
-  Navigate,
-  useParams,
   useSearchParams,
 } from "react-router-dom";
 import MainPage from "./pages/landingPage";
@@ -23,20 +21,17 @@ const theme = createTheme({
   defaultColorScheme: "light",
 });
 
-// Redirect component for /rooms/:roomId -> /rooms/:roomId/:uuid
-// Or show waiting page if waitForCreation=true
-const RoomRedirect = () => {
-  const { roomId } = useParams<{ roomId: string }>();
+// Component for /rooms/:roomId route
+// Shows waiting page if waitForCreation=true, otherwise shows main page
+const RoomPage = () => {
   const [searchParams] = useSearchParams();
-  
   const waitForCreation = searchParams.get("waitForCreation") === "true";
-  
+
   if (waitForCreation) {
     return <RoomWaitingPage />;
   }
-  
-  const userId = crypto.randomUUID();
-  return <Navigate to={`/rooms/${roomId}/${userId}`} replace />;
+
+  return <MainPage />;
 };
 
 const router = createBrowserRouter([
@@ -54,15 +49,11 @@ const router = createBrowserRouter([
   },
   {
     path: "/rooms/:roomId",
-    element: <RoomRedirect />,
+    element: <RoomPage />,
   },
   {
-    path: "/rooms/:roomId/:userId",
-    element: <MainPage />,
-  },
-  {
-    path: "/room/:roomId/:userId",
-    element: <MainPage />,
+    path: "/room/:roomId",
+    element: <RoomPage />,
   },
 ]);
 

@@ -136,7 +136,6 @@ const GeometryForm = () => {
     createGeometry(
       {
         roomId,
-        clientId,
         key: keyInput.trim(),
         geometryType: selectedType,
         geometryData: {
@@ -154,7 +153,7 @@ const GeometryForm = () => {
         },
       }
     );
-  }, [roomId, clientId, keyInput, selectedType, formData, activeState, createGeometry]);
+  }, [roomId, keyInput, selectedType, formData, activeState, createGeometry]);
 
   // Create debounced version of save
   const debouncedSave = useMemo(

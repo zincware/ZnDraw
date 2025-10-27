@@ -204,7 +204,7 @@ export default function Bonds({
       showSnackbar(`Geometry "${geometryKey}" disabled - data fetch failed`, "warning");
 
       // Then update server (server will skip emitting back to this client)
-      updateGeometryActive(roomId, clientId, geometryKey, "Bond", false)
+      updateGeometryActive(roomId, geometryKey, "Bond", false)
         .then(() => {
           if (process.env.NODE_ENV !== 'production') {
             console.info(`Bonds geometry "${geometryKey}" disabled successfully on server.`);

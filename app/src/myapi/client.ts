@@ -1,5 +1,6 @@
 import axios from "axios";
 import { decode } from "@msgpack/msgpack";
+import { getToken } from "../utils/auth";
 
 const numpyDtypeToTypedArray = {
   float32: Float32Array,
@@ -56,6 +57,15 @@ export interface FigureListResponse {
 }
 
 const apiClient = axios.create({});
+
+// Add interceptor to include JWT token in all requests
+apiClient.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+  return config;
+});
 
 // --- API Functions ---
 
@@ -146,7 +156,6 @@ export const getGeometry = async (
 
 export const createGeometry = async (
   roomId: string,
-  clientId: string | null,
   key: string,
   geometryType: string,
   geometryData: Record<string, any>,
@@ -155,19 +164,17 @@ export const createGeometry = async (
     key,
     type: geometryType,
     data: geometryData,
-    clientId,
   });
   return data;
 };
 
 export const updateGeometryActive = async (
   roomId: string,
-  clientId: string | null,
   key: string,
   geometryType: string,
   active: boolean,
 ): Promise<{ status: string }> => {
-  return createGeometry(roomId, clientId, key, geometryType, { active });
+  return createGeometry(roomId, key, geometryType, { active });
 };
 
 export const deleteGeometry = async (
@@ -308,7 +315,6 @@ export const deleteBookmark = async (
 // ==================== Room API ====================
 
 export interface JoinRoomRequest {
-  userId: string;
   template?: string;
   allowCreate?: boolean;
 }
@@ -316,7 +322,6 @@ export interface JoinRoomRequest {
 export interface JoinRoomResponse {
   status: string;
   clientId: string;
-  joinToken: string;
   frameCount: number;
   roomId: string;
   template: string;
@@ -331,6 +336,7 @@ export interface JoinRoomResponse {
   geometryDefaults: Record<string, any> | null;
   bookmarks: Record<number, string> | null;
   settings: Record<string, any>;
+  metadataLocked?: LockMetadata | null;
 }
 
 export const joinRoom = async (
@@ -402,22 +408,17 @@ export const getSchemas = async (
 
 export const getExtensionData = async (
   roomId: string,
-  userId: string,
   category: string,
   extension: string,
 ): Promise<{ data: any }> => {
   const { data } = await apiClient.get(
     `/api/rooms/${roomId}/extensions/${category}/${extension}/data`,
-    {
-      params: { userId },
-    },
   );
   return data;
 };
 
 export interface SubmitExtensionRequest {
   roomId: string;
-  userId: string;
   category: string;
   extension: string;
   data: any;
@@ -426,11 +427,10 @@ export interface SubmitExtensionRequest {
 export const submitExtension = async (
   request: SubmitExtensionRequest,
 ): Promise<{ status: string; queuePosition?: number; jobId?: string }> => {
-  const { roomId, userId, category, extension, data: extensionData } = request;
+  const { roomId, category, extension, data: extensionData } = request;
   const { data } = await apiClient.post(
     `/api/rooms/${roomId}/extensions/${category}/${extension}/submit`,
     {
-      userId,
       data: extensionData,
     },
   );

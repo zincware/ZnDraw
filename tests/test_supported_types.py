@@ -56,17 +56,17 @@ def test_supported_types_includes_all_common_formats(server):
 
     # Common molecular structure formats
     common_formats = [
-        ".xyz",      # XYZ format
-        ".extxyz",   # Extended XYZ
-        ".pdb",      # Protein Data Bank
-        ".cif",      # Crystallographic Information File
-        ".h5",       # HDF5/H5MD
-        ".h5md",     # H5MD
-        ".gro",      # GROMACS
-        ".mol",      # MDL Molfile
-        ".sdf",      # Structure Data File
-        ".db",       # ASE database
-        ".json",     # JSON database
+        ".xyz",  # XYZ format
+        ".extxyz",  # Extended XYZ
+        ".pdb",  # Protein Data Bank
+        ".cif",  # Crystallographic Information File
+        ".h5",  # HDF5/H5MD
+        ".h5md",  # H5MD
+        ".gro",  # GROMACS
+        ".mol",  # MDL Molfile
+        ".sdf",  # Structure Data File
+        ".db",  # ASE database
+        ".json",  # JSON database
     ]
 
     for fmt in common_formats:
@@ -103,14 +103,11 @@ H 1.0 0.0 0.0
 
     # Prepare file upload
     files = {
-        'file': ('test.xyz', io.BytesIO(xyz_content.encode('utf-8')), 'text/plain')
+        "file": ("test.xyz", io.BytesIO(xyz_content.encode("utf-8")), "text/plain")
     }
 
     # Try to upload the file
-    response = requests.post(
-        f"{server}/api/file-browser/upload",
-        files=files
-    )
+    response = requests.post(f"{server}/api/file-browser/upload", files=files)
 
     # Should successfully accept the upload (returns 200 or 202)
     assert response.status_code in [200, 202]
@@ -128,6 +125,7 @@ H 1.0 0.0 0.0
 def test_upload_sets_drag_drop_description(server, s22):
     """Test that drag/drop uploads include source information in room description."""
     import time
+
     from zndraw import ZnDraw
 
     # Create a simple XYZ file with a molecule
@@ -139,15 +137,10 @@ H 1.0 0.0 0.0
 
     # Prepare file upload with a specific filename
     filename = "my_molecule.xyz"
-    files = {
-        'file': (filename, io.BytesIO(xyz_content.encode('utf-8')), 'text/plain')
-    }
+    files = {"file": (filename, io.BytesIO(xyz_content.encode("utf-8")), "text/plain")}
 
     # Upload the file
-    response = requests.post(
-        f"{server}/api/file-browser/upload",
-        files=files
-    )
+    response = requests.post(f"{server}/api/file-browser/upload", files=files)
 
     assert response.status_code in [200, 202]
     data = response.json()
@@ -164,6 +157,9 @@ H 1.0 0.0 0.0
         description = room_data.get("description", "")
 
         # Description should mention drag & drop
-        assert "drag & drop" in description.lower() or "drag and drop" in description.lower()
+        assert (
+            "drag & drop" in description.lower()
+            or "drag and drop" in description.lower()
+        )
         # Description should include the filename
         assert filename in description

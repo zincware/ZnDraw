@@ -58,14 +58,19 @@ def test_vis_bookmarks_multiple_clients(server, s22):
 
     # Wait a moment for socket events to propagate
     import time
+
     time.sleep(0.1)
 
     # Both clients should see the same bookmarks (room-wide)
-    assert dict(vis2.bookmarks) == dict(vis1.bookmarks) == {
-        1: "First Frame",
-        5: "Middle Frame",
-        9: "Last Frame",
-    }
+    assert (
+        dict(vis2.bookmarks)
+        == dict(vis1.bookmarks)
+        == {
+            1: "First Frame",
+            5: "Middle Frame",
+            9: "Last Frame",
+        }
+    )
 
     # vis2 adds new bookmarks and updates one
     vis2.bookmarks[2] = "Second Frame"

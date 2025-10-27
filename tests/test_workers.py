@@ -1,5 +1,6 @@
 import pytest
 import requests
+from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
 from zndraw.extensions import Extension, ExtensionType
@@ -143,6 +144,7 @@ def test_run_client_extensions(server, category):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -171,7 +173,9 @@ def test_run_client_extensions(server, category):
     # /api/jobs/next?worker_id=<worker_id>
     # now we emulate picking up the job by the worker
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -200,6 +204,7 @@ def test_run_client_extensions(server, category):
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={"status": "completed", "workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -230,6 +235,7 @@ def test_run_client_extensions(server, category):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 43}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -241,6 +247,7 @@ def test_run_client_extensions(server, category):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 44}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -252,7 +259,9 @@ def test_run_client_extensions(server, category):
 
     # pick up next job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -282,7 +291,9 @@ def test_run_client_extensions(server, category):
     }
     # Try requesting next job while one is running
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Worker is not idle"}
@@ -291,6 +302,7 @@ def test_run_client_extensions(server, category):
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId2}/status",
         json={"status": "completed", "workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -309,7 +321,9 @@ def test_run_client_extensions(server, category):
     }
     # pick up next job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -321,6 +335,7 @@ def test_run_client_extensions(server, category):
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId3}/status",
         json={"status": "completed", "workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -348,22 +363,26 @@ def test_run_different_client_different_extensions(server):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     # queue job for mod2
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/selections/{mod2.__name__}/submit",
         json={"data": {"parameter": 43}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/selections/{mod2.__name__}/submit",
         json={"data": {"parameter": 43}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
 
@@ -376,7 +395,9 @@ def test_run_different_client_different_extensions(server):
 
     # pick up job for vis1
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.sid}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": vis1.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -387,12 +408,15 @@ def test_run_different_client_different_extensions(server):
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={"status": "completed", "workerId": vis1.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
     # pick up next job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.sid}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": vis1.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -403,12 +427,15 @@ def test_run_different_client_different_extensions(server):
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId2}/status",
         json={"status": "completed", "workerId": vis1.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
     # try pick up another job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.sid}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": vis1.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 400
     assert response.json() == {"error": "No jobs available"}
@@ -417,12 +444,15 @@ def test_run_different_client_different_extensions(server):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
     jobId3 = response_json.pop("jobId")
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.sid}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": vis1.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -431,13 +461,16 @@ def test_run_different_client_different_extensions(server):
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId3}/status",
         json={"status": "completed", "workerId": vis1.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
 
     # pick up job for vis2
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis2.sid}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": vis2.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -448,6 +481,7 @@ def test_run_different_client_different_extensions(server):
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={"status": "completed", "workerId": vis2.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -477,11 +511,14 @@ def test_run_different_client_same_extensions(server):
         _ = requests.post(
             f"{server}/api/rooms/{room}/extensions/modifiers/{ModifierExtension.__name__}/submit",
             json={"data": {"parameter": 42 + idx}, "userId": user},
+            headers=get_jwt_auth_headers(server, user),
         )
 
     # pick up job for vis1
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis1.sid}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": vis1.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -490,7 +527,9 @@ def test_run_different_client_same_extensions(server):
     assert response_json["extension"] == ModifierExtension.__name__
     # pick up job for vis2
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis2.sid}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": vis2.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -512,11 +551,13 @@ def test_run_different_client_same_extensions(server):
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId1}/status",
         json={"status": "completed", "workerId": vis1.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId2}/status",
         json={"status": "completed", "workerId": vis2.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
 
@@ -543,6 +584,7 @@ def test_worker_finish_nonstarted_job(server):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -555,12 +597,15 @@ def test_worker_finish_nonstarted_job(server):
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={"status": "completed", "workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Job is not running"}
     # pick up the job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -571,6 +616,7 @@ def test_worker_finish_nonstarted_job(server):
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={"status": "completed", "workerId": "wrong-worker-id"},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Worker ID does not match job's worker ID"}
@@ -579,6 +625,7 @@ def test_worker_finish_nonstarted_job(server):
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={"status": "completed", "workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -602,6 +649,7 @@ def test_worker_fail_job(server):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -619,13 +667,16 @@ def test_worker_fail_job(server):
             "workerId": vis.sid,
             "error": "Something went wrong",
         },
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Job is not running"}
 
     # pick up the job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -640,6 +691,7 @@ def test_worker_fail_job(server):
             "workerId": "wrong-worker-id",
             "error": "Something went wrong",
         },
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Worker ID does not match job's worker ID"}
@@ -652,6 +704,7 @@ def test_worker_fail_job(server):
             "workerId": vis.sid,
             "error": "Something went wrong",
         },
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -687,6 +740,7 @@ def test_delete_job(server):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -697,7 +751,10 @@ def test_delete_job(server):
     }
 
     # delete the job
-    response = requests.delete(f"{server}/api/rooms/{room}/jobs/{jobId}")
+    response = requests.delete(
+        f"{server}/api/rooms/{room}/jobs/{jobId}",
+        headers=get_jwt_auth_headers(server, user),
+    )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
 
@@ -714,7 +771,10 @@ def test_delete_job(server):
     assert len(response_json) == 0
 
     # delete a job that does not exist
-    response = requests.delete(f"{server}/api/rooms/{room}/jobs/non-existing-job-id")
+    response = requests.delete(
+        f"{server}/api/rooms/{room}/jobs/non-existing-job-id",
+        headers=get_jwt_auth_headers(server, user),
+    )
     assert response.status_code == 404
     assert response.json() == {"error": "Job not found"}
 
@@ -731,6 +791,7 @@ def test_worker_pickup_task(server):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -755,6 +816,7 @@ def test_worker_pickup_task(server):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 43}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -784,21 +846,32 @@ def test_worker_pickup_task(server):
 
     # submit two jobs to finish
     shared_dict["raise"] = False
+    job_ids = []
     for idx in range(2):
         response = requests.post(
             f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
             json={"data": {"parameter": 44 + idx}, "userId": user},
+            headers=get_jwt_auth_headers(server, user),
         )
         assert response.status_code == 200
         response_json = response.json()
-        jobId = response_json.pop("jobId")
-        assert response_json == {
-            "queuePosition": 0 + idx,
-            "status": "success",
-        }
+        job_ids.append(response_json.pop("jobId"))
+        # Queue position is non-deterministic with auto-pickup - worker may already be processing
+        assert response_json["status"] == "success"
 
-    vis.socket.sio.sleep(3)  # give some time to pick up the job and run it
-    # get all jobs
+    vis.socket.sio.sleep(3)  # give some time to pick up the jobs and run them
+
+    # Verify the two specific jobs completed successfully
+    for idx, job_id in enumerate(job_ids):
+        response = requests.get(f"{server}/api/rooms/{room}/jobs/{job_id}")
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["status"] == "completed"
+        assert response_json["worker_id"] == vis.sid
+        assert response_json["data"] == {"parameter": 44 + idx}
+        assert response_json["error"] == ""
+
+    # get all jobs and verify overall counts
     response = requests.get(f"{server}/api/rooms/{room}/jobs")
     assert response.status_code == 200
     response_json = response.json()
@@ -819,6 +892,7 @@ def test_celery_task(server):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/modifiers/{mod_name}/submit",
         json={"data": {}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -837,7 +911,9 @@ def test_celery_task(server):
 
     # Have celery-worker fetch the job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": "celery-worker"}
+        f"{server}/api/rooms/{room}/jobs/next",
+        json={"workerId": "celery-worker"},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -851,6 +927,7 @@ def test_celery_task(server):
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={"status": "completed", "workerId": "celery-worker"},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
@@ -887,6 +964,7 @@ def test_register_extensions_reconnect_with_queue(server, category):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     response.raise_for_status()
     jobId = response.json().pop("jobId")
@@ -924,6 +1002,7 @@ def test_register_extensions_reconnect_with_queue(server, category):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
@@ -998,6 +1077,7 @@ def test_register_extensions_reconnect_without_queue(server, category):
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 400
     assert response.json() == {

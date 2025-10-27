@@ -544,7 +544,7 @@ def test_hex_color_serialization_with_encode_decode():
     that occurs when trying to encode/decode hex color arrays stored with dtype=object.
     """
     # Create hex color array exactly as update_colors_and_radii() does
-    hex_colors = ['#ff0000', '#00ff00', '#0000ff']
+    hex_colors = ["#ff0000", "#00ff00", "#0000ff"]
     data = {
         "colors": np.array(hex_colors, dtype=object),
         "positions": np.array([[0, 0, 0], [1, 1, 1], [2, 2, 2]]),
@@ -572,15 +572,16 @@ def test_hex_color_serialization_with_atoms():
     5. Verify colors are preserved
     """
     import ase
+
     from zndraw.utils import update_colors_and_radii
 
     # Create simple atoms object
-    atoms = ase.Atoms('H2O', positions=[(0, 0, 0), (1, 0, 0), (0, 1, 0)])
+    atoms = ase.Atoms("H2O", positions=[(0, 0, 0), (1, 0, 0), (0, 1, 0)])
     update_colors_and_radii(atoms)
 
     # Verify colors are object dtype hex strings
     assert atoms.arrays["colors"].dtype == object
-    assert all(isinstance(c, str) and c.startswith('#') for c in atoms.arrays["colors"])
+    assert all(isinstance(c, str) and c.startswith("#") for c in atoms.arrays["colors"])
 
     # Convert to dict (as done during file upload)
     data = atoms_to_dict(atoms)
@@ -596,7 +597,9 @@ def test_hex_color_serialization_with_atoms():
     # Verify colors are preserved (stored with flattened key 'arrays.colors')
     npt.assert_array_equal(retrieved["arrays.colors"], data["arrays.colors"])
     assert retrieved["arrays.colors"].dtype == object
-    assert all(isinstance(c, str) and c.startswith('#') for c in retrieved["arrays.colors"])
+    assert all(
+        isinstance(c, str) and c.startswith("#") for c in retrieved["arrays.colors"]
+    )
 
 
 def test_variable_sized_object_arrays():
@@ -606,8 +609,22 @@ def test_variable_sized_object_arrays():
     that occurs when loading molecules with different numbers of atoms from s22.xyz.
     """
     # Create frames with different numbers of atoms (like s22 dataset)
-    frame1_colors = np.array(['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'], dtype=object)
-    frame2_colors = np.array(['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffffff', '#000000'], dtype=object)
+    frame1_colors = np.array(
+        ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"], dtype=object
+    )
+    frame2_colors = np.array(
+        [
+            "#ff0000",
+            "#00ff00",
+            "#0000ff",
+            "#ffff00",
+            "#ff00ff",
+            "#00ffff",
+            "#ffffff",
+            "#000000",
+        ],
+        dtype=object,
+    )
 
     data1 = {
         "colors": frame1_colors,
@@ -669,7 +686,11 @@ def test_s22_with_hex_colors(s22):
         assert "arrays.colors" in retrieved
         assert retrieved["arrays.colors"].dtype == object
         assert len(retrieved["arrays.colors"]) == len(original_atoms)
-        assert all(isinstance(c, str) and c.startswith('#') for c in retrieved["arrays.colors"])
+        assert all(
+            isinstance(c, str) and c.startswith("#") for c in retrieved["arrays.colors"]
+        )
 
         # Positions should match
-        npt.assert_array_almost_equal(retrieved["arrays.positions"], original_atoms.positions)
+        npt.assert_array_almost_equal(
+            retrieved["arrays.positions"], original_atoms.positions
+        )

@@ -55,8 +55,10 @@
 - [x] fix property inspector!
 - [ ] if there are now bonds / connectivity, still allow playback!
 - [ ] loading a room with frames 0:10:100 should not set the room to be already loaded (could think about a clever way to reuse this data though)
-- [ ] selection no longer in sync (only on page refresh)
+- [ ] selection no longer in sync (only on page refresh) also true for menus
 - [ ] new messages info should clear when leaving the room
 - [ ] include presenter lock into room metadata and lock:* endpoints, like metadata-lock.
 - [ ] make the overview per user, remove "hidden" rooms but allow to restrain rooms for specific users. Remove user from url, but allow ?user=... to login. Have a anonymous user that only sees "public" rooms.
 - [ ] check adding geometries via python appear without reload (also in the geometries sidebar)
+- [ ] drag/drop not allowed when --file-browser not active
+- [ ] make get_jwt_auth_headers a pytest fixture

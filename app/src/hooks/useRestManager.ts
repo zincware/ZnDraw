@@ -5,6 +5,7 @@ import { set, throttle } from "lodash";
 import { useQueryClient } from "@tanstack/react-query";
 import { joinRoom as joinRoomApi } from "../myapi/client";
 import { convertBookmarkKeys } from "../utils/bookmarks";
+import { ensureAuthenticated, getUsername } from "../utils/auth";
 
 export const useRestJoinManager = () => {
   const {
@@ -18,13 +19,12 @@ export const useRestJoinManager = () => {
     setActiveSelectionGroup,
     setFrameSelection,
     setBookmarks,
-    setJoinToken,
     setGeometries,
     setGeometryDefaults,
+    setLockMetadata,
   } = useAppStore();
-  const { roomId: room, userId } = useParams<{
+  const { roomId: room } = useParams<{
     roomId: string;
-    userId: string;
   }>();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -32,7 +32,24 @@ export const useRestJoinManager = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const joinRoom = useCallback(async () => {
-    if (!room || !userId) {
+    if (!room) {
+      return;
+    }
+
+    // Ensure user is authenticated before making REST API calls
+    // This will auto-login if needed and ensure we have a username
+    try {
+      await ensureAuthenticated();
+      console.log("Authentication verified for REST API");
+    } catch (error) {
+      console.error("Authentication failed:", error);
+      return;
+    }
+
+    // Get username from auth system (not from URL)
+    const userId = getUsername();
+    if (!userId) {
+      console.error("No username available after authentication");
       return;
     }
 
@@ -40,13 +57,13 @@ export const useRestJoinManager = () => {
     const controller = new AbortController();
     abortControllerRef.current = controller; // Store it in the ref
 
-    console.log("Joining room via REST:", room, userId);
+    console.log("Joining room via REST:", room, "as user:", userId);
 
     // Get template from query parameters
     const template = searchParams.get("template");
 
-    // Build request body
-    const requestBody: { userId: string; template?: string } = { userId };
+    // Build request body (userId not needed - backend uses JWT)
+    const requestBody: { template?: string } = {};
     if (template) {
       requestBody.template = template;
     }
@@ -84,9 +101,6 @@ export const useRestJoinManager = () => {
       if (data.clientId) {
         setClientId(data.clientId);
       }
-      if (data.joinToken) {
-        setJoinToken(data.joinToken);
-      }
       // IMPORTANT: Set defaults BEFORE geometries to avoid race condition
       // Geometries need defaults to render properly
       if (data.geometryDefaults) {
@@ -94,6 +108,20 @@ export const useRestJoinManager = () => {
       }
       if (data.geometries) {
         setGeometries(data.geometries);
+      }
+      // Initialize lockMetadata if present in join response
+      if (data.metadataLocked !== undefined) {
+        if (data.metadataLocked) {
+          setLockMetadata({
+            locked: true,
+            holder: undefined,
+            userName: data.metadataLocked.userName,
+            msg: data.metadataLocked.msg,
+            timestamp: data.metadataLocked.timestamp,
+          });
+        } else {
+          setLockMetadata({ locked: false });
+        }
       }
       setRoomId(room);
       setUserId(userId);
@@ -113,10 +141,32 @@ export const useRestJoinManager = () => {
           queryClient.setQueryData(queryKey, categoryData);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       // 4. Check if the error was due to the request being aborted.
       if (error instanceof Error && error.name === "AbortError") {
         console.log("Fetch aborted on unmount or re-run.");
+      } else if (error.response?.status === 401) {
+        // Handle authentication error (stale token)
+        console.log("Authentication error, clearing stale token and retrying...");
+        const { logout, login, getUsername } = await import("../utils/auth");
+
+        logout();
+
+        try {
+          await login();
+          console.log("Re-login successful, retrying join room...");
+
+          // Update store with new username
+          const newUsername = getUsername();
+          if (newUsername) {
+            setUserId(newUsername);
+          }
+
+          // Retry joining the room
+          joinRoom();
+        } catch (loginError) {
+          console.error("Re-login failed:", loginError);
+        }
       } else {
         console.error("Error joining room:", error);
       }
@@ -128,7 +178,6 @@ export const useRestJoinManager = () => {
     }
   }, [
     room,
-    userId,
     searchParams,
     queryClient,
     setClientId,
@@ -141,9 +190,9 @@ export const useRestJoinManager = () => {
     setActiveSelectionGroup,
     setFrameSelection,
     setBookmarks,
-    setJoinToken,
     setGeometries,
     setGeometryDefaults,
+    setLockMetadata,
   ]);
 
   const throttledJoin = useMemo(
@@ -158,7 +207,7 @@ export const useRestJoinManager = () => {
       abortControllerRef.current?.abort(); // Abort the fetch
       throttledJoin.cancel(); // Cancel any pending throttled execution
     };
-  }, [room, userId, throttledJoin]);
+  }, [room, throttledJoin]);
 
   return {};
 };

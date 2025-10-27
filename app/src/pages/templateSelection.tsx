@@ -27,20 +27,17 @@ export default function TemplateSelectionPage() {
         if (rooms.length === 0) {
           // No rooms - create empty template
           const roomUuid = crypto.randomUUID();
-          const userUuid = crypto.randomUUID();
-          navigate(`/rooms/${roomUuid}/${userUuid}?template=empty`);
+          navigate(`/rooms/${roomUuid}?template=empty`);
         } else if (rooms.length === 1) {
           // One room - navigate to it
-          const userUuid = crypto.randomUUID();
-          navigate(`/rooms/${rooms[0].id}/${userUuid}`);
+          navigate(`/rooms/${rooms[0].id}`);
         } else {
           // Multiple rooms - check for default
           const { roomId: defaultRoomId } = await getDefaultRoom();
           
           if (defaultRoomId) {
             // Navigate to default room
-            const userUuid = crypto.randomUUID();
-            navigate(`/rooms/${defaultRoomId}/${userUuid}`);
+            navigate(`/rooms/${defaultRoomId}`);
           } else {
             // No default - show room list
             navigate("/rooms");

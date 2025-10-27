@@ -2,9 +2,9 @@ import dataclasses
 import logging
 import threading
 import time
+import traceback
 import typing as t
 import warnings
-import traceback
 
 import socketio
 
@@ -32,11 +32,17 @@ class SocketIOLock:
     target: str
     ttl: int = 60  # TTL in seconds (must be <= 300 as validated by server)
     _lock_count: int = dataclasses.field(default=0, init=False)
-    _refresh_thread: threading.Thread | None = dataclasses.field(default=None, init=False)
-    _refresh_stop: threading.Event = dataclasses.field(default_factory=threading.Event, init=False)
+    _refresh_thread: threading.Thread | None = dataclasses.field(
+        default=None, init=False
+    )
+    _refresh_stop: threading.Event = dataclasses.field(
+        default_factory=threading.Event, init=False
+    )
     _pending_metadata: dict | None = dataclasses.field(default=None, init=False)
 
-    def __call__(self, msg: str | None = None, metadata: dict | None = None) -> "SocketIOLock":
+    def __call__(
+        self, msg: str | None = None, metadata: dict | None = None
+    ) -> "SocketIOLock":
         """Set optional metadata for this lock acquisition.
 
         Returns self to maintain singleton pattern and support re-entrant locking.
@@ -83,10 +89,18 @@ class SocketIOLock:
                 payload = {"target": self.target, "ttl": self.ttl}
                 response = self.sio.call("lock:refresh", payload, timeout=10)
                 if response and response.get("success"):
-                    log.debug(f"Lock refreshed for target '{self.target}' with TTL {self.ttl}s")
+                    log.debug(
+                        f"Lock refreshed for target '{self.target}' with TTL {self.ttl}s"
+                    )
                 else:
-                    error_msg = response.get("error", "Unknown error") if response else "No response"
-                    log.warning(f"Failed to refresh lock for target '{self.target}': {error_msg}")
+                    error_msg = (
+                        response.get("error", "Unknown error")
+                        if response
+                        else "No response"
+                    )
+                    log.warning(
+                        f"Failed to refresh lock for target '{self.target}': {error_msg}"
+                    )
             except Exception as e:
                 log.error(f"Error refreshing lock for target '{self.target}': {e}")
 
@@ -96,10 +110,7 @@ class SocketIOLock:
         Logs warnings on failure but does not raise exceptions to avoid
         breaking the lock acquisition flow.
         """
-        payload = {
-            "target": self.target,
-            "metadata": self._pending_metadata
-        }
+        payload = {"target": self.target, "metadata": self._pending_metadata}
         try:
             response = self.sio.call("lock:msg", payload, timeout=5)
             if not (response and response.get("success")):
@@ -109,7 +120,7 @@ class SocketIOLock:
         except Exception as e:
             log.error(
                 f"Error sending lock metadata for target '{self.target}': {e}",
-                exc_info=True
+                exc_info=True,
             )
 
     def acquire(self, timeout: float = 60) -> bool:
@@ -117,10 +128,10 @@ class SocketIOLock:
         Acquire a lock for the specific target.
         If already held by this client, increment the lock count.
         Starts a background thread to refresh the lock periodically.
-        
+
         Args:
             timeout: Socket.IO call timeout (not the lock TTL)
-        
+
         Returns:
             True if lock acquired successfully, False otherwise
         """
@@ -128,15 +139,15 @@ class SocketIOLock:
         if self._lock_count > 0:
             self._lock_count += 1
             return True
-        
+
         payload = {"target": self.target, "ttl": self.ttl}
         # sio.call is inherently blocking, so it waits for the server's response.
         response = self.sio.call("lock:acquire", payload, timeout=int(timeout))
-        
+
         # Check if server returned an error
         if response and response.get("error"):
             raise ValueError(f"Failed to acquire lock: {response['error']}")
-        
+
         success = response and response.get("success", False)
         if success:
             self._lock_count = 1
@@ -145,7 +156,7 @@ class SocketIOLock:
             self._refresh_thread = threading.Thread(
                 target=self._refresh_lock_periodically,
                 daemon=True,
-                name=f"lock-refresh-{self.target}"
+                name=f"lock-refresh-{self.target}",
             )
             self._refresh_thread.start()
         return success
@@ -154,22 +165,24 @@ class SocketIOLock:
         """Release the lock. Only actually releases when count reaches 0.
         Stops the refresh thread when the lock is fully released."""
         if self._lock_count == 0:
-            warnings.warn(f"Attempting to release lock for '{self.target}' but not held")
+            warnings.warn(
+                f"Attempting to release lock for '{self.target}' but not held"
+            )
             return False
-        
+
         self._lock_count -= 1
-        
+
         # Only actually release the lock when count reaches 0
         if self._lock_count == 0:
             # Stop the refresh thread first
             self._refresh_stop.set()
             if self._refresh_thread and self._refresh_thread.is_alive():
                 self._refresh_thread.join(timeout=2)
-            
+
             payload = {"target": self.target}
             response = self.sio.call("lock:release", payload, timeout=10)
             return response and response.get("success", False)
-        
+
         return True  # Successfully decremented count
 
     def __enter__(self):
@@ -193,9 +206,8 @@ class SocketIOLock:
 
 
 class SocketManager:
-    def __init__(self, zndraw_instance: "ZnDraw", join_token: str):
+    def __init__(self, zndraw_instance: "ZnDraw"):
         self.zndraw = zndraw_instance
-        self.join_token = join_token
         self.sio = socketio.Client()
         self._register_handlers()
 
@@ -213,11 +225,16 @@ class SocketManager:
         self.sio.on("invalidate:figure", self._on_figure_invalidate)
 
     def connect(self):
+        """Connect to server with JWT authentication."""
         if self.sio.connected:
             print("Already connected.")
             return
-        # Connect with join token for authentication
-        self.sio.connect(self.zndraw.url, auth={"token": self.join_token}, wait=True)
+        # Connect with JWT token for authentication
+        self.sio.connect(
+            self.zndraw.url,
+            auth={"token": self.zndraw.api.jwt_token},
+            wait=True,
+        )
 
     def disconnect(self):
         if self.sio.connected:

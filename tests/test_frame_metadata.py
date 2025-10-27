@@ -32,12 +32,8 @@ def test_metadata_s22(server, s22):
                 "type": "array",
             },
             "arrays.colors": {
-                "dtype": "float32",
-                "shape": [
-                    8,
-                    3,
-                ],
-                "type": "array",
+                "dtype": "json",
+                "type": "json",
             },
             "arrays.numbers": {
                 "dtype": "int64",
@@ -98,12 +94,8 @@ def test_metadata_s22(server, s22):
                 "type": "array",
             },
             "arrays.colors": {
-                "dtype": "float32",
-                "shape": [
-                    26,
-                    3,
-                ],
-                "type": "array",
+                "dtype": "json",
+                "type": "json",
             },
             "arrays.numbers": {
                 "dtype": "int64",

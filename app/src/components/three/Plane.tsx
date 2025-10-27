@@ -182,7 +182,7 @@ export default function Plane({
       showSnackbar(`Geometry "${geometryKey}" disabled - data fetch failed`, "warning");
 
       // Then update server (server will skip emitting back to this client)
-      updateGeometryActive(roomId, clientId, geometryKey, "Plane", false)
+      updateGeometryActive(roomId, geometryKey, "Plane", false)
         .then(() => {
           if (process.env.NODE_ENV !== 'production') {
             console.info(`Plane geometry "${geometryKey}" disabled successfully on server.`);

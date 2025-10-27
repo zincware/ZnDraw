@@ -33,7 +33,7 @@ def example_1_step_mapping():
         x=pred_energy,
         y=true_energy,
         labels={"x": "Predicted Energy", "y": "True Energy"},
-        title="Energy vs Accuracy"
+        title="Energy vs Accuracy",
     )
 
     # Add interaction schema
@@ -43,7 +43,7 @@ def example_1_step_mapping():
             "interactions": [
                 {"click": "step", "select": "step"}  # dimension 0: customdata[0]
             ]
-        }
+        },
     )
 
     print("  - Clicking a point sets current frame")
@@ -63,14 +63,13 @@ def example_2_geometry_mapping():
     # Generate sample data
     n_forces = 100
     forces = np.random.exponential(scale=0.5, size=n_forces)
-    force_ids = np.arange(n_forces)  # Must be valid indices into vis.geometries["forces"]
+    force_ids = np.arange(
+        n_forces
+    )  # Must be valid indices into vis.geometries["forces"]
 
     # Create histogram
     fig = px.histogram(
-        x=forces,
-        nbins=10,
-        labels={"x": "Force Magnitude"},
-        title="Force Distribution"
+        x=forces, nbins=10, labels={"x": "Force Magnitude"}, title="Force Distribution"
     )
 
     # Extract the bin values for customdata (bin index)
@@ -79,16 +78,16 @@ def example_2_geometry_mapping():
     for i, y_value in enumerate(fig.data[0].y):
         # Each y value represents the count in that bin
         # We'll use the bin index as the force ID (this is a simplification)
-        force_bin_ids = force_ids[i*10:(i+1)*10] if i*10 < len(force_ids) else force_ids[i*10:]
+        force_bin_ids = (
+            force_ids[i * 10 : (i + 1) * 10]
+            if i * 10 < len(force_ids)
+            else force_ids[i * 10 :]
+        )
         customdata.extend(force_bin_ids)
 
     fig.update_traces(
-        customdata=force_ids[:len(fig.data[0].x)],
-        meta={
-            "interactions": [
-                {"click": "forces", "select": "forces"}
-            ]
-        }
+        customdata=force_ids[: len(fig.data[0].x)],
+        meta={"interactions": [{"click": "forces", "select": "forces"}]},
     )
 
     print("  - Clicking a bin selects all forces in that range")
@@ -117,7 +116,7 @@ def example_3_multi_dimensional():
         x=particle_ids,
         y=pred_forces,
         labels={"x": "Particle ID", "y": "Force Magnitude"},
-        title="Particle Forces Over Time"
+        title="Particle Forces Over Time",
     )
 
     # Add 2D customdata: [step, particle_id]
@@ -128,10 +127,10 @@ def example_3_multi_dimensional():
         customdata=customdata,
         meta={
             "interactions": [
-                {"click": "step", "select": "step"},              # dimension 0
-                {"click": "particles", "select": "particles"}     # dimension 1
+                {"click": "step", "select": "step"},  # dimension 0
+                {"click": "particles", "select": "particles"},  # dimension 1
             ]
-        }
+        },
     )
 
     print("  - Clicking a point:")
@@ -157,11 +156,7 @@ def example_4_sparse_interactions():
     particle_ids = np.tile(np.arange(n_particles), n_steps)
     steps = np.repeat(np.arange(n_steps), n_particles)
 
-    fig = px.scatter(
-        x=particle_ids,
-        y=force_mags,
-        title="Sparse Interactions Example"
-    )
+    fig = px.scatter(x=particle_ids, y=force_mags, title="Sparse Interactions Example")
 
     # 3D customdata: [step, particle_id, force_magnitude]
     customdata = np.column_stack([steps, particle_ids, force_mags])
@@ -170,11 +165,11 @@ def example_4_sparse_interactions():
         customdata=customdata,
         meta={
             "interactions": [
-                {"click": "step"},                  # dimension 0: click only
-                {"select": "particles"},            # dimension 1: select only
-                None                                # dimension 2: no interaction
+                {"click": "step"},  # dimension 0: click only
+                {"select": "particles"},  # dimension 1: select only
+                None,  # dimension 2: no interaction
             ]
-        }
+        },
     )
 
     print("  - Clicking a point only sets the frame (no particle selection)")

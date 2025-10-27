@@ -1,6 +1,7 @@
 import time
 
 import requests
+from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
 
@@ -9,7 +10,9 @@ def test_rest_get_chat_messages_empty(server):
     """Test fetching messages from an empty room"""
     room = "test-chat-room"
     # Create room first
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=get_jwt_auth_headers(server)
+    )
     assert response.status_code == 200
 
     # Fetch chat messages

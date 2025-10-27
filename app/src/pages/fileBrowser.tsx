@@ -133,8 +133,7 @@ export default function FileBrowserPage() {
         setLoadDialog({ open: false, file: null });
 
         // Navigate to the room with waitForCreation flag
-        const userId = crypto.randomUUID();
-        navigate(`/rooms/${data.room}/${userId}?waitForCreation=true`);
+        navigate(`/rooms/${data.room}?waitForCreation=true`);
       }
     },
     onError: (error: any) => {
@@ -150,8 +149,7 @@ export default function FileBrowserPage() {
       setFileAlreadyLoadedDialog({ open: false, data: null, filePath: "" });
 
       // Navigate to the new room
-      const userId = crypto.randomUUID();
-      navigate(`/rooms/${data.roomId}/${userId}`);
+      navigate(`/rooms/${data.roomId}`);
     },
     onError: (error: any) => {
       showSnackbar(error?.response?.data?.error || "Failed to create room from file", "error");
@@ -245,8 +243,7 @@ export default function FileBrowserPage() {
 
   const handleOpenExistingRoom = () => {
     if (!fileAlreadyLoadedDialog.data) return;
-    const userId = crypto.randomUUID();
-    navigate(`/rooms/${fileAlreadyLoadedDialog.data.existingRoom}/${userId}`);
+    navigate(`/rooms/${fileAlreadyLoadedDialog.data.existingRoom}`);
     setFileAlreadyLoadedDialog({ open: false, data: null, filePath: "" });
   };
 

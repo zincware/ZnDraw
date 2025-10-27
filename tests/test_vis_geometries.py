@@ -1,8 +1,9 @@
 import pytest
 import requests
+from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
-from zndraw.geometries import Sphere, Bond, Camera, CameraType, Curve
+from zndraw.geometries import Bond, Camera, CameraType, Curve, Sphere
 
 
 def test_rest_get_geometries(joined_room):
@@ -15,7 +16,7 @@ def test_rest_get_geometries(joined_room):
     data = response.json()
     assert "geometries" in data
     assert set(data["geometries"]) == {"particles", "bonds", "curve", "cell", "floor"}
-    
+
     # Test getting individual geometry - particles
     response = requests.get(f"{server}/api/rooms/{room}/geometries/particles")
     assert response.status_code == 200
@@ -24,7 +25,7 @@ def test_rest_get_geometries(joined_room):
     assert data["geometry"]["type"] == "Sphere"
     assert data["geometry"]["data"]["color"] == "arrays.colors"
     assert data["geometry"]["data"]["scale"] == 0.7
-    
+
     # Test getting individual geometry - bonds
     response = requests.get(f"{server}/api/rooms/{room}/geometries/bonds")
     assert response.status_code == 200
@@ -33,7 +34,7 @@ def test_rest_get_geometries(joined_room):
     assert data["geometry"]["type"] == "Bond"
     assert data["geometry"]["data"]["connectivity"] == "info.connectivity"
     assert data["geometry"]["data"]["scale"] == 0.15
-    
+
     # Test getting non-existent geometry
     response = requests.get(f"{server}/api/rooms/{room}/geometries/nonexistent")
     assert response.status_code == 404
@@ -56,6 +57,7 @@ def test_rest_update_geometries(joined_room):
             "data": new_geometry_data,
             "type": "Sphere",
         },
+        headers=get_jwt_auth_headers(server),
     )
     assert response.status_code == 200
     data = response.json()
@@ -66,9 +68,9 @@ def test_rest_update_geometries(joined_room):
     assert response.status_code == 200
     data = response.json()
     assert data["geometry"]["type"] == "Sphere"
-    assert data["geometry"]["data"]["color"] == "#FF0000"
+    assert data["geometry"]["data"]["color"] == ["#FF0000"]
     assert data["geometry"]["data"]["position"] == [[1.0, 1.0, 1.0]]
-    assert data["geometry"]["data"]["radius"] == 1.0 
+    assert data["geometry"]["data"]["radius"] == 1.0
 
 
 def test_rest_partial_update_geometries(joined_room):
@@ -87,6 +89,7 @@ def test_rest_partial_update_geometries(joined_room):
             "data": initial_geometry_data,
             "type": "Curve",
         },
+        headers=get_jwt_auth_headers(server),
     )
     assert response.status_code == 200
 
@@ -99,6 +102,7 @@ def test_rest_partial_update_geometries(joined_room):
             "data": partial_update_data,
             "type": "Curve",
         },
+        headers=get_jwt_auth_headers(server),
     )
     assert response.status_code == 200
 
@@ -109,7 +113,7 @@ def test_rest_partial_update_geometries(joined_room):
     assert data["geometry"]["type"] == "Curve"
     assert data["geometry"]["data"]["active"] is False
     assert data["geometry"]["data"]["position"] == [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
-    assert data["geometry"]["data"]["color"] == "#FF0000"
+    assert data["geometry"]["data"]["color"] == ["#FF0000"]
 
 
 def test_rest_add_unknown_geometry(joined_room):
@@ -123,6 +127,7 @@ def test_rest_add_unknown_geometry(joined_room):
             "data": {},
             "type": "UnknownType",
         },
+        headers=get_jwt_auth_headers(server),
     )
     assert response.status_code == 400
     data = response.json()
@@ -134,27 +139,42 @@ def test_rest_delete_geometry(joined_room):
     """Test deleting geometries."""
     server, room = joined_room
 
-    response = requests.delete(f"{server}/api/rooms/{room}/geometries/particles")
+    response = requests.delete(
+        f"{server}/api/rooms/{room}/geometries/particles",
+        headers=get_jwt_auth_headers(server),
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "success"
 
-    response = requests.delete(f"{server}/api/rooms/{room}/geometries/bonds")
+    response = requests.delete(
+        f"{server}/api/rooms/{room}/geometries/bonds",
+        headers=get_jwt_auth_headers(server),
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "success"
 
-    response = requests.delete(f"{server}/api/rooms/{room}/geometries/curve")
+    response = requests.delete(
+        f"{server}/api/rooms/{room}/geometries/curve",
+        headers=get_jwt_auth_headers(server),
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "success"
 
-    response = requests.delete(f"{server}/api/rooms/{room}/geometries/cell")
+    response = requests.delete(
+        f"{server}/api/rooms/{room}/geometries/cell",
+        headers=get_jwt_auth_headers(server),
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "success"
 
-    response = requests.delete(f"{server}/api/rooms/{room}/geometries/floor")
+    response = requests.delete(
+        f"{server}/api/rooms/{room}/geometries/floor",
+        headers=get_jwt_auth_headers(server),
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "success"
@@ -169,7 +189,10 @@ def test_rest_delete_geometry(joined_room):
 def test_rest_delete_unknown_geometry(joined_room):
     server, room = joined_room
 
-    response = requests.delete(f"{server}/api/rooms/{room}/geometries/unknown")
+    response = requests.delete(
+        f"{server}/api/rooms/{room}/geometries/unknown",
+        headers=get_jwt_auth_headers(server),
+    )
     assert response.status_code == 404
     data = response.json()
     assert data["type"] == "KeyError"
@@ -177,7 +200,7 @@ def test_rest_delete_unknown_geometry(joined_room):
 
 
 def test_vis_list_geometries(server):
-    from zndraw.geometries import Curve, Cell, Floor
+    from zndraw.geometries import Cell, Curve, Floor
 
     vis = ZnDraw(url=server, room="test-room-vis-list-geom", user="tester")
     assert len(vis.geometries) == 5
@@ -186,6 +209,7 @@ def test_vis_list_geometries(server):
     assert vis.geometries["curve"] == Curve()
     assert vis.geometries["cell"] == Cell()
     assert vis.geometries["floor"] == Floor()
+
 
 def test_vis_add_update_delete_geometry(server):
     vis1 = ZnDraw(url=server, room="room1", user="tester")
@@ -238,6 +262,7 @@ def test_rest_create_basic_camera(joined_room):
             "data": {"position": [[0.0, 0.0, 10.0]]},
             "type": "Curve",
         },
+        headers=get_jwt_auth_headers(server),
     )
     assert response.status_code == 200
 
@@ -248,6 +273,7 @@ def test_rest_create_basic_camera(joined_room):
             "data": {"position": [[0.0, 0.0, 0.0]]},
             "type": "Curve",
         },
+        headers=get_jwt_auth_headers(server),
     )
     assert response.status_code == 200
 
@@ -268,6 +294,7 @@ def test_rest_create_basic_camera(joined_room):
             "data": camera_data,
             "type": "Camera",
         },
+        headers=get_jwt_auth_headers(server),
     )
     assert response.status_code == 200
     data = response.json()
@@ -437,7 +464,9 @@ def test_box_normalization():
     from zndraw.geometries import Box
 
     # Single tuple/hex inputs -> wrapped in lists
-    box1 = Box(position=(0, 0, 0), rotation=(0, 0.5, 0), color="#FF0000", size=(1, 1, 1))
+    box1 = Box(
+        position=(0, 0, 0), rotation=(0, 0.5, 0), color="#FF0000", size=(1, 1, 1)
+    )
     assert box1.position == [(0.0, 0.0, 0.0)]
     assert box1.rotation == [(0.0, 0.5, 0.0)]
     assert box1.color == ["#FF0000"]
@@ -448,7 +477,7 @@ def test_box_normalization():
         position=[(0, 0, 0), (1, 1, 1)],
         rotation=[(0, 0.5, 0), (0, 0, 0.5)],
         color=["#FF0000", "#00FF00"],
-        size=[(1, 1, 1), (2, 2, 2)]
+        size=[(1, 1, 1), (2, 2, 2)],
     )
     assert len(box2.position) == 2
     assert len(box2.rotation) == 2
@@ -466,7 +495,9 @@ def test_plane_normalization():
     from zndraw.geometries import Plane
 
     # Single tuple/hex inputs -> wrapped in lists
-    plane1 = Plane(position=(0, 0, 0), rotation=(0, 0.5, 0), color="#FF0000", size=(1, 1))
+    plane1 = Plane(
+        position=(0, 0, 0), rotation=(0, 0.5, 0), color="#FF0000", size=(1, 1)
+    )
     assert plane1.position == [(0.0, 0.0, 0.0)]
     assert plane1.rotation == [(0.0, 0.5, 0.0)]
     assert plane1.color == ["#FF0000"]
@@ -477,7 +508,7 @@ def test_plane_normalization():
         position=[(0, 0, 0), (1, 1, 1)],
         rotation=[(0, 0.5, 0), (0, 0, 0.5)],
         color=["#FF0000", "#00FF00"],
-        size=[(1, 1), (2, 2)]
+        size=[(1, 1), (2, 2)],
     )
     assert len(plane2.position) == 2
     assert len(plane2.rotation) == 2
@@ -491,18 +522,25 @@ def test_arrow_normalization():
 
     # Single tuple/hex inputs -> wrapped in lists
     arrow1 = Arrow(position=(0, 0, 0), direction=(0, 0, 1), color="#FF0000")
-    assert arrow1.position == [(0.0, 0.0, 0.0)] or arrow1.position == "arrays.positions"  # Default might be dynamic
-    assert arrow1.direction == [(0.0, 0.0, 1.0)] or arrow1.direction == "calc.forces"  # Default might be dynamic
-    assert arrow1.color == ["#FF0000"] or arrow1.color == "arrays.colors"  # Default might be dynamic
+    assert (
+        arrow1.position == [(0.0, 0.0, 0.0)] or arrow1.position == "arrays.positions"
+    )  # Default might be dynamic
+    assert (
+        arrow1.direction == [(0.0, 0.0, 1.0)] or arrow1.direction == "calc.forces"
+    )  # Default might be dynamic
+    assert (
+        arrow1.color == ["#FF0000"] or arrow1.color == "arrays.colors"
+    )  # Default might be dynamic
 
 
 def test_color_conversion_to_hex():
     """Test that atoms colors are converted to hex strings."""
     import ase
+
     from zndraw.utils import update_colors_and_radii
 
     # Create atoms
-    atoms = ase.Atoms('H2O', positions=[(0, 0, 0), (1, 0, 0), (0, 1, 0)])
+    atoms = ase.Atoms("H2O", positions=[(0, 0, 0), (1, 0, 0), (0, 1, 0)])
 
     # Colors should not exist yet
     assert "colors" not in atoms.arrays
@@ -513,7 +551,7 @@ def test_color_conversion_to_hex():
     # Verify colors were added as hex strings
     colors = atoms.arrays["colors"]
     assert len(colors) == 3
-    assert all(isinstance(c, str) and c.startswith('#') for c in colors)
+    assert all(isinstance(c, str) and c.startswith("#") for c in colors)
 
     # Verify hex format (should be 7 characters: # + 6 hex digits)
     assert all(len(c) == 7 for c in colors)
@@ -527,9 +565,10 @@ def test_color_already_exists():
     """Test that update_colors_and_radii doesn't overwrite existing colors."""
     import ase
     import numpy as np
+
     from zndraw.utils import update_colors_and_radii
 
-    atoms = ase.Atoms('H2O', positions=[(0, 0, 0), (1, 0, 0), (0, 1, 0)])
+    atoms = ase.Atoms("H2O", positions=[(0, 0, 0), (1, 0, 0), (0, 1, 0)])
 
     # Manually set colors
     existing_colors = np.array(["#AABBCC", "#DDEEFF", "#112233"], dtype=object)

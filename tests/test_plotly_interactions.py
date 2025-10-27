@@ -6,8 +6,8 @@ Tests the validate_interaction_schema function from figures_manager module.
 
 import numpy as np
 import pytest
-from zndraw.figures_manager import validate_interaction_schema
 
+from zndraw.figures_manager import validate_interaction_schema
 
 # ============================================================================
 # Test: Basic Validation - Valid Cases
@@ -220,11 +220,13 @@ def test_validate_large_customdata():
 
 def test_validate_3d_customdata():
     """Test validation with 3D customdata."""
-    customdata = np.column_stack([
-        np.arange(10),
-        np.arange(10, 20),
-        np.arange(20, 30),
-    ])
+    customdata = np.column_stack(
+        [
+            np.arange(10),
+            np.arange(10, 20),
+            np.arange(20, 30),
+        ]
+    )
     interactions = [
         {"click": "step"},
         {"click": "particles"},
@@ -271,15 +273,17 @@ def test_validate_step_is_always_valid():
 
 def test_validate_mixed_step_and_geometry():
     """Test schema mixing step and geometry actions."""
-    customdata = np.column_stack([
-        np.arange(10),
-        np.arange(10, 20),
-        np.arange(20, 30),
-    ])
+    customdata = np.column_stack(
+        [
+            np.arange(10),
+            np.arange(10, 20),
+            np.arange(20, 30),
+        ]
+    )
     interactions = [
-        {"click": "step", "select": "step"},       # step - always valid
-        {"click": "particles", "select": "forces"}, # geometry - needs to exist
-        {"hover": "step"},                          # step - always valid
+        {"click": "step", "select": "step"},  # step - always valid
+        {"click": "particles", "select": "forces"},  # geometry - needs to exist
+        {"hover": "step"},  # step - always valid
     ]
     geometries = {"particles": {}, "forces": {}}
     is_valid, errors = validate_interaction_schema(customdata, interactions, geometries)
@@ -345,15 +349,17 @@ def test_validate_particle_trajectory_example():
 
 def test_validate_sparse_example():
     """Test real-world example: sparse interactions."""
-    customdata = np.column_stack([
-        np.arange(10),
-        np.arange(10, 20),
-        np.random.rand(10),  # force magnitudes (unused)
-    ])
+    customdata = np.column_stack(
+        [
+            np.arange(10),
+            np.arange(10, 20),
+            np.random.rand(10),  # force magnitudes (unused)
+        ]
+    )
     interactions = [
-        {"click": "step"},          # click only
-        {"select": "particles"},    # select only
-        None,                       # no interaction
+        {"click": "step"},  # click only
+        {"select": "particles"},  # select only
+        None,  # no interaction
     ]
     geometries = {"particles": {}}
 

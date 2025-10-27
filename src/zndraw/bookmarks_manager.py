@@ -41,7 +41,9 @@ class Bookmarks(MutableMapping):
             If index is out of range
         """
         if not isinstance(index, int):
-            raise TypeError(f"Bookmark index must be an integer, not {type(index).__name__}")
+            raise TypeError(
+                f"Bookmark index must be an integer, not {type(index).__name__}"
+            )
 
         # Check local cache first
         if index in self.vis._bookmarks:
@@ -77,7 +79,9 @@ class Bookmarks(MutableMapping):
             If label is empty
         """
         if not isinstance(index, int):
-            raise TypeError(f"Bookmark index must be an integer, not {type(index).__name__}")
+            raise TypeError(
+                f"Bookmark index must be an integer, not {type(index).__name__}"
+            )
 
         if not isinstance(label, str):
             raise TypeError("Bookmark label must be a string")
@@ -87,7 +91,9 @@ class Bookmarks(MutableMapping):
 
         # Validate index is in range
         if index < 0 or index >= len(self.vis):
-            raise IndexError(f"Bookmark index {index} out of range (0-{len(self.vis)-1})")
+            raise IndexError(
+                f"Bookmark index {index} out of range (0-{len(self.vis) - 1})"
+            )
 
         # Update via API
         self.vis.api.set_bookmark(index, label)
@@ -109,7 +115,9 @@ class Bookmarks(MutableMapping):
             If no bookmark exists at this index
         """
         if not isinstance(index, int):
-            raise TypeError(f"Bookmark index must be an integer, not {type(index).__name__}")
+            raise TypeError(
+                f"Bookmark index must be an integer, not {type(index).__name__}"
+            )
 
         # Delete via API
         self.vis.api.delete_bookmark(index)
@@ -181,7 +189,9 @@ class Bookmarks(MutableMapping):
             try:
                 idx = int(index)
             except ValueError:
-                raise TypeError(f"Bookmark index must be an integer, not {type(index).__name__}")
+                raise TypeError(
+                    f"Bookmark index must be an integer, not {type(index).__name__}"
+                )
             self[idx] = label
 
     def clear(self) -> None:

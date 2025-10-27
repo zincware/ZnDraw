@@ -282,7 +282,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     };
 
     try {
-      await createGeometry(roomId, clientId, geometryKey, "Curve", geometryData);
+      await createGeometry(roomId, geometryKey, "Curve", geometryData);
     } catch (error) {
       console.error("Error updating geometry:", error);
     }

@@ -1,7 +1,7 @@
 """Base geometry class for all ZnDraw geometries."""
 
-from typing import Literal, Union, Any
 from enum import Enum
+from typing import Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -27,6 +27,7 @@ RotationProp = Union[str, tuple[float, float, float], list[tuple[float, float, f
 # Connectivity for bonds: per-bond indices and properties (atom_a, atom_b, bond_order, etc)
 ConnectivityProp = Union[str, list[tuple[float, float, float]]]
 
+
 class Material(str, Enum):
     # --- PHYSICAL MATERIALS ---
     MeshPhysicalMaterial_matt = "MeshPhysicalMaterial (matt)"
@@ -45,12 +46,14 @@ class Material(str, Enum):
     MeshLambertMaterial_matt = "MeshLambertMaterial (matt)"
     MeshPhongMaterial_classic = "MeshPhongMaterial (classic)"
 
+
 class InteractionSettings(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     enabled: bool = Field(default=True)
     color: str = Field(default="#FF6600")
     opacity: float = Field(default=1.0, ge=0.0, le=1.0)
+
 
 def apply_schema_feature(
     schema: dict[str, Any],

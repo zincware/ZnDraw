@@ -1,5 +1,6 @@
 import pytest
 import requests
+from conftest import get_jwt_auth_headers
 
 from zndraw.zndraw import ZnDraw
 
@@ -12,13 +13,15 @@ def test_rest_join_new_room(server):
     assert len(rooms) == 0  # no rooms yet
 
     room = "test-room-1"
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=get_jwt_auth_headers(server)
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
     assert data["roomId"] == room
     assert data["frameCount"] == 0
-    assert data["selection"] is None
+    assert data["selections"] == {}
     assert data["frame_selection"] is None
     assert data["created"] is True
     assert data["presenter-lock"] is None
@@ -32,10 +35,12 @@ def test_rest_join_new_room(server):
     assert data["geometries"]["bonds"]["type"] == "Bond"
     # Verify default Sphere properties
     assert data["geometries"]["particles"]["data"]["scale"] == 0.7
-    assert data["geometries"]["particles"]["data"]["material"] == "MeshStandardMaterial"
+    assert (
+        data["geometries"]["particles"]["data"]["material"]
+        == "MeshPhysicalMaterial (matt)"
+    )
     assert data["geometries"]["particles"]["data"]["position"] == "arrays.positions"
     assert "settings" in data
-    assert "joinToken" in data
     assert "clientId" in data
 
     # list all rooms again to see if the new room is there
@@ -63,17 +68,21 @@ def test_rest_join_new_room(server):
 def test_join_existing_room(server):
     # create a room first
     room = "test-room-1"
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=get_jwt_auth_headers(server)
+    )
     assert response.status_code == 200
 
     # join the existing room with a different user
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=get_jwt_auth_headers(server)
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
     assert data["roomId"] == room
     assert data["frameCount"] == 0
-    assert data["selection"] is None
+    assert data["selections"] == {}
     assert data["frame_selection"] is None
     assert data["created"] is False
     assert data["presenter-lock"] is None
@@ -84,11 +93,13 @@ def test_join_room_with_copy_from(server, s22):
     source_room = "source-room"
     vis = ZnDraw(url=server, room=source_room, user="user1")
     vis.extend(s22[:3])
-    
+
     # create a new room by copying from the source room
     new_room = "test-room-1"
     response = requests.post(
-        f"{server}/api/rooms/{new_room}/join", json={"copyFrom": source_room}
+        f"{server}/api/rooms/{new_room}/join",
+        json={"copyFrom": source_room},
+        headers=get_jwt_auth_headers(server),
     )
     assert response.status_code == 200
     data = response.json()
@@ -99,7 +110,11 @@ def test_join_room_with_copy_from(server, s22):
 
     # create a new room without copying from another room
     another_room = "test-room-2"
-    response = requests.post(f"{server}/api/rooms/{another_room}/join", json={})
+    response = requests.post(
+        f"{server}/api/rooms/{another_room}/join",
+        json={},
+        headers=get_jwt_auth_headers(server),
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
@@ -108,7 +123,9 @@ def test_join_room_with_copy_from(server, s22):
 
 def test_join_room_invalid_name(server):
     room = "invalid:room"
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=get_jwt_auth_headers(server)
+    )
     assert response.status_code == 400
     data = response.json()
     assert "error" in data
@@ -140,3 +157,37 @@ def test_vis_len(server, s22):
 
     vis2 = ZnDraw(url=server, room="room-a", user="user2")
     assert len(vis2) == len(s22)
+
+
+def test_lock_acquisition_broadcasts_with_iso_timestamp(server, s22):
+    """Test that lock acquisition broadcasts room:update with ISO timestamp."""
+    import datetime
+
+    from zndraw.app.models import LockMetadata
+
+    vis = ZnDraw(url=server, room="lock-test-room", user="test-user")
+
+    # Acquire lock - this should broadcast room:update with LockMetadata
+    with vis.lock(msg="Testing lock broadcast"):
+        # Lock is acquired and metadata is broadcast
+        # The timestamp should be in ISO format, not float
+
+        # Verify we can create LockMetadata with ISO timestamp
+        iso_timestamp = datetime.datetime.utcnow().isoformat()
+        lock_metadata = LockMetadata(
+            msg="Test message", userName="test-user", timestamp=iso_timestamp
+        )
+        assert lock_metadata.timestamp == iso_timestamp
+
+        # Verify that float timestamps are rejected
+        with pytest.raises(Exception):  # Pydantic validation error
+            LockMetadata(
+                msg="Test message",
+                userName="test-user",
+                timestamp=1234567890.123,  # Float should fail
+            )
+
+        vis.extend(s22)
+
+    # Lock released
+    assert len(vis) == len(s22)

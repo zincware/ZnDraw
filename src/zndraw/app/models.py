@@ -12,13 +12,13 @@ class LockMetadata(BaseModel):
         Human-readable message describing the lock purpose
     userName : str | None
         Name of user holding the lock
-    timestamp : float | None
-        Unix timestamp when lock was acquired
+    timestamp : str | None
+        ISO 8601 timestamp when lock was acquired (e.g., "2025-01-24T19:27:16.369371")
     """
 
     msg: str | None = None
     userName: str | None = None
-    timestamp: float | None = None
+    timestamp: str | None = None
 
 
 class RoomMetadata(BaseModel):
@@ -56,6 +56,4 @@ class RoomMetadata(BaseModel):
     metadataLocked: LockMetadata | None = Field(
         None, description="Temporary lock metadata"
     )
-    presenterSid: str | None = Field(
-        None, description="Socket ID of current presenter"
-    )
+    presenterSid: str | None = Field(None, description="Socket ID of current presenter")

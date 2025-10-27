@@ -215,10 +215,9 @@ export default function RoomManagementMenu() {
       });
       
       handleCloseDuplicateDialog();
-      
+
       // Navigate directly to the new room
-      const userId = crypto.randomUUID();
-      navigate(`/rooms/${result.roomId}/${userId}`);
+      navigate(`/rooms/${result.roomId}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to duplicate room";
       setDuplicateForm({

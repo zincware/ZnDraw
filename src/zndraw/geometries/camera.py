@@ -5,15 +5,17 @@ For static cameras, create single-point curves.
 Moving curve markers with TransformControls updates camera immediately.
 """
 
-from enum import Enum
-from pydantic import Field, field_validator, ConfigDict, BaseModel
 import typing as t
+from enum import Enum
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .base import BaseGeometry
 
 
 class CameraType(str, Enum):
     """Camera projection types."""
+
     PERSPECTIVE = "PerspectiveCamera"
     ORTHOGRAPHIC = "OrthographicCamera"
 
@@ -119,26 +121,21 @@ class Camera(BaseModel):
     )
 
     # Override material and color (not applicable for cameras)
-    material: t.Any = Field(
-        default=None,
-        description="Not applicable for cameras"
-    )
+    material: t.Any = Field(default=None, description="Not applicable for cameras")
 
     color: str = Field(
-        default="#00ff00",
-        description="Camera helper color (visualization only)"
+        default="#00ff00", description="Camera helper color (visualization only)"
     )
 
     # Camera orientation
     up: tuple[float, float, float] = Field(
         default=(0.0, 1.0, 0.0),
-        description="Camera up vector [x,y,z]. Defines which direction is 'up'. Should be normalized."
+        description="Camera up vector [x,y,z]. Defines which direction is 'up'. Should be normalized.",
     )
 
     # Camera type and projection parameters
     camera_type: CameraType = Field(
-        default=CameraType.PERSPECTIVE,
-        description="Type of camera projection"
+        default=CameraType.PERSPECTIVE, description="Type of camera projection"
     )
 
     fov: float = Field(
@@ -168,24 +165,24 @@ class Camera(BaseModel):
 
     # Visual helper settings (no size field - managed by Three.js)
     helper_visible: bool = Field(
-        default=True,
-        description="Show camera helper (cone visualization)"
+        default=True, description="Show camera helper (cone visualization)"
     )
 
     helper_color: str = Field(
-        default="#00ff00",
-        description="Color of the camera helper (hex or named color)"
+        default="#00ff00", description="Color of the camera helper (hex or named color)"
     )
 
-    @field_validator('far')
+    @field_validator("far")
     @classmethod
     def validate_far_greater_than_near(cls, v, info):
         """Ensure far plane is greater than near plane."""
-        if 'near' in info.data and v <= info.data['near']:
-            raise ValueError(f"far ({v}) must be greater than near ({info.data['near']})")
+        if "near" in info.data and v <= info.data["near"]:
+            raise ValueError(
+                f"far ({v}) must be greater than near ({info.data['near']})"
+            )
         return v
 
-    @field_validator('up')
+    @field_validator("up")
     @classmethod
     def validate_up_vector(cls, v):
         """Ensure up vector is not zero."""
@@ -201,13 +198,17 @@ class Camera(BaseModel):
         # Position curve key - dropdown of available curves
         if "position_curve_key" in schema["properties"]:
             schema["properties"]["position_curve_key"]["x-custom-type"] = "dynamic-enum"
-            schema["properties"]["position_curve_key"]["x-features"] = ["dynamic-geometries"]
+            schema["properties"]["position_curve_key"]["x-features"] = [
+                "dynamic-geometries"
+            ]
             schema["properties"]["position_curve_key"]["x-geometry-filter"] = "Curve"
 
         # Target curve key - dropdown of available curves
         if "target_curve_key" in schema["properties"]:
             schema["properties"]["target_curve_key"]["x-custom-type"] = "dynamic-enum"
-            schema["properties"]["target_curve_key"]["x-features"] = ["dynamic-geometries"]
+            schema["properties"]["target_curve_key"]["x-features"] = [
+                "dynamic-geometries"
+            ]
             schema["properties"]["target_curve_key"]["x-geometry-filter"] = "Curve"
 
         # Helper color customization

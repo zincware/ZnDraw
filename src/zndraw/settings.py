@@ -28,7 +28,6 @@ class SettingsBase(BaseModel):
         return v
 
 
-
 class Controls(str, enum.Enum):
     OrbitControls = "OrbitControls"
     TrackballControls = "TrackballControls"
@@ -123,7 +122,9 @@ class PropertyInspector(SettingsBase):
         """Inject custom type for PropertyInspectorRenderer."""
         schema = super().model_json_schema(*args, **kwargs)
         # Mark enabled_properties field for custom renderer
-        schema["properties"]["enabled_properties"]["x-custom-type"] = "property-inspector"
+        schema["properties"]["enabled_properties"]["x-custom-type"] = (
+            "property-inspector"
+        )
         return schema
 
 
@@ -153,60 +154,48 @@ class Camera(SettingsBase):
 class PathTracing(SettingsBase):
     """GPU Path Tracing settings for high-quality physically-based rendering."""
 
-    enabled: bool = Field(
-        default=False,
-        description="Enable GPU path tracing renderer"
-    )
+    enabled: bool = Field(default=False, description="Enable GPU path tracing renderer")
 
     min_samples: float = Field(
-        default=1.0,
-        ge=1.0,
-        description="Minimum samples before displaying result"
+        default=1.0, ge=1.0, description="Minimum samples before displaying result"
     )
 
     samples: float = Field(
-        default=256.0,
-        ge=1.0,
-        le=10000.0,
-        description="Maximum samples to render"
+        default=256.0, ge=1.0, le=10000.0, description="Maximum samples to render"
     )
 
     bounces: float = Field(
         default=3.0,
         ge=1.0,
         le=32.0,
-        description="Number of light bounces for global illumination"
+        description="Number of light bounces for global illumination",
     )
 
     tiles: float = Field(
         default=1.0,
         ge=1.0,
         le=8.0,
-        description="Rendering tile count (higher = less memory, slower)"
+        description="Rendering tile count (higher = less memory, slower)",
     )
 
     environment_preset: EnvironmentPreset = Field(
         default=EnvironmentPreset.studio,
-        description="HDRI environment preset for scene lighting"
+        description="HDRI environment preset for scene lighting",
     )
 
     environment_intensity: float = Field(
         default=1.0,
         ge=0.0,
         le=10.0,
-        description="Environment map brightness multiplier"
+        description="Environment map brightness multiplier",
     )
 
     environment_blur: float = Field(
-        default=0.0,
-        ge=0.0,
-        le=1.0,
-        description="Environment background blur amount"
+        default=0.0, ge=0.0, le=1.0, description="Environment background blur amount"
     )
 
     environment_background: bool = Field(
-        default=False,
-        description="Show environment as visible background"
+        default=False, description="Show environment as visible background"
     )
 
     @classmethod

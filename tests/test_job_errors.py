@@ -4,6 +4,7 @@ import json
 
 import pytest
 import requests
+from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
 from zndraw.extensions import Extension, ExtensionType
@@ -132,11 +133,15 @@ def test_get_next_job_with_running_job(server):
     vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
     vis.register_extension(TestExtension)
 
+    # Get authentication headers
+    auth_headers = get_jwt_auth_headers(server, user)
+
     # Submit two jobs
     for i in range(2):
         response = requests.post(
             f"{server}/api/rooms/{room}/extensions/modifiers/{TestExtension.__name__}/submit",
             json={"data": {"parameter": i}, "userId": user},
+            headers=auth_headers,
         )
         assert response.status_code == 200
 
@@ -179,10 +184,14 @@ def test_extension_execution_with_auto_pickup(server):
     vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=True)
     vis.register_extension(TestExtension)
 
+    # Get authentication headers
+    auth_headers = get_jwt_auth_headers(server, user)
+
     # Submit a job
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/modifiers/{TestExtension.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
+        headers=auth_headers,
     )
     assert response.status_code == 200
     job_id = response.json()["jobId"]

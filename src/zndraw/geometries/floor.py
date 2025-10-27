@@ -1,7 +1,9 @@
 """Floor geometry with grid, shadows, and fog support."""
 
 import typing as t
+
 from pydantic import Field
+
 from .base import BaseGeometry
 
 
@@ -19,69 +21,46 @@ class Floor(BaseGeometry):
 
     # Override base properties - Floor doesn't need dynamic data
     position: tuple[float, float, float] = Field(
-        default=(0, 0, 0),
-        description="Floor center position [x,y,z]"
+        default=(0, 0, 0), description="Floor center position [x,y,z]"
     )
 
     color: str = Field(
         default="default",
-        description="Floor base color (uses theme colors when 'default')"
+        description="Floor base color (uses theme colors when 'default')",
     )
 
     # Floor-specific properties
     height: float = Field(
-        default=-5.0,
-        le=50.0,
-        ge=-50.0,
-        description="Y-position of the floor plane"
+        default=-5.0, le=50.0, ge=-50.0, description="Y-position of the floor plane"
     )
 
     grid_spacing: float = Field(
-        default=10.0,
-        ge=0.5,
-        le=50.0,
-        description="Spacing between grid lines"
+        default=10.0, ge=0.5, le=50.0, description="Spacing between grid lines"
     )
 
     grid_color: str = Field(
         default="default",
-        description="Grid line color (uses theme colors when 'default')"
+        description="Grid line color (uses theme colors when 'default')",
     )
 
     grid_opacity: float = Field(
-        default=1.0,
-        ge=0.0,
-        le=1.0,
-        description="Grid line opacity"
+        default=1.0, ge=0.0, le=1.0, description="Grid line opacity"
     )
 
-    show_grid: bool = Field(
-        default=True,
-        description="Toggle grid visibility"
-    )
+    show_grid: bool = Field(default=True, description="Toggle grid visibility")
 
-    show_shadows: bool = Field(
-        default=True,
-        description="Toggle contact shadows"
-    )
+    show_shadows: bool = Field(default=True, description="Toggle contact shadows")
 
     shadow_opacity: float = Field(
-        default=0.5,
-        ge=0.0,
-        le=1.0,
-        description="Shadow opacity"
+        default=0.5, ge=0.0, le=1.0, description="Shadow opacity"
     )
 
     shadow_blur: float = Field(
-        default=0.5,
-        ge=0.0,
-        le=2.0,
-        description="Shadow blur radius"
+        default=0.5, ge=0.0, le=2.0, description="Shadow blur radius"
     )
 
     fog_enabled: bool = Field(
-        default=True,
-        description="Enable fog (extends to camera far plane)"
+        default=True, description="Enable fog (extends to camera far plane)"
     )
 
     @classmethod

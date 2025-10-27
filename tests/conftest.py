@@ -5,6 +5,7 @@ import socket
 import subprocess
 import time
 import typing as t
+import uuid
 
 import ase.collections
 import ase.io
@@ -14,6 +15,43 @@ import redis
 import znh5md
 
 from zndraw.start_celery import run_celery_worker
+
+
+def get_jwt_auth_headers(server_url: str, user_name: str | None = None) -> dict:
+    """Login and get JWT authentication headers for API requests.
+
+    Args:
+        server_url: The base URL of the server (e.g., "http://127.0.0.1:5000")
+        user_name: Optional username. If not provided, generates a random one.
+
+    Returns:
+        Dictionary with Authorization header containing JWT token
+    """
+    import requests
+
+    if user_name is None:
+        user_name = f"test-user-{uuid.uuid4().hex[:8]}"
+
+    response = requests.post(f"{server_url}/api/login", json={"userName": user_name})
+
+    if response.status_code != 200:
+        raise RuntimeError(f"Login failed: {response.text}")
+
+    data = response.json()
+    return {"Authorization": f"Bearer {data['token']}"}
+
+
+@pytest.fixture
+def app():
+    """Create a Flask app for unit testing."""
+    from zndraw.server import create_app
+
+    # Create app with in-memory storage for testing
+    test_app = create_app(storage_path=":memory:", redis_url=None)
+    test_app.config["TESTING"] = True
+
+    yield test_app
+
 
 @pytest.fixture
 def redis_client():
@@ -174,8 +212,10 @@ def joined_room(server, request):
     test_name = request.node.name
     room = test_name.replace("_", "-")
 
-    # Join the room
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
+    # Join the room with JWT authentication
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=get_jwt_auth_headers(server)
+    )
     assert response.status_code == 200, f"Failed to join room {room}"
 
     return server, room

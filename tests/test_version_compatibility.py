@@ -1,10 +1,12 @@
 """Tests for version compatibility checking between client and server."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
 from zndraw.version_utils import (
-    parse_version,
     check_version_compatibility,
+    parse_version,
     validate_server_version,
 )
 
@@ -71,9 +73,7 @@ def test_check_version_compatibility_invalid():
 def test_validate_server_version_compatible():
     """Test validate_server_version with compatible versions."""
     mock_api = Mock()
-    mock_response = Mock()
-    mock_response.json.return_value = {"version": "0.6.0"}
-    mock_api.get.return_value = mock_response
+    mock_api.get_version.return_value = "0.6.0"
     mock_api.url = "http://localhost:5000"
 
     # Should not raise
@@ -83,9 +83,7 @@ def test_validate_server_version_compatible():
 def test_validate_server_version_patch_mismatch():
     """Test validate_server_version with patch version mismatch (warning)."""
     mock_api = Mock()
-    mock_response = Mock()
-    mock_response.json.return_value = {"version": "0.6.1"}
-    mock_api.get.return_value = mock_response
+    mock_api.get_version.return_value = "0.6.1"
     mock_api.url = "http://localhost:5000"
 
     # Should warn but not raise
@@ -96,9 +94,7 @@ def test_validate_server_version_patch_mismatch():
 def test_validate_server_version_minor_mismatch():
     """Test validate_server_version with minor version mismatch (error)."""
     mock_api = Mock()
-    mock_response = Mock()
-    mock_response.json.return_value = {"version": "0.7.0"}
-    mock_api.get.return_value = mock_response
+    mock_api.get_version.return_value = "0.7.0"
     mock_api.url = "http://localhost:5000"
 
     # Should raise RuntimeError
@@ -109,9 +105,7 @@ def test_validate_server_version_minor_mismatch():
 def test_validate_server_version_major_mismatch():
     """Test validate_server_version with major version mismatch (error)."""
     mock_api = Mock()
-    mock_response = Mock()
-    mock_response.json.return_value = {"version": "1.0.0"}
-    mock_api.get.return_value = mock_response
+    mock_api.get_version.return_value = "1.0.0"
     mock_api.url = "http://localhost:5000"
 
     # Should raise RuntimeError

@@ -1,5 +1,6 @@
 import itertools
 import logging
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -7,14 +8,13 @@ import ase.db
 import ase.io
 import requests
 import znh5md
-import traceback
-
 
 # Tqdm is removed from the generator as it won't render in a Celery worker.
 # from tqdm import tqdm
 from celery import shared_task
-from zndraw.connectivity import add_connectivity
+
 from zndraw.app.file_browser import FORMAT_BACKENDS
+from zndraw.connectivity import add_connectivity
 
 log = logging.getLogger(__name__)
 
@@ -88,11 +88,13 @@ def read_file(
     file_path = Path(file)
     # Use custom description if provided, otherwise default to file path
     room_description = description if description is not None else f"{file}"
-    vis = ZnDraw(room=room, url=server_url, user="uploader", description=room_description)
+    vis = ZnDraw(
+        room=room, url=server_url, user="uploader", description=room_description
+    )
     if not file_path.exists():
         vis.log(f"File {file} does not exist.")
         return
-    
+
     # Determine backend based on file extension
     ext = file_path.suffix.lstrip(".").lower()
     backends = FORMAT_BACKENDS.get(ext, ["ASE"])  # Default to ASE for unknown formats
@@ -119,7 +121,9 @@ def read_file(
     if ext in FORMAT_BACKENDS:
         vis.log(f"Reading {slice_info} from {file} using {backend_name}...")
     else:
-        vis.log(f"Reading {slice_info} from {file} (unknown format, attempting with ASE)...")
+        vis.log(
+            f"Reading {slice_info} from {file} (unknown format, attempting with ASE)..."
+        )
 
     # Use vis.lock context manager to lock room during upload
     # Initialize tracking variables
@@ -141,11 +145,15 @@ def read_file(
 
                 # Validate slice parameters against file length
                 if start is not None and start >= n_frames:
-                    vis.log(f"❌ Error: Start frame ({start}) exceeds file length ({n_frames} frames)")
+                    vis.log(
+                        f"❌ Error: Start frame ({start}) exceeds file length ({n_frames} frames)"
+                    )
                     raise ValueError(f"Start frame {start} exceeds file length")
 
                 if stop is not None and stop > n_frames:
-                    vis.log(f"⚠️ Warning: Stop frame ({stop}) exceeds file length ({n_frames}), using end of file")
+                    vis.log(
+                        f"⚠️ Warning: Stop frame ({stop}) exceeds file length ({n_frames}), using end of file"
+                    )
 
                 s = slice(start, stop, step)
                 # The 'indices' method converts the slice into a (start, stop, step)
@@ -169,7 +177,9 @@ def read_file(
                 # Validate step
                 if step is not None and step <= 0:
                     vis.log("❌ Error: Step must be a positive integer (e.g., 1, 2, 5)")
-                    raise ValueError("Step must be a positive integer for database files.")
+                    raise ValueError(
+                        "Step must be a positive integer for database files."
+                    )
 
                 # Validate and adjust slice parameters
                 # User provides 0-indexed, database uses 1-indexed IDs internally
@@ -178,11 +188,15 @@ def read_file(
                 _step = step if step is not None else 1
 
                 if _start >= n_rows:
-                    vis.log(f"❌ Error: Start row ({_start}) exceeds database size ({n_rows} rows)")
+                    vis.log(
+                        f"❌ Error: Start row ({_start}) exceeds database size ({n_rows} rows)"
+                    )
                     raise ValueError(f"Start row {_start} exceeds database size")
 
                 if _stop > n_rows:
-                    vis.log(f"⚠️ Warning: Stop row ({_stop}) exceeds database size ({n_rows}), using end of database")
+                    vis.log(
+                        f"⚠️ Warning: Stop row ({_stop}) exceeds database size ({n_rows}), using end of database"
+                    )
                     _stop = n_rows
 
                 # Create list of row IDs to retrieve (convert 0-indexed to 1-indexed)
@@ -198,7 +212,9 @@ def read_file(
                             yield row.toatoms()
                         except KeyError:
                             # Row ID might not exist (gaps in database)
-                            vis.log(f"⚠️ Warning: Row ID {row_id} not found in database, skipping")
+                            vis.log(
+                                f"⚠️ Warning: Row ID {row_id} not found in database, skipping"
+                            )
                             continue
 
                 frame_iterator = db_iterator()
@@ -218,7 +234,9 @@ def read_file(
             # Now, the batching logic is the same for both file types
             if frame_iterator:
                 # A simple log message is often better for background tasks.
-                log.info(f"Processing frames from {file_path} in batches of {batch_size}")
+                log.info(
+                    f"Processing frames from {file_path} in batches of {batch_size}"
+                )
 
                 for batch in batch_generator(frame_iterator, batch_size):
                     # compute connectivity for each frame in the batch, if reasonable sized
@@ -254,7 +272,10 @@ def read_file(
                 current_particles = vis.geometries["particles"]
                 # Create new Sphere with updated resolution (Pydantic models are frozen)
                 updated_particles = Sphere(
-                    **{**current_particles.model_dump(), "resolution": adaptive_resolution}
+                    **{
+                        **current_particles.model_dump(),
+                        "resolution": adaptive_resolution,
+                    }
                 )
                 # Write back to server
                 vis.geometries["particles"] = updated_particles
@@ -266,7 +287,7 @@ def read_file(
                 )
             except Exception as e:
                 log.warning(f"Failed to apply adaptive resolution: {e}")
-    
+
     # Store file metadata
     try:
         stat = file_path.stat()
@@ -284,23 +305,24 @@ def read_file(
             except ValueError:
                 # If not relative to cwd, use absolute path
                 relative_path = file_path.absolute()
-        
+
         metadata = {
             "relative_file_path": str(relative_path),
             "file_size": str(stat.st_size),
-            "file_modified_timestamp": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+            "file_modified_timestamp": datetime.fromtimestamp(
+                stat.st_mtime, tz=timezone.utc
+            ).isoformat(),
         }
-        
+
         # Store metadata via REST API
         requests.post(
-            f"{server_url}/api/rooms/{room}/metadata",
-            json=metadata
+            f"{server_url}/api/rooms/{room}/metadata", json=metadata
         ).raise_for_status()
         log.info(f"Stored metadata for room {room}: {metadata}")
     except Exception as e:
         log.error(f"Failed to store metadata for room {room}: {e}")
         # Don't fail the whole task if metadata storage fails
-    
+
     # Set as default room if requested
     if make_default:
         try:
@@ -318,6 +340,7 @@ def read_file(
     if cleanup_after and file_path.exists():
         try:
             import os
+
             os.remove(file_path)
             log.info(f"Cleaned up temporary file: {file_path}")
         except Exception as e:

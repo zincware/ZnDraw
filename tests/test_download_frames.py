@@ -27,8 +27,7 @@ def test_download_single_frame(server, s22):
 
     # Download frame at index 2
     response = requests.get(
-        f"{server}/api/rooms/test-download-single/download",
-        params={"indices": "2"}
+        f"{server}/api/rooms/test-download-single/download", params={"indices": "2"}
     )
 
     assert response.status_code == 200
@@ -46,7 +45,9 @@ def test_download_single_frame(server, s22):
     downloaded_atoms = atoms_list[0]
     original_atoms = s22[2]
     assert len(downloaded_atoms) == len(original_atoms)
-    assert downloaded_atoms.get_chemical_formula() == original_atoms.get_chemical_formula()
+    assert (
+        downloaded_atoms.get_chemical_formula() == original_atoms.get_chemical_formula()
+    )
     assert np.allclose(downloaded_atoms.positions, original_atoms.positions, atol=1e-6)
 
 
@@ -58,9 +59,7 @@ def test_download_all_frames(server, s22):
         vis.append(atoms)
 
     # Download all frames (no indices parameter)
-    response = requests.get(
-        f"{server}/api/rooms/test-download-all/download"
-    )
+    response = requests.get(f"{server}/api/rooms/test-download-all/download")
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "chemical/x-xyz"
@@ -75,8 +74,12 @@ def test_download_all_frames(server, s22):
     # Verify each frame matches
     for i, (downloaded, original) in enumerate(zip(atoms_list, s22[:10])):
         assert len(downloaded) == len(original), f"Frame {i} atom count mismatch"
-        assert downloaded.get_chemical_formula() == original.get_chemical_formula(), f"Frame {i} formula mismatch"
-        assert np.allclose(downloaded.positions, original.positions, atol=1e-6), f"Frame {i} positions mismatch"
+        assert downloaded.get_chemical_formula() == original.get_chemical_formula(), (
+            f"Frame {i} formula mismatch"
+        )
+        assert np.allclose(downloaded.positions, original.positions, atol=1e-6), (
+            f"Frame {i} positions mismatch"
+        )
 
 
 def test_download_multiple_specific_frames(server, s22):
@@ -89,7 +92,7 @@ def test_download_multiple_specific_frames(server, s22):
     # Download frames 0, 5, 10
     response = requests.get(
         f"{server}/api/rooms/test-download-multiple/download",
-        params={"indices": "0,5,10"}
+        params={"indices": "0,5,10"},
     )
 
     assert response.status_code == 200
@@ -121,7 +124,7 @@ def test_download_with_selection(server, s22):
     # Download with selection of first 3 particles
     response = requests.get(
         f"{server}/api/rooms/test-download-selection/download",
-        params={"indices": "0", "selection": "0,1,2"}
+        params={"indices": "0", "selection": "0,1,2"},
     )
 
     assert response.status_code == 200
@@ -154,8 +157,7 @@ def test_download_preserves_metadata(server, s22):
 
     # Download the frame
     response = requests.get(
-        f"{server}/api/rooms/test-download-metadata/download",
-        params={"indices": "0"}
+        f"{server}/api/rooms/test-download-metadata/download", params={"indices": "0"}
     )
 
     assert response.status_code == 200
@@ -179,9 +181,7 @@ def test_download_empty_room(server):
     vis = ZnDraw(url=server, room="test-download-empty", user="user1")
 
     # Download from empty room
-    response = requests.get(
-        f"{server}/api/rooms/test-download-empty/download"
-    )
+    response = requests.get(f"{server}/api/rooms/test-download-empty/download")
 
     # Server validates that room has frames - should return 400
     assert response.status_code == 400
@@ -196,8 +196,7 @@ def test_download_invalid_index(server, s22):
 
     # Try to download frame 999 (doesn't exist)
     response = requests.get(
-        f"{server}/api/rooms/test-download-invalid/download",
-        params={"indices": "999"}
+        f"{server}/api/rooms/test-download-invalid/download", params={"indices": "999"}
     )
 
     # Server validates indices - should return 400 for out-of-range
@@ -213,8 +212,7 @@ def test_download_negative_index(server, s22):
 
     # Try to download using negative index
     response = requests.get(
-        f"{server}/api/rooms/test-download-negative/download",
-        params={"indices": "-1"}
+        f"{server}/api/rooms/test-download-negative/download", params={"indices": "-1"}
     )
 
     # Negative indices are not supported - should return 400
@@ -231,7 +229,7 @@ def test_download_custom_filename(server, s22):
     custom_filename = "my_structure.xyz"
     response = requests.get(
         f"{server}/api/rooms/test-download-filename/download",
-        params={"indices": "0", "filename": custom_filename}
+        params={"indices": "0", "filename": custom_filename},
     )
 
     assert response.status_code == 200
@@ -250,8 +248,7 @@ def test_download_extxyz_format_structure(server, s22):
 
     # Download the frame
     response = requests.get(
-        f"{server}/api/rooms/test-download-format/download",
-        params={"indices": "0"}
+        f"{server}/api/rooms/test-download-format/download", params={"indices": "0"}
     )
 
     assert response.status_code == 200
@@ -305,9 +302,7 @@ def test_download_different_frame_counts(server, s22, num_frames):
 def test_download_room_not_found(server):
     """Test downloading from non-existent room."""
     # Try to download from room that doesn't exist
-    response = requests.get(
-        f"{server}/api/rooms/nonexistent-room-xyz/download"
-    )
+    response = requests.get(f"{server}/api/rooms/nonexistent-room-xyz/download")
 
     # Should return error (likely 404 or 400)
     # Based on implementation, it might return 200 with empty content

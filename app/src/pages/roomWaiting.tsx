@@ -41,8 +41,7 @@ export default function RoomWaitingPage() {
             setStatus("ready");
             // Small delay to show success state before redirect
             setTimeout(() => {
-              const userId = crypto.randomUUID();
-              navigate(`/rooms/${roomId}/${userId}`, { replace: true });
+              navigate(`/rooms/${roomId}`, { replace: true });
             }, 500);
           }
           return;
@@ -167,8 +166,7 @@ export default function RoomWaitingPage() {
             <Button
               variant="contained"
               onClick={() => {
-                const userId = crypto.randomUUID();
-                navigate(`/rooms/${roomId}/${userId}`, { replace: true });
+                navigate(`/rooms/${roomId}`, { replace: true });
               }}
             >
               Try to Join Anyway

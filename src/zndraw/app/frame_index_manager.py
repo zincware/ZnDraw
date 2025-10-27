@@ -195,7 +195,7 @@ class FrameIndexManager:
         # Decode bytes to string if necessary
         frame_key = result[0]
         if isinstance(frame_key, bytes):
-            frame_key = frame_key.decode('utf-8')
+            frame_key = frame_key.decode("utf-8")
         return frame_key
 
     def get_count(self) -> int:

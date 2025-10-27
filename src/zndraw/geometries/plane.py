@@ -1,15 +1,16 @@
 """Plane geometry for ZnDraw."""
 
 import typing as t
+
 from pydantic import Field, field_validator
 
 from .base import (
     BaseGeometry,
-    PositionProp,
     ColorProp,
+    InteractionSettings,
+    PositionProp,
     RotationProp,
     Size2DProp,
-    InteractionSettings,
     apply_schema_feature,
 )
 
@@ -40,15 +41,23 @@ class Plane(BaseGeometry):
         schema = super().model_json_schema(**kwargs)
 
         # Apply schema features using helper
-        apply_schema_feature(schema, "position", ["dynamic-atom-props", "editable-array"])
+        apply_schema_feature(
+            schema, "position", ["dynamic-atom-props", "editable-array"]
+        )
         apply_schema_feature(schema, "size", ["dynamic-atom-props", "editable-array"])
-        apply_schema_feature(schema, "color", ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"])
-        apply_schema_feature(schema, "rotation", ["dynamic-atom-props", "editable-array"])
         apply_schema_feature(
             schema,
             "color",
             ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"],
-            definition_path="InteractionSettings"
+        )
+        apply_schema_feature(
+            schema, "rotation", ["dynamic-atom-props", "editable-array"]
+        )
+        apply_schema_feature(
+            schema,
+            "color",
+            ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"],
+            definition_path="InteractionSettings",
         )
 
         return schema

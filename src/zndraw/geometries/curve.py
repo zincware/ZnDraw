@@ -1,7 +1,9 @@
-from pydantic import Field, BaseModel
 import typing as t
 
-from .base import BaseGeometry, PositionProp, apply_schema_feature
+from pydantic import BaseModel, Field
+
+from .base import BaseGeometry, ColorProp, PositionProp, apply_schema_feature
+
 
 class CurveMarker(BaseModel):
     """Settings for markers on the curve control points."""
@@ -35,17 +37,26 @@ class Curve(BaseGeometry):
         schema = super().model_json_schema(**kwargs)
 
         # Apply schema features using helper
-        apply_schema_feature(schema, "position", ["dynamic-atom-props", "editable-array"])
-        apply_schema_feature(schema, "color", ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"])
+        apply_schema_feature(
+            schema, "position", ["dynamic-atom-props", "editable-array"]
+        )
+        apply_schema_feature(
+            schema,
+            "color",
+            ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"],
+        )
 
         # Color picker for CurveMarker properties
         if "CurveMarker" in schema.get("$defs", {}):
-            schema["$defs"]["CurveMarker"]["properties"]["color"][
-                "x-custom-type"
-            ] = "dynamic-enum"
-            schema["$defs"]["CurveMarker"]["properties"]["color"][
-                "x-features"
-            ] = ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"]
+            schema["$defs"]["CurveMarker"]["properties"]["color"]["x-custom-type"] = (
+                "dynamic-enum"
+            )
+            schema["$defs"]["CurveMarker"]["properties"]["color"]["x-features"] = [
+                "color-picker",
+                "dynamic-atom-props",
+                "free-solo",
+                "editable-array",
+            ]
 
         return schema
 
@@ -83,7 +94,7 @@ class Curve(BaseGeometry):
         default_factory=lambda: CurveMarker(size=0.08, color="default", opacity=0.5),
         description="Virtual marker between two existing markers (for adding new points)",
     )
-    color: str = Field(
+    color: ColorProp = Field(
         default="default",
         description="Curve color",
     )

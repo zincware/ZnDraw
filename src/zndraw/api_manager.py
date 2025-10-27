@@ -12,6 +12,36 @@ class APIManager:
     url: str
     room: str
     client_id: str | None = None
+    jwt_token: str | None = None
+
+    def login(self, user_name: str) -> dict:
+        """Authenticate and get JWT token.
+
+        Parameters
+        ----------
+        user_name : str
+            Username for authentication
+
+        Returns
+        -------
+        dict
+            {"status": str, "token": str, "clientId": str}
+
+        Raises
+        ------
+        RuntimeError
+            If login fails
+        """
+        response = requests.post(f"{self.url}/api/login", json={"userName": user_name})
+
+        if response.status_code != 200:
+            raise RuntimeError(f"Login failed: {response.text}")
+
+        data = response.json()
+        # Update internal state
+        self.jwt_token = data["token"]
+        self.client_id = data["clientId"]
+        return data
 
     def _raise_for_error_type(self, response: requests.Response) -> None:
         """Convert API error responses to appropriate Python exceptions.
@@ -66,28 +96,31 @@ class APIManager:
         self,
         description: str | None = None,
         copy_from: str | None = None,
-        user_id: str = "guest"
     ) -> dict:
         """Join a room, optionally creating it with a description or copying from an existing room.
-        
+
         Args:
             description: Optional description for the room (only used if room is created)
             copy_from: Optional room ID to copy frames and settings from (only used if room is created)
-            user_id: User identifier
-        
+
         Returns:
-            Dict containing room information and join token
+            Dict containing room information (userId comes from JWT token)
         """
-        payload = {"userId": user_id}
-        
+        payload = {}
+
         if description is not None:
             payload["description"] = description
         if copy_from is not None:
             payload["copyFrom"] = copy_from
-        if self.client_id:
-            payload["clientId"] = self.client_id
 
-        response = requests.post(f"{self.url}/api/rooms/{self.room}/join", json=payload)
+        # Send JWT token in Authorization header
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
+        response = requests.post(
+            f"{self.url}/api/rooms/{self.room}/join", json=payload, headers=headers
+        )
 
         if response.status_code != 200:
             raise RuntimeError(
@@ -96,8 +129,14 @@ class APIManager:
         return response.json()
 
     def get_next_job(self, worker_id: str) -> dict | None:
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
         response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/jobs/next", json={"workerId": worker_id}
+            f"{self.url}/api/rooms/{self.room}/jobs/next",
+            json={"workerId": worker_id},
+            headers=headers,
         )
         if response.status_code == 200:
             return response.json()
@@ -111,18 +150,27 @@ class APIManager:
     def update_job_status(
         self, job_id: str, status: str, worker_id: str, error: str | None = None
     ) -> None:
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
         payload = {"status": status, "workerId": worker_id}
         if error:
             payload["error"] = error
         response = requests.put(
             f"{self.url}/api/rooms/{self.room}/jobs/{job_id}/status",
             json=payload,
+            headers=headers,
         )
         response.raise_for_status()
 
     def register_extension(
         self, name: str, category: str, schema: dict, client_id: str
     ) -> None:
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
         response = requests.post(
             f"{self.url}/api/rooms/{self.room}/extensions/register",
             json={
@@ -131,6 +179,7 @@ class APIManager:
                 "schema": schema,
                 "clientId": client_id,
             },
+            headers=headers,
         )
         response.raise_for_status()
 
@@ -186,7 +235,7 @@ class APIManager:
             upload_url = f"{self.url}/api/rooms/{self.room}/frames"
             params = {"action": action}
             params.update(kwargs)
-            
+
             # Add client_id if available (for lock checking)
             if self.client_id:
                 params["client_id"] = self.client_id
@@ -231,7 +280,7 @@ class APIManager:
                 params["stop"] = index.stop
             if index.step is not None:
                 params["step"] = index.step
-        
+
         # Add client_id if available (for lock checking)
         if self.client_id:
             params["client_id"] = self.client_id
@@ -284,26 +333,39 @@ class APIManager:
 
         response.raise_for_status()
 
-    def get_extension_settings(self, extension_name: str, user_id: str) -> dict:
+    def get_extension_settings(self, extension_name: str) -> dict:
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/extensions/settings/{extension_name}/data?userId={user_id}"
+            f"{self.url}/api/rooms/{self.room}/extensions/settings/{extension_name}/data",
+            headers=headers,
         )
         response.raise_for_status()
         return response.json()
 
-    def submit_extension_settings(
-        self, extension_name: str, user_id: str, data: dict
-    ) -> None:
+    def submit_extension_settings(self, extension_name: str, data: dict) -> None:
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
         response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/extensions/settings/{extension_name}/submit?userId={user_id}",
+            f"{self.url}/api/rooms/{self.room}/extensions/settings/{extension_name}/submit",
             json=data,
+            headers=headers,
         )
         response.raise_for_status()
 
-    def run_extension(self, category: str, name: str, user_id: str, data: dict) -> dict:
+    def run_extension(self, category: str, name: str, data: dict) -> dict:
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
         response = requests.post(
             f"{self.url}/api/rooms/{self.room}/extensions/{category}/{name}/submit",
-            json={"data": data, "userId": user_id},
+            json={"data": data},
+            headers=headers,
         )
         if response.status_code != 200:
             error_data = response.json()
@@ -336,24 +398,29 @@ class APIManager:
 
     def set_geometry(self, data: dict, key: str, geometry_type: str) -> None:
         """Create or update a geometry.
-        
+
         Args:
             data: The geometry data dict
             key: The geometry key/name
             geometry_type: The type of geometry (Sphere, Arrow, Bond, Curve)
         """
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
         response = requests.post(
             f"{self.url}/api/rooms/{self.room}/geometries",
             json={"key": key, "data": data, "type": geometry_type},
+            headers=headers,
         )
         response.raise_for_status()
 
     def get_geometry(self, key: str) -> dict | None:
         """Get a specific geometry by key.
-        
+
         Args:
             key: The geometry key/name
-            
+
         Returns:
             The geometry dict with 'type' and 'data' keys, or None if not found
         """
@@ -367,12 +434,16 @@ class APIManager:
 
     def del_geometry(self, key: str) -> None:
         """Delete a geometry.
-        
+
         Args:
             key: The geometry key/name
         """
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
         response = requests.delete(
-            f"{self.url}/api/rooms/{self.room}/geometries/{key}",
+            f"{self.url}/api/rooms/{self.room}/geometries/{key}", headers=headers
         )
         response_data = response.json()
         if response.status_code != 200:
@@ -384,7 +455,7 @@ class APIManager:
 
     def list_geometries(self) -> list[str]:
         """List all geometry keys.
-        
+
         Returns:
             List of geometry keys
         """
@@ -393,20 +464,20 @@ class APIManager:
         )
         response.raise_for_status()
         return response.json().get("geometries", [])
-    
+
     def get_geometries(self) -> dict | None:
         """Get all geometries (DEPRECATED: use list_geometries and get_geometry).
-        
+
         This method fetches all geometry keys and then retrieves each geometry.
         For better performance, use list_geometries() and get_geometry(key) as needed.
-        
+
         Returns:
             Dict mapping geometry keys to their data {key: {type, data}, ...}
         """
         keys = self.list_geometries()
         if not keys:
             return {}
-        
+
         result = {}
         for key in keys:
             geometry = self.get_geometry(key)
@@ -449,10 +520,10 @@ class APIManager:
         )
         response.raise_for_status()
         return response.json().get("figures", [])
-    
+
     def get_metadata(self) -> dict[str, str]:
         """Get all metadata for the room.
-        
+
         Returns
         -------
         dict[str, str]
@@ -461,26 +532,25 @@ class APIManager:
         response = requests.get(f"{self.url}/api/rooms/{self.room}/metadata")
         response.raise_for_status()
         return response.json().get("metadata", {})
-    
+
     def set_metadata(self, data: dict[str, str]) -> None:
         """Update room metadata.
-        
+
         Parameters
         ----------
         data : dict[str, str]
             Dictionary of metadata fields to update.
-            
+
         Raises
         ------
         requests.HTTPError
             If the request fails (e.g., room is locked).
         """
         response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/metadata",
-            json=data
+            f"{self.url}/api/rooms/{self.room}/metadata", json=data
         )
         response.raise_for_status()
-    
+
     def delete_metadata_field(self, field: str) -> None:
         """Delete a metadata field.
 
@@ -494,9 +564,7 @@ class APIManager:
         requests.HTTPError
             If the request fails (e.g., room is locked).
         """
-        response = requests.delete(
-            f"{self.url}/api/rooms/{self.room}/metadata/{field}"
-        )
+        response = requests.delete(f"{self.url}/api/rooms/{self.room}/metadata/{field}")
         response.raise_for_status()
 
     # ========================================================================
@@ -683,9 +751,7 @@ class APIManager:
         IndexError
             If index is out of range
         """
-        response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/bookmarks/{index}"
-        )
+        response = requests.get(f"{self.url}/api/rooms/{self.room}/bookmarks/{index}")
         if response.status_code == 404:
             self._raise_for_error_type(response)
 

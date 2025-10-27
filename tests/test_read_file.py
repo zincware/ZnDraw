@@ -1,5 +1,5 @@
-import pytest
 import ase
+import pytest
 
 from zndraw import ZnDraw
 from zndraw.app import tasks
@@ -9,7 +9,9 @@ from zndraw.app.tasks import calculate_adaptive_resolution
 # and 's22' defined in a conftest.py file.
 
 
-@pytest.mark.parametrize("file_fixture_name", ["s22_xyz", "s22_h5", "s22_db", "s22_json_db"])
+@pytest.mark.parametrize(
+    "file_fixture_name", ["s22_xyz", "s22_h5", "s22_db", "s22_json_db"]
+)
 def test_worker_read_file(server, s22, file_fixture_name, request):
     """
     Test that reading a complete file (.xyz, .h5, .db, or .json) results in the correct
@@ -179,15 +181,15 @@ def test_worker_read_file_db_partial_range(server, s22, s22_db):
 @pytest.mark.parametrize(
     "num_particles, expected_resolution",
     [
-        (100, 16),        # Small system
-        (500, 16),        # Still small
-        (1000, 14),       # Boundary case
-        (2500, 14),       # Medium-small
-        (5000, 12),       # Medium
-        (10000, 10),      # Large
-        (25000, 8),       # Very large
-        (100000, 8),      # Huge
-        (500000, 6),      # Massive
+        (100, 16),  # Small system
+        (500, 16),  # Still small
+        (1000, 14),  # Boundary case
+        (2500, 14),  # Medium-small
+        (5000, 12),  # Medium
+        (10000, 10),  # Large
+        (25000, 8),  # Very large
+        (100000, 8),  # Huge
+        (500000, 6),  # Massive
     ],
 )
 def test_calculate_adaptive_resolution(num_particles, expected_resolution):
@@ -210,8 +212,12 @@ def test_adaptive_resolution_applied_large_system(server, tmp_path):
 
     # Check that resolution was reduced
     particles_geometry = vis.geometries["particles"]
-    assert particles_geometry.resolution < 16, "Resolution should be reduced for large systems"
-    assert particles_geometry.resolution == 10, "Expected resolution of 10 for 15000 particles"
+    assert particles_geometry.resolution < 16, (
+        "Resolution should be reduced for large systems"
+    )
+    assert particles_geometry.resolution == 10, (
+        "Expected resolution of 10 for 15000 particles"
+    )
 
 
 def test_adaptive_resolution_not_applied_small_system(server, s22_xyz):
@@ -222,4 +228,6 @@ def test_adaptive_resolution_not_applied_small_system(server, s22_xyz):
 
     # Check that resolution remains at default
     particles_geometry = vis.geometries["particles"]
-    assert particles_geometry.resolution == 16, "Resolution should remain 16 for small systems"
+    assert particles_geometry.resolution == 16, (
+        "Resolution should remain 16 for small systems"
+    )

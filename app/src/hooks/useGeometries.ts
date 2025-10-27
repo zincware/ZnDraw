@@ -54,17 +54,15 @@ export const useCreateGeometry = () => {
   return useMutation({
     mutationFn: ({
       roomId,
-      clientId,
       key,
       geometryType,
       geometryData,
     }: {
       roomId: string;
-      clientId: string | null;
       key: string;
       geometryType: string;
       geometryData: Record<string, any>;
-    }) => createGeometry(roomId, clientId, key, geometryType, geometryData),
+    }) => createGeometry(roomId, key, geometryType, geometryData),
     onSuccess: (_, variables) => {
       // Invalidate the geometries list to refetch
       queryClient.invalidateQueries({

@@ -3,7 +3,17 @@ from collections.abc import MutableMapping
 
 from pydantic import BaseModel
 
-from zndraw.geometries import Arrow, Sphere, Bond, Curve, Camera, Cell, Floor, Box, Plane
+from zndraw.geometries import (
+    Arrow,
+    Bond,
+    Box,
+    Camera,
+    Cell,
+    Curve,
+    Floor,
+    Plane,
+    Sphere,
+)
 
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw
@@ -43,7 +53,7 @@ class Geometries(MutableMapping):
 
     def __getitem__(self, key: str) -> BaseModel:
         """Get a geometry by key.
-        
+
         First checks local cache, then fetches from server if needed.
         """
         if key not in self.vis._geometries:
@@ -53,8 +63,9 @@ class Geometries(MutableMapping):
                 raise KeyError(f"Geometry with key '{key}' does not exist")
             # Response has correct structure with 'type' and 'data' keys
             from zndraw.zndraw import _GeometryStore
+
             self.vis._geometries[key] = t.cast(_GeometryStore, response)
-        
+
         geometry_data = self.vis._geometries[key]
         return self._geometry_to_model(
             geometry_type=geometry_data["type"],
@@ -80,7 +91,7 @@ class Geometries(MutableMapping):
 
     def __iter__(self):
         """Iterate over geometry keys.
-        
+
         If local cache is empty, fetches keys from server first.
         """
         if not self.vis._geometries:
@@ -96,7 +107,7 @@ class Geometries(MutableMapping):
 
     def __len__(self) -> int:
         """Return the number of geometries.
-        
+
         If local cache is empty, fetches keys from server first.
         """
         if not self.vis._geometries:

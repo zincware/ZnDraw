@@ -171,7 +171,7 @@ export default function Sphere({
       showSnackbar(`Geometry "${geometryKey}" disabled - data fetch failed`, "warning");
 
       // Then update server (server will skip emitting back to this client)
-      updateGeometryActive(roomId, clientId, geometryKey, "Sphere", false)
+      updateGeometryActive(roomId, geometryKey, "Sphere", false)
         .then(() => {
           if (process.env.NODE_ENV !== 'production') {
             console.info(`Particles geometry "${geometryKey}" disabled successfully on server.`);

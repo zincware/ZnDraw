@@ -76,9 +76,7 @@ def test_load_endpoint_disabled():
     app.config["FILE_BROWSER_ROOT"] = "."
 
     with app.test_client() as client:
-        response = client.post(
-            "/api/file-browser/load", json={"path": "test.xyz"}
-        )
+        response = client.post("/api/file-browser/load", json={"path": "test.xyz"})
         assert response.status_code == 403
         assert "not enabled" in response.json["error"]
 
@@ -175,8 +173,7 @@ def test_load_endpoint_path_traversal(tmp_path):
 
     with app.test_client() as client:
         response = client.post(
-            "/api/file-browser/load",
-            json={"path": "../../../etc/passwd"}
+            "/api/file-browser/load", json={"path": "../../../etc/passwd"}
         )
         assert response.status_code == 400
         assert "Invalid path" in response.json["error"]
@@ -190,8 +187,7 @@ def test_load_endpoint_nonexistent_file(tmp_path):
 
     with app.test_client() as client:
         response = client.post(
-            "/api/file-browser/load",
-            json={"path": "nonexistent.xyz"}
+            "/api/file-browser/load", json={"path": "nonexistent.xyz"}
         )
         assert response.status_code == 404
         assert "does not exist" in response.json["error"]
@@ -211,10 +207,7 @@ def test_load_endpoint_unsupported_file(tmp_path):
     (tmp_path / "test.txt").write_text("test")
 
     with app.test_client() as client:
-        response = client.post(
-            "/api/file-browser/load",
-            json={"path": "test.txt"}
-        )
+        response = client.post("/api/file-browser/load", json={"path": "test.txt"})
         # File is accepted for processing (backend will handle read errors)
         assert response.status_code == 200
         assert "task_id" in response.json

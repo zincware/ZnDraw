@@ -1,7 +1,9 @@
+import datetime
 import json
 import logging
 import time
 import typing as t
+import uuid
 
 from flask import current_app, request
 from flask_socketio import emit
@@ -64,52 +66,71 @@ def get_lock_key(room: str, target: str) -> str:
 
 @socketio.on("connect")
 def handle_connect(auth):
-    """Handle socket connection with token-based authentication."""
-    from flask_socketio import join_room
+    """Handle socket connection with JWT authentication.
+
+    Auth payload
+    ------------
+    {
+        "token": "jwt-token-string"
+    }
+    """
+    from flask_socketio import ConnectionRefusedError, join_room
+
+    from zndraw.auth import AuthError, decode_jwt_token
 
     sid = request.sid
     r = current_app.extensions["redis"]
 
-    # Get join token from auth
-    join_token = auth.get("token") if auth else None
+    # Get JWT token from auth
+    token = auth.get("token") if auth else None
 
-    if not join_token:
-        log.warning(f"Client {sid} connected without join token")
-        return {"status": "error", "message": "Join token required"}
+    if not token:
+        log.warning(f"Client {sid} connected without JWT token")
+        raise ConnectionRefusedError("Authentication token required")
 
-    # Validate token and get client info
-    token_key = f"join_token:{join_token}"
-    token_data = r.get(token_key)
+    # Validate JWT token
+    try:
+        payload = decode_jwt_token(token)
+        client_id = payload["sub"]
+        user_name = payload["userName"]
+    except AuthError as e:
+        log.error(f"Client {sid} authentication failed: {e.message}")
+        raise ConnectionRefusedError(e.message)
 
-    if not token_data:
-        log.error(f"Invalid or expired join token: {join_token}")
-        return {"status": "error", "message": "Invalid or expired join token"}
-
-    # Parse token data
-    token_info = json.loads(token_data)
-    client_id = token_info["clientId"]
-    room_id = token_info["roomId"]
-    user_name = token_info["userName"]
-
-    # Delete token (one-time use)
-    r.delete(token_key)
-
-    # Update connection lookup: sid -> clientId
-    r.set(f"sid:{sid}", client_id)
-
-    # Update client's currentSid
+    # Verify client exists in Redis
     client_key = f"client:{client_id}"
-    r.hset(client_key, "currentSid", sid)
+    if not r.exists(client_key):
+        log.error(f"Client {client_id} not found in Redis")
+        raise ConnectionRefusedError("Client not registered. Call /api/login first.")
 
-    # Join socket rooms
-    join_room(f"room:{room_id}")
-    join_room(f"user:{user_name}")
-
-    log.info(
-        f"Client {client_id} ({user_name}) connected to room {room_id} (sid: {sid})"
+    # Update client's current SID
+    r.hset(
+        client_key,
+        mapping={
+            "currentSid": sid,
+            "lastActivity": datetime.datetime.utcnow().isoformat(),
+        },
     )
 
-    return {"status": "ok"}
+    # Register SID → clientId mapping
+    r.set(f"sid:{sid}", client_id)
+
+    # Get client's current room (if any)
+    current_room = r.hget(client_key, "currentRoom")
+
+    if current_room:
+        # Rejoin room after reconnection
+        join_room(f"room:{current_room}")
+        join_room(f"user:{user_name}")
+        log.info(
+            f"Client {client_id} ({user_name}) reconnected to room {current_room} (sid: {sid})"
+        )
+    else:
+        log.info(
+            f"Client {client_id} ({user_name}) connected but not in any room yet (sid: {sid})"
+        )
+
+    return {"status": "ok", "clientId": client_id}
 
 
 @socketio.on("disconnect")
@@ -170,10 +191,15 @@ def handle_disconnect():
             r.delete(lock_key)
             # Inform everyone that the presenter left via room:update
             from zndraw.app.room_manager import emit_room_update
+
             emit_room_update(socketio, room_name, skip_sid=sid, presenterSid=None)
 
-    # Extension cleanup - use client_id if available, otherwise fall back to sid for backwards compatibility
-    worker_id = client_id if client_id else sid
+    # Extension cleanup - client_id is required (enforced by JWT auth)
+    if not client_id:
+        log.error(f"No client_id for sid {sid} during disconnect cleanup")
+        return
+
+    worker_id = client_id
     extension_categories = ["modifiers", "selections", "analysis"]
     log.info(
         f"Cleaning up extensions for worker_id={worker_id} in room '{room_name}'..."
@@ -293,7 +319,12 @@ def handle_set_frame_atomic(data):
             if frame_int < 0:
                 return {"success": False, "error": "Frame must be non-negative"}
             redis_client.set(f"room:{room}:current_frame", frame_int)
-            emit("frame_update", {"frame": frame_int}, to=f"room:{room}", skip_sid=request.sid)
+            emit(
+                "frame_update",
+                {"frame": frame_int},
+                to=f"room:{room}",
+                skip_sid=request.sid,
+            )
             return {"success": True}
         except (ValueError, TypeError) as e:
             log.error(f"Invalid frame value: {frame} - {e}")
@@ -390,6 +421,7 @@ def handle_request_presenter_token():
         # If this is a brand new presenter, inform the room
         if current_holder is None:
             from zndraw.app.room_manager import emit_room_update
+
             emit_room_update(socketio, room, skip_sid=sid, presenterSid=sid)
 
         return {"success": True}
@@ -410,6 +442,7 @@ def handle_release_presenter_token():
     if presenter_sid and presenter_sid == request.sid:
         r.delete(lock_key)
         from zndraw.app.room_manager import emit_room_update
+
         emit_room_update(socketio, room, skip_sid=request.sid, presenterSid=None)
         return {"success": True}
     else:
@@ -427,7 +460,7 @@ def acquire_lock(data):
 
     if not room or not target or not client_id:
         return {"success": False, "error": "Room, target, or client_id missing"}
-    
+
     # Validate TTL - must not exceed 300 seconds (5 minutes)
     if not isinstance(ttl, (int, float)) or ttl <= 0:
         return {"success": False, "error": "TTL must be a positive number"}
@@ -437,7 +470,23 @@ def acquire_lock(data):
     lock_key = get_lock_key(room, target)
     # Store client_id in lock (not sid) so HTTP endpoints can verify
     if r.set(lock_key, client_id, nx=True, ex=int(ttl)):
-        log.debug(f"Lock acquired for '{target}' in room '{room}' by client {client_id} (sid:{sid}) with TTL {ttl}s")
+        log.debug(
+            f"Lock acquired for '{target}' in room '{room}' by client {client_id} (sid:{sid}) with TTL {ttl}s"
+        )
+
+        # Broadcast lock acquisition to all clients
+        # Only broadcast for trajectory:meta locks (the one used by vis.lock())
+        if target == "trajectory:meta":
+            user_name = r.hget(f"client:{client_id}", "userName")
+            lock_metadata = LockMetadata(
+                msg=None,  # No message yet (will be updated by lock:msg if provided)
+                userName=user_name or "unknown",
+                timestamp=datetime.datetime.utcnow().isoformat(),
+            )
+            emit_room_update(
+                socketio, room, skip_sid=sid, metadataLocked=lock_metadata.model_dump()
+            )
+
         return {"success": True}
     else:
         lock_holder = r.get(lock_key)
@@ -469,7 +518,9 @@ def release_lock(data):
         # Broadcast lock release via room:update event
         emit_room_update(socketio, room, skip_sid=sid, metadataLocked=None)
 
-        log.debug(f"Lock released for '{target}' in room '{room}' by client {client_id} (sid:{sid})")
+        log.debug(
+            f"Lock released for '{target}' in room '{room}' by client {client_id} (sid:{sid})"
+        )
         return {"success": True}
 
     log.warning(
@@ -504,7 +555,9 @@ def refresh_lock(data):
     if lock_holder == client_id:
         # Reset the TTL
         r.expire(lock_key, int(ttl))
-        log.debug(f"Lock refreshed for '{target}' in room '{room}' by client {client_id} (sid:{sid}) with TTL {ttl}s")
+        log.debug(
+            f"Lock refreshed for '{target}' in room '{room}' by client {client_id} (sid:{sid}) with TTL {ttl}s"
+        )
         return {"success": True}
 
     log.warning(
@@ -562,8 +615,8 @@ def update_lock_message(data):
     metadata_with_user = {
         "clientId": client_id,
         "userName": user_name or "unknown",
-        "timestamp": time.time(),
-        **metadata
+        "timestamp": datetime.datetime.utcnow().isoformat(),
+        **metadata,
     }
 
     # Serialize to JSON for storage
@@ -578,9 +631,11 @@ def update_lock_message(data):
     lock_metadata = LockMetadata(
         msg=metadata.get("msg"),
         userName=user_name,
-        timestamp=metadata_with_user["timestamp"]
+        timestamp=metadata_with_user["timestamp"],
     )
-    emit_room_update(socketio, room, skip_sid=sid, metadataLocked=lock_metadata.model_dump())
+    emit_room_update(
+        socketio, room, skip_sid=sid, metadataLocked=lock_metadata.model_dump()
+    )
 
     log.debug(f"Lock metadata updated for '{target}' by {user_name}: {metadata}")
     return {"success": True}

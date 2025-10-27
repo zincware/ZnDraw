@@ -233,8 +233,7 @@ export default function RoomListPage() {
       });
       handleCloseDuplicateDialog();
       // Navigate directly to the new room
-      const userId = crypto.randomUUID();
-      navigate(`/rooms/${result.roomId}/${userId}`);
+      navigate(`/rooms/${result.roomId}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to duplicate room";
       setDuplicateForm({
@@ -245,8 +244,7 @@ export default function RoomListPage() {
   };
 
   const handleOpenRoom = (roomId: string) => {
-    const userId = crypto.randomUUID();
-    navigate(`/rooms/${roomId}/${userId}`);
+    navigate(`/rooms/${roomId}`);
   };
 
   const columns: GridColDef[] = [
@@ -489,8 +487,7 @@ export default function RoomListPage() {
             variant="outlined"
             onClick={() => {
               const roomId = crypto.randomUUID();
-              const userId = crypto.randomUUID();
-              navigate(`/rooms/${roomId}/${userId}?template=empty`);
+              navigate(`/rooms/${roomId}?template=empty`);
             }}
           >
             Create New Empty Room

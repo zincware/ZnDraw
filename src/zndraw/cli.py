@@ -154,10 +154,14 @@ def main(
     """
     # Validate flag combinations
     if detached and (status or shutdown or connect):
-        typer.echo("Error: --detached cannot be used with --status, --shutdown, or --connect", err=True)
+        typer.echo(
+            "Error: --detached cannot be used with --status, --shutdown, or --connect",
+            err=True,
+        )
         raise typer.Exit(1)
     if verbose:
         import logging
+
         logging.basicConfig(level=logging.DEBUG)
 
     # Handle --status flag
@@ -238,16 +242,16 @@ def main(
                 )
                 make_default = False
             typer.echo("✓ Files uploaded successfully")
-                
+
         else:
             typer.echo(f"Connected to remote server at {connect}")
             typer.echo("No files to upload.")
-            
+
             # Open browser to root if no files
             if browser:
                 typer.echo(f"Opening browser at {connect}")
                 webbrowser.open(connect)
-        
+
         raise typer.Exit(0)
 
     # Check for existing server unless force_new_server is set
@@ -301,8 +305,7 @@ def main(
                     )
                     make_default = False
                 typer.echo("✓ Files uploaded successfully")
-                
-                
+
             else:
                 # Open browser to root if no files
                 if browser:
@@ -389,7 +392,9 @@ def main(
     if browser:
         # If we have a file being loaded, open to that room with waitForCreation flag
         if first_room:
-            browser_url = f"http://localhost:{port}/rooms/{first_room}?waitForCreation=true"
+            browser_url = (
+                f"http://localhost:{port}/rooms/{first_room}?waitForCreation=true"
+            )
             typer.echo(f"Opening browser at {browser_url}")
         else:
             browser_url = f"http://localhost:{port}"
@@ -407,7 +412,9 @@ def main(
             try:
                 worker.wait(timeout=5)  # Wait up to 5 seconds for graceful shutdown
             except subprocess.TimeoutExpired:
-                typer.echo("Celery worker did not shut down gracefully, forcing termination...")
+                typer.echo(
+                    "Celery worker did not shut down gracefully, forcing termination..."
+                )
                 worker.kill()  # Force kill if it doesn't shut down
                 worker.wait()
             typer.echo("Celery worker closed.")

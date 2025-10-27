@@ -1,7 +1,8 @@
-import numpy as np
-import ase
-import vesin
 import typing as t
+
+import ase
+import numpy as np
+import vesin
 from ase.neighborlist import natural_cutoffs
 
 T_CONNECTIVITY = t.List[t.Tuple[int, int, t.Literal[1]]]
@@ -51,9 +52,9 @@ def add_connectivity(atoms: ase.Atoms, scale: float = 1.2) -> None:
 
     # Restore original PBC settings
     atoms.set_pbc(original_pbc)
-    
+
     connectivity: T_CONNECTIVITY = []
-    
+
     # Iterate through all neighbor pairs found by vesin
     for i, j, d in zip(i_list, j_list, d_list):
         # To avoid double counting (e.g., adding both (0,1) and (1,0)), we only

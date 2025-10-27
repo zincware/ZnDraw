@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { socket } from "../socket";
 import { useAppStore } from "../store";
 import { useQueryClient } from "@tanstack/react-query";
@@ -7,6 +7,10 @@ import { listGeometries, getGeometry, getAllSelections, getAllBookmarks, getServ
 import { convertBookmarkKeys } from "../utils/bookmarks";
 import { checkVersionCompatibility, getClientVersion } from "../utils/versionCompatibility";
 import { useRoomsStore } from "../roomsStore";
+import { ensureAuthenticated } from "../utils/auth";
+
+const MAX_AUTH_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000; // 1 second
 
 /**
  * Factory function for creating consistent invalidate handlers.
@@ -47,7 +51,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     setBookmarks,
     roomId: appStoreRoomId,
     userId,
-    joinToken,
+    setUserId,
     setGeometries,
     updateGeometry,
     removeGeometry,
@@ -62,12 +66,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
   const roomId = options.roomId || appStoreRoomId;
   const { isOverview = false } = options;
 
-  useEffect(() => {
-    if (!joinToken) {
-      console.warn("No join token available, cannot connect socket.");
-      return;
-    }
+  // Track retry attempts for stale token recovery
+  const authRetryCountRef = useRef(0);
 
+  useEffect(() => {
     async function onConnect() {
       console.log("Socket connected and joining room:", roomId, userId);
 
@@ -516,8 +518,59 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       useRoomsStore.getState().removeRoom(deletedRoomId);
     }
 
-    function onConnectError(err: any) {
+    async function onConnectError(err: any) {
       console.error("Socket connection error:", err);
+
+      // Handle "Client not registered" error (stale token in localStorage)
+      // This happens when Redis is flushed but localStorage still has old token
+      if (err.message && err.message.includes("Client not registered")) {
+        // Check if we've exceeded max retries
+        if (authRetryCountRef.current >= MAX_AUTH_RETRIES) {
+          console.error(`Max authentication retries (${MAX_AUTH_RETRIES}) exceeded. Please refresh the page.`);
+          // TODO: Show user-friendly error message
+          return;
+        }
+
+        authRetryCountRef.current += 1;
+        const retryAttempt = authRetryCountRef.current;
+
+        // Calculate exponential backoff delay: 1s, 2s, 4s
+        const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryAttempt - 1);
+
+        console.log(
+          `Detected stale token (client not in Redis). ` +
+          `Retry attempt ${retryAttempt}/${MAX_AUTH_RETRIES} after ${delay}ms...`
+        );
+
+        const { logout, login, getUsername } = await import("../utils/auth");
+
+        // Clear stale authentication data
+        logout();
+
+        // Wait for exponential backoff delay
+        await new Promise(resolve => setTimeout(resolve, delay));
+
+        // Force a new login
+        try {
+          const loginData = await login();
+          console.log(`Re-login successful with new client: ${loginData.clientId}`);
+
+          // Update store with new username
+          const newUsername = getUsername();
+          if (newUsername) {
+            setUserId(newUsername);
+          }
+
+          // Reset retry count on successful login
+          authRetryCountRef.current = 0;
+
+          // Reconnect socket with new credentials
+          socket.connect();
+        } catch (loginError) {
+          console.error(`Re-login failed (attempt ${retryAttempt}/${MAX_AUTH_RETRIES}):`, loginError);
+          // Will retry on next connect_error event if under max retries
+        }
+      }
     }
 
     socket.on("disconnect", onDisconnect);
@@ -539,8 +592,16 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     socket.on("room:update", onRoomUpdate);
     socket.on("room:delete", onRoomDelete);
 
-    socket.auth = { token: joinToken };
-    socket.connect();
+    // Ensure user is authenticated before connecting socket
+    // This will auto-login with a UUID-based username if no token exists
+    ensureAuthenticated()
+      .then(() => {
+        console.log("Authentication verified, connecting socket");
+        socket.connect();
+      })
+      .catch((error) => {
+        console.error("Authentication failed:", error);
+      });
 
     return () => {
       // Leave room on cleanup
@@ -572,7 +633,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       socket.disconnect();
     };
   }, [
-    joinToken,
     roomId,
     userId,
     isOverview,

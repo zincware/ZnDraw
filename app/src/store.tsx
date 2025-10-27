@@ -21,7 +21,6 @@ interface AppState {
   bookmarks: Record<number, string> | null;
   playing: boolean;
   chatOpen: boolean;
-  joinToken: string | null;
   geometries: Record<string, any>; // Store geometries by their IDs
   geometryDefaults: Record<string, any>; // Default values for each geometry type from Pydantic
   isDrawing: boolean;
@@ -58,7 +57,6 @@ interface AppState {
   setUserId: (userId: string) => void;
   setConnected: (status: boolean) => void;
   setClientId: (clientId: string) => void;
-  setJoinToken: (joinToken: string) => void;
   setCurrentFrame: (frame: number) => void;
   setFrameCount: (count: number) => void;
   setLoading: (loading: boolean) => void;
@@ -150,7 +148,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   bookmarks: null,
   playing: false,
   chatOpen: false,
-  joinToken: null,
   geometries: {},
   geometryDefaults: {},
   isDrawing: false,
@@ -257,7 +254,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBookmarks: (bookmarks) => set({ bookmarks: bookmarks }),
   setPlaying: (playing) => set({ playing: playing }),
   setChatOpen: (open) => set({ chatOpen: open }),
-  setJoinToken: (joinToken) => set({ joinToken }),
   setGeometries: (geometries) => set({ geometries: geometries }),
   setGeometryDefaults: (defaults) => set({ geometryDefaults: defaults }),
   updateGeometry: (key: string, geometry: any) =>
@@ -470,7 +466,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       try {
         // Create geometry on backend
-        await createGeometry(roomId, clientId, "curve", "Curve", {
+        await createGeometry(roomId, "curve", "Curve", {
           position: [],
         });
         console.log("Default curve created successfully");

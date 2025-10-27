@@ -4,7 +4,6 @@ import pytest
 
 from zndraw.zndraw import ZnDraw
 
-
 # ==================== Per-Geometry Selections Tests ====================
 
 
@@ -124,10 +123,7 @@ def test_selection_groups_create(s22, server):
     vis.extend(s22)
 
     # Create a group
-    group_data = {
-        "particles": [0, 1, 2],
-        "forces": [3, 4, 5]
-    }
+    group_data = {"particles": [0, 1, 2], "forces": [3, 4, 5]}
     vis.selection_groups["group1"] = group_data
 
     # Verify the group
@@ -165,7 +161,9 @@ def test_selection_groups_delete(s22, server):
     del vis.selection_groups["group1"]
 
     # Verify it's gone
-    with pytest.raises(Exception):  # Should raise an error when accessing non-existent group
+    with pytest.raises(
+        Exception
+    ):  # Should raise an error when accessing non-existent group
         _ = vis.selection_groups["group1"]
 
 
@@ -228,10 +226,7 @@ def test_load_selection_group(s22, server):
     vis.extend(s22)
 
     # Create a group
-    group_data = {
-        "particles": [0, 1, 2],
-        "forces": [3, 4, 5]
-    }
+    group_data = {"particles": [0, 1, 2], "forces": [3, 4, 5]}
     vis.selection_groups["mygroup"] = group_data
 
     # Load the group

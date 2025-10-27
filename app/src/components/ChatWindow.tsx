@@ -49,8 +49,8 @@ const htmlPlugins = [rehypeKatex];
 const MemoizedMarkdown = memo(ReactMarkdown);
 
 const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
-  const { setCurrentFrame, resetChatUnread } = useAppStore();
-  const { roomId, userId } = useParams<{ roomId: string; userId: string }>();
+  const { setCurrentFrame, resetChatUnread, userId } = useAppStore();
+  const { roomId } = useParams<{ roomId: string }>();
   const [messageInput, setMessageInput] = useState("");
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
