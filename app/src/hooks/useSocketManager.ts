@@ -12,27 +12,6 @@ import { ensureAuthenticated } from "../utils/auth";
 const MAX_AUTH_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 
-/**
- * Factory function for creating consistent invalidate handlers.
- * Ensures uniform error handling across all handlers.
- */
-function createInvalidateHandler<T>(
-  fetchFn: (roomId: string) => Promise<T>,
-  updateStoreFn: (data: T) => void,
-  eventName: string
-) {
-  return async (data: any, roomId: string | null) => {
-    if (!roomId) return;
-    try {
-      console.log(`Received ${eventName} event:`, data);
-      const response = await fetchFn(roomId);
-      updateStoreFn(response);
-      console.log(`Updated ${eventName} from server:`, response);
-    } catch (error) {
-      console.error(`Error fetching ${eventName}:`, error);
-    }
-  };
-}
 
 interface SocketManagerOptions {
   roomId?: string;  // Room ID when on /rooms/:roomId page
@@ -70,6 +49,29 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
   const authRetryCountRef = useRef(0);
 
   useEffect(() => {
+    /**
+     * Factory function for creating consistent invalidate handlers.
+     * Ensures uniform error handling across all handlers.
+     * Accesses roomId from the closure.
+     */
+    function createInvalidateHandler<T>(
+      fetchFn: (roomId: string) => Promise<T>,
+      updateStoreFn: (data: T) => void,
+      eventName: string
+    ) {
+      return async (data: any) => {
+        if (!roomId) return;
+        try {
+          console.log(`Received ${eventName} event:`, data);
+          const response = await fetchFn(roomId);
+          updateStoreFn(response);
+          console.log(`Updated ${eventName} from server:`, response);
+        } catch (error) {
+          console.error(`Error fetching ${eventName}:`, error);
+        }
+      };
+    }
+
     async function onConnect() {
       console.log("Socket connected and joining room:", roomId, userId);
 
