@@ -80,9 +80,7 @@ class ClientService:
         members = self.r.smembers(f"room:{room_id}:clients")
         return {m.decode() if isinstance(m, bytes) else m for m in members}
 
-    def update_client_and_room_membership(
-        self, client_id: str, room_id: str
-    ) -> None:
+    def update_client_and_room_membership(self, client_id: str, room_id: str) -> None:
         """Update client room and add to room membership atomically.
 
         Uses Redis pipeline for atomic operations.

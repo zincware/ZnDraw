@@ -40,7 +40,7 @@ class Sphere(BaseGeometry):
         return schema
 
     radius: SizeProp = Field(
-        default="arrays.radii",
+        default=1,
         description="Sphere radius. String for dynamic data key, float for shared value across all instances, list for per-instance radii.",
     )
 

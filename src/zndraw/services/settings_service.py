@@ -47,7 +47,9 @@ class SettingsService:
         for category_name, category_data in config_dict.items():
             self.r.hset(settings_key, category_name, json.dumps(category_data))
 
-        log.info(f"Initialized default settings for user '{user_name}' in room '{room_id}'")
+        log.info(
+            f"Initialized default settings for user '{user_name}' in room '{room_id}'"
+        )
 
     def get_all(self, room_id: str, user_name: str) -> dict:
         """Get all settings for a user in a room.

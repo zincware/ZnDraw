@@ -212,9 +212,9 @@ class RoomService:
         defaults = {
             "particles": (
                 Sphere,
-                {"position": "arrays.positions", "color": "arrays.colors"},
+                {"position": "arrays.positions", "color": "arrays.colors", "radius": "arrays.radii"}
             ),
-            "bonds": (Bond, {}),
+            "bonds": (Bond, {"position": "arrays.positions", "color": "arrays.colors"}),
             "curve": (Curve, {}),
             "cell": (Cell, {}),
             "floor": (Floor, {}),

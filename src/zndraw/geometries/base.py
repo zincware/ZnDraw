@@ -104,12 +104,12 @@ class BaseGeometry(BaseModel):
     )
 
     position: PositionProp = Field(
-        default="arrays.positions",
+        default=[(0, 0, 0)],
         description="Position coordinates. String for dynamic data key (e.g. 'arrays.positions'), list of tuples for static per-instance positions [(x,y,z), ...].",
     )
 
     color: ColorProp = Field(
-        default="arrays.colors",
+        default=["#FFA200"],
         description="Color values. String for dynamic key (e.g. 'arrays.colors') or list of hex colors ['#FF0000', '#00FF00', ...]. Single hex colors are automatically normalized to lists.",
     )
 

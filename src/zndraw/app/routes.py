@@ -1578,8 +1578,12 @@ def duplicate_room(room_id):
     from zndraw.geometries import Bond, Cell, Curve, Floor, Sphere
 
     if not geometries:  # Only if source had no geometries
+        # TODO: why is this not in the room manager?!
         # Create particles with explicit arrays.positions/colors for initial /join
         particles_data = Sphere(
+            position="arrays.positions", color="arrays.colors", radius="arrays.radii"
+        ).model_dump()
+        bond_data = Bond(
             position="arrays.positions", color="arrays.colors"
         ).model_dump()
         redis_client.hset(
@@ -1590,7 +1594,12 @@ def duplicate_room(room_id):
         redis_client.hset(
             f"room:{new_room_id}:geometries",
             "bonds",
-            json.dumps({"type": Bond.__name__, "data": Bond().model_dump()}),
+            json.dumps(
+                {
+                    "type": Bond.__name__,
+                    "data": bond_data,
+                }
+            ),
         )
         redis_client.hset(
             f"room:{new_room_id}:geometries",
@@ -2572,7 +2581,9 @@ def join_room(room_id):
     if not room_exists:
         # Create new room using RoomService
         try:
-            result = room_service.create_room(room_id, user_name, description, copy_from)
+            result = room_service.create_room(
+                room_id, user_name, description, copy_from
+            )
             frame_count = result["frameCount"]
         except ValueError as e:
             return {"error": str(e)}, 404
