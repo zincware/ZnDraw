@@ -14,6 +14,9 @@ import DynamicEnumRenderer, {
 import PropertyInspectorRenderer, {
   propertyInspectorTester,
 } from "../components/jsonforms-renderers/PropertyInspectorRenderer";
+import CustomSmilesEditor, {
+  customSmilesEditorTester,
+} from "../components/jsonforms-renderers/CustomSmilesEditor";
 import { FrameMetadata } from "../myapi/client";
 
 /**
@@ -28,6 +31,7 @@ export const customRenderers = [
     tester: customDynamicEnumWithColorPickerTester,
     renderer: CustomDynamicEnumWithColorPicker,
   }, // Priority 10 - Legacy renderer (will be removed)
+  { tester: customSmilesEditorTester, renderer: CustomSmilesEditor }, // Priority 5 - SMILES editor
   { tester: customColorPickerTester, renderer: CustomColorPicker }, // Priority 5
   { tester: customRangeSliderTester, renderer: CustomRangeSlider },
 ];
