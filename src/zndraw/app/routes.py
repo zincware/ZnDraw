@@ -2770,7 +2770,6 @@ def create_geometry(room_id: str):
         }, 400
 
     r.hset(f"room:{room_id}:geometries", key, value_to_store)
-    clientSID = r.hget(f"client:{client_id}", "currentSid")
     socketio.emit(
         SocketEvents.INVALIDATE_GEOMETRY,
         {
@@ -2778,7 +2777,6 @@ def create_geometry(room_id: str):
             "operation": "set",
         },
         to=f"room:{room_id}",
-        skip_sid=clientSID,
     )
 
     return {"status": "success"}, 200
@@ -2827,7 +2825,6 @@ def delete_geometry(room_id: str, key: str):
             "type": "KeyError",
         }, 404
 
-    clientSID = r.hget(f"client:{client_id}", "currentSid")
     socketio.emit(
         SocketEvents.INVALIDATE_GEOMETRY,
         {
@@ -2835,7 +2832,6 @@ def delete_geometry(room_id: str, key: str):
             "operation": "delete",
         },
         to=f"room:{room_id}",
-        skip_sid=clientSID,
     )
     return {"status": "success"}, 200
 
