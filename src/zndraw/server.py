@@ -44,6 +44,20 @@ def redis_init_app(app: Flask, redis_url: str | None) -> redis.Redis | MemorySto
     return r
 
 
+def services_init_app(app: Flask) -> None:
+    """Initialize service layer with Redis client.
+
+    Services provide domain logic abstraction over Redis operations.
+    Must be called after redis_init_app.
+    """
+    from zndraw.services import ClientService, RoomService, SettingsService
+
+    redis_client = app.extensions["redis"]
+    app.extensions["client_service"] = ClientService(redis_client)
+    app.extensions["room_service"] = RoomService(redis_client)
+    app.extensions["settings_service"] = SettingsService(redis_client)
+
+
 def create_app(
     storage_path: str = "./zndraw-data.zarr",
     redis_url: str | None = None,
@@ -108,6 +122,7 @@ def create_app(
     app.config.from_prefixed_env()
     celery_init_app(app)
     redis_init_app(app, redis_url)
+    services_init_app(app)
 
     socketio.init_app(app, cors_allowed_origins="*")
 

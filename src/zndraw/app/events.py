@@ -166,7 +166,8 @@ def handle_disconnect():
 
     if room_name:
         # Notify room that a user has disconnected (but not left)
-        clients_in_room = r.smembers(f"room:{room_name}:clients")
+        client_service = current_app.extensions["client_service"]
+        clients_in_room = client_service.get_room_clients(room_name)
         emit(
             "room_clients_update",
             {"clients": list(clients_in_room)},

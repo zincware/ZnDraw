@@ -242,9 +242,8 @@ def emit_len_frames_update(room_id: str):
     """
     Emit len_frames event to update clients about the frame count after mutations.
     """
-    r = current_app.extensions["redis"]
-    indices_key = f"room:{room_id}:trajectory:indices"
-    frame_count = r.zcard(indices_key)
+    room_service = current_app.extensions["room_service"]
+    frame_count = room_service.get_frame_count(room_id)
 
     # Broadcast frame count update via room:update event
     from zndraw.app.room_manager import emit_room_update
@@ -1144,11 +1143,11 @@ def list_rooms():
     default_room = redis_client.get("default_room")
 
     # Build detailed room objects
+    room_service = current_app.extensions["room_service"]
     rooms = []
     for room_id in sorted(room_ids):
-        # Get frame count
-        indices_key = f"room:{room_id}:trajectory:indices"
-        frame_count = redis_client.zcard(indices_key)
+        # Get frame count using service
+        frame_count = room_service.get_frame_count(room_id)
 
         # Get metadata
         description = redis_client.get(f"room:{room_id}:description")
@@ -1211,6 +1210,7 @@ def get_room(room_id):
     from zndraw.app.metadata_manager import RoomMetadataManager
 
     redis_client = current_app.extensions["redis"]
+    room_service = current_app.extensions["room_service"]
 
     # Check if room exists
     room_exists = False
@@ -1221,9 +1221,8 @@ def get_room(room_id):
     if not room_exists:
         return {"error": "Room not found"}, 404
 
-    # Get frame count
-    indices_key = f"room:{room_id}:trajectory:indices"
-    frame_count = redis_client.zcard(indices_key)
+    # Get frame count using service
+    frame_count = room_service.get_frame_count(room_id)
 
     # Get metadata
     description = redis_client.get(f"room:{room_id}:description")
@@ -2532,9 +2531,12 @@ def join_room(room_id):
     copy_from = data.get("copyFrom")
     allow_create = data.get("allowCreate", True)
     r = current_app.extensions["redis"]
+    room_service = current_app.extensions["room_service"]
+    client_service = current_app.extensions["client_service"]
+    settings_service = current_app.extensions["settings_service"]
 
-    # Check if room already exists (check for any room-related keys)
-    room_exists = r.exists(f"room:{room_id}:current_frame")
+    # Check if room already exists
+    room_exists = room_service.room_exists(room_id)
 
     # If allowCreate is False and room doesn't exist, return 404
     if not allow_create and not room_exists:
@@ -2543,15 +2545,12 @@ def join_room(room_id):
             "message": f"Room '{room_id}' does not exist yet. It may still be loading.",
         }, 404
 
-    # Get or create client data
+    # Update client metadata (userName is not room-specific, so handled separately)
     client_key = f"client:{client_id}"
-
-    # Update client data (but NOT currentSid - that happens on socket connect)
     r.hset(client_key, "userName", user_name)
-    r.hset(client_key, "currentRoom", room_id)
 
-    # Add client to room's client set (they're joining the room, even if not connected yet)
-    r.sadd(f"room:{room_id}:clients", client_id)
+    # Update client room membership atomically
+    client_service.update_client_and_room_membership(client_id, room_id)
 
     log.info(f"Client {client_id} ({user_name}) joined room: {room_id}")
 
@@ -2571,65 +2570,17 @@ def join_room(room_id):
     response["created"] = not room_exists
 
     if not room_exists:
-        # Create new room
-        if copy_from:
-            # Copy from existing room
-            source_indices_key = f"room:{copy_from}:trajectory:indices"
-            if not r.exists(source_indices_key):
-                return {"error": f"Source room '{copy_from}' not found"}, 404
+        # Create new room using RoomService
+        try:
+            result = room_service.create_room(room_id, user_name, description, copy_from)
+            frame_count = result["frameCount"]
+        except ValueError as e:
+            return {"error": str(e)}, 404
 
-            # Copy trajectory indices (sorted set) - this shares frame data
-            source_indices = r.zrange(source_indices_key, 0, -1, withscores=True)
-            if source_indices:
-                r.zadd(
-                    f"room:{room_id}:trajectory:indices",
-                    {member: score for member, score in source_indices},
-                )
-
-            # Copy geometries hash
-            geometries = r.hgetall(f"room:{copy_from}:geometries")
-            if geometries:
-                r.hset(f"room:{room_id}:geometries", mapping=geometries)
-
-            # Copy bookmarks hash (physical keys remain valid)
-            bookmarks = r.hgetall(f"room:{copy_from}:bookmarks")
-            if bookmarks:
-                r.hset(f"room:{room_id}:bookmarks", mapping=bookmarks)
-
-            log.info(
-                f"New room '{room_id}' created by copying from room '{copy_from}' with {len(source_indices)} frames"
-            )
-        else:
-            # Create empty room
-            log.info(f"New room '{room_id}' created as empty room")
-
-        # Set description if provided
-        if description:
-            r.set(f"room:{room_id}:description", description)
-
-        # Initialize room metadata
-        r.set(f"room:{room_id}:current_frame", 0)
-        r.set(f"room:{room_id}:locked", 0)
-        r.set(f"room:{room_id}:hidden", 0)
-        log.info(f"Initialized current_frame to 0 for new room '{room_id}'")
-
-        # Initialize default settings for new room
-        from zndraw.settings import RoomConfig
-
-        default_config = RoomConfig()
-        config_dict = default_config.model_dump()
-
-        # Store each settings category
-        for category_name, category_data in config_dict.items():
-            r.hset(
-                f"room:{room_id}:user:{user_name}:settings",
-                category_name,
-                json.dumps(category_data),
-            )
-        log.info(f"Initialized default settings for new room '{room_id}'")
+        # Initialize default settings for new user in room
+        settings_service.initialize_defaults(room_id, user_name)
 
         # Broadcast room creation to all connected clients
-        frame_count = r.zcard(f"room:{room_id}:trajectory:indices")
 
         # Check if metadata lock is held (trajectory:meta is the target used by vis.lock)
         metadata_lock_key = get_lock_key(room_id, "trajectory:meta")
@@ -2672,41 +2623,8 @@ def join_room(room_id):
             metadataLocked=metadata_locked,
         )
 
-        # Create default geometries only if not copied from another room
-        if not copy_from:
-            from zndraw.geometries import Bond, Cell, Curve, Floor, Sphere
-
-            particles_data = Sphere(
-                position="arrays.positions", color="arrays.colors"
-            ).model_dump()
-            r.hset(
-                f"room:{room_id}:geometries",
-                "particles",
-                json.dumps({"type": Sphere.__name__, "data": particles_data}),
-            )
-            r.hset(
-                f"room:{room_id}:geometries",
-                "bonds",
-                json.dumps({"type": Bond.__name__, "data": Bond().model_dump()}),
-            )
-            r.hset(
-                f"room:{room_id}:geometries",
-                "curve",
-                json.dumps({"type": Curve.__name__, "data": Curve().model_dump()}),
-            )
-            r.hset(
-                f"room:{room_id}:geometries",
-                "cell",
-                json.dumps({"type": Cell.__name__, "data": Cell().model_dump()}),
-            )
-            r.hset(
-                f"room:{room_id}:geometries",
-                "floor",
-                json.dumps({"type": Floor.__name__, "data": Floor().model_dump()}),
-            )
-
-    indices_key = f"room:{room_id}:trajectory:indices"
-    response["frameCount"] = r.zcard(indices_key)
+    # Get frame count using service
+    response["frameCount"] = room_service.get_frame_count(room_id)
 
     selections_raw = r.hgetall(f"room:{room_id}:selections")
     selections = {k: json.loads(v) for k, v in selections_raw.items()}
@@ -2720,22 +2638,8 @@ def join_room(room_id):
     presenter_lock = r.get(f"room:{room_id}:presenter_lock")
     response["presenter-lock"] = presenter_lock
 
-    step = r.get(f"room:{room_id}:current_frame")
-    try:
-        # Validate and convert to int (may be bytes from Redis or invalid value)
-        if step is not None:
-            step_int = int(step)
-            if step_int < 0:
-                log.warning(
-                    f"Negative frame in Redis for room {room_id}: {step_int}, resetting to 0"
-                )
-                step_int = 0
-            response["step"] = step_int
-        else:
-            response["step"] = 0
-    except (ValueError, TypeError) as e:
-        log.error(f"Invalid step value in Redis for room {room_id}: {step} - {e}")
-        response["step"] = 0
+    # Get current frame using service (handles validation and error cases)
+    response["step"] = room_service.get_current_frame(room_id)
 
     bookmarks_key = f"room:{room_id}:bookmarks"
     bookmarks_raw = r.hgetall(bookmarks_key)
@@ -2763,12 +2667,8 @@ def join_room(room_id):
     else:
         response["bookmarks"] = None
 
-    # Fetch all settings for the user
-    settings_data = {}
-    settings_hash = r.hgetall(f"room:{room_id}:user:{user_name}:settings")
-    for setting_name, setting_value in settings_hash.items():
-        settings_data[setting_name] = json.loads(setting_value)
-    response["settings"] = settings_data
+    # Fetch all settings for the user using service
+    response["settings"] = settings_service.get_all(room_id, user_name)
 
     # Fetch selection groups
     groups_raw = r.hgetall(f"room:{room_id}:selection_groups")
@@ -3052,9 +2952,10 @@ def get_all_bookmarks(room_id: str):
 def get_bookmark(room_id: str, index: int):
     """Get a specific bookmark by frame index."""
     r = current_app.extensions["redis"]
+    room_service = current_app.extensions["room_service"]
 
     # Check if frame index is valid
-    frame_count = r.zcard(f"room:{room_id}:trajectory:indices")
+    frame_count = room_service.get_frame_count(room_id)
     if index < 0 or index >= frame_count:
         return {
             "error": f"Bookmark index {index} out of range (0-{frame_count - 1})",
@@ -3078,6 +2979,7 @@ def set_bookmark(room_id: str, index: int):
     Body: {"label": "Frame Label"}
     """
     r = current_app.extensions["redis"]
+    room_service = current_app.extensions["room_service"]
     data = request.get_json() or {}
     label = data.get("label")
 
@@ -3088,7 +2990,7 @@ def set_bookmark(room_id: str, index: int):
         }, 400
 
     # Check if frame index is valid
-    frame_count = r.zcard(f"room:{room_id}:trajectory:indices")
+    frame_count = room_service.get_frame_count(room_id)
     if index < 0 or index >= frame_count:
         return {
             "error": f"Bookmark index {index} out of range (0-{frame_count - 1})",
