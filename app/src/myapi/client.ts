@@ -160,11 +160,14 @@ export const createGeometry = async (
   geometryType: string,
   geometryData: Record<string, any>,
 ): Promise<{ status: string }> => {
-  const { data } = await apiClient.post(`/api/rooms/${roomId}/geometries`, {
+  const requestBody = {
     key,
     type: geometryType,
     data: geometryData,
-  });
+  };
+
+  const { data } = await apiClient.post(`/api/rooms/${roomId}/geometries`, requestBody);
+
   return data;
 };
 

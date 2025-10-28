@@ -23,9 +23,12 @@ interface AppState {
   chatOpen: boolean;
   geometries: Record<string, any>; // Store geometries by their IDs
   geometryDefaults: Record<string, any>; // Default values for each geometry type from Pydantic
+  geometryUpdateSources: Record<string, 'local' | 'remote'>; // Track update source per geometry
   isDrawing: boolean;
   drawingPointerPosition: THREE.Vector3 | null; // 3D position of mouse cursor for drawing
   drawingIsValid: boolean; // Whether the drawing position is valid (over geometry)
+  isEditing: boolean; // Whether the user is in geometry editing mode (transform controls)
+  editingCallbacks: Map<string, Set<(matrix: THREE.Matrix4) => void>>; // Callbacks for geometry components to subscribe to transform changes, keyed by geometryKey
   lockMetadata: {
     locked: boolean;
     holder?: string;
@@ -34,6 +37,7 @@ interface AppState {
     timestamp?: number;
     ttl?: number;
   } | null; // Lock metadata for trajectory:meta lock (vis.lock)
+  lockRenewalIntervalId: number | null; // Interval ID for lock renewal
   geometryFetchingStates: Record<string, boolean>; // Tracks fetching state per geometry key
   synchronizedMode: boolean; // Whether playback should wait for all active geometries to finish fetching
   showInfoBoxes: boolean; // Whether to show info boxes (toggled with 'i' key)
@@ -73,12 +77,19 @@ interface AppState {
   setChatOpen: (open: boolean) => void;
   setGeometries: (geometries: Record<string, any>) => void;
   setGeometryDefaults: (defaults: Record<string, any>) => void;
-  updateGeometry: (key: string, geometry: any) => void; // update specific geometry
+  updateGeometry: (key: string, geometry: any, source?: 'local' | 'remote') => void; // update specific geometry
+  geometryUpdateSources: Record<string, 'local' | 'remote'>; // track update source per geometry
   removeGeometry: (key: string) => void; // remove specific geometry
   setIsDrawing: (isDrawing: boolean) => void;
   setDrawingPointerPosition: (position: THREE.Vector3 | null) => void;
   updateSelections: (geometryKey: string, id: number, isShiftPressed: boolean) => void;
   setDrawingIsValid: (isValid: boolean) => void;
+  setIsEditing: (isEditing: boolean) => void;
+  editingCombinedCentroid: [number, number, number] | null;
+  setEditingCombinedCentroid: (centroid: [number, number, number] | null) => void;
+  subscribeToEditing: (geometryKey: string, callback: (matrix: THREE.Matrix4) => void) => () => void;
+  notifyEditingChange: (matrix: THREE.Matrix4) => void;
+  toggleEditingMode: () => Promise<void>;
   setLockMetadata: (metadata: {
     locked: boolean;
     holder?: string;
@@ -87,6 +98,8 @@ interface AppState {
     timestamp?: number;
     ttl?: number;
   } | null) => void;
+  startLockRenewal: () => void;
+  stopLockRenewal: () => void;
   setGeometryFetching: (geometryKey: string, isFetching: boolean) => void;
   removeGeometryFetching: (geometryKey: string) => void;
   getIsFetching: () => boolean; // Computed: returns true if any active geometry is fetching
@@ -150,10 +163,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   chatOpen: false,
   geometries: {},
   geometryDefaults: {},
+  geometryUpdateSources: {},
   isDrawing: false,
   drawingPointerPosition: null,
   drawingIsValid: false,
+  isEditing: false,
+  editingCombinedCentroid: null,
+  editingCallbacks: new Map(),
   lockMetadata: null,
+  lockRenewalIntervalId: null,
   geometryFetchingStates: {},
   synchronizedMode: true,
   showInfoBoxes: false,
@@ -256,16 +274,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   setChatOpen: (open) => set({ chatOpen: open }),
   setGeometries: (geometries) => set({ geometries: geometries }),
   setGeometryDefaults: (defaults) => set({ geometryDefaults: defaults }),
-  updateGeometry: (key: string, geometry: any) =>
+  updateGeometry: (key: string, geometry: any, source: 'local' | 'remote' = 'remote') =>
     set((state) => ({
       geometries: {
         ...state.geometries,
         [key]: geometry,
       },
+      geometryUpdateSources: {
+        ...state.geometryUpdateSources,
+        [key]: source,
+      },
     })),
   removeGeometry: (key: string) =>
     set((state) => {
       const { [key]: removed, ...rest } = state.geometries;
+      const { [key]: removedSource, ...restSources } = state.geometryUpdateSources;
+      const { [key]: removedSelection, ...restSelections } = state.selections;
 
       // If the deleted geometry was the active curve, auto-select next available curve
       let newActiveCurve = state.activeCurveForDrawing;
@@ -274,15 +298,93 @@ export const useAppStore = create<AppState>((set, get) => ({
         newActiveCurve = selectPreferredCurve(remainingCurves);
       }
 
+      // Clean up editing callbacks for this geometry to prevent memory leaks
+      const newEditingCallbacks = new Map(state.editingCallbacks);
+      newEditingCallbacks.delete(key);
+
       return {
         geometries: rest,
+        geometryUpdateSources: restSources,
+        selections: restSelections,
         activeCurveForDrawing: newActiveCurve,
+        editingCallbacks: newEditingCallbacks,
       };
     }),
   setIsDrawing: (isDrawing) => set({ isDrawing: isDrawing }),
   setDrawingPointerPosition: (position) => set({ drawingPointerPosition: position }),
   setDrawingIsValid: (isValid) => set({ drawingIsValid: isValid }),
+  setIsEditing: (isEditing) => set({ isEditing: isEditing }),
+  setEditingCombinedCentroid: (centroid) => set({ editingCombinedCentroid: centroid }),
+  subscribeToEditing: (geometryKey, callback) => {
+    const callbacks = get().editingCallbacks;
+
+    if (!callbacks.has(geometryKey)) {
+      callbacks.set(geometryKey, new Set());
+    }
+
+    callbacks.get(geometryKey)!.add(callback);
+
+    // Return unsubscribe function
+    return () => {
+      const currentCallbacks = get().editingCallbacks.get(geometryKey);
+      if (currentCallbacks) {
+        currentCallbacks.delete(callback);
+        // Clean up empty sets
+        if (currentCallbacks.size === 0) {
+          get().editingCallbacks.delete(geometryKey);
+        }
+      }
+    };
+  },
+  notifyEditingChange: (matrix) => {
+    const callbacks = get().editingCallbacks;
+    // Iterate over all geometry callback sets
+    callbacks.forEach((callbackSet) => {
+      callbackSet.forEach((callback) => callback(matrix));
+    });
+  },
   setLockMetadata: (metadata) => set({ lockMetadata: metadata }),
+
+  startLockRenewal: () => {
+    const { lockRenewalIntervalId, stopLockRenewal } = get();
+
+    // Clear existing interval if any
+    if (lockRenewalIntervalId !== null) {
+      stopLockRenewal();
+    }
+
+    // Renew every 15 seconds (well before 60s expiry)
+    const intervalId = window.setInterval(() => {
+      const state = get();
+      if (!state.isEditing) {
+        // Not editing anymore, stop renewal
+        stopLockRenewal();
+        return;
+      }
+
+      // Refresh lock to extend TTL by 60s
+      // Use lock:refresh instead of lock:acquire to extend existing lock
+      socket.emit("lock:refresh", { target: "trajectory:meta", ttl: 60 }, (response: any) => {
+        if (!response.success) {
+          console.warn("Failed to refresh edit lock");
+          // Lock was stolen or expired, exit editing mode
+          get().setIsEditing(false);
+          get().showSnackbar("Edit lock lost - exiting editing mode", "warning");
+          get().stopLockRenewal();
+        }
+      });
+    }, 15000); // 15 seconds
+
+    set({ lockRenewalIntervalId: intervalId });
+  },
+
+  stopLockRenewal: () => {
+    const { lockRenewalIntervalId } = get();
+    if (lockRenewalIntervalId !== null) {
+      window.clearInterval(lockRenewalIntervalId);
+      set({ lockRenewalIntervalId: null });
+    }
+  },
 
   setGeometryFetching: (geometryKey, isFetching) =>
     set((state) => ({
@@ -434,6 +536,84 @@ export const useAppStore = create<AppState>((set, get) => ({
   setFrameLoadTime: (time) => set({ frameLoadTime: time }),
   setLastFrameChangeTime: (time) => set({ lastFrameChangeTime: time }),
   setActiveCurveForDrawing: (key) => set({ activeCurveForDrawing: key }),
+
+  toggleEditingMode: async () => {
+    const state = get();
+    const { isEditing, lockMetadata, clientId } = state;
+
+    // Import dynamically to avoid circular dependency
+    const { socket } = await import("./socket");
+
+    // If turning ON editing mode
+    if (!isEditing) {
+      // Check if room is already locked
+      if (lockMetadata && lockMetadata.locked) {
+        // Check if WE hold the lock
+        if (lockMetadata.holder === clientId) {
+          // We already hold the lock, just enter editing mode
+          set({ isEditing: true });
+          state.showSnackbar("Entered editing mode", "success");
+
+          // Start lock renewal
+          get().startLockRenewal();
+          return;
+        }
+
+        // Someone else holds the lock
+        state.showSnackbar(
+          `Cannot enter edit mode - room is locked by ${lockMetadata.userName || "another user"}`,
+          "warning"
+        );
+        return;
+      }
+
+      // Try to acquire lock
+      return new Promise((resolve) => {
+        socket.emit("lock:acquire", { target: "trajectory:meta", ttl: 60 }, async (response: any) => {
+          if (response.success) {
+            // Update lock message
+            socket.emit("lock:msg", { target: "trajectory:meta", msg: "editing geometries" });
+
+            // Enter editing mode
+            set({ isEditing: true });
+            state.showSnackbar("Entered editing mode", "success");
+
+            // Start lock renewal to keep lock alive
+            get().startLockRenewal();
+
+            resolve();
+          } else {
+            // Failed to acquire lock
+            state.showSnackbar(
+              "Cannot enter edit mode - room is locked by another user",
+              "warning"
+            );
+            resolve();
+          }
+        });
+      });
+    }
+    // If turning OFF editing mode
+    else {
+      // Stop lock renewal
+      get().stopLockRenewal();
+
+      // Release the lock
+      return new Promise((resolve) => {
+        socket.emit("lock:release", { target: "trajectory:meta" }, (response: any) => {
+          // Exit editing mode regardless of release success
+          set({ isEditing: false });
+
+          if (response.success) {
+            state.showSnackbar("Exited editing mode", "info");
+          } else {
+            console.warn("Failed to release lock, but exiting editing mode anyway");
+          }
+          resolve();
+        });
+      });
+    }
+  },
 
   toggleDrawingMode: async (queryClient?: any) => {
     const state = get();

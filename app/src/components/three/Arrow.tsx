@@ -1,10 +1,12 @@
 import * as THREE from "three";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useEffect, useState, useCallback } from "react";
+import { useGeometryEditing } from "../../hooks/useGeometryEditing";
 import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
 import { renderMaterial } from "./materials";
-import { getFrames, updateGeometryActive } from "../../myapi/client";
+import { getFrames, updateGeometryActive, createGeometry } from "../../myapi/client";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { debounce } from "lodash";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
   type SizeProp,
@@ -93,7 +95,7 @@ export default function Arrow({
   const [instanceCount, setInstanceCount] = useState(0);
   const hasDisabledGeometryRef = useRef(false);
 
-  const { currentFrame, frameCount, roomId, clientId, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar } = useAppStore();
+  const { currentFrame, frameCount, roomId, clientId, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar, geometries, geometryUpdateSources } = useAppStore();
 
   // Use geometry-specific selection
   const arrowSelection = selections[geometryKey] || [];
@@ -180,6 +182,73 @@ export default function Arrow({
       removeGeometryFetching(geometryKey);
     };
   }, [geometryKey, removeGeometryFetching]);
+
+  // Handle geometry editing with transform controls
+  const finalPositionData = typeof position === "string" ? positionData?.[position] : position;
+  useGeometryEditing(
+    geometryKey,
+    finalPositionData,
+    selectedIndices,
+    "Arrow",
+    fullData
+  );
+
+  // Persistence callback - persists position changes to server
+  const persistPositions = useCallback(async () => {
+    if (!roomId) return;
+
+    const currentGeometry = geometries[geometryKey];
+    if (!currentGeometry || !currentGeometry.data) return;
+
+    const currentPosition = currentGeometry.data.position;
+
+    // Only persist if position is static (number[][])
+    if (!Array.isArray(currentPosition) || currentPosition.length === 0 || !Array.isArray(currentPosition[0])) {
+      return;
+    }
+
+    try {
+      await createGeometry(roomId, geometryKey, "Arrow", currentGeometry.data);
+    } catch (error) {
+      console.error(`[Arrow] Failed to persist ${geometryKey}:`, error);
+      showSnackbar(`Failed to save positions for ${geometryKey}`, "error");
+    }
+  }, [roomId, geometryKey, geometries, showSnackbar]);
+
+  // Memoize debounced persist function to avoid recreation on every render
+  const debouncedPersist = useMemo(
+    () => debounce(persistPositions, 500),
+    [persistPositions]
+  );
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      debouncedPersist.cancel();
+    };
+  }, [debouncedPersist]);
+
+  // Watch position changes and persist - only if source is 'local'
+  useEffect(() => {
+    const currentGeometry = geometries[geometryKey];
+    if (!currentGeometry) return;
+
+    const currentPosition = currentGeometry.data?.position;
+    if (!currentPosition) return;
+
+    // Only persist if position is static
+    if (!Array.isArray(currentPosition) || currentPosition.length === 0 || !Array.isArray(currentPosition[0])) {
+      return;
+    }
+
+    // Only persist if update source is 'local' (not from server)
+    const updateSource = geometryUpdateSources[geometryKey];
+    if (updateSource !== 'local') {
+      return;
+    }
+
+    debouncedPersist();
+  }, [geometries[geometryKey]?.data?.position, geometryUpdateSources[geometryKey], debouncedPersist, geometryKey]);
 
   // Detect critical fetch failures and disable geometry
   useEffect(() => {
@@ -422,7 +491,7 @@ export default function Arrow({
       // Apply hover scale
       hoverMesh.position.copy(_vec3);
       hoverMesh.quaternion.copy(_quat2);
-      hoverMesh.scale.copy(_vec3_2).multiplyScalar(HOVER_SCALE);
+      hoverMesh.scale.set(_vec3_2.x * HOVER_SCALE, _vec3_2.y, _vec3_2.z * HOVER_SCALE);
     } else {
       hoverMesh.visible = false;
     }

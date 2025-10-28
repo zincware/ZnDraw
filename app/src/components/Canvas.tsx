@@ -26,6 +26,8 @@ import { KeyboardShortcutsHandler } from "./three/KeyboardShortcutsHandler";
 import StaticInfoBox from "./three/StaticInfoBox";
 import HoverInfoBox from "./three/HoverInfoBox";
 import DrawingIndicator from "./three/DrawingIndicator";
+import EditingIndicator from "./three/EditingIndicator";
+import MultiGeometryTransformControls from "./three/MultiGeometryTransformControls";
 import { PathTracingRenderer } from "./PathTracingRenderer";
 import { GeometryErrorBoundary } from "./three/GeometryErrorBoundary";
 import { useFrameLoadTime } from "../hooks/useFrameLoadTime";
@@ -221,6 +223,9 @@ function MyScene() {
             <Crosshair />
           )}
           <VirtualCanvas />
+
+          {/* Multi-geometry transform controls for editing mode */}
+          <MultiGeometryTransformControls />
         </PathTracingRenderer>
 
         {/* {studioLightingSettings.contact_shadow && (
@@ -239,10 +244,11 @@ function MyScene() {
           enableZoom={cameraControls.enableZoom}
         />
       </Canvas>
-      {/* Info boxes and drawing indicator rendered outside Canvas, in DOM */}
+      {/* Info boxes and drawing/editing indicators rendered outside Canvas, in DOM */}
       <StaticInfoBox />
       <HoverInfoBox />
       <DrawingIndicator />
+      <EditingIndicator />
 
       {/* Global snackbar for notifications */}
       {snackbar && (

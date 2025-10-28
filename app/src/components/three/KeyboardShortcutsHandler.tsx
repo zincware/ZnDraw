@@ -38,6 +38,7 @@ export const KeyboardShortcutsHandler = () => {
     updateSelectionForGeometry,
     toggleInfoBoxes,
     toggleDrawingMode,
+    toggleEditingMode,
     roomId,
   } = useAppStore();
 
@@ -133,6 +134,13 @@ export const KeyboardShortcutsHandler = () => {
         return;
       }
 
+      // Handle e/E for toggle editing mode
+      if (event.key === "e" || event.key === "E") {
+        event.preventDefault();
+        toggleEditingMode();
+        return;
+      }
+
       // Handle i/I for toggle info boxes
       if (event.key === "i" || event.key === "I") {
         event.preventDefault();
@@ -188,6 +196,7 @@ export const KeyboardShortcutsHandler = () => {
     currentFrame,
     toggleInfoBoxes,
     toggleDrawingMode,
+    toggleEditingMode,
     roomId,
   ]);
 
