@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { getFrames, updateGeometryActive } from "../../myapi/client";
 import { useAppStore } from "../../store";
-import { useRef, useMemo, useState, useEffect, useCallback } from "react";
+import { useRef, useMemo, useState, useEffect, useCallback, useReducer } from "react";
 import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
@@ -25,13 +25,16 @@ interface InteractionSettings {
 
 interface BondData {
   position: string | number[][];
-  connectivity?: Array<[number, number, number]> | string;
+  connectivity?: Array<[number, number, number | null]> | string;
   color: string | string[]; // Dynamic ref or list of hex strings
   radius: string | number[] | number;
   material: string;
   resolution: number;
   scale: number;
   opacity: number;
+  bond_order_mode: "parallel" | "ignore";
+  bond_order_offset: number;
+  bond_order_radius_scale: { [key: string]: number };
   selecting: InteractionSettings;
   hovering: InteractionSettings;
   active?: boolean; // Whether geometry is active (can be disabled on critical errors)
@@ -42,6 +45,63 @@ const _up = new THREE.Vector3(0, 1, 0);
 const _colorA = new THREE.Color();
 const _colorB = new THREE.Color();
 const _quatInv = new THREE.Quaternion();
+const _perpVector = new THREE.Vector3();  // For perpendicular offsets
+const _offsetPos = new THREE.Vector3();   // For offset positions
+const _negatedDirection = new THREE.Vector3(); // For negated bond direction (avoid clone)
+const _scaleVector = new THREE.Vector3(); // Reusable scale vector
+
+/**
+ * Calculate number of cylinders to render for a given bond order.
+ * @param bondOrder The bond order (1, 1.5, 2, 3, or null)
+ * @param mode The visualization mode ("parallel" or "ignore")
+ * @returns Number of cylinders to render
+ */
+function getCylinderCount(bondOrder: number | null, mode: "parallel" | "ignore"): number {
+  if (mode === "ignore") return 1;
+
+  const order = bondOrder ?? 1;
+  if (order === 1.5) return 2;  // Aromatic: 2 cylinders
+  return Math.max(1, Math.round(order));  // 1, 2, or 3 cylinders
+}
+
+/**
+ * Create a fast hash of bond pairs for comparison.
+ * Much faster than JSON.stringify for large arrays.
+ */
+function hashBondPairs(pairs: Array<[number, number, number]>): string {
+  let hash = '';
+  for (let i = 0; i < pairs.length; i++) {
+    const [a, b, o] = pairs[i];
+    hash += `${a},${b},${o};`;
+  }
+  return hash;
+}
+
+// State for bond rendering
+interface BondState {
+  instanceCount: number;
+  bondPairs: Array<[number, number, number]>;
+  instanceToBondMap: number[];
+  bondPairsHash: string;
+}
+
+type BondStateAction =
+  | { type: 'UPDATE_ALL'; payload: Omit<BondState, 'bondPairsHash'> }
+  | { type: 'RESET' };
+
+function bondStateReducer(state: BondState, action: BondStateAction): BondState {
+  switch (action.type) {
+    case 'UPDATE_ALL':
+      return {
+        ...action.payload,
+        bondPairsHash: hashBondPairs(action.payload.bondPairs),
+      };
+    case 'RESET':
+      return { instanceCount: 0, bondPairs: [], instanceToBondMap: [], bondPairsHash: '' };
+    default:
+      return state;
+  }
+}
 
 export default function Bonds({
   data,
@@ -66,17 +126,28 @@ export default function Bonds({
     resolution,
     scale,
     opacity,
+    bond_order_mode,
+    bond_order_offset,
+    bond_order_radius_scale,
     selecting,
     hovering,
   } = fullData;
 
   const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
-  const hoverMeshRef = useRef<THREE.Mesh | null>(null);
+  const hoverMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const mergedMeshRef = useRef<THREE.Mesh | null>(null);
-  const [hoveredBondId, setHoveredBondId] = useState<number | null>(null);
-  const [instanceCount, setInstanceCount] = useState(0);
-  const [bondPairs, setBondPairs] = useState<[number, number][]>([]);
+  const [hoveredBondPairIndex, setHoveredBondPairIndex] = useState<number | null>(null);
+
+  // Consolidated state with useReducer (better performance for related state updates)
+  const [bondState, dispatchBondState] = useReducer(bondStateReducer, {
+    instanceCount: 0,
+    bondPairs: [],
+    instanceToBondMap: [],
+    bondPairsHash: '',
+  });
+  const { instanceCount, bondPairs, instanceToBondMap, bondPairsHash } = bondState;
+
   const hasDisabledGeometryRef = useRef(false);
 
   const { roomId, currentFrame, frameCount, clientId, selections, updateSelections, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar } = useAppStore();
@@ -85,21 +156,50 @@ export default function Bonds({
   const bondSelection = selections[geometryKey] || [];
   const selectionSet = useMemo(() => new Set(bondSelection), [bondSelection]);
 
-  // Calculate which bond instances should be selected
-  // Check if the bond pair index is in the selection set
-  const selectedBondIndices = useMemo(() => {
-    const indices: number[] = [];
+  // Pre-compute instance ranges for each bond pair (memoized)
+  const bondInstanceRanges = useMemo(() => {
+    const ranges: Array<{ start: number; count: number }> = [];
     let instanceIndex = 0;
     for (let bondPairIndex = 0; bondPairIndex < bondPairs.length; bondPairIndex++) {
-      const isSelected = selectionSet.has(bondPairIndex);
-      if (isSelected) {
-        indices.push(instanceIndex);     // First half-bond
-        indices.push(instanceIndex + 1); // Second half-bond
+      const [, , bondOrder] = bondPairs[bondPairIndex];
+      const cylinderCount = getCylinderCount(bondOrder, bond_order_mode);
+      const instancesForThisBond = cylinderCount * 2;  // 2 half-bonds per cylinder
+      ranges.push({ start: instanceIndex, count: instancesForThisBond });
+      instanceIndex += instancesForThisBond;
+    }
+    return ranges;
+  }, [bondPairs, bond_order_mode]);
+
+  // Calculate which bond instances should be selected (optimized to only iterate selected bonds)
+  const selectedBondIndices = useMemo(() => {
+    if (bondSelection.length === 0) return [];
+
+    const indices: number[] = [];
+    // Only iterate through selected bonds, not all bonds
+    for (const bondPairIndex of bondSelection) {
+      const range = bondInstanceRanges[bondPairIndex];
+      if (!range) continue; // Safety check
+      // Add all instances for this selected bond
+      for (let i = 0; i < range.count; i++) {
+        indices.push(range.start + i);
       }
-      instanceIndex += 2;
     }
     return indices;
-  }, [bondPairs, selectionSet]);
+  }, [bondSelection, bondInstanceRanges]);
+
+  // Calculate which bond instances should be hovered (optimized using pre-computed ranges)
+  const hoveredBondIndices = useMemo(() => {
+    if (hoveredBondPairIndex === null) return [];
+
+    const range = bondInstanceRanges[hoveredBondPairIndex];
+    if (!range) return []; // Safety check
+
+    const indices: number[] = [];
+    for (let i = 0; i < range.count; i++) {
+      indices.push(range.start + i);
+    }
+    return indices;
+  }, [hoveredBondPairIndex, bondInstanceRanges]);
 
   const bondResolution = resolution || 8;
   const bondScale = scale || 1.0;
@@ -258,7 +358,7 @@ export default function Bonds({
       }
 
       if (atomCount === 0) {
-        if (instanceCount !== 0) setInstanceCount(0);
+        if (instanceCount !== 0) dispatchBondState({ type: 'RESET' });
         return;
       }
 
@@ -276,48 +376,89 @@ export default function Bonds({
       const fetchedRadius = typeof radiusProp === 'string' ? radiusData?.[radiusProp as string] : undefined;
       const finalRadii = processNumericAttribute(radiusProp, fetchedRadius, atomCount);
 
-      // Process connectivity
+      // Process connectivity with bond order
       const fetchedConnectivity = typeof connectivityProp === 'string' ? connectivityData?.[connectivityProp as string] : undefined;
       const connectivityRaw = fetchedConnectivity || connectivityProp;
 
-      const newBondPairs: [number, number][] = [];
+      const newBondPairs: Array<[number, number, number]> = [];
       if (connectivityRaw && connectivityRaw.length > 0) {
         if (Array.isArray(connectivityRaw[0])) {
-          (connectivityRaw as number[][]).forEach(conn => newBondPairs.push([conn[0], conn[1]]));
+          // Array format: [[atom_a, atom_b, bond_order], ...]
+          (connectivityRaw as Array<[number, number, number | null]>).forEach(conn => {
+            const bondOrder = conn[2] ?? 1;  // Default to 1 if null
+            newBondPairs.push([conn[0], conn[1], bondOrder]);
+          });
         } else {
+          // Flat array format: [atom_a, atom_b, bond_order, ...]
+          // connectivityRaw might be a TypedArray or regular array
           for (let i = 0; i < connectivityRaw.length; i += 3) {
-            newBondPairs.push([connectivityRaw[i], connectivityRaw[i + 1]]);
+            const atomA = Number(connectivityRaw[i]);
+            const atomB = Number(connectivityRaw[i + 1]);
+            const bondOrder = Number(connectivityRaw[i + 2] ?? 1);  // Default to 1 if null
+            newBondPairs.push([atomA, atomB, bondOrder]);
           }
         }
       }
 
       if (newBondPairs.length === 0) {
-        if (instanceCount !== 0) setInstanceCount(0);
-        if (bondPairs.length !== 0) setBondPairs([]);
+        if (instanceCount !== 0) dispatchBondState({ type: 'RESET' });
         return;
       }
 
-      // Each bond pair creates 2 half-bond instances
-      const finalCount = newBondPairs.length * 2;
+      // Calculate total instance count based on bond orders and mode
+      // Each bond pair creates N cylinders, each cylinder has 2 half-bonds
+      // Also build mapping from instance index to bond pair index
+      let totalInstances = 0;
+      const newInstanceToBondMap: number[] = [];
+      for (let bondPairIndex = 0; bondPairIndex < newBondPairs.length; bondPairIndex++) {
+        const [, , bondOrder] = newBondPairs[bondPairIndex];
+        const cylinderCount = getCylinderCount(bondOrder, bond_order_mode);
+        const instancesForThisBond = cylinderCount * 2;  // 2 half-bonds per cylinder
+
+        // Map all instances of this bond to the same bond pair index
+        for (let i = 0; i < instancesForThisBond; i++) {
+          newInstanceToBondMap.push(bondPairIndex);
+        }
+
+        totalInstances += instancesForThisBond;
+      }
+      const finalCount = totalInstances;
 
       // --- Mesh Resizing Step ---
+      // Calculate hash for new bond pairs
+      const newBondPairsHash = hashBondPairs(newBondPairs);
+
       if (instanceCount !== finalCount) {
-        setInstanceCount(finalCount);
-        setBondPairs(newBondPairs);
+        dispatchBondState({
+          type: 'UPDATE_ALL',
+          payload: {
+            instanceCount: finalCount,
+            bondPairs: newBondPairs,
+            instanceToBondMap: newInstanceToBondMap,
+          },
+        });
         return;
       }
 
-      // Update bondPairs if connectivity changed
-      if (JSON.stringify(bondPairs) !== JSON.stringify(newBondPairs)) {
-        setBondPairs(newBondPairs);
+      // Update bondPairs and mapping if connectivity changed (use hash comparison)
+      if (bondPairsHash !== newBondPairsHash) {
+        dispatchBondState({
+          type: 'UPDATE_ALL',
+          payload: {
+            instanceCount: finalCount,
+            bondPairs: newBondPairs,
+            instanceToBondMap: newInstanceToBondMap,
+          },
+        });
       }
 
       // --- Mesh Instance Update Step ---
       const mainMesh = mainMeshRef.current;
       if (!mainMesh) return;
       let instanceIndex = 0;
+
       for (const bond of newBondPairs) {
-        const [a, b] = bond;
+        const [a, b, bondOrder] = bond;
         if (a >= atomCount || b >= atomCount) continue;
 
         const a3 = a * 3;
@@ -325,38 +466,85 @@ export default function Bonds({
         _vec3.fromArray(finalPositions, a3);
         _vec3_2.fromArray(finalPositions, b3);
 
-        // Calculate bond vector using pooled object _vec3_3
+        // Calculate bond vector and normalize
         _vec3_3.copy(_vec3_2).sub(_vec3);
         const length = _vec3_3.length();
-        const radius = finalRadii[a] * bondScale;
+        _vec3_3.normalize();  // Bond direction vector
+
+        // Get number of cylinders for this bond
+        const cylinderCount = getCylinderCount(bondOrder, bond_order_mode);
+
+        // Get radius scale for this bond order
+        // Python dict keys like {2.0: 0.1} serialize to {"2.0": 0.1} in JSON
+        // Try both "2" and "2.0" formats
+        const bondOrderKey1 = String(bondOrder);
+        const bondOrderKey2 = Number(bondOrder).toFixed(1);
+        const radiusScale = bond_order_mode === "parallel"
+          ? (bond_order_radius_scale[bondOrderKey1] ?? bond_order_radius_scale[bondOrderKey2] ?? 1.0)
+          : 1.0;
+        const radius = finalRadii[a] * bondScale * radiusScale;
         const halfLength = length / 2;
 
-        // Use _vec3_4 for scale vector
-        _vec3_4.set(radius, halfLength, radius);
+        // Pre-calculate perpendicular vector ONCE per bond (not per cylinder)
+        // Only needed if multiple cylinders
+        let perpVectorCalculated = false;
+        if (cylinderCount > 1) {
+          // Find a perpendicular vector to the bond direction
+          // Use cross product with up vector, or right vector if bond is vertical
+          if (Math.abs(_vec3_3.dot(_up)) < 0.99) {
+            _perpVector.crossVectors(_vec3_3, _up).normalize();
+          } else {
+            // Bond is nearly vertical, use right vector instead
+            _perpVector.set(1, 0, 0).cross(_vec3_3).normalize();
+          }
+          perpVectorCalculated = true;
+        }
 
-        // First half-bond (from atom A)
-        // Normalize _vec3_3 in place instead of cloning
-        _vec3_3.normalize();
-        _quat.setFromUnitVectors(_up, _vec3_3);
-        _matrix.compose(_vec3, _quat, _vec3_4);
-        mainMesh.setMatrixAt(instanceIndex, _matrix);
+        // Render multiple cylinders for double/triple bonds
+        for (let cylIdx = 0; cylIdx < cylinderCount; cylIdx++) {
+          // Calculate offset for this cylinder
+          // bond_order_offset is the spacing between adjacent cylinders
+          let offsetAmount = 0;
+          if (cylinderCount === 2) {
+            // Double bond: cylinders at -0.5 and +0.5 spacing
+            offsetAmount = (cylIdx === 0 ? -0.5 : 0.5) * bond_order_offset * radius;
+          } else if (cylinderCount === 3) {
+            // Triple bond: cylinders at -1, 0, +1 spacing (distance A-B = B-C = bond_order_offset * radius)
+            offsetAmount = (cylIdx - 1) * bond_order_offset * radius;
+          }
 
-        // Set color directly from hex string (THREE.Color.set() accepts hex)
-        _colorA.set(finalColorHex[a]);
-        mainMesh.setColorAt(instanceIndex, _colorA);
-        instanceIndex++;
+          // First half-bond (from atom A)
+          if (perpVectorCalculated) {
+            _offsetPos.copy(_vec3).addScaledVector(_perpVector, offsetAmount);
+          } else {
+            _offsetPos.copy(_vec3);
+          }
 
-        // Second half-bond (from atom B, inverted direction)
-        // Reuse _vec3_3 for inverted direction
-        _vec3_3.copy(_vec3).sub(_vec3_2).normalize();
-        _quatInv.setFromUnitVectors(_up, _vec3_3);
-        _matrix.compose(_vec3_2, _quatInv, _vec3_4);
-        mainMesh.setMatrixAt(instanceIndex, _matrix);
+          _vec3_4.set(radius, halfLength, radius);
+          _quat.setFromUnitVectors(_up, _vec3_3);
+          _matrix.compose(_offsetPos, _quat, _vec3_4);
+          mainMesh.setMatrixAt(instanceIndex, _matrix);
+          _colorA.set(finalColorHex[a]);
+          mainMesh.setColorAt(instanceIndex, _colorA);
+          instanceIndex++;
 
-        // Set color directly from hex string (THREE.Color.set() accepts hex)
-        _colorB.set(finalColorHex[b]);
-        mainMesh.setColorAt(instanceIndex, _colorB);
-        instanceIndex++;
+          // Second half-bond (from atom B, inverted direction)
+          if (perpVectorCalculated) {
+            _offsetPos.copy(_vec3_2).addScaledVector(_perpVector, offsetAmount);
+          } else {
+            _offsetPos.copy(_vec3_2);
+          }
+
+          // Inverted direction for second half (use pooled vector instead of clone)
+          _vec3_4.set(radius, halfLength, radius);
+          _negatedDirection.copy(_vec3_3).negate();
+          _quatInv.setFromUnitVectors(_up, _negatedDirection);
+          _matrix.compose(_offsetPos, _quatInv, _vec3_4);
+          mainMesh.setMatrixAt(instanceIndex, _matrix);
+          _colorB.set(finalColorHex[b]);
+          mainMesh.setColorAt(instanceIndex, _colorB);
+          instanceIndex++;
+        }
       }
 
       mainMesh.instanceMatrix.needsUpdate = true;
@@ -365,62 +553,81 @@ export default function Bonds({
       // Update bounding box to prevent frustum culling issues
       mainMesh.computeBoundingBox();
       mainMesh.computeBoundingSphere();
-
-      // --- Selection Mesh Update ---
-      if (selecting.enabled && selectionMeshRef.current) {
-        const selectionMesh = selectionMeshRef.current;
-        selectedBondIndices.forEach((bondInstanceId, arrayIndex) => {
-          // Copy matrix from main mesh and scale up using pooled vector
-          mainMesh.getMatrixAt(bondInstanceId, _matrix);
-          _vec3_3.set(SELECTION_SCALE, SELECTION_SCALE, SELECTION_SCALE);
-          _matrix.scale(_vec3_3);
-          selectionMesh.setMatrixAt(arrayIndex, _matrix);
-        });
-        selectionMesh.instanceMatrix.needsUpdate = true;
-
-        // Update bounding box for selection mesh
-        selectionMesh.computeBoundingBox();
-        selectionMesh.computeBoundingSphere();
-      }
-
-      // --- Hover Mesh Update ---
-      if (hovering?.enabled && hoverMeshRef.current) {
-        const hoverMesh = hoverMeshRef.current;
-        if (hoveredBondId !== null && hoveredBondId < finalCount) {
-          hoverMesh.visible = true;
-          // Get the matrix from the hovered bond instance using pooled objects
-          mainMesh.getMatrixAt(hoveredBondId, _matrix2);
-          _matrix2.decompose(_vec3, _quat2, _vec3_2);
-          // Apply to hover mesh with scaled-up dimensions
-          hoverMesh.position.copy(_vec3);
-          hoverMesh.quaternion.copy(_quat2);
-          hoverMesh.scale.copy(_vec3_2).multiplyScalar(HOVER_SCALE);
-        } else {
-          hoverMesh.visible = false;
-        }
-      }
     } catch (error) {
       console.error("Error processing Bonds data:", error);
-      if (instanceCount !== 0) setInstanceCount(0);
+      if (instanceCount !== 0) dispatchBondState({ type: 'RESET' });
     }
   }, [
     isFetching,
-    hasQueryError,
+    // Data dependencies - these change when frame changes
     positionData,
     colorData,
     radiusData,
     connectivityData,
+    // Prop dependencies
     positionProp,
     colorProp,
     radiusProp,
     connectivityProp,
+    // State
     instanceCount,
+    bondPairsHash, // Use hash instead of bondPairs array
+    // Configuration
     bondScale,
-    selecting,
-    selectedBondIndices,
-    hovering,
-    hoveredBondId,
+    bond_order_mode,
+    bond_order_offset,
+    bond_order_radius_scale,
   ]);
+
+  // Separate effect for selection mesh updates (doesn't reprocess main mesh data)
+  useEffect(() => {
+    if (!selecting.enabled || !mainMeshRef.current || !selectionMeshRef.current) return;
+    if (selectedBondIndices.length === 0) return;
+
+    const mainMesh = mainMeshRef.current;
+    const selectionMesh = selectionMeshRef.current;
+
+    // Create scale vector once outside loop
+    _scaleVector.set(SELECTION_SCALE, SELECTION_SCALE, SELECTION_SCALE);
+    for (let arrayIndex = 0; arrayIndex < selectedBondIndices.length; arrayIndex++) {
+      const bondInstanceId = selectedBondIndices[arrayIndex];
+      mainMesh.getMatrixAt(bondInstanceId, _matrix);
+      _matrix.scale(_scaleVector);
+      selectionMesh.setMatrixAt(arrayIndex, _matrix);
+    }
+    selectionMesh.instanceMatrix.needsUpdate = true;
+
+    // Only recompute bounding box if selection mesh instance count changed
+    if (selectionMesh.count !== selectedBondIndices.length) {
+      selectionMesh.computeBoundingBox();
+      selectionMesh.computeBoundingSphere();
+    }
+  }, [selecting.enabled, selectedBondIndices]);
+
+  // Separate effect for hover mesh updates (doesn't reprocess main mesh data)
+  useEffect(() => {
+    if (!hovering?.enabled || !mainMeshRef.current || !hoverMeshRef.current) return;
+    if (hoveredBondIndices.length === 0) return;
+
+    const mainMesh = mainMeshRef.current;
+    const hoverMesh = hoverMeshRef.current;
+
+    // Create scale vector once outside loop
+    _scaleVector.set(HOVER_SCALE, HOVER_SCALE, HOVER_SCALE);
+    for (let arrayIndex = 0; arrayIndex < hoveredBondIndices.length; arrayIndex++) {
+      const bondInstanceId = hoveredBondIndices[arrayIndex];
+      mainMesh.getMatrixAt(bondInstanceId, _matrix);
+      _matrix.scale(_scaleVector);
+      hoverMesh.setMatrixAt(arrayIndex, _matrix);
+    }
+    hoverMesh.instanceMatrix.needsUpdate = true;
+
+    // Only recompute bounding box if hover mesh instance count changed
+    if (hoverMesh.count !== hoveredBondIndices.length) {
+      hoverMesh.computeBoundingBox();
+      hoverMesh.computeBoundingSphere();
+    }
+  }, [hovering?.enabled, hoveredBondIndices]);
 
   // Convert instanced mesh to merged mesh for path tracing
   useEffect(() => {
@@ -474,24 +681,29 @@ export default function Bonds({
   const onClickHandler = useCallback((event: any) => {
     if (event.detail !== 1 || event.instanceId === undefined) return;
     event.stopPropagation();
-    // Convert instance ID to bond pair index (each pair has 2 instances)
-    const bondPairIndex = Math.floor(event.instanceId / 2);
+    // Convert instance ID to bond pair index using mapping
+    // (handles bonds with different numbers of cylinders)
+    const bondPairIndex = instanceToBondMap[event.instanceId] ?? Math.floor(event.instanceId / 2);
     updateSelections(geometryKey, bondPairIndex, event.shiftKey);
-  }, [updateSelections, geometryKey]);
+  }, [updateSelections, geometryKey, instanceToBondMap]);
 
   const onPointerEnter = useCallback((e: any) => {
     if (e.instanceId === undefined) return;
     e.stopPropagation();
-    setHoveredBondId(e.instanceId);
-  }, []);
+    // Convert instance ID to bond pair index
+    const bondPairIndex = instanceToBondMap[e.instanceId] ?? Math.floor(e.instanceId / 2);
+    setHoveredBondPairIndex(bondPairIndex);
+  }, [instanceToBondMap]);
 
   const onPointerMove = useCallback((e: any) => {
     if (e.instanceId === undefined) return;
     e.stopPropagation();
-    setHoveredBondId(e.instanceId);
-  }, []);
+    // Convert instance ID to bond pair index
+    const bondPairIndex = instanceToBondMap[e.instanceId] ?? Math.floor(e.instanceId / 2);
+    setHoveredBondPairIndex(bondPairIndex);
+  }, [instanceToBondMap]);
 
-  const onPointerOut = useCallback(() => setHoveredBondId(null), []);
+  const onPointerOut = useCallback(() => setHoveredBondPairIndex(null), []);
 
   if (!clientId || !roomId) return null;
 
@@ -538,15 +750,18 @@ export default function Bonds({
 
           {/* Hover mesh */}
           {hovering?.enabled && (
-            <mesh ref={hoverMeshRef} visible={false}>
-              <primitive object={bondGeometry} attach="geometry" />
+            <instancedMesh
+              key={`hover-${hoveredBondIndices.length}`}
+              ref={hoverMeshRef}
+              args={[bondGeometry, undefined, hoveredBondIndices.length]}
+            >
               <meshBasicMaterial
                 side={THREE.BackSide}
                 transparent
                 opacity={hovering.opacity}
                 color={hovering.color || "#00FFFF"}
               />
-            </mesh>
+            </instancedMesh>
           )}
         </>
       )}

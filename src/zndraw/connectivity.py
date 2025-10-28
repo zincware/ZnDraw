@@ -5,7 +5,7 @@ import numpy as np
 import vesin
 from ase.neighborlist import natural_cutoffs
 
-T_CONNECTIVITY = t.List[t.Tuple[int, int, t.Literal[1]]]
+T_CONNECTIVITY = t.List[t.Tuple[int, int, int | float | None]]
 
 
 def add_connectivity(atoms: ase.Atoms, scale: float = 1.2) -> None:
@@ -13,10 +13,11 @@ def add_connectivity(atoms: ase.Atoms, scale: float = 1.2) -> None:
 
     This function determines atomic connectivity based on scaled natural covalent radii.
     A bond is considered to exist between two atoms if their distance is less than
-    the sum of their scaled covalent radii. The bond order is currently fixed to 1.
+    the sum of their scaled covalent radii. The bond order is set to 1 by default.
 
     The connectivity information is stored in the `atoms.info['connectivity']`
     attribute as a list of tuples, where each tuple is (atom_i, atom_j, bond_order).
+    Bond order can be 1 (single), 2 (double), 3 (triple), 1.5 (aromatic), or None.
 
     Parameters
     ----------

@@ -6,7 +6,6 @@ from .base import (
     BaseGeometry,
     ConnectivityProp,
     InteractionSettings,
-    PositionProp,
     apply_schema_feature,
 )
 
@@ -66,6 +65,22 @@ class Bond(BaseGeometry):
         ge=0.0,
         le=1.0,
         description="Bond opacity, between 0 (transparent) and 1 (opaque).",
+    )
+
+    bond_order_mode: t.Literal["parallel", "ignore"] = Field(
+        default="parallel",
+        description="Bond order visualization mode. 'parallel': render multiple cylinders for double/triple bonds. 'ignore': render all bonds as single cylinders.",
+    )
+
+    bond_order_offset: float = Field(
+        default=3,
+        ge=0.0,
+        description="Spacing between parallel cylinders in parallel mode, as fraction of bond radius.",
+    )
+
+    bond_order_radius_scale: dict[float, float] = Field(
+        default={1: 1.0, 1.5: 0.75, 2: 0.75, 3: 0.7},
+        description="Radius multiplier per bond order in parallel mode. Maps bond order to scale factor.",
     )
 
     selecting: InteractionSettings = Field(

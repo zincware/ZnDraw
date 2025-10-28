@@ -25,7 +25,8 @@ Size3DProp = Union[str, tuple[float, float, float], list[tuple[float, float, flo
 RotationProp = Union[str, tuple[float, float, float], list[tuple[float, float, float]]]
 
 # Connectivity for bonds: per-bond indices and properties (atom_a, atom_b, bond_order, etc)
-ConnectivityProp = Union[str, list[tuple[float, float, float]]]
+# Bond order can be None (defaults to 1), int, or float (e.g., 1.5 for aromatic)
+ConnectivityProp = Union[str, list[tuple[float, float, float | None]]]
 
 
 class Material(str, Enum):

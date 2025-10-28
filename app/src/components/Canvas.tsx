@@ -13,7 +13,7 @@ import { Cell } from "./three/Cell";
 import { Floor } from "./three/Floor";
 import Sphere from "./three/Particles";
 import Arrow from "./three/Arrow";
-import Bonds from "./three/SingleBonds";
+import Bonds from "./three/Bonds";
 import Box from "./three/Box";
 import Plane from "./three/Plane";
 import Curve from "./three/Curve";
