@@ -1528,98 +1528,37 @@ def duplicate_room(room_id):
             "frameCount": 42
         }
     """
-    redis_client = current_app.extensions["redis"]
+    import uuid
+
+    room_service = current_app.extensions["room_service"]
     data = request.get_json() or {}
 
     # Check source room exists
-    source_indices_key = f"room:{room_id}:trajectory:indices"
-    if not redis_client.exists(source_indices_key):
+    if not room_service.room_exists(room_id):
         return {"error": "Source room not found"}, 404
 
     # Generate or use provided new room ID
     new_room_id = data.get("newRoomId")
     if not new_room_id:
-        import uuid
-
         new_room_id = str(uuid.uuid4())
 
     # Check new room doesn't already exist
-    if redis_client.exists(f"room:{new_room_id}:trajectory:indices"):
+    try:
+        room_service.validate_room_available(new_room_id)
+    except ValueError:
         return {"error": "Room with that ID already exists"}, 409
 
-    # 1. Copy trajectory indices (sorted set) - this shares frame data
-    source_indices = redis_client.zrange(source_indices_key, 0, -1, withscores=True)
-    if source_indices:
-        redis_client.zadd(
-            f"room:{new_room_id}:trajectory:indices",
-            {member: score for member, score in source_indices},
-        )
-
-    # 2. Copy geometries hash
-    geometries = redis_client.hgetall(f"room:{room_id}:geometries")
-    if geometries:
-        redis_client.hset(f"room:{new_room_id}:geometries", mapping=geometries)
-
-    # 3. Copy bookmarks hash (physical keys remain valid)
-    bookmarks = redis_client.hgetall(f"room:{room_id}:bookmarks")
-    if bookmarks:
-        redis_client.hset(f"room:{new_room_id}:bookmarks", mapping=bookmarks)
-
-    # 4. Initialize new room metadata
-    redis_client.set(f"room:{new_room_id}:current_frame", 0)
-    redis_client.set(f"room:{new_room_id}:locked", 0)
-    redis_client.set(f"room:{new_room_id}:hidden", 0)
-
+    # Create room by copying from source
     description = data.get("description")
-    if description:
-        redis_client.set(f"room:{new_room_id}:description", description)
-
-    # 5. Initialize default geometries for new room
-    from zndraw.geometries import Bond, Cell, Curve, Floor, Sphere
-
-    if not geometries:  # Only if source had no geometries
-        # TODO: why is this not in the room manager?!
-        # Create particles with explicit arrays.positions/colors for initial /join
-        particles_data = Sphere(
-            position="arrays.positions", color="arrays.colors", radius="arrays.radii"
-        ).model_dump()
-        bond_data = Bond(
-            position="arrays.positions", color="arrays.colors"
-        ).model_dump()
-        redis_client.hset(
-            f"room:{new_room_id}:geometries",
-            "particles",
-            json.dumps({"type": Sphere.__name__, "data": particles_data}),
+    try:
+        result = room_service.create_room(
+            room_id=new_room_id,
+            user_name="",  # Not needed for copy operations
+            description=description,
+            copy_from=room_id,
         )
-        redis_client.hset(
-            f"room:{new_room_id}:geometries",
-            "bonds",
-            json.dumps(
-                {
-                    "type": Bond.__name__,
-                    "data": bond_data,
-                }
-            ),
-        )
-        redis_client.hset(
-            f"room:{new_room_id}:geometries",
-            "curve",
-            json.dumps({"type": Curve.__name__, "data": Curve().model_dump()}),
-        )
-        redis_client.hset(
-            f"room:{new_room_id}:geometries",
-            "cell",
-            json.dumps({"type": Cell.__name__, "data": Cell().model_dump()}),
-        )
-        redis_client.hset(
-            f"room:{new_room_id}:geometries",
-            "floor",
-            json.dumps({"type": Floor.__name__, "data": Floor().model_dump()}),
-        )
-
-    log.info(
-        f"Duplicated room '{room_id}' to '{new_room_id}' with {len(source_indices)} frames"
-    )
+    except ValueError as e:
+        return {"error": str(e)}, 400
 
     # Emit room:update event to notify clients of new room
     from zndraw.app.room_manager import emit_room_update
@@ -1629,7 +1568,7 @@ def duplicate_room(room_id):
         new_room_id,
         created=True,
         description=description,
-        frameCount=len(source_indices),
+        frameCount=result["frameCount"],
         locked=False,
         hidden=False,
         isDefault=False,
@@ -1638,7 +1577,7 @@ def duplicate_room(room_id):
     return {
         "status": "ok",
         "roomId": new_room_id,
-        "frameCount": len(source_indices),
+        "frameCount": result["frameCount"],
     }, 200
 
 

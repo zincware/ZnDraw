@@ -48,6 +48,22 @@ class RoomService:
         """
         return self.r.exists(f"room:{room_id}:current_frame") > 0
 
+    def validate_room_available(self, room_id: str) -> None:
+        """Validate that a room ID is available (doesn't already exist).
+
+        Parameters
+        ----------
+        room_id : str
+            Room identifier to check
+
+        Raises
+        ------
+        ValueError
+            If room already exists
+        """
+        if self.room_exists(room_id):
+            raise ValueError(f"Room '{room_id}' already exists")
+
     def create_room(
         self,
         room_id: str,
@@ -89,7 +105,7 @@ class RoomService:
             raise ValueError("Room ID contains invalid characters")
 
         if copy_from:
-            return self._create_room_from_copy(room_id, copy_from)
+            return self._create_room_from_copy(room_id, copy_from, description)
         return self._create_empty_room(room_id, user_name, description)
 
     def _create_empty_room(
@@ -136,7 +152,9 @@ class RoomService:
         log.info(f"Created empty room '{room_id}'")
         return {"created": True, "frameCount": 0}
 
-    def _create_room_from_copy(self, room_id: str, source_room: str) -> dict:
+    def _create_room_from_copy(
+        self, room_id: str, source_room: str, description: str | None = None
+    ) -> dict:
         """Copy room data from existing room.
 
         Uses Redis pipeline for efficient bulk copying.
@@ -147,6 +165,8 @@ class RoomService:
             New room identifier
         source_room : str
             Source room to copy from
+        description : str | None
+            Optional description for the new room
 
         Returns
         -------
@@ -163,6 +183,10 @@ class RoomService:
             raise ValueError(f"Source room '{source_room}' not found")
 
         pipe = self.r.pipeline()
+
+        # Set description if provided
+        if description:
+            pipe.set(f"room:{room_id}:description", description)
 
         # Copy trajectory indices (shares frame data)
         source_indices = self.r.zrange(source_indices_key, 0, -1, withscores=True)
