@@ -3633,3 +3633,344 @@ def download_frames(room_id: str):
             "Content-Type": "chemical/x-xyz",
         },
     )
+
+
+# =============================================================================
+# Extension Analytics Endpoints
+# =============================================================================
+
+
+@main.route("/api/rooms/<string:room_id>/extensions/overview", methods=["GET"])
+def get_room_extensions_overview(room_id: str):
+    """Get comprehensive extension overview for a room.
+
+    Query Parameters:
+        category: Optional category filter ("modifiers", "selections", "analysis")
+        search: Optional search string
+
+    Returns:
+        {
+            extensions: [...],
+            summary: {total_extensions, active_workers, total_jobs_24h}
+        }
+    """
+    from datetime import datetime
+
+    from dateutil.parser import isoparse
+
+    from .analytics import aggregate_job_stats
+    from .extension_utils import get_server_extensions
+    from .redis_keys import ExtensionKeys
+
+    redis_client = current_app.extensions["redis"]
+    category_filter = request.args.get("category")
+    search = request.args.get("search", "").lower()
+
+    extensions = []
+    total_workers = 0
+    total_jobs_24h = 0
+
+    # Get all extension categories to scan
+    categories = (
+        [category_filter]
+        if category_filter
+        else ["modifiers", "selections", "analysis"]
+    )
+
+    for category in categories:
+        # Get both client-side (Redis) and server-side (built-in) extensions
+        schema_key = ExtensionKeys.schema_key(room_id, category)
+        client_extensions = redis_client.hkeys(schema_key)
+        client_extensions = [
+            name.decode() if isinstance(name, bytes) else name
+            for name in client_extensions
+        ]
+
+        # Get server-side extensions (always available)
+        server_extensions = get_server_extensions(category)
+
+        # Combine both sets of extensions
+        all_extension_names = set(client_extensions) | server_extensions
+
+        for ext_name in all_extension_names:
+            # Search filter
+            if search and search not in ext_name.lower():
+                continue
+
+            # Get schema (only exists for client-side extensions in Redis)
+            schema_json = redis_client.hget(schema_key, ext_name)
+            schema = json.loads(schema_json) if schema_json else {}
+
+            # Get worker stats
+            keys = ExtensionKeys.for_extension(room_id, category, ext_name)
+            worker_stats = WorkerStats.fetch(redis_client, keys)
+            total_workers += worker_stats.total_workers
+
+            # Get jobs for this extension
+            job_ids = redis_client.smembers(
+                f"room:{room_id}:extension:{category}:{ext_name}:jobs"
+            )
+            jobs = []
+            for job_id in job_ids:
+                job_id_str = job_id.decode() if isinstance(job_id, bytes) else job_id
+                job_data = redis_client.hgetall(f"job:{job_id_str}")
+                if job_data:
+                    jobs.append(
+                        {
+                            k.decode() if isinstance(k, bytes) else k: v.decode()
+                            if isinstance(v, bytes)
+                            else v
+                            for k, v in job_data.items()
+                        }
+                    )
+
+            # Aggregate stats
+            stats = aggregate_job_stats(jobs)
+
+            # Count last 24h jobs
+            now = datetime.utcnow()
+            jobs_24h = 0
+            for j in jobs:
+                if j.get("created_at"):
+                    try:
+                        if (now - isoparse(j["created_at"])).total_seconds() < 86400:
+                            jobs_24h += 1
+                    except Exception:
+                        pass
+            total_jobs_24h += jobs_24h
+
+            # Get recent jobs (last 5)
+            recent_jobs = sorted(
+                [j for j in jobs if j.get("created_at")],
+                key=lambda x: x.get("created_at", ""),
+                reverse=True,
+            )[:5]
+
+            # Only include extensions with at least one job
+            if stats.total_jobs == 0:
+                continue
+
+            # Determine provider (celery if server-side, client otherwise)
+            server_extensions = get_server_extensions(category)
+            provider = "celery" if ext_name in server_extensions else "client"
+
+            extensions.append(
+                {
+                    "name": ext_name,
+                    "category": category,
+                    "provider": provider,
+                    "schema": schema,
+                    "workers": {
+                        "idle_count": worker_stats.idle_count,
+                        "progressing_count": worker_stats.progressing_count,
+                        "queue_length": worker_stats.queue_length,
+                    },
+                    "analytics": {
+                        "total_jobs": stats.total_jobs,
+                        "success_rate": stats.success_rate,
+                        "avg_wait_time_ms": stats.avg_wait_time_ms,
+                        "avg_execution_time_ms": stats.avg_execution_time_ms,
+                        "last_used": stats.last_used,
+                    },
+                    "recent_jobs": [
+                        {
+                            "id": j.get("id"),
+                            "status": j.get("status"),
+                            "created_at": j.get("created_at"),
+                            "wait_time_ms": int(j["wait_time_ms"])
+                            if j.get("wait_time_ms")
+                            and j["wait_time_ms"] not in ("", "0")
+                            else None,
+                            "execution_time_ms": int(j["execution_time_ms"])
+                            if j.get("execution_time_ms")
+                            and j["execution_time_ms"] not in ("", "0")
+                            else None,
+                        }
+                        for j in recent_jobs
+                    ],
+                }
+            )
+
+    return {
+        "extensions": extensions,
+        "summary": {
+            "total_extensions": len(extensions),
+            "active_workers": total_workers,
+            "total_jobs_24h": total_jobs_24h,
+        },
+    }
+
+
+@main.route("/api/extensions", methods=["GET"])
+def get_global_extensions_overview():
+    """Get global extensions overview across all rooms.
+
+    Query Parameters:
+        category: Optional category filter
+        search: Optional search string
+
+    Returns:
+        {extensions: [...]}
+    """
+    from .analytics import aggregate_job_stats
+    from .extension_utils import get_server_extensions
+
+    redis_client = current_app.extensions["redis"]
+    category_filter = request.args.get("category")
+    search = request.args.get("search", "").lower()
+
+    # Scan all extension job keys to find extensions with jobs
+    # Pattern: room:{room_id}:extension:{category}:{extension}:jobs
+    extensions_map = {}  # {category:extension: {rooms: set, jobs: []}}
+    valid_categories = ["modifiers", "selections", "analysis"]
+
+    for key in redis_client.scan_iter("room:*:extension:*:jobs"):
+        key_str = key.decode() if isinstance(key, bytes) else key
+        # Parse: room:{room_id}:extension:{category}:{extension}:jobs
+        parts = key_str.split(":")
+        if len(parts) != 6 or parts[2] != "extension" or parts[5] != "jobs":
+            continue
+
+        room_id = parts[1]
+        category = parts[3]
+        ext_name = parts[4]
+
+        # Validate category
+        if category not in valid_categories:
+            continue
+
+        if category_filter and category != category_filter:
+            continue
+
+        if search and search not in ext_name.lower():
+            continue
+
+        map_key = f"{category}:{ext_name}"
+        if map_key not in extensions_map:
+            extensions_map[map_key] = {"rooms": set(), "jobs": []}
+
+        extensions_map[map_key]["rooms"].add(room_id)
+
+        # Get jobs for this extension
+        job_ids = redis_client.smembers(key)
+        for job_id in job_ids:
+            job_id_str = job_id.decode() if isinstance(job_id, bytes) else job_id
+            job_data = redis_client.hgetall(f"job:{job_id_str}")
+            if job_data:
+                extensions_map[map_key]["jobs"].append(
+                    {
+                        k.decode() if isinstance(k, bytes) else k: v.decode()
+                        if isinstance(v, bytes)
+                        else v
+                        for k, v in job_data.items()
+                    }
+                )
+
+    # Aggregate global stats
+    result = []
+    for map_key, data in extensions_map.items():
+        category, ext_name = map_key.split(":", 1)
+        stats = aggregate_job_stats(data["jobs"])
+
+        # Only include extensions with at least one job
+        if stats.total_jobs == 0:
+            continue
+
+        server_extensions = get_server_extensions(category)
+        provider = "celery" if ext_name in server_extensions else "client"
+
+        result.append(
+            {
+                "name": ext_name,
+                "category": category,
+                "provider": provider,
+                "rooms": list(data["rooms"]),
+                "global_stats": {
+                    "total_jobs": stats.total_jobs,
+                    "avg_success_rate": stats.success_rate,
+                    "avg_wait_time_ms": stats.avg_wait_time_ms,
+                    "avg_execution_time_ms": stats.avg_execution_time_ms,
+                },
+            }
+        )
+
+    return {"extensions": result}
+
+
+@main.route(
+    "/api/rooms/<string:room_id>/extensions/<string:category>/<string:extension>/analytics",
+    methods=["GET"],
+)
+def get_extension_detailed_analytics(room_id: str, category: str, extension: str):
+    """Get detailed analytics for a specific extension.
+
+    Returns:
+        {
+            daily_stats: [{date, job_count, success_rate, avg_wait_ms, avg_exec_ms}],
+            total_stats: {total_jobs, overall_success_rate, ...},
+            error_breakdown: [{error, count}]
+        }
+    """
+    from datetime import datetime
+
+    from dateutil.parser import isoparse
+
+    from .analytics import aggregate_job_stats, get_daily_stats
+
+    redis_client = current_app.extensions["redis"]
+
+    # Get all jobs for this extension
+    job_ids = redis_client.smembers(
+        f"room:{room_id}:extension:{category}:{extension}:jobs"
+    )
+    jobs = []
+    for job_id in job_ids:
+        job_id_str = job_id.decode() if isinstance(job_id, bytes) else job_id
+        job_data = redis_client.hgetall(f"job:{job_id_str}")
+        if job_data:
+            jobs.append(
+                {
+                    k.decode() if isinstance(k, bytes) else k: v.decode()
+                    if isinstance(v, bytes)
+                    else v
+                    for k, v in job_data.items()
+                }
+            )
+
+    # Aggregate total stats
+    total_stats = aggregate_job_stats(jobs)
+
+    # Calculate days based on earliest job, or default to 7 if no jobs
+    days = 7
+    if jobs:
+        try:
+            # Find earliest created_at timestamp
+            valid_timestamps = []
+            for job in jobs:
+                if job.get("created_at"):
+                    try:
+                        valid_timestamps.append(isoparse(job["created_at"]))
+                    except Exception:
+                        pass
+
+            if valid_timestamps:
+                earliest = min(valid_timestamps)
+                now = datetime.utcnow()
+                days_diff = (now - earliest).days + 1  # +1 to include today
+                days = max(days_diff, 1)  # At least 1 day
+        except Exception:
+            days = 7
+
+    # Get daily breakdown
+    daily_stats = get_daily_stats(jobs, days)
+
+    return {
+        "daily_stats": daily_stats,
+        "total_stats": {
+            "total_jobs": total_stats.total_jobs,
+            "overall_success_rate": total_stats.success_rate,
+            "overall_avg_wait_ms": total_stats.avg_wait_time_ms,
+            "overall_avg_execution_ms": total_stats.avg_execution_time_ms,
+        },
+        "error_breakdown": total_stats.error_breakdown,
+    }

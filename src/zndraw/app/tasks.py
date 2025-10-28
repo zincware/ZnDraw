@@ -426,9 +426,9 @@ def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"
         log.info(f"Worker {worker_id} successfully completed job {job_id}")
 
         # Mark job as completed
-        requests.post(
-            f"{server_url}/api/rooms/{room}/jobs/{job_id}/complete",
-            json={"result": {}, "workerId": worker_id},
+        requests.put(
+            f"{server_url}/api/rooms/{room}/jobs/{job_id}/status",
+            json={"status": "completed", "result": {}, "workerId": worker_id},
         )
 
     except Exception as e:
@@ -436,9 +436,9 @@ def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"
         log.error(
             f"Worker {worker_id} error executing job {job_id}: {e}", exc_info=True
         )
-        requests.post(
-            f"{server_url}/api/rooms/{room}/jobs/{job_id}/fail",
-            json={"error": str(e), "workerId": worker_id},
+        requests.put(
+            f"{server_url}/api/rooms/{room}/jobs/{job_id}/status",
+            json={"status": "failed", "error": str(e), "workerId": worker_id},
         )
     finally:
         try:

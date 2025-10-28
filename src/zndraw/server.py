@@ -87,6 +87,11 @@ def create_app(
         int(os.getenv("ZNDRAW_MAX_UPLOAD_MB", "500")) * 1024 * 1024
     )
 
+    # Extension analytics TTL in seconds (default: 7 days)
+    app.config["EXTENSION_ANALYTICS_TTL"] = int(
+        os.getenv("ZNDRAW_EXTENSION_ANALYTICS_TTL", str(7 * 86400))
+    )
+
     if redis_url is None:
         data_folder = Path("~/.zincware/zndraw/celery/out").expanduser()
         data_folder_processed = Path("~/.zincware/zndraw/celery/processed").expanduser()

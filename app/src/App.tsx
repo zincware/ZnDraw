@@ -8,6 +8,7 @@ import TemplateSelectionPage from "./pages/templateSelection";
 import RoomListPage from "./pages/roomList";
 import RoomWaitingPage from "./pages/roomWaiting";
 import FileBrowserPage from "./pages/fileBrowser";
+import { ExtensionsOverview } from "./pages/extensionsOverview";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -46,6 +47,14 @@ const router = createBrowserRouter([
   {
     path: "/file-browser",
     element: <FileBrowserPage />,
+  },
+  {
+    path: "/extensions",
+    element: <ExtensionsOverview mode="global" />,
+  },
+  {
+    path: "/rooms/:roomId/extensions",
+    element: <ExtensionsOverview mode="room" />,
   },
   {
     path: "/rooms/:roomId",

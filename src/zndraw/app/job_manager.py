@@ -7,6 +7,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
+from dateutil.parser import isoparse
+
 
 @dataclass
 class Job:
@@ -24,6 +26,8 @@ class Job:
     worker_id: Optional[str] = None  # SID or "celery:{task_id}"
     error: Optional[str] = None
     result: Optional[dict] = None
+    wait_time_ms: Optional[int] = None  # started_at - created_at
+    execution_time_ms: Optional[int] = None  # completed_at - started_at
 
 
 class JobStatus(str, Enum):
@@ -33,6 +37,40 @@ class JobStatus(str, Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+def _calculate_durations(
+    created_at: str | None,
+    started_at: str | None,
+    completed_at: str | None,
+) -> tuple[int | None, int | None]:
+    """Calculate wait and execution times in milliseconds.
+
+    Args:
+        created_at: ISO 8601 timestamp when job was created
+        started_at: ISO 8601 timestamp when job started
+        completed_at: ISO 8601 timestamp when job completed
+
+    Returns:
+        Tuple of (wait_time_ms, execution_time_ms)
+    """
+    wait_time_ms = None
+    execution_time_ms = None
+
+    try:
+        if started_at and created_at:
+            wait_time_ms = int(
+                (isoparse(started_at) - isoparse(created_at)).total_seconds() * 1000
+            )
+
+        if completed_at and started_at:
+            execution_time_ms = int(
+                (isoparse(completed_at) - isoparse(started_at)).total_seconds() * 1000
+            )
+    except Exception:
+        pass  # Invalid timestamps, leave as None
+
+    return wait_time_ms, execution_time_ms
 
 
 class JobManager:
@@ -47,6 +85,7 @@ class JobManager:
         data: dict,
         user_id: str,
         provider: str,
+        ttl: int = 86400,
     ) -> str:
         """Create a new job and store in Redis.
 
@@ -58,6 +97,7 @@ class JobManager:
             data: Job input parameters
             user_id: User who submitted the job
             provider: "celery" or worker count
+            ttl: Time-to-live in seconds (default: 86400 = 24 hours)
 
         Returns:
             job_id: Unique job identifier
@@ -80,14 +120,16 @@ class JobManager:
             "worker_id": "",
             "error": "",
             "result": "",
+            "wait_time_ms": "",
+            "execution_time_ms": "",
         }
 
         # Store job data
         job_key = f"job:{job_id}"
         redis_client.hset(job_key, mapping=job_data)
 
-        # Set TTL to 24 hours
-        redis_client.expire(job_key, 86400)
+        # Set TTL
+        redis_client.expire(job_key, ttl)
 
         # Add to indexes
         redis_client.sadd(f"room:{room}:jobs:active", job_id)
@@ -100,7 +142,7 @@ class JobManager:
 
     @staticmethod
     def start_job(redis_client: Any, job_id: str, worker_id: str) -> bool:
-        """Mark job as running.
+        """Mark job as running and calculate wait time.
 
         Args:
             redis_client: Redis client instance
@@ -119,14 +161,20 @@ class JobManager:
 
         # Update status
         now = datetime.utcnow().isoformat()
-        redis_client.hset(
-            job_key,
-            mapping={
-                "status": JobStatus.RUNNING,
-                "started_at": now,
-                "worker_id": worker_id,
-            },
-        )
+        created_at = redis_client.hget(job_key, "created_at")
+
+        # Calculate wait time
+        wait_time_ms, _ = _calculate_durations(created_at, now, None)
+
+        update_data = {
+            "status": JobStatus.RUNNING,
+            "started_at": now,
+            "worker_id": worker_id,
+        }
+        if wait_time_ms is not None:
+            update_data["wait_time_ms"] = str(wait_time_ms)
+
+        redis_client.hset(job_key, mapping=update_data)
 
         return True
 
@@ -134,7 +182,7 @@ class JobManager:
     def complete_job(
         redis_client: Any, job_id: str, result: Optional[dict] = None
     ) -> bool:
-        """Mark job as completed.
+        """Mark job as completed and calculate execution time.
 
         Args:
             redis_client: Redis client instance
@@ -150,14 +198,21 @@ class JobManager:
             return False
 
         now = datetime.utcnow().isoformat()
-        redis_client.hset(
-            job_key,
-            mapping={
-                "status": JobStatus.COMPLETED,
-                "completed_at": now,
-                "result": json.dumps(result) if result else "",
-            },
-        )
+        started_at = redis_client.hget(job_key, "started_at")
+
+        # Calculate execution time
+        _, execution_time_ms = _calculate_durations(None, started_at, now)
+
+        update_data = {
+            "status": JobStatus.COMPLETED,
+            "completed_at": now,
+            "result": json.dumps(result) if result else "",
+        }
+        if execution_time_ms is not None:
+            update_data["execution_time_ms"] = str(execution_time_ms)
+
+        redis_client.hset(job_key, mapping=update_data)
+
         # Move from active to inactive set
         job_data = redis_client.hgetall(job_key)
         room = job_data.get("room")
@@ -170,7 +225,7 @@ class JobManager:
 
     @staticmethod
     def fail_job(redis_client: Any, job_id: str, error: str) -> bool:
-        """Mark job as failed.
+        """Mark job as failed and calculate execution time.
 
         Args:
             redis_client: Redis client instance
@@ -186,14 +241,20 @@ class JobManager:
             return False
 
         now = datetime.utcnow().isoformat()
-        redis_client.hset(
-            job_key,
-            mapping={
-                "status": JobStatus.FAILED,
-                "completed_at": now,
-                "error": error,
-            },
-        )
+        started_at = redis_client.hget(job_key, "started_at")
+
+        # Calculate execution time
+        _, execution_time_ms = _calculate_durations(None, started_at, now)
+
+        update_data = {
+            "status": JobStatus.FAILED,
+            "completed_at": now,
+            "error": error,
+        }
+        if execution_time_ms is not None:
+            update_data["execution_time_ms"] = str(execution_time_ms)
+
+        redis_client.hset(job_key, mapping=update_data)
 
         # Move from active to inactive set
         job_data = redis_client.hgetall(job_key)
