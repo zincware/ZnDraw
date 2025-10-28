@@ -2003,6 +2003,23 @@ def update_job_status(room_id: str, job_id: str):
         if not success:
             return {"error": "Failed to mark job as failed"}, 400
         log.error(f"Job {job_id} failed in room {room_id}: {error}")
+
+        # Log error to client UI via SocketIO event (similar to Celery workers)
+        try:
+            from zndraw.app.chat import send_message_to_room
+
+            extension_name = job.get("extension", "unknown")
+            error_message = f"❌ Error in {extension_name}: {error}"
+            send_message_to_room(
+                redis_client,
+                socketio,
+                room_id,
+                error_message,
+                worker_id or "system"
+            )
+        except Exception as e:
+            log.warning(f"Failed to log error to client UI: {e}")
+
         worker_success = False
 
     # If this is a client worker (not Celery), handle worker state transition
@@ -3628,7 +3645,7 @@ def get_room_extensions_overview(room_id: str):
     )
 
     for category in categories:
-        # Get both client-side (Redis) and server-side (built-in) extensions
+        # Get active extensions (with schemas - can accept new jobs)
         schema_key = ExtensionKeys.schema_key(room_id, category)
         client_extensions = redis_client.hkeys(schema_key)
         client_extensions = [
@@ -3639,8 +3656,20 @@ def get_room_extensions_overview(room_id: str):
         # Get server-side extensions (always available)
         server_extensions = get_server_extensions(category)
 
-        # Combine both sets of extensions
-        all_extension_names = set(client_extensions) | server_extensions
+        # Get historical extensions (disconnected clients with job history)
+        # Scan for job keys: room:{room_id}:extension:{category}:*:jobs
+        historical_extensions = set()
+        pattern = f"room:{room_id}:extension:{category}:*:jobs"
+        for key in redis_client.scan_iter(pattern):
+            key_str = key.decode() if isinstance(key, bytes) else key
+            # Parse: room:{room_id}:extension:{category}:{extension}:jobs
+            parts = key_str.split(":")
+            if len(parts) == 6 and parts[5] == "jobs":
+                ext_name = parts[4]
+                historical_extensions.add(ext_name)
+
+        # Combine all three sets of extensions
+        all_extension_names = set(client_extensions) | server_extensions | historical_extensions
 
         for ext_name in all_extension_names:
             # Search filter

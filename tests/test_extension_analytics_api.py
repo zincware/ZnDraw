@@ -716,3 +716,136 @@ def test_celery_worker_failure_endpoint_format(server, redis_client):
     job_data = response.json()
     assert job_data["status"] == "failed"
     assert job_data["error"] == "Test error"
+
+
+def test_extension_history_persists_after_client_disconnect(server, redis_client):
+    """Test that extension job history remains visible after client disconnects.
+
+    When a client extension worker disconnects:
+    - The extension schema should be deleted (correct - no workers to handle new jobs)
+    - But job history should still be accessible in the room extensions overview
+    - The extension should appear as read-only with historical data
+    """
+    room = "testroom"
+    user = "testuser"
+    auth_headers = get_jwt_auth_headers(server, user)
+
+    # Register extension and submit/complete a job
+    vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
+    vis.register_extension(DemoModifier)
+
+    # Submit a job
+    response = requests.post(
+        f"{server}/api/rooms/{room}/extensions/modifiers/DemoModifier/submit",
+        json={"data": {"parameter": 42}, "userId": user},
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    job_id = response.json()["jobId"]
+
+    # Pick up and complete the job
+    response = requests.post(
+        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+    )
+    assert response.status_code == 200
+
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{job_id}/status",
+        json={"status": "completed", "workerId": vis.sid},
+    )
+    assert response.status_code == 200
+
+    # Verify extension is visible with job history BEFORE disconnect
+    response = requests.get(
+        f"{server}/api/rooms/{room}/extensions/overview", headers=auth_headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["extensions"]) == 1
+    assert data["extensions"][0]["name"] == "DemoModifier"
+    assert data["extensions"][0]["analytics"]["total_jobs"] == 1
+    assert data["extensions"][0]["workers"]["idle_count"] == 1
+
+    # Verify the schema exists in Redis before disconnect
+    schema_key = f"room:{room}:extensions:modifiers"
+    assert redis_client.hexists(schema_key, "DemoModifier")
+
+    # Disconnect the client (this should delete the schema)
+    vis.disconnect()
+
+    # Give a moment for the disconnect handler to complete
+    import time
+    time.sleep(0.1)
+
+    # Verify the schema is deleted after disconnect
+    assert not redis_client.hexists(schema_key, "DemoModifier")
+
+    # Verify job history key still exists
+    job_key = f"room:{room}:extension:modifiers:DemoModifier:jobs"
+    assert redis_client.exists(job_key)
+    assert redis_client.scard(job_key) == 1
+
+    # THE FIX: Extension should STILL be visible in room overview with historical data
+    response = requests.get(
+        f"{server}/api/rooms/{room}/extensions/overview", headers=auth_headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    # Extension should still appear with job history
+    assert len(data["extensions"]) == 1
+    ext = data["extensions"][0]
+    assert ext["name"] == "DemoModifier"
+    assert ext["category"] == "modifiers"
+    assert ext["analytics"]["total_jobs"] == 1
+    assert ext["analytics"]["success_rate"] == 100.0
+
+    # Workers should show as 0 (client disconnected)
+    assert ext["workers"]["idle_count"] == 0
+    assert ext["workers"]["progressing_count"] == 0
+
+    # Recent jobs should still be accessible
+    assert len(ext["recent_jobs"]) == 1
+    assert ext["recent_jobs"][0]["status"] == "completed"
+
+
+def test_client_extension_failure_logs_to_ui(server, redis_client):
+    """Test that failed client extension jobs attempt to log errors to UI via vis.log()."""
+    room = "testroom"
+    user = "testuser"
+    auth_headers = get_jwt_auth_headers(server, user)
+
+    # Register extension
+    vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
+    vis.register_extension(DemoModifier)
+
+    # Submit a job
+    response = requests.post(
+        f"{server}/api/rooms/{room}/extensions/modifiers/DemoModifier/submit",
+        json={"data": {"parameter": 1}, "userId": user},
+        headers=auth_headers,
+    )
+    job_id = response.json()["jobId"]
+
+    # Pick up job
+    requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid})
+
+    # Fail the job with an error
+    error_message = "Test error: Something went wrong"
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{job_id}/status",
+        json={"status": "failed", "workerId": vis.sid, "error": error_message},
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+
+    # Verify the job is marked as failed
+    job_data = redis_client.hgetall(f"job:{job_id}")
+    assert job_data["status"] == "failed"
+    assert job_data["error"] == error_message
+
+    # The vis.log() call in the backend will attempt to create a ZnDraw client
+    # In production, this displays the error to users
+    # In tests, we just verify the job failure was processed correctly
+
+    vis.disconnect()

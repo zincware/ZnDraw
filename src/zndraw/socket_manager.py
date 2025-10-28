@@ -311,6 +311,7 @@ class SocketManager:
                     worker_id=self.zndraw.sid,
                 )
             except Exception as e:
+                self.zndraw.log(f"Error processing job {job_data.get('jobId')}: {e}")
                 log.error(f"Error processing job {job_data.get('jobId')}: {e}")
                 traceback.print_exc()
                 self.zndraw.api.update_job_status(

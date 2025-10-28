@@ -241,15 +241,45 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
                 except TypeError:
                     item_type = "group"
             else:
-                # Convert numpy types to native Python types before JSON serialization
-                converted_value = _convert_numpy_types(value)
-                prepared_value = json.dumps(converted_value)
-                item_type, dtype, shape_suffix, attrs = (
-                    "json_array",
-                    zarr.dtype.VariableLengthUTF8(),
-                    (),
-                    {"format": "json"},
-                )
+                # Try to convert to numpy array first if it's array-like data
+                # This handles cases like rdkit2ase which returns connectivity as a list
+                # Only convert if it looks like structured data (list of tuples/lists)
+                should_try_array = False
+                if isinstance(value, list) and len(value) > 0:
+                    # Check if this looks like structured data (list of tuples/lists)
+                    first_item = value[0]
+                    if isinstance(first_item, (tuple, list)):
+                        should_try_array = True
+
+                if should_try_array:
+                    try:
+                        arr = np.array(value)
+                        # Check if conversion was successful and resulted in a proper 2D+ array
+                        if arr.ndim > 1 and arr.size > 0:
+                            # Successfully converted to array, treat as numpy array
+                            item_type, dtype, shape_suffix, prepared_value = (
+                                "array",
+                                arr.dtype,
+                                arr.shape,
+                                arr,
+                            )
+                        else:
+                            # Not a proper 2D array, treat as JSON
+                            raise ValueError("Not a valid structured array")
+                    except (ValueError, TypeError):
+                        # Could not convert to array, fall back to JSON serialization
+                        should_try_array = False
+
+                if not should_try_array:
+                    # Convert numpy types to native Python types before JSON serialization
+                    converted_value = _convert_numpy_types(value)
+                    prepared_value = json.dumps(converted_value)
+                    item_type, dtype, shape_suffix, attrs = (
+                        "json_array",
+                        zarr.dtype.VariableLengthUTF8(),
+                        (),
+                        {"format": "json"},
+                    )
 
             # Create/resize and write to the Zarr item
             if item_type in ["array", "json_array"]:

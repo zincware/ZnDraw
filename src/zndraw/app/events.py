@@ -209,7 +209,7 @@ def handle_disconnect():
     for category in extension_categories:
         user_extensions_key = f"room:{room_name}:extensions:{category}:{worker_id}"
         # This key tells us which extensions this worker_id was providing
-        user_extensions = r.smembers(user_extensions_key)
+        user_extensions = list(r.smembers(user_extensions_key))
 
         if not user_extensions:
             continue
@@ -265,7 +265,7 @@ def handle_disconnect():
 
         # If any extensions are now orphaned, delete them and their state sets
         if extensions_to_delete:
-            print(
+            log.info(
                 f"Deleting orphaned extensions in '{category}': {extensions_to_delete}"
             )
             with r.pipeline() as pipe:
