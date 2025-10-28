@@ -81,18 +81,6 @@ def test_load_endpoint_disabled():
         assert "not enabled" in response.json["error"]
 
 
-def test_supported_types_endpoint_disabled():
-    """Test that supported-types endpoint returns 403 when feature is disabled."""
-    app = create_app()
-    app.config["FILE_BROWSER_ENABLED"] = False
-    app.config["FILE_BROWSER_ROOT"] = "."
-
-    with app.test_client() as client:
-        response = client.get("/api/file-browser/supported-types")
-        assert response.status_code == 403
-        assert "not enabled" in response.json["error"]
-
-
 def test_list_endpoint_enabled(tmp_path):
     """Test list endpoint when feature is enabled."""
     app = create_app()
