@@ -4,6 +4,11 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
+    include: [
+      'ketcher-react',
+      'ketcher-core',
+      'ketcher-standalone'
+    ],
     esbuildOptions: {
       define: {
         global: 'globalThis'
