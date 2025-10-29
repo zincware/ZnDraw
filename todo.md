@@ -63,3 +63,7 @@
 - [x] drag/drop not allowed when --file-browser not active
 - [ ] make get_jwt_auth_headers a pytest fixture
 - [ ] split up routes.py -> search for all `@main.` decorator, make a list and organize into multiple files?
+- [ ] loading sidebar menus takes for ever!
+- [ ] can not change settings!
+- [ ] fix `vis.geometries` to only show keys and not full data
+- [ ] being at frame 1 and then removing the first one might not update the frame to shift to 0. Check!
