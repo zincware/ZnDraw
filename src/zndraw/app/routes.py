@@ -265,6 +265,75 @@ def get_version():
     return {"version": zndraw.__version__}, 200
 
 
+@main.route("/api/tools/rdkit-img", methods=["POST"])
+def rdkit_image():
+    """Convert SMILES or InChI to a molecule image using RDKit.
+
+    Request
+    -------
+    {
+        "type": "smiles" | "inchi",  // Required: type of input
+        "data": "CCCO"                // Required: molecule string
+    }
+
+    Response
+    --------
+    {
+        "image": "data:image/png;base64,iVBORw0KG...",  // Base64-encoded PNG
+        "status": "success"
+    }
+    """
+    import base64
+    import io
+
+    try:
+        from rdkit import Chem
+        from rdkit.Chem import Draw
+    except ImportError:
+        return {"error": "RDKit is not installed", "type": "ImportError"}, 500
+
+    data = request.get_json() or {}
+    mol_type = data.get("type")
+    mol_data = data.get("data")
+
+    if not mol_type or not mol_data:
+        return {"error": "Both 'type' and 'data' are required", "type": "ValidationError"}, 400
+
+    if mol_type not in ["smiles", "inchi"]:
+        return {"error": "Type must be 'smiles' or 'inchi'", "type": "ValidationError"}, 400
+
+    # Convert string to molecule object
+    try:
+        if mol_type == "smiles":
+            mol = Chem.MolFromSmiles(mol_data)
+        else:  # inchi
+            mol = Chem.MolFromInchi(mol_data)
+
+        if mol is None:
+            return {"error": f"Invalid {mol_type} string", "type": "ConversionError"}, 400
+
+        # Generate 2D coordinates if needed
+        Chem.rdDepictor.Compute2DCoords(mol)
+
+        # Draw molecule to PNG
+        img = Draw.MolToImage(mol, size=(300, 300))
+
+        # Convert to base64
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
+        img_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+        return {
+            "image": f"data:image/png;base64,{img_base64}",
+            "status": "success"
+        }, 200
+
+    except Exception as e:
+        log.error(f"Error generating molecule image: {e}")
+        return {"error": str(e), "type": "GenerationError"}, 500
+
+
 @main.route("/api/login", methods=["POST"])
 def login():
     """Authenticate user and issue JWT token.

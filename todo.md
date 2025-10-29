@@ -62,3 +62,4 @@
 - [ ] check adding geometries via python appear without reload (also in the geometries sidebar)
 - [x] drag/drop not allowed when --file-browser not active
 - [ ] make get_jwt_auth_headers a pytest fixture
+- [ ] split up routes.py -> search for all `@main.` decorator, make a list and organize into multiple files?

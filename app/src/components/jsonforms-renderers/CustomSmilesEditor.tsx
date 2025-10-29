@@ -14,12 +14,17 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import { rankWith, schemaMatches, type ControlProps } from "@jsonforms/core";
-import { StrictMode, useState, useEffect } from "react";
-import { Editor, InfoModal } from "ketcher-react";
+import { useState, useEffect, useCallback } from "react";
+import { Editor } from "ketcher-react";
 import { StructServiceProvider } from "ketcher-core";
 import { StandaloneStructServiceProvider } from "ketcher-standalone";
+import { throttle } from "lodash";
+import { convertMoleculeToImage } from "../../myapi/client";
+import { LAYOUT_CONSTANTS } from "../../constants/layout";
 import "ketcher-react/dist/index.css";
 
 // Extend Window interface for TypeScript
@@ -49,6 +54,9 @@ const CustomSmilesEditor = ({
   const [currentSmiles, setCurrentSmiles] = useState(data ?? "");
   const [structServiceProvider, setStructServiceProvider] =
     useState<StructServiceProvider | null>(null);
+  const [moleculeImage, setMoleculeImage] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   // Load struct service provider asynchronously (matches official example pattern)
   useEffect(() => {
@@ -59,6 +67,40 @@ const CustomSmilesEditor = ({
   useEffect(() => {
     setCurrentSmiles(data ?? "");
   }, [data]);
+
+  // Throttled function to fetch molecule image
+  const fetchMoleculeImage = useCallback(
+    throttle(async (smiles: string) => {
+      if (!smiles || smiles.trim() === "") {
+        setMoleculeImage(null);
+        setImageError(null);
+        return;
+      }
+
+      setImageLoading(true);
+      setImageError(null);
+
+      try {
+        const response = await convertMoleculeToImage({
+          type: "smiles",
+          data: smiles,
+        });
+        setMoleculeImage(response.image);
+      } catch (error: any) {
+        console.error("Error fetching molecule image:", error);
+        setImageError(error.response?.data?.error || "Failed to generate image");
+        setMoleculeImage(null);
+      } finally {
+        setImageLoading(false);
+      }
+    }, 500), // Throttle to 500ms
+    []
+  );
+
+  // Fetch image when currentSmiles changes
+  useEffect(() => {
+    fetchMoleculeImage(currentSmiles);
+  }, [currentSmiles, fetchMoleculeImage]);
 
 
   const handleOpenDialog = () => {
@@ -114,6 +156,35 @@ const CustomSmilesEditor = ({
           Draw
         </Button>
       </Box>
+
+      {/* Molecule Image Preview */}
+      {currentSmiles && (
+        <Box sx={{ marginTop: 2, display: "flex", justifyContent: "center", alignItems: "center", minHeight: 100 }}>
+          {imageLoading && <CircularProgress size={40} />}
+          {imageError && (
+            <Alert severity="error" sx={{ width: "100%" }}>
+              {imageError}
+            </Alert>
+          )}
+          {moleculeImage && !imageLoading && !imageError && (
+            <Box
+              component="img"
+              src={moleculeImage}
+              alt="Molecule structure"
+              sx={{
+                width: "100%",
+                maxWidth: `calc(100vw - ${LAYOUT_CONSTANTS.PRIMARY_DRAWER_WIDTH}px - 48px)`,
+                maxHeight: "300px",
+                objectFit: "contain",
+                border: "1px solid #e0e0e0",
+                borderRadius: 1,
+                padding: 1,
+                backgroundColor: "white",
+              }}
+            />
+          )}
+        </Box>
+      )}
 
       <Dialog
         open={dialogOpen}

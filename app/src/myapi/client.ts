@@ -837,6 +837,25 @@ export const createRoomFromFile = async (
   return data;
 };
 
+// ==================== Tools API ====================
+
+export interface ConvertMoleculeToImageRequest {
+  type: "smiles" | "inchi";
+  data: string;
+}
+
+export interface ConvertMoleculeToImageResponse {
+  image: string; // data:image/png;base64,...
+  status: string;
+}
+
+export const convertMoleculeToImage = async (
+  request: ConvertMoleculeToImageRequest,
+): Promise<ConvertMoleculeToImageResponse> => {
+  const { data } = await apiClient.post("/api/tools/rdkit-img", request);
+  return data;
+};
+
 export interface DownloadFramesRequest {
   roomId: string;
   indices?: number[];
