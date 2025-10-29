@@ -1,6 +1,7 @@
 import functools
 
 import ase
+import ase.constraints
 import numpy as np
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.data import covalent_radii
@@ -22,6 +23,52 @@ def _convert_numpy_scalars(obj):
         return type(obj)(_convert_numpy_scalars(item) for item in obj)
     else:
         return obj
+
+
+def _constraint_to_dict(constraint) -> dict | None:
+    """Serialize an ASE constraint to a dictionary using ASE's todict method.
+
+    Supports all constraints that inherit from ase.constraints.FixConstraint
+    and implement the todict() method.
+
+    Parameters
+    ----------
+    constraint
+        An ASE constraint object.
+
+    Returns
+    -------
+    dict or None
+        Dictionary representation of the constraint using ASE's format,
+        or None if the constraint type is not supported.
+    """
+    if isinstance(constraint, ase.constraints.FixConstraint):
+        return constraint.todict()
+
+    # Silently ignore unsupported constraint types
+    return None
+
+
+def _constraint_from_dict(constraint_dict: dict):
+    """Deserialize an ASE constraint from a dictionary using ASE's dict2constraint.
+
+    Supports all constraints that can be reconstructed via dict2constraint.
+
+    Parameters
+    ----------
+    constraint_dict : dict
+        Dictionary representation of a constraint in ASE's format.
+
+    Returns
+    -------
+    constraint
+        An ASE constraint object, or None if unsupported.
+    """
+    try:
+        return ase.constraints.dict2constraint(constraint_dict)
+    except (KeyError, ValueError, AttributeError):
+        # Silently ignore unsupported constraint types
+        return None
 
 
 def atoms_to_dict(atoms: ase.Atoms) -> dict:
@@ -59,6 +106,17 @@ def atoms_to_dict(atoms: ase.Atoms) -> dict:
             else:
                 prefixed_result[f"calc.{calc_key}"] = calc_value
 
+    # Handle constraints
+    if atoms.constraints:
+        constraints_list = []
+        for constraint in atoms.constraints:
+            constraint_dict = _constraint_to_dict(constraint)
+            if constraint_dict is not None:
+                constraints_list.append(constraint_dict)
+
+        if constraints_list:
+            prefixed_result["constraints"] = constraints_list
+
     # Convert any numpy scalars to Python native types to avoid JSON serialization errors
     return _convert_numpy_scalars(prefixed_result)
 
@@ -68,6 +126,7 @@ def atoms_from_dict(d: dict) -> ase.Atoms:
     reconstructed = {}
     info_dict = {}
     calc_dict = {}
+    constraints_list = None
 
     for key, value in d.items():
         if key.startswith("arrays."):
@@ -82,6 +141,9 @@ def atoms_from_dict(d: dict) -> ase.Atoms:
             # Collect calc keys
             calc_key = key[5:]  # len("calc.") = 5
             calc_dict[calc_key] = value
+        elif key == "constraints":
+            # Store constraints for later processing
+            constraints_list = value
         else:
             reconstructed[key] = value
 
@@ -96,6 +158,17 @@ def atoms_from_dict(d: dict) -> ase.Atoms:
     if calc_dict:
         atoms.calc = SinglePointCalculator(atoms)
         atoms.calc.results = calc_dict
+
+    # Restore constraints
+    if constraints_list:
+        constraint_objects = []
+        for constraint_dict in constraints_list:
+            constraint = _constraint_from_dict(constraint_dict)
+            if constraint is not None:
+                constraint_objects.append(constraint)
+
+        if constraint_objects:
+            atoms.set_constraint(constraint_objects)
 
     return atoms
 
