@@ -68,11 +68,18 @@ def create_app(
 
     app = Flask(__name__)
 
-    from zndraw.app import main as main_blueprint
     from zndraw.app import tasks  # noqa: F401
+    from zndraw.app import utility, frames, rooms, extensions, jobs, geometries, bookmarks, media
     from zndraw.app.file_browser import file_browser as file_browser_blueprint
 
-    app.register_blueprint(main_blueprint)
+    app.register_blueprint(utility)
+    app.register_blueprint(frames)
+    app.register_blueprint(rooms)
+    app.register_blueprint(extensions)
+    app.register_blueprint(jobs)
+    app.register_blueprint(geometries)
+    app.register_blueprint(bookmarks)
+    app.register_blueprint(media)
     app.register_blueprint(file_browser_blueprint)
 
     # Store configuration

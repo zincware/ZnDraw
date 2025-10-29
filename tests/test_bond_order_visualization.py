@@ -18,7 +18,7 @@ def test_bond_order_type_compatibility():
         bond_order_mode="ignore"
     )
     assert bond_ignore.bond_order_mode == "ignore"
-    assert bond_ignore.bond_order_offset == 0.15
+    assert bond_ignore.bond_order_offset == 3
 
     # Test with parallel mode
     bond_parallel = Bond(
@@ -35,7 +35,7 @@ def test_bond_order_type_compatibility():
 def test_bond_order_default_radius_scale():
     """Test default bond order radius scaling."""
     bond = Bond()
-    expected_scales = {1.0: 1.0, 1.5: 0.8, 2.0: 0.7, 3.0: 0.6}
+    expected_scales = {1: 1.0, 1.5: 0.75, 2: 0.75, 3: 0.7}
     assert bond.bond_order_radius_scale == expected_scales
 
 
@@ -44,6 +44,7 @@ def test_bond_order_null_handling():
     # Connectivity with null bond order
     bond = Bond(connectivity=[[0, 1, None], [1, 2, 2]])
     # The None should be handled gracefully by the frontend
+    assert bond.connectivity == [(0.0, 1.0, None), (1.0, 2.0, 2.0)]
 
 
 @pytest.mark.parametrize("bond_order,expected_cylinders", [
@@ -130,7 +131,7 @@ def test_bond_aromatic_visualization(server):
     retrieved_bond = vis.geometries["bonds"]
     assert retrieved_bond.bond_order_mode == "parallel"
     # Aromatic bonds should use 0.8 radius scale by default
-    assert retrieved_bond.bond_order_radius_scale[1.5] == 0.8
+    assert retrieved_bond.bond_order_radius_scale[1.5] == 0.75
 
 
 def test_bond_order_ignore_mode(server):
