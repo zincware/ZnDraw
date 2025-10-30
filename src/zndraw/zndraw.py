@@ -443,6 +443,11 @@ class ZnDraw(MutableSequence):
     def atoms(self) -> ase.Atoms:
         """Get the current frame as an `ase.Atoms` object."""
         return self[self.step]
+    
+    @atoms.setter
+    def atoms(self, value: ase.Atoms):
+        """Set the current frame from an `ase.Atoms` object."""
+        self[self.step] = value
 
     @property
     def selection(self) -> tuple[int]:
