@@ -67,3 +67,16 @@
 - [ ] can not change settings!
 - [ ] fix `vis.geometries` to only show keys and not full data
 - [ ] being at frame 1 and then removing the first one might not update the frame to shift to 0. Check!
+- [ ] zarr storage issue, use `structures.h5` and then `rdkit2ase.pack` (2025-10-30 11:07:56,361 - zndraw.app.frame_routes - ERROR - Failed to write to Zarr store: Shape mismatch for key 'arrays.residuenames': existing shape (68,), new shape (320,).
+Traceback (most recent call last):
+  File "/work/fzills/uv-cache/archive-v0/zfPFBvtlCbskoEh1EZHjp/lib/python3.11/site-packages/zndraw/app/frame_routes.py", line 584, in append_frame
+    storage.append(decoded_data)
+  File "/work/fzills/uv-cache/archive-v0/zfPFBvtlCbskoEh1EZHjp/lib/python3.11/site-packages/zndraw/storage.py", line 468, in append
+    self.extend([value])
+  File "/work/fzills/uv-cache/archive-v0/zfPFBvtlCbskoEh1EZHjp/lib/python3.11/site-packages/zndraw/storage.py", line 471, in extend
+    extend_zarr(self.group, values)
+  File "/work/fzills/uv-cache/archive-v0/zfPFBvtlCbskoEh1EZHjp/lib/python3.11/site-packages/zndraw/storage.py", line 365, in extend_zarr
+    _extend_recursive(root, entry, current_index, total_entries)
+  File "/work/fzills/uv-cache/archive-v0/zfPFBvtlCbskoEh1EZHjp/lib/python3.11/site-packages/zndraw/storage.py", line 303, in _extend_recursive
+    raise ValueError(
+ValueError: Shape mismatch for key 'arrays.residuenames': existing shape (68,), new shape (320,).)
