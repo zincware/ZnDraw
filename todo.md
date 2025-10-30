@@ -12,7 +12,7 @@
 - [ ] drag / drop, ctrl + v and ctrl + c and download / upload buttons
 - [x] curve, have "default" as color
 - [ ] default value for modifiers / selection / settings / analyses
-- [ ] link to github
+- [x] link to github
 - [ ] SiMGen buttons and tutorial
 - [x] sync mode default should be on
 - [x] make the snackbar pop ups, e.g. `room locked` appear higher to not interfere with the progress bar.
