@@ -7,7 +7,7 @@
 - [x] make bookmarks in python like `vis.bookmarks[0] = 10` just like the others.
 - [x] vis.geometries[camera].curve = "curve" and vis.geometries[camera].curve_position = 0..1 to allow simulating camera along curve
 - [x] have one camera per room, but by default no client is attached to it. Use `vis.geometries` for it, so multiple cameras are possible.
-- [ ] on new room set `uploading` blob to be true.
+- [x] on new room set `uploading` blob to be true.
 - [ ] delete room
 - [ ] drag / drop, ctrl + v and ctrl + c and download / upload buttons
 - [x] curve, have "default" as color
@@ -63,8 +63,8 @@
 - [x] drag/drop not allowed when --file-browser not active
 - [ ] make get_jwt_auth_headers a pytest fixture
 - [x] split up routes.py -> search for all `@main.` decorator, make a list and organize into multiple files?
-- [ ] loading sidebar menus takes for ever!
-- [ ] can not change settings!
+- [x] loading sidebar menus takes for ever!
+- [x] can not change settings!
 - [x] fix `vis.geometries` to only show keys and not full data
 - [ ] being at frame 1 and then removing the first one might not update the frame to shift to 0. Check!
 - [ ] zarr storage issue, use `structures.h5` and then `rdkit2ase.pack` (2025-10-30 11:07:56,361 - zndraw.app.frame_routes - ERROR - Failed to write to Zarr store: Shape mismatch for key 'arrays.residuenames': existing shape (68,), new shape (320,).

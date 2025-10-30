@@ -20,6 +20,9 @@ import CustomSmilesEditor, {
 import CustomSmilesPackEditor, {
   customSmilesPackEditorTester,
 } from "../components/jsonforms-renderers/CustomSmilesPackEditor";
+import MaterialEditor, {
+  materialEditorTester,
+} from "../components/jsonforms-renderers/MaterialEditor";
 import { FrameMetadata } from "../myapi/client";
 
 /**
@@ -28,6 +31,7 @@ import { FrameMetadata } from "../myapi/client";
  */
 export const customRenderers = [
   ...materialRenderers,
+  { tester: materialEditorTester, renderer: MaterialEditor }, // Priority 10 - Material editor with preset/object support
   { tester: dynamicEnumTester, renderer: DynamicEnumRenderer }, // Priority 10 - New unified renderer with transform support
   { tester: propertyInspectorTester, renderer: PropertyInspectorRenderer }, // Priority 10 - Property Inspector
   {

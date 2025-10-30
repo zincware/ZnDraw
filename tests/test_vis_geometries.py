@@ -10,12 +10,12 @@ def test_rest_get_geometries(joined_room):
     """Test listing geometry keys and getting individual geometries."""
     server, room = joined_room
 
-    # Test listing geometry keys (default geometries include cell and floor)
+    # Test listing geometry keys (default geometries include cell, floor, and constraints)
     response = requests.get(f"{server}/api/rooms/{room}/geometries")
     assert response.status_code == 200
     data = response.json()
     assert "geometries" in data
-    assert set(data["geometries"]) == {"particles", "bonds", "curve", "cell", "floor"}
+    assert set(data["geometries"]) == {"particles", "bonds", "curve", "cell", "floor", "constraints-fixed-atoms"}
 
     # Test getting individual geometry - particles
     response = requests.get(f"{server}/api/rooms/{room}/geometries/particles")
@@ -179,6 +179,14 @@ def test_rest_delete_geometry(joined_room):
     data = response.json()
     assert data["status"] == "success"
 
+    response = requests.delete(
+        f"{server}/api/rooms/{room}/geometries/constraints-fixed-atoms",
+        headers=get_jwt_auth_headers(server),
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+
     # Verify no geometries remain
     response = requests.get(f"{server}/api/rooms/{room}/geometries")
     assert response.status_code == 200
@@ -201,14 +209,30 @@ def test_rest_delete_unknown_geometry(joined_room):
 
 def test_vis_list_geometries(server):
     from zndraw.geometries import Cell, Curve, Floor
+    from zndraw.materials import MeshBasicMaterial
+    from zndraw.transformations import InArrayTransform
 
     vis = ZnDraw(url=server, room="test-room-vis-list-geom", user="tester")
-    assert len(vis.geometries) == 5
-    assert vis.geometries["particles"] == Sphere()
-    assert vis.geometries["bonds"] == Bond()
+    assert len(vis.geometries) == 6
+
+    # Check default geometries match what's created in room_service.py
+    assert vis.geometries["particles"] == Sphere(
+        position="arrays.positions", color="arrays.colors", radius="arrays.radii"
+    )
+    assert vis.geometries["bonds"] == Bond(
+        position="arrays.positions", color="arrays.colors"
+    )
     assert vis.geometries["curve"] == Curve()
     assert vis.geometries["cell"] == Cell()
     assert vis.geometries["floor"] == Floor()
+
+    # Verify constraints-fixed-atoms geometry
+    constraints_geom = vis.geometries["constraints-fixed-atoms"]
+    assert isinstance(constraints_geom, Sphere)
+    assert constraints_geom.color == ["#FF0000"]
+    assert constraints_geom.scale == 0.71
+    assert constraints_geom.active is True
+    assert constraints_geom.material == MeshBasicMaterial(wireframe=True)
 
 
 def test_vis_add_update_delete_geometry(server):

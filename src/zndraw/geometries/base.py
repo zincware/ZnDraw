@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 if TYPE_CHECKING:
     from zndraw.transformations import Transform
 
+from zndraw.materials import MaterialProp
+
 # Type aliases for geometry properties
 # Position is ALWAYS per-instance (list of tuples or dynamic key or transform)
 PositionProp = Union[str, list[tuple[float, float, float]], "Transform"]
@@ -30,25 +32,6 @@ RotationProp = Union[str, tuple[float, float, float], list[tuple[float, float, f
 # Connectivity for bonds: per-bond indices and properties (atom_a, atom_b, bond_order, etc)
 # Bond order can be None (defaults to 1), int, or float (e.g., 1.5 for aromatic)
 ConnectivityProp = Union[str, list[tuple[float, float, float | None]]]
-
-
-class Material(str, Enum):
-    # --- PHYSICAL MATERIALS ---
-    MeshPhysicalMaterial_matt = "MeshPhysicalMaterial (matt)"
-    MeshPhysicalMaterial_semi_gloss = "MeshPhysicalMaterial (semi-gloss)"
-    MeshPhysicalMaterial_shiny = "MeshPhysicalMaterial (shiny)"
-    MeshPhysicalMaterial_transparent = "MeshPhysicalMaterial (transparent)"
-    MeshPhysicalMaterial_glass = "MeshPhysicalMaterial (glass)"
-
-    # --- STANDARD MATERIALS ---
-    MeshStandardMaterial_matt = "MeshStandardMaterial (matt)"
-    MeshStandardMaterial_metallic = "MeshStandardMaterial (metallic)"
-
-    # --- SIMPLE / STYLISED MATERIALS ---
-    MeshBasicMaterial = "MeshBasicMaterial"
-    MeshToonMaterial = "MeshToonMaterial"
-    MeshLambertMaterial_matt = "MeshLambertMaterial (matt)"
-    MeshPhongMaterial_classic = "MeshPhongMaterial (classic)"
 
 
 class InteractionSettings(BaseModel):
@@ -117,9 +100,9 @@ class BaseGeometry(BaseModel):
         description="Color values. String for dynamic key (e.g. 'arrays.colors') or list of hex colors ['#FF0000', '#00FF00', ...]. Single hex colors are automatically normalized to lists.",
     )
 
-    material: Material = Field(
-        default=Material.MeshPhysicalMaterial_matt,
-        description="Material type (static config, not fetched from server)",
+    material: MaterialProp = Field(
+        default="MeshPhysicalMaterial_matt",
+        description="Material type or object. String for preset (e.g. 'MeshPhysicalMaterial_matt') or material object for full customization.",
     )
 
     @field_validator("position", mode="before")
@@ -153,3 +136,18 @@ class BaseGeometry(BaseModel):
             return [v]
         # Already a list or Transform instance -> return as is
         return v
+
+    @classmethod
+    def model_json_schema(cls, **kwargs: Any) -> dict[str, Any]:
+        """Customize JSON schema for UI rendering.
+
+        Applies x-custom-type: "three-material" to the material field
+        to enable the custom material editor in JSON Forms.
+        """
+        schema = super().model_json_schema(**kwargs)
+
+        # Apply three-material custom type to material field
+        if "material" in schema["properties"]:
+            schema["properties"]["material"]["x-custom-type"] = "three-material"
+
+        return schema

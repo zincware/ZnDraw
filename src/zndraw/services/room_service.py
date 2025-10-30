@@ -232,6 +232,7 @@ class RoomService:
             Redis pipeline to add operations to
         """
         from zndraw.geometries import Bond, Cell, Curve, Floor, Sphere
+        from zndraw.materials import MeshBasicMaterial
         from zndraw.transformations import InArrayTransform
 
         defaults = {
@@ -257,8 +258,7 @@ class RoomService:
                         filter="arrays.radii"
                     ),
                     "color": ["#FF0000"],
-                    "material": "MeshPhysicalMaterial (transparent)",
-                    "opacity": 0.6,  # Semi-transparent to see underlying atoms
+                    "material": MeshBasicMaterial(wireframe=True),
                     "scale": 0.71,  # Larger to be clearly visible as overlay
                     "active": True,  # Active by default to visualize constraints
                 }

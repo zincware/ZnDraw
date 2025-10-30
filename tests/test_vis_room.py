@@ -37,7 +37,7 @@ def test_rest_join_new_room(server):
     assert data["geometries"]["particles"]["data"]["scale"] == 0.7
     assert (
         data["geometries"]["particles"]["data"]["material"]
-        == "MeshPhysicalMaterial (matt)"
+        == "MeshPhysicalMaterial_matt"
     )
     assert data["geometries"]["particles"]["data"]["position"] == "arrays.positions"
     assert "settings" in data
