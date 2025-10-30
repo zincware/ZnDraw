@@ -7,16 +7,12 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Box,
   Button,
-  FormLabel,
   IconButton,
   Tooltip,
   Alert,
   Typography,
-  Chip,
-  CircularProgress,
   Paper,
 } from "@mui/material";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -27,19 +23,13 @@ import {
   GridRowModel,
 } from "@mui/x-data-grid";
 import SmilesEditDialog from "./SmilesEditDialog";
-import { convertMoleculeToImage } from "../../myapi/client";
+import MoleculePreview from "../shared/MoleculePreview";
+import FormLabelWithHelp from "../shared/FormLabelWithHelp";
 
 interface MoleculeRow {
   id: number;
   smiles: string;
   count: number;
-}
-
-interface MoleculeImage {
-  smiles: string;
-  image: string | null;
-  loading: boolean;
-  error: string | null;
 }
 
 /**
@@ -66,9 +56,6 @@ const CustomSmilesPackEditor = ({
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingMolecule, setEditingMolecule] = useState<MoleculeRow | null>(null);
-  const [moleculeImages, setMoleculeImages] = useState<Map<string, MoleculeImage>>(
-    new Map()
-  );
 
   // Sync local state with incoming data prop
   useEffect(() => {
@@ -129,59 +116,6 @@ const CustomSmilesPackEditor = ({
     [editingMolecule, molecules, updateParent]
   );
 
-  // Fetch molecule image
-  const fetchMoleculeImage = useCallback(async (smiles: string) => {
-    if (!smiles || smiles.trim() === "") return;
-
-    setMoleculeImages((prev) => {
-      const updated = new Map(prev);
-      updated.set(smiles, {
-        smiles,
-        image: null,
-        loading: true,
-        error: null,
-      });
-      return updated;
-    });
-
-    try {
-      const response = await convertMoleculeToImage({
-        type: "smiles",
-        data: smiles,
-      });
-      setMoleculeImages((prev) => {
-        const updated = new Map(prev);
-        updated.set(smiles, {
-          smiles,
-          image: response.image,
-          loading: false,
-          error: null,
-        });
-        return updated;
-      });
-    } catch (error: any) {
-      console.error("Error fetching molecule image:", error);
-      setMoleculeImages((prev) => {
-        const updated = new Map(prev);
-        updated.set(smiles, {
-          smiles,
-          image: null,
-          loading: false,
-          error: error.response?.data?.error || "Failed to generate image",
-        });
-        return updated;
-      });
-    }
-  }, []);
-
-  // Load images automatically for all molecules with SMILES
-  useEffect(() => {
-    molecules.forEach((m) => {
-      if (m.smiles && m.smiles.trim() !== "" && !moleculeImages.has(m.smiles)) {
-        fetchMoleculeImage(m.smiles);
-      }
-    });
-  }, [molecules, moleculeImages, fetchMoleculeImage]);
 
   // Handle cell edit
   const processRowUpdate = useCallback(
@@ -216,9 +150,6 @@ const CustomSmilesPackEditor = ({
     return errors;
   }, [molecules]);
 
-  // Calculate totals
-  const totalMolecules = molecules.reduce((sum, m) => sum + m.count, 0);
-
   // Define columns
   const columns: GridColDef<MoleculeRow>[] = useMemo(
     () => [
@@ -236,6 +167,22 @@ const CustomSmilesPackEditor = ({
         minWidth: 150,
         editable: true,
         type: "string",
+        renderCell: (params) => {
+          if (!params.value || params.value.trim() === "") {
+            return (
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.disabled",
+                  fontStyle: "italic",
+                }}
+              >
+                Click to enter SMILES
+              </Typography>
+            );
+          }
+          return params.value;
+        },
       },
       {
         field: "preview",
@@ -244,45 +191,14 @@ const CustomSmilesPackEditor = ({
         sortable: false,
         filterable: false,
         editable: false,
-        renderCell: (params) => {
-          const imageData = moleculeImages.get(params.row.smiles);
-          if (!params.row.smiles || params.row.smiles.trim() === "") {
-            return null;
-          }
-          if (imageData?.loading) {
-            return <CircularProgress size={24} />;
-          }
-          if (imageData?.error) {
-            return (
-              <Tooltip title={imageData.error}>
-                <Typography variant="caption" color="error">
-                  Error
-                </Typography>
-              </Tooltip>
-            );
-          }
-          if (imageData?.image) {
-            return (
-              <Box
-                component="img"
-                src={imageData.image}
-                alt={params.row.smiles}
-                onClick={() => handleOpenEdit(params.row)}
-                sx={{
-                  width: "100%",
-                  height: "60px",
-                  objectFit: "contain",
-                  backgroundColor: "white",
-                  cursor: "pointer",
-                  "&:hover": {
-                    opacity: 0.8,
-                  },
-                }}
-              />
-            );
-          }
-          return null;
-        },
+        renderCell: (params) => (
+          <MoleculePreview
+            smiles={params.row.smiles}
+            size="small"
+            onClick={() => handleOpenEdit(params.row)}
+            errorAsTooltip={true}
+          />
+        ),
       },
       {
         field: "actions",
@@ -319,7 +235,7 @@ const CustomSmilesPackEditor = ({
         ),
       },
     ],
-    [molecules, handleOpenEdit, moleculeImages]
+    [molecules, handleOpenEdit, updateParent]
   );
 
   const rows: GridRowsProp<MoleculeRow> = molecules;
@@ -327,25 +243,11 @@ const CustomSmilesPackEditor = ({
   return (
     <Box sx={{ marginBottom: 2 }}>
       {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-        <FormLabel required={required}>{label}</FormLabel>
-        {schema.description && (
-          <Tooltip title={schema.description} placement="top">
-            <IconButton size="small" sx={{ padding: 0.5 }}>
-              <HelpOutlineIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-      </Box>
-
-      {/* Validation Errors */}
-      {validationErrors.length > 0 && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {validationErrors.map((err, idx) => (
-            <div key={idx}>{err}</div>
-          ))}
-        </Alert>
-      )}
+      <FormLabelWithHelp
+        label={label}
+        required={required}
+        helpText={schema.description}
+      />
 
       {/* DataGrid Table */}
       <Paper sx={{ mb: 2 }}>
@@ -357,6 +259,21 @@ const CustomSmilesPackEditor = ({
             console.error("Row update error:", error);
           }}
           getRowHeight={() => 80}
+          getCellClassName={(params) => {
+            // Highlight invalid SMILES cells
+            if (params.field === "smiles") {
+              if (!params.value || params.value.trim() === "") {
+                return "invalid-cell";
+              }
+            }
+            // Highlight invalid count cells
+            if (params.field === "count") {
+              if (params.value < 1) {
+                return "invalid-cell";
+              }
+            }
+            return "";
+          }}
           hideFooter
           slots={{
             noRowsOverlay: () => (
@@ -394,6 +311,10 @@ const CustomSmilesPackEditor = ({
             "& .MuiDataGrid-cell": {
               display: "flex",
               alignItems: "center",
+            },
+            "& .invalid-cell": {
+              border: "1px solid #d32f2f",
+              backgroundColor: "rgba(211, 47, 47, 0.05)",
             },
           }}
         />

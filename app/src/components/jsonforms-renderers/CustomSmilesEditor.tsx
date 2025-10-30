@@ -2,42 +2,13 @@
 // Based on https://github.com/epam/ketcher/blob/master/example/src/App.tsx
 
 import { withJsonFormsControlProps } from "@jsonforms/react";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-import {
-  Box,
-  Button,
-  FormLabel,
-  IconButton,
-  TextField,
-  Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  CircularProgress,
-  Alert,
-} from "@mui/material";
+import { Box, Button, TextField } from "@mui/material";
 import { rankWith, schemaMatches, type ControlProps } from "@jsonforms/core";
-import { useState, useEffect, useCallback } from "react";
-import { Editor } from "ketcher-react";
-import { StructServiceProvider } from "ketcher-core";
-import { StandaloneStructServiceProvider } from "ketcher-standalone";
-import { throttle } from "lodash";
-import { convertMoleculeToImage } from "../../myapi/client";
+import { useState, useEffect } from "react";
+import SmilesEditDialog from "./SmilesEditDialog";
+import MoleculePreview from "../shared/MoleculePreview";
+import FormLabelWithHelp from "../shared/FormLabelWithHelp";
 import { LAYOUT_CONSTANTS } from "../../constants/layout";
-import "ketcher-react/dist/index.css";
-
-// Extend Window interface for TypeScript
-declare global {
-  interface Window {
-    ketcher: any;
-  }
-}
-
-// Match the example's pattern for getting struct service provider
-async function getStructServiceProvider(): Promise<StructServiceProvider> {
-  return new StandaloneStructServiceProvider();
-}
 
 /**
  * Custom SMILES editor component using Ketcher for molecular structure editing.
@@ -52,75 +23,19 @@ const CustomSmilesEditor = ({
 }: ControlProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentSmiles, setCurrentSmiles] = useState(data ?? "");
-  const [structServiceProvider, setStructServiceProvider] =
-    useState<StructServiceProvider | null>(null);
-  const [moleculeImage, setMoleculeImage] = useState<string | null>(null);
-  const [imageLoading, setImageLoading] = useState(false);
-  const [imageError, setImageError] = useState<string | null>(null);
-
-  // Load struct service provider asynchronously (matches official example pattern)
-  useEffect(() => {
-    getStructServiceProvider().then(setStructServiceProvider);
-  }, []);
 
   // Sync local state with incoming data prop (e.g., after form reset)
   useEffect(() => {
     setCurrentSmiles(data ?? "");
   }, [data]);
 
-  // Throttled function to fetch molecule image
-  const fetchMoleculeImage = useCallback(
-    throttle(async (smiles: string) => {
-      if (!smiles || smiles.trim() === "") {
-        setMoleculeImage(null);
-        setImageError(null);
-        return;
-      }
-
-      setImageLoading(true);
-      setImageError(null);
-
-      try {
-        const response = await convertMoleculeToImage({
-          type: "smiles",
-          data: smiles,
-        });
-        setMoleculeImage(response.image);
-      } catch (error: any) {
-        console.error("Error fetching molecule image:", error);
-        setImageError(error.response?.data?.error || "Failed to generate image");
-        setMoleculeImage(null);
-      } finally {
-        setImageLoading(false);
-      }
-    }, 500), // Throttle to 500ms
-    []
-  );
-
-  // Fetch image when currentSmiles changes
-  useEffect(() => {
-    fetchMoleculeImage(currentSmiles);
-  }, [currentSmiles, fetchMoleculeImage]);
-
-
   const handleOpenDialog = () => {
     setDialogOpen(true);
   };
 
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-  };
-
-  const handleApply = async () => {
-    try {
-      if (window.ketcher) {
-        const smiles = await window.ketcher.getSmiles();
-        setCurrentSmiles(smiles);
-        handleChange(path, smiles);
-      }
-    } catch (error) {
-      console.error("Error getting SMILES from Ketcher:", error);
-    }
+  const handleSaveEdit = (newSmiles: string) => {
+    setCurrentSmiles(newSmiles);
+    handleChange(path, newSmiles);
     setDialogOpen(false);
   };
 
@@ -133,16 +48,14 @@ const CustomSmilesEditor = ({
 
   return (
     <Box sx={{ marginBottom: 2 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <FormLabel required={required}>{label}</FormLabel>
-        {schema.description && (
-          <Tooltip title={schema.description} placement="top">
-            <IconButton size="small" sx={{ padding: 0.5 }}>
-              <HelpOutlineIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-      </Box>
+      {/* Form Label with Help Icon */}
+      <FormLabelWithHelp
+        label={label}
+        required={required}
+        helpText={schema.description}
+      />
+
+      {/* SMILES Input and Draw Button */}
       <Box sx={{ display: "flex", gap: 1, marginTop: 1 }}>
         <TextField
           value={currentSmiles}
@@ -159,69 +72,38 @@ const CustomSmilesEditor = ({
 
       {/* Molecule Image Preview */}
       {currentSmiles && (
-        <Box sx={{ marginTop: 2, display: "flex", justifyContent: "center", alignItems: "center", minHeight: 100 }}>
-          {imageLoading && <CircularProgress size={40} />}
-          {imageError && (
-            <Alert severity="error" sx={{ width: "100%" }}>
-              {imageError}
-            </Alert>
-          )}
-          {moleculeImage && !imageLoading && !imageError && (
-            <Box
-              component="img"
-              src={moleculeImage}
-              alt="Molecule structure"
-              sx={{
-                width: "100%",
-                maxWidth: `calc(100vw - ${LAYOUT_CONSTANTS.PRIMARY_DRAWER_WIDTH}px - 48px)`,
-                maxHeight: "300px",
-                objectFit: "contain",
-                border: "1px solid #e0e0e0",
-                borderRadius: 1,
-                padding: 1,
-                backgroundColor: "white",
-              }}
-            />
-          )}
+        <Box
+          sx={{
+            marginTop: 2,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: 100,
+            "& img": {
+              border: "1px solid #e0e0e0",
+              borderRadius: 1,
+              padding: 1,
+              maxWidth: `calc(100vw - ${LAYOUT_CONSTANTS.PRIMARY_DRAWER_WIDTH}px - 48px)`,
+            },
+          }}
+        >
+          <MoleculePreview
+            smiles={currentSmiles}
+            size="large"
+            alt="Molecule structure"
+            throttleMs={500}
+          />
         </Box>
       )}
 
-      <Dialog
+      {/* Ketcher Editor Dialog */}
+      <SmilesEditDialog
         open={dialogOpen}
-        onClose={handleCloseDialog}
-        maxWidth="lg"
-        fullWidth
-      >
-        <DialogTitle>Molecular Structure Editor</DialogTitle>
-        <DialogContent>
-          {!structServiceProvider ? (
-            <Box sx={{ height: "400px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              Loading...
-            </Box>
-          ) : (
-              <Box sx={{ height: "400px", width: "100%" }}>
-                <Editor
-                  errorHandler={(message: string) => {
-                    console.error("Ketcher Error:", message);
-                  }}
-                  staticResourcesUrl={""}
-                  onInit={(ketcher) => {
-                    window.ketcher = ketcher;
-                    ketcher.setMolecule(currentSmiles || "");
-                  }}
-                  structServiceProvider={structServiceProvider}
-                  disableMacromoleculesEditor
-                />
-              </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleApply} variant="contained" color="primary">
-            Apply
-          </Button>
-        </DialogActions>
-      </Dialog>
+        initialSmiles={currentSmiles}
+        title="Molecular Structure Editor"
+        onSave={handleSaveEdit}
+        onCancel={() => setDialogOpen(false)}
+      />
     </Box>
   );
 };
