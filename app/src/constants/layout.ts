@@ -12,6 +12,9 @@ export const LAYOUT_CONSTANTS = {
 
   /** Width of the primary drawer (icon sidebar) in pixels */
   PRIMARY_DRAWER_WIDTH: 50,
+
+  /** Width of the secondary drawer (modifiers, settings, etc.) in pixels */
+  SECONDARY_DRAWER_WIDTH: 600,
 } as const;
 
 /**

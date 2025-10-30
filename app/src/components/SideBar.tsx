@@ -28,9 +28,11 @@ const navItems = [
 ];
 
 const SECONDARY_PANEL_WIDTH = 240;
-const SETTINGS_PANEL_WIDTH = 500;
-const GEOMETRIES_PANEL_WIDTH = 600;
-const SELECTIONS_PANEL_WIDTH = 550;
+const SETTINGS_PANEL_WIDTH = LAYOUT_CONSTANTS.SECONDARY_DRAWER_WIDTH;
+const GEOMETRIES_PANEL_WIDTH = LAYOUT_CONSTANTS.SECONDARY_DRAWER_WIDTH;
+const SELECTIONS_PANEL_WIDTH = LAYOUT_CONSTANTS.SECONDARY_DRAWER_WIDTH;
+const MODIFIERS_PANEL_WIDTH = LAYOUT_CONSTANTS.SECONDARY_DRAWER_WIDTH;
+const ANALYSIS_PANEL_WIDTH = LAYOUT_CONSTANTS.SECONDARY_DRAWER_WIDTH;
 
 const SideBar = () => {
   const selectedCategory = useFormStore((state) => state.selectedCategory);
@@ -51,6 +53,10 @@ const SideBar = () => {
     ? SELECTIONS_PANEL_WIDTH
     : selectedCategory === "settings"
     ? SETTINGS_PANEL_WIDTH
+    : selectedCategory === "modifiers"
+    ? MODIFIERS_PANEL_WIDTH
+    : selectedCategory === "analysis"
+    ? ANALYSIS_PANEL_WIDTH
     : SECONDARY_PANEL_WIDTH;
 
   return (
