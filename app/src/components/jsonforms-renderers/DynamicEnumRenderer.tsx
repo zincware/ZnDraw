@@ -1,193 +1,36 @@
 import { useState, useCallback } from "react";
 import { withJsonFormsControlProps } from "@jsonforms/react";
 import { rankWith, schemaMatches, and, uiTypeIs, ControlProps } from "@jsonforms/core";
-import { Box, Autocomplete, TextField, Typography, Chip, Tooltip } from "@mui/material";
-import TableViewIcon from "@mui/icons-material/TableView";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import ArrayFieldToolbar from "./ArrayFieldToolbar";
-import ArrayEditorDialog from "./ArrayEditorDialog";
-import { inferFieldType, ArrayFieldType, getArrayShapeLabel, getArrayPreview } from "../../utils/arrayEditor";
 import { useAppStore } from "../../store";
 import { getFrames } from "../../myapi/client";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
-
-/**
- * ArrayShapeChip component - displays array shape as an interactive chip
- */
-const ArrayShapeChip = ({
-  value,
-  fieldType,
-  label,
-  onEdit,
-  onDelete,
-}: {
-  value: (string | number)[] | (string | number)[][];
-  fieldType: ArrayFieldType;
-  label: string;
-  onEdit: () => void;
-  onDelete?: () => void;
-}) => {
-  const shapeLabel = getArrayShapeLabel(value, fieldType);
-  const preview = getArrayPreview(value, 2);
-
-  return (
-    <Tooltip title={preview} arrow>
-      <Chip
-        icon={<TableViewIcon />}
-        label={shapeLabel}
-        onClick={onEdit}
-        onDelete={onDelete}
-        color="primary"
-        variant="outlined"
-        sx={{
-          cursor: 'pointer',
-          fontSize: '0.875rem',
-          height: '32px',
-          '&:hover': {
-            backgroundColor: 'primary.light',
-            boxShadow: 1,
-          },
-        }}
-      />
-    </Tooltip>
-  );
-};
-
-/**
- * StaticValueDisplay component for displaying arrays and numbers
- * Different rendering based on value type:
- * - Single number: editable TextField
- * - Single color: inline color picker
- * - Array: clickable chip with shape info
- */
-const StaticValueDisplay = ({
-  value,
-  label,
-  required,
-  errors,
-  onEdit,
-  onClear,
-  fieldType,
-  onChange,
-}: {
-  value: any;
-  label: string;
-  required?: boolean;
-  errors?: string;
-  onEdit?: () => void;
-  onClear?: () => void;
-  fieldType?: ArrayFieldType;
-  onChange?: (newValue: any) => void;
-}) => {
-  // Case 1: Single number - show editable TextField
-  if (typeof value === 'number') {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, marginBottom: 2 }}>
-        <TextField
-          fullWidth
-          type="number"
-          label={label}
-          value={value}
-          onChange={(e) => onChange?.(parseFloat(e.target.value) || 0)}
-          required={required}
-          error={!!errors}
-          helperText={errors}
-        />
-        <ArrayFieldToolbar
-          valueType="number"
-          onEditArray={onEdit}
-          onClear={onClear}
-        />
-      </Box>
-    );
-  }
-
-  // Case 2: Single-element hex color array - show inline color picker
-  const isSingleColorArray =
-    fieldType === 'color' &&
-    Array.isArray(value) &&
-    value.length === 1 &&
-    typeof value[0] === 'string' &&
-    /^#[0-9A-Fa-f]{6}$/.test(value[0]);
-
-  if (isSingleColorArray) {
-    const colorValue = value[0] as string;
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, marginBottom: 2 }}>
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'text.secondary' }}>
-            {label}{required && ' *'}
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <input
-              type="color"
-              value={colorValue}
-              onChange={(e) => onChange?.([e.target.value])}
-              style={{
-                width: '40px',
-                height: '40px',
-                border: '1px solid rgba(0, 0, 0, 0.23)',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-              title="Pick color"
-            />
-            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-              {colorValue}
-            </Typography>
-          </Box>
-          {errors && (
-            <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
-              {errors}
-            </Typography>
-          )}
-        </Box>
-        <ArrayFieldToolbar
-          valueType="array"
-          onEditArray={onEdit}
-          onClear={onClear}
-        />
-      </Box>
-    );
-  }
-
-  // Case 3: Array (number[] or number[][]) - show shape chip
-  if (Array.isArray(value) && fieldType) {
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 2 }}>
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          {label}{required && ' *'}
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ArrayShapeChip
-            value={value}
-            fieldType={fieldType}
-            label={label}
-            onEdit={onEdit!}
-            onDelete={onClear}
-          />
-          {errors && (
-            <Typography variant="caption" color="error">
-              {errors}
-            </Typography>
-          )}
-        </Box>
-      </Box>
-    );
-  }
-
-  // Fallback: shouldn't reach here
-  return null;
-};
+import { isTransform } from "../../utils/transformProcessor";
+import { inferFieldType, ArrayFieldType } from "../../utils/arrayEditor";
+import ArrayEditorDialog from "./ArrayEditorDialog";
+import TransformEditor from "./TransformEditor";
+import StaticValueDisplay from "./StaticValueDisplay";
+import StringEnumControl from "./StringEnumControl";
 
 /**
  * DynamicEnumRenderer - A composable renderer for dynamic enum fields
+ *
+ * This is now a lightweight orchestrator that delegates to focused sub-components:
+ * - TransformEditor: Handles transform object editing
+ * - StaticValueDisplay: Handles arrays and numbers display
+ * - StringEnumControl: Handles string dropdown with optional features
+ * - ArrayEditorDialog: Handles array editing in a dialog
  *
  * Features controlled by x-features array:
  * - "dynamic-atom-props": Populate dropdown from metadata keys
  * - "free-solo": Allow custom text input
  * - "color-picker": Add color picker UI alongside autocomplete
  * - "editable-array": Enable array editing via table
+ * - "transform": Enable transform mode to filter data based on frame data
+ *
+ * Transform mode allows creating InArrayTransform objects that filter geometry
+ * data (positions, radii, colors) based on indices extracted from frame data
+ * (e.g., constraint indices).
  */
 const DynamicEnumRenderer = ({
   data,
@@ -206,12 +49,30 @@ const DynamicEnumRenderer = ({
   const hasFreeSolo = features.includes("free-solo");
   const hasDynamicProps = features.includes("dynamic-atom-props");
   const hasEditableArray = features.includes("editable-array");
+  const hasTransform = features.includes("transform");
 
   // Get options from injected enum or empty array
   const options = schema.enum || [];
 
-  // Detect if current value is static (array/number)
+  // Detect value types
+  const isTransformValue = isTransform(data);
   const isStaticValue = Array.isArray(data) || typeof data === "number";
+
+  // Debug logging
+  console.log(`[DynamicEnumRenderer:${path}]`, {
+    label,
+    features,
+    hasTransform,
+    isTransformValue,
+    isStaticValue,
+    dataType: typeof data,
+    data,
+    schema: {
+      type: schema.type,
+      'x-features': (schema as any)["x-features"],
+      'x-custom-type': (schema as any)["x-custom-type"],
+    }
+  });
 
   // State for array editor dialog
   const [arrayEditorOpen, setArrayEditorOpen] = useState(false);
@@ -266,6 +127,21 @@ const DynamicEnumRenderer = ({
     handleChange(path, "");
   }, [handleChange, path]);
 
+  // Handle creating a new transform
+  const handleCreateTransform = useCallback(() => {
+    handleChange(path, {
+      type: "in_array",
+      source: "",
+      path: "",
+      filter: "",
+    });
+  }, [handleChange, path]);
+
+  // Handle clearing transform back to empty string
+  const handleClearTransform = useCallback(() => {
+    handleChange(path, "");
+  }, [handleChange, path]);
+
   // Callback for loading from server (triggers refetch)
   const handleLoadFromServer = useCallback(async (): Promise<number[] | number[][]> => {
     const result = await refetchServerData();
@@ -280,9 +156,27 @@ const DynamicEnumRenderer = ({
     throw new Error('No data returned from server');
   }, [refetchServerData, data]);
 
-  // If value is static, show read-only disabled TextField with edit button
-  // Using TextField instead of custom display ensures JSONForms recognizes this
-  // as a valid form control and preserves the data in form submissions
+  // If field is hidden, don't render but preserve data
+  if (!visible) {
+    return null;
+  }
+
+  // --- Component Delegation ---
+
+  // If value is a transform, delegate to TransformEditor
+  if (isTransformValue && hasTransform) {
+    return (
+      <TransformEditor
+        value={data}
+        label={label || ""}
+        required={required}
+        onChange={(newValue) => handleChange(path, newValue)}
+        onClear={handleClearTransform}
+      />
+    );
+  }
+
+  // If value is static (array/number), delegate to StaticValueDisplay
   if (isStaticValue) {
     return (
       <>
@@ -310,85 +204,26 @@ const DynamicEnumRenderer = ({
       </>
     );
   }
-  
-  // If field is hidden, don't render but preserve data
-  if (!visible) {
-    return null;
-  }
 
-  // Get current value with fallback to default
+  // Otherwise, delegate to StringEnumControl
   const value = data ?? schema.default ?? "";
-
-  // Determine color picker value (if hex color)
-  const isHexColor =
-    typeof value === "string" && value.startsWith("#") && value.length === 7;
-  const colorValue = isHexColor ? value : "#000000";
 
   return (
     <>
-      <Box sx={{ marginBottom: 2 }}>
-        <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
-          <Autocomplete
-            freeSolo={hasFreeSolo}
-            options={options}
-            value={value}
-            inputValue={typeof value === "string" ? value : ""}
-            getOptionLabel={(option) => {
-              // Handle non-string options gracefully
-              if (typeof option === "string") return option;
-              if (Array.isArray(option)) return JSON.stringify(option);
-              return String(option);
-            }}
-            onChange={(_, newValue) => {
-              // newValue can be null, a string from options, or typed value
-              handleChange(path, newValue || "");
-            }}
-            onInputChange={(_, newInputValue, reason) => {
-              // Only update on input change when freeSolo is enabled
-              if (reason === "input" && hasFreeSolo) {
-                handleChange(path, newInputValue);
-              }
-            }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label={label}
-                required={required}
-                error={!!errors}
-                helperText={errors}
-              />
-            )}
-            fullWidth
-          />
-
-          {hasColorPicker && (
-            <input
-              type="color"
-              value={colorValue}
-              onChange={(e) => handleChange(path, e.target.value)}
-              style={{
-                width: "50px",
-                height: "40px",
-                marginTop: "8px",
-                border: "1px solid rgba(0, 0, 0, 0.23)",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
-              title="Pick color"
-            />
-          )}
-
-          {/* Add edit button for string values to open table with defaults (only if editable-array feature is enabled) */}
-          {hasEditableArray && (
-            <Box sx={{ marginTop: "8px" }}>
-              <ArrayFieldToolbar
-                valueType="string"
-                onEditArray={handleOpenArrayEditor}
-              />
-            </Box>
-          )}
-        </Box>
-      </Box>
+      <StringEnumControl
+        value={value}
+        label={label || ""}
+        required={required}
+        errors={errors}
+        options={options as string[]}
+        hasFreeSolo={hasFreeSolo}
+        hasColorPicker={hasColorPicker}
+        hasEditableArray={hasEditableArray}
+        hasTransform={hasTransform}
+        onChange={(newValue) => handleChange(path, newValue)}
+        onOpenArrayEditor={handleOpenArrayEditor}
+        onCreateTransform={handleCreateTransform}
+      />
 
       {/* Array editor dialog (only available if editable-array feature is enabled) */}
       {hasEditableArray && (
@@ -412,9 +247,9 @@ const DynamicEnumRenderer = ({
  * Tester function for DynamicEnumRenderer
  * Matches fields with x-custom-type="dynamic-enum"
  * Priority 10 to override default renderers
- * 
+ *
  * Note: This renderer handles both string values (editable) and static values
- * (arrays/numbers - read-only display). For static values, it renders a 
+ * (arrays/numbers - read-only display). For static values, it renders a
  * display-only component but doesn't modify the data, ensuring it's preserved.
  */
 export const dynamicEnumTester = rankWith(

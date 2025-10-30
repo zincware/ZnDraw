@@ -232,6 +232,7 @@ class RoomService:
             Redis pipeline to add operations to
         """
         from zndraw.geometries import Bond, Cell, Curve, Floor, Sphere
+        from zndraw.transformations import InArrayTransform
 
         defaults = {
             "particles": (
@@ -242,6 +243,26 @@ class RoomService:
             "curve": (Curve, {}),
             "cell": (Cell, {}),
             "floor": (Floor, {}),
+            "constraints-fixed-atoms": (
+                Sphere,
+                {
+                    "position": InArrayTransform(
+                        source="constraints",
+                        path="0.kwargs.indices",
+                        filter="arrays.positions"
+                    ),
+                    "radius": InArrayTransform(
+                        source="constraints",
+                        path="0.kwargs.indices",
+                        filter="arrays.radii"
+                    ),
+                    "color": ["#FF0000"],
+                    "material": "MeshPhysicalMaterial (transparent)",
+                    "opacity": 0.6,  # Semi-transparent to see underlying atoms
+                    "scale": 0.71,  # Larger to be clearly visible as overlay
+                    "active": True,  # Active by default to visualize constraints
+                }
+            ),
         }
 
         for key, (geometry_class, kwargs) in defaults.items():

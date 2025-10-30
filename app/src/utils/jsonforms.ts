@@ -28,7 +28,7 @@ import { FrameMetadata } from "../myapi/client";
  */
 export const customRenderers = [
   ...materialRenderers,
-  { tester: dynamicEnumTester, renderer: DynamicEnumRenderer }, // Priority 10 - New unified renderer
+  { tester: dynamicEnumTester, renderer: DynamicEnumRenderer }, // Priority 10 - New unified renderer with transform support
   { tester: propertyInspectorTester, renderer: PropertyInspectorRenderer }, // Priority 10 - Property Inspector
   {
     tester: customDynamicEnumWithColorPickerTester,

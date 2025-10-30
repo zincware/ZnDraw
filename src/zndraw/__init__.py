@@ -4,9 +4,10 @@ import importlib.metadata
 import logging
 
 from zndraw.server import create_app
+from zndraw.transformations import InArrayTransform, Transform
 from zndraw.zndraw import ZnDraw
 
-__all__ = ["ZnDraw", "create_app"]
+__all__ = ["ZnDraw", "create_app", "InArrayTransform", "Transform"]
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)

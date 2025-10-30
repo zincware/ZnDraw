@@ -14,6 +14,9 @@ export type SizeProp = string | number | number[];
 // Rotation can be shared (single tuple) or per-instance (list of tuples) or dynamic
 export type RotationProp = string | [number, number, number] | [number, number, number][];
 
+// Generic data prop type (for processNumericAttribute)
+export type DataProp = string | number | number[] | number[][] | Record<string, any>;
+
 /**
  * Constants for selection and hover visual effects.
  */
@@ -76,7 +79,7 @@ export function processNumericAttribute(
  * @returns Array of hex color strings
  */
 export function processColorData(
-  propValue: string | string[],
+  propValue: string | string[] | Record<string, any>,
   fetchedValue: any,
   count: number
 ): string[] {
@@ -90,8 +93,13 @@ export function processColorData(
     return propValue;
   }
 
-  // Shouldn't reach here - dynamic refs should be fetched
-  throw new Error(`Dynamic color reference not fetched: ${propValue}`);
+  // Dynamic ref or Transform not fetched - throw error
+  if (typeof propValue === 'string') {
+    throw new Error(`Dynamic color reference not fetched: ${propValue}`);
+  }
+
+  // Transform case - should be evaluated before calling this function
+  throw new Error(`Transform not evaluated before processing color data`);
 }
 
 /**
@@ -267,7 +275,7 @@ export function validateArrayLengths(
  * @returns Number of instances
  */
 export function getInstanceCount(
-  positionProp: string | number[][],
+  positionProp: string | number[][] | Record<string, any>,
   fetchedPosition: any
 ): number {
   if (fetchedPosition) {
@@ -278,7 +286,7 @@ export function getInstanceCount(
     return positionProp.length;  // Backend always sends [[x,y,z], ...]
   }
 
-  return 0;  // Dynamic reference not yet fetched
+  return 0;  // Dynamic reference not yet fetched (string key or Transform)
 }
 
 /**

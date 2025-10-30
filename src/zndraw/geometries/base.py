@@ -1,19 +1,22 @@
 """Base geometry class for all ZnDraw geometries."""
 
 from enum import Enum
-from typing import Any, Literal, Union
+from typing import TYPE_CHECKING, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+if TYPE_CHECKING:
+    from zndraw.transformations import Transform
+
 # Type aliases for geometry properties
-# Position is ALWAYS per-instance (list of tuples or dynamic key)
-PositionProp = Union[str, list[tuple[float, float, float]]]
+# Position is ALWAYS per-instance (list of tuples or dynamic key or transform)
+PositionProp = Union[str, list[tuple[float, float, float]], "Transform"]
 
-# Color is always hex strings - single hex or list of hex strings, or dynamic reference
-ColorProp = Union[str, list[str]]
+# Color is always hex strings - single hex or list of hex strings, or dynamic reference, or transform
+ColorProp = Union[str, list[str], "Transform"]
 
-# Size/radius can be shared (single value) or per-instance (list) or dynamic
-SizeProp = Union[str, float, list[float]]
+# Size/radius can be shared (single value) or per-instance (list) or dynamic, or transform
+SizeProp = Union[str, float, list[float], "Transform"]
 
 # 2D size for plane (width, height)
 Size2DProp = Union[str, tuple[float, float], list[tuple[float, float]]]
@@ -127,9 +130,11 @@ class BaseGeometry(BaseModel):
             return []
         if isinstance(v, str):  # Dynamic reference
             return v
+        if isinstance(v, dict):  # Transform object
+            return v
         if isinstance(v, tuple):  # Single tuple -> wrap in list
             return [v]
-        return v  # Already a list
+        return v  # Already a list or Transform instance
 
     @field_validator("color", mode="before")
     @classmethod
@@ -140,8 +145,11 @@ class BaseGeometry(BaseModel):
         # Dynamic reference -> pass through (strings not starting with #)
         if isinstance(v, str) and not v.startswith("#"):
             return v
+        # Transform object -> pass through
+        if isinstance(v, dict):
+            return v
         # Single hex color -> wrap in list
         if isinstance(v, str) and v.startswith("#"):
             return [v]
-        # Already a list -> return as is
+        # Already a list or Transform instance -> return as is
         return v

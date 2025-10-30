@@ -19,6 +19,7 @@ import {
 import { _vec3, _vec3_2, _matrix, _matrix2, _quat2, _color } from "../../utils/threeObjectPools";
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
+import { isTransform, evaluateTransform, getTransformSources, type Transform } from "../../utils/transformProcessor";
 
 interface InteractionSettings {
   enabled: boolean;
@@ -27,9 +28,9 @@ interface InteractionSettings {
 }
 
 interface SphereData {
-  position: string | number[][];
-  color: string | string[]; // Dynamic ref or list of hex strings
-  radius: string | number[] | number;
+  position: string | number[][] | Transform;
+  color: string | string[] | Transform; // Dynamic ref or list of hex strings or transform
+  radius: string | number[] | number | Transform;
   material: string;
   resolution: number;
   scale: number;
@@ -86,12 +87,39 @@ export default function Sphere({
 
   const particleResolution = resolution || 8;
   const particleScale = scale || 1.0;
+
+  // Check if properties are transforms and get required sources
+  const positionIsTransform = isTransform(positionProp);
+  const colorIsTransform = isTransform(colorProp);
+  const radiusIsTransform = isTransform(radiusProp);
+
+  const positionTransformSources = positionIsTransform ? getTransformSources(positionProp as Transform) : [];
+  const colorTransformSources = colorIsTransform ? getTransformSources(colorProp as Transform) : [];
+  const radiusTransformSources = radiusIsTransform ? getTransformSources(radiusProp as Transform) : [];
+
+  // Collect all unique keys needed for transforms
+  const allTransformKeys = useMemo(() => {
+    const keys = new Set<string>();
+    [...positionTransformSources, ...colorTransformSources, ...radiusTransformSources].forEach(k => keys.add(k));
+    return Array.from(keys);
+  }, [positionTransformSources, colorTransformSources, radiusTransformSources]);
+
+  // Fetch all transform source data in a single query
+  const { data: transformData, isFetching: isTransformFetching, isError: isTransformError } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, ...allTransformKeys],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      getFrames(roomId!, currentFrame, allTransformKeys, signal),
+    enabled: !!roomId && !!clientId && frameCount > 0 && allTransformKeys.length > 0,
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
+
   // Individual queries for each attribute - enables perfect cross-component caching
   const { data: positionData, isFetching: isPositionFetching, isError: isPositionError } = useQuery({
     queryKey: ["frame", roomId, currentFrame, positionProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [positionProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof positionProp === "string",
+    enabled: !!roomId && !!clientId && frameCount > 0 && typeof positionProp === "string" && !positionIsTransform,
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -100,7 +128,7 @@ export default function Sphere({
     queryKey: ["frame", roomId, currentFrame, colorProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [colorProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string),
+    enabled: !!roomId && !!clientId && frameCount > 0 && typeof colorProp === "string" && !colorIsTransform && shouldFetchAsFrameData(colorProp as string),
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -109,24 +137,26 @@ export default function Sphere({
     queryKey: ["frame", roomId, currentFrame, radiusProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [radiusProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof radiusProp === "string",
+    enabled: !!roomId && !!clientId && frameCount > 0 && typeof radiusProp === "string" && !radiusIsTransform,
     placeholderData: keepPreviousData,
     retry: false,
   });
 
   // Check if any enabled query is still fetching
   const isFetching =
-    (typeof positionProp === "string" && isPositionFetching) ||
-    (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string) && isColorFetching) ||
-    (typeof radiusProp === "string" && isRadiusFetching);
+    (allTransformKeys.length > 0 && isTransformFetching) ||
+    (typeof positionProp === "string" && !positionIsTransform && isPositionFetching) ||
+    (typeof colorProp === "string" && !colorIsTransform && shouldFetchAsFrameData(colorProp as string) && isColorFetching) ||
+    (typeof radiusProp === "string" && !radiusIsTransform && isRadiusFetching);
 
   // Check if any query has errored - treat as data unavailable
   const hasQueryError = useMemo(
     () =>
-      (typeof positionProp === "string" && isPositionError) ||
-      (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string) && isColorError) ||
-      (typeof radiusProp === "string" && isRadiusError),
-    [positionProp, isPositionError, colorProp, isColorError, radiusProp, isRadiusError]
+      (allTransformKeys.length > 0 && isTransformError) ||
+      (typeof positionProp === "string" && !positionIsTransform && isPositionError) ||
+      (typeof colorProp === "string" && !colorIsTransform && shouldFetchAsFrameData(colorProp as string) && isColorError) ||
+      (typeof radiusProp === "string" && !radiusIsTransform && isRadiusError),
+    [allTransformKeys.length, isTransformError, positionProp, positionIsTransform, isPositionError, colorProp, colorIsTransform, isColorError, radiusProp, radiusIsTransform, isRadiusError]
   );
 
   // Report fetching state to global store
@@ -215,13 +245,15 @@ export default function Sphere({
     }
 
     // Critical error for Particles/Sphere: position query failed
-    const hasCriticalError = typeof positionProp === "string" && isPositionError;
+    const hasCriticalError =
+      (positionIsTransform && isTransformError) ||
+      (typeof positionProp === "string" && !positionIsTransform && isPositionError);
 
     if (hasCriticalError) {
       if (process.env.NODE_ENV !== 'production') {
         console.warn(
           `Particles geometry "${geometryKey}": Critical data fetch failed. Disabling geometry.`,
-          { positionError: isPositionError }
+          { positionError: isPositionError, transformError: isTransformError }
         );
       }
       hasDisabledGeometryRef.current = true;
@@ -261,7 +293,9 @@ export default function Sphere({
     frameCount,
     isFetching,
     positionProp,
+    positionIsTransform,
     isPositionError,
+    isTransformError,
     updateGeometry,
     showSnackbar,
   ]);
@@ -277,8 +311,60 @@ export default function Sphere({
 
     try {
       // --- Data Processing Step ---
-      const fetchedPosition = typeof positionProp === 'string' ? positionData?.[positionProp as string] : undefined;
-      const finalCount = getInstanceCount(positionProp, fetchedPosition);
+
+      // If using transforms, wait for transform data to be loaded
+      if ((positionIsTransform || radiusIsTransform || colorIsTransform) && !transformData) {
+        // Transform data not yet loaded - skip rendering
+        if (instanceCount !== 0) setInstanceCount(0);
+        return;
+      }
+
+      // Evaluate transforms if needed
+      let fetchedPosition: any;
+      if (positionIsTransform && transformData) {
+        fetchedPosition = evaluateTransform(positionProp as Transform, transformData);
+      } else if (typeof positionProp === 'string') {
+        fetchedPosition = positionData?.[positionProp as string];
+      } else {
+        fetchedPosition = undefined;
+      }
+
+      // Evaluate radius transform if needed
+      let fetchedRadius: any;
+      if (radiusIsTransform && transformData) {
+        fetchedRadius = evaluateTransform(radiusProp as Transform, transformData);
+      } else if (typeof radiusProp === 'string') {
+        fetchedRadius = radiusData?.[radiusProp as string];
+      } else {
+        fetchedRadius = undefined;
+      }
+
+      // Evaluate color transform if needed
+      let fetchedColor: any;
+      if (colorIsTransform && transformData) {
+        const colorFloats = evaluateTransform(colorProp as Transform, transformData);
+        // Transform returns Float32Array of filtered values, but colors in zndraw are hex strings
+        // For now, transforms on colors are not supported - fall back to static
+        fetchedColor = undefined;
+      } else if (typeof colorProp === 'string') {
+        fetchedColor = colorData?.[colorProp as string];
+      } else {
+        fetchedColor = undefined;
+      }
+
+      // Calculate instance counts from each attribute
+      const positionCount = getInstanceCount(positionProp, fetchedPosition);
+      const radiusCount = fetchedRadius ? fetchedRadius.length : 0;
+
+      // If ANY transform returns empty data, the geometry should render 0 instances
+      // This handles cases where one transform succeeds but another fails/returns empty
+      if ((positionIsTransform && positionCount === 0) ||
+          (radiusIsTransform && radiusCount === 0)) {
+        if (instanceCount !== 0) setInstanceCount(0);
+        return;
+      }
+
+      const finalCount = positionCount;
 
       if (finalCount === 0) {
         if (instanceCount !== 0) setInstanceCount(0);
@@ -287,11 +373,7 @@ export default function Sphere({
 
       // Process all attributes
       const finalPositions = processNumericAttribute(positionProp, fetchedPosition, finalCount);
-
-      const fetchedColor = typeof colorProp === 'string' ? colorData?.[colorProp as string] : undefined;
       const colorHexArray = processColorData(colorProp, fetchedColor, finalCount);
-
-      const fetchedRadius = typeof radiusProp === 'string' ? radiusData?.[radiusProp as string] : undefined;
       const finalRadii = processNumericAttribute(radiusProp, fetchedRadius, finalCount);
 
       // Handle shared color (single color for all instances)
@@ -368,9 +450,13 @@ export default function Sphere({
     positionData,
     colorData,
     radiusData,
+    transformData,
     positionProp,
     colorProp,
     radiusProp,
+    positionIsTransform,
+    radiusIsTransform,
+    colorIsTransform,
     instanceCount,
     particleScale,
     validSelectedIndices,

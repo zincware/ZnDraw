@@ -80,3 +80,4 @@ Traceback (most recent call last):
   File "/work/fzills/uv-cache/archive-v0/zfPFBvtlCbskoEh1EZHjp/lib/python3.11/site-packages/zndraw/storage.py", line 303, in _extend_recursive
     raise ValueError(
 ValueError: Shape mismatch for key 'arrays.residuenames': existing shape (68,), new shape (320,).)
+- [ ] instead of `apply_schema_feature` use `Field(json_schema_extra={"x-custom-type":"smiles-pack-array"})`

@@ -22,14 +22,14 @@ class Sphere(BaseGeometry):
 
         # Apply schema features using helper
         apply_schema_feature(
-            schema, "position", ["dynamic-atom-props", "editable-array"]
+            schema, "position", ["dynamic-atom-props", "editable-array", "transform"]
         )
         apply_schema_feature(
             schema,
             "color",
             ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"],
         )
-        apply_schema_feature(schema, "radius", ["dynamic-atom-props", "editable-array"])
+        apply_schema_feature(schema, "radius", ["dynamic-atom-props", "editable-array", "transform"])
         apply_schema_feature(
             schema,
             "color",

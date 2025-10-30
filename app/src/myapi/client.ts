@@ -18,22 +18,32 @@ const numpyDtypeToTypedArray = {
 function decodeTypedData(encoded: any, key: string) {
   if (!encoded) return undefined;
   try {
-    const decoded = decode(encoded)[0][key] as { dtype: string; data: any };
+    const decodedMsg = decode(encoded);
+    const decoded = decodedMsg[0][key];
+
+    // Handle plain JSON data (e.g., constraints) - no dtype field
+    if (typeof decoded !== 'object' || decoded === null || !('dtype' in decoded)) {
+      // Plain JSON data, return as-is
+      return decoded;
+    }
+
+    // Handle typed data with dtype field
+    const typedData = decoded as { dtype: string; data: any };
 
     // Handle object dtype (e.g., hex color strings)
     // Object dtype arrays are sent as JSON-encoded strings in msgpack
-    if (decoded.dtype === 'object') {
+    if (typedData.dtype === 'object') {
       // The data field contains a JSON string that needs to be parsed
-      if (typeof decoded.data === 'string') {
-        return JSON.parse(decoded.data);
+      if (typeof typedData.data === 'string') {
+        return JSON.parse(typedData.data);
       }
       // If already parsed (shouldn't happen, but handle gracefully)
-      return decoded.data;
+      return typedData.data;
     }
 
-    const TypedArrayCtor = numpyDtypeToTypedArray[decoded.dtype as keyof typeof numpyDtypeToTypedArray];
-    if (!TypedArrayCtor) throw new Error(`Unsupported dtype: ${decoded.dtype}`);
-    return new TypedArrayCtor(decoded.data.slice().buffer);
+    const TypedArrayCtor = numpyDtypeToTypedArray[typedData.dtype as keyof typeof numpyDtypeToTypedArray];
+    if (!TypedArrayCtor) throw new Error(`Unsupported dtype: ${typedData.dtype}`);
+    return new TypedArrayCtor(typedData.data.slice().buffer);
   } catch (err) {
     console.error(`Failed to decode ${key}:`, err);
     return undefined;
