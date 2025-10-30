@@ -105,7 +105,9 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
         } else if (roomId) {
           console.log(`Joining room:${roomId}`);
           socket.emit("join:room", { roomId });
-        }
+          // Reset chat unread count when entering a room
+          useAppStore.getState().resetChatUnread();
+          }
 
         setConnected(true);
       } catch (error) {
