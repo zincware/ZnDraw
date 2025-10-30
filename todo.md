@@ -65,7 +65,7 @@
 - [ ] split up routes.py -> search for all `@main.` decorator, make a list and organize into multiple files?
 - [ ] loading sidebar menus takes for ever!
 - [ ] can not change settings!
-- [ ] fix `vis.geometries` to only show keys and not full data
+- [x] fix `vis.geometries` to only show keys and not full data
 - [ ] being at frame 1 and then removing the first one might not update the frame to shift to 0. Check!
 - [ ] zarr storage issue, use `structures.h5` and then `rdkit2ase.pack` (2025-10-30 11:07:56,361 - zndraw.app.frame_routes - ERROR - Failed to write to Zarr store: Shape mismatch for key 'arrays.residuenames': existing shape (68,), new shape (320,).
 Traceback (most recent call last):

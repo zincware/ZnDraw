@@ -583,3 +583,49 @@ def test_color_already_exists():
     assert colors[0] == "#AABBCC"
     assert colors[1] == "#DDEEFF"
     assert colors[2] == "#112233"
+
+
+def test_geometries_repr_and_str():
+    """Test that vis.geometries repr and str only show keys, not full data."""
+    from zndraw.scene_manager import Geometries
+
+    # Create a mock ZnDraw instance with some geometries
+    class MockZnDraw:
+        _geometries = {
+            "particles": {
+                "type": "Sphere",
+                "data": {
+                    "position": "arrays.positions",
+                    "color": "arrays.colors",
+                    "scale": 0.7,
+                    "radius": 1.0,
+                    "material": "MeshPhysicalMaterial",
+                },
+            },
+            "bonds": {
+                "type": "Bond",
+                "data": {
+                    "connectivity": "info.connectivity",
+                    "scale": 0.15,
+                    "color": "#FFFFFF",
+                },
+            },
+            "curve": {
+                "type": "Curve",
+                "data": {
+                    "position": [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
+                    "color": "#FF0000",
+                },
+            },
+        }
+
+    vis = MockZnDraw()
+    geom = Geometries(vis)
+
+    # Get the string representations
+    repr_str = repr(geom)
+    str_str = str(geom)
+
+    # Verify exact format
+    assert repr_str == "Geometries(keys=['particles', 'bonds', 'curve'])"
+    assert str_str == "Geometries(keys=['particles', 'bonds', 'curve'])"

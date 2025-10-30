@@ -24,10 +24,12 @@ class Geometries(MutableMapping):
         self.vis = zndraw_instance
 
     def __repr__(self) -> str:
-        return f"Scene({self.vis._geometries!r})"
+        keys = list(self.vis._geometries.keys())
+        return f"Geometries(keys={keys})"
 
     def __str__(self) -> str:
-        return f"Scene({self.vis._geometries!r})"
+        keys = list(self.vis._geometries.keys())
+        return f"Geometries(keys={keys})"
 
     def _geometry_to_model(self, geometry_type, geometry_data) -> BaseModel:
         if geometry_type == "Sphere":
