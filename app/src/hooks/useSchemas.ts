@@ -16,7 +16,35 @@ export interface SchemasResponse {
 export const useSchemas = (room: string, category: string) => {
   return useQuery({
     queryKey: ["schemas", room, category],
-    queryFn: () => getSchemas(room, category),
+    queryFn: async () => {
+      // Performance monitoring for schema fetch
+      const metricName = `schemas-fetch-${room}-${category}`;
+      performance.mark(`${metricName}-start`);
+
+      try {
+        const result = await getSchemas(room, category);
+
+        performance.mark(`${metricName}-end`);
+        performance.measure(metricName, `${metricName}-start`, `${metricName}-end`);
+
+        const measure = performance.getEntriesByName(metricName)[0];
+        if (import.meta.env.DEV && measure) {
+          console.log(`[Performance] Schemas fetch (${category}) took ${Math.round(measure.duration)}ms`);
+        }
+
+        // Clean up marks to avoid memory leaks
+        performance.clearMarks(`${metricName}-start`);
+        performance.clearMarks(`${metricName}-end`);
+        performance.clearMeasures(metricName);
+
+        return result;
+      } catch (error) {
+        // Clean up marks even on error
+        performance.clearMarks(`${metricName}-start`);
+        performance.clearMarks(`${metricName}-end`);
+        throw error;
+      }
+    },
     enabled: !!room && !!category, // Only run the query if room and category are available
   });
 };
@@ -27,7 +55,7 @@ export const useExtensionData = (
   category: string,
   extension: string,
 ) => {
-  const initialData = {
+  const initialData: Record<string, any> = {
     "studio_lighting": {
       "ambient_light": 0.35,
       "key_light": 0.7,
@@ -47,8 +75,10 @@ export const useExtensionData = (
   return useQuery({
     queryKey: ["extensionData", room, user, category, extension],
     queryFn: async () => {
-      const result = await getExtensionData(room, user, category, extension);
-      console.log(`Fetched extension ${category}/${extension} data:`, result);
+      const result = await getExtensionData(room, category, extension);
+      if (import.meta.env.DEV) {
+        console.log(`Fetched extension ${category}/${extension} data:`, result);
+      }
       return result.data;
     },
     // Remove staleTime: Infinity if you expect this data to be updated externally
@@ -73,7 +103,9 @@ export const useSubmitExtension = () => {
     },
     // On success, MANUALLY update the query's cached data
     onSuccess: (serverData, variables) => {
-      console.log("Extension submitted successfully:", serverData);
+      if (import.meta.env.DEV) {
+        console.log("Extension submitted successfully:", serverData);
+      }
       const {
         roomId,
         userId,
@@ -137,11 +169,43 @@ export const useJob = (room: string, jobId: string) => {
 };
 
 
-export const useFrameMetadata = (roomId: string, frameId: number = 0) => {
+export const useFrameMetadata = (
+  roomId: string,
+  frameId: number = 0,
+  enabled: boolean = true
+) => {
   return useQuery({
     queryKey: ['metadata', roomId, frameId], // TODO: need to invalidate!
-    queryFn: () => getFrameMetadata(roomId, frameId),
-    enabled: !!roomId, // Only run the query if a roomId is available
+    queryFn: async () => {
+      // Performance monitoring for metadata fetch
+      const metricName = `metadata-fetch-${roomId}-${frameId}`;
+      performance.mark(`${metricName}-start`);
+
+      try {
+        const result = await getFrameMetadata(roomId, frameId);
+
+        performance.mark(`${metricName}-end`);
+        performance.measure(metricName, `${metricName}-start`, `${metricName}-end`);
+
+        const measure = performance.getEntriesByName(metricName)[0];
+        if (import.meta.env.DEV && measure) {
+          console.log(`[Performance] Metadata fetch took ${Math.round(measure.duration)}ms`);
+        }
+
+        // Clean up marks to avoid memory leaks
+        performance.clearMarks(`${metricName}-start`);
+        performance.clearMarks(`${metricName}-end`);
+        performance.clearMeasures(metricName);
+
+        return result;
+      } catch (error) {
+        // Clean up marks even on error
+        performance.clearMarks(`${metricName}-start`);
+        performance.clearMarks(`${metricName}-end`);
+        throw error;
+      }
+    },
+    enabled: !!roomId && enabled, // Only run the query if roomId is available AND explicitly enabled
     staleTime: 1000 * 60 * 5, // Metadata for frame 0 is unlikely to change often
   });
 };

@@ -9,7 +9,6 @@ import {
   MenuItem,
   Button,
   SelectChangeEvent,
-  CircularProgress,
   Chip,
   IconButton,
   TextField,
@@ -22,6 +21,7 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Fade,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SaveIcon from "@mui/icons-material/Save";
@@ -48,7 +48,8 @@ import {
   loadSelectionGroup,
 } from "../myapi/client";
 import { ExtensionStatusChips } from "./ExtensionStatusChips";
-import { customRenderers, injectDynamicEnums } from "../utils/jsonforms";
+import { customRenderers, injectDynamicEnums, schemaRequiresMetadata } from "../utils/jsonforms";
+import { SelectionToolsSkeleton, FormSkeleton } from "./shared/LoadingSkeletons";
 
 interface SelectionGroupRow {
   id: string;
@@ -86,7 +87,18 @@ export default function SelectionsPanel() {
     isError: isSchemasError,
   } = useSchemas(roomId!, panelTitle);
 
-  const { data: metadata, isLoading: isLoadingMetadata } = useFrameMetadata(roomId!);
+  // Check if the selected extension's schema requires metadata
+  const currentSchema = schemas?.[selectedExtension ?? ""]?.schema;
+  const needsMetadata = useMemo(
+    () => currentSchema ? schemaRequiresMetadata(currentSchema) : false,
+    [currentSchema]
+  );
+
+  const { data: metadata, isLoading: isLoadingMetadata } = useFrameMetadata(
+    roomId!,
+    0,
+    needsMetadata
+  );
 
   const {
     data: serverData,
@@ -512,21 +524,6 @@ export default function SelectionsPanel() {
     return <Typography sx={{ p: 2 }}>Joining room...</Typography>;
   }
 
-  if (isLoadingSchemas || isLoadingMetadata) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100%",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   if (isSchemasError || isDataError) {
     return (
       <Typography color="error" sx={{ p: 2 }}>
@@ -543,6 +540,10 @@ export default function SelectionsPanel() {
       <Divider />
 
       <Box ref={scrollContainerRef} sx={{ flexGrow: 1, overflowY: "auto", overscrollBehavior: "contain", p: 2 }}>
+        {isLoadingSchemas ? (
+          <SelectionToolsSkeleton />
+        ) : (
+          <>
         {/* Selection Tools Section */}
         <Accordion defaultExpanded>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -585,17 +586,21 @@ export default function SelectionsPanel() {
                   {isSubmitting ? "Running..." : "Run Extension"}
                 </Button>
 
-                {isLoadingData ? (
-                  <CircularProgress />
+                {isLoadingData || isLoadingMetadata ? (
+                  <FormSkeleton />
                 ) : (
-                  <JsonForms
-                    key={selectedExtension}
-                    schema={dynamicSchema}
-                    data={localFormData}
-                    renderers={customRenderers}
-                    cells={materialCells}
-                    onChange={handleFormChange}
-                  />
+                  <Fade in={!isLoadingData && !isLoadingMetadata} timeout={200}>
+                    <Box>
+                      <JsonForms
+                        key={selectedExtension}
+                        schema={dynamicSchema}
+                        data={localFormData}
+                        renderers={customRenderers}
+                        cells={materialCells}
+                        onChange={handleFormChange}
+                      />
+                    </Box>
+                  </Fade>
                 )}
               </>
             )}
@@ -656,25 +661,26 @@ export default function SelectionsPanel() {
             </Box>
           </AccordionDetails>
         </Accordion>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+          <DialogTitle>Delete Selection Group</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Are you sure you want to delete the group "{groupToDelete}"? This action cannot be
+              undone.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+        </>
+        )}
       </Box>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Selection Group</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete the group "{groupToDelete}"? This action cannot be
-            undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
     </Box>
   );
 }

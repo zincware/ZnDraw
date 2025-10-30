@@ -9,7 +9,7 @@ import {
   MenuItem,
   Button,
   SelectChangeEvent,
-  CircularProgress,
+  Fade,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import { JsonForms } from "@jsonforms/react";
@@ -24,7 +24,8 @@ import {
 import { useAppStore } from "../store";
 import { ExtensionStatusChips } from "./ExtensionStatusChips";
 import { debounce } from "lodash";
-import { customRenderers, injectDynamicEnums } from "../utils/jsonforms";
+import { customRenderers, injectDynamicEnums, schemaRequiresMetadata } from "../utils/jsonforms";
+import { PanelSkeleton, FormSkeleton } from "./shared/LoadingSkeletons";
 
 interface SecondaryPanelProps {
   panelTitle: string;
@@ -48,8 +49,19 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
     isError: isSchemasError,
   } = useSchemas(roomId, panelTitle);
 
-  // --- MODIFICATION: Fetch the frame metadata ---
-  const { data: metadata, isLoading: isLoadingMetadata } = useFrameMetadata(roomId);
+  // Check if the selected extension's schema requires metadata
+  const currentSchema = schemas?.[selectedExtension ?? ""]?.schema;
+  const needsMetadata = useMemo(
+    () => currentSchema ? schemaRequiresMetadata(currentSchema) : false,
+    [currentSchema]
+  );
+
+  // --- MODIFICATION: Fetch the frame metadata only when needed (deferred loading) ---
+  const { data: metadata, isLoading: isLoadingMetadata } = useFrameMetadata(
+    roomId,
+    0,
+    needsMetadata // Only fetch if the current schema needs it
+  );
 
   const {
     data: serverData,
@@ -129,21 +141,6 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
   }, [schemas, selectedExtension, metadata, geometries]);
   const formOptions = useMemo(() => Object.keys(schemas || {}), [schemas]);
 
-  if (isLoadingSchemas || isLoadingMetadata) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100%",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   if (isSchemasError || isDataError) {
     return (
       <Typography color="error" sx={{ p: 2 }}>
@@ -160,53 +157,63 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
       <Divider />
 
       <Box sx={{ p: 2, pb: 12, flexGrow: 1, overflowY: "auto" }}>
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel id="panel-select-label">{panelTitle} Method</InputLabel>
-          <Select
-            labelId="panel-select-label"
-            value={selectedExtension || ""}
-            label={`${panelTitle} Method`}
-            onChange={handleSelectionChange}
-          >
-            {formOptions.map((item) => (
-              <MenuItem key={item} value={item}>
-                {item}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        {selectedExtension && schemas && schemas[selectedExtension] && (
-          <ExtensionStatusChips metadata={schemas[selectedExtension]} />
-        )}
-
-        {dynamicSchema && (
+        {isLoadingSchemas ? (
+          <PanelSkeleton />
+        ) : (
           <>
-            {panelTitle !== "settings" && (
-              <Button
-                variant="contained"
-                startIcon={<SaveIcon />}
-                onClick={handleSubmit}
-                disabled={isSubmitting || isLoadingData}
-                fullWidth
-                color="primary"
-                sx={{ mb: 2 }}
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel id="panel-select-label">{panelTitle} Method</InputLabel>
+              <Select
+                labelId="panel-select-label"
+                value={selectedExtension || ""}
+                label={`${panelTitle} Method`}
+                onChange={handleSelectionChange}
               >
-                {isSubmitting ? "Running..." : "Run Extension"}
-              </Button>
+                {formOptions.map((item) => (
+                  <MenuItem key={item} value={item}>
+                    {item}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {selectedExtension && schemas && schemas[selectedExtension] && (
+              <ExtensionStatusChips metadata={schemas[selectedExtension]} />
             )}
 
-            {isLoadingData ? (
-              <CircularProgress />
-            ) : (
-              <JsonForms
-                key={selectedExtension}
-                schema={dynamicSchema}
-                data={localFormData}
-                renderers={customRenderers}
-                cells={materialCells}
-                onChange={handleFormChange}
-              />
+            {selectedExtension && (
+              <>
+                {panelTitle !== "settings" && (
+                  <Button
+                    variant="contained"
+                    startIcon={<SaveIcon />}
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || isLoadingData || isLoadingMetadata}
+                    fullWidth
+                    color="primary"
+                    sx={{ mb: 2 }}
+                  >
+                    {isSubmitting ? "Running..." : "Run Extension"}
+                  </Button>
+                )}
+
+                {isLoadingData || isLoadingMetadata ? (
+                  <FormSkeleton />
+                ) : dynamicSchema ? (
+                  <Fade in={!isLoadingData && !isLoadingMetadata} timeout={200}>
+                    <Box>
+                      <JsonForms
+                        key={selectedExtension}
+                        schema={dynamicSchema}
+                        data={localFormData}
+                        renderers={customRenderers}
+                        cells={materialCells}
+                        onChange={handleFormChange}
+                      />
+                    </Box>
+                  </Fade>
+                ) : null}
+              </>
             )}
           </>
         )}

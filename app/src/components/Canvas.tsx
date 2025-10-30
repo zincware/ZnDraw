@@ -4,8 +4,8 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useAppStore, getActiveCurves, selectPreferredCurve } from "../store";
 import { useExtensionData } from "../hooks/useSchemas";
-import { useColorScheme } from "@mui/material/styles";
-import { Snackbar, Alert } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import { Snackbar, Alert, Box as MuiBox, CircularProgress } from "@mui/material";
 import { useCameraControls } from "../hooks/useCameraControls";
 
 // Import our new, self-contained components
@@ -35,7 +35,7 @@ import { useFrameLoadTime } from "../hooks/useFrameLoadTime";
 // The main scene component
 function MyScene() {
   const { roomId, userId, geometries, activeCurveForDrawing, setActiveCurveForDrawing, attachedCameraKey, snackbar, hideSnackbar } = useAppStore();
-  const { mode } = useColorScheme();
+  const theme = useTheme();
 
   // Track frame load time when not playing
   useFrameLoadTime();
@@ -84,7 +84,27 @@ function MyScene() {
     setActiveCurveForDrawing(defaultCurve);
   }, [geometries, activeCurveForDrawing, setActiveCurveForDrawing]);
 
-  const backgroundColor = studioLightingSettings.background_color === "default" ? (mode === "light" ? "#FFFFFF" : "#212121ff") : studioLightingSettings.background_color;
+  // Return early with loading state if required settings are not yet loaded
+  if (!studioLightingSettings || !cameraSettings) {
+    return (
+      <MuiBox
+        sx={{
+          width: "100%",
+          height: "calc(100vh - 64px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: theme.palette.background.default,
+        }}
+      >
+        <CircularProgress />
+      </MuiBox>
+    );
+  }
+
+  const backgroundColor = studioLightingSettings.background_color === "default"
+    ? theme.palette.background.default
+    : studioLightingSettings.background_color;
 
 
   return (

@@ -41,6 +41,39 @@ export const customRenderers = [
 ];
 
 /**
+ * Checks if a schema requires metadata for dynamic enums.
+ * @param schema The JSON schema to check.
+ * @returns True if the schema uses dynamic-atom-props feature.
+ */
+export const schemaRequiresMetadata = (schema: any): boolean => {
+  if (!schema || typeof schema !== "object") return false;
+
+  let requiresMetadata = false;
+
+  const traverse = (obj: any) => {
+    if (obj && typeof obj === "object") {
+      // Check for dynamic-atom-props feature
+      if (
+        obj["x-custom-type"] === "dynamic-enum" &&
+        Array.isArray(obj["x-features"]) &&
+        obj["x-features"].includes("dynamic-atom-props")
+      ) {
+        requiresMetadata = true;
+        return;
+      }
+
+      // Continue traversing
+      Object.keys(obj).forEach((key) => {
+        if (!requiresMetadata) traverse(obj[key]);
+      });
+    }
+  };
+
+  traverse(schema);
+  return requiresMetadata;
+};
+
+/**
  * Recursively traverses a JSON schema and injects dynamic enum values.
  * @param schema The original JSON schema.
  * @param metadata The metadata object containing keys to inject.
