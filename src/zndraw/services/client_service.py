@@ -26,46 +26,46 @@ class ClientService:
     def __init__(self, redis_client: Redis):
         self.r = redis_client
 
-    def update_client_room(self, client_id: str, room_id: str) -> None:
-        """Update client's current room in Redis.
+    def update_user_room(self, user_name: str, room_id: str) -> None:
+        """Update user's current room in Redis.
 
         Parameters
         ----------
-        client_id : str
-            Client identifier (from JWT sub claim)
+        user_name : str
+            User name (from JWT sub claim)
         room_id : str
-            Room the client is joining
+            Room the user is joining
         """
-        client_key = f"client:{client_id}"
-        self.r.hset(client_key, "currentRoom", room_id)
-        log.info(f"Client {client_id} updated room to {room_id}")
+        user_key = f"user:{user_name}"
+        self.r.hset(user_key, "currentRoom", room_id)
+        log.info(f"User {user_name} updated room to {room_id}")
 
-    def add_client_to_room(self, room_id: str, client_id: str) -> None:
-        """Add client to room's client set.
-
-        Parameters
-        ----------
-        room_id : str
-            Room identifier
-        client_id : str
-            Client identifier
-        """
-        self.r.sadd(f"room:{room_id}:clients", client_id)
-
-    def remove_client_from_room(self, room_id: str, client_id: str) -> None:
-        """Remove client from room's client set.
+    def add_user_to_room(self, room_id: str, user_name: str) -> None:
+        """Add user to room's user set.
 
         Parameters
         ----------
         room_id : str
             Room identifier
-        client_id : str
-            Client identifier
+        user_name : str
+            User name
         """
-        self.r.srem(f"room:{room_id}:clients", client_id)
+        self.r.sadd(f"room:{room_id}:users", user_name)
 
-    def get_room_clients(self, room_id: str) -> set[str]:
-        """Get all client IDs currently in a room.
+    def remove_user_from_room(self, room_id: str, user_name: str) -> None:
+        """Remove user from room's user set.
+
+        Parameters
+        ----------
+        room_id : str
+            Room identifier
+        user_name : str
+            User name
+        """
+        self.r.srem(f"room:{room_id}:users", user_name)
+
+    def get_room_users(self, room_id: str) -> set[str]:
+        """Get all userNames currently in a room.
 
         Parameters
         ----------
@@ -75,25 +75,25 @@ class ClientService:
         Returns
         -------
         set[str]
-            Set of client IDs
+            Set of userNames
         """
-        members = self.r.smembers(f"room:{room_id}:clients")
+        members = self.r.smembers(f"room:{room_id}:users")
         return {m.decode() if isinstance(m, bytes) else m for m in members}
 
-    def update_client_and_room_membership(self, client_id: str, room_id: str) -> None:
-        """Update client room and add to room membership atomically.
+    def update_user_and_room_membership(self, user_name: str, room_id: str) -> None:
+        """Update user room and add to room membership atomically.
 
         Uses Redis pipeline for atomic operations.
 
         Parameters
         ----------
-        client_id : str
-            Client identifier
+        user_name : str
+            User name
         room_id : str
             Room identifier
         """
         pipe = self.r.pipeline()
-        pipe.hset(f"client:{client_id}", "currentRoom", room_id)
-        pipe.sadd(f"room:{room_id}:clients", client_id)
+        pipe.hset(f"user:{user_name}", "currentRoom", room_id)
+        pipe.sadd(f"room:{room_id}:users", user_name)
         pipe.execute()
-        log.info(f"Client {client_id} joined room {room_id}")
+        log.info(f"User {user_name} joined room {room_id}")

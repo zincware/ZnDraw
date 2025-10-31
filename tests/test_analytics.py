@@ -1,7 +1,8 @@
 """Tests for the analytics module."""
 
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 
 from zndraw.app.analytics import aggregate_job_stats, get_daily_stats
 

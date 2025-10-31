@@ -7,9 +7,9 @@ following DRY principles and reducing code duplication.
 import json
 import logging
 
+import zarr
 from flask import current_app
 from zarr.storage import MemoryStore
-import zarr
 
 from zndraw.server import socketio
 from zndraw.storage import ZarrStorageSequence
@@ -80,7 +80,7 @@ def get_storage(room_id: str) -> ZarrStorageSequence:
 
 
 def check_room_locked(
-    room_id: str, client_id: str | None = None
+    room_id: str, user_name: str | None = None
 ) -> tuple[dict[str, str], int] | None:
     """Check if a room is locked.
 
@@ -92,14 +92,14 @@ def check_room_locked(
     ----------
     room_id : str
         The room ID to check
-    client_id : str | None, optional
-        Optional client ID - if provided and this client holds the trajectory lock,
+    user_name : str | None, optional
+        Optional userName - if provided and this user holds the trajectory lock,
         the check will pass
 
     Returns
     -------
     tuple[dict[str, str], int] | None
-        Error tuple if locked and client doesn't hold lock, None otherwise
+        Error tuple if locked and user doesn't hold lock, None otherwise
     """
     redis_client = current_app.extensions["redis"]
 
@@ -115,14 +115,14 @@ def check_room_locked(
 
     if lock_holder:
         log.debug(
-            f"Lock check: room={room_id}, lock_holder={lock_holder}, client_id={client_id}"
+            f"Lock check: room={room_id}, lock_holder={lock_holder}, user_name={user_name}"
         )
-        # If a client_id is provided and it holds the lock, allow the operation
-        if client_id and lock_holder == client_id:
+        # If a user_name is provided and it holds the lock, allow the operation
+        if user_name and lock_holder == user_name:
             return None
         # Otherwise, the room is locked by another operation
         log.warning(
-            f"Lock rejected: lock_holder={lock_holder} != client_id={client_id}"
+            f"Lock rejected: lock_holder={lock_holder} != user_name={user_name}"
         )
         return {"error": "Room is temporarily locked by another operation"}, 423
 
@@ -332,14 +332,9 @@ def get_metadata_lock_info(room_id: str) -> dict | None:
         )
         return lock_metadata.model_dump()
 
-    # Lock exists but no metadata - get basic info from client
-    lock_holder_client_id = r.get(metadata_lock_key)
-    user_name = (
-        r.hget(f"client:{lock_holder_client_id}", "userName")
-        if lock_holder_client_id
-        else None
-    )
+    # Lock exists but no metadata - get basic info from lock holder
+    lock_holder_user_name = r.get(metadata_lock_key)
     lock_metadata = LockMetadata(
-        msg=None, userName=user_name or "unknown", timestamp=None
+        msg=None, userName=lock_holder_user_name or "unknown", timestamp=None
     )
     return lock_metadata.model_dump()

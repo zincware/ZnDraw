@@ -5,7 +5,9 @@ Handles geometry objects, figures for visualization, and atom/frame selections.
 
 import json
 import logging
+
 from flask import Blueprint, current_app, request
+
 from zndraw.server import socketio
 
 from .constants import SocketEvents
@@ -27,12 +29,11 @@ def create_geometry(room_id: str):
             "data": {...}  // geometry-specific data
         }
     """
-    from zndraw.auth import AuthError, get_current_client
+    from zndraw.auth import AuthError, get_current_user
 
-    # Authenticate and get client ID from JWT token
+    # Authenticate and get userName from JWT token
     try:
-        client = get_current_client()
-        client_id = client["clientId"]
+        user_name = get_current_user()
     except AuthError as e:
         return {"error": e.message}, e.status_code
 
@@ -95,7 +96,9 @@ def create_geometry(room_id: str):
     return {"status": "success"}, 200
 
 
-@geometries.route("/api/rooms/<string:room_id>/geometries/<string:key>", methods=["GET"])
+@geometries.route(
+    "/api/rooms/<string:room_id>/geometries/<string:key>", methods=["GET"]
+)
 def get_geometry(room_id: str, key: str):
     """Get a specific geometry by key.
 
@@ -119,14 +122,15 @@ def get_geometry(room_id: str, key: str):
     return {"key": key, "geometry": geometry}, 200
 
 
-@geometries.route("/api/rooms/<string:room_id>/geometries/<string:key>", methods=["DELETE"])
+@geometries.route(
+    "/api/rooms/<string:room_id>/geometries/<string:key>", methods=["DELETE"]
+)
 def delete_geometry(room_id: str, key: str):
-    from zndraw.auth import AuthError, get_current_client
+    from zndraw.auth import AuthError, get_current_user
 
-    # Authenticate and get client ID from JWT token
+    # Authenticate and get userName from JWT token
     try:
-        client = get_current_client()
-        client_id = client["clientId"]
+        user_name = get_current_user()
     except AuthError as e:
         return {"error": e.message}, e.status_code
 
@@ -211,7 +215,9 @@ def get_figure(room_id: str, key: str):
     return {"key": key, "figure": figure}, 200
 
 
-@geometries.route("/api/rooms/<string:room_id>/figures/<string:key>", methods=["DELETE"])
+@geometries.route(
+    "/api/rooms/<string:room_id>/figures/<string:key>", methods=["DELETE"]
+)
 def delete_figure(room_id: str, key: str):
     r = current_app.extensions["redis"]
     response = r.hdel(f"room:{room_id}:figures", key)
@@ -274,7 +280,9 @@ def get_all_selections(room_id: str):
     }, 200
 
 
-@geometries.route("/api/rooms/<string:room_id>/selections/<string:geometry>", methods=["GET"])
+@geometries.route(
+    "/api/rooms/<string:room_id>/selections/<string:geometry>", methods=["GET"]
+)
 def get_selection(room_id: str, geometry: str):
     """Get selection for a specific geometry."""
     r = current_app.extensions["redis"]
@@ -286,7 +294,9 @@ def get_selection(room_id: str, geometry: str):
     return {"selection": json.loads(selection)}, 200
 
 
-@geometries.route("/api/rooms/<string:room_id>/selections/<string:geometry>", methods=["PUT"])
+@geometries.route(
+    "/api/rooms/<string:room_id>/selections/<string:geometry>", methods=["PUT"]
+)
 def update_selection(room_id: str, geometry: str):
     """Update selection for a specific geometry.
 
@@ -431,6 +441,3 @@ def load_selection_group(room_id: str, group_name: str):
     )
 
     return {"success": True}, 200
-
-
-

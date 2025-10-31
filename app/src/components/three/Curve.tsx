@@ -61,7 +61,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   const theme = useTheme();
 
-  const { currentFrame, roomId, isDrawing, drawingIsValid, drawingPointerPosition, setIsDrawing, clientId, setGeometryFetching, removeGeometryFetching, setCurveLength, activeCurveForDrawing, registerCurveRef, unregisterCurveRef } = useAppStore();
+  const { currentFrame, roomId, isDrawing, drawingIsValid, drawingPointerPosition, setIsDrawing, userName, setGeometryFetching, removeGeometryFetching, setCurveLength, activeCurveForDrawing, registerCurveRef, unregisterCurveRef } = useAppStore();
   const [markerPositions, setMarkerPositions] = useState<THREE.Vector3[]>([]);
   const [lineSegments, setLineSegments] = useState<THREE.Vector3[]>([]);
   const [virtualMarkerPositions, setVirtualMarkerPositions] = useState<THREE.Vector3[]>([]);
@@ -94,7 +94,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     queryKey: ["frame", roomId, currentFrame, positionProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [positionProp as string], signal),
-    enabled: !!roomId && !!clientId && typeof positionProp === "string",
+    enabled: !!roomId && !!userName && typeof positionProp === "string",
     placeholderData: keepPreviousData,
   });
 
@@ -286,7 +286,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     } catch (error) {
       console.error("Error updating geometry:", error);
     }
-  }, [roomId, markerPositions, geometryKey, color, material, variant, divisions, thickness, marker, virtual_marker, clientId]);
+  }, [roomId, markerPositions, geometryKey, color, material, variant, divisions, thickness, marker, virtual_marker, userName]);
 
   useEffect(() => {
     if (lastUpdateSource !== 'local') return;

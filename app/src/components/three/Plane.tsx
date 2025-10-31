@@ -74,7 +74,7 @@ export default function Plane({
   const [instanceCount, setInstanceCount] = useState(0);
   const hasDisabledGeometryRef = useRef(false);
 
-  const { currentFrame, frameCount, roomId, clientId, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar } = useAppStore();
+  const { currentFrame, frameCount, roomId, userName, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar } = useAppStore();
 
   // Use geometry-specific selection
   const planeSelection = selections[geometryKey] || [];
@@ -92,7 +92,7 @@ export default function Plane({
     queryKey: ["frame", roomId, currentFrame, positionProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [positionProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof positionProp === "string",
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof positionProp === "string",
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -101,7 +101,7 @@ export default function Plane({
     queryKey: ["frame", roomId, currentFrame, sizeProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [sizeProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof sizeProp === "string",
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof sizeProp === "string",
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -110,7 +110,7 @@ export default function Plane({
     queryKey: ["frame", roomId, currentFrame, colorProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [colorProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string),
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string),
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -119,7 +119,7 @@ export default function Plane({
     queryKey: ["frame", roomId, currentFrame, rotationProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [rotationProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof rotationProp === "string",
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof rotationProp === "string",
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -155,7 +155,7 @@ export default function Plane({
 
   // Detect critical fetch failures and disable geometry
   useEffect(() => {
-    if (!roomId || !clientId || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
+    if (!roomId || !userName || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
       return;
     }
 
@@ -201,7 +201,7 @@ export default function Plane({
     }
   }, [
     roomId,
-    clientId,
+    userName,
     geometryKey,
     frameCount,
     isFetching,
@@ -436,7 +436,7 @@ export default function Plane({
     setDrawingIsValid(false);
   }, [setHoveredGeometryInstance, setDrawingIsValid]);
 
-  if (!clientId || !roomId) return null;
+  if (!userName || !roomId) return null;
 
   // Don't render if geometry is disabled
   if (fullData.active === false) {

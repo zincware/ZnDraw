@@ -150,7 +150,7 @@ export default function Bonds({
 
   const hasDisabledGeometryRef = useRef(false);
 
-  const { roomId, currentFrame, frameCount, clientId, selections, updateSelections, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar } = useAppStore();
+  const { roomId, currentFrame, frameCount, userName, selections, updateSelections, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar } = useAppStore();
 
   // Use geometry-specific selection
   const bondSelection = selections[geometryKey] || [];
@@ -209,7 +209,7 @@ export default function Bonds({
     queryKey: ["frame", roomId, currentFrame, positionProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [positionProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof positionProp === "string",
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof positionProp === "string",
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -218,7 +218,7 @@ export default function Bonds({
     queryKey: ["frame", roomId, currentFrame, colorProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [colorProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string),
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string),
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -227,7 +227,7 @@ export default function Bonds({
     queryKey: ["frame", roomId, currentFrame, radiusProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [radiusProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof radiusProp === "string",
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof radiusProp === "string",
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -236,7 +236,7 @@ export default function Bonds({
     queryKey: ["frame", roomId, currentFrame, connectivityProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [connectivityProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof connectivityProp === "string",
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof connectivityProp === "string",
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -272,7 +272,7 @@ export default function Bonds({
 
   // Detect critical fetch failures and disable geometry
   useEffect(() => {
-    if (!roomId || !clientId || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
+    if (!roomId || !userName || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
       return;
     }
 
@@ -323,7 +323,7 @@ export default function Bonds({
     }
   }, [
     roomId,
-    clientId,
+    userName,
     geometryKey,
     frameCount,
     isFetching,
@@ -705,7 +705,7 @@ export default function Bonds({
 
   const onPointerOut = useCallback(() => setHoveredBondPairIndex(null), []);
 
-  if (!clientId || !roomId) return null;
+  if (!userName || !roomId) return null;
 
   // Don't render if geometry is disabled
   if (fullData.active === false) {

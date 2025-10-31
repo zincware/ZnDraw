@@ -41,7 +41,7 @@ def test_rest_join_new_room(server):
     )
     assert data["geometries"]["particles"]["data"]["position"] == "arrays.positions"
     assert "settings" in data
-    assert "clientId" in data
+    assert "userName" in data
 
     # list all rooms again to see if the new room is there
     response = requests.get(f"{server}/api/rooms")

@@ -2,12 +2,13 @@ import { create } from "zustand";
 import { socket } from "./socket";
 import * as THREE from "three";
 import { updateSelection as updateSelectionAPI, loadSelectionGroup as loadSelectionGroupAPI, setBookmark as setBookmarkAPI, deleteBookmark as deleteBookmarkAPI, createGeometry, getGeometry } from "./myapi/client";
+import type { UserRole } from "./utils/auth";
 
 interface AppState {
   // Connection & Room
   roomId: string | null;
-  userId: string | null;
-  clientId: string | null;
+  userName: string | null;
+  userRole: UserRole | null;
   isConnected: boolean;
   isLoading: boolean;
   currentFrame: number;
@@ -58,9 +59,9 @@ interface AppState {
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
-  setUserId: (userId: string) => void;
+  setUserName: (userName: string) => void;
+  setUserRole: (role: UserRole) => void;
   setConnected: (status: boolean) => void;
-  setClientId: (clientId: string) => void;
   setCurrentFrame: (frame: number) => void;
   setFrameCount: (count: number) => void;
   setLoading: (loading: boolean) => void;
@@ -145,8 +146,8 @@ export const selectPreferredCurve = (activeCurves: string[]): string | null => {
 export const useAppStore = create<AppState>((set, get) => ({
   // Initial State
   roomId: null,
-  userId: null,
-  clientId: null,
+  userName: null,
+  userRole: null,
   isConnected: false,
   currentFrame: 0,
   frameCount: 0,
@@ -204,8 +205,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Actions
   setConnected: (status) => set({ isConnected: status }),
   setRoomId: (roomId) => set({ roomId }),
-  setUserId: (userId) => set({ userId }),
-  setClientId: (clientId) => set({ clientId }),
+  setUserName: (userName) => set({ userName }),
+  setUserRole: (role) => set({ userRole: role }),
   setCurrentFrame: (frame) => set({ currentFrame: frame }),
   setFrameCount: (count) =>
     set((state) => {
@@ -539,7 +540,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleEditingMode: async () => {
     const state = get();
-    const { isEditing, lockMetadata, clientId } = state;
+    const { isEditing, lockMetadata, userName } = state;
 
     // Import dynamically to avoid circular dependency
     const { socket } = await import("./socket");
@@ -549,7 +550,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Check if room is already locked
       if (lockMetadata && lockMetadata.locked) {
         // Check if WE hold the lock
-        if (lockMetadata.holder === clientId) {
+        if (lockMetadata.holder === userName) {
           // We already hold the lock, just enter editing mode
           set({ isEditing: true });
           state.showSnackbar("Entered editing mode", "success");
@@ -617,7 +618,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleDrawingMode: async (queryClient?: any) => {
     const state = get();
-    const { geometries, activeCurveForDrawing, isDrawing, roomId, clientId } = state;
+    const { geometries, activeCurveForDrawing, isDrawing, roomId } = state;
 
     // Get all active curves using helper function
     const activeCurves = getActiveCurves(geometries);

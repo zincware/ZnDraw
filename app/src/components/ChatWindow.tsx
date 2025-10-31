@@ -49,7 +49,7 @@ const htmlPlugins = [rehypeKatex];
 const MemoizedMarkdown = memo(ReactMarkdown);
 
 const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
-  const { setCurrentFrame, resetChatUnread, userId } = useAppStore();
+  const { setCurrentFrame, resetChatUnread, userName } = useAppStore();
   const { roomId } = useParams<{ roomId: string }>();
   const [messageInput, setMessageInput] = useState("");
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -236,7 +236,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
           )}
 
           {allMessages.map((message) => {
-            const isOwnMessage = message.author.id === userId;
+            const isOwnMessage = message.author.id === userName;
             const isEditing = editingMessageId === message.id;
 
             return (

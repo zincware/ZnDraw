@@ -3,6 +3,7 @@
 import logging
 import typing as t
 import uuid
+from datetime import datetime, timedelta
 from functools import wraps
 
 import jwt
@@ -45,15 +46,17 @@ class AdminAccessError(Exception):
         super().__init__(self.message)
 
 
-def create_jwt_token(client_id: str, user_name: str) -> str:
-    """Create JWT token for authenticated client.
+def create_jwt_token(
+    user_name: str, role: t.Literal["guest", "user", "admin"] = "guest"
+) -> str:
+    """Create JWT token for authenticated user.
 
     Parameters
     ----------
-    client_id : str
-        Unique client identifier (UUID)
     user_name : str
-        Display name of the user
+        Username (unique identifier)
+    role : str
+        User role (guest, user, or admin)
 
     Returns
     -------
@@ -64,13 +67,13 @@ def create_jwt_token(client_id: str, user_name: str) -> str:
     algorithm = current_app.config.get("JWT_ALGORITHM", "HS256")
 
     payload = {
-        "sub": client_id,  # Subject: client ID
-        "userName": user_name,  # Display name
+        "sub": user_name,  # Subject: username (primary identifier)
+        "role": role,  # User role for authorization checks
         "jti": str(uuid.uuid4()),  # JWT ID for revocation (future use)
     }
 
     token = jwt.encode(payload, secret_key, algorithm=algorithm)
-    log.info(f"Created JWT for client {client_id}")
+    log.info(f"Created JWT for user {user_name} with role {role}")
 
     return token
 
@@ -121,13 +124,13 @@ def extract_token_from_request() -> str | None:
     return None
 
 
-def get_current_client() -> dict:
-    """Get current authenticated client from request.
+def get_current_user() -> str:
+    """Get current authenticated user from request.
 
     Returns
     -------
-    dict
-        JWT payload with clientId and userName
+    str
+        Username of authenticated user
 
     Raises
     ------
@@ -139,10 +142,28 @@ def get_current_client() -> dict:
         raise AuthError("No authentication token provided", 401)
 
     payload = decode_jwt_token(token)
-    return {
-        "clientId": payload["sub"],
-        "userName": payload["userName"],
-    }
+    return payload["sub"]  # userName is the subject
+
+
+def get_current_user_role() -> str:
+    """Get role of current authenticated user from request.
+
+    Returns
+    -------
+    str
+        Role of authenticated user (guest, user, or admin)
+
+    Raises
+    ------
+    AuthError
+        If no token found or token is invalid
+    """
+    token = extract_token_from_request()
+    if not token:
+        raise AuthError("No authentication token provided", 401)
+
+    payload = decode_jwt_token(token)
+    return payload.get("role", "guest")  # Default to guest if not specified
 
 
 def require_auth(f):
@@ -153,14 +174,14 @@ def require_auth(f):
     @app.route("/api/protected")
     @require_auth
     def protected_route():
-        client = get_current_client()
-        return {"clientId": client["clientId"]}
+        user_name = get_current_user()
+        return {"userName": user_name}
     """
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
-            get_current_client()  # Validate token
+            get_current_user()  # Validate token
             return f(*args, **kwargs)
         except AuthError as e:
             return {"error": e.message}, e.status_code
@@ -198,16 +219,18 @@ def require_admin(f):
 
         try:
             # First, validate authentication
-            client = get_current_client()
-            client_id = client["clientId"]
+            user_name = get_current_user()
 
             # Then, check admin status
             admin_service = current_app.extensions.get("admin_service")
             if not admin_service:
                 log.error("AdminService not initialized")
-                return {"error": "Server configuration error", "type": "ServerError"}, 500
+                return {
+                    "error": "Server configuration error",
+                    "type": "ServerError",
+                }, 500
 
-            if not admin_service.is_admin(client_id):
+            if not admin_service.is_admin(user_name):
                 raise AdminAccessError()
 
             return f(*args, **kwargs)

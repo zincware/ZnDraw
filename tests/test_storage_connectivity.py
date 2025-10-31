@@ -20,7 +20,9 @@ def test_connectivity_list_vs_numpy_should_work():
     3. Storage should automatically convert the list to numpy array
     """
     # Create first atoms with numpy connectivity (using add_connectivity)
-    atoms1 = ase.Atoms("CH4", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [-1, 0, 0]])
+    atoms1 = ase.Atoms(
+        "CH4", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [-1, 0, 0]]
+    )
     add_connectivity(atoms1)  # This creates numpy array connectivity
     dict1 = atoms_to_dict(atoms1)
 
@@ -57,13 +59,17 @@ def test_connectivity_list_vs_numpy_should_work():
     assert root["info.connectivity"].shape[0] == 2
     # Both should have valid connectivity data
     assert root["info.connectivity"][0].shape[1] == 3  # First frame: 4 bonds x 3 values
-    assert root["info.connectivity"][1].shape[1] == 3  # Second frame: 8 bonds x 3 values
+    assert (
+        root["info.connectivity"][1].shape[1] == 3
+    )  # Second frame: 8 bonds x 3 values
 
 
 def test_connectivity_numpy_to_numpy_works():
     """Test that appending atoms with numpy connectivity to store with numpy connectivity works."""
     # Create first atoms with numpy connectivity
-    atoms1 = ase.Atoms("CH4", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [-1, 0, 0]])
+    atoms1 = ase.Atoms(
+        "CH4", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [-1, 0, 0]]
+    )
     add_connectivity(atoms1)
     dict1 = atoms_to_dict(atoms1)
 

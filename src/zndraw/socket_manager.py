@@ -246,16 +246,20 @@ class SocketManager:
         return self.sio.connected
 
     def _on_connect(self):
-        log.debug(
-            f"Joined room: '{self.zndraw.room}' with client ID: {self.zndraw.sid}"
-        )
+        """Handle connection to server."""
+        log.debug(f"Connected to server")
+
+        # Re-register any extensions that were registered before connection
         for name, ext in self.zndraw._extensions.items():
-            self.zndraw.api.register_extension(
+            worker_id = self.zndraw.api.register_extension(
                 name=name,
                 category=ext["extension"].category,
                 schema=ext["extension"].model_json_schema(),
-                client_id=self.zndraw.sid,
+                socket_manager=self,
             )
+            # Store the worker_id assigned by server
+            if worker_id:
+                self.zndraw._worker_id = worker_id
         self._on_queue_update({})
 
     def _on_frame_update(self, data):

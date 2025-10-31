@@ -17,7 +17,7 @@ class Job:
     category: str
     extension: str
     data: dict
-    user_id: str
+    user_name: str
     status: str
     provider: str  # "celery" or worker count
     created_at: str
@@ -83,7 +83,7 @@ class JobManager:
         category: str,
         extension: str,
         data: dict,
-        user_id: str,
+        user_name: str,
         provider: str,
         ttl: int = 86400,
     ) -> str:
@@ -95,7 +95,7 @@ class JobManager:
             category: Extension category
             extension: Extension name
             data: Job input parameters
-            user_id: User who submitted the job
+            user_name: Username who submitted the job
             provider: "celery" or worker count
             ttl: Time-to-live in seconds (default: 86400 = 24 hours)
 
@@ -111,7 +111,7 @@ class JobManager:
             "category": category,
             "extension": extension,
             "data": json.dumps(data),
-            "user_id": user_id,
+            "user_name": user_name,
             "status": JobStatus.QUEUED,
             "provider": provider,
             "created_at": now,

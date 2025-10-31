@@ -22,7 +22,7 @@ To run tests use
 To run python code use
 - `uv run python ...`
 
-Tests can run for up to 5 minutes - be patient!
+Tests can run for up to 10 minutes - be patient!
 
 When designing new tests, read the old tests first to understand the existing patterns.
 Use `pytest.mark.parametrize` to avoid code duplication.

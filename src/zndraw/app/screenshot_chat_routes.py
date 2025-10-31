@@ -5,9 +5,11 @@ Handles screenshot uploads, downloads, metadata, and chat message retrieval.
 
 import json
 import logging
+
 from flask import Blueprint, current_app, request, send_from_directory
-from zndraw.server import socketio
+
 from zndraw.screenshot_manager import ScreenshotManager
+from zndraw.server import socketio
 
 log = logging.getLogger(__name__)
 
@@ -123,7 +125,6 @@ def get_chat_messages(room_id: str):
             "newestTimestamp": newest_timestamp,
         },
     }, 200
-
 
 
 @media.route("/api/rooms/<string:room_id>/screenshots/upload", methods=["POST"])
@@ -295,5 +296,3 @@ def delete_screenshot(room_id: str, screenshot_id: int):
         return {"error": "Screenshot not found"}, 404
     except Exception as e:
         return {"error": f"Failed to delete screenshot: {str(e)}"}, 500
-
-

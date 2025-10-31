@@ -1,69 +1,74 @@
 /**
  * JWT Authentication utilities for browser client.
  *
- * AUTO-LOGIN STRATEGY:
- * - On first visit, generate a random UUID username
- * - Call /api/login automatically to get JWT token
- * - Store both username and token in localStorage
- * - This avoids username collisions while maintaining seamless UX
+ * Simplified Architecture:
+ * - userName is the primary identifier (unique, immutable after registration)
+ * - Guests get auto-generated usernames (user-xyz)
+ * - Registration allows choosing permanent username
+ * - No client_id concept
  */
 
 const TOKEN_KEY = 'zndraw_jwt_token';
-const CLIENT_ID_KEY = 'zndraw_client_id';
 const USERNAME_KEY = 'zndraw_username';
+const IS_ADMIN_KEY = 'zndraw_is_admin';
+const USER_ROLE_KEY = 'zndraw_user_role';
+
+export type UserRole = 'guest' | 'user' | 'admin';
 
 export interface LoginResponse {
   status: string;
   token: string;
-  clientId: string;
+  userName: string;
+  role: UserRole;
 }
 
-/**
- * Get or generate a unique username for this browser.
- * Generates a UUID-based username on first use.
- */
-function getOrCreateUsername(): string {
-  let username = localStorage.getItem(USERNAME_KEY);
+export interface UserRoleResponse {
+  userName: string;
+  role: UserRole;
+}
 
-  if (!username) {
-    // Generate UUID-based username: "user-abc123..."
-    const uuid = crypto.randomUUID();
-    username = `user-${uuid.slice(0, 8)}`;
-    localStorage.setItem(USERNAME_KEY, username);
-    console.log('Generated new username:', username);
-  }
-
-  return username;
+export interface RegisterResponse {
+  status: string;
+  token: string;
+  userName: string;
+  role: UserRole;
 }
 
 /**
  * Login and get JWT token from server.
- * If userName is not provided, uses the stored/generated username.
+ *
+ * @param userName - Optional username (if not provided, server generates guest username)
+ * @param password - Optional password (if provided, authenticates as registered user)
  */
-export async function login(userName?: string): Promise<LoginResponse> {
-  const finalUserName = userName || getOrCreateUsername();
+export async function login(userName?: string, password?: string): Promise<LoginResponse> {
+  const body: { userName?: string; password?: string } = {};
+
+  if (userName !== undefined) {
+    body.userName = userName;
+  }
+  if (password !== undefined) {
+    body.password = password;
+  }
 
   const response = await fetch('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userName: finalUserName }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
-    throw new Error(`Login failed: ${response.statusText}`);
+    const errorData = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(errorData.error || `Login failed: ${response.statusText}`);
   }
 
   const data = await response.json();
 
-  // Store token and client ID in localStorage
+  // Store token, username, and role in localStorage
   localStorage.setItem(TOKEN_KEY, data.token);
-  localStorage.setItem(CLIENT_ID_KEY, data.clientId);
-  if (userName) {
-    // If explicit username provided, update stored username
-    localStorage.setItem(USERNAME_KEY, userName);
-  }
+  localStorage.setItem(USERNAME_KEY, data.userName);
+  localStorage.setItem(USER_ROLE_KEY, data.role);
 
-  console.log('Logged in successfully:', data.clientId);
+  console.log('Logged in successfully:', data.userName, 'role:', data.role);
 
   return data;
 }
@@ -75,7 +80,7 @@ export async function login(userName?: string): Promise<LoginResponse> {
 export async function ensureAuthenticated(): Promise<void> {
   const token = getToken();
   if (!token) {
-    await login(); // Auto-login with generated username
+    await login(); // Auto-login with server-generated guest username
   }
 }
 
@@ -87,26 +92,20 @@ export function getToken(): string | null {
 }
 
 /**
- * Get stored client ID.
- */
-export function getClientId(): string | null {
-  return localStorage.getItem(CLIENT_ID_KEY);
-}
-
-/**
  * Get stored username.
  */
 export function getUsername(): string | null {
   return localStorage.getItem(USERNAME_KEY);
 }
 
+
 /**
  * Clear stored authentication data.
  */
 export function logout(): void {
   localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(CLIENT_ID_KEY);
   localStorage.removeItem(USERNAME_KEY);
+  localStorage.removeItem(USER_ROLE_KEY);
   console.log('Logged out');
 }
 
@@ -115,4 +114,102 @@ export function logout(): void {
  */
 export function isAuthenticated(): boolean {
   return getToken() !== null;
+}
+
+/**
+ * Fetch user role from server.
+ */
+export async function fetchUserRole(): Promise<UserRoleResponse> {
+  const token = getToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch('/api/user/role', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(errorData.error || `Failed to fetch role: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  // Store role in localStorage
+  localStorage.setItem(USER_ROLE_KEY, data.role);
+
+  return data;
+}
+
+/**
+ * Get stored user role.
+ */
+export function getUserRole(): UserRole | null {
+  return localStorage.getItem(USER_ROLE_KEY) as UserRole | null;
+}
+
+/**
+ * Register current guest user with chosen username and password.
+ *
+ * @param userName - Desired username (unique, immutable)
+ * @param password - Password to set
+ * @returns New token and username
+ */
+export async function registerUser(userName: string, password: string): Promise<RegisterResponse> {
+  const token = getToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch('/api/user/register', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ userName, password }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(errorData.error || `Registration failed: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  // Update stored data with new token and username
+  localStorage.setItem(TOKEN_KEY, data.token);
+  localStorage.setItem(USERNAME_KEY, data.userName);
+  localStorage.setItem(USER_ROLE_KEY, data.role);
+
+  return data;
+}
+
+/**
+ * Change current user's password.
+ */
+export async function changePassword(oldPassword: string, newPassword: string): Promise<void> {
+  const token = getToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch('/api/user/change-password', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ oldPassword, newPassword }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(errorData.error || `Password change failed: ${response.statusText}`);
+  }
 }

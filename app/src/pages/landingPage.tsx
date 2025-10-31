@@ -6,15 +6,28 @@ import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Badge from "@mui/material/Badge";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
 import ChatIcon from "@mui/icons-material/Chat";
 import CodeIcon from "@mui/icons-material/Code";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import BrushIcon from "@mui/icons-material/Brush";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import LoginIcon from "@mui/icons-material/Login";
+import LogoutIcon from "@mui/icons-material/Logout";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
 import FrameProgressBar from "../components/ProgressBar";
 import SideBar from "../components/SideBar";
 import RoomManagementMenu from "../components/RoomManagementMenu";
+import LoginDialog from "../components/LoginDialog";
+import RegisterDialog from "../components/RegisterDialog";
+import AdminPanel from "../components/AdminPanel";
+import UserProfileDialog from "../components/UserProfileDialog";
 
 import { useSocketManager } from "../hooks/useSocketManager";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
@@ -31,6 +44,8 @@ import WindowManager from "../components/WindowManager";
 import AddPlotButton from "../components/AddPlotButton";
 import { useQueryClient } from "@tanstack/react-query";
 import { LAYOUT_CONSTANTS } from "../constants/layout";
+import { getUsername, logout as authLogout, login as authLogin, getUserRole } from "../utils/auth";
+import { socket } from "../socket";
 
 export default function MainPage() {
   const { roomId } = useAppStore(); // Get roomId from app store
@@ -40,8 +55,14 @@ export default function MainPage() {
   useRestJoinManager();
   const { isDragging, handleDragOver, handleDragEnter, handleDragLeave, handleDrop } = useDragAndDrop();
 
-  const { chatOpen, setChatOpen, isDrawing, toggleDrawingMode, chatUnreadCount, serverVersion } = useAppStore();
+  const { chatOpen, setChatOpen, isDrawing, toggleDrawingMode, chatUnreadCount, serverVersion, setUserName, setUserRole, showSnackbar } = useAppStore();
   const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
+  const [userProfileDialogOpen, setUserProfileDialogOpen] = useState(false);
+  const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
+  const profileMenuOpen = Boolean(profileAnchorEl);
   const { mode, setMode } = useColorScheme();
   const queryClient = useQueryClient();
 
@@ -74,6 +95,40 @@ export default function MainPage() {
 
   const handleToggleColorMode = () => {
     setMode(mode === "light" ? "dark" : "light");
+  };
+
+  const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
+    setProfileAnchorEl(event.currentTarget);
+  };
+
+  const handleProfileClose = () => {
+    setProfileAnchorEl(null);
+  };
+
+  const handleSwitchUser = () => {
+    handleProfileClose();
+    setLoginDialogOpen(true);
+  };
+
+  const handleLogout = async () => {
+    handleProfileClose();
+
+    // Auto-login as guest first
+    try {
+      authLogout();
+      const response = await authLogin();
+
+      // Update store - this will trigger useSocketManager's useEffect to reconnect
+      setUserName(response.userName);
+      setUserRole(response.role);
+
+      // The socket will reconnect automatically when userName changes
+      // The useSocketManager hook watches userName and will cleanup/reconnect
+
+      showSnackbar('Logged out, reconnected as guest', 'info');
+    } catch (err) {
+      showSnackbar('Logout failed', 'error');
+    }
   };
 
   return (
@@ -175,8 +230,85 @@ export default function MainPage() {
               </IconButton>
             </Tooltip>
             <RoomManagementMenu />
+            <Tooltip title="User profile">
+              <IconButton
+                color="inherit"
+                aria-label="user profile"
+                onClick={handleProfileClick}
+              >
+                <AccountCircleIcon />
+              </IconButton>
+            </Tooltip>
           </Toolbar>
         </AppBar>
+
+        {/* Profile Menu */}
+        <Menu
+          anchorEl={profileAnchorEl}
+          open={profileMenuOpen}
+          onClose={handleProfileClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+        >
+          <MenuItem disabled>
+            <ListItemText
+              primary={getUsername() || 'Guest'}
+              secondary={getUserRole() === 'admin' ? 'Admin' : getUserRole() === 'user' ? 'User' : 'Guest'}
+            />
+          </MenuItem>
+
+          {/* Guest user menu items */}
+          {getUserRole() === 'guest' && (
+            <>
+              <MenuItem onClick={() => { handleProfileClose(); setRegisterDialogOpen(true); }}>
+                <ListItemIcon>
+                  <ManageAccountsIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Register</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={handleSwitchUser}>
+                <ListItemIcon>
+                  <LoginIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Login</ListItemText>
+              </MenuItem>
+            </>
+          )}
+
+          {/* Registered user menu items */}
+          {getUserRole() !== 'guest' && (
+            <MenuItem onClick={() => { handleProfileClose(); setUserProfileDialogOpen(true); }}>
+              <ListItemIcon>
+                <ManageAccountsIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Manage Account</ListItemText>
+            </MenuItem>
+          )}
+
+          {/* Admin-specific menu item */}
+          {getUserRole() === 'admin' && (
+            <MenuItem onClick={() => { handleProfileClose(); setAdminPanelOpen(true); }}>
+              <ListItemIcon>
+                <AdminPanelSettingsIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Admin Panel</ListItemText>
+            </MenuItem>
+          )}
+
+          {/* Logout - available to all */}
+          <MenuItem onClick={handleLogout}>
+            <ListItemIcon>
+              <LogoutIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Logout</ListItemText>
+          </MenuItem>
+        </Menu>
 
         {/* Hidden file input for button upload */}
         <input
@@ -233,6 +365,26 @@ export default function MainPage() {
       <ConnectionDialog
         open={connectionDialogOpen}
         onClose={() => setConnectionDialogOpen(false)}
+      />
+
+      <LoginDialog
+        open={loginDialogOpen}
+        onClose={() => setLoginDialogOpen(false)}
+      />
+
+      <RegisterDialog
+        open={registerDialogOpen}
+        onClose={() => setRegisterDialogOpen(false)}
+      />
+
+      <AdminPanel
+        open={adminPanelOpen}
+        onClose={() => setAdminPanelOpen(false)}
+      />
+
+      <UserProfileDialog
+        open={userProfileDialogOpen}
+        onClose={() => setUserProfileDialogOpen(false)}
       />
     </>
   );

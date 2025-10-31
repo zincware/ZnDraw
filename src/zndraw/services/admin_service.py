@@ -108,69 +108,68 @@ class AdminService:
 
         return username == expected_username and password == expected_password
 
-    def grant_admin(self, client_id: str) -> None:
-        """Grant admin privileges to a client.
+    def grant_admin(self, user_name: str) -> None:
+        """Grant admin privileges to a user.
 
         Parameters
         ----------
-        client_id : str
-            Client identifier to grant admin status
+        user_name : str
+            Username to grant admin status
         """
         # Use hash-based storage for MemoryStorage compatibility
-        key = f"admin:user:{client_id}"
+        key = f"admin:user:{user_name}"
         self.r.set(key, "1")
-        log.info(f"Granted admin privileges to client {client_id}")
+        log.info(f"Granted admin privileges to user {user_name}")
 
-    def revoke_admin(self, client_id: str) -> None:
-        """Revoke admin privileges from a client.
+    def revoke_admin(self, user_name: str) -> None:
+        """Revoke admin privileges from a user.
 
         Parameters
         ----------
-        client_id : str
-            Client identifier to revoke admin status
+        user_name : str
+            Username to revoke admin status
         """
-        key = f"admin:user:{client_id}"
+        key = f"admin:user:{user_name}"
         self.r.delete(key)
-        log.info(f"Revoked admin privileges from client {client_id}")
+        log.info(f"Revoked admin privileges from user {user_name}")
 
-    def is_admin(self, client_id: str) -> bool:
-        """Check if a client has admin privileges.
+    def is_admin(self, user_name: str) -> bool:
+        """Check if a user has admin privileges.
 
         In local mode, always returns True.
         In deployment mode, checks Redis for admin status.
 
         Parameters
         ----------
-        client_id : str
-            Client identifier to check
+        user_name : str
+            Username to check
 
         Returns
         -------
         bool
-            True if client has admin privileges
+            True if user has admin privileges
         """
         # In local mode, everyone is admin
         if not self._deployment_mode:
             return True
 
         # In deployment mode, check Redis
-        key = f"admin:user:{client_id}"
+        key = f"admin:user:{user_name}"
         result = self.r.get(key)
-        return result == "1"
+        return result == "1" or result == b"1"
 
     def get_all_admins(self) -> set[str]:
-        """Get all client IDs with admin privileges.
+        """Get all usernames with admin privileges.
 
         Returns
         -------
         set[str]
-            Set of admin client IDs
+            Set of admin usernames
         """
         admins = set()
         # Scan for all admin:user:* keys
         for key in self.r.scan_iter(match="admin:user:*"):
-            # Extract client_id from key
-            client_id = key.replace("admin:user:", "")
-            if self.r.get(key) == "1" or self.r.get(key) == b"1":
-                admins.add(client_id)
+            user_name = key.replace("admin:user:", "")
+            if self.r.get(key) == "1":
+                admins.add(user_name)
         return admins

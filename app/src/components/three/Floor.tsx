@@ -24,7 +24,7 @@ interface FloorData {
 
 export const Floor = ({ data }: { data: FloorData }) => {
   const { scene } = useThree();
-  const { roomId, userId, geometryDefaults } = useAppStore();
+  const { roomId, userName, geometryDefaults } = useAppStore();
   const gridRef = useRef<THREE.GridHelper | null>(null);
   const { mode } = useColorScheme();
   const theme = useTheme();
@@ -35,7 +35,7 @@ export const Floor = ({ data }: { data: FloorData }) => {
   // Get camera settings for camera_far
   const { data: cameraSettings } = useExtensionData(
     roomId || "",
-    userId || "",
+    userName || "",
     "settings",
     "camera"
   );
@@ -43,7 +43,7 @@ export const Floor = ({ data }: { data: FloorData }) => {
   // Get background color for fog
   const { data: studioSettings } = useExtensionData(
     roomId || "",
-    userId || "",
+    userName || "",
     "settings",
     "studio_lighting"
   );

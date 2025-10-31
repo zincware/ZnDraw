@@ -13,7 +13,7 @@ from pathlib import Path
 from flask import Blueprint, Response, current_app, request, send_from_directory
 from flask_socketio import disconnect
 
-from zndraw.auth import require_admin
+from zndraw.auth import get_current_user, require_admin, require_auth
 from zndraw.server import socketio
 
 log = logging.getLogger(__name__)
@@ -64,10 +64,16 @@ def rdkit_image():
     mol_data = data.get("data")
 
     if not mol_type or not mol_data:
-        return {"error": "Both 'type' and 'data' are required", "type": "ValidationError"}, 400
+        return {
+            "error": "Both 'type' and 'data' are required",
+            "type": "ValidationError",
+        }, 400
 
     if mol_type not in ["smiles", "inchi"]:
-        return {"error": "Type must be 'smiles' or 'inchi'", "type": "ValidationError"}, 400
+        return {
+            "error": "Type must be 'smiles' or 'inchi'",
+            "type": "ValidationError",
+        }, 400
 
     # Convert string to molecule object
     try:
@@ -77,7 +83,10 @@ def rdkit_image():
             mol = Chem.MolFromInchi(mol_data)
 
         if mol is None:
-            return {"error": f"Invalid {mol_type} string", "type": "ConversionError"}, 400
+            return {
+                "error": f"Invalid {mol_type} string",
+                "type": "ConversionError",
+            }, 400
 
         # Generate 2D coordinates if needed
         Chem.rdDepictor.Compute2DCoords(mol)
@@ -93,7 +102,7 @@ def rdkit_image():
 
         return {
             "image": f"data:image/png;base64,{img_base64}",
-            "status": "success"
+            "status": "success",
         }, 200
 
     except Exception as e:
@@ -105,24 +114,25 @@ def rdkit_image():
 def login():
     """Authenticate user and issue JWT token.
 
-    In local mode (no admin credentials configured), all users are granted
-    admin privileges automatically. In deployment mode (admin credentials set),
-    only users providing correct admin credentials receive admin privileges.
+    Supports three modes:
+    1. Guest login (no password): Creates new anonymous user
+    2. User login (username + password): Authenticates existing registered user
+    3. Admin login (admin credentials): Authenticates as admin
 
     Request
     -------
     {
-        "userName": "John Doe",  // Required
-        "password": "secret"     // Optional, only checked in deployment mode
+        "userName": "JohnDoe",  // Optional, if not provided, generates guest username
+        "password": "secret"    // Optional, if provided, authenticates existing user
     }
 
     Response
     --------
     {
         "status": "ok",
-        "token": "eyJhbGc...",     // JWT token
-        "clientId": "uuid-string", // Server-generated client ID
-        "isAdmin": true            // Whether user has admin privileges
+        "token": "eyJhbGc...",  // JWT token
+        "userName": "JohnDoe",  // Actual username (may be generated)
+        "role": "guest"         // User role: "guest", "user", or "admin"
     }
     """
     from zndraw.auth import create_jwt_token
@@ -131,58 +141,416 @@ def login():
     user_name = data.get("userName")
     password = data.get("password")
 
-    if not user_name or not user_name.strip():
-        return {"error": "userName is required"}, 400
-
-    # Get admin service
     admin_service = current_app.extensions["admin_service"]
+    user_service = current_app.extensions["user_service"]
 
-    # Check admin credentials if in deployment mode
-    is_admin = False
-    if admin_service.is_deployment_mode():
-        # In deployment mode, validate password if provided
-        if password:
-            is_admin = admin_service.validate_admin_credentials(user_name, password)
-            # If password was provided but is wrong, reject the login
-            if not is_admin:
-                return {"error": "Invalid credentials"}, 401
-        # Users without password can log in as non-admin
-    else:
-        # In local mode, everyone is admin
-        is_admin = True
+    # CASE 1: Password provided - Authenticate existing user
+    if password:
+        if not user_name or not user_name.strip():
+            return {"error": "userName is required when password is provided"}, 400
 
-    # Generate server-side client ID
-    client_id = str(uuid.uuid4())
+        user_name = user_name.strip()
 
-    # Create JWT token
-    token = create_jwt_token(client_id, user_name)
+        # Check if admin credentials
+        is_admin_creds = admin_service.validate_admin_credentials(user_name, password)
 
-    # Store client metadata in Redis
-    r = current_app.extensions["redis"]
-    client_key = f"client:{client_id}"
-    current_time = datetime.datetime.utcnow().isoformat()
-    r.hset(
-        client_key,
-        mapping={
+        if is_admin_creds:
+            # Admin login via env vars
+            # Ensure admin user exists
+            if not user_service.username_exists(user_name):
+                user_service.create_user(user_name)
+                user_service.register_user(user_name, user_name, password)
+
+            # Grant admin privileges
+            admin_service.grant_admin(user_name)
+            user_service.update_last_login(user_name)
+
+            token = create_jwt_token(user_name, role="admin")
+            log.info(f"Admin '{user_name}' logged in")
+
+            return {
+                "status": "ok",
+                "token": token,
+                "userName": user_name,
+                "role": "admin",
+            }
+
+        # Not admin credentials - check regular user
+        if not user_service.username_exists(user_name):
+            return {"error": "Invalid username or password"}, 401
+
+        if not user_service.verify_password(user_name, password):
+            return {"error": "Invalid username or password"}, 401
+
+        # Valid user login
+        user_service.update_last_login(user_name)
+        is_admin = admin_service.is_admin(user_name)
+        role = user_service.get_user_role(user_name)
+
+        # In local mode, all users are admin; in deployment mode, check is_admin flag
+        final_role = "admin" if is_admin else role.value
+
+        token = create_jwt_token(user_name, role=final_role)
+        log.info(f"User '{user_name}' logged in")
+
+        return {
+            "status": "ok",
+            "token": token,
             "userName": user_name,
-            "createdAt": current_time,
-            "lastLogin": current_time,
-        },
-    )
+            "role": final_role,
+        }
 
-    # Grant admin privileges if applicable
-    if is_admin:
-        admin_service.grant_admin(client_id)
-        log.info(f"Admin user '{user_name}' logged in with client ID: {client_id}")
-    else:
-        log.info(f"User '{user_name}' logged in with client ID: {client_id} (non-admin)")
+    # CASE 2: No password - Guest login or existing user re-auth
+    if user_name and user_name.strip():
+        user_name = user_name.strip()
 
-    return {
-        "status": "ok",
-        "token": token,
-        "clientId": client_id,
-        "isAdmin": is_admin,
+        # Check if user exists
+        if user_service.username_exists(user_name):
+            # Existing user trying to login without password
+            # Only allow if they're a guest (no password set)
+            if user_service.is_registered(user_name):
+                return {"error": "Password required for registered users"}, 401
+
+            # Guest re-login
+            user_service.update_last_login(user_name)
+            is_admin = admin_service.is_admin(user_name)
+            role = user_service.get_user_role(user_name)
+
+            # In local mode, all users are admin
+            final_role = "admin" if is_admin else role.value
+
+            token = create_jwt_token(user_name, role=final_role)
+            log.info(f"Guest '{user_name}' logged in")
+
+            return {
+                "status": "ok",
+                "token": token,
+                "userName": user_name,
+                "role": final_role,
+            }
+        else:
+            # New user with chosen username (still guest)
+            try:
+                user_service.create_user(user_name)
+                is_admin = admin_service.is_admin(user_name)
+                role = user_service.get_user_role(user_name)
+
+                # In local mode, all users are admin
+                final_role = "admin" if is_admin else role.value
+
+                token = create_jwt_token(user_name, role=final_role)
+                log.info(f"New guest '{user_name}' created")
+
+                return {
+                    "status": "ok",
+                    "token": token,
+                    "userName": user_name,
+                    "role": final_role,
+                }
+            except ValueError as e:
+                return {"error": str(e)}, 400
+
+    # CASE 3: No username, no password - Generate anonymous guest
+    # Generate unique guest username
+    import secrets
+
+    for _ in range(10):  # Try up to 10 times
+        guest_name = f"user-{secrets.token_hex(4)}"
+        if not user_service.username_exists(guest_name):
+            user_service.create_user(guest_name)
+            is_admin = admin_service.is_admin(guest_name)
+            role = user_service.get_user_role(guest_name)
+
+            # In local mode, all users are admin
+            final_role = "admin" if is_admin else role.value
+
+            token = create_jwt_token(guest_name, role=final_role)
+            log.info(f"Anonymous guest '{guest_name}' created")
+
+            return {
+                "status": "ok",
+                "token": token,
+                "userName": guest_name,
+                "role": final_role,
+            }
+
+    return {"error": "Failed to generate unique username"}, 500
+
+
+@utility.route("/api/user/register", methods=["POST"])
+@require_auth
+def register_user():
+    """Register a guest user with chosen username and password.
+
+    Allows user to choose permanent username and set password.
+    Old guest username will be deleted.
+
+    Request
+    -------
+    {
+        "userName": "MyUsername",  // Required, desired username
+        "password": "mypassword"   // Required, no requirements
     }
+
+    Response
+    --------
+    {
+        "status": "ok",
+        "token": "new-jwt-token",  // New token with new username
+        "userName": "MyUsername",
+        "role": "user"
+    }
+    """
+    from zndraw.auth import create_jwt_token
+
+    try:
+        old_user_name = get_current_user()
+
+        data = request.get_json() or {}
+        new_user_name = data.get("userName")
+        password = data.get("password")
+
+        if not new_user_name:
+            return {"error": "userName is required"}, 400
+
+        if not password:
+            return {"error": "password is required"}, 400
+
+        user_service = current_app.extensions["user_service"]
+
+        # Register the user (may change username)
+        user_service.register_user(old_user_name, new_user_name.strip(), password)
+
+        # Get role after registration (will be 'user' now)
+        role = user_service.get_user_role(new_user_name.strip())
+
+        # Create new JWT token with new username and role
+        token = create_jwt_token(new_user_name.strip(), role=role.value)
+
+        return {
+            "status": "ok",
+            "token": token,
+            "userName": new_user_name.strip(),
+            "role": "user",
+        }
+
+    except ValueError as e:
+        return {"error": str(e), "type": "ValidationError"}, 400
+    except Exception as e:
+        log.error(f"Error registering user: {e}")
+        return {"error": "Registration failed", "type": "ServerError"}, 500
+
+
+@utility.route("/api/user/change-password", methods=["POST"])
+@require_auth
+def change_password():
+    """Change a user's password.
+
+    User must provide current password for verification.
+
+    Request
+    -------
+    {
+        "oldPassword": "current",  // Required
+        "newPassword": "new"       // Required
+    }
+
+    Response
+    --------
+    {
+        "status": "ok"
+    }
+    """
+    try:
+        user_name = get_current_user()
+
+        data = request.get_json() or {}
+        old_password = data.get("oldPassword")
+        new_password = data.get("newPassword")
+
+        if not old_password or not new_password:
+            return {"error": "oldPassword and newPassword are required"}, 400
+
+        user_service = current_app.extensions["user_service"]
+        user_service.change_password(user_name, old_password, new_password)
+
+        return {"status": "ok"}
+
+    except ValueError as e:
+        return {"error": str(e), "type": "ValidationError"}, 400
+    except Exception as e:
+        log.error(f"Error changing password: {e}")
+        return {"error": "Password change failed", "type": "ServerError"}, 500
+
+
+@utility.route("/api/user/role", methods=["GET"])
+@require_auth
+def get_user_role():
+    """Get the current user's role.
+
+    Response
+    --------
+    {
+        "userName": "Name",
+        "role": "guest" | "user" | "admin"
+    }
+    """
+    try:
+        user_name = get_current_user()
+
+        user_service = current_app.extensions["user_service"]
+        role = user_service.get_user_role(user_name)
+
+        return {
+            "userName": user_name,
+            "role": role.value,
+        }
+
+    except Exception as e:
+        log.error(f"Error getting user role: {e}")
+        return {"error": "Failed to get user role", "type": "ServerError"}, 500
+
+
+@utility.route("/api/admin/users", methods=["GET"])
+@require_admin
+def list_users():
+    """List all users (admin only).
+
+    Response
+    --------
+    {
+        "users": [
+            {
+                "userName": "Name",
+                "role": "guest" | "user" | "admin",
+                "createdAt": "2025-01-01T00:00:00",
+                "lastLogin": "2025-01-01T00:00:00"
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        user_service = current_app.extensions["user_service"]
+        users = user_service.list_all_users()
+
+        return {"users": users}
+
+    except Exception as e:
+        log.error(f"Error listing users: {e}")
+        return {"error": "Failed to list users", "type": "ServerError"}, 500
+
+
+@utility.route("/api/admin/users/<string:user_name>/promote", methods=["POST"])
+@require_admin
+def promote_user(user_name: str):
+    """Promote a user to admin (admin only).
+
+    Response
+    --------
+    {
+        "status": "ok",
+        "role": "admin"
+    }
+    """
+    try:
+        admin_service = current_app.extensions["admin_service"]
+        admin_service.grant_admin(user_name)
+
+        return {
+            "status": "ok",
+            "role": "admin",
+        }
+
+    except Exception as e:
+        log.error(f"Error promoting user: {e}")
+        return {"error": "Failed to promote user", "type": "ServerError"}, 500
+
+
+@utility.route("/api/admin/users/<string:user_name>/demote", methods=["POST"])
+@require_admin
+def demote_user(user_name: str):
+    """Demote an admin to user (admin only).
+
+    Response
+    --------
+    {
+        "status": "ok",
+        "role": "user"
+    }
+    """
+    try:
+        admin_service = current_app.extensions["admin_service"]
+        admin_service.revoke_admin(user_name)
+
+        return {
+            "status": "ok",
+            "role": "user",
+        }
+
+    except Exception as e:
+        log.error(f"Error demoting user: {e}")
+        return {"error": "Failed to demote user", "type": "ServerError"}, 500
+
+
+@utility.route("/api/admin/users/<string:user_name>/reset-password", methods=["POST"])
+@require_admin
+def admin_reset_password(user_name: str):
+    """Admin reset a user's password (admin only).
+
+    Request
+    -------
+    {
+        "newPassword": "newpass"  // Required
+    }
+
+    Response
+    --------
+    {
+        "status": "ok"
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        new_password = data.get("newPassword")
+
+        if not new_password:
+            return {"error": "newPassword is required"}, 400
+
+        user_service = current_app.extensions["user_service"]
+        user_service.reset_password(user_name, new_password)
+
+        return {"status": "ok"}
+
+    except ValueError as e:
+        return {"error": str(e), "type": "ValidationError"}, 400
+    except Exception as e:
+        log.error(f"Error resetting password: {e}")
+        return {"error": "Password reset failed", "type": "ServerError"}, 500
+
+
+@utility.route("/api/admin/users/<string:user_name>", methods=["DELETE"])
+@require_admin
+def delete_user(user_name: str):
+    """Delete a user (admin only).
+
+    Hard deletion - removes all user data.
+
+    Response
+    --------
+    {
+        "status": "ok"
+    }
+    """
+    try:
+        user_service = current_app.extensions["user_service"]
+        user_service.delete_user(user_name)
+
+        return {"status": "ok"}
+
+    except Exception as e:
+        log.error(f"Error deleting user: {e}")
+        return {"error": "Failed to delete user", "type": "ServerError"}, 500
 
 
 @utility.route("/assets/<path:filename>")
@@ -209,20 +577,26 @@ def disconnect_sid(client_sid: str):
     """Disconnect the client from the room.
 
     Args:
-        client_sid: Can be either a socket sid OR a client_id.
+        client_sid: Can be either a socket sid OR a userName.
                    We try both lookups to support both cases.
     """
     try:
         r = current_app.extensions["redis"]
 
-        # First, try to interpret client_sid as a client_id and get the socket sid
-        socket_sid = r.hget(f"client:{client_sid}", "currentSid")
+        # First, try to interpret client_sid as a userName and get the socket sid
+        socket_sid = r.hget(f"user:{client_sid}", "currentSid")
 
         if socket_sid:
             disconnect(socket_sid, namespace="/")
             return {"success": True}
-        else:
-            return {"success": False, "error": "Client not found or not connected"}
+
+        # Fallback: try to use client_sid directly as a socket sid
+        # Check if this sid exists (has a userName mapping)
+        if r.exists(f"sid:{client_sid}"):
+            disconnect(client_sid, namespace="/")
+            return {"success": True}
+
+        return {"success": False, "error": "Client not found or not connected"}
     except Exception as e:
         log.error(f"Error disconnecting client {client_sid}: {e}")
         return {"success": False, "error": str(e)}

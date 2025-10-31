@@ -41,22 +41,22 @@ def _get_len() -> dict:
 
 # --- Helper Functions ---
 def get_project_room_from_session(sid: str) -> t.Optional[str]:
-    """Finds the project room a client has joined from Redis using the new schema."""
+    """Finds the project room a user has joined from Redis."""
     r = current_app.extensions["redis"]
-    # Get clientId from sid
-    client_id = r.get(f"sid:{sid}")
-    if not client_id:
+    # Get userName from sid
+    user_name = r.get(f"sid:{sid}")
+    if not user_name:
         return None
-    # Get room from client data
-    room_name = r.hget(f"client:{client_id}", "currentRoom")
+    # Get room from user data
+    room_name = r.hget(f"user:{user_name}", "currentRoom")
     return room_name if room_name else None
 
 
-def get_client_id_from_sid(sid: str) -> t.Optional[str]:
-    """Gets the client_id for a given Socket.IO sid using the new schema."""
+def get_user_name_from_sid(sid: str) -> t.Optional[str]:
+    """Gets the userName for a given Socket.IO sid."""
     r = current_app.extensions["redis"]
-    client_id = r.get(f"sid:{sid}")
-    return client_id if client_id else None
+    user_name = r.get(f"sid:{sid}")
+    return user_name if user_name else None
 
 
 def get_lock_key(room: str, target: str) -> str:
@@ -91,97 +91,94 @@ def handle_connect(auth):
     # Validate JWT token
     try:
         payload = decode_jwt_token(token)
-        client_id = payload["sub"]
-        user_name = payload["userName"]
+        user_name = payload["sub"]  # userName is the primary identifier
     except AuthError as e:
         log.error(f"Client {sid} authentication failed: {e.message}")
         raise ConnectionRefusedError(e.message)
 
-    # Verify client exists in Redis
-    client_key = f"client:{client_id}"
-    if not r.exists(client_key):
-        log.error(f"Client {client_id} not found in Redis")
-        raise ConnectionRefusedError("Client not registered. Call /api/login first.")
+    # Verify user exists in Redis
+    user_key = f"user:{user_name}"
+    if not r.exists(user_key):
+        log.error(f"User {user_name} not found in Redis")
+        raise ConnectionRefusedError("User not registered. Call /api/login first.")
 
-    # Update client's current SID
+    # Update user's current SID
     r.hset(
-        client_key,
+        user_key,
         mapping={
             "currentSid": sid,
             "lastActivity": datetime.datetime.utcnow().isoformat(),
         },
     )
 
-    # Register SID → clientId mapping
-    r.set(f"sid:{sid}", client_id)
+    # Register SID → userName mapping
+    r.set(f"sid:{sid}", user_name)
 
-    # Get client's current room (if any)
-    current_room = r.hget(client_key, "currentRoom")
+    # Get user's current room (if any)
+    current_room = r.hget(user_key, "currentRoom")
 
     if current_room:
         # Rejoin room after reconnection
         join_room(f"room:{current_room}")
         join_room(f"user:{user_name}")
-        log.info(
-            f"Client {client_id} ({user_name}) reconnected to room {current_room} (sid: {sid})"
-        )
+        log.info(f"User {user_name} reconnected to room {current_room} (sid: {sid})")
     else:
-        log.info(
-            f"Client {client_id} ({user_name}) connected but not in any room yet (sid: {sid})"
-        )
+        log.info(f"User {user_name} connected but not in any room yet (sid: {sid})")
 
-    return {"status": "ok", "clientId": client_id}
+    return {"status": "ok", "userName": user_name}
 
 
 @socketio.on("disconnect")
 def handle_disconnect():
+    """Handle client disconnect.
+
+    Note: No parameters needed - Flask-SocketIO provides request.sid automatically.
+    The framework may pass arguments but we don't use them.
+    """
     sid = request.sid
     r = current_app.extensions["redis"]
 
-    # Get client_id from connection lookup
-    client_id = r.get(f"sid:{sid}")
+    # Get userName from connection lookup
+    user_name = r.get(f"sid:{sid}")
 
-    if not client_id:
-        log.info(f"Client disconnected: {sid} (no clientId found)")
+    if not user_name:
+        log.info(f"Client disconnected: {sid} (no userName found)")
         return
 
-    # Get client data
-    client_key = f"client:{client_id}"
-    user_name = r.hget(client_key, "userName")
-    room_name = r.hget(client_key, "currentRoom")
+    # Get user data
+    user_key = f"user:{user_name}"
+    room_name = r.hget(user_key, "currentRoom")
 
-    log.info(
-        f"Client disconnected: sid={sid}, clientId={client_id}, user={user_name}, room={room_name}"
-    )
+    log.info(f"User disconnected: sid={sid}, user={user_name}, room={room_name}")
 
     # Clean up connection lookup
     r.delete(f"sid:{sid}")
 
-    # Update client's currentSid to empty (client still exists but disconnected)
-    r.hset(client_key, "currentSid", "")
+    # Update user's currentSid to empty (user still exists but disconnected)
+    r.hset(user_key, "currentSid", "")
 
-    # Note: We don't remove the client from the room or delete client data
-    # The client may reconnect and rejoin the same room
-    # Only when a client explicitly joins a different room do we remove them from the old room
+    # Note: We don't remove the user from the room or delete user data
+    # The user may reconnect and rejoin the same room
+    # Only when a user explicitly joins a different room do we remove them from the old room
 
     if room_name:
         # Notify room that a user has disconnected (but not left)
         client_service = current_app.extensions["client_service"]
-        clients_in_room = client_service.get_room_clients(room_name)
+        users_in_room = client_service.get_room_users(room_name)
         emit(
             "room_clients_update",
-            {"clients": list(clients_in_room)},
+            {"clients": list(users_in_room)},
             to=f"room:{room_name}",
         )
     else:
-        log.info(f"Client {client_id} disconnected (was not in a room)")
+        log.info(f"User {user_name} disconnected (was not in a room)")
 
     # --- Existing Lock Cleanup Logic ---
     lock_keys = r.scan_iter("*:lock:*")
     for key in lock_keys:
         if r.get(key) == sid:
             log.warning(
-                f"Cleaning up orphaned lock '{key}' held by disconnected client {sid}"
+                f"Cleaning up orphaned lock '{key}' held by disconnected user {sid}"
             )
             r.delete(key)
 
@@ -195,33 +192,33 @@ def handle_disconnect():
 
             emit_room_update(socketio, room_name, skip_sid=sid, presenterSid=None)
 
-    # Extension cleanup - client_id is required (enforced by JWT auth)
-    if not client_id:
-        log.error(f"No client_id for sid {sid} during disconnect cleanup")
+    # Extension cleanup - workers are tracked by server's sid
+    if not sid:
+        log.error(f"No sid during disconnect cleanup")
         return
 
-    worker_id = client_id
+    worker_id = sid  # Workers are tracked by server's socket sid
     extension_categories = ["modifiers", "selections", "analysis"]
     log.info(
-        f"Cleaning up extensions for worker_id={worker_id} in room '{room_name}'..."
+        f"Cleaning up extensions for worker_id={worker_id} (user={user_name}) in room '{room_name}'..."
     )
 
     for category in extension_categories:
-        user_extensions_key = f"room:{room_name}:extensions:{category}:{worker_id}"
-        # This key tells us which extensions this worker_id was providing
-        user_extensions = list(r.smembers(user_extensions_key))
+        worker_extensions_key = f"room:{room_name}:extensions:{category}:{worker_id}"
+        # This key tells us which extensions this worker_id (sid) was providing
+        worker_extensions = list(r.smembers(worker_extensions_key))
 
-        if not user_extensions:
+        if not worker_extensions:
             continue
 
         log.info(
-            f"Worker {worker_id} was providing extensions in '{category}': {user_extensions}"
+            f"Worker {worker_id} was providing extensions in '{category}': {worker_extensions}"
         )
 
         extensions_to_delete = []
 
         with r.pipeline() as pipe:
-            for ext_name in user_extensions:
+            for ext_name in worker_extensions:
                 keys = ExtensionKeys.for_extension(room_name, category, ext_name)
                 idle_key = keys.idle_workers
                 progressing_key = keys.progressing_workers
@@ -238,7 +235,7 @@ def handle_disconnect():
             results = pipe.execute()
 
         # Iterate through the results to decide which extensions to delete
-        for i, ext_name in enumerate(user_extensions):
+        for i, ext_name in enumerate(worker_extensions):
             # Get the scard results for this extension
             remaining_idle = results[i * 4 + 2]
             remaining_progressing = results[i * 4 + 3]
@@ -278,13 +275,13 @@ def handle_disconnect():
                     pipe.hdel(keys.schema, ext_name)
                 pipe.execute()
 
-        # Clean up the user-specific reverse-lookup key
-        r.delete(user_extensions_key)
-        print(f"Cleaned up user-specific extension list: {user_extensions_key}")
+        # Clean up the worker-specific reverse-lookup key
+        r.delete(worker_extensions_key)
+        print(f"Cleaned up worker-specific extension list: {worker_extensions_key}")
 
         # Notify clients about worker count changes
         # We always invalidate if this worker had any extensions, not just when deleting
-        if user_extensions:
+        if worker_extensions:
             print(
                 f"Invalidating schema for category '{category}' in room '{room_name}' "
                 f"due to worker disconnect."
@@ -294,6 +291,117 @@ def handle_disconnect():
                 {"roomId": room_name, "category": category},
                 to=f"room:{room_name}",
             )
+
+
+@socketio.on("extension:register")
+def handle_extension_register(data):
+    """Register a worker extension via Socket.IO.
+
+    Using Socket.IO ensures request.sid is consistent for both registration
+    and disconnect cleanup.
+
+    Parameters
+    ----------
+    data : dict
+        {
+            "roomId": str,
+            "name": str,
+            "category": str,
+            "schema": dict
+        }
+    """
+    sid = request.sid
+    r = current_app.extensions["redis"]
+
+    try:
+        room_id = data["roomId"]
+        name = data["name"]
+        category = data["category"]
+        schema = data["schema"]
+    except KeyError as e:
+        return {"success": False, "error": f"Missing required field: {e}"}
+
+    # Get user name from sid
+    user_name = get_user_name_from_sid(sid)
+    if not user_name:
+        return {"success": False, "error": "Not authenticated"}
+
+    # Use request.sid as the worker_id - this is consistent across registration and disconnect
+    worker_id = sid
+
+    from zndraw.extensions.analysis import analysis
+    from zndraw.extensions.modifiers import modifiers
+    from zndraw.extensions.selections import selections
+    from zndraw.settings import settings
+
+    category_map = {
+        "selections": selections,
+        "modifiers": modifiers,
+        "settings": settings,
+        "analysis": analysis,
+    }
+
+    # Prevent overriding server-side extensions
+    if category in category_map and name in category_map[category]:
+        log.warning(
+            f"Blocked attempt to register extension '{name}' in category '{category}' "
+            f"- name conflicts with server-side extension (security violation)"
+        )
+        return {
+            "success": False,
+            "error": f"Cannot register extension '{name}': name is reserved for server-side extensions",
+        }
+
+    log.info(
+        f"Registering extension for room {room_id}: name={name}, category={category}, worker_id={worker_id}"
+    )
+
+    keys = ExtensionKeys.for_extension(room_id, category, name)
+    worker_extensions_key = ExtensionKeys.user_extensions_key(
+        room_id, category, worker_id
+    )
+    existing_schema = r.hget(keys.schema, name)
+
+    if existing_schema is not None:
+        existing_schema = json.loads(existing_schema)
+        if existing_schema != schema:
+            return {
+                "success": False,
+                "error": "Extension with this name already exists with a different schema",
+            }
+        r.sadd(keys.idle_workers, worker_id)
+        r.sadd(worker_extensions_key, name)
+
+        log.info(
+            f"Worker {worker_id} re-registered for extension '{name}' "
+            f"in category '{category}', invalidating schema"
+        )
+        socketio.emit(
+            SocketEvents.INVALIDATE_SCHEMA,
+            {"roomId": room_id, "category": category},
+            to=f"room:{room_id}",
+        )
+
+        return {
+            "success": True,
+            "workerId": worker_id,  # Return server's sid to client
+            "message": "Extension already registered with same schema. Worker marked as idle.",
+        }
+    else:
+        # Brand new extension
+        with r.pipeline() as pipe:
+            pipe.hset(keys.schema, name, json.dumps(schema))
+            pipe.sadd(keys.idle_workers, worker_id)
+            pipe.sadd(worker_extensions_key, name)
+            pipe.execute()
+
+        socketio.emit(
+            SocketEvents.INVALIDATE_SCHEMA,
+            {"roomId": room_id, "category": category},
+            to=f"room:{room_id}",
+        )
+
+        return {"success": True, "workerId": worker_id}  # Return server's sid to client
 
 
 @socketio.on("set_frame_atomic")
@@ -457,10 +565,10 @@ def acquire_lock(data):
     target = data.get("target")
     ttl = data.get("ttl", 60)  # Default to 60 seconds if not specified
     room = get_project_room_from_session(sid)
-    client_id = get_client_id_from_sid(sid)
+    user_name = get_user_name_from_sid(sid)
 
-    if not room or not target or not client_id:
-        return {"success": False, "error": "Room, target, or client_id missing"}
+    if not room or not target or not user_name:
+        return {"success": False, "error": "Room, target, or userName missing"}
 
     # Validate TTL - must not exceed 300 seconds (5 minutes)
     if not isinstance(ttl, (int, float)) or ttl <= 0:
@@ -469,19 +577,18 @@ def acquire_lock(data):
         return {"success": False, "error": "TTL cannot exceed 300 seconds (5 minutes)"}
 
     lock_key = get_lock_key(room, target)
-    # Store client_id in lock (not sid) so HTTP endpoints can verify
-    if r.set(lock_key, client_id, nx=True, ex=int(ttl)):
+    # Store userName in lock (not sid) so HTTP endpoints can verify
+    if r.set(lock_key, user_name, nx=True, ex=int(ttl)):
         log.debug(
-            f"Lock acquired for '{target}' in room '{room}' by client {client_id} (sid:{sid}) with TTL {ttl}s"
+            f"Lock acquired for '{target}' in room '{room}' by user {user_name} (sid:{sid}) with TTL {ttl}s"
         )
 
         # Broadcast lock acquisition to all clients
         # Only broadcast for trajectory:meta locks (the one used by vis.lock())
         if target == "trajectory:meta":
-            user_name = r.hget(f"client:{client_id}", "userName")
             lock_metadata = LockMetadata(
                 msg=None,  # No message yet (will be updated by lock:msg if provided)
-                userName=user_name or "unknown",
+                userName=user_name,
                 timestamp=datetime.datetime.utcnow().isoformat(),
             )
             emit_room_update(
@@ -492,7 +599,7 @@ def acquire_lock(data):
     else:
         lock_holder = r.get(lock_key)
         log.info(
-            f"Lock for '{target}' in room '{room}' already held by {lock_holder}, denied for {client_id} (sid:{sid})"
+            f"Lock for '{target}' in room '{room}' already held by {lock_holder}, denied for {user_name} (sid:{sid})"
         )
         return {"success": False}
 
@@ -503,15 +610,15 @@ def release_lock(data):
     r = current_app.extensions["redis"]
     target = data.get("target")
     room = get_project_room_from_session(sid)
-    client_id = get_client_id_from_sid(sid)
+    user_name = get_user_name_from_sid(sid)
 
-    if not room or not target or not client_id:
-        return {"success": False, "error": "Room, target, or client_id missing"}
+    if not room or not target or not user_name:
+        return {"success": False, "error": "Room, target, or userName missing"}
 
     lock_key = get_lock_key(room, target)
     lock_holder = r.get(lock_key)
-    # Compare with client_id (not sid) since that's what we store
-    if lock_holder == client_id:
+    # Compare with userName (not sid) since that's what we store
+    if lock_holder == user_name:
         # Delete lock AND metadata
         r.delete(lock_key)
         r.delete(f"{lock_key}:metadata")
@@ -520,12 +627,12 @@ def release_lock(data):
         emit_room_update(socketio, room, skip_sid=sid, metadataLocked=None)
 
         log.debug(
-            f"Lock released for '{target}' in room '{room}' by client {client_id} (sid:{sid})"
+            f"Lock released for '{target}' in room '{room}' by user {user_name} (sid:{sid})"
         )
         return {"success": True}
 
     log.warning(
-        f"Failed release: Lock for '{target}' in room '{room}' held by {lock_holder}, not by {client_id} (sid:{sid})"
+        f"Failed release: Lock for '{target}' in room '{room}' held by {lock_holder}, not by {user_name} (sid:{sid})"
     )
     return {"success": False}
 
@@ -538,10 +645,10 @@ def refresh_lock(data):
     target = data.get("target")
     ttl = data.get("ttl", 60)  # Default to 60 seconds if not specified
     room = get_project_room_from_session(sid)
-    client_id = get_client_id_from_sid(sid)
+    user_name = get_user_name_from_sid(sid)
 
-    if not room or not target or not client_id:
-        return {"success": False, "error": "Room, target, or client_id missing"}
+    if not room or not target or not user_name:
+        return {"success": False, "error": "Room, target, or userName missing"}
 
     # Validate TTL - must not exceed 300 seconds (5 minutes)
     if not isinstance(ttl, (int, float)) or ttl <= 0:
@@ -552,12 +659,12 @@ def refresh_lock(data):
     lock_key = get_lock_key(room, target)
     lock_holder = r.get(lock_key)
 
-    # Only refresh if the lock is held by this client (compare with client_id)
-    if lock_holder == client_id:
+    # Only refresh if the lock is held by this client (compare with userName)
+    if lock_holder == user_name:
         # Reset the TTL
         r.expire(lock_key, int(ttl))
         log.debug(
-            f"Lock refreshed for '{target}' in room '{room}' by client {client_id} (sid:{sid}) with TTL {ttl}s"
+            f"Lock refreshed for '{target}' in room '{room}' by user {user_name} (sid:{sid}) with TTL {ttl}s"
         )
         return {"success": True}
 
@@ -591,31 +698,27 @@ def update_lock_message(data):
     target = data.get("target")
     metadata = data.get("metadata", {})
     room = get_project_room_from_session(sid)
-    client_id = get_client_id_from_sid(sid)
+    user_name = get_user_name_from_sid(sid)
 
-    if not room or not target or not client_id:
+    if not room or not target or not user_name:
         return {"success": False, "error": "Missing required fields"}
 
     lock_key = get_lock_key(room, target)
     lock_holder = r.get(lock_key)
 
-    # Validate that this client actually holds the lock
-    if lock_holder != client_id:
+    # Validate that this user actually holds the lock
+    if lock_holder != user_name:
         log.warning(
-            f"Rejected lock:msg from {client_id}: lock for '{target}' held by {lock_holder}"
+            f"Rejected lock:msg from {user_name}: lock for '{target}' held by {lock_holder}"
         )
-        return {"success": False, "error": "Lock not held by this client"}
+        return {"success": False, "error": "Lock not held by this user"}
 
     # Store metadata with same TTL as lock
     metadata_key = f"{lock_key}:metadata"
 
-    # Get username for display
-    user_name = r.hget(f"client:{client_id}", "userName")
-
     # Store metadata
     metadata_with_user = {
-        "clientId": client_id,
-        "userName": user_name or "unknown",
+        "userName": user_name,
         "timestamp": datetime.datetime.utcnow().isoformat(),
         **metadata,
     }
@@ -675,13 +778,24 @@ def handle_join_room(data):
     if not room_id:
         return {"status": "error", "message": "roomId required"}
 
+    # Get userName from sid
+    r = current_app.extensions["redis"]
+    user_name = get_user_name_from_sid(sid)
+
+    if not user_name:
+        log.error(f"Cannot join room: userName not found for sid {sid}")
+        return {"status": "error", "message": "User not found"}
+
     # Leave overview if joined
     leave_room("overview:public")
 
-    # Join specific room
+    # Join specific room (Flask-SocketIO level)
     join_room(f"room:{room_id}")
 
-    log.debug(f"Client {sid} joined room:{room_id}")
+    # Update Redis to track which room this user is in
+    r.hset(f"user:{user_name}", "currentRoom", room_id)
+
+    log.debug(f"User {sid} (userName: {user_name}) joined room:{room_id}")
     return {"status": "joined", "room": f"room:{room_id}"}
 
 
@@ -721,18 +835,14 @@ def handle_chat_message_create(data):
     if not content or not isinstance(content, str):
         return {"success": False, "error": "Message content is required"}
 
-    # Get user ID from session using new schema: sid -> clientId -> userName
-    client_id = get_client_id_from_sid(sid)
-    if not client_id:
-        return {"success": False, "error": "Client not found"}
-
-    user_id = r.hget(f"client:{client_id}", "userName")
-    if not user_id:
+    # Get userName from session using new schema: sid -> userName
+    user_name = get_user_name_from_sid(sid)
+    if not user_name:
         return {"success": False, "error": "User not found"}
 
     try:
         # Create message using helper function
-        message = create_message(r, room, user_id, content)
+        message = create_message(r, room, user_name, content)
 
         # Emit to room (excluding sender)
         emit("chat:message:new", message, to=f"room:{room}", include_self=True)
@@ -768,13 +878,9 @@ def handle_chat_message_edit(data):
     if not content or not isinstance(content, str):
         return {"success": False, "error": "Message content is required"}
 
-    # Get user ID from session using new schema: sid -> clientId -> userName
-    client_id = get_client_id_from_sid(sid)
-    if not client_id:
-        return {"success": False, "error": "Client not found"}
-
-    user_id = r.hget(f"client:{client_id}", "userName")
-    if not user_id:
+    # Get userName from session using new schema: sid -> userName
+    user_name = get_user_name_from_sid(sid)
+    if not user_name:
         return {"success": False, "error": "User not found"}
 
     try:
@@ -784,7 +890,7 @@ def handle_chat_message_edit(data):
             return {"success": False, "error": "Message not found"}
 
         # Authorization check: verify user owns the message
-        if existing_message["author"]["id"] != user_id:
+        if existing_message["author"]["id"] != user_name:
             return {
                 "success": False,
                 "error": "You can only edit your own messages",

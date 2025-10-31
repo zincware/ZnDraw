@@ -95,7 +95,7 @@ export default function Arrow({
   const [instanceCount, setInstanceCount] = useState(0);
   const hasDisabledGeometryRef = useRef(false);
 
-  const { currentFrame, frameCount, roomId, clientId, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar, geometries, geometryUpdateSources } = useAppStore();
+  const { currentFrame, frameCount, roomId, userName, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar, geometries, geometryUpdateSources } = useAppStore();
 
   // Use geometry-specific selection
   const arrowSelection = selections[geometryKey] || [];
@@ -111,7 +111,7 @@ export default function Arrow({
     queryKey: ["frame", roomId, currentFrame, position],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [position as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof position === "string",
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof position === "string",
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -120,7 +120,7 @@ export default function Arrow({
     queryKey: ["frame", roomId, currentFrame, direction],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [direction as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof direction === "string",
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof direction === "string",
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -129,7 +129,7 @@ export default function Arrow({
     queryKey: ["frame", roomId, currentFrame, color],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [color as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof color === "string" && shouldFetchAsFrameData(color as string),
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof color === "string" && shouldFetchAsFrameData(color as string),
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -138,7 +138,7 @@ export default function Arrow({
     queryKey: ["frame", roomId, currentFrame, radius],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [radius as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof radius === "string",
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof radius === "string",
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -147,7 +147,7 @@ export default function Arrow({
     queryKey: ["frame", roomId, currentFrame, scale],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [scale as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof scale === "string",
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof scale === "string",
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -252,7 +252,7 @@ export default function Arrow({
 
   // Detect critical fetch failures and disable geometry
   useEffect(() => {
-    if (!roomId || !clientId || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
+    if (!roomId || !userName || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
       return;
     }
 
@@ -303,7 +303,7 @@ export default function Arrow({
     }
   }, [
     roomId,
-    clientId,
+    userName,
     geometryKey,
     frameCount,
     isFetching,
@@ -565,7 +565,7 @@ export default function Arrow({
     setDrawingIsValid(false);
   }, [setHoveredGeometryInstance, setDrawingIsValid]);
 
-  if (!clientId || !roomId) {
+  if (!userName || !roomId) {
     return null;
   }
 

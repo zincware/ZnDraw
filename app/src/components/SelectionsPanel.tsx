@@ -61,7 +61,7 @@ interface SelectionGroupRow {
 }
 
 export default function SelectionsPanel() {
-  const { roomId, userId, selections, selectionGroups, activeSelectionGroup, updateSelectionForGeometry, geometries, showSnackbar } =
+  const { roomId, userName, selections, selectionGroups, activeSelectionGroup, updateSelectionForGeometry, geometries, showSnackbar } =
     useAppStore();
 
   // Selection Groups state
@@ -104,7 +104,7 @@ export default function SelectionsPanel() {
     data: serverData,
     isLoading: isLoadingData,
     isError: isDataError,
-  } = useExtensionData(roomId!, userId!, panelTitle, selectedExtension || "");
+  } = useExtensionData(roomId!, userName!, panelTitle, selectedExtension || "");
 
   useEffect(() => {
     if (!isLoadingData && serverData !== undefined) {
@@ -118,16 +118,16 @@ export default function SelectionsPanel() {
   const debouncedSubmit = useMemo(
     () =>
       debounce((data: any) => {
-        if (!selectedExtension || !roomId || !userId) return;
+        if (!selectedExtension || !roomId || !userName) return;
         submit({
           roomId,
-          userId,
+          userName,
           category: panelTitle,
           extension: selectedExtension,
           data: data,
         });
       }, 100),
-    [selectedExtension, roomId, userId, submit],
+    [selectedExtension, roomId, userName, submit],
   );
 
   useEffect(() => {
@@ -153,10 +153,10 @@ export default function SelectionsPanel() {
   };
 
   const handleSubmit = () => {
-    if (!selectedExtension || !roomId || !userId) return;
+    if (!selectedExtension || !roomId || !userName) return;
     submit({
       roomId,
-      userId,
+      userName,
       category: panelTitle,
       extension: selectedExtension,
       data: localFormData,
@@ -520,7 +520,7 @@ export default function SelectionsPanel() {
     }
   }, [roomId, groupToDelete, showSnackbar]);
 
-  if (!roomId || !userId) {
+  if (!roomId || !userName) {
     return <Typography sx={{ p: 2 }}>Joining room...</Typography>;
   }
 

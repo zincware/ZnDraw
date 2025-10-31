@@ -6,7 +6,7 @@ import typing as t
 def create_message(
     redis_client,
     room_id: str,
-    author_user_id: str,
+    author_user_name: str,
     content: str,
 ) -> dict:
     """Create and store a new chat message.
@@ -14,7 +14,7 @@ def create_message(
     Args:
         redis_client: Redis client instance
         room_id: Room identifier
-        author_user_id: User ID of the author
+        author_user_name: Username of the message author
         content: Message content (supports markdown)
 
     Returns:
@@ -30,7 +30,7 @@ def create_message(
     message = {
         "id": message_id,
         "roomId": room_id,
-        "author": {"id": author_user_id},
+        "author": {"id": author_user_name},
         "content": content,
         "createdAt": timestamp,
         "updatedAt": timestamp,

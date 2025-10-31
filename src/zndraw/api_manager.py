@@ -11,23 +11,23 @@ from zndraw.storage import decode_data, encode_data
 class APIManager:
     url: str
     room: str
-    client_id: str | None = None
+    user_name: str | None = None
     jwt_token: str | None = None
 
-    def login(self, user_name: str, password: str | None = None) -> dict:
+    def login(self, user_name: str | None, password: str | None = None) -> dict:
         """Authenticate and get JWT token.
 
         Parameters
         ----------
-        user_name : str
-            Username for authentication
+        user_name : str | None
+            Username for authentication. If None, server assigns a guest username.
         password : str | None
             Optional password for admin authentication (deployment mode only)
 
         Returns
         -------
         dict
-            {"status": str, "token": str, "clientId": str, "isAdmin": bool}
+            {"status": str, "token": str, "userName": str, "role": str}
 
         Raises
         ------
@@ -46,7 +46,7 @@ class APIManager:
         data = response.json()
         # Update internal state
         self.jwt_token = data["token"]
-        self.client_id = data["clientId"]
+        self.user_name = data["userName"]
         return data
 
     def _raise_for_error_type(self, response: requests.Response) -> None:
@@ -110,7 +110,7 @@ class APIManager:
             copy_from: Optional room ID to copy frames and settings from (only used if room is created)
 
         Returns:
-            Dict containing room information (userId comes from JWT token)
+            Dict containing room information (userName comes from JWT token)
         """
         payload = {}
 
@@ -171,23 +171,47 @@ class APIManager:
         response.raise_for_status()
 
     def register_extension(
-        self, name: str, category: str, schema: dict, client_id: str
+        self, name: str, category: str, schema: dict, socket_manager
     ) -> None:
-        headers = {}
-        if self.jwt_token:
-            headers["Authorization"] = f"Bearer {self.jwt_token}"
+        """Register extension via Socket.IO (not REST).
 
-        response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/extensions/register",
-            json={
+        This ensures worker_id (request.sid) is consistent between
+        registration and disconnect cleanup.
+
+        Parameters
+        ----------
+        name : str
+            Extension name
+        category : str
+            Extension category
+        schema : dict
+            JSON schema for the extension
+        socket_manager : SocketManager
+            Socket manager to use for the call
+        """
+        # Note: Don't check socket_manager.sio.connected here because during
+        # reconnection, _on_connect may fire before the client reports as fully
+        # connected. The sio.call() will fail with a clear error if not connected.
+
+        response = socket_manager.sio.call(
+            "extension:register",
+            {
+                "roomId": self.room,
                 "name": name,
                 "category": category,
                 "schema": schema,
-                "clientId": client_id,
             },
-            headers=headers,
+            timeout=10,
         )
-        response.raise_for_status()
+
+        if not response or not response.get("success"):
+            error = (
+                response.get("error", "Unknown error") if response else "No response"
+            )
+            raise RuntimeError(f"Extension registration failed: {error}")
+
+        # Return the worker_id assigned by server so caller can store it
+        return response.get("workerId")
 
     def get_frames(self, indices_or_slice, keys: list[str] | None = None) -> list[dict]:
         if isinstance(indices_or_slice, list):
@@ -242,9 +266,9 @@ class APIManager:
             params = {"action": action}
             params.update(kwargs)
 
-            # Add client_id if available (for lock checking)
-            if self.client_id:
-                params["client_id"] = self.client_id
+            # Add userName if available (for lock checking)
+            if self.user_name:
+                params["userName"] = self.user_name
 
             http_response = requests.post(
                 upload_url, data=packed_data, params=params, timeout=30
@@ -287,9 +311,9 @@ class APIManager:
             if index.step is not None:
                 params["step"] = index.step
 
-        # Add client_id if available (for lock checking)
-        if self.client_id:
-            params["client_id"] = self.client_id
+        # Add userName if available (for lock checking)
+        if self.user_name:
+            params["userName"] = self.user_name
 
         response = requests.delete(delete_url, params=params, timeout=30)
 

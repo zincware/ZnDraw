@@ -15,7 +15,14 @@ def test_rest_get_geometries(joined_room):
     assert response.status_code == 200
     data = response.json()
     assert "geometries" in data
-    assert set(data["geometries"]) == {"particles", "bonds", "curve", "cell", "floor", "constraints-fixed-atoms"}
+    assert set(data["geometries"]) == {
+        "particles",
+        "bonds",
+        "curve",
+        "cell",
+        "floor",
+        "constraints-fixed-atoms",
+    }
 
     # Test getting individual geometry - particles
     response = requests.get(f"{server}/api/rooms/{room}/geometries/particles")

@@ -8,14 +8,14 @@ from zndraw.auth import (
     create_jwt_token,
     decode_jwt_token,
     extract_token_from_request,
-    get_current_client,
+    get_current_user,
 )
 
 
 def test_create_jwt_token(app):
     """Test JWT token creation."""
     with app.app_context():
-        token = create_jwt_token("client-123", "TestUser")
+        token = create_jwt_token("TestUser", role="guest")
         assert token is not None
         assert isinstance(token, str)
 
@@ -23,11 +23,10 @@ def test_create_jwt_token(app):
 def test_decode_jwt_token(app):
     """Test JWT token decoding."""
     with app.app_context():
-        token = create_jwt_token("client-123", "TestUser")
+        token = create_jwt_token("TestUser", role="guest")
         payload = decode_jwt_token(token)
 
-        assert payload["sub"] == "client-123"
-        assert payload["userName"] == "TestUser"
+        assert payload["sub"] == "TestUser"
         assert "jti" in payload  # JWT ID present
 
 
@@ -43,7 +42,7 @@ def test_decode_token_with_wrong_secret_raises_error(app):
     with app.app_context():
         # Create token with different secret
         wrong_token = pyjwt.encode(
-            {"sub": "client-123", "userName": "TestUser"},
+            {"sub": "TestUser"},
             "wrong-secret-key",
             algorithm="HS256",
         )
@@ -73,31 +72,30 @@ def test_extract_token_from_request_no_header(app):
         assert token is None
 
 
-def test_get_current_client_with_valid_token(app):
-    """Test getting current client with valid JWT token."""
+def test_get_current_user_with_valid_token(app):
+    """Test getting current user with valid JWT token."""
     with app.app_context():
-        token = create_jwt_token("client-456", "JohnDoe")
+        token = create_jwt_token("JohnDoe", role="guest")
 
         with app.test_request_context(headers={"Authorization": f"Bearer {token}"}):
-            client = get_current_client()
+            user_name = get_current_user()
 
-            assert client["clientId"] == "client-456"
-            assert client["userName"] == "JohnDoe"
+            assert user_name == "JohnDoe"
 
 
-def test_get_current_client_without_token_raises_error(app):
+def test_get_current_user_without_token_raises_error(app):
     """Test that missing token raises AuthError."""
     with app.app_context():
         with app.test_request_context():
             with pytest.raises(AuthError, match="No authentication token provided"):
-                get_current_client()
+                get_current_user()
 
 
-def test_get_current_client_with_invalid_token_raises_error(app):
+def test_get_current_user_with_invalid_token_raises_error(app):
     """Test that invalid token raises AuthError."""
     with app.app_context():
         with app.test_request_context(
             headers={"Authorization": "Bearer invalid-token"}
         ):
             with pytest.raises(AuthError, match="Invalid token"):
-                get_current_client()
+                get_current_user()

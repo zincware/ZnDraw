@@ -18,29 +18,39 @@ def test_login_flow(server):
     # Verify response structure
     assert data["status"] == "ok"
     assert "token" in data
-    assert "clientId" in data
+    assert "userName" in data
+    assert "role" in data
     assert isinstance(data["token"], str)
     assert len(data["token"]) > 0
-    assert isinstance(data["clientId"], str)
+    assert data["userName"] == "test-user"
 
 
-def test_login_without_username_fails(server):
-    """Test that login without username returns 400."""
+def test_login_without_username_creates_anonymous_guest(server):
+    """Test that login without username creates anonymous guest user."""
     response = requests.post(f"{server}/api/login", json={})
 
-    assert response.status_code == 400
+    assert response.status_code == 200
     data = response.json()
-    assert "error" in data
-    assert data["error"] == "userName is required"
+    assert data["status"] == "ok"
+    assert "token" in data
+    assert "userName" in data
+    # Anonymous guest gets generated username like "user-abc123"
+    assert data["userName"].startswith("user-")
+    # In local mode (default), all users are admin
+    assert data["role"] == "admin"
 
 
-def test_login_with_empty_username_fails(server):
-    """Test that login with empty username returns 400."""
+def test_login_with_empty_username_creates_anonymous_guest(server):
+    """Test that login with empty/whitespace username creates anonymous guest."""
     response = requests.post(f"{server}/api/login", json={"userName": "   "})
 
-    assert response.status_code == 400
+    assert response.status_code == 200
     data = response.json()
-    assert "error" in data
+    assert data["status"] == "ok"
+    # Empty username is treated same as no username - generates guest user
+    assert data["userName"].startswith("user-")
+    # In local mode (default), all users are admin
+    assert data["role"] == "admin"
 
 
 def test_join_room_with_jwt_succeeds(server):
@@ -128,8 +138,8 @@ def test_websocket_connection_with_invalid_jwt_fails(server):
         sio.connect(server, auth={"token": "invalid-token"}, wait=True)
 
 
-def test_multiple_users_same_username_get_different_client_ids(server):
-    """Test that multiple logins with same username get different client IDs."""
+def test_multiple_logins_same_username_get_same_user(server):
+    """Test that multiple logins with same username get the same user identity."""
     username = "duplicate-user"
 
     # First login
@@ -142,9 +152,9 @@ def test_multiple_users_same_username_get_different_client_ids(server):
     assert response2.status_code == 200
     data2 = response2.json()
 
-    # Both should succeed but get different client IDs
-    assert data1["clientId"] != data2["clientId"]
-    assert data1["token"] != data2["token"]
+    # Both should succeed with same username but different tokens
+    assert data1["userName"] == data2["userName"] == username
+    assert data1["token"] != data2["token"]  # Different tokens (new JTI)
 
 
 def test_jwt_token_contains_correct_claims(server):
@@ -156,13 +166,12 @@ def test_jwt_token_contains_correct_claims(server):
     assert response.status_code == 200
     data = response.json()
     token = data["token"]
-    client_id = data["clientId"]
+    user_name = data["userName"]
 
     # Decode without verification to check claims
     payload = pyjwt.decode(token, options={"verify_signature": False})
 
-    assert payload["sub"] == client_id
-    assert payload["userName"] == username
+    assert payload["sub"] == user_name
     assert "jti" in payload  # JWT ID should be present
 
 
@@ -182,38 +191,38 @@ def test_python_client_auto_login(server):
     vis.socket.disconnect()
 
 
-def test_client_session_persists_in_redis(server, redis_client):
-    """Test that client session data is stored in Redis after login."""
+def test_user_session_persists_in_redis(server, redis_client):
+    """Test that user session data is stored in Redis after login."""
     username = "redis-test-user"
 
     # Login
     response = requests.post(f"{server}/api/login", json={"userName": username})
     assert response.status_code == 200
     data = response.json()
-    client_id = data["clientId"]
+    user_name = data["userName"]
 
-    # Check Redis for client session
-    client_key = f"client:{client_id}"
-    assert redis_client.exists(client_key) == 1
+    # Check Redis for user session
+    user_key = f"user:{user_name}"
+    assert redis_client.exists(user_key) == 1
 
     # Verify stored data
-    client_data = redis_client.hgetall(client_key)
-    assert client_data["userName"] == username
-    assert "createdAt" in client_data
-    assert "lastLogin" in client_data
+    user_data = redis_client.hgetall(user_key)
+    assert user_data["userName"] == username
+    assert "createdAt" in user_data
+    assert "lastLogin" in user_data
 
 
-def test_join_room_updates_redis_room_clients(server, redis_client):
-    """Test that joining a room adds client to room's client set in Redis."""
+def test_join_room_updates_redis_room_users(server, redis_client):
+    """Test that joining a room adds user to room's user set in Redis."""
     # Login and get headers
     headers = get_jwt_auth_headers(server, "room-joiner")
 
-    # Extract client ID from token (decode without verification)
+    # Extract username from token (decode without verification)
     import jwt as pyjwt
 
     token = headers["Authorization"].split(" ")[1]
     payload = pyjwt.decode(token, options={"verify_signature": False})
-    client_id = payload["sub"]
+    user_name = payload["sub"]
 
     # Join room
     room = "redis-room-test"
@@ -222,6 +231,6 @@ def test_join_room_updates_redis_room_clients(server, redis_client):
     )
     assert response.status_code == 200
 
-    # Verify client is in room's client set
-    room_clients_key = f"room:{room}:clients"
-    assert redis_client.sismember(room_clients_key, client_id) == 1
+    # Verify user is in room's user set
+    room_users_key = f"room:{room}:users"
+    assert redis_client.sismember(room_users_key, user_name) == 1

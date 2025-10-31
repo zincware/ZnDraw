@@ -334,7 +334,7 @@ export interface JoinRoomRequest {
 
 export interface JoinRoomResponse {
   status: string;
-  clientId: string;
+  userName: string;
   frameCount: number;
   roomId: string;
   template: string;
@@ -458,7 +458,7 @@ export interface Job {
   category: string;
   extension: string;
   data: any;
-  user_id: string;
+  userName: string;
   status: "queued" | "running" | "completed" | "failed";
   provider: string;
   created_at: string;
@@ -544,7 +544,7 @@ export const getFrames = async (
 export interface ChatMessage {
   id: string;
   content: string;
-  userId: string;
+  userName: string;
   userName: string;
   createdAt: number;
   updatedAt?: number;
@@ -637,7 +637,6 @@ export interface LockStatus {
   target: string;
   holder?: string;
   metadata?: {
-    clientId?: string;
     userName?: string;
     msg?: string;
     timestamp?: number;

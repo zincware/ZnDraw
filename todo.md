@@ -85,3 +85,4 @@ ValueError: Shape mismatch for key 'arrays.residuenames': existing shape (68,), 
 - [ ] drag and drop: ask for append, insert at cursor position (using virtual canvas, or so), or create a new room or even replace?
 - [ ] admin / register global users
 - [ ] auto-reconnect extensions
+- [ ] disallow selection / hover on fix atoms constraints

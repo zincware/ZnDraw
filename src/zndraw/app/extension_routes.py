@@ -5,7 +5,9 @@ Handles extension registration, worker status tracking, and extension discovery.
 
 import json
 import logging
+
 from flask import Blueprint, current_app, request
+
 from zndraw.server import socketio
 
 from .constants import SocketEvents
@@ -24,7 +26,7 @@ def register_extension(room_id: str):
         name = data["name"]
         category = data["category"]
         schema = data["schema"]
-        client_id = data["clientId"]
+        worker_id = data["userName"]  # Actually contains worker_id (sid) sent by client
     except KeyError as e:
         return {"error": f"Missing required field: {e}"}, 400
 
@@ -56,8 +58,8 @@ def register_extension(room_id: str):
     )
 
     keys = ExtensionKeys.for_extension(room_id, category, name)
-    user_extensions_key = ExtensionKeys.user_extensions_key(
-        room_id, category, client_id
+    worker_extensions_key = ExtensionKeys.user_extensions_key(
+        room_id, category, worker_id
     )
     existing_schema = redis_client.hget(keys.schema, name)
 
@@ -67,12 +69,14 @@ def register_extension(room_id: str):
             return {
                 "error": "Extension with this name already exists with a different schema"
             }, 400
-        redis_client.sadd(keys.idle_workers, client_id)
-        redis_client.sadd(user_extensions_key, name)  # Keep this for disconnect cleanup
+        redis_client.sadd(keys.idle_workers, worker_id)
+        redis_client.sadd(
+            worker_extensions_key, name
+        )  # Keep this for disconnect cleanup
 
         # Notify clients about worker count change
         log.info(
-            f"Worker {client_id} re-registered for extension '{name}' "
+            f"Worker {worker_id} re-registered for extension '{name}' "
             f"in category '{category}', invalidating schema"
         )
         socketio.emit(
@@ -83,7 +87,7 @@ def register_extension(room_id: str):
 
         # Check if there are queued tasks that this worker can handle
         # if room_id:  # Null check for type safety
-        #     dispatch_next_task(redis_client, socketio, client_id, room_id, category)
+        #     dispatch_next_task(redis_client, socketio, worker_id, room_id, category)
 
         return {
             "status": "success",
@@ -95,9 +99,9 @@ def register_extension(room_id: str):
             # Set the schema
             pipe.hset(keys.schema, name, json.dumps(schema))
             # Add the current worker to the set of idle workers for this extension
-            pipe.sadd(keys.idle_workers, client_id)
+            pipe.sadd(keys.idle_workers, worker_id)
             # Maintain the reverse mapping for easy cleanup on disconnect
-            pipe.sadd(user_extensions_key, name)
+            pipe.sadd(worker_extensions_key, name)
             pipe.execute()
 
         # Invalidate schema on all clients so they can see the new extension
@@ -109,7 +113,7 @@ def register_extension(room_id: str):
 
         # Check if there are queued tasks that this worker can handle
         # if room_id:  # Null check for type safety
-        #     dispatch_next_task(redis_client, socketio, client_id, room_id, category)
+        #     dispatch_next_task(redis_client, socketio, worker_id, room_id, category)
 
     return {"status": "success"}
 
@@ -120,14 +124,14 @@ def register_extension(room_id: str):
 )
 def log_room_extension(room_id: str, category: str, extension: str):
     """Submits a user extension action to create a job."""
-    from zndraw.auth import AuthError, get_current_client
+    from zndraw.auth import AuthError, get_current_user
+
     from .job_manager import JobManager
     from .queue_manager import emit_queue_update
 
     # Authenticate and get user from JWT token
     try:
-        client = get_current_client()
-        user_id = client["userName"]
+        user_name = get_current_user()
     except AuthError as e:
         return {"error": e.message}, e.status_code
 
@@ -176,7 +180,7 @@ def log_room_extension(room_id: str, category: str, extension: str):
 
     # Store the entire extension data as a JSON string
     redis_client.hset(
-        f"room:{room_id}:user:{user_id}:{category}", extension, json.dumps(data)
+        f"room:{room_id}:user:{user_name}:{category}", extension, json.dumps(data)
     )
 
     # Handle settings differently - no job queue, just update and notify
@@ -185,7 +189,7 @@ def log_room_extension(room_id: str, category: str, extension: str):
         socketio.emit(
             SocketEvents.INVALIDATE,
             {
-                "userId": user_id,
+                "userName": user_name,
                 "category": category,
                 "extension": extension,
                 "roomId": room_id,
@@ -193,7 +197,7 @@ def log_room_extension(room_id: str, category: str, extension: str):
             to=f"room:{room_id}",  # Broadcast to all users in room
         )
         log.info(
-            f"Updated settings for room {room_id}, user {user_id}: {extension} = {json.dumps(data)}"
+            f"Updated settings for room {room_id}, user {user_name}: {extension} = {json.dumps(data)}"
         )
         return {"status": "success", "message": "Settings updated"}, 200
 
@@ -201,7 +205,7 @@ def log_room_extension(room_id: str, category: str, extension: str):
 
     provider = "celery" if is_celery_extension else "client"
     job_id = JobManager.create_job(
-        redis_client, room_id, category, extension, data, user_id, provider
+        redis_client, room_id, category, extension, data, user_name, provider
     )
 
     queue_position = 0
@@ -216,7 +220,7 @@ def log_room_extension(room_id: str, category: str, extension: str):
             keys.queue,
             json.dumps(
                 {
-                    "user_id": user_id,
+                    "user_name": user_name,
                     "data": data,
                     "room": room_id,
                     "jobId": job_id,
@@ -225,7 +229,7 @@ def log_room_extension(room_id: str, category: str, extension: str):
             ),
         )
         log.info(
-            f"Queued Celery task for user {user_id}, category {category}, extension {extension}, room {room_id}, job {job_id}"
+            f"Queued Celery task for user {user_name}, category {category}, extension {extension}, room {room_id}, job {job_id}"
         )
         queue_position = redis_client.llen(keys.queue) - 1
 
@@ -245,11 +249,11 @@ def log_room_extension(room_id: str, category: str, extension: str):
         redis_client.rpush(
             keys.queue,
             json.dumps(
-                {"user_id": user_id, "data": data, "room": room_id, "jobId": job_id}
+                {"user_name": user_name, "data": data, "room": room_id, "jobId": job_id}
             ),
         )
         log.info(
-            f"Queued task for user {user_id}, category {category}, extension {extension}, room {room_id}, job {job_id}"
+            f"Queued task for user {user_name}, category {category}, extension {extension}, room {room_id}, job {job_id}"
         )
         queue_position = redis_client.llen(keys.queue) - 1  # Zero-indexed position
 
@@ -257,17 +261,17 @@ def log_room_extension(room_id: str, category: str, extension: str):
         emit_queue_update(redis_client, room_id, category, extension, socketio)
 
     log.info(
-        f"Emitting invalidate for user {user_id}, category {category}, extension {extension}, room {room_id} to user:{user_id}"
+        f"Emitting invalidate for user {user_name}, category {category}, extension {extension}, room {room_id} to user:{user_name}"
     )
     socketio.emit(
         SocketEvents.INVALIDATE,
         {
-            "userId": user_id,
+            "userName": user_name,
             "category": category,
             "extension": extension,
             "roomId": room_id,
         },
-        to=f"user:{user_id}",
+        to=f"user:{user_name}",
     )
     return {"status": "success", "queuePosition": queue_position, "jobId": job_id}, 200
 
@@ -278,22 +282,21 @@ def log_room_extension(room_id: str, category: str, extension: str):
 )
 def get_extension_data(room_id: str, category: str, extension: str):
     """Gets the cached data for a user's extension."""
-    from zndraw.auth import AuthError, get_current_client
+    from zndraw.auth import AuthError, get_current_user
 
     # Authenticate and get user from JWT token
     try:
-        client = get_current_client()
-        user_id = client["userName"]
+        user_name = get_current_user()
     except AuthError as e:
         return {"error": e.message}, e.status_code
 
     log.info(
-        f"get_extension_data called with userId={user_id}, category={category}, extension={extension} for room {room_id}"
+        f"get_extension_data called with userName={user_name}, category={category}, extension={extension} for room {room_id}"
     )
 
     redis_client = current_app.extensions["redis"]
     extension_data = redis_client.hget(
-        f"room:{room_id}:user:{user_id}:{category}", extension
+        f"room:{room_id}:user:{user_name}:{category}", extension
     )
     if extension_data is None:
         return {"data": None}, 200
@@ -438,7 +441,9 @@ def get_room_extensions_overview(room_id: str):
                 historical_extensions.add(ext_name)
 
         # Combine all three sets of extensions
-        all_extension_names = set(client_extensions) | server_extensions | historical_extensions
+        all_extension_names = (
+            set(client_extensions) | server_extensions | historical_extensions
+        )
 
         for ext_name in all_extension_names:
             # Search filter
@@ -660,7 +665,9 @@ def get_extension_detailed_analytics(room_id: str, category: str, extension: str
         }
     """
     from datetime import datetime
+
     from dateutil.parser import isoparse
+
     from .analytics import aggregate_job_stats, get_daily_stats
 
     redis_client = current_app.extensions["redis"]
@@ -720,5 +727,3 @@ def get_extension_detailed_analytics(room_id: str, category: str, extension: str
         },
         "error_breakdown": total_stats.error_breakdown,
     }
-
-

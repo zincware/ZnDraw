@@ -23,13 +23,13 @@ def test_auto_discovery_with_running_server():
                 mock_login.return_value = {
                     "status": "success",
                     "token": "test-jwt-token",
-                    "clientId": "test-client",
+                    "userName": "test-user",
+                    "role": "guest",
                 }
 
                 with patch("zndraw.api_manager.APIManager.join_room") as mock_join:
                     mock_join.return_value = {
-                        "clientId": "test-client",
-                        "joinToken": "test-token",
+                        "userName": "test-user",
                         "selection": None,
                         "frame_selection": None,
                         "bookmarks": {},
@@ -66,13 +66,13 @@ def test_explicit_url_bypasses_discovery():
                 mock_login.return_value = {
                     "status": "success",
                     "token": "test-jwt-token",
-                    "clientId": "test-client",
+                    "userName": "test-user",
+                    "role": "guest",
                 }
 
                 with patch("zndraw.api_manager.APIManager.join_room") as mock_join:
                     mock_join.return_value = {
-                        "clientId": "test-client",
-                        "joinToken": "test-token",
+                        "userName": "test-user",
                         "selection": None,
                         "frame_selection": None,
                         "bookmarks": {},

@@ -29,8 +29,8 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     setActiveSelectionGroup,
     setBookmarks,
     roomId: appStoreRoomId,
-    userId,
-    setUserId,
+    userName,
+    setUserName,
     setGeometries,
     updateGeometry,
     removeGeometry,
@@ -73,7 +73,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     }
 
     async function onConnect() {
-      console.log("Socket connected and joining room:", roomId, userId);
+      console.log("=== Socket connected ===");
+      console.log("  roomId:", roomId);
+      console.log("  userName:", userName);
+      console.log("  isOverview:", isOverview);
 
       try {
         // Fetch server version
@@ -100,14 +103,16 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
         // Join appropriate room based on page
         if (isOverview) {
-          console.log("Joining overview:public");
+          console.log("  → Emitting join:overview");
           socket.emit("join:overview");
         } else if (roomId) {
-          console.log(`Joining room:${roomId}`);
+          console.log(`  → Emitting join:room with roomId: ${roomId}`);
           socket.emit("join:room", { roomId });
           // Reset chat unread count when entering a room
           useAppStore.getState().resetChatUnread();
-          }
+        } else {
+          console.log("  ⚠️  No roomId available, NOT joining any room!");
+        }
 
         setConnected(true);
       } catch (error) {
@@ -127,12 +132,12 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     }
 
     function onInvalidate(data: any) {
-      const { roomId, userId, category, extension } = data;
+      const { roomId, userName, category, extension } = data;
       queryClient.invalidateQueries({
-        queryKey: ["extensionData", roomId, userId, category, extension],
+        queryKey: ["extensionData", roomId, userName, category, extension],
       });
       console.log(
-        `Invalidated extension data for user ${userId}, category ${category}, extension ${extension} in room ${roomId}`,
+        `Invalidated extension data for user ${userName}, category ${category}, extension ${extension} in room ${roomId}`,
       );
     }
 
@@ -489,7 +494,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
         if (updates.metadataLocked) {
           setLockMetadata({
             locked: true,
-            holder: updates.metadataLocked.clientId,
+            holder: updates.metadataLocked.userName,
             userName: updates.metadataLocked.userName,
             msg: updates.metadataLocked.msg,
             timestamp: updates.metadataLocked.timestamp,
@@ -562,12 +567,12 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
         // Force a new login
         try {
           const loginData = await login();
-          console.log(`Re-login successful with new client: ${loginData.clientId}`);
+          console.log(`Re-login successful with new user: ${loginData.userName}`);
 
           // Update store with new username
           const newUsername = getUsername();
           if (newUsername) {
-            setUserId(newUsername);
+            setUserName(newUsername);
           }
 
           // Reset retry count on successful login
@@ -582,6 +587,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       }
     }
 
+    // Register event handlers FIRST before connecting
     socket.on("disconnect", onDisconnect);
     socket.on("connect", onConnect);
     socket.on("connect_error", onConnectError);
@@ -602,11 +608,24 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     socket.on("room:delete", onRoomDelete);
 
     // Ensure user is authenticated before connecting socket
-    // This will auto-login with a UUID-based username if no token exists
+    // This will auto-login with a server-generated username if no token exists
     ensureAuthenticated()
       .then(() => {
-        console.log("Authentication verified, connecting socket");
-        socket.connect();
+        console.log("Authentication verified, userName:", userName, "roomId:", roomId);
+        // Force disconnect/reconnect when userName changes to ensure clean state
+        if (socket.connected) {
+          console.log("Socket already connected, disconnecting to refresh...");
+          // Disconnect synchronously
+          socket.disconnect();
+          // Small delay to ensure disconnect completes
+          setTimeout(() => {
+            console.log("Reconnecting socket with new userName:", userName);
+            socket.connect();
+          }, 100);
+        } else {
+          console.log("Socket not connected, connecting...");
+          socket.connect();
+        }
       })
       .catch((error) => {
         console.error("Authentication failed:", error);
@@ -643,7 +662,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     };
   }, [
     roomId,
-    userId,
+    userName,
     isOverview,
     setConnected,
     setFrameCount,

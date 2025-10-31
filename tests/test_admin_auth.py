@@ -63,9 +63,10 @@ def test_login_local_mode_all_users_admin(app_local_mode):
     data = response.get_json()
 
     assert data["status"] == "ok"
-    assert data["isAdmin"] is True
+    assert data["role"] == "admin"
     assert "token" in data
-    assert "clientId" in data
+    assert "userName" in data
+    assert data["userName"] == "John Doe"
 
 
 def test_login_deployment_mode_admin_credentials(app_deployment_mode):
@@ -80,7 +81,7 @@ def test_login_deployment_mode_admin_credentials(app_deployment_mode):
     data = response.get_json()
 
     assert data["status"] == "ok"
-    assert data["isAdmin"] is True
+    assert data["role"] == "admin"
     assert "token" in data
 
 
@@ -96,7 +97,7 @@ def test_login_deployment_mode_wrong_credentials(app_deployment_mode):
     data = response.get_json()
 
     assert "error" in data
-    assert data["error"] == "Invalid credentials"
+    assert data["error"] == "Invalid username or password"
 
 
 def test_login_deployment_mode_non_admin_user(app_deployment_mode):
@@ -109,7 +110,7 @@ def test_login_deployment_mode_non_admin_user(app_deployment_mode):
     data = response.get_json()
 
     assert data["status"] == "ok"
-    assert data["isAdmin"] is False
+    assert data["role"] == "guest"
     assert "token" in data
 
 
@@ -178,12 +179,16 @@ def test_shutdown_deployment_mode_non_admin_forbidden(app_deployment_mode):
     assert "Admin access required" in data["error"]
 
 
-def test_login_missing_username(app_local_mode):
-    """Test login fails without username."""
+def test_login_missing_username_creates_anonymous_guest(app_local_mode):
+    """Test login without username creates anonymous guest."""
     client = app_local_mode.test_client()
 
     response = client.post("/api/login", json={})
-    assert response.status_code == 400
+    assert response.status_code == 200
     data = response.get_json()
-    assert "error" in data
-    assert "userName" in data["error"]
+    assert data["status"] == "ok"
+    # Anonymous guest gets auto-generated username
+    assert "userName" in data
+    assert data["userName"].startswith("user-")
+    # In local mode, all users are admin
+    assert data["role"] == "admin"

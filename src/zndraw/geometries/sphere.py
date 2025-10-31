@@ -29,7 +29,9 @@ class Sphere(BaseGeometry):
             "color",
             ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"],
         )
-        apply_schema_feature(schema, "radius", ["dynamic-atom-props", "editable-array", "transform"])
+        apply_schema_feature(
+            schema, "radius", ["dynamic-atom-props", "editable-array", "transform"]
+        )
         apply_schema_feature(
             schema,
             "color",

@@ -34,7 +34,7 @@ import { useFrameLoadTime } from "../hooks/useFrameLoadTime";
 
 // The main scene component
 function MyScene() {
-  const { roomId, userId, geometries, activeCurveForDrawing, setActiveCurveForDrawing, attachedCameraKey, snackbar, hideSnackbar } = useAppStore();
+  const { roomId, userName, geometries, activeCurveForDrawing, setActiveCurveForDrawing, attachedCameraKey, snackbar, hideSnackbar } = useAppStore();
   const theme = useTheme();
 
   // Track frame load time when not playing
@@ -45,21 +45,21 @@ function MyScene() {
 
   const { data: studioLightingSettings } = useExtensionData(
     roomId || "",
-    userId || "",
+    userName || "",
     "settings",
     "studio_lighting",
   );
 
   const { data: cameraSettings } = useExtensionData(
     roomId || "",
-    userId || "",
+    userName || "",
     "settings",
     "camera",
   );
 
   const { data: pathtracingSettings } = useExtensionData(
     roomId || "",
-    userId || "",
+    userName || "",
     "settings",
     "pathtracing",
   );

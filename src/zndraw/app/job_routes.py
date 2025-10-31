@@ -5,11 +5,14 @@ Handles job listing, status updates, and worker job polling.
 
 import json
 import logging
+
 from flask import Blueprint, current_app, request
+
 from zndraw.server import socketio
-from .redis_keys import ExtensionKeys
+
 from .job_manager import JobManager
 from .queue_manager import emit_queue_update
+from .redis_keys import ExtensionKeys
 
 log = logging.getLogger(__name__)
 
@@ -203,11 +206,7 @@ def update_job_status(room_id: str, job_id: str):
             extension_name = job.get("extension", "unknown")
             error_message = f"❌ Error in {extension_name}: {error}"
             send_message_to_room(
-                redis_client,
-                socketio,
-                room_id,
-                error_message,
-                worker_id or "system"
+                redis_client, socketio, room_id, error_message, worker_id or "system"
             )
         except Exception as e:
             log.warning(f"Failed to log error to client UI: {e}")
@@ -396,6 +395,3 @@ def get_next_job(room_id: str):
             exc_info=True,
         )
         return {"error": f"Internal server error: {str(e)}"}, 500
-
-
-

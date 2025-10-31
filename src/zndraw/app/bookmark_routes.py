@@ -4,7 +4,9 @@ Handles CRUD operations for frame bookmarks.
 """
 
 import logging
+
 from flask import Blueprint, current_app, request
+
 from zndraw.server import socketio
 
 from .constants import SocketEvents
@@ -90,7 +92,9 @@ def set_bookmark(room_id: str, index: int):
     return {"status": "success"}, 200
 
 
-@bookmarks.route("/api/rooms/<string:room_id>/bookmarks/<int:index>", methods=["DELETE"])
+@bookmarks.route(
+    "/api/rooms/<string:room_id>/bookmarks/<int:index>", methods=["DELETE"]
+)
 def delete_bookmark(room_id: str, index: int):
     """Delete a bookmark at a specific frame index."""
     r = current_app.extensions["redis"]

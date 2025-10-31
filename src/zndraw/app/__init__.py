@@ -1,11 +1,21 @@
 from . import events  # noqa: E402
-from .utility_routes import utility
-from .frame_routes import frames
-from .room_routes import rooms
-from .extension_routes import extensions
-from .job_routes import jobs
-from .geometry_routes import geometries
 from .bookmark_routes import bookmarks
+from .extension_routes import extensions
+from .frame_routes import frames
+from .geometry_routes import geometries
+from .job_routes import jobs
+from .room_routes import rooms
 from .screenshot_chat_routes import media
+from .utility_routes import utility
 
-__all__ = ["events", "utility", "frames", "rooms", "extensions", "jobs", "geometries", "bookmarks", "media"]
+__all__ = [
+    "events",
+    "utility",
+    "frames",
+    "rooms",
+    "extensions",
+    "jobs",
+    "geometries",
+    "bookmarks",
+    "media",
+]

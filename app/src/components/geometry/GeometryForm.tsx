@@ -32,7 +32,7 @@ import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
 const GeometryForm = () => {
   const { roomId, geometries, geometryDefaults } = useAppStore();
-  const clientId = null; // we don't want to skip when saving the current clientId, so undefined
+  const userName = null; // we don't want to skip when saving the current userName, so undefined
   const {
     mode,
     selectedKey,

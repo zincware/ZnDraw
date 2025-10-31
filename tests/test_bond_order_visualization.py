@@ -14,8 +14,7 @@ def test_bond_order_type_compatibility():
     """Test that Bond geometry accepts various bond order values."""
     # Test with ignore mode (default)
     bond_ignore = Bond(
-        connectivity=[[0, 1, 1], [1, 2, 2], [2, 3, 3]],
-        bond_order_mode="ignore"
+        connectivity=[[0, 1, 1], [1, 2, 2], [2, 3, 3]], bond_order_mode="ignore"
     )
     assert bond_ignore.bond_order_mode == "ignore"
     assert bond_ignore.bond_order_offset == 3
@@ -24,7 +23,7 @@ def test_bond_order_type_compatibility():
     bond_parallel = Bond(
         connectivity=[[0, 1, 1.5], [1, 2, 2.0], [2, 3, 3]],
         bond_order_mode="parallel",
-        bond_order_offset=0.2
+        bond_order_offset=0.2,
     )
     assert bond_parallel.bond_order_mode == "parallel"
     assert bond_parallel.bond_order_offset == 0.2
@@ -47,13 +46,16 @@ def test_bond_order_null_handling():
     assert bond.connectivity == [(0.0, 1.0, None), (1.0, 2.0, 2.0)]
 
 
-@pytest.mark.parametrize("bond_order,expected_cylinders", [
-    (1, 1),      # Single bond
-    (1.5, 2),    # Aromatic bond
-    (2, 2),      # Double bond
-    (3, 3),      # Triple bond
-    (None, 1),   # Null defaults to single
-])
+@pytest.mark.parametrize(
+    "bond_order,expected_cylinders",
+    [
+        (1, 1),  # Single bond
+        (1.5, 2),  # Aromatic bond
+        (2, 2),  # Double bond
+        (3, 3),  # Triple bond
+        (None, 1),  # Null defaults to single
+    ],
+)
 def test_bond_order_cylinder_counts(bond_order, expected_cylinders):
     """Test that different bond orders produce correct cylinder counts."""
     # This tests the logical behavior, actual rendering is in frontend
@@ -69,14 +71,16 @@ def test_bond_with_mixed_orders(server):
     # Create a molecule with different bond types
     # Positions: C-C=C≡C (single, double, triple)
     atoms = ase.Atoms(
-        "C4",
-        positions=[[0, 0, 0], [1.5, 0, 0], [3.0, 0, 0], [4.2, 0, 0]]
+        "C4", positions=[[0, 0, 0], [1.5, 0, 0], [3.0, 0, 0], [4.2, 0, 0]]
     )
-    atoms.info["connectivity"] = np.array([
-        [0, 1, 1],    # C-C single bond
-        [1, 2, 2],    # C=C double bond
-        [2, 3, 3],    # C≡C triple bond
-    ], dtype=np.float32)
+    atoms.info["connectivity"] = np.array(
+        [
+            [0, 1, 1],  # C-C single bond
+            [1, 2, 2],  # C=C double bond
+            [2, 3, 3],  # C≡C triple bond
+        ],
+        dtype=np.float32,
+    )
 
     vis.append(atoms)
     vis.socket.sio.sleep(0.5)
@@ -86,7 +90,7 @@ def test_bond_with_mixed_orders(server):
         connectivity="info.connectivity",
         bond_order_mode="parallel",
         bond_order_offset=0.15,
-        scale=0.15
+        scale=0.15,
     )
     vis.socket.sio.sleep(0.5)
 
@@ -104,27 +108,32 @@ def test_bond_aromatic_visualization(server):
     atoms = ase.Atoms(
         "C6",
         positions=[
-            [0, 0, 0], [1, 0, 0], [1.5, 0.866, 0],
-            [1, 1.732, 0], [0, 1.732, 0], [-0.5, 0.866, 0]
-        ]
+            [0, 0, 0],
+            [1, 0, 0],
+            [1.5, 0.866, 0],
+            [1, 1.732, 0],
+            [0, 1.732, 0],
+            [-0.5, 0.866, 0],
+        ],
     )
-    atoms.info["connectivity"] = np.array([
-        [0, 1, 1.5],  # Aromatic bonds
-        [1, 2, 1.5],
-        [2, 3, 1.5],
-        [3, 4, 1.5],
-        [4, 5, 1.5],
-        [5, 0, 1.5],
-    ], dtype=np.float32)
+    atoms.info["connectivity"] = np.array(
+        [
+            [0, 1, 1.5],  # Aromatic bonds
+            [1, 2, 1.5],
+            [2, 3, 1.5],
+            [3, 4, 1.5],
+            [4, 5, 1.5],
+            [5, 0, 1.5],
+        ],
+        dtype=np.float32,
+    )
 
     vis.append(atoms)
     vis.socket.sio.sleep(0.5)
 
     # Configure with parallel mode
     vis.geometries["bonds"] = Bond(
-        connectivity="info.connectivity",
-        bond_order_mode="parallel",
-        scale=0.12
+        connectivity="info.connectivity", bond_order_mode="parallel", scale=0.12
     )
     vis.socket.sio.sleep(0.5)
 
@@ -146,8 +155,7 @@ def test_bond_order_ignore_mode(server):
 
     # Set ignore mode (default)
     vis.geometries["bonds"] = Bond(
-        connectivity="info.connectivity",
-        bond_order_mode="ignore"
+        connectivity="info.connectivity", bond_order_mode="ignore"
     )
     vis.socket.sio.sleep(0.5)
 
@@ -170,7 +178,7 @@ def test_bond_order_custom_offset(server):
         connectivity="info.connectivity",
         bond_order_mode="parallel",
         bond_order_offset=0.3,  # Wider spacing
-        scale=0.15
+        scale=0.15,
     )
     vis.socket.sio.sleep(0.5)
 
@@ -193,7 +201,7 @@ def test_bond_order_custom_radius_scale(server):
     vis.geometries["bonds"] = Bond(
         connectivity="info.connectivity",
         bond_order_mode="parallel",
-        bond_order_radius_scale=custom_scales
+        bond_order_radius_scale=custom_scales,
     )
     vis.socket.sio.sleep(0.5)
 
@@ -211,7 +219,7 @@ def test_bond_order_rest_api(joined_room):
         "connectivity": "info.connectivity",
         "bond_order_mode": "parallel",
         "bond_order_offset": 0.2,
-        "scale": 0.15
+        "scale": 0.15,
     }
 
     response = requests.post(

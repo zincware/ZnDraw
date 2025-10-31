@@ -775,6 +775,7 @@ def test_extension_history_persists_after_client_disconnect(server, redis_client
 
     # Give a moment for the disconnect handler to complete
     import time
+
     time.sleep(0.1)
 
     # Verify the schema is deleted after disconnect

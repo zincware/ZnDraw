@@ -51,7 +51,7 @@ export default function Sphere({
   geometryKey: string;
   pathtracingEnabled?: boolean;
 }) {
-  const { geometryDefaults, currentFrame, frameCount, roomId, clientId, selections, updateSelections, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, hoveredGeometryInstance, setHoveredGeometryInstance, setParticleCount, requestPathtracingUpdate, updateGeometry, showSnackbar, geometries, geometryUpdateSources } = useAppStore();
+  const { geometryDefaults, currentFrame, frameCount, roomId, userName, selections, updateSelections, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, hoveredGeometryInstance, setHoveredGeometryInstance, setParticleCount, requestPathtracingUpdate, updateGeometry, showSnackbar, geometries, geometryUpdateSources } = useAppStore();
 
   // Merge with defaults from Pydantic (single source of truth)
   const fullData = getGeometryWithDefaults<SphereData>(data, "Sphere", geometryDefaults);
@@ -109,7 +109,7 @@ export default function Sphere({
     queryKey: ["frame", roomId, currentFrame, ...allTransformKeys],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, allTransformKeys, signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && allTransformKeys.length > 0,
+    enabled: !!roomId && !!userName && frameCount > 0 && allTransformKeys.length > 0,
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -119,7 +119,7 @@ export default function Sphere({
     queryKey: ["frame", roomId, currentFrame, positionProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [positionProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof positionProp === "string" && !positionIsTransform,
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof positionProp === "string" && !positionIsTransform,
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -128,7 +128,7 @@ export default function Sphere({
     queryKey: ["frame", roomId, currentFrame, colorProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [colorProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof colorProp === "string" && !colorIsTransform && shouldFetchAsFrameData(colorProp as string),
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof colorProp === "string" && !colorIsTransform && shouldFetchAsFrameData(colorProp as string),
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -137,7 +137,7 @@ export default function Sphere({
     queryKey: ["frame", roomId, currentFrame, radiusProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [radiusProp as string], signal),
-    enabled: !!roomId && !!clientId && frameCount > 0 && typeof radiusProp === "string" && !radiusIsTransform,
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof radiusProp === "string" && !radiusIsTransform,
     placeholderData: keepPreviousData,
     retry: false,
   });
@@ -240,7 +240,7 @@ export default function Sphere({
 
   // Detect critical fetch failures and disable geometry
   useEffect(() => {
-    if (!roomId || !clientId || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
+    if (!roomId || !userName || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
       return;
     }
 
@@ -288,7 +288,7 @@ export default function Sphere({
     }
   }, [
     roomId,
-    clientId,
+    userName,
     geometryKey,
     frameCount,
     isFetching,
@@ -561,7 +561,7 @@ export default function Sphere({
     setDrawingIsValid(false);
   }, [setDrawingIsValid, setHoveredGeometryInstance]);
 
-  if (!clientId || !roomId) return null;
+  if (!userName || !roomId) return null;
 
   // Don't render if geometry is disabled
   if (fullData.active === false) {

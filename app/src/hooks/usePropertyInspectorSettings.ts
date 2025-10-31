@@ -33,12 +33,12 @@ export const usePropertyInspectorSettings = (
   options: UsePropertyInspectorSettingsOptions = {}
 ) => {
   const { category = "all", enabled = true } = options;
-  const { roomId, userId, currentFrame, particleCount } = useAppStore();
+  const { roomId, userName, currentFrame, particleCount } = useAppStore();
 
   // Fetch property_inspector settings from backend
   const { data: settingsData } = useExtensionData(
     roomId || "",
-    userId || "",
+    userName || "",
     "settings",
     "property_inspector"
   );

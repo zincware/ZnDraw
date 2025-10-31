@@ -19,11 +19,11 @@ interface ConnectionDialogProps {
 
 const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
   const { roomId } = useParams<{ roomId: string }>();
-  const userId = useAppStore((state) => state.userId);
+  const userName = useAppStore((state) => state.userName);
   const { mode } = useColorScheme();
 
   const handleCopyCode = () => {
-    const code = `from zndraw import ZnDraw\n\nvis = ZnDraw(\n  url="${window.location.origin}/",\n  room="${roomId}",\n  user="${userId}"\n)`;
+    const code = `from zndraw import ZnDraw\n\nvis = ZnDraw(\n  url="${window.location.origin}/",\n  room="${roomId}",\n  user="${userName}"\n)`;
     navigator.clipboard.writeText(code);
   };
 
@@ -43,7 +43,7 @@ const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
               borderRadius: "4px",
             }}
           >
-            {`from zndraw import ZnDraw\n\nvis = ZnDraw(\n  url="${window.location.origin}/",\n  room="${roomId}",\n  user="${userId}"\n)`}
+            {`from zndraw import ZnDraw\n\nvis = ZnDraw(\n  url="${window.location.origin}/",\n  room="${roomId}",\n  user="${userName}"\n)`}
           </SyntaxHighlighter>
           <Button
             startIcon={<ContentCopyIcon />}

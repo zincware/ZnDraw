@@ -31,7 +31,7 @@ def dispatch_next_task(
     Args:
         redis_client: Redis client instance
         socketio_instance: SocketIO instance for emitting events
-        worker_id: Worker client_id (UUID)
+        worker_id: Worker userName
         room_id: Room identifier
         category: Extension category (e.g., 'modifiers', 'selections')
 
@@ -49,8 +49,8 @@ def dispatch_next_task(
         )
         return False
 
-    # Get the Socket.IO SID for this worker's client_id (needed for emit)
-    worker_sid = redis_client.get(f"client_id:{worker_id}:sid")
+    # Get the Socket.IO SID for this worker's userName (needed for emit)
+    worker_sid = redis_client.get(f"userName:{worker_id}:sid")
     if not worker_sid:
         log.warning(f"Cannot dispatch: no Socket.IO SID found for worker {worker_id}")
         return False

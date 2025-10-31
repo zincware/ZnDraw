@@ -32,11 +32,11 @@ interface SecondaryPanelProps {
 }
 
 const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
-  const { roomId, userId, geometries } = useAppStore();
+  const { roomId, userName, geometries } = useAppStore();
   const [localFormData, setLocalFormData] = useState<any>({});
   const ignoreFirstChangeRef = useRef(true);
 
-  if (!roomId || !userId) {
+  if (!roomId || !userName) {
     return <Typography sx={{ p: 2 }}>Joining room...</Typography>;
   }
 
@@ -67,7 +67,7 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
     data: serverData,
     isLoading: isLoadingData,
     isError: isDataError,
-  } = useExtensionData(roomId, userId, panelTitle, selectedExtension || "");
+  } = useExtensionData(roomId, userName, panelTitle, selectedExtension || "");
 
   useEffect(() => {
     if (!isLoadingData && serverData !== undefined) {
@@ -81,16 +81,16 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
   const debouncedSubmit = useMemo(
     () =>
       debounce((data: any) => {
-        if (!selectedExtension || !roomId || !userId) return;
+        if (!selectedExtension || !roomId || !userName) return;
         submit({
           roomId,
-          userId,
+          userName,
           category: panelTitle,
           extension: selectedExtension,
           data: data,
         });
       }, 100), // Increased debounce time slightly
-    [selectedExtension, roomId, userId, panelTitle, submit],
+    [selectedExtension, roomId, userName, panelTitle, submit],
   );
 
   useEffect(() => {
@@ -120,10 +120,10 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
   };
 
   const handleSubmit = () => {
-    if (!selectedExtension || !roomId || !userId) return;
+    if (!selectedExtension || !roomId || !userName) return;
     submit({
       roomId,
-      userId,
+      userName,
       category: panelTitle,
       extension: selectedExtension,
       data: localFormData,

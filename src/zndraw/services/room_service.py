@@ -238,7 +238,11 @@ class RoomService:
         defaults = {
             "particles": (
                 Sphere,
-                {"position": "arrays.positions", "color": "arrays.colors", "radius": "arrays.radii"}
+                {
+                    "position": "arrays.positions",
+                    "color": "arrays.colors",
+                    "radius": "arrays.radii",
+                },
             ),
             "bonds": (Bond, {"position": "arrays.positions", "color": "arrays.colors"}),
             "curve": (Curve, {}),
@@ -250,18 +254,18 @@ class RoomService:
                     "position": InArrayTransform(
                         source="constraints",
                         path="0.kwargs.indices",
-                        filter="arrays.positions"
+                        filter="arrays.positions",
                     ),
                     "radius": InArrayTransform(
                         source="constraints",
                         path="0.kwargs.indices",
-                        filter="arrays.radii"
+                        filter="arrays.radii",
                     ),
                     "color": ["#FF0000"],
                     "material": MeshBasicMaterial(wireframe=True),
                     "scale": 0.71,  # Larger to be clearly visible as overlay
                     "active": True,  # Active by default to visualize constraints
-                }
+                },
             ),
         }
 

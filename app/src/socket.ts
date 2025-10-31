@@ -6,7 +6,8 @@ const URL = process.env.NODE_ENV === 'production' ? undefined : 'http://localhos
 export const socket = io(URL, {
   autoConnect: false,
   auth: (cb) => {
-    // Send JWT token in auth on connect
+    // Send JWT token in auth on connect/reconnect
+    // This callback is called every time the socket connects
     const token = getToken();
     cb({ token });
   }

@@ -47,7 +47,7 @@ def local_server(clear_admin_env_vars):
     # Run server in a background thread
     server_thread = threading.Thread(
         target=lambda: socketio.run(app, host="127.0.0.1", port=5555, debug=False),
-        daemon=True
+        daemon=True,
     )
     server_thread.start()
     time.sleep(1)  # Give server time to start
@@ -70,7 +70,7 @@ def deployment_server(clear_admin_env_vars):
     # Run server in a background thread
     server_thread = threading.Thread(
         target=lambda: socketio.run(app, host="127.0.0.1", port=5556, debug=False),
-        daemon=True
+        daemon=True,
     )
     server_thread.start()
     time.sleep(1)  # Give server time to start
@@ -85,7 +85,7 @@ def test_zndraw_local_mode_without_password(local_server):
     vis = ZnDraw(url=local_server, room="test_local", user="Alice")
 
     assert vis.is_admin is True
-    assert vis._is_admin is True
+    assert vis.role == "admin"
     assert vis.user == "Alice"
 
     vis.disconnect()
@@ -94,14 +94,11 @@ def test_zndraw_local_mode_without_password(local_server):
 def test_zndraw_deployment_mode_with_correct_password(deployment_server):
     """Test ZnDraw in deployment mode with correct password - should be admin."""
     vis = ZnDraw(
-        url=deployment_server,
-        room="test_admin",
-        user="admin",
-        password="secret123"
+        url=deployment_server, room="test_admin", user="admin", password="secret123"
     )
 
     assert vis.is_admin is True
-    assert vis._is_admin is True
+    assert vis.role == "admin"
     assert vis.user == "admin"
 
     vis.disconnect()
@@ -109,25 +106,23 @@ def test_zndraw_deployment_mode_with_correct_password(deployment_server):
 
 def test_zndraw_deployment_mode_with_wrong_password(deployment_server):
     """Test ZnDraw in deployment mode with wrong password - should raise error."""
-    with pytest.raises(RuntimeError, match="Login failed.*Invalid credentials"):
+    with pytest.raises(
+        RuntimeError, match="Login failed.*Invalid username or password"
+    ):
         ZnDraw(
             url=deployment_server,
             room="test_wrong",
             user="admin",
-            password="wrongpassword"
+            password="wrongpassword",
         )
 
 
 def test_zndraw_deployment_mode_without_password(deployment_server):
     """Test ZnDraw in deployment mode without password - should NOT be admin."""
-    vis = ZnDraw(
-        url=deployment_server,
-        room="test_nopass",
-        user="Bob"
-    )
+    vis = ZnDraw(url=deployment_server, room="test_nopass", user="Bob")
 
     assert vis.is_admin is False
-    assert vis._is_admin is False
+    assert vis.role == "guest"
     assert vis.user == "Bob"
 
     vis.disconnect()

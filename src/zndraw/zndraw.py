@@ -213,10 +213,12 @@ class ZnDraw(MutableSequence):
     room
         Name of the room to connect to.
     user
-        Username for the client connection.
+        Username for authentication. If None, server will assign a guest username.
+        If provided, will attempt to login/register with that username.
+        After login, this field is updated with the actual username from the server.
     password
-        Optional password for admin authentication. Only used in deployment mode
-        when the server has admin credentials configured.
+        Optional password for authentication. Required for registered users.
+        For admin accounts, use admin credentials configured on the server.
     auto_pickup_jobs
         Whether to automatically pick up extension jobs.
     description
@@ -228,7 +230,7 @@ class ZnDraw(MutableSequence):
 
     url: str | None = None
     room: str = "default"
-    user: str = "guest"
+    user: str | None = None
     password: str | None = None
     auto_pickup_jobs: bool = True
     description: str | None = None
@@ -240,8 +242,10 @@ class ZnDraw(MutableSequence):
     _extensions: dict[str, _ExtensionStore] = dataclasses.field(
         default_factory=dict, init=False
     )
-    _client_id: str | None = dataclasses.field(default=None, init=False)
-    _is_admin: bool = dataclasses.field(default=False, init=False)
+    role: str = dataclasses.field(default="guest", init=False)
+    _worker_id: str | None = dataclasses.field(
+        default=None, init=False
+    )  # Server's sid for worker identification
     _selection: frozenset[int] = frozenset()
     _frame_selection: frozenset[int] = frozenset()
     _bookmarks: dict[int, str] = dataclasses.field(default_factory=dict, init=False)
@@ -268,7 +272,7 @@ class ZnDraw(MutableSequence):
 
         self.url = self.url.rstrip("/")
 
-        # Create APIManager (client_id will be set after login)
+        # Create APIManager (user_name will be set after login)
         self.api = APIManager(url=self.url, room=self.room)
         self.cache: FrameCache | None = FrameCache(maxsize=100)
 
@@ -277,11 +281,16 @@ class ZnDraw(MutableSequence):
 
         validate_server_version(self.api, zndraw.__version__)
 
-        # Step 1: Login to get JWT token and client ID
+        # Step 1: Login to get JWT token and userName
+        # If user is None, server will assign a guest username
+        # If user is provided, we try to login/register with that name
         login_data = self.api.login(user_name=self.user, password=self.password)
-        self._client_id = login_data["clientId"]
-        self._is_admin = login_data.get("isAdmin", False)
-        log.info(f"Logged in as {self.user} (client: {self._client_id}, admin: {self._is_admin})")
+
+        # Update self.user with the actual username from server
+        # (may be different if user was None and server assigned a guest name)
+        self.user = login_data["userName"]
+        self.role = login_data.get("role", "guest")
+        log.info(f"Logged in as {self.user} (role: {self.role})")
 
         # Step 2: Join room (authenticated with JWT)
         response_data = self.api.join_room(
@@ -401,24 +410,37 @@ class ZnDraw(MutableSequence):
         self.api.load_selection_group(group_name)
 
     @property
-    def sid(self) -> str:
-        return self._client_id
+    def sid(self) -> str | None:
+        """Return the worker ID assigned by the server.
+
+        The server assigns a worker ID (its request.sid) during extension registration.
+        This ID is used consistently for both registration and disconnect cleanup.
+
+        Returns
+        -------
+        str | None
+            The worker ID assigned by server, client's socket.sio.sid if not yet registered,
+            or None if not connected.
+        """
+        return self._worker_id if self._worker_id else self.socket.sio.sid
 
     @property
     def is_admin(self) -> bool:
         """Check if current user has admin privileges.
 
+        Returns True if the user's role is "admin".
+
         In local mode (no admin credentials configured on server),
-        all authenticated users are admins. In deployment mode
+        all authenticated users have admin role. In deployment mode
         (admin credentials configured), only users who logged in
-        with correct admin credentials have admin privileges.
+        with correct admin credentials have admin role.
 
         Returns
         -------
         bool
-            True if user has admin privileges, False otherwise
+            True if user has admin role, False otherwise
         """
-        return self._is_admin
+        return self.role == "admin"
 
     @property
     def step(self) -> int:
@@ -465,7 +487,7 @@ class ZnDraw(MutableSequence):
     def atoms(self) -> ase.Atoms:
         """Get the current frame as an `ase.Atoms` object."""
         return self[self.step]
-    
+
     @atoms.setter
     def atoms(self, value: ase.Atoms):
         """Set the current frame from an `ase.Atoms` object."""
@@ -850,13 +872,18 @@ class ZnDraw(MutableSequence):
         if public:
             raise NotImplementedError("Public extensions are not supported yet.")
 
-        self.api.register_extension(
+        worker_id = self.api.register_extension(
             name=name,
             category=extension.category,
             schema=extension.model_json_schema(),
-            client_id=self.sid,
+            socket_manager=self.socket,
         )
-        print(f"Extension '{name}' registered with room '{self.room}'.")
+        # Store the worker_id assigned by server (server's request.sid)
+        if worker_id:
+            self._worker_id = worker_id
+        print(
+            f"Extension '{name}' registered with room '{self.room}' (worker_id: {self._worker_id})."
+        )
         self.socket._on_queue_update({})
 
     def run(self, extension: Extension) -> dict:
@@ -866,14 +893,14 @@ class ZnDraw(MutableSequence):
             data=extension.model_dump(),
         )
 
-    def log(self, message: str) -> dict:
+    def log(self, message: str) -> dict | None:
         if not self.socket.sio.connected:
             raise RuntimeError("Client is not connected.")
         return self.socket.sio.call(
             "chat:message:create", {"content": message}, timeout=5
         )
 
-    def edit_message(self, message_id: str, new_content: str) -> dict:
+    def edit_message(self, message_id: str, new_content: str) -> dict | None:
         if not self.socket.sio.connected:
             raise RuntimeError("Client is not connected.")
         return self.socket.sio.call(
@@ -883,7 +910,7 @@ class ZnDraw(MutableSequence):
         )
 
     def get_messages(
-        self, limit: int = 30, before: int = None, after: int = None
+        self, limit: int = 30, before: int | None = None, after: int | None = None
     ) -> dict:
         return self.api.get_messages(limit=limit, before=before, after=after)
 

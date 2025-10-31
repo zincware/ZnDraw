@@ -17,7 +17,7 @@ interface CellData {
 export const Cell = ({ data }: {data: CellData}) => {
   const { mode } = useColorScheme();
   const theme = useTheme();
-  const { currentFrame, roomId, clientId, geometryDefaults } = useAppStore();
+  const { currentFrame, roomId, userName, geometryDefaults } = useAppStore();
 
   // Merge with defaults from Pydantic (single source of truth)
   const fullData = getGeometryWithDefaults<CellData>(data, "Cell", geometryDefaults);
@@ -31,7 +31,7 @@ export const Cell = ({ data }: {data: CellData}) => {
     queryKey: ["frame", roomId, currentFrame, fullData.position],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [fullData.position], signal),
-    enabled: !!roomId && !!clientId,
+    enabled: !!roomId && !!userName,
     placeholderData: keepPreviousData,
   });
 

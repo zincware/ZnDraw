@@ -5,13 +5,13 @@ import { set, throttle } from "lodash";
 import { useQueryClient } from "@tanstack/react-query";
 import { joinRoom as joinRoomApi } from "../myapi/client";
 import { convertBookmarkKeys } from "../utils/bookmarks";
-import { ensureAuthenticated, getUsername } from "../utils/auth";
+import { ensureAuthenticated, getUsername, getUserRole } from "../utils/auth";
 
 export const useRestJoinManager = () => {
   const {
-    setClientId,
     setRoomId,
-    setUserId,
+    setUserName,
+    setUserRole,
     setCurrentFrame,
     setFrameCount,
     setSelections,
@@ -41,14 +41,21 @@ export const useRestJoinManager = () => {
     try {
       await ensureAuthenticated();
       console.log("Authentication verified for REST API");
+
+      // Initialize user role from localStorage
+      const userRole = getUserRole();
+      if (userRole) {
+        setUserRole(userRole);
+        console.log("User role initialized:", userRole);
+      }
     } catch (error) {
       console.error("Authentication failed:", error);
       return;
     }
 
     // Get username from auth system (not from URL)
-    const userId = getUsername();
-    if (!userId) {
+    const userName = getUsername();
+    if (!userName) {
       console.error("No username available after authentication");
       return;
     }
@@ -57,12 +64,12 @@ export const useRestJoinManager = () => {
     const controller = new AbortController();
     abortControllerRef.current = controller; // Store it in the ref
 
-    console.log("Joining room via REST:", room, "as user:", userId);
+    console.log("Joining room via REST:", room, "as user:", userName);
 
     // Get template from query parameters
     const template = searchParams.get("template");
 
-    // Build request body (userId not needed - backend uses JWT)
+    // Build request body (userName not needed - backend uses JWT)
     const requestBody: { template?: string } = {};
     if (template) {
       requestBody.template = template;
@@ -98,8 +105,8 @@ export const useRestJoinManager = () => {
       if (data.bookmarks !== undefined) {
         setBookmarks(convertBookmarkKeys(data.bookmarks));
       }
-      if (data.clientId) {
-        setClientId(data.clientId);
+      if (data.userName) {
+        setUserName(data.userName);
       }
       // IMPORTANT: Set defaults BEFORE geometries to avoid race condition
       // Geometries need defaults to render properly
@@ -124,7 +131,6 @@ export const useRestJoinManager = () => {
         }
       }
       setRoomId(room);
-      setUserId(userId);
 
       // Store settings in query cache for each category
       if (data.settings) {
@@ -134,7 +140,7 @@ export const useRestJoinManager = () => {
           const queryKey = [
             "extensionData",
             room,
-            userId,
+            userName,
             "settings",
             categoryName,
           ];
@@ -159,7 +165,7 @@ export const useRestJoinManager = () => {
           // Update store with new username
           const newUsername = getUsername();
           if (newUsername) {
-            setUserId(newUsername);
+            setUserName(newUsername);
           }
 
           // Retry joining the room
@@ -180,9 +186,9 @@ export const useRestJoinManager = () => {
     room,
     searchParams,
     queryClient,
-    setClientId,
     setRoomId,
-    setUserId,
+    setUserName,
+    setUserRole,
     setCurrentFrame,
     setFrameCount,
     setSelections,

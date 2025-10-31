@@ -7,7 +7,7 @@ preset strings (e.g., "matt", "shiny") and fully customizable material objects.
 from abc import ABC, abstractmethod
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, Discriminator
+from pydantic import BaseModel, Discriminator, Field
 
 
 class BaseMaterial(BaseModel, ABC):
@@ -98,9 +98,7 @@ class MeshPhysicalMaterial(MeshStandardMaterial):
     thickness: float = Field(
         default=0.0, ge=0.0, description="Thickness for volumetric transmission"
     )
-    ior: float = Field(
-        default=1.5, ge=1.0, le=2.333, description="Index of refraction"
-    )
+    ior: float = Field(default=1.5, ge=1.0, le=2.333, description="Index of refraction")
     clearcoat: float = Field(
         default=0.0, ge=0.0, le=1.0, description="Clearcoat layer intensity"
     )
@@ -113,9 +111,7 @@ class MeshPhysicalMaterial(MeshStandardMaterial):
     sheenRoughness: float = Field(
         default=1.0, ge=0.0, le=1.0, description="Sheen layer roughness"
     )
-    sheenColor: str = Field(
-        default="#000000", description="Sheen color in hex format"
-    )
+    sheenColor: str = Field(default="#000000", description="Sheen color in hex format")
     specularIntensity: float = Field(
         default=1.0, ge=0.0, description="Specular reflection intensity"
     )
@@ -295,16 +291,19 @@ def get_all_preset_names() -> list[str]:
 
 
 # Type alias for material property: preset string or material object
-MaterialProp = Literal[
-    "MeshPhysicalMaterial_matt",
-    "MeshPhysicalMaterial_semi-gloss",
-    "MeshPhysicalMaterial_shiny",
-    "MeshPhysicalMaterial_transparent",
-    "MeshPhysicalMaterial_glass",
-    "MeshStandardMaterial_matt",
-    "MeshStandardMaterial_metallic",
-    "MeshBasicMaterial",
-    "MeshToonMaterial",
-    "MeshLambertMaterial",
-    "MeshPhongMaterial",
-] | MaterialType
+MaterialProp = (
+    Literal[
+        "MeshPhysicalMaterial_matt",
+        "MeshPhysicalMaterial_semi-gloss",
+        "MeshPhysicalMaterial_shiny",
+        "MeshPhysicalMaterial_transparent",
+        "MeshPhysicalMaterial_glass",
+        "MeshStandardMaterial_matt",
+        "MeshStandardMaterial_metallic",
+        "MeshBasicMaterial",
+        "MeshToonMaterial",
+        "MeshLambertMaterial",
+        "MeshPhongMaterial",
+    ]
+    | MaterialType
+)

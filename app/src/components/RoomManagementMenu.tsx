@@ -59,7 +59,7 @@ interface DuplicateFormState {
 export default function RoomManagementMenu() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const { userId, currentFrame, showSnackbar, lockMetadata } = useAppStore();
+  const { userName, currentFrame, showSnackbar, lockMetadata } = useAppStore();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [roomDetail, setRoomDetail] = useState<RoomDetail | null>(null);
@@ -77,7 +77,7 @@ export default function RoomManagementMenu() {
   // Fetch camera settings to check preserve_drawing_buffer
   const { data: cameraSettings } = useExtensionData(
     roomId || "",
-    userId || "",
+    userName || "",
     "settings",
     "camera",
   );

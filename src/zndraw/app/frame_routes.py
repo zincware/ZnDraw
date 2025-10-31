@@ -276,11 +276,11 @@ def get_frame_metadata(room_id: str, frame_id: int):
 @frames.route("/api/rooms/<string:room_id>/frames", methods=["DELETE"])
 def delete_frames_batch(room_id):
     """Deletes frames using either a single frame_id, indices, or slice parameters from query params."""
-    # Get client_id from query params (if provided)
-    client_id = request.args.get("client_id")
+    # Get userName from query params (if provided)
+    user_name = request.args.get("userName")
 
-    # Check if room is locked (passes client_id for lock holder check)
-    lock_error = check_room_locked(room_id, client_id)
+    # Check if room is locked (passes userName for lock holder check)
+    lock_error = check_room_locked(room_id, user_name)
     if lock_error:
         return lock_error
 
@@ -422,11 +422,11 @@ def delete_frames_batch(room_id):
 @frames.route("/api/rooms/<string:room_id>/frames", methods=["POST"])
 def append_frame(room_id):
     """Handles frame operations (append, extend, replace, insert) based on action query parameter."""
-    # Get client_id from query params (if provided)
-    client_id = request.args.get("client_id")
+    # Get userName from query params (if provided)
+    user_name = request.args.get("userName")
 
-    # Check if room is locked (passes client_id for lock holder check)
-    lock_error = check_room_locked(room_id, client_id)
+    # Check if room is locked (passes userName for lock holder check)
+    lock_error = check_room_locked(room_id, user_name)
     if lock_error:
         return lock_error
 

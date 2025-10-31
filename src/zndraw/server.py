@@ -55,12 +55,21 @@ def services_init_app(app: Flask) -> None:
     ValueError
         If admin environment variables are misconfigured
     """
-    from zndraw.services import AdminService, ClientService, RoomService, SettingsService
+    from zndraw.services import (
+        AdminService,
+        ClientService,
+        RoomService,
+        SettingsService,
+        UserService,
+    )
 
     redis_client = app.extensions["redis"]
 
     # Initialize AdminService first (validates env vars)
     app.extensions["admin_service"] = AdminService(redis_client)
+
+    # Initialize UserService for user management
+    app.extensions["user_service"] = UserService(redis_client)
 
     app.extensions["client_service"] = ClientService(redis_client)
     app.extensions["room_service"] = RoomService(redis_client)
@@ -77,8 +86,17 @@ def create_app(
 
     app = Flask(__name__)
 
-    from zndraw.app import tasks  # noqa: F401
-    from zndraw.app import utility, frames, rooms, extensions, jobs, geometries, bookmarks, media
+    from zndraw.app import (
+        bookmarks,
+        extensions,
+        frames,
+        geometries,
+        jobs,
+        media,
+        rooms,
+        tasks,  # noqa: F401
+        utility,
+    )
     from zndraw.app.file_browser import file_browser as file_browser_blueprint
 
     app.register_blueprint(utility)

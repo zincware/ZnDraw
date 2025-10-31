@@ -94,7 +94,7 @@ export const useSubmitExtension = () => {
   return useMutation({
     mutationFn: async (variables: {
       roomId: string;
-      userId: string;
+      userName: string;
       category: string;
       extension: string;
       data: any;
@@ -108,14 +108,14 @@ export const useSubmitExtension = () => {
       }
       const {
         roomId,
-        userId,
+        userName,
         category,
         extension,
         data: submittedData,
       } = variables;
 
       // Define the exact query key for the data we want to update
-      const queryKey = ["extensionData", roomId, userId, category, extension];
+      const queryKey = ["extensionData", roomId, userName, category, extension];
 
       // Replace the cached data with the data the user just submitted.
       // This is an instant, local update with no network request.
@@ -134,7 +134,7 @@ export interface Job {
   category: string;
   extension: string;
   data: any;
-  user_id: string;
+  userName: string;
   status: "queued" | "running" | "completed" | "failed";
   provider: string;
   created_at: string;

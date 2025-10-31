@@ -5,6 +5,7 @@ stored in Zarr, and reconstructed. All constraints that inherit from
 ase.constraints.FixConstraint should be supported via ASE's todict()
 and dict2constraint() methods.
 """
+
 import ase
 import ase.constraints
 import numpy as np
@@ -191,7 +192,9 @@ def test_constraints_with_variable_sized_atoms():
     atoms2 = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
     atoms2.set_constraint(ase.constraints.FixAtoms(indices=[0, 2]))
 
-    atoms3 = ase.Atoms("CH4", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0], [-1, 0, 0], [0, -1, 0]])
+    atoms3 = ase.Atoms(
+        "CH4", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0], [-1, 0, 0], [0, -1, 0]]
+    )
     atoms3.set_constraint(ase.constraints.FixAtoms(indices=[0]))
 
     # Convert to dicts
@@ -247,7 +250,9 @@ def test_constraints_with_calculator():
     assert len(atoms2.constraints) == 1
     assert isinstance(atoms2.constraints[0], ase.constraints.FixAtoms)
     assert atoms2.calc.results["energy"] == 1.5
-    npt.assert_array_almost_equal(atoms2.calc.results["forces"], [[0.1, 0, 0], [0.2, 0, 0]])
+    npt.assert_array_almost_equal(
+        atoms2.calc.results["forces"], [[0.1, 0, 0], [0.2, 0, 0]]
+    )
 
 
 def test_constraint_roundtrip_fixatoms():

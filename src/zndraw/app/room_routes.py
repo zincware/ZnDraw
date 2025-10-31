@@ -5,11 +5,18 @@ Handles room creation, listing, updates, metadata, locking, duplication, and sch
 
 import json
 import logging
+
 from flask import Blueprint, current_app, request
+
 from zndraw.server import socketio
 
-from .route_utils import check_room_locked, emit_bookmarks_invalidate, get_lock_key, get_metadata_lock_info
 from .room_manager import emit_room_update
+from .route_utils import (
+    check_room_locked,
+    emit_bookmarks_invalidate,
+    get_lock_key,
+    get_metadata_lock_info,
+)
 
 log = logging.getLogger(__name__)
 
@@ -175,14 +182,14 @@ def join_room(room_id):
     {
         "status": "ok",
         "roomId": "room-name",
-        "clientId": "uuid-string",
+        "userName": "username",
         "frameCount": 0,
         "step": 0,
         "created": true,
         ...
     }
     """
-    from zndraw.auth import AuthError, get_current_client
+    from zndraw.auth import AuthError, get_current_user
 
     data = request.get_json() or {}
     if ":" in room_id:
@@ -190,9 +197,7 @@ def join_room(room_id):
 
     # Authenticate request (JWT required)
     try:
-        client = get_current_client()
-        client_id = client["clientId"]
-        user_name = client["userName"]
+        user_name = get_current_user()
     except AuthError as e:
         return {"error": e.message}, e.status_code
     description = data.get("description")
@@ -213,18 +218,14 @@ def join_room(room_id):
             "message": f"Room '{room_id}' does not exist yet. It may still be loading.",
         }, 404
 
-    # Update client metadata (userName is not room-specific, so handled separately)
-    client_key = f"client:{client_id}"
-    r.hset(client_key, "userName", user_name)
+    # Update client room membership atomically (using userName as identifier)
+    client_service.update_user_and_room_membership(user_name, room_id)
 
-    # Update client room membership atomically
-    client_service.update_client_and_room_membership(client_id, room_id)
-
-    log.info(f"Client {client_id} ({user_name}) joined room: {room_id}")
+    log.info(f"User {user_name} joined room: {room_id}")
 
     response = {
         "status": "ok",
-        "clientId": client_id,
+        "userName": user_name,
         "frameCount": 0,
         "roomId": room_id,
         "selections": None,
@@ -557,9 +558,8 @@ def get_lock_status(room_id: str, target: str):
         {
             "locked": true,
             "target": "trajectory:meta",
-            "holder": "client_123",
+            "holder": "alice",
             "metadata": {
-                "clientId": "client_123",
                 "userName": "alice",
                 "timestamp": 1234567890.123,
                 "msg": "Uploading trajectory data"
