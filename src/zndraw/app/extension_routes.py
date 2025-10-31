@@ -1,6 +1,7 @@
 """Extension and worker management routes.
 
-Handles extension registration, worker status tracking, and extension discovery.
+Handles worker status tracking and extension discovery.
+Extension registration is handled via Socket.IO in events.py.
 """
 
 import json
@@ -17,105 +18,6 @@ from .worker_stats import WorkerStats
 log = logging.getLogger(__name__)
 
 extensions = Blueprint("extensions", __name__)
-
-
-@extensions.route("/api/rooms/<string:room_id>/extensions/register", methods=["POST"])
-def register_extension(room_id: str):
-    data = request.get_json()
-    try:
-        name = data["name"]
-        category = data["category"]
-        schema = data["schema"]
-        worker_id = data["userName"]  # Actually contains worker_id (sid) sent by client
-    except KeyError as e:
-        return {"error": f"Missing required field: {e}"}, 400
-
-    redis_client = current_app.extensions["redis"]
-
-    from zndraw.extensions.analysis import analysis
-    from zndraw.extensions.modifiers import modifiers
-    from zndraw.extensions.selections import selections
-    from zndraw.settings import settings
-
-    category_map = {
-        "selections": selections,
-        "modifiers": modifiers,
-        "settings": settings,
-        "analysis": analysis,
-    }
-
-    if category in category_map and name in category_map[category]:
-        log.warning(
-            f"Blocked attempt to register extension '{name}' in category '{category}' "
-            f"- name conflicts with server-side extension (security violation)"
-        )
-        return {
-            "error": f"Cannot register extension '{name}': name is reserved for server-side extensions"
-        }
-
-    log.info(
-        f"Registering extension for room {room_id}: name={name}, category={category}"
-    )
-
-    keys = ExtensionKeys.for_extension(room_id, category, name)
-    worker_extensions_key = ExtensionKeys.user_extensions_key(
-        room_id, category, worker_id
-    )
-    existing_schema = redis_client.hget(keys.schema, name)
-
-    if existing_schema is not None:
-        existing_schema = json.loads(existing_schema)
-        if existing_schema != schema:
-            return {
-                "error": "Extension with this name already exists with a different schema"
-            }, 400
-        redis_client.sadd(keys.idle_workers, worker_id)
-        redis_client.sadd(
-            worker_extensions_key, name
-        )  # Keep this for disconnect cleanup
-
-        # Notify clients about worker count change
-        log.info(
-            f"Worker {worker_id} re-registered for extension '{name}' "
-            f"in category '{category}', invalidating schema"
-        )
-        socketio.emit(
-            SocketEvents.INVALIDATE_SCHEMA,
-            {"roomId": room_id, "category": category},
-            to=f"room:{room_id}",
-        )
-
-        # Check if there are queued tasks that this worker can handle
-        # if room_id:  # Null check for type safety
-        #     dispatch_next_task(redis_client, socketio, worker_id, room_id, category)
-
-        return {
-            "status": "success",
-            "message": "Extension already registered with same schema. Worker marked as idle.",
-        }
-    else:
-        # This is a brand new extension for the room
-        with redis_client.pipeline() as pipe:
-            # Set the schema
-            pipe.hset(keys.schema, name, json.dumps(schema))
-            # Add the current worker to the set of idle workers for this extension
-            pipe.sadd(keys.idle_workers, worker_id)
-            # Maintain the reverse mapping for easy cleanup on disconnect
-            pipe.sadd(worker_extensions_key, name)
-            pipe.execute()
-
-        # Invalidate schema on all clients so they can see the new extension
-        socketio.emit(
-            SocketEvents.INVALIDATE_SCHEMA,
-            {"roomId": room_id, "category": category},
-            to=f"room:{room_id}",
-        )
-
-        # Check if there are queued tasks that this worker can handle
-        # if room_id:  # Null check for type safety
-        #     dispatch_next_task(redis_client, socketio, worker_id, room_id, category)
-
-    return {"status": "success"}
 
 
 @extensions.route(
@@ -346,35 +248,19 @@ def get_worker_state(worker_id: str):
     """
     redis_client = current_app.extensions["redis"]
 
-    # Check both modifiers and selections categories to find if worker is progressing
+    # Check if there's any job assigned to this worker
+    # by looking for jobs where worker_id matches
     current_job_id = None
     is_idle = True
 
-    for category in ["modifiers", "selections", "analysis"]:
-        # Get all extensions this worker might be registered for
-        # We need to check all extensions to find if the worker is in any progressing set
-        # First, get the worker's registered extensions
-        user_extensions_key = ExtensionKeys.user_extensions_key(
-            "*", category, worker_id
-        )
-
-        # Since we don't know the room, we need to scan for worker state
-        # Check if worker has a current job by scanning all rooms
-        # For simplicity, we'll check the most common pattern
-
-        # Alternative approach: check if there's any job assigned to this worker
-        # by looking for jobs where worker_id matches
-        for key in redis_client.scan_iter(match="job:*"):
-            job_data = redis_client.hgetall(key)
-            if (
-                job_data.get("worker_id") == worker_id
-                and job_data.get("status") == "running"
-            ):
-                current_job_id = job_data.get("id")
-                is_idle = False
-                break
-
-        if current_job_id:
+    for key in redis_client.scan_iter(match="job:*"):
+        job_data = redis_client.hgetall(key)
+        if (
+            job_data.get("worker_id") == worker_id
+            and job_data.get("status") == "running"
+        ):
+            current_job_id = job_data.get("id")
+            is_idle = False
             break
 
     return {"idle": is_idle, "currentJob": current_job_id}, 200
