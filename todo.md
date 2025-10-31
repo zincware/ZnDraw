@@ -81,3 +81,7 @@ Traceback (most recent call last):
     raise ValueError(
 ValueError: Shape mismatch for key 'arrays.residuenames': existing shape (68,), new shape (320,).)
 - [ ] instead of `apply_schema_feature` use `Field(json_schema_extra={"x-custom-type":"smiles-pack-array"})`
+- [ ] path tracer does not accept changes to materials ( might only be with presets)
+- [ ] drag and drop: ask for append, insert at cursor position (using virtual canvas, or so), or create a new room or even replace?
+- [ ] admin / register global users
+- [ ] auto-reconnect extensions

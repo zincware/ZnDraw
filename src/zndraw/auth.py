@@ -28,6 +28,23 @@ class AuthError(Exception):
         super().__init__(self.message)
 
 
+class AdminAccessError(Exception):
+    """Admin access required error.
+
+    Parameters
+    ----------
+    message : str
+        Error message
+    status_code : int
+        HTTP status code (default: 403)
+    """
+
+    def __init__(self, message: str = "Admin access required", status_code: int = 403):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(self.message)
+
+
 def create_jwt_token(client_id: str, user_name: str) -> str:
     """Create JWT token for authenticated client.
 
@@ -147,5 +164,57 @@ def require_auth(f):
             return f(*args, **kwargs)
         except AuthError as e:
             return {"error": e.message}, e.status_code
+
+    return decorated_function
+
+
+def require_admin(f):
+    """Decorator to require admin privileges for route.
+
+    This decorator combines authentication and admin authorization.
+    First validates JWT token, then checks admin status via AdminService.
+
+    In local mode (no admin credentials configured), all authenticated users
+    are considered admins. In deployment mode (admin credentials set), only
+    users who logged in with correct admin credentials have access.
+
+    Usage
+    -----
+    @app.route("/api/admin-only")
+    @require_admin
+    def admin_route():
+        # Only admins can access this
+        return {"status": "ok"}
+
+    Raises
+    ------
+    Returns 401 if not authenticated
+    Returns 403 if authenticated but not admin
+    """
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        from flask import current_app
+
+        try:
+            # First, validate authentication
+            client = get_current_client()
+            client_id = client["clientId"]
+
+            # Then, check admin status
+            admin_service = current_app.extensions.get("admin_service")
+            if not admin_service:
+                log.error("AdminService not initialized")
+                return {"error": "Server configuration error", "type": "ServerError"}, 500
+
+            if not admin_service.is_admin(client_id):
+                raise AdminAccessError()
+
+            return f(*args, **kwargs)
+
+        except AuthError as e:
+            return {"error": e.message, "type": "AuthError"}, e.status_code
+        except AdminAccessError as e:
+            return {"error": e.message, "type": "AdminAccessError"}, e.status_code
 
     return decorated_function

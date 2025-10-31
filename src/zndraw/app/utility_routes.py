@@ -13,6 +13,7 @@ from pathlib import Path
 from flask import Blueprint, Response, current_app, request, send_from_directory
 from flask_socketio import disconnect
 
+from zndraw.auth import require_admin
 from zndraw.server import socketio
 
 log = logging.getLogger(__name__)
@@ -104,10 +105,15 @@ def rdkit_image():
 def login():
     """Authenticate user and issue JWT token.
 
+    In local mode (no admin credentials configured), all users are granted
+    admin privileges automatically. In deployment mode (admin credentials set),
+    only users providing correct admin credentials receive admin privileges.
+
     Request
     -------
     {
-        "userName": "John Doe"  // Required
+        "userName": "John Doe",  // Required
+        "password": "secret"     // Optional, only checked in deployment mode
     }
 
     Response
@@ -115,16 +121,35 @@ def login():
     {
         "status": "ok",
         "token": "eyJhbGc...",     // JWT token
-        "clientId": "uuid-string"  // Server-generated client ID
+        "clientId": "uuid-string", // Server-generated client ID
+        "isAdmin": true            // Whether user has admin privileges
     }
     """
     from zndraw.auth import create_jwt_token
 
     data = request.get_json() or {}
     user_name = data.get("userName")
+    password = data.get("password")
 
     if not user_name or not user_name.strip():
         return {"error": "userName is required"}, 400
+
+    # Get admin service
+    admin_service = current_app.extensions["admin_service"]
+
+    # Check admin credentials if in deployment mode
+    is_admin = False
+    if admin_service.is_deployment_mode():
+        # In deployment mode, validate password if provided
+        if password:
+            is_admin = admin_service.validate_admin_credentials(user_name, password)
+            # If password was provided but is wrong, reject the login
+            if not is_admin:
+                return {"error": "Invalid credentials"}, 401
+        # Users without password can log in as non-admin
+    else:
+        # In local mode, everyone is admin
+        is_admin = True
 
     # Generate server-side client ID
     client_id = str(uuid.uuid4())
@@ -145,12 +170,18 @@ def login():
         },
     )
 
-    log.info(f"User '{user_name}' logged in with client ID: {client_id}")
+    # Grant admin privileges if applicable
+    if is_admin:
+        admin_service.grant_admin(client_id)
+        log.info(f"Admin user '{user_name}' logged in with client ID: {client_id}")
+    else:
+        log.info(f"User '{user_name}' logged in with client ID: {client_id} (non-admin)")
 
     return {
         "status": "ok",
         "token": token,
         "clientId": client_id,
+        "isAdmin": is_admin,
     }
 
 
@@ -214,6 +245,7 @@ def internal_emit():
 
 
 @utility.route("/api/shutdown", methods=["POST"])
+@require_admin
 def exit_app():
     """Endpoint to gracefully shut down the server. Secured via a shared secret."""
     socketio.stop()

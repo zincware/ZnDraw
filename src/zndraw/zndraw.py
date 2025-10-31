@@ -214,6 +214,9 @@ class ZnDraw(MutableSequence):
         Name of the room to connect to.
     user
         Username for the client connection.
+    password
+        Optional password for admin authentication. Only used in deployment mode
+        when the server has admin credentials configured.
     auto_pickup_jobs
         Whether to automatically pick up extension jobs.
     description
@@ -226,6 +229,7 @@ class ZnDraw(MutableSequence):
     url: str | None = None
     room: str = "default"
     user: str = "guest"
+    password: str | None = None
     auto_pickup_jobs: bool = True
     description: str | None = None
     copy_from: str | None = None
@@ -237,6 +241,7 @@ class ZnDraw(MutableSequence):
         default_factory=dict, init=False
     )
     _client_id: str | None = dataclasses.field(default=None, init=False)
+    _is_admin: bool = dataclasses.field(default=False, init=False)
     _selection: frozenset[int] = frozenset()
     _frame_selection: frozenset[int] = frozenset()
     _bookmarks: dict[int, str] = dataclasses.field(default_factory=dict, init=False)
@@ -273,9 +278,10 @@ class ZnDraw(MutableSequence):
         validate_server_version(self.api, zndraw.__version__)
 
         # Step 1: Login to get JWT token and client ID
-        login_data = self.api.login(user_name=self.user)
+        login_data = self.api.login(user_name=self.user, password=self.password)
         self._client_id = login_data["clientId"]
-        log.info(f"Logged in as {self.user} (client: {self._client_id})")
+        self._is_admin = login_data.get("isAdmin", False)
+        log.info(f"Logged in as {self.user} (client: {self._client_id}, admin: {self._is_admin})")
 
         # Step 2: Join room (authenticated with JWT)
         response_data = self.api.join_room(
@@ -397,6 +403,22 @@ class ZnDraw(MutableSequence):
     @property
     def sid(self) -> str:
         return self._client_id
+
+    @property
+    def is_admin(self) -> bool:
+        """Check if current user has admin privileges.
+
+        In local mode (no admin credentials configured on server),
+        all authenticated users are admins. In deployment mode
+        (admin credentials configured), only users who logged in
+        with correct admin credentials have admin privileges.
+
+        Returns
+        -------
+        bool
+            True if user has admin privileges, False otherwise
+        """
+        return self._is_admin
 
     @property
     def step(self) -> int:

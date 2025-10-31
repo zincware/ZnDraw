@@ -49,10 +49,19 @@ def services_init_app(app: Flask) -> None:
 
     Services provide domain logic abstraction over Redis operations.
     Must be called after redis_init_app.
+
+    Raises
+    ------
+    ValueError
+        If admin environment variables are misconfigured
     """
-    from zndraw.services import ClientService, RoomService, SettingsService
+    from zndraw.services import AdminService, ClientService, RoomService, SettingsService
 
     redis_client = app.extensions["redis"]
+
+    # Initialize AdminService first (validates env vars)
+    app.extensions["admin_service"] = AdminService(redis_client)
+
     app.extensions["client_service"] = ClientService(redis_client)
     app.extensions["room_service"] = RoomService(redis_client)
     app.extensions["settings_service"] = SettingsService(redis_client)

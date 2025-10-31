@@ -14,25 +14,31 @@ class APIManager:
     client_id: str | None = None
     jwt_token: str | None = None
 
-    def login(self, user_name: str) -> dict:
+    def login(self, user_name: str, password: str | None = None) -> dict:
         """Authenticate and get JWT token.
 
         Parameters
         ----------
         user_name : str
             Username for authentication
+        password : str | None
+            Optional password for admin authentication (deployment mode only)
 
         Returns
         -------
         dict
-            {"status": str, "token": str, "clientId": str}
+            {"status": str, "token": str, "clientId": str, "isAdmin": bool}
 
         Raises
         ------
         RuntimeError
             If login fails
         """
-        response = requests.post(f"{self.url}/api/login", json={"userName": user_name})
+        payload = {"userName": user_name}
+        if password is not None:
+            payload["password"] = password
+
+        response = requests.post(f"{self.url}/api/login", json=payload)
 
         if response.status_code != 200:
             raise RuntimeError(f"Login failed: {response.text}")

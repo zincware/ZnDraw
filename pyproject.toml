@@ -1,6 +1,6 @@
 [project]
 name = "zndraw"
-version = "0.6.0a6"
+version = "0.6.0a7"
 description = "ZnDraw"
 license = { file = "LICENSE" }
 readme = "README.md"
