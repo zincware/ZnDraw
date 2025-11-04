@@ -739,7 +739,7 @@ def get_room_schema(room_id: str, category: str):
             "progressingWorkers": 0,
         }
 
-    # Add client-provided extensions from Redis
+    # Add client-provided extensions from Redis (room-scoped)
     from .redis_keys import ExtensionKeys
     from .worker_stats import WorkerStats
 
@@ -763,6 +763,30 @@ def get_room_schema(room_id: str, category: str):
             schema[name] = {
                 "schema": sch,
                 "provider": stats.total_workers,  # Number of workers for client extensions
+                **stats.to_dict(),
+            }
+
+    # Add global (public) extensions from Redis
+    global_schema_key = ExtensionKeys.global_schema_key(category)
+    global_redis_schema = redis_client.hgetall(global_schema_key)
+
+    for name, sch_str in global_redis_schema.items():
+        sch = json.loads(sch_str)
+
+        # Get worker statistics for this global extension
+        keys = ExtensionKeys.for_global_extension(category, name)
+        stats = WorkerStats.fetch(redis_client, keys)
+
+        if name in schema:
+            if schema[name]["schema"] != sch:
+                log.warning(
+                    f"{category.capitalize()} global extension '{name}' schema "
+                    "differs from existing schema (room or server)."
+                )
+        else:
+            schema[name] = {
+                "schema": sch,
+                "provider": stats.total_workers,  # Number of workers for global extensions
                 **stats.to_dict(),
             }
 

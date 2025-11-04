@@ -173,7 +173,7 @@ def test_run_client_extensions(server, category):
     # /api/jobs/next?worker_id=<worker_id>
     # now we emulate picking up the job by the worker
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": vis.sid},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -259,7 +259,7 @@ def test_run_client_extensions(server, category):
 
     # pick up next job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": vis.sid},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -291,7 +291,7 @@ def test_run_client_extensions(server, category):
     }
     # Try requesting next job while one is running
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": vis.sid},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -321,7 +321,7 @@ def test_run_client_extensions(server, category):
     }
     # pick up next job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": vis.sid},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -395,7 +395,7 @@ def test_run_different_client_different_extensions(server):
 
     # pick up job for vis1
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": vis1.sid},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -414,7 +414,7 @@ def test_run_different_client_different_extensions(server):
     assert response.json() == {"status": "success"}
     # pick up next job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": vis1.sid},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -433,7 +433,7 @@ def test_run_different_client_different_extensions(server):
     assert response.json() == {"status": "success"}
     # try pick up another job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": vis1.sid},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -450,7 +450,7 @@ def test_run_different_client_different_extensions(server):
     response_json = response.json()
     jobId3 = response_json.pop("jobId")
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": vis1.sid},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -468,7 +468,7 @@ def test_run_different_client_different_extensions(server):
 
     # pick up job for vis2
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": vis2.sid},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -516,7 +516,7 @@ def test_run_different_client_same_extensions(server):
 
     # pick up job for vis1
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": vis1.sid},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -527,7 +527,7 @@ def test_run_different_client_same_extensions(server):
     assert response_json["extension"] == ModifierExtension.__name__
     # pick up job for vis2
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": vis2.sid},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -603,7 +603,7 @@ def test_worker_finish_nonstarted_job(server):
     assert response.json() == {"error": "Job is not running"}
     # pick up the job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": vis.sid},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -674,7 +674,7 @@ def test_worker_fail_job(server):
 
     # pick up the job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": vis.sid},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -911,7 +911,7 @@ def test_celery_task(server):
 
     # Have celery-worker fetch the job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": "celery-worker"},
         headers=get_jwt_auth_headers(server, user),
     )

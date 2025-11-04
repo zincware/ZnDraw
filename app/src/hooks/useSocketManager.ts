@@ -142,12 +142,12 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     }
 
     function onSchemaInvalidate(data: any) {
-      const { roomId, category } = data;
+      const { category } = data;
       queryClient.invalidateQueries({
-        queryKey: ["schemas", roomId, category],
+        queryKey: ["schemas", appStoreRoomId, category],
       });
       console.log(
-        `Invalidated schemas for category ${category} in room ${roomId}`,
+        `Invalidated schemas for category ${category} in room ${appStoreRoomId}`,
       );
     }
 

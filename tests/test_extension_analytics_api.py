@@ -106,7 +106,7 @@ def test_room_extensions_overview_with_jobs(server, redis_client):
 
     # Pick up and complete the job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/jobs/next", json={"workerId": vis.sid}
     )
     assert response.status_code == 200
 
@@ -367,7 +367,7 @@ def test_extension_detailed_analytics_with_jobs(server, redis_client):
 
         # Pick up and complete
         response = requests.post(
-            f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+            f"{server}/api/jobs/next", json={"workerId": vis.sid}
         )
         response = requests.put(
             f"{server}/api/rooms/{room}/jobs/{job_id}/status",
@@ -438,7 +438,7 @@ def test_extension_detailed_analytics_error_breakdown(server, redis_client):
     job_id = response.json()["jobId"]
 
     # Pick up and fail
-    requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid})
+    requests.post(f"{server}/api/jobs/next", json={"workerId": vis.sid})
     requests.put(
         f"{server}/api/rooms/{room}/jobs/{job_id}/status",
         json={"status": "failed", "workerId": vis.sid, "error": "Test error message"},
@@ -477,7 +477,7 @@ def test_duration_calculation_in_overview(server, redis_client):
 
     # Pick up job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/jobs/next", json={"workerId": vis.sid}
     )
     assert response.status_code == 200
 
@@ -527,7 +527,7 @@ def test_room_overview_filters_extensions_with_no_jobs(server, redis_client):
     )
     job_id = response.json()["jobId"]
 
-    requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid})
+    requests.post(f"{server}/api/jobs/next", json={"workerId": vis.sid})
     requests.put(
         f"{server}/api/rooms/{room}/jobs/{job_id}/status",
         json={"status": "completed", "workerId": vis.sid},
@@ -566,7 +566,7 @@ def test_running_jobs_contribute_to_wait_time(server, redis_client):
     job_id = response.json()["jobId"]
 
     # Pick up job (starts it, calculates wait_time_ms)
-    requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid})
+    requests.post(f"{server}/api/jobs/next", json={"workerId": vis.sid})
 
     # Get overview - running job should have wait_time_ms > 0
     response = requests.get(
@@ -652,7 +652,7 @@ def test_celery_worker_endpoint_format(server, redis_client):
     # Start the job
     worker_id = "celery:test-worker"
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": worker_id},
         headers=auth_headers,
     )
@@ -693,7 +693,7 @@ def test_celery_worker_failure_endpoint_format(server, redis_client):
     # Start the job
     worker_id = "celery:test-worker"
     requests.post(
-        f"{server}/api/rooms/{room}/jobs/next",
+        f"{server}/api/jobs/next",
         json={"workerId": worker_id},
         headers=auth_headers,
     )
@@ -745,7 +745,7 @@ def test_extension_history_persists_after_client_disconnect(server, redis_client
 
     # Pick up and complete the job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/jobs/next", json={"workerId": vis.sid}
     )
     assert response.status_code == 200
 
@@ -829,7 +829,7 @@ def test_client_extension_failure_logs_to_ui(server, redis_client):
     job_id = response.json()["jobId"]
 
     # Pick up job
-    requests.post(f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid})
+    requests.post(f"{server}/api/jobs/next", json={"workerId": vis.sid})
 
     # Fail the job with an error
     error_message = "Test error: Something went wrong"

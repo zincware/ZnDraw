@@ -316,6 +316,44 @@ class ZnDraw(MutableSequence):
             self._geometries = response_data["geometries"]
         self._len = response_data["frameCount"]
 
+    @classmethod
+    def for_job_execution(
+        cls,
+        url: str,
+        room: str,
+        user: str | None = None,
+        password: str | None = None,
+    ) -> "ZnDraw":
+        """Create a ZnDraw instance for job execution in a specific room.
+
+        This factory method creates a fresh ZnDraw instance connected to the
+        specified room with proper authentication. Used when an extension worker
+        needs to execute a job in a different room than the one it registered in.
+
+        Parameters
+        ----------
+        url : str
+            URL of the ZnDraw server
+        room : str
+            Name of the room to connect to (the room where the job was triggered)
+        user : str | None
+            Username for authentication. If None, server will assign a guest username.
+        password : str | None
+            Optional password for authentication
+
+        Returns
+        -------
+        ZnDraw
+            A new ZnDraw instance connected to the specified room with auto_pickup_jobs=False
+        """
+        return cls(
+            url=url,
+            room=room,
+            user=user,
+            password=password,
+            auto_pickup_jobs=False,
+        )
+
     @property
     def lock(self) -> SocketIOLock:
         if self._lock is None:
@@ -862,6 +900,13 @@ class ZnDraw(MutableSequence):
         ]:
             raise ValueError("Extension must have a valid 'category' attribute.")
 
+        # Validate that public extensions require admin privileges
+        if public and not self.is_admin:
+            raise PermissionError(
+                "Only admin users can register public extensions. "
+                "Please authenticate with admin credentials to register global extensions."
+            )
+
         self._extensions[name] = {
             "public": public,
             "run_kwargs": run_kwargs,
@@ -869,20 +914,21 @@ class ZnDraw(MutableSequence):
         }
         print(f"Registered extension '{name}' of category '{extension.category}'.")
 
-        if public:
-            raise NotImplementedError("Public extensions are not supported yet.")
+        scope = "global" if public else self.room
+        print(f"Registering {'global' if public else 'room-scoped'} extension '{name}'...")
 
         worker_id = self.api.register_extension(
             name=name,
             category=extension.category,
             schema=extension.model_json_schema(),
             socket_manager=self.socket,
+            public=public,
         )
         # Store the worker_id assigned by server (server's request.sid)
         if worker_id:
             self._worker_id = worker_id
         print(
-            f"Extension '{name}' registered with room '{self.room}' (worker_id: {self._worker_id})."
+            f"Extension '{name}' registered with {scope} (worker_id: {self._worker_id})."
         )
         self.socket._on_queue_update({})
 

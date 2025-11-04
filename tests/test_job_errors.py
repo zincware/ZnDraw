@@ -36,7 +36,7 @@ def test_get_next_job_with_malformed_json_in_queue(server):
 
     # Try to get next job - should handle the error gracefully
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/jobs/next", json={"workerId": vis.sid}
     )
 
     # Should return 400 (no jobs available) after skipping the malformed job
@@ -71,7 +71,7 @@ def test_get_next_job_with_missing_job_id_in_queue(server):
 
     # Try to get next job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/jobs/next", json={"workerId": vis.sid}
     )
 
     # Should return 400 (no jobs available) since the job is invalid
@@ -101,7 +101,7 @@ def test_get_next_job_with_nonexistent_job_id(server):
 
     # Try to get next job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/jobs/next", json={"workerId": vis.sid}
     )
 
     # Should return 400 (no jobs available) since the job doesn't exist
@@ -119,7 +119,7 @@ def test_get_next_job_without_worker_id(server):
     """Test that missing workerId returns proper error."""
     room = "testroom"
 
-    response = requests.post(f"{server}/api/rooms/{room}/jobs/next", json={})
+    response = requests.post(f"{server}/api/jobs/next", json={})
 
     assert response.status_code == 400
     assert response.json() == {"error": "workerId is required"}
@@ -147,14 +147,14 @@ def test_get_next_job_with_running_job(server):
 
     # Pick up first job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/jobs/next", json={"workerId": vis.sid}
     )
     assert response.status_code == 200
     job_id = response.json()["jobId"]
 
     # Try to pick up second job while first is still running
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/jobs/next", json={"workerId": vis.sid}
     )
     assert response.status_code == 400
     assert response.json() == {"error": "Worker is not idle"}
@@ -168,7 +168,7 @@ def test_get_next_job_with_running_job(server):
 
     # Now should be able to pick up second job
     response = requests.post(
-        f"{server}/api/rooms/{room}/jobs/next", json={"workerId": vis.sid}
+        f"{server}/api/jobs/next", json={"workerId": vis.sid}
     )
     assert response.status_code == 200
 

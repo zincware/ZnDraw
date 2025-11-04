@@ -68,3 +68,52 @@ class ExtensionKeys:
             Redis key for the user's extensions set
         """
         return f"room:{room_id}:extensions:{category}:{sid}"
+
+    @classmethod
+    def for_global_extension(cls, category: str, extension: str) -> "ExtensionKeys":
+        """Create ExtensionKeys for a global extension (not room-specific).
+
+        Args:
+            category: The extension category (e.g., 'modifiers', 'selections')
+            extension: The extension name
+
+        Returns:
+            ExtensionKeys instance with all relevant Redis keys for global extensions
+        """
+        base = f"global:extensions:{category}"
+        return cls(
+            schema=base,
+            idle_workers=f"{base}:{extension}:idle_workers",
+            progressing_workers=f"{base}:{extension}:progressing_workers",
+            queue=f"{base}:{extension}:queue",
+        )
+
+    @staticmethod
+    def global_schema_key(category: str) -> str:
+        """Get the schema hash key for global extensions in a category.
+
+        This is the Redis hash that stores all global extension schemas for a category.
+
+        Args:
+            category: The extension category
+
+        Returns:
+            Redis key for the global schema hash
+        """
+        return f"global:extensions:{category}"
+
+    @staticmethod
+    def global_user_extensions_key(category: str, sid: str) -> str:
+        """Get the reverse mapping key for a worker's registered global extensions.
+
+        This key maps from a session ID to the set of global extension names
+        that the worker can handle.
+
+        Args:
+            category: The extension category
+            sid: The session ID of the worker
+
+        Returns:
+            Redis key for the user's global extensions set
+        """
+        return f"global:extensions:{category}:{sid}"

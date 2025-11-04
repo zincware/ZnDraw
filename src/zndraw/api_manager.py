@@ -135,12 +135,28 @@ class APIManager:
         return response.json()
 
     def get_next_job(self, worker_id: str) -> dict | None:
+        """Poll for the next available job for this worker (room-agnostic).
+
+        Uses the room-agnostic endpoint that checks both global and room-specific
+        extension queues for jobs assigned to this worker.
+
+        Parameters
+        ----------
+        worker_id : str
+            The worker ID (typically socket session ID)
+
+        Returns
+        -------
+        dict | None
+            Job data including jobId, room, category, extension, data, etc.
+            Returns None if no jobs are available.
+        """
         headers = {}
         if self.jwt_token:
             headers["Authorization"] = f"Bearer {self.jwt_token}"
 
         response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/jobs/next",
+            f"{self.url}/api/jobs/next",
             json={"workerId": worker_id},
             headers=headers,
         )
@@ -171,7 +187,7 @@ class APIManager:
         response.raise_for_status()
 
     def register_extension(
-        self, name: str, category: str, schema: dict, socket_manager
+        self, name: str, category: str, schema: dict, socket_manager, public: bool = False
     ) -> None:
         """Register extension via Socket.IO (not REST).
 
@@ -188,6 +204,8 @@ class APIManager:
             JSON schema for the extension
         socket_manager : SocketManager
             Socket manager to use for the call
+        public : bool
+            If True, register as global extension (requires admin privileges)
         """
         # Note: Don't check socket_manager.sio.connected here because during
         # reconnection, _on_connect may fire before the client reports as fully
@@ -200,6 +218,7 @@ class APIManager:
                 "name": name,
                 "category": category,
                 "schema": schema,
+                "public": public,
             },
             timeout=10,
         )

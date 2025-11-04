@@ -92,6 +92,7 @@ def handle_connect(auth):
     try:
         payload = decode_jwt_token(token)
         user_name = payload["sub"]  # userName is the primary identifier
+        user_role = payload.get("role", "guest")  # Get role from JWT
     except AuthError as e:
         log.error(f"Client {sid} authentication failed: {e.message}")
         raise ConnectionRefusedError(e.message)
@@ -111,8 +112,9 @@ def handle_connect(auth):
         },
     )
 
-    # Register SID → userName mapping
+    # Register SID → userName mapping and role mapping
     r.set(f"sid:{sid}", user_name)
+    r.set(f"sid:{sid}:role", user_role)  # Store role for this session
 
     # Get user's current room (if any)
     current_room = r.hget(user_key, "currentRoom")
@@ -288,8 +290,99 @@ def handle_disconnect():
             )
             socketio.emit(
                 SocketEvents.INVALIDATE_SCHEMA,
-                {"roomId": room_name, "category": category},
+                {"category": category},
                 to=f"room:{room_name}",
+            )
+
+    # Clean up global (public) extensions
+    log.info(f"Checking for global extensions from worker_id={worker_id}...")
+    for category in extension_categories:
+        # Check if this worker registered any global extensions
+        global_worker_extensions_key = ExtensionKeys.global_user_extensions_key(
+            category, worker_id
+        )
+        global_worker_extensions = list(r.smembers(global_worker_extensions_key))
+
+        if not global_worker_extensions:
+            continue
+
+        log.info(
+            f"Worker {worker_id} was providing global extensions in '{category}': {global_worker_extensions}"
+        )
+
+        global_extensions_to_delete = []
+
+        with r.pipeline() as pipe:
+            for ext_name in global_worker_extensions:
+                keys = ExtensionKeys.for_global_extension(category, ext_name)
+                idle_key = keys.idle_workers
+                progressing_key = keys.progressing_workers
+
+                # Remove the worker_id from both possible state sets
+                pipe.srem(idle_key, worker_id)
+                pipe.srem(progressing_key, worker_id)
+
+                # Check the combined cardinality to see if the extension is orphaned
+                pipe.scard(idle_key)
+                pipe.scard(progressing_key)
+
+            # Each extension produces 4 results
+            results = pipe.execute()
+
+        # Iterate through results to decide which extensions to delete
+        for i, ext_name in enumerate(global_worker_extensions):
+            remaining_idle = results[i * 4 + 2]
+            remaining_progressing = results[i * 4 + 3]
+            total_remaining = remaining_idle + remaining_progressing
+
+            log.info(
+                f"Global extension '{ext_name}': {total_remaining} workers remaining after removing {worker_id}."
+            )
+
+            # Only delete if no workers AND no jobs in queue
+            if total_remaining == 0:
+                keys = ExtensionKeys.for_global_extension(category, ext_name)
+                queue_length = r.llen(keys.queue)
+
+                if queue_length == 0:
+                    global_extensions_to_delete.append(ext_name)
+                    log.info(
+                        f"Global extension '{ext_name}' marked for deletion: no workers, no queued jobs"
+                    )
+                else:
+                    log.info(
+                        f"Global extension '{ext_name}' kept despite no workers: {queue_length} jobs in queue"
+                    )
+
+        # Delete orphaned global extensions
+        if global_extensions_to_delete:
+            log.info(
+                f"Deleting orphaned global extensions in '{category}': {global_extensions_to_delete}"
+            )
+            with r.pipeline() as pipe:
+                for ext_name in global_extensions_to_delete:
+                    keys = ExtensionKeys.for_global_extension(category, ext_name)
+                    # Delete the state sets
+                    pipe.delete(keys.idle_workers)
+                    pipe.delete(keys.progressing_workers)
+                    # Delete the schema from the main hash
+                    pipe.hdel(keys.schema, ext_name)
+                pipe.execute()
+
+        # Clean up the worker-specific reverse-lookup key for global extensions
+        r.delete(global_worker_extensions_key)
+        log.info(
+            f"Cleaned up global worker-specific extension list: {global_worker_extensions_key}"
+        )
+
+        # Notify ALL clients about global extension removal (broadcast globally)
+        if global_worker_extensions:
+            log.info(
+                f"Broadcasting global schema invalidation for category '{category}' due to worker disconnect"
+            )
+            socketio.emit(
+                SocketEvents.INVALIDATE_SCHEMA,
+                {"category": category, "global": True},
             )
 
 
@@ -307,7 +400,8 @@ def handle_extension_register(data):
             "roomId": str,
             "name": str,
             "category": str,
-            "schema": dict
+            "schema": dict,
+            "public": bool (optional, defaults to False)
         }
     """
     sid = request.sid
@@ -318,6 +412,7 @@ def handle_extension_register(data):
         name = data["name"]
         category = data["category"]
         schema = data["schema"]
+        public = data.get("public", False)  # Default to False if not specified
     except KeyError as e:
         return {"success": False, "error": f"Missing required field: {e}"}
 
@@ -325,6 +420,27 @@ def handle_extension_register(data):
     user_name = get_user_name_from_sid(sid)
     if not user_name:
         return {"success": False, "error": "Not authenticated"}
+
+    # Check admin privileges for public extensions
+    if public:
+        try:
+            # Get role from Redis (stored during socket connection)
+            role = r.get(f"sid:{sid}:role")
+            if role is None:
+                log.error(f"Role not found for sid {sid}")
+                return {"success": False, "error": "Failed to verify admin privileges"}
+
+            if role != "admin":
+                log.warning(
+                    f"User {user_name} (role: {role}) attempted to register public extension '{name}'"
+                )
+                return {
+                    "success": False,
+                    "error": "Only admin users can register public extensions",
+                }
+        except Exception as e:
+            log.error(f"Failed to check user role: {e}")
+            return {"success": False, "error": "Failed to verify admin privileges"}
 
     # Use request.sid as the worker_id - this is consistent across registration and disconnect
     worker_id = sid
@@ -352,14 +468,23 @@ def handle_extension_register(data):
             "error": f"Cannot register extension '{name}': name is reserved for server-side extensions",
         }
 
+    scope = "global" if public else f"room {room_id}"
     log.info(
-        f"Registering extension for room {room_id}: name={name}, category={category}, worker_id={worker_id}"
+        f"Registering {'global' if public else 'room-scoped'} extension: name={name}, category={category}, worker_id={worker_id}, scope={scope}"
     )
 
-    keys = ExtensionKeys.for_extension(room_id, category, name)
-    worker_extensions_key = ExtensionKeys.user_extensions_key(
-        room_id, category, worker_id
-    )
+    # Use global or room-scoped keys based on public flag
+    if public:
+        keys = ExtensionKeys.for_global_extension(category, name)
+        worker_extensions_key = ExtensionKeys.global_user_extensions_key(
+            category, worker_id
+        )
+    else:
+        keys = ExtensionKeys.for_extension(room_id, category, name)
+        worker_extensions_key = ExtensionKeys.user_extensions_key(
+            room_id, category, worker_id
+        )
+
     existing_schema = r.hget(keys.schema, name)
 
     if existing_schema is not None:
@@ -376,11 +501,21 @@ def handle_extension_register(data):
             f"Worker {worker_id} re-registered for extension '{name}' "
             f"in category '{category}', invalidating schema"
         )
-        socketio.emit(
-            SocketEvents.INVALIDATE_SCHEMA,
-            {"roomId": room_id, "category": category},
-            to=f"room:{room_id}",
-        )
+
+        # For global extensions, broadcast to all rooms; for room-scoped, broadcast to specific room
+        if public:
+            # Broadcast to all connected clients (global extension)
+            # Note: Flask-SocketIO broadcasts by not specifying a room
+            socketio.emit(
+                SocketEvents.INVALIDATE_SCHEMA,
+                {"category": category},
+            )
+        else:
+            socketio.emit(
+                SocketEvents.INVALIDATE_SCHEMA,
+                {"category": category},
+                to=f"room:{room_id}",
+            )
 
         return {
             "success": True,
@@ -395,11 +530,20 @@ def handle_extension_register(data):
             pipe.sadd(worker_extensions_key, name)
             pipe.execute()
 
-        socketio.emit(
-            SocketEvents.INVALIDATE_SCHEMA,
-            {"roomId": room_id, "category": category},
-            to=f"room:{room_id}",
-        )
+        # For global extensions, broadcast to all rooms; for room-scoped, broadcast to specific room
+        if public:
+            # Broadcast to all connected clients (global extension)
+            # Note: Flask-SocketIO broadcasts by not specifying a room
+            socketio.emit(
+                SocketEvents.INVALIDATE_SCHEMA,
+                {"category": category},
+            )
+        else:
+            socketio.emit(
+                SocketEvents.INVALIDATE_SCHEMA,
+                {"category": category},
+                to=f"room:{room_id}",
+            )
 
         return {"success": True, "workerId": worker_id}  # Return server's sid to client
 

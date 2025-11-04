@@ -308,6 +308,7 @@ class SocketManager:
                     data=job_data.get("data"),
                     extension=job_data.get("extension"),
                     category=job_data.get("category"),
+                    room=job_data.get("room"),  # Pass room from job metadata
                 )
                 self.zndraw.api.update_job_status(
                     job_id=job_data.get("jobId"),
@@ -326,12 +327,43 @@ class SocketManager:
                 )
             self._on_queue_update({})
 
-    def _on_task_run(self, data: dict, extension: str, category: str):
-        ext = self.zndraw._extensions[extension]["extension"]
-        instance = ext(**(data))
-        instance.run(
-            self.zndraw, **(self.zndraw._extensions[extension]["run_kwargs"] or {})
+    def _on_task_run(self, data: dict, extension: str, category: str, room: str):
+        """Execute an extension job with proper room context.
+
+        Creates a temporary ZnDraw instance connected to the job's target room,
+        ensuring the extension operates in the correct room context.
+
+        Parameters
+        ----------
+        data : dict
+            Job input parameters
+        extension : str
+            Extension name
+        category : str
+            Extension category
+        room : str
+            Room where the job was triggered (may differ from worker's room)
+        """
+        from zndraw import ZnDraw
+
+        # Create temporary ZnDraw instance for the job's target room
+        temp_vis = ZnDraw.for_job_execution(
+            url=self.zndraw.url,
+            room=room,
+            user=self.zndraw.user,
+            password=getattr(self.zndraw, "password", None),
         )
+
+        try:
+            ext = self.zndraw._extensions[extension]["extension"]
+            instance = ext(**(data))
+            instance.run(
+                temp_vis, **(self.zndraw._extensions[extension]["run_kwargs"] or {})
+            )
+        finally:
+            # Cleanup: disconnect temporary instance
+            if hasattr(temp_vis, "socket") and temp_vis.socket:
+                temp_vis.socket.disconnect()
 
     def _on_invalidate(self, data: dict):
         if data["category"] == "settings":

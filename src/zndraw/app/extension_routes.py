@@ -72,10 +72,18 @@ def log_room_extension(room_id: str, category: str, extension: str):
 
     # Check if extension exists (either as server-side or client-registered)
     if not is_celery_extension:
-        # Check if any client has registered this extension
+        # Check if any client has registered this extension (room-scoped or global)
 
+        # First check room-scoped extension
         schema_key = ExtensionKeys.schema_key(room_id, category)
         extension_schema = redis_client.hget(schema_key, extension)
+
+        # If not found in room, check global extensions
+        is_global = False
+        if extension_schema is None:
+            global_schema_key = ExtensionKeys.global_schema_key(category)
+            extension_schema = redis_client.hget(global_schema_key, extension)
+            is_global = extension_schema is not None
 
         if extension_schema is None:
             return {"error": f"No workers available for extension {extension}"}, 400
@@ -145,7 +153,14 @@ def log_room_extension(room_id: str, category: str, extension: str):
         emit_queue_update(redis_client, room_id, category, extension, socketio)
     else:
         # Queue job for client workers to poll via /jobs/next endpoint
-        keys = ExtensionKeys.for_extension(room_id, category, extension)
+        # Use global or room-scoped keys based on whether extension is global
+        if is_global:
+            keys = ExtensionKeys.for_global_extension(category, extension)
+            log.info(
+                f"Queuing job for global extension {extension} in category {category}"
+            )
+        else:
+            keys = ExtensionKeys.for_extension(room_id, category, extension)
 
         # Add to queue
         redis_client.rpush(
@@ -159,8 +174,15 @@ def log_room_extension(room_id: str, category: str, extension: str):
         )
         queue_position = redis_client.llen(keys.queue) - 1  # Zero-indexed position
 
-        # Notify all clients in room about queue update
-        emit_queue_update(redis_client, room_id, category, extension, socketio)
+        # Notify all clients about queue update
+        # For global extensions, pass None as room_id to broadcast globally
+        emit_queue_update(
+            redis_client,
+            None if is_global else room_id,
+            category,
+            extension,
+            socketio,
+        )
 
     log.info(
         f"Emitting invalidate for user {user_name}, category {category}, extension {extension}, room {room_id} to user:{user_name}"

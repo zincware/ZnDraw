@@ -376,8 +376,9 @@ def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"
     }
     log.info(f"Celery worker {worker_id} starting to poll for jobs in room {room}")
 
+    # Use room-agnostic endpoint (Celery workers can handle jobs from any room)
     response = requests.post(
-        f"{server_url}/api/rooms/{room}/jobs/next",
+        f"{server_url}/api/jobs/next",
         json={"workerId": worker_id},
     )
 
