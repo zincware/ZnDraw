@@ -13,6 +13,8 @@ import re
 
 from redis import Redis  # type: ignore
 
+from zndraw.app.redis_keys import RoomKeys
+
 log = logging.getLogger(__name__)
 
 
@@ -46,7 +48,8 @@ class RoomService:
         bool
             True if room exists, False otherwise
         """
-        return self.r.exists(f"room:{room_id}:current_frame") > 0
+        keys = RoomKeys(room_id)
+        return self.r.exists(keys.current_frame()) > 0
 
     def validate_room_available(self, room_id: str) -> None:
         """Validate that a room ID is available (doesn't already exist).
@@ -132,16 +135,17 @@ class RoomService:
         dict
             {"created": True, "frameCount": 0}
         """
+        keys = RoomKeys(room_id)
         pipe = self.r.pipeline()
 
         # Set description if provided
         if description:
-            pipe.set(f"room:{room_id}:description", description)
+            pipe.set(keys.description(), description)
 
         # Initialize metadata
-        pipe.set(f"room:{room_id}:current_frame", 0)
-        pipe.set(f"room:{room_id}:locked", 0)
-        pipe.set(f"room:{room_id}:hidden", 0)
+        pipe.set(keys.current_frame(), 0)
+        pipe.set(keys.locked(), 0)
+        pipe.set(keys.hidden(), 0)
 
         # Create default geometries
         self._initialize_default_geometries_pipeline(room_id, pipe)
@@ -178,38 +182,40 @@ class RoomService:
         ValueError
             If source room doesn't exist
         """
-        source_indices_key = f"room:{source_room}:trajectory:indices"
-        if not self.r.exists(source_indices_key):
+        source_keys = RoomKeys(source_room)
+        new_keys = RoomKeys(room_id)
+
+        if not self.r.exists(source_keys.trajectory_indices()):
             raise ValueError(f"Source room '{source_room}' not found")
 
         pipe = self.r.pipeline()
 
         # Set description if provided
         if description:
-            pipe.set(f"room:{room_id}:description", description)
+            pipe.set(new_keys.description(), description)
 
         # Copy trajectory indices (shares frame data)
-        source_indices = self.r.zrange(source_indices_key, 0, -1, withscores=True)
+        source_indices = self.r.zrange(source_keys.trajectory_indices(), 0, -1, withscores=True)
         if source_indices:
             pipe.zadd(
-                f"room:{room_id}:trajectory:indices",
+                new_keys.trajectory_indices(),
                 {member: score for member, score in source_indices},
             )
 
         # Copy geometries
-        geometries = self.r.hgetall(f"room:{source_room}:geometries")
+        geometries = self.r.hgetall(source_keys.geometries())
         if geometries:
-            pipe.hset(f"room:{room_id}:geometries", mapping=geometries)
+            pipe.hset(new_keys.geometries(), mapping=geometries)
 
         # Copy bookmarks
-        bookmarks = self.r.hgetall(f"room:{source_room}:bookmarks")
+        bookmarks = self.r.hgetall(source_keys.bookmarks())
         if bookmarks:
-            pipe.hset(f"room:{room_id}:bookmarks", mapping=bookmarks)
+            pipe.hset(new_keys.bookmarks(), mapping=bookmarks)
 
         # Initialize metadata
-        pipe.set(f"room:{room_id}:current_frame", 0)
-        pipe.set(f"room:{room_id}:locked", 0)
-        pipe.set(f"room:{room_id}:hidden", 0)
+        pipe.set(new_keys.current_frame(), 0)
+        pipe.set(new_keys.locked(), 0)
+        pipe.set(new_keys.hidden(), 0)
 
         # Execute all operations atomically
         pipe.execute()
@@ -234,6 +240,8 @@ class RoomService:
         from zndraw.geometries import Bond, Cell, Curve, Floor, Sphere
         from zndraw.materials import MeshBasicMaterial
         from zndraw.transformations import InArrayTransform
+
+        keys = RoomKeys(room_id)
 
         defaults = {
             "particles": (
@@ -272,7 +280,7 @@ class RoomService:
         for key, (geometry_class, kwargs) in defaults.items():
             geometry_data = geometry_class(**kwargs).model_dump()
             pipe.hset(
-                f"room:{room_id}:geometries",
+                keys.geometries(),
                 key,
                 json.dumps({"type": geometry_class.__name__, "data": geometry_data}),
             )
@@ -290,7 +298,8 @@ class RoomService:
         int
             Number of frames in the room's trajectory
         """
-        return self.r.zcard(f"room:{room_id}:trajectory:indices")
+        keys = RoomKeys(room_id)
+        return self.r.zcard(keys.trajectory_indices())
 
     def get_current_frame(self, room_id: str) -> int:
         """Get current frame number, handling invalid values.
@@ -305,7 +314,8 @@ class RoomService:
         int
             Current frame number (0 if invalid or not set)
         """
-        step = self.r.get(f"room:{room_id}:current_frame")
+        keys = RoomKeys(room_id)
+        step = self.r.get(keys.current_frame())
         try:
             if step is not None:
                 step_int = int(step)
