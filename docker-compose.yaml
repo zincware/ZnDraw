@@ -1,0 +1,117 @@
+services:
+  # Redis service for state management and Celery broker
+  redis:
+    image: redis:7-alpine
+    container_name: zndraw-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6380:6379"  # Changed to 6380 to avoid conflict with existing Redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zndraw-network
+
+  # Main ZnDraw application
+  zndraw:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zndraw-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      # Redis configuration
+      - ZNDRAW_REDIS_URL=redis://redis:6379
+
+      # Server configuration
+      # Note: --host is set in Dockerfile CMD to use service name 'zndraw'
+      # This allows celery tasks to connect via http://zndraw:5000
+      # Flask itself binds to 0.0.0.0 (all interfaces) by default
+
+      # Flask secret key (CHANGE THIS IN PRODUCTION!)
+      - FLASK_SECRET_KEY=change-this-to-a-random-secret-key-in-production
+
+      # Admin access (optional - uncomment and set to enable)
+      # - ZNDRAW_ADMIN_USERNAME=admin
+      # - ZNDRAW_ADMIN_PASSWORD=secure-password-here
+
+      # Upload configuration
+      - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
+      - ZNDRAW_MAX_UPLOAD_MB=500
+
+      # Storage path
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data.zarr
+
+      # Analytics (optional)
+      # - ZNDRAW_EXTENSION_ANALYTICS_TTL=604800
+
+      # Fix for Apple Silicon hosts
+      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    volumes:
+      # Persistent data storage
+      - ./data:/app/data
+      # Upload temporary storage
+      - ./uploads:/tmp/zndraw_uploads
+    networks:
+      - zndraw-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+
+  # Celery worker for background tasks
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zndraw-celery-worker
+    restart: unless-stopped
+    command: ["celery", "-A", "zndraw.app.make_celery", "worker", "--loglevel=info"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      # Redis configuration
+      - ZNDRAW_REDIS_URL=redis://redis:6379
+
+      # Storage path (must match main app)
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data.zarr
+
+      # Upload configuration (must match main app)
+      - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
+
+      # Fix for Apple Silicon hosts
+      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    volumes:
+      # Share data with main app
+      - ./data:/app/data
+      # Share upload storage with main app
+      - ./uploads:/tmp/zndraw_uploads
+    networks:
+      - zndraw-network
+    healthcheck:
+      test: ["CMD", "celery", "-A", "zndraw.app.make_celery", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+
+networks:
+  zndraw-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local

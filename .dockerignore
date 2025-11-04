@@ -1,0 +1,63 @@
+# Dependencies
+node_modules
+app/node_modules
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache
+.coverage
+coverage*
+htmlcov
+.tox
+.nox
+
+# Development
+*.log
+.env
+.env.local
+.env.*.local
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Documentation
+docs/
+
+# Data directories (will be mounted as volumes)
+data/
+uploads/
+*.zarr
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+app/dist/
+
+# Other
+.editorconfig
+Makefile
