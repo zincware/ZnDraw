@@ -1,4 +1,8 @@
-"""Redis key management for ZnDraw."""
+"""Redis key management for ZnDraw.
+
+Centralizes Redis key construction to avoid duplication and errors.
+All key construction should go through these classes.
+"""
 
 from dataclasses import dataclass
 
@@ -210,3 +214,151 @@ class FilesystemKeys:
             Redis key for the user's global filesystems set
         """
         return f"global:filesystems:{sid}"
+
+
+@dataclass(frozen=True)
+class RoomKeys:
+    """Redis keys for room-related data.
+
+    Centralizes all room-scoped key construction.
+    """
+
+    room_id: str
+
+    def description(self) -> str:
+        """Room description string."""
+        return f"room:{self.room_id}:description"
+
+    def locked(self) -> str:
+        """Room locked status (0 or 1)."""
+        return f"room:{self.room_id}:locked"
+
+    def hidden(self) -> str:
+        """Room hidden status (0 or 1)."""
+        return f"room:{self.room_id}:hidden"
+
+    def current_frame(self) -> str:
+        """Current frame index."""
+        return f"room:{self.room_id}:current_frame"
+
+    def presenter_lock(self) -> str:
+        """Presenter lock (sid with TTL)."""
+        return f"room:{self.room_id}:presenter_lock"
+
+    def lock(self, target: str) -> str:
+        """Generic lock key for a target.
+
+        Parameters
+        ----------
+        target : str
+            Lock target identifier
+
+        Returns
+        -------
+        str
+            Redis key for the lock
+        """
+        return f"room:{self.room_id}:lock:{target}"
+
+    def lock_metadata(self, target: str) -> str:
+        """Lock metadata for a target.
+
+        Parameters
+        ----------
+        target : str
+            Lock target identifier
+
+        Returns
+        -------
+        str
+            Redis key for lock metadata
+        """
+        return f"room:{self.room_id}:lock:{target}:metadata"
+
+    def bookmarks(self) -> str:
+        """Bookmarks hash (frame_index -> label)."""
+        return f"room:{self.room_id}:bookmarks"
+
+    def geometries(self) -> str:
+        """Geometries hash."""
+        return f"room:{self.room_id}:geometries"
+
+    def figures(self) -> str:
+        """Figures hash."""
+        return f"room:{self.room_id}:figures"
+
+    def selections(self) -> str:
+        """Selections hash (geometry -> indices)."""
+        return f"room:{self.room_id}:selections"
+
+    def selection_groups(self) -> str:
+        """Selection groups hash."""
+        return f"room:{self.room_id}:selection_groups"
+
+    def active_selection_group(self) -> str:
+        """Active selection group name."""
+        return f"room:{self.room_id}:active_selection_group"
+
+    def settings(self, username: str) -> str:
+        """User-specific settings for this room.
+
+        Parameters
+        ----------
+        username : str
+            Username
+
+        Returns
+        -------
+        str
+            Redis key for user settings hash
+        """
+        return f"room:{self.room_id}:settings:{username}"
+
+    def trajectory_indices(self) -> str:
+        """Trajectory indices sorted set."""
+        return f"room:{self.room_id}:trajectory:indices"
+
+    def chat_index(self) -> str:
+        """Chat message index (sorted set)."""
+        return f"room:{self.room_id}:chat:index"
+
+    def chat_message(self, message_id: str) -> str:
+        """Individual chat message hash.
+
+        Parameters
+        ----------
+        message_id : str
+            Message identifier
+
+        Returns
+        -------
+        str
+            Redis key for message hash
+        """
+        return f"room:{self.room_id}:chat:message:{message_id}"
+
+
+@dataclass(frozen=True)
+class UserKeys:
+    """Redis keys for user-related data."""
+
+    username: str
+
+    def hash_key(self) -> str:
+        """User data hash containing all user fields."""
+        return f"user:{self.username}"
+
+
+@dataclass(frozen=True)
+class SessionKeys:
+    """Redis keys for session mapping."""
+
+    sid: str
+
+    def username(self) -> str:
+        """Session ID to username mapping."""
+        return f"sid:{self.sid}"
+
+    def role(self) -> str:
+        """Session role."""
+        return f"sid:{self.sid}:role"
