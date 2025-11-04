@@ -11,6 +11,8 @@ from enum import Enum
 
 from redis import Redis
 
+from zndraw.app.redis_keys import UserKeys
+
 log = logging.getLogger(__name__)
 
 
@@ -59,7 +61,8 @@ class UserService:
         bool
             True if username exists
         """
-        return self.r.exists(f"user:{user_name}")
+        keys = UserKeys(user_name)
+        return self.r.exists(keys.hash_key())
 
     def get_user_role(self, user_name: str) -> UserRole:
         """Get the role of a user.
@@ -74,13 +77,15 @@ class UserService:
         UserRole
             Role of the user (guest, user, or admin)
         """
+        keys = UserKeys(user_name)
+
         # Check admin first
-        admin_key = f"admin:user:{user_name}"
-        if self.r.get(admin_key) == "1" or self.r.get(admin_key) == b"1":
+        admin_value = self.r.get(keys.admin_key())
+        if admin_value == "1" or admin_value == b"1":
             return UserRole.ADMIN
 
         # Check if user has password (registered)
-        has_password = self.r.hexists(f"user:{user_name}", "passwordHash")
+        has_password = self.r.hexists(keys.hash_key(), "passwordHash")
 
         if has_password:
             return UserRole.USER
@@ -100,7 +105,8 @@ class UserService:
         bool
             True if user has set a password
         """
-        return self.r.hexists(f"user:{user_name}", "passwordHash")
+        keys = UserKeys(user_name)
+        return self.r.hexists(keys.hash_key(), "passwordHash")
 
     def create_user(self, user_name: str) -> bool:
         """Create a new user account (guest - no password yet).
@@ -126,10 +132,10 @@ class UserService:
         # Create user entry
         import datetime
 
-        user_key = f"user:{user_name}"
+        keys = UserKeys(user_name)
         current_time = datetime.datetime.utcnow().isoformat()
         self.r.hset(
-            user_key,
+            keys.hash_key(),
             mapping={
                 "userName": user_name,
                 "createdAt": current_time,
@@ -189,9 +195,9 @@ class UserService:
             password_hash = self._hash_password(password, salt)
 
             # Add password to existing user
-            user_key = f"user:{old_user_name}"
-            self.r.hset(user_key, "passwordHash", password_hash)
-            self.r.hset(user_key, "passwordSalt", salt)
+            keys = UserKeys(old_user_name)
+            self.r.hset(keys.hash_key(), "passwordHash", password_hash)
+            self.r.hset(keys.hash_key(), "passwordSalt", salt)
 
             log.info(f"User {old_user_name} registered (guest → user)")
             return True
@@ -199,16 +205,17 @@ class UserService:
         # Different username - create new entry and delete old
         import datetime
 
+        old_keys = UserKeys(old_user_name)
+        new_keys = UserKeys(new_user_name)
+
         # Generate salt and hash password
         salt = secrets.token_hex(16)
         password_hash = self._hash_password(password, salt)
 
         # Get old user data
-        old_key = f"user:{old_user_name}"
-        old_data = self.r.hgetall(old_key)
+        old_data = self.r.hgetall(old_keys.hash_key())
 
         # Create new user entry
-        new_key = f"user:{new_user_name}"
         current_time = datetime.datetime.utcnow().isoformat()
 
         # Decode bytes if needed
@@ -217,7 +224,7 @@ class UserService:
             created_at = created_at.decode("utf-8")
 
         self.r.hset(
-            new_key,
+            new_keys.hash_key(),
             mapping={
                 "userName": new_user_name,
                 "passwordHash": password_hash,
@@ -228,14 +235,12 @@ class UserService:
         )
 
         # Transfer admin status if exists
-        old_admin_key = f"admin:user:{old_user_name}"
-        if self.r.get(old_admin_key):
-            new_admin_key = f"admin:user:{new_user_name}"
-            self.r.set(new_admin_key, "1")
-            self.r.delete(old_admin_key)
+        if self.r.get(old_keys.admin_key()):
+            self.r.set(new_keys.admin_key(), "1")
+            self.r.delete(old_keys.admin_key())
 
         # Delete old user
-        self.r.delete(old_key)
+        self.r.delete(old_keys.hash_key())
 
         log.info(
             f"User {old_user_name} registered as {new_user_name} (guest → user, username changed)"
@@ -260,9 +265,9 @@ class UserService:
         if not self.is_registered(user_name):
             return False
 
-        user_key = f"user:{user_name}"
-        stored_hash = self.r.hget(user_key, "passwordHash")
-        salt = self.r.hget(user_key, "passwordSalt")
+        keys = UserKeys(user_name)
+        stored_hash = self.r.hget(keys.hash_key(), "passwordHash")
+        salt = self.r.hget(keys.hash_key(), "passwordSalt")
 
         if not stored_hash or not salt:
             return False
@@ -311,9 +316,9 @@ class UserService:
         password_hash = self._hash_password(new_password, salt)
 
         # Update password
-        user_key = f"user:{user_name}"
-        self.r.hset(user_key, "passwordHash", password_hash)
-        self.r.hset(user_key, "passwordSalt", salt)
+        keys = UserKeys(user_name)
+        self.r.hset(keys.hash_key(), "passwordHash", password_hash)
+        self.r.hset(keys.hash_key(), "passwordSalt", salt)
 
         log.info(f"User {user_name} changed password")
         return True
@@ -346,9 +351,9 @@ class UserService:
         password_hash = self._hash_password(new_password, salt)
 
         # Update password
-        user_key = f"user:{user_name}"
-        self.r.hset(user_key, "passwordHash", password_hash)
-        self.r.hset(user_key, "passwordSalt", salt)
+        keys = UserKeys(user_name)
+        self.r.hset(keys.hash_key(), "passwordHash", password_hash)
+        self.r.hset(keys.hash_key(), "passwordSalt", salt)
 
         log.info(f"Admin reset password for user {user_name}")
         return True
@@ -363,9 +368,9 @@ class UserService:
         """
         import datetime
 
-        user_key = f"user:{user_name}"
+        keys = UserKeys(user_name)
         current_time = datetime.datetime.utcnow().isoformat()
-        self.r.hset(user_key, "lastLogin", current_time)
+        self.r.hset(keys.hash_key(), "lastLogin", current_time)
 
     def delete_user(self, user_name: str) -> bool:
         """Delete a user (hard deletion).
@@ -382,13 +387,13 @@ class UserService:
         bool
             True if user deleted successfully
         """
+        keys = UserKeys(user_name)
+
         # Delete user data
-        user_key = f"user:{user_name}"
-        self.r.delete(user_key)
+        self.r.delete(keys.hash_key())
 
         # Delete admin status if exists
-        admin_key = f"admin:user:{user_name}"
-        self.r.delete(admin_key)
+        self.r.delete(keys.admin_key())
 
         log.info(f"User {user_name} deleted")
         return True
@@ -411,7 +416,8 @@ class UserService:
             user_name = key.replace("user:", "")
 
             # Get user data
-            user_data = self.r.hgetall(f"user:{user_name}")
+            keys = UserKeys(user_name)
+            user_data = self.r.hgetall(keys.hash_key())
             if not user_data:
                 continue
 

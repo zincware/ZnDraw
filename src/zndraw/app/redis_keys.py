@@ -348,6 +348,10 @@ class UserKeys:
         """User data hash containing all user fields."""
         return f"user:{self.username}"
 
+    def admin_key(self) -> str:
+        """Admin status key for this user."""
+        return f"admin:user:{self.username}"
+
 
 @dataclass(frozen=True)
 class SessionKeys:
