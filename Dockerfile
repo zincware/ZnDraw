@@ -43,10 +43,6 @@ COPY --from=frontend-builder /src/zndraw/static/ ./src/zndraw/static/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-# Compile Python bytecode for faster startup
-ENV UV_COMPILE_BYTECODE=1
-RUN uv run python -m compileall src/
-
 # ============================================================================
 # Stage 3: Production runtime
 FROM python:3.12-slim
