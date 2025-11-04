@@ -10,6 +10,8 @@ from flask import Blueprint, current_app, request
 
 from zndraw.server import socketio
 
+from .frame_index_manager import FrameIndexManager
+from .redis_keys import RoomKeys
 from .room_manager import emit_room_update
 from .route_utils import (
     check_room_locked,
@@ -64,13 +66,15 @@ def list_rooms():
     room_service = current_app.extensions["room_service"]
     rooms = []
     for room_id in sorted(room_ids):
+        keys = RoomKeys(room_id)
+
         # Get frame count using service
         frame_count = room_service.get_frame_count(room_id)
 
         # Get metadata
-        description = redis_client.get(f"room:{room_id}:description")
-        locked = redis_client.get(f"room:{room_id}:locked") == "1"
-        hidden = redis_client.get(f"room:{room_id}:hidden") == "1"
+        description = redis_client.get(keys.description())
+        locked = redis_client.get(keys.locked()) == "1"
+        hidden = redis_client.get(keys.hidden()) == "1"
         is_default = default_room == room_id
 
         # Check if metadata lock is held (trajectory:meta is the target used by vis.lock)
@@ -129,6 +133,7 @@ def get_room(room_id):
 
     redis_client = current_app.extensions["redis"]
     room_service = current_app.extensions["room_service"]
+    keys = RoomKeys(room_id)
 
     # Check if room exists
     room_exists = False
@@ -143,9 +148,9 @@ def get_room(room_id):
     frame_count = room_service.get_frame_count(room_id)
 
     # Get metadata
-    description = redis_client.get(f"room:{room_id}:description")
-    locked = redis_client.get(f"room:{room_id}:locked") == "1"
-    hidden = redis_client.get(f"room:{room_id}:hidden") == "1"
+    description = redis_client.get(keys.description())
+    locked = redis_client.get(keys.locked()) == "1"
+    hidden = redis_client.get(keys.hidden()) == "1"
 
     # Get file metadata
     metadata_manager = RoomMetadataManager(redis_client, room_id)
@@ -269,25 +274,26 @@ def join_room(room_id):
     # Get frame count using service
     response["frameCount"] = room_service.get_frame_count(room_id)
 
-    selections_raw = r.hgetall(f"room:{room_id}:selections")
+    keys = RoomKeys(room_id)
+
+    selections_raw = r.hgetall(keys.selections())
     selections = {k: json.loads(v) for k, v in selections_raw.items()}
     response["selections"] = selections
 
-    frame_selection = r.get(f"room:{room_id}:frame_selection:default")
+    frame_selection = r.get(keys.frame_selection())
     response["frame_selection"] = (
         json.loads(frame_selection) if frame_selection else None
     )
 
-    presenter_lock = r.get(f"room:{room_id}:presenter_lock")
+    presenter_lock = r.get(keys.presenter_lock())
     response["presenter-lock"] = presenter_lock
 
     # Get current frame using service (handles validation and error cases)
     response["step"] = room_service.get_current_frame(room_id)
 
-    bookmarks_key = f"room:{room_id}:bookmarks"
-    bookmarks_raw = r.hgetall(bookmarks_key)
+    bookmarks_raw = r.hgetall(keys.bookmarks())
 
-    geometries = r.hgetall(f"room:{room_id}:geometries")
+    geometries = r.hgetall(keys.geometries())
     response["geometries"] = {k: json.loads(v) for k, v in geometries.items()}
 
     # Add geometry defaults from Pydantic models (single source of truth)
@@ -314,14 +320,14 @@ def join_room(room_id):
     response["settings"] = settings_service.get_all(room_id, user_name)
 
     # Fetch selection groups
-    groups_raw = r.hgetall(f"room:{room_id}:selection_groups")
+    groups_raw = r.hgetall(keys.selection_groups())
     selection_groups = {}
     for group_name, group_data in groups_raw.items():
         selection_groups[group_name] = json.loads(group_data)
     response["selectionGroups"] = selection_groups
 
     # Fetch active selection group
-    active_group = r.get(f"room:{room_id}:active_selection_group")
+    active_group = r.get(keys.active_selection_group())
     response["activeSelectionGroup"] = active_group if active_group else None
 
     # Check if metadata lock is held
@@ -343,6 +349,7 @@ def update_room(room_id):
     """
     redis_client = current_app.extensions["redis"]
     data = request.get_json() or {}
+    keys = RoomKeys(room_id)
 
     # Check if room exists
     room_exists = False
@@ -359,20 +366,20 @@ def update_room(room_id):
     # Update description
     if "description" in data:
         if data["description"] is None:
-            redis_client.delete(f"room:{room_id}:description")
+            redis_client.delete(keys.description())
             changes["description"] = None
         else:
-            redis_client.set(f"room:{room_id}:description", data["description"])
+            redis_client.set(keys.description(), data["description"])
             changes["description"] = data["description"]
 
     # Update locked status
     if "locked" in data:
-        redis_client.set(f"room:{room_id}:locked", "1" if data["locked"] else "0")
+        redis_client.set(keys.locked(), "1" if data["locked"] else "0")
         changes["locked"] = bool(data["locked"])
 
     # Update hidden status
     if "hidden" in data:
-        redis_client.set(f"room:{room_id}:hidden", "1" if data["hidden"] else "0")
+        redis_client.set(keys.hidden(), "1" if data["hidden"] else "0")
         changes["hidden"] = bool(data["hidden"])
 
     # Emit socket event for real-time updates
@@ -483,7 +490,8 @@ def update_room_metadata(room_id: str):
 
     # Check permanent room lock only (metadata doesn't use trajectory lock)
     redis_client = current_app.extensions["redis"]
-    locked = redis_client.get(f"room:{room_id}:locked")
+    keys = RoomKeys(room_id)
+    locked = redis_client.get(keys.locked())
     if locked == "1":
         return {"error": "Room is locked and cannot be modified"}, 403
 
@@ -518,7 +526,8 @@ def delete_room_metadata_field(room_id: str, field: str):
 
     # Check permanent room lock only (metadata doesn't use trajectory lock)
     redis_client = current_app.extensions["redis"]
-    locked = redis_client.get(f"room:{room_id}:locked")
+    keys = RoomKeys(room_id)
+    locked = redis_client.get(keys.locked())
     if locked == "1":
         return {"error": "Room is locked and cannot be modified"}, 403
 
@@ -680,7 +689,8 @@ def renormalize_frame_indices(room_id):
         JSON response with status and number of frames renormalized
     """
     redis_client = current_app.extensions["redis"]
-    indices_key = f"room:{room_id}:trajectory:indices"
+    keys = RoomKeys(room_id)
+    indices_key = keys.trajectory_indices()
 
     # Check if room exists
     room_exists = redis_client.exists(indices_key)

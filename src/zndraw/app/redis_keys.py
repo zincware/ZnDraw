@@ -337,6 +337,21 @@ class RoomKeys:
         """
         return f"room:{self.room_id}:chat:message:{message_id}"
 
+    def frame_selection(self, group: str = "default") -> str:
+        """Frame selection for a specific group.
+
+        Parameters
+        ----------
+        group : str
+            Selection group name (default: "default")
+
+        Returns
+        -------
+        str
+            Redis key for frame selection
+        """
+        return f"room:{self.room_id}:frame_selection:{group}"
+
 
 @dataclass(frozen=True)
 class UserKeys:
