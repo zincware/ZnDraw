@@ -17,3 +17,4 @@ class SocketEvents:
     INVALIDATE_SELECTION = "invalidate:selection"
     INVALIDATE_SELECTION_GROUPS = "invalidate:selection_groups"
     INVALIDATE_BOOKMARK = "bookmarks:invalidate"
+    FILESYSTEMS_UPDATE = "filesystems:update"

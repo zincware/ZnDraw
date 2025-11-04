@@ -117,3 +117,96 @@ class ExtensionKeys:
             Redis key for the user's global extensions set
         """
         return f"global:extensions:{category}:{sid}"
+
+
+@dataclass
+class FilesystemKeys:
+    """Redis keys for a filesystem provider.
+
+    Centralizes key construction for filesystem-related Redis keys.
+    """
+
+    metadata: str
+    worker: str
+
+    @classmethod
+    def for_filesystem(cls, room_id: str, fs_name: str) -> "FilesystemKeys":
+        """Create FilesystemKeys for a specific filesystem.
+
+        Parameters
+        ----------
+        room_id : str
+            The room identifier
+        fs_name : str
+            The filesystem name
+
+        Returns
+        -------
+        FilesystemKeys
+            Instance with all relevant Redis keys
+        """
+        base = f"room:{room_id}:filesystems:{fs_name}"
+        return cls(
+            metadata=base,
+            worker=f"{base}:worker",
+        )
+
+    @classmethod
+    def for_global_filesystem(cls, fs_name: str) -> "FilesystemKeys":
+        """Create FilesystemKeys for a global filesystem (not room-specific).
+
+        Parameters
+        ----------
+        fs_name : str
+            The filesystem name
+
+        Returns
+        -------
+        FilesystemKeys
+            Instance with all relevant Redis keys for global filesystems
+        """
+        base = f"global:filesystems:{fs_name}"
+        return cls(
+            metadata=base,
+            worker=f"{base}:worker",
+        )
+
+    @staticmethod
+    def user_filesystems_key(room_id: str, sid: str) -> str:
+        """Get the reverse mapping key for a worker's registered filesystems.
+
+        This key maps from a session ID to the set of filesystem names
+        that the worker provides.
+
+        Parameters
+        ----------
+        room_id : str
+            The room identifier
+        sid : str
+            The session ID of the worker
+
+        Returns
+        -------
+        str
+            Redis key for the user's filesystems set
+        """
+        return f"room:{room_id}:filesystems:{sid}"
+
+    @staticmethod
+    def global_user_filesystems_key(sid: str) -> str:
+        """Get the reverse mapping key for a worker's registered global filesystems.
+
+        This key maps from a session ID to the set of global filesystem names
+        that the worker provides.
+
+        Parameters
+        ----------
+        sid : str
+            The session ID of the worker
+
+        Returns
+        -------
+        str
+            Redis key for the user's global filesystems set
+        """
+        return f"global:filesystems:{sid}"

@@ -242,6 +242,9 @@ class ZnDraw(MutableSequence):
     _extensions: dict[str, _ExtensionStore] = dataclasses.field(
         default_factory=dict, init=False
     )
+    _filesystems: dict[str, dict] = dataclasses.field(
+        default_factory=dict, init=False
+    )
     role: str = dataclasses.field(default="guest", init=False)
     _worker_id: str | None = dataclasses.field(
         default=None, init=False
@@ -937,6 +940,80 @@ class ZnDraw(MutableSequence):
             category=extension.category.value,
             name=extension.__class__.__name__,
             data=extension.model_dump(),
+        )
+
+    def register_filesystem(
+        self,
+        fs,
+        name: str,
+        public: bool = False,
+    ):
+        """Register a filesystem for remote file access.
+
+        Parameters
+        ----------
+        fs : fsspec.AbstractFileSystem
+            An fsspec filesystem instance (e.g., LocalFileSystem, S3FileSystem)
+        name : str
+            Unique name for this filesystem instance
+        public : bool
+            If True, register as global filesystem accessible to all rooms.
+            Requires admin privileges. Default is False (room-scoped).
+
+        Raises
+        ------
+        ValueError
+            If filesystem name is already registered.
+        PermissionError
+            If trying to register public filesystem without admin privileges.
+        RuntimeError
+            If registration with server fails.
+
+        Examples
+        --------
+        >>> from fsspec.implementations.local import LocalFileSystem
+        >>> fs = LocalFileSystem()
+        >>> vis.register_filesystem(fs, name="local-data")
+        >>>
+        >>> # S3 example
+        >>> import s3fs
+        >>> s3 = s3fs.S3FileSystem(anon=False, key='...', secret='...')
+        >>> vis.register_filesystem(s3, name="s3-data", public=True)
+        """
+        if name in self._filesystems:
+            raise ValueError(f"Filesystem '{name}' is already registered.")
+
+        # Validate that public filesystems require admin privileges
+        if public and not self.is_admin:
+            raise PermissionError(
+                "Only admin users can register public filesystems. "
+                "Please authenticate with admin credentials to register global filesystems."
+            )
+
+        # Store locally
+        self._filesystems[name] = {
+            "fs": fs,
+            "public": public,
+        }
+        print(f"Registered filesystem '{name}' (type: {fs.__class__.__name__}).")
+
+        scope = "global" if public else self.room
+        print(f"Registering {'global' if public else 'room-scoped'} filesystem '{name}'...")
+
+        # Register with server via Socket.IO
+        worker_id = self.api.register_filesystem(
+            name=name,
+            fs_type=fs.__class__.__name__,
+            socket_manager=self.socket,
+            public=public,
+        )
+
+        # Store the worker_id assigned by server (server's request.sid)
+        if worker_id:
+            self._worker_id = worker_id
+
+        print(
+            f"Filesystem '{name}' registered with {scope} (worker_id: {self._worker_id})."
         )
 
     def log(self, message: str) -> dict | None:

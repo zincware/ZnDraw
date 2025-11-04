@@ -232,6 +232,49 @@ class APIManager:
         # Return the worker_id assigned by server so caller can store it
         return response.get("workerId")
 
+    def register_filesystem(
+        self,
+        name: str,
+        fs_type: str,
+        socket_manager,
+        public: bool = False,
+    ) -> None:
+        """Register filesystem via Socket.IO (not REST).
+
+        This ensures worker_id (request.sid) is consistent between
+        registration and disconnect cleanup.
+
+        Parameters
+        ----------
+        name : str
+            Filesystem name
+        fs_type : str
+            Filesystem class name (e.g., 'LocalFileSystem', 'S3FileSystem')
+        socket_manager : SocketManager
+            Socket manager to use for the call
+        public : bool
+            If True, register as global filesystem (requires admin privileges)
+        """
+        response = socket_manager.sio.call(
+            "filesystem:register",
+            {
+                "roomId": self.room,
+                "name": name,
+                "fsType": fs_type,
+                "public": public,
+            },
+            timeout=10,
+        )
+
+        if not response or not response.get("success"):
+            error = (
+                response.get("error", "Unknown error") if response else "No response"
+            )
+            raise RuntimeError(f"Filesystem registration failed: {error}")
+
+        # Return the worker_id assigned by server so caller can store it
+        return response.get("workerId")
+
     def get_frames(self, indices_or_slice, keys: list[str] | None = None) -> list[dict]:
         if isinstance(indices_or_slice, list):
             payload = {"indices": ",".join(str(i) for i in indices_or_slice)}

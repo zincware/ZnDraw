@@ -86,3 +86,5 @@ ValueError: Shape mismatch for key 'arrays.residuenames': existing shape (68,), 
 - [ ] admin / register global users
 - [ ] auto-reconnect extensions
 - [ ] disallow selection / hover on fix atoms constraints
+- [ ] uploading triggers canvas re-renders (activate e.g. path tracer to see the effect)
+- [ ] fix hosted url path in e.g. `copy python code`

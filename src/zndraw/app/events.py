@@ -12,7 +12,7 @@ from zndraw.server import socketio
 
 from .constants import SocketEvents
 from .models import LockMetadata
-from .redis_keys import ExtensionKeys
+from .redis_keys import ExtensionKeys, FilesystemKeys
 from .room_manager import emit_room_update
 
 log = logging.getLogger(__name__)
@@ -385,6 +385,55 @@ def handle_disconnect():
                 {"category": category, "global": True},
             )
 
+    # Filesystem cleanup - similar to extensions
+    if room_name:
+        worker_filesystems_key = FilesystemKeys.user_filesystems_key(room_name, worker_id)
+        worker_filesystems = list(r.smembers(worker_filesystems_key))
+
+        if worker_filesystems:
+            log.info(
+                f"Worker {worker_id} was providing filesystems: {worker_filesystems}"
+            )
+            for fs_name in worker_filesystems:
+                keys = FilesystemKeys.for_filesystem(room_name, fs_name)
+                # Delete filesystem metadata and worker reference
+                r.delete(keys.metadata)
+                r.delete(keys.worker)
+                log.info(f"Deleted room-scoped filesystem '{fs_name}' for worker {worker_id}")
+
+            # Clean up worker-specific filesystem list
+            r.delete(worker_filesystems_key)
+            log.info(f"Cleaned up worker-specific filesystem list: {worker_filesystems_key}")
+
+            # Notify clients in the room that filesystems changed
+            socketio.emit(
+                SocketEvents.FILESYSTEMS_UPDATE,
+                {"scope": "room"},
+                to=f"room:{room_name}",
+            )
+
+    # Clean up global (public) filesystems
+    global_worker_filesystems_key = FilesystemKeys.global_user_filesystems_key(worker_id)
+    global_worker_filesystems = list(r.smembers(global_worker_filesystems_key))
+
+    if global_worker_filesystems:
+        log.info(
+            f"Worker {worker_id} was providing global filesystems: {global_worker_filesystems}"
+        )
+        for fs_name in global_worker_filesystems:
+            keys = FilesystemKeys.for_global_filesystem(fs_name)
+            # Delete filesystem metadata and worker reference
+            r.delete(keys.metadata)
+            r.delete(keys.worker)
+            log.info(f"Deleted global filesystem '{fs_name}' for worker {worker_id}")
+
+        # Clean up worker-specific filesystem list
+        r.delete(global_worker_filesystems_key)
+        log.info(f"Cleaned up global worker-specific filesystem list: {global_worker_filesystems_key}")
+
+        # Notify all clients that global filesystems changed
+        socketio.emit(SocketEvents.FILESYSTEMS_UPDATE, {"scope": "global"})
+
 
 @socketio.on("extension:register")
 def handle_extension_register(data):
@@ -546,6 +595,119 @@ def handle_extension_register(data):
             )
 
         return {"success": True, "workerId": worker_id}  # Return server's sid to client
+
+
+@socketio.on("filesystem:register")
+def handle_filesystem_register(data):
+    """Register a filesystem via Socket.IO.
+
+    Using Socket.IO ensures request.sid is consistent for both registration
+    and disconnect cleanup.
+
+    Parameters
+    ----------
+    data : dict
+        {
+            "roomId": str,
+            "name": str,
+            "fsType": str,
+            "public": bool (optional, defaults to False)
+        }
+    """
+    sid = request.sid
+    r = current_app.extensions["redis"]
+
+    try:
+        room_id = data["roomId"]
+        name = data["name"]
+        fs_type = data["fsType"]
+        public = data.get("public", False)
+    except KeyError as e:
+        return {"success": False, "error": f"Missing required field: {e}"}
+
+    # Get user name from sid
+    user_name = get_user_name_from_sid(sid)
+    if not user_name:
+        return {"success": False, "error": "Not authenticated"}
+
+    # Check admin privileges for public filesystems
+    if public:
+        # Celery filesystem workers are automatically granted admin privileges
+        is_celery_worker = user_name.startswith("celery-fs:")
+
+        if not is_celery_worker:
+            try:
+                role = r.get(f"sid:{sid}:role")
+                if role is None:
+                    log.error(f"Role not found for sid {sid}")
+                    return {"success": False, "error": "Failed to verify admin privileges"}
+
+                if role != "admin":
+                    log.warning(
+                        f"User {user_name} (role: {role}) attempted to register public filesystem '{name}'"
+                    )
+                    return {
+                        "success": False,
+                        "error": "Only admin users can register public filesystems",
+                    }
+            except Exception as e:
+                log.error(f"Failed to check user role: {e}")
+                return {"success": False, "error": "Failed to verify admin privileges"}
+        else:
+            log.info(f"Celery filesystem worker {user_name} granted admin privileges automatically")
+
+    # Use request.sid as the worker_id
+    worker_id = sid
+
+    scope = "global" if public else f"room {room_id}"
+    log.info(
+        f"Registering {'global' if public else 'room-scoped'} filesystem: "
+        f"name={name}, type={fs_type}, worker_id={worker_id}, scope={scope}"
+    )
+
+    # Use global or room-scoped keys based on public flag
+    if public:
+        keys = FilesystemKeys.for_global_filesystem(name)
+        worker_filesystems_key = FilesystemKeys.global_user_filesystems_key(worker_id)
+    else:
+        keys = FilesystemKeys.for_filesystem(room_id, name)
+        worker_filesystems_key = FilesystemKeys.user_filesystems_key(room_id, worker_id)
+
+    # Store filesystem metadata in Redis
+    # Convert boolean to string for Redis compatibility
+    fs_metadata = {
+        "name": name,
+        "fsType": fs_type,
+        "workerId": worker_id,
+        "userName": user_name,
+        "public": "true" if public else "false",
+    }
+
+    with r.pipeline() as pipe:
+        # Store filesystem metadata as a hash
+        pipe.hset(keys.metadata, mapping=fs_metadata)
+        # Store worker ID
+        pipe.set(keys.worker, worker_id)
+        # Add filesystem name to worker's filesystem set
+        pipe.sadd(worker_filesystems_key, name)
+        pipe.execute()
+
+    log.info(f"Filesystem '{name}' registered successfully by worker {worker_id}")
+
+    # Notify clients about filesystem availability change
+    # Emit to room if room-scoped, broadcast globally if public
+    if public:
+        # Global filesystem - notify all clients
+        socketio.emit(SocketEvents.FILESYSTEMS_UPDATE, {"scope": "global"})
+    else:
+        # Room-scoped filesystem - notify clients in that room
+        socketio.emit(
+            SocketEvents.FILESYSTEMS_UPDATE,
+            {"scope": "room"},
+            to=f"room:{room_id}",
+        )
+
+    return {"success": True, "workerId": worker_id}
 
 
 @socketio.on("set_frame_atomic")

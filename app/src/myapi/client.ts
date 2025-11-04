@@ -1061,3 +1061,80 @@ export const getExtensionDetailedAnalytics = async (
   return data;
 };
 
+// --- Filesystem APIs ---
+
+export interface FilesystemInfo {
+  name: string;
+  fsType: string;
+  userName: string;
+  public: boolean;
+  workerId: string;
+}
+
+export interface ListFilesystemsResponse {
+  filesystems: FilesystemInfo[];
+}
+
+export interface FilesystemFileItem {
+  name: string;
+  path: string;
+  size: number;
+  type: string;
+  modified?: number;
+}
+
+export interface ListFilesystemFilesResponse {
+  files: FilesystemFileItem[];
+}
+
+export interface LoadFilesystemFileRequest {
+  path: string;
+  targetRoom?: string;
+  batchSize?: number;
+  start?: number;
+  stop?: number;
+  step?: number;
+}
+
+export interface LoadFilesystemFileResponse {
+  success: boolean;
+  frameCount: number;
+}
+
+export const listFilesystems = async (roomId: string): Promise<ListFilesystemsResponse> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}/filesystems`);
+  return data;
+};
+
+export const listFilesystemFiles = async (
+  roomId: string,
+  fsName: string,
+  path?: string,
+  recursive?: boolean,
+  filterExtensions?: string[]
+): Promise<ListFilesystemFilesResponse> => {
+  const params = new URLSearchParams();
+  if (path) params.append("path", path);
+  if (recursive) params.append("recursive", "true");
+  if (filterExtensions && filterExtensions.length > 0) {
+    params.append("filterExtensions", filterExtensions.join(","));
+  }
+
+  const { data } = await apiClient.get(
+    `/api/rooms/${roomId}/filesystems/${fsName}/list?${params}`
+  );
+  return data;
+};
+
+export const loadFilesystemFile = async (
+  roomId: string,
+  fsName: string,
+  request: LoadFilesystemFileRequest
+): Promise<LoadFilesystemFileResponse> => {
+  const { data } = await apiClient.post(
+    `/api/rooms/${roomId}/filesystems/${fsName}/load`,
+    request
+  );
+  return data;
+};
+

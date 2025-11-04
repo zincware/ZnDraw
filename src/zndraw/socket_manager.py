@@ -223,6 +223,9 @@ class SocketManager:
         self.sio.on("frames:invalidate", self._on_frames_invalidate)
         self.sio.on("invalidate:geometry", self._on_geometry_invalidate)
         self.sio.on("invalidate:figure", self._on_figure_invalidate)
+        self.sio.on("filesystem:list", self._on_filesystem_list)
+        self.sio.on("filesystem:metadata", self._on_filesystem_metadata)
+        self.sio.on("filesystem:load", self._on_filesystem_load)
 
     def connect(self):
         """Connect to server with JWT authentication."""
@@ -256,10 +259,26 @@ class SocketManager:
                 category=ext["extension"].category,
                 schema=ext["extension"].model_json_schema(),
                 socket_manager=self,
+                public=ext["public"],
             )
             # Store the worker_id assigned by server
             if worker_id:
                 self.zndraw._worker_id = worker_id
+
+        # Re-register any filesystems that were registered before connection
+        for name, fs in self.zndraw._filesystems.items():
+            provider = fs["provider"]
+            worker_id = self.zndraw.api.register_filesystem(
+                name=name,
+                provider_type=provider.__class__.__name__,
+                root_path=provider.root_path,
+                socket_manager=self,
+                public=fs["public"],
+            )
+            # Store the worker_id assigned by server
+            if worker_id:
+                self.zndraw._worker_id = worker_id
+
         self._on_queue_update({})
 
     def _on_frame_update(self, data):
@@ -391,3 +410,329 @@ class SocketManager:
                 "Unknown or broad invalidation event received. Clearing entire frame cache."
             )
             self.zndraw.cache.clear()
+
+    def _on_filesystem_list(self, data: dict):
+        """Handle filesystem list request from server.
+
+        Server sends: {requestId, fsName, path, recursive, filterExtensions, search}
+        Client responds: {requestId, success, files, error}
+        """
+        import re
+
+        request_id = data.get("requestId")
+        fs_name = data.get("fsName")
+        path = data.get("path", "")
+        recursive = data.get("recursive", False)
+        filter_extensions = data.get("filterExtensions")
+        search = data.get("search")
+
+        try:
+            # Get the filesystem instance
+            if fs_name not in self.zndraw._filesystems:
+                raise ValueError(f"Filesystem '{fs_name}' not found")
+
+            fs = self.zndraw._filesystems[fs_name]["fs"]
+
+            # Compile search pattern if provided
+            search_pattern = None
+            if search:
+                try:
+                    search_pattern = re.compile(search, re.IGNORECASE)
+                except re.error as e:
+                    raise ValueError(f"Invalid search pattern: {e}")
+
+            # List files using fsspec API
+            if recursive:
+                # Use glob for recursive listing
+                pattern = f"{path}/**" if path else "**"
+                all_paths = fs.glob(pattern, detail=True)
+            else:
+                # Use ls for non-recursive listing
+                all_paths = fs.ls(path or ".", detail=True)
+
+            # Convert fsspec info dicts to file metadata format
+            files_data = []
+            for item in all_paths:
+                # Handle both dict and tuple returns from fs.ls()
+                if isinstance(item, dict):
+                    info = item
+                    item_path = info.get("name", "")
+                else:
+                    # Fallback for simple path strings
+                    info = fs.info(item)
+                    item_path = item
+
+                item_name = item_path.split("/")[-1]
+
+                # Filter by extension if specified
+                if filter_extensions:
+                    if not any(item_path.endswith(ext) for ext in filter_extensions):
+                        continue
+
+                # Filter by search pattern if specified
+                if search_pattern:
+                    if not search_pattern.search(item_name):
+                        continue
+
+                # Build file metadata
+                file_data = {
+                    "name": item_name,
+                    "path": item_path,
+                    "size": info.get("size", 0),
+                    "type": info.get("type", "file"),
+                    "modified": info.get("mtime"),
+                }
+                files_data.append(file_data)
+
+            # Return response (for socketio.call() on server)
+            return {
+                "requestId": request_id,
+                "success": True,
+                "files": files_data,
+            }
+
+        except Exception as e:
+            log.error(f"Error listing files from filesystem '{fs_name}': {e}")
+            traceback.print_exc()
+            return {
+                "requestId": request_id,
+                "success": False,
+                "error": str(e),
+            }
+
+    def _on_filesystem_load(self, data: dict):
+        """Handle filesystem load request from server.
+
+        This triggers the client to read a file from the filesystem and upload
+        it to a target room using normal vis.extend() logic.
+
+        Server sends: {
+            requestId, fsName, path, room,
+            batchSize (optional), start (optional), stop (optional), step (optional)
+        }
+        Client: Reads file, uploads to room, sends completion response
+        """
+        import itertools
+        from pathlib import Path
+
+        import ase.db
+        import ase.io
+        import znh5md
+
+        request_id = data.get("requestId")
+        fs_name = data.get("fsName")
+        path = data.get("path")
+        target_room = data.get("room")
+        batch_size = data.get("batchSize", 10)
+        start = data.get("start")
+        stop = data.get("stop")
+        step = data.get("step")
+
+        temp_vis = None
+        try:
+            # Get the filesystem instance
+            if fs_name not in self.zndraw._filesystems:
+                raise ValueError(f"Filesystem '{fs_name}' not found")
+
+            fs = self.zndraw._filesystems[fs_name]["fs"]
+
+            # Create a temporary ZnDraw instance for the target room
+            from zndraw import ZnDraw
+
+            temp_vis = ZnDraw(
+                url=self.zndraw.url,
+                room=target_room,
+                user=self.zndraw.user,
+                password=getattr(self.zndraw, "password", None),
+            )
+
+            temp_vis.log(f"Loading {path} from {fs_name}...")
+
+            # Import utilities from tasks.py
+            from zndraw.app.tasks import (
+                FORMAT_BACKENDS,
+                add_connectivity,
+                batch_generator,
+                calculate_adaptive_resolution,
+            )
+
+            # Determine backend based on file extension
+            ext = Path(path).suffix.lstrip(".").lower()
+            backends = FORMAT_BACKENDS.get(ext, ["ASE"])
+            backend_name = backends[0]
+
+            loaded_frame_count = 0
+            max_particles = 0
+
+            with temp_vis.lock(msg=f"Loading {path}..."):
+                # Determine file mode based on format
+                # Binary formats need "rb", text formats need "r"
+                binary_formats = {"h5", "h5md", "traj", "db", "nc", "hdf5"}
+                mode = "rb" if ext in binary_formats else "r"
+
+                # Open file from fsspec filesystem
+                with fs.open(path, mode) as f:
+                    frame_iterator = None
+
+                    if backend_name == "ZnH5MD":
+                        # Use ZnH5MD for H5/H5MD files
+                        if step is not None and step <= 0:
+                            raise ValueError("Step must be a positive integer for H5MD files.")
+
+                        io = znh5md.IO(f)
+                        n_frames = len(io)
+
+                        if start is not None and start >= n_frames:
+                            raise ValueError(f"Start frame {start} exceeds file length")
+
+                        s = slice(start, stop, step)
+                        _start, _stop, _step = s.indices(n_frames)
+                        frame_iterator = itertools.islice(io, _start, _stop, _step)
+
+                    elif backend_name == "ASE-DB":
+                        # ASE database - note: this may not work with file objects
+                        temp_vis.log("⚠️ Warning: ASE database format may not support remote filesystems")
+                        # Try anyway in case fsspec filesystem supports it
+                        db = ase.db.connect(f)
+                        n_rows = db.count()
+
+                        if n_rows == 0:
+                            temp_vis.log("⚠️ Warning: Database is empty")
+                            raise ValueError("Database is empty")
+
+                        if step is not None and step <= 0:
+                            raise ValueError("Step must be a positive integer for database files.")
+
+                        _start = start if start is not None else 0
+                        _stop = stop if stop is not None else n_rows
+                        _step = step if step is not None else 1
+
+                        if _start >= n_rows:
+                            raise ValueError(f"Start row {_start} exceeds database size")
+
+                        if _stop > n_rows:
+                            _stop = n_rows
+
+                        selected_ids = list(range(_start + 1, _stop + 1, _step))
+
+                        def db_iterator():
+                            for row_id in selected_ids:
+                                try:
+                                    row = db.get(id=row_id)
+                                    yield row.toatoms()
+                                except KeyError:
+                                    temp_vis.log(
+                                        f"⚠️ Warning: Row ID {row_id} not found, skipping"
+                                    )
+                                    continue
+
+                        frame_iterator = db_iterator()
+
+                    else:
+                        # Use ASE for all other formats
+                        start_str = str(start) if start is not None else ""
+                        stop_str = str(stop) if stop is not None else ""
+                        step_str = str(step) if step is not None else ""
+                        index_str = f"{start_str}:{stop_str}:{step_str}"
+
+                        frame_iterator = ase.io.iread(f, index=index_str, format=ext or None)
+
+                    # Process frames in batches
+                    if frame_iterator:
+                        for batch in batch_generator(frame_iterator, batch_size):
+                            # Add connectivity for small structures
+                            for atoms in batch:
+                                if len(atoms) < 1000:
+                                    add_connectivity(atoms)
+                                max_particles = max(max_particles, len(atoms))
+
+                            temp_vis.extend(batch)
+                            loaded_frame_count += len(batch)
+
+            temp_vis.log(f"✓ Successfully loaded {loaded_frame_count} frames from {path}")
+
+            # Apply adaptive resolution if needed
+            if loaded_frame_count > 0 and max_particles > 0:
+                adaptive_resolution = calculate_adaptive_resolution(max_particles)
+                if adaptive_resolution < 16:
+                    try:
+                        from zndraw.geometries import Sphere
+
+                        sphere = temp_vis.geometries.get("particles")
+                        if sphere and isinstance(sphere, Sphere):
+                            sphere.resolution = adaptive_resolution
+                            temp_vis.geometries["particles"] = sphere
+                            temp_vis.log(
+                                f"ℹ️ Reduced particle resolution to {adaptive_resolution} for {max_particles} particles"
+                            )
+                    except Exception as e:
+                        log.warning(f"Failed to apply adaptive resolution: {e}")
+
+            # Return success response (for socketio.call() on server)
+            return {
+                "requestId": request_id,
+                "success": True,
+                "frameCount": loaded_frame_count,
+            }
+
+        except Exception as e:
+            log.error(f"Error loading file from filesystem '{fs_name}': {e}")
+            traceback.print_exc()
+            return {
+                "requestId": request_id,
+                "success": False,
+                "error": str(e),
+            }
+        finally:
+            # Always disconnect temp_vis to prevent resource leaks
+            if temp_vis is not None:
+                try:
+                    temp_vis.disconnect()
+                except Exception as e:
+                    log.error(f"Error disconnecting temp_vis: {e}")
+
+    def _on_filesystem_metadata(self, data: dict):
+        """Handle filesystem metadata request from server.
+
+        Server sends: {requestId, fsName, path}
+        Client responds: {requestId, success, metadata, error}
+        """
+        request_id = data.get("requestId")
+        fs_name = data.get("fsName")
+        path = data.get("path")
+
+        try:
+            # Get the filesystem instance
+            if fs_name not in self.zndraw._filesystems:
+                raise ValueError(f"Filesystem '{fs_name}' not found")
+
+            fs = self.zndraw._filesystems[fs_name]["fs"]
+
+            # Get metadata using fsspec API
+            info = fs.info(path)
+
+            # Convert to standard metadata format
+            metadata = {
+                "name": path.split("/")[-1],
+                "path": path,
+                "size": info.get("size", 0),
+                "type": info.get("type", "file"),
+                "modified": info.get("mtime"),
+                "created": info.get("created"),
+            }
+
+            # Return response (for socketio.call() on server)
+            return {
+                "requestId": request_id,
+                "success": True,
+                "metadata": metadata,
+            }
+
+        except Exception as e:
+            log.error(f"Error getting metadata from filesystem '{fs_name}': {e}")
+            traceback.print_exc()
+            return {
+                "requestId": request_id,
+                "success": False,
+                "error": str(e),
+            }

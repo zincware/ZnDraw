@@ -1,6 +1,7 @@
 from . import events  # noqa: E402
 from .bookmark_routes import bookmarks
 from .extension_routes import extensions
+from .filesystem_routes import filesystem_bp
 from .frame_routes import frames
 from .geometry_routes import geometries
 from .job_routes import jobs
@@ -18,4 +19,5 @@ __all__ = [
     "geometries",
     "bookmarks",
     "media",
+    "filesystem_bp",
 ]

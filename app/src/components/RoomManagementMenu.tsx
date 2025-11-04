@@ -37,11 +37,14 @@ import {
   getFileBrowserConfig,
   shutdownServer,
   downloadFrames,
+  listFilesystems,
 } from "../myapi/client";
 import { takeAndUploadScreenshot } from "../utils/screenshot";
 import { useExtensionData } from "../hooks/useSchemas";
 import { useAppStore } from "../store";
 import { useRoomsStore } from "../roomsStore";
+import { socket } from "../socket";
+import CloudIcon from "@mui/icons-material/Cloud";
 
 interface DuplicateFormState {
   newRoomId: string;
@@ -65,6 +68,7 @@ export default function RoomManagementMenu() {
   const [roomDetail, setRoomDetail] = useState<RoomDetail | null>(null);
   const [isDefault, setIsDefault] = useState(false);
   const [fileBrowserEnabled, setFileBrowserEnabled] = useState(false);
+  const [remoteFilesystemsAvailable, setRemoteFilesystemsAvailable] = useState(false);
   const [duplicateDialog, setDuplicateDialog] = useState(false);
   const [duplicateForm, setDuplicateForm] = useState<DuplicateFormState>({
     newRoomId: "",
@@ -110,6 +114,35 @@ export default function RoomManagementMenu() {
     };
     checkFileBrowser();
   }, []);
+
+  // Check if remote filesystems are available
+  useEffect(() => {
+    const checkRemoteFilesystems = async () => {
+      if (!roomId) return;
+      try {
+        const data = await listFilesystems(roomId);
+        setRemoteFilesystemsAvailable(data.filesystems.length > 0);
+      } catch (error) {
+        // If error, assume no filesystems available
+        setRemoteFilesystemsAvailable(false);
+      }
+    };
+
+    checkRemoteFilesystems();
+
+    // Listen for filesystem updates via Socket.IO
+    const handleFilesystemsUpdate = () => {
+      console.log("Received filesystems:update event, refreshing...");
+      checkRemoteFilesystems();
+    };
+
+    socket.on("filesystems:update", handleFilesystemsUpdate);
+
+    // Cleanup listener on unmount
+    return () => {
+      socket.off("filesystems:update", handleFilesystemsUpdate);
+    };
+  }, [roomId]);
 
   const menuOpen = Boolean(anchorEl);
 
@@ -234,6 +267,12 @@ export default function RoomManagementMenu() {
 
   const handleGoToFileBrowser = () => {
     navigate("/file-browser");
+    handleCloseMenu();
+  };
+
+  const handleGoToRemoteFileBrowser = () => {
+    if (!roomId) return;
+    navigate(`/rooms/${roomId}/remote-files`);
     handleCloseMenu();
   };
 
@@ -445,6 +484,15 @@ export default function RoomManagementMenu() {
               <FolderOpenIcon />
             </ListItemIcon>
             <ListItemText>Open File Browser</ListItemText>
+          </MenuItem>
+        )}
+
+        {remoteFilesystemsAvailable && (
+          <MenuItem onClick={handleGoToRemoteFileBrowser}>
+            <ListItemIcon>
+              <CloudIcon />
+            </ListItemIcon>
+            <ListItemText>Remote Filesystems</ListItemText>
           </MenuItem>
         )}
 

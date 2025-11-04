@@ -8,6 +8,7 @@ import TemplateSelectionPage from "./pages/templateSelection";
 import RoomListPage from "./pages/roomList";
 import RoomWaitingPage from "./pages/roomWaiting";
 import FileBrowserPage from "./pages/fileBrowser";
+import RemoteFileBrowserPage from "./pages/remoteFileBrowser";
 import { ExtensionsOverview } from "./pages/extensionsOverview";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
@@ -47,6 +48,10 @@ const router = createBrowserRouter([
   {
     path: "/file-browser",
     element: <FileBrowserPage />,
+  },
+  {
+    path: "/rooms/:roomId/remote-files",
+    element: <RemoteFileBrowserPage />,
   },
   {
     path: "/extensions",

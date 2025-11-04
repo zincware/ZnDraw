@@ -89,6 +89,7 @@ def create_app(
     from zndraw.app import (
         bookmarks,
         extensions,
+        filesystem_bp,
         frames,
         geometries,
         jobs,
@@ -108,6 +109,7 @@ def create_app(
     app.register_blueprint(bookmarks)
     app.register_blueprint(media)
     app.register_blueprint(file_browser_blueprint)
+    app.register_blueprint(filesystem_bp)
 
     # Store configuration
     app.config["STORAGE_PATH"] = storage_path
