@@ -66,6 +66,12 @@ export interface FigureListResponse {
   figures: string[];
 }
 
+export interface GlobalSettings {
+  simgen: {
+    enabled: boolean;
+  };
+}
+
 const apiClient = axios.create({});
 
 // Add interceptor to include JWT token in all requests
@@ -81,6 +87,11 @@ apiClient.interceptors.request.use((config) => {
 
 export const getServerVersion = async (): Promise<{ version: string }> => {
   const { data } = await apiClient.get('/api/version');
+  return data;
+};
+
+export const getGlobalSettings = async (): Promise<GlobalSettings> => {
+  const { data } = await apiClient.get('/api/config/global-settings');
   return data;
 };
 

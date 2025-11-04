@@ -28,6 +28,8 @@ import LoginDialog from "../components/LoginDialog";
 import RegisterDialog from "../components/RegisterDialog";
 import AdminPanel from "../components/AdminPanel";
 import UserProfileDialog from "../components/UserProfileDialog";
+import SiMGenTutorialDialog from "../components/SiMGenTutorialDialog";
+import SiMGenButtons from "../components/SiMGenButtons";
 
 import { useSocketManager } from "../hooks/useSocketManager";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
@@ -45,7 +47,6 @@ import AddPlotButton from "../components/AddPlotButton";
 import { useQueryClient } from "@tanstack/react-query";
 import { LAYOUT_CONSTANTS } from "../constants/layout";
 import { getUsername, logout as authLogout, login as authLogin, getUserRole } from "../utils/auth";
-import { socket } from "../socket";
 
 export default function MainPage() {
   const { roomId } = useAppStore(); // Get roomId from app store
@@ -65,6 +66,9 @@ export default function MainPage() {
   const profileMenuOpen = Boolean(profileAnchorEl);
   const { mode, setMode } = useColorScheme();
   const queryClient = useQueryClient();
+
+  // Tutorial dialog state
+  const [tutorialDialogOpen, setTutorialDialogOpen] = useState(false);
 
   // File upload ref for button click
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -163,10 +167,12 @@ export default function MainPage() {
               variant="h6"
               noWrap
               component="div"
-              sx={{ flexGrow: 1 }}
             >
               {serverVersion ? `ZnDraw ${serverVersion}` : 'ZnDraw'}
             </Typography>
+            <Box sx={{ flexGrow: 1 }} />
+            <SiMGenButtons onTutorialClick={() => setTutorialDialogOpen(true)} />
+            <Box sx={{ flexGrow: 1 }} />
             <Tooltip title={isDrawing ? "Disable drawing mode" : "Enable drawing mode"}>
               <IconButton
                 color="inherit"
@@ -385,6 +391,12 @@ export default function MainPage() {
       <UserProfileDialog
         open={userProfileDialogOpen}
         onClose={() => setUserProfileDialogOpen(false)}
+      />
+
+      <SiMGenTutorialDialog
+        open={tutorialDialogOpen}
+        onClose={() => setTutorialDialogOpen(false)}
+        url="https://slides.com/rokasel/zndrawtutorial-9cc179/fullscreen?style=light"
       />
     </>
   );

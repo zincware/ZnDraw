@@ -143,6 +143,11 @@ def main(
         "--detached",
         help="Start the server as a detached background process.",
     ),
+    simgen: bool = typer.Option(
+        False,
+        "--simgen/--no-simgen",
+        help="Enable SiMGen molecular generation features.",
+    ),
 ):
     """
     Start or connect to a ZnDraw server.
@@ -347,6 +352,7 @@ def main(
     flask_app.config["SERVER_URL"] = server_url
     flask_app.config["FILE_BROWSER_ENABLED"] = file_browser
     flask_app.config["FILE_BROWSER_ROOT"] = file_browser_root or os.getcwd()
+    flask_app.config["SIMGEN_ENABLED"] = simgen
 
     # Track the first room for browser opening
     first_room = None

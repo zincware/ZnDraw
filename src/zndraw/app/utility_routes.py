@@ -35,6 +35,22 @@ def get_version():
     return {"version": zndraw.__version__}, 200
 
 
+@utility.route("/api/config/global-settings")
+def get_global_settings():
+    """Get global settings for headbar features.
+
+    Returns
+    -------
+    dict
+        Global settings including feature flags for SiMGen and other features.
+    """
+    return {
+        "simgen": {
+            "enabled": current_app.config.get("SIMGEN_ENABLED", False),
+        }
+    }, 200
+
+
 @utility.route("/api/tools/rdkit-img", methods=["POST"])
 def rdkit_image():
     """Convert SMILES or InChI to a molecule image using RDKit.
