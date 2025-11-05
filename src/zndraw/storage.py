@@ -284,10 +284,13 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
             # Create/resize and write to the Zarr item
             if item_type in ["array", "json_array"]:
                 if is_new:
+                    # Ensure chunks never have 0 dimensions (which would cause division by zero in zarr)
+                    # Even if shape has 0, chunks must be at least 1
+                    chunk_shape = tuple(max(1, s) for s in shape_suffix)
                     item = group.create_array(
                         name=key,
                         shape=(total_len,) + shape_suffix,
-                        chunks=(1,) + shape_suffix,
+                        chunks=(1,) + chunk_shape,
                         dtype=dtype,
                     )
                     item.attrs.update(attrs)
