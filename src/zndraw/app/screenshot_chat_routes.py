@@ -11,6 +11,8 @@ from flask import Blueprint, current_app, request, send_from_directory
 from zndraw.screenshot_manager import ScreenshotManager
 from zndraw.server import socketio
 
+from .redis_keys import RoomKeys
+
 log = logging.getLogger(__name__)
 
 media = Blueprint("media", __name__)
@@ -64,8 +66,9 @@ def get_chat_messages(room_id: str):
     except (ValueError, TypeError):
         return {"error": "Invalid before/after parameter"}, 400
 
-    index_key = f"room:{room_id}:chat:index"
-    data_key = f"room:{room_id}:chat:data"
+    room_keys = RoomKeys(room_id)
+    index_key = room_keys.chat_index()
+    data_key = room_keys.chat_data()
 
     # Get total count
     total_count = r.zcard(index_key)

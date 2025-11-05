@@ -406,6 +406,26 @@ class RoomKeys:
         """
         return f"room:{self.room_id}:user:{username}:{category}"
 
+    def metadata(self) -> str:
+        """Room metadata hash.
+
+        Returns
+        -------
+        str
+            Redis key for room metadata hash
+        """
+        return f"room:{self.room_id}:metadata"
+
+    def filesystems_pattern(self) -> str:
+        """Pattern for scanning all filesystems in this room.
+
+        Returns
+        -------
+        str
+            Redis key pattern for scanning filesystems
+        """
+        return f"room:{self.room_id}:filesystems:*"
+
 
 @dataclass(frozen=True)
 class UserKeys:

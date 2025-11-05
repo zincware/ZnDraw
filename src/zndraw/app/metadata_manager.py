@@ -2,6 +2,8 @@
 
 import logging
 
+from .redis_keys import RoomKeys
+
 log = logging.getLogger(__name__)
 
 
@@ -32,7 +34,8 @@ class RoomMetadataManager:
     def __init__(self, redis_client, room_id: str):
         self.redis = redis_client
         self.room_id = room_id
-        self.key = f"room:{room_id}:metadata"
+        room_keys = RoomKeys(room_id)
+        self.key = room_keys.metadata()
 
     def get_all(self) -> dict[str, str]:
         """Get all metadata for the room.

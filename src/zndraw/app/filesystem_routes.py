@@ -10,7 +10,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from zndraw.auth import AuthError, get_current_user
 
-from .redis_keys import FilesystemKeys
+from .redis_keys import FilesystemKeys, RoomKeys
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +54,8 @@ def _list_filesystems_impl(room_id: str | None):
 
     # Get room-scoped filesystems if room_id provided
     if room_id:
-        pattern = f"room:{room_id}:filesystems:*"
+        room_keys = RoomKeys(room_id)
+        pattern = room_keys.filesystems_pattern()
         for key in r.scan_iter(pattern):
             if key.endswith(":worker"):
                 continue

@@ -16,6 +16,8 @@ from flask_socketio import disconnect
 from zndraw.auth import get_current_user, require_admin, require_auth
 from zndraw.server import socketio
 
+from .redis_keys import SessionKeys, UserKeys
+
 log = logging.getLogger(__name__)
 
 utility = Blueprint("utility", __name__)
@@ -600,7 +602,8 @@ def disconnect_sid(client_sid: str):
         r = current_app.extensions["redis"]
 
         # First, try to interpret client_sid as a userName and get the socket sid
-        socket_sid = r.hget(f"user:{client_sid}", "currentSid")
+        user_keys = UserKeys(client_sid)
+        socket_sid = r.hget(user_keys.hash_key(), "currentSid")
 
         if socket_sid:
             disconnect(socket_sid, namespace="/")
@@ -608,7 +611,8 @@ def disconnect_sid(client_sid: str):
 
         # Fallback: try to use client_sid directly as a socket sid
         # Check if this sid exists (has a userName mapping)
-        if r.exists(f"sid:{client_sid}"):
+        session_keys = SessionKeys(client_sid)
+        if r.exists(session_keys.username()):
             disconnect(client_sid, namespace="/")
             return {"success": True}
 
