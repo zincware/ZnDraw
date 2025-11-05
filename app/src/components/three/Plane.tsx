@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { getFrames, updateGeometryActive } from "../../myapi/client";
+import { getFrames, updateGeometryActive, createGeometry } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
+import { debounce } from "lodash";
+import { useGeometryEditing } from "../../hooks/useGeometryEditing";
 import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
@@ -74,7 +76,7 @@ export default function Plane({
   const [instanceCount, setInstanceCount] = useState(0);
   const hasDisabledGeometryRef = useRef(false);
 
-  const { currentFrame, frameCount, roomId, userName, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar } = useAppStore();
+  const { currentFrame, frameCount, roomId, userName, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar, geometries, geometryUpdateSources } = useAppStore();
 
   // Use geometry-specific selection
   const planeSelection = selections[geometryKey] || [];
@@ -152,6 +154,75 @@ export default function Plane({
       removeGeometryFetching(geometryKey);
     };
   }, [geometryKey, removeGeometryFetching]);
+
+  // Handle geometry editing with transform controls
+  const finalPositionData = typeof positionProp === "string" ? positionData?.[positionProp] : positionProp;
+  useGeometryEditing(
+    geometryKey,
+    finalPositionData,
+    selectedIndices,
+    "Plane",
+    fullData
+  );
+
+  // Persist position changes to server (debounced)
+  // Watch the geometry's position in Zustand store and persist when it changes locally
+  const persistPositions = useCallback(async () => {
+    if (!roomId) return;
+
+    // Get current geometry from Zustand store
+    const currentGeometry = geometries[geometryKey];
+    if (!currentGeometry || !currentGeometry.data) return;
+
+    const currentPosition = currentGeometry.data.position;
+
+    // Only persist if position is static (number[][])
+    if (!Array.isArray(currentPosition) || currentPosition.length === 0 || !Array.isArray(currentPosition[0])) {
+      return;
+    }
+
+    try {
+      await createGeometry(roomId, geometryKey, "Plane", currentGeometry.data);
+    } catch (error) {
+      console.error(`[Plane] Failed to persist ${geometryKey}:`, error);
+      showSnackbar(`Failed to save positions for ${geometryKey}`, "error");
+    }
+  }, [roomId, geometryKey, geometries, showSnackbar]);
+
+  // Memoize debounced persist function to avoid recreation on every render
+  const debouncedPersist = useMemo(
+    () => debounce(persistPositions, 500),
+    [persistPositions]
+  );
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      debouncedPersist.cancel();
+    };
+  }, [debouncedPersist]);
+
+  // Watch position changes and persist - only if source is 'local'
+  useEffect(() => {
+    const currentGeometry = geometries[geometryKey];
+    if (!currentGeometry) return;
+
+    const currentPosition = currentGeometry.data?.position;
+    if (!currentPosition) return;
+
+    // Only persist if position is static
+    if (!Array.isArray(currentPosition) || currentPosition.length === 0 || !Array.isArray(currentPosition[0])) {
+      return;
+    }
+
+    // Only persist if update source is 'local' (not from server)
+    const updateSource = geometryUpdateSources[geometryKey];
+    if (updateSource !== 'local') {
+      return;
+    }
+
+    debouncedPersist();
+  }, [geometries[geometryKey]?.data?.position, geometryUpdateSources[geometryKey], debouncedPersist, geometryKey]);
 
   // Detect critical fetch failures and disable geometry
   useEffect(() => {
