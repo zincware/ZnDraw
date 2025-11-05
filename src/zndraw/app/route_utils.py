@@ -15,6 +15,7 @@ from zndraw.server import socketio
 from zndraw.storage import ZarrStorageSequence
 
 from .constants import SocketEvents
+from .redis_keys import RoomKeys
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ def get_lock_key(room: str, target: str) -> str:
     str
         Redis key for the lock
     """
-    return f"room:{room}:lock:{target}"
+    return RoomKeys(room).lock(target)
 
 
 def get_zarr_store_path(room_id: str) -> str:
@@ -102,9 +103,10 @@ def check_room_locked(
         Error tuple if locked and user doesn't hold lock, None otherwise
     """
     redis_client = current_app.extensions["redis"]
+    room_keys = RoomKeys(room_id)
 
     # Check permanent room lock
-    locked = redis_client.get(f"room:{room_id}:locked")
+    locked = redis_client.get(room_keys.locked())
     if locked == "1":
         return {"error": "Room is locked and cannot be modified"}, 403
 
@@ -145,7 +147,8 @@ def shift_bookmarks_on_delete(room_id: str, deleted_indices: list[int]):
         return
 
     r = current_app.extensions["redis"]
-    bookmarks_key = f"room:{room_id}:bookmarks"
+    room_keys = RoomKeys(room_id)
+    bookmarks_key = room_keys.bookmarks()
     bookmarks_raw = r.hgetall(bookmarks_key)
 
     if not bookmarks_raw:
@@ -186,7 +189,8 @@ def shift_bookmarks_on_insert(room_id: str, insert_position: int):
         The index where the frame was inserted
     """
     r = current_app.extensions["redis"]
-    bookmarks_key = f"room:{room_id}:bookmarks"
+    room_keys = RoomKeys(room_id)
+    bookmarks_key = room_keys.bookmarks()
     bookmarks_raw = r.hgetall(bookmarks_key)
 
     if not bookmarks_raw:
@@ -220,8 +224,8 @@ def remove_bookmark_at_index(room_id: str, index: int):
         The frame index
     """
     r = current_app.extensions["redis"]
-    bookmarks_key = f"room:{room_id}:bookmarks"
-    r.hdel(bookmarks_key, str(index))
+    room_keys = RoomKeys(room_id)
+    r.hdel(room_keys.bookmarks(), str(index))
 
 
 def emit_bookmarks_invalidate(room_id: str):
@@ -316,13 +320,14 @@ def get_metadata_lock_info(room_id: str) -> dict | None:
     from .models import LockMetadata
 
     r = current_app.extensions["redis"]
+    room_keys = RoomKeys(room_id)
     metadata_lock_key = get_lock_key(room_id, "trajectory:meta")
 
     if not r.exists(metadata_lock_key):
         return None
 
     # Lock exists - try to get metadata
-    metadata_raw = r.get(f"{metadata_lock_key}:metadata")
+    metadata_raw = r.get(room_keys.lock_metadata("trajectory:meta"))
     if metadata_raw:
         metadata = json.loads(metadata_raw)
         lock_metadata = LockMetadata(
