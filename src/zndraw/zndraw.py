@@ -1,11 +1,15 @@
+import contextlib
 import dataclasses
 import functools
 import logging
+import time
 import typing as t
 from collections.abc import MutableSequence
 
 import ase
+import msgpack
 import numpy as np
+from pydantic import BaseModel, Field
 
 from zndraw.api_manager import APIManager
 from zndraw.bookmarks_manager import Bookmarks
@@ -18,8 +22,17 @@ from zndraw.scene_manager import Geometries
 from zndraw.server_manager import get_server_status
 from zndraw.settings import RoomConfig, settings
 from zndraw.socket_manager import SocketIOLock, SocketManager
+from zndraw.storage import encode_data
 from zndraw.utils import atoms_from_dict, atoms_to_dict, update_colors_and_radii
 from zndraw.version_utils import validate_server_version
+
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    BarColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
 log = logging.getLogger(__name__)
 
@@ -201,6 +214,37 @@ class Screenshots:
         return result.get("total", 0)
 
 
+class LocalSettings(BaseModel):
+    """Local client settings for ZnDraw operations.
+
+    These settings control client-side behavior for operations like uploading frames.
+    """
+
+    target_chunk_size_bytes: int = Field(
+        default=500_000,
+        gt=0,
+        le=100_000_000,
+        description="Target size in bytes for each upload chunk. Default is 500KB. Maximum is 100MB.",
+    )
+
+    show_progress: bool = Field(
+        default=True,
+        description="Show progress bar during chunked uploads",
+    )
+
+    max_retries: int = Field(
+        default=3,
+        ge=0,
+        description="Maximum number of retries for failed chunk uploads",
+    )
+
+    retry_delay: float = Field(
+        default=1.0,
+        ge=0,
+        description="Delay in seconds between retries",
+    )
+
+
 @dataclasses.dataclass
 class ZnDraw(MutableSequence):
     """A client for interacting with the ZnDraw server.
@@ -278,6 +322,9 @@ class ZnDraw(MutableSequence):
         # Create APIManager (user_name will be set after login)
         self.api = APIManager(url=self.url, room=self.room)
         self.cache: FrameCache | None = FrameCache(maxsize=100)
+
+        # Initialize local settings
+        self.local = LocalSettings()
 
         # Validate server version compatibility before connecting
         import zndraw
@@ -865,14 +912,203 @@ class ZnDraw(MutableSequence):
         update_colors_and_radii(atoms)
         self.append_frame(atoms_to_dict(atoms))
 
+    def _calculate_chunk_boundaries(
+        self, dicts: list[dict]
+    ) -> tuple[list[list[dict]], list[int]]:
+        """Calculate chunk boundaries based on exact sizes.
+
+        Parameters
+        ----------
+        dicts : list[dict]
+            List of frame dictionaries
+
+        Returns
+        -------
+        chunks : list[list[dict]]
+            List of chunks (each chunk is a list of dicts)
+        chunk_sizes : list[int]
+            Size in bytes of each chunk
+        """
+        # Encode all frames to get exact sizes
+        encoded_frames = [encode_data(d) for d in dicts]
+        packed_frames = [msgpack.packb(e) for e in encoded_frames]
+        frame_sizes = [len(p) for p in packed_frames]
+
+        # Calculate chunk boundaries
+        target_bytes = self.local.target_chunk_size_bytes
+        chunks = []
+        chunk_sizes = []
+
+        current_chunk = []
+        current_size = 0
+
+        for i, (frame_dict, size) in enumerate(zip(dicts, frame_sizes)):
+            # Check if adding this frame exceeds target
+            if current_size > 0 and current_size + size > target_bytes:
+                # Finalize current chunk
+                chunks.append(current_chunk)
+                chunk_sizes.append(current_size)
+
+                # Start new chunk
+                current_chunk = [frame_dict]
+                current_size = size
+            else:
+                # Add to current chunk
+                current_chunk.append(frame_dict)
+                current_size += size
+
+        # Add last chunk
+        if current_chunk:
+            chunks.append(current_chunk)
+            chunk_sizes.append(current_size)
+
+        return chunks, chunk_sizes
+
+    @contextlib.contextmanager
+    def _progress_bar(
+        self, total_bytes: int, total_frames: int, num_chunks: int
+    ):
+        """Create progress bar for chunked upload.
+
+        Yields
+        ------
+        update_fn : callable
+            Function to call with (bytes_uploaded, frames_uploaded) to update progress
+        """
+        if not self.local.show_progress or num_chunks == 1:
+            yield lambda bytes_uploaded, frames_uploaded: None
+            return
+
+        # Rich progress bar with full details
+        # Note: Using decimal MB (1 MB = 1,000,000 bytes) per SI standard,
+        # not binary MiB (1 MiB = 1,048,576 bytes)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("{task.fields[mb_completed]:.2f}/{task.fields[mb_total]:.2f} MB"),
+            TextColumn("({task.percentage:>3.0f}%)"),
+            TextColumn("|"),
+            TextColumn("{task.fields[frames_done]}/{task.fields[frames_total]} frames"),
+            TextColumn("|"),
+            TimeElapsedColumn(),
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                "Uploading",
+                total=total_bytes,
+                frames_done=0,
+                frames_total=total_frames,
+                mb_completed=0.0,
+                mb_total=total_bytes / 1_000_000,  # Decimal MB
+            )
+
+            def update_progress(bytes_uploaded, frames_uploaded):
+                progress.update(
+                    task,
+                    completed=bytes_uploaded,
+                    frames_done=frames_uploaded,
+                    mb_completed=bytes_uploaded / 1_000_000,
+                )
+
+            yield update_progress
+
     def extend(self, atoms_list: t.Iterable[ase.Atoms]):
+        """Extend trajectory with automatic chunked uploads.
+
+        Chunking is always performed based on self.local.target_chunk_size_bytes.
+        Progress bar is shown if self.local.show_progress is True and multiple
+        chunks are created.
+
+        Warning
+        -------
+        Uploads are performed in chunks. If an upload fails after retries,
+        previously uploaded chunks remain on the server (no automatic rollback).
+
+        Parameters
+        ----------
+        atoms_list : t.Iterable[ase.Atoms]
+            Atoms objects to append to trajectory
+
+        Example
+        -------
+        >>> vis = ZnDraw(url="...")
+        >>>
+        >>> # Default: 500KB chunks with progress bar
+        >>> vis.extend([atoms for _ in range(1000)])
+        >>>
+        >>> # Customize chunk size
+        >>> vis.local.target_chunk_size_bytes = 1_000_000  # 1MB
+        >>> vis.extend([atoms for _ in range(1000)])
+        >>>
+        >>> # Disable progress bar
+        >>> vis.local.show_progress = False
+        >>> vis.extend([atoms for _ in range(1000)])
+        """
+        # Convert all atoms to dicts
         dicts = []
         for atoms in atoms_list:
             if not isinstance(atoms, ase.Atoms):
                 raise TypeError("Only ase.Atoms objects are supported")
             update_colors_and_radii(atoms)
             dicts.append(atoms_to_dict(atoms))
-        self.extend_frames(dicts)
+
+        if not dicts:
+            log.warning("No frames to upload")
+            return
+
+        # Calculate chunk boundaries based on exact sizes
+        chunks, chunk_sizes = self._calculate_chunk_boundaries(dicts)
+
+        total_bytes = sum(chunk_sizes)
+        total_frames = len(dicts)
+        num_chunks = len(chunks)
+
+        log.info(
+            f"Uploading {total_frames} frames ({total_bytes / 1_000_000:.2f} MB) "
+            f"in {num_chunks} chunk(s)"
+        )
+
+        # Upload chunks with progress bar
+        with self._progress_bar(total_bytes, total_frames, num_chunks) as update_progress:
+            bytes_uploaded = 0
+            frames_uploaded = 0
+
+            for chunk_idx, (chunk, chunk_size) in enumerate(zip(chunks, chunk_sizes)):
+                # Upload this chunk with retry logic
+                for attempt in range(self.local.max_retries + 1):
+                    try:
+                        self.extend_frames(chunk)
+                        break  # Success
+                    except (ConnectionError, IOError, TimeoutError, OSError) as e:
+                        # Only retry network-related exceptions
+                        if attempt == self.local.max_retries:
+                            # Final attempt failed
+                            log.error(
+                                f"Failed to upload chunk {chunk_idx + 1}/{num_chunks} "
+                                f"after {self.local.max_retries} retries: {e}"
+                            )
+                            raise
+                        else:
+                            # Retry with backoff
+                            delay = self.local.retry_delay * (2**attempt)
+                            log.warning(
+                                f"Chunk {chunk_idx + 1}/{num_chunks} failed (attempt {attempt + 1}), "
+                                f"retrying in {delay:.1f}s: {e}"
+                            )
+                            time.sleep(delay)
+
+                # Update progress
+                bytes_uploaded += chunk_size
+                frames_uploaded += len(chunk)
+                update_progress(bytes_uploaded, frames_uploaded)
+
+                log.debug(
+                    f"Uploaded chunk {chunk_idx + 1}/{num_chunks}: "
+                    f"{len(chunk)} frames, {chunk_size / 1024:.1f} KB"
+                )
+
+        log.info(f"Successfully uploaded {total_frames} frames")
 
     @property
     def settings(self) -> RoomConfig:

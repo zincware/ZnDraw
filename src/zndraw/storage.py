@@ -7,6 +7,10 @@ import numpy as np
 import zarr.dtype
 from typing_extensions import deprecated
 
+# Minimum number of frames required to enable batch write optimization
+# Below this threshold, the overhead of finding batchable keys may exceed the benefits
+MIN_FRAMES_FOR_BATCH_OPTIMIZATION = 50
+
 
 def _convert_numpy_types(obj):
     """Convert numpy scalar types to native Python types for JSON serialization.
@@ -357,15 +361,97 @@ def extend_zarr(root: zarr.Group, data: list[dict]):
                 subgroup = group.require_group(key)
                 _extend_recursive(subgroup, value, idx, total_len)
 
-    # Process each new data entry
+    # Batch write valid_keys for all entries at once
+    valid_keys_list = [json.dumps(list(entry.keys())) for entry in data]
+    valid_keys_ds[start_index:start_index + len(data)] = valid_keys_list
+
+    # Optimization: Try to batch write arrays with identical shapes (common case)
+    # Collect all keys and check if they can be batched
+    if len(data) >= MIN_FRAMES_FOR_BATCH_OPTIMIZATION:
+        batchable_keys = _find_batchable_keys(data)
+        if batchable_keys:
+            _batch_write_simple_arrays(root, data, start_index, total_entries, batchable_keys)
+            # Remove batched keys from entries before processing individually
+            data = [
+                {k: v for k, v in entry.items() if k not in batchable_keys}
+                for entry in data
+            ]
+
+    # Process remaining data entries recursively (handles edge cases)
     for i, entry in enumerate(data):
-        current_index = start_index + i
+        if entry:  # Skip if all keys were batched
+            current_index = start_index + i
+            _extend_recursive(root, entry, current_index, total_entries)
 
-        # 1. Store the list of valid keys for this entry
-        valid_keys_ds[current_index] = json.dumps(list(entry.keys()))
 
-        # 2. Process the actual data recursively
-        _extend_recursive(root, entry, current_index, total_entries)
+def _find_batchable_keys(data: list[dict]) -> set[str]:
+    """Find keys that can be safely batch-written (same shape, non-object dtype)."""
+    if not data:
+        return set()
+
+    # Collect keys that appear in ALL entries
+    common_keys = set(data[0].keys())
+    for entry in data[1:]:
+        common_keys &= entry.keys()
+
+    batchable = set()
+    for key in common_keys:
+        values = [entry[key] for entry in data]
+
+        # Check if all values are numpy arrays (not object dtype)
+        if not all(isinstance(v, np.ndarray) for v in values):
+            continue
+
+        # Check dtype
+        first_dtype = values[0].dtype
+        if first_dtype == object:
+            continue
+
+        # Check if all have same shape
+        first_shape = values[0].shape
+        if not all(v.shape == first_shape for v in values):
+            continue
+
+        # Check not empty
+        if first_shape == (0,) or any(s == 0 for s in first_shape):
+            continue
+
+        batchable.add(key)
+
+    return batchable
+
+
+def _batch_write_simple_arrays(
+    root: zarr.Group,
+    data: list[dict],
+    start_index: int,
+    total_entries: int,
+    keys: set[str],
+) -> None:
+    """Batch write arrays that are safe to batch (same shape, non-object dtype)."""
+    for key in keys:
+        values = [entry[key] for entry in data]
+        first_value = values[0]
+        dtype = first_value.dtype
+        shape_suffix = first_value.shape
+
+        # Create or resize array
+        if key not in root:
+            chunk_shape = tuple(max(1, s) for s in shape_suffix)
+            item = root.create_array(
+                name=key,
+                shape=(total_entries,) + shape_suffix,
+                chunks=(1,) + chunk_shape,
+                dtype=dtype,
+            )
+        else:
+            item = root[key]
+            if item.shape[0] < total_entries:
+                item.resize((total_entries,) + item.shape[1:])
+
+        # Batch write using slice
+        stacked_values = np.stack(values)
+        item[start_index : start_index + len(data)] = stacked_values
 
 
 class ZarrStorageSequence(MutableSequence):
