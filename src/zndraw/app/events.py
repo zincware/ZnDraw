@@ -12,7 +12,7 @@ from zndraw.server import socketio
 
 from .constants import SocketEvents
 from .models import LockMetadata
-from .redis_keys import ExtensionKeys, FilesystemKeys
+from .redis_keys import ExtensionKeys, FilesystemKeys, RoomKeys, SessionKeys, UserKeys
 from .room_manager import emit_room_update
 
 log = logging.getLogger(__name__)
@@ -30,9 +30,9 @@ def _get_len() -> dict:
         return {"success": False, "error": "Client has not joined a room."}
 
     try:
-        indices_key = f"room:{room}:trajectory:indices"
+        keys = RoomKeys(room)
         # Count is the number of entries in the mapping (logical frames)
-        frame_count = r.zcard(indices_key)
+        frame_count = r.zcard(keys.trajectory_indices())
         return {"success": True, "count": frame_count}
     except Exception as e:
         log.error(f"Failed to get frame count: {e}")
@@ -44,24 +44,28 @@ def get_project_room_from_session(sid: str) -> t.Optional[str]:
     """Finds the project room a user has joined from Redis."""
     r = current_app.extensions["redis"]
     # Get userName from sid
-    user_name = r.get(f"sid:{sid}")
+    session_keys = SessionKeys(sid)
+    user_name = r.get(session_keys.username())
     if not user_name:
         return None
     # Get room from user data
-    room_name = r.hget(f"user:{user_name}", "currentRoom")
+    user_keys = UserKeys(user_name)
+    room_name = r.hget(user_keys.hash_key(), "currentRoom")
     return room_name if room_name else None
 
 
 def get_user_name_from_sid(sid: str) -> t.Optional[str]:
     """Gets the userName for a given Socket.IO sid."""
     r = current_app.extensions["redis"]
-    user_name = r.get(f"sid:{sid}")
+    session_keys = SessionKeys(sid)
+    user_name = r.get(session_keys.username())
     return user_name if user_name else None
 
 
 def get_lock_key(room: str, target: str) -> str:
     """Constructs a standardized Redis key for a lock."""
-    return f"room:{room}:lock:{target}"
+    keys = RoomKeys(room)
+    return keys.lock(target)
 
 
 @socketio.on("connect")
@@ -98,14 +102,14 @@ def handle_connect(auth):
         raise ConnectionRefusedError(e.message)
 
     # Verify user exists in Redis
-    user_key = f"user:{user_name}"
-    if not r.exists(user_key):
+    user_keys = UserKeys(user_name)
+    if not r.exists(user_keys.hash_key()):
         log.error(f"User {user_name} not found in Redis")
         raise ConnectionRefusedError("User not registered. Call /api/login first.")
 
     # Update user's current SID
     r.hset(
-        user_key,
+        user_keys.hash_key(),
         mapping={
             "currentSid": sid,
             "lastActivity": datetime.datetime.utcnow().isoformat(),
@@ -113,11 +117,12 @@ def handle_connect(auth):
     )
 
     # Register SID → userName mapping and role mapping
-    r.set(f"sid:{sid}", user_name)
-    r.set(f"sid:{sid}:role", user_role)  # Store role for this session
+    session_keys = SessionKeys(sid)
+    r.set(session_keys.username(), user_name)
+    r.set(session_keys.role(), user_role)  # Store role for this session
 
     # Get user's current room (if any)
-    current_room = r.hget(user_key, "currentRoom")
+    current_room = r.hget(user_keys.hash_key(), "currentRoom")
 
     if current_room:
         # Rejoin room after reconnection
@@ -141,23 +146,24 @@ def handle_disconnect():
     r = current_app.extensions["redis"]
 
     # Get userName from connection lookup
-    user_name = r.get(f"sid:{sid}")
+    session_keys = SessionKeys(sid)
+    user_name = r.get(session_keys.username())
 
     if not user_name:
         log.info(f"Client disconnected: {sid} (no userName found)")
         return
 
     # Get user data
-    user_key = f"user:{user_name}"
-    room_name = r.hget(user_key, "currentRoom")
+    user_keys = UserKeys(user_name)
+    room_name = r.hget(user_keys.hash_key(), "currentRoom")
 
     log.info(f"User disconnected: sid={sid}, user={user_name}, room={room_name}")
 
     # Clean up connection lookup
-    r.delete(f"sid:{sid}")
+    r.delete(session_keys.username())
 
     # Update user's currentSid to empty (user still exists but disconnected)
-    r.hset(user_key, "currentSid", "")
+    r.hset(user_keys.hash_key(), "currentSid", "")
 
     # Note: We don't remove the user from the room or delete user data
     # The user may reconnect and rejoin the same room
@@ -185,10 +191,10 @@ def handle_disconnect():
             r.delete(key)
 
     if room_name:
-        lock_key = f"room:{room_name}:presenter_lock"
-        presenter_sid = r.get(lock_key)
+        room_keys = RoomKeys(room_name)
+        presenter_sid = r.get(room_keys.presenter_lock())
         if presenter_sid and presenter_sid == sid:
-            r.delete(lock_key)
+            r.delete(room_keys.presenter_lock())
             # Inform everyone that the presenter left via room:update
             from zndraw.app.room_manager import emit_room_update
 
@@ -206,7 +212,9 @@ def handle_disconnect():
     )
 
     for category in extension_categories:
-        worker_extensions_key = f"room:{room_name}:extensions:{category}:{worker_id}"
+        worker_extensions_key = ExtensionKeys.user_extensions_key(
+            room_name, category, worker_id
+        )
         # This key tells us which extensions this worker_id (sid) was providing
         worker_extensions = list(r.smembers(worker_extensions_key))
 
@@ -474,7 +482,8 @@ def handle_extension_register(data):
     if public:
         try:
             # Get role from Redis (stored during socket connection)
-            role = r.get(f"sid:{sid}:role")
+            session_keys = SessionKeys(sid)
+            role = r.get(session_keys.role())
             if role is None:
                 log.error(f"Role not found for sid {sid}")
                 return {"success": False, "error": "Failed to verify admin privileges"}
@@ -637,7 +646,8 @@ def handle_filesystem_register(data):
 
         if not is_celery_worker:
             try:
-                role = r.get(f"sid:{sid}:role")
+                session_keys = SessionKeys(sid)
+                role = r.get(session_keys.role())
                 if role is None:
                     log.error(f"Role not found for sid {sid}")
                     return {"success": False, "error": "Failed to verify admin privileges"}
@@ -716,10 +726,10 @@ def handle_set_frame_atomic(data):
     Handles a single frame jump. REJECTED if a presenter is active.
     """
     room = get_project_room_from_session(request.sid)
-    lock_key = f"room:{room}:presenter_lock"
+    room_keys = RoomKeys(room)
     redis_client = current_app.extensions["redis"]
 
-    if redis_client.get(lock_key) not in [request.sid, None]:
+    if redis_client.get(room_keys.presenter_lock()) not in [request.sid, None]:
         return {
             "success": False,
             "error": "LockError",
@@ -733,7 +743,7 @@ def handle_set_frame_atomic(data):
             frame_int = int(frame)
             if frame_int < 0:
                 return {"success": False, "error": "Frame must be non-negative"}
-            redis_client.set(f"room:{room}:current_frame", frame_int)
+            redis_client.set(room_keys.current_frame(), frame_int)
             emit(
                 "frame_update",
                 {"frame": frame_int},
@@ -754,10 +764,10 @@ def handle_set_frame_continuous(data):
     Handles continuous frame updates. REQUIRES sender to be the presenter.
     """
     room = get_project_room_from_session(request.sid)
-    lock_key = f"room:{room}:presenter_lock"
+    room_keys = RoomKeys(room)
     redis_client = current_app.extensions["redis"]
 
-    presenter_sid = redis_client.get(lock_key)
+    presenter_sid = redis_client.get(room_keys.presenter_lock())
 
     if presenter_sid and presenter_sid == request.sid:
         frame = data.get("frame")
@@ -768,7 +778,7 @@ def handle_set_frame_continuous(data):
                 if frame_int < 0:
                     log.warning(f"Negative frame rejected: {frame_int}")
                     return {"success": False, "error": "Frame must be non-negative"}
-                redis_client.set(f"room:{room}:current_frame", frame_int)
+                redis_client.set(room_keys.current_frame(), frame_int)
                 emit(
                     "frame_update",
                     {"frame": frame_int},
@@ -800,7 +810,8 @@ def handle_frame_selection_set(data):
         return {"success": False, "error": "All indices must be non-negative integers"}
 
     # Store frame selection in Redis
-    redis_client.set(f"room:{room}:frame_selection:default", json.dumps(indices))
+    room_keys = RoomKeys(room)
+    redis_client.set(room_keys.frame_selection(), json.dumps(indices))
 
     # Emit update to all clients in the room
     emit(
@@ -821,17 +832,17 @@ def handle_request_presenter_token():
     if not room:
         return {"success": False, "reason": "Not in a valid room"}
 
-    lock_key = f"room:{room}:presenter_lock"
+    room_keys = RoomKeys(room)
     r = current_app.extensions["redis"]
 
     # --- UPDATED LOGIC ---
     # Get the current holder of the lock
-    current_holder = r.get(lock_key)
+    current_holder = r.get(room_keys.presenter_lock())
 
     # Case 1: No one has the lock, or the requester already has it (renewal)
     if current_holder is None or current_holder == sid:
         # Set (or reset) the lock with the new expiry
-        r.set(lock_key, sid, ex=TOKEN_EXPIRY_SECONDS)
+        r.set(room_keys.presenter_lock(), sid, ex=TOKEN_EXPIRY_SECONDS)
 
         # If this is a brand new presenter, inform the room
         if current_holder is None:
@@ -848,14 +859,14 @@ def handle_request_presenter_token():
 @socketio.on("release_presenter_token")
 def handle_release_presenter_token():
     room = get_project_room_from_session(request.sid)
-    lock_key = f"room:{room}:presenter_lock"
+    room_keys = RoomKeys(room)
     print(f"Presenter token release requested by {request.sid} in room {room}")
     r = current_app.extensions["redis"]
 
-    presenter_sid = r.get(lock_key)
+    presenter_sid = r.get(room_keys.presenter_lock())
 
     if presenter_sid and presenter_sid == request.sid:
-        r.delete(lock_key)
+        r.delete(room_keys.presenter_lock())
         from zndraw.app.room_manager import emit_room_update
 
         emit_room_update(socketio, room, skip_sid=request.sid, presenterSid=None)
@@ -1099,7 +1110,8 @@ def handle_join_room(data):
     join_room(f"room:{room_id}")
 
     # Update Redis to track which room this user is in
-    r.hset(f"user:{user_name}", "currentRoom", room_id)
+    user_keys = UserKeys(user_name)
+    r.hset(user_keys.hash_key(), "currentRoom", room_id)
 
     log.debug(f"User {sid} (userName: {user_name}) joined room:{room_id}")
     return {"status": "joined", "room": f"room:{room_id}"}
