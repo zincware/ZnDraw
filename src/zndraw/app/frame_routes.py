@@ -15,6 +15,7 @@ from flask import Blueprint, Response, current_app, request, send_file
 from zndraw.storage import decode_data, encode_data
 
 from .frame_index_manager import FrameIndexManager
+from .redis_keys import RoomKeys
 from .route_utils import (
     check_room_locked,
     emit_bookmarks_invalidate,
@@ -40,8 +41,8 @@ def get_frames(room_id):
     """
     r = current_app.extensions["redis"]
     try:
-        indices_key = f"room:{room_id}:trajectory:indices"
-        manager = FrameIndexManager(r, indices_key)
+        room_keys = RoomKeys(room_id)
+        manager = FrameIndexManager(r, room_keys.trajectory_indices())
 
         frame_count = manager.get_count()
 
@@ -167,10 +168,10 @@ def get_frame_metadata(room_id: str, frame_id: int):
 
     try:
         storage = get_storage(room_id)
+        room_keys = RoomKeys(room_id)
 
         # Get logical-to-physical mapping from Redis
-        indices_key = f"room:{room_id}:trajectory:indices"
-        frame_mapping = r.zrange(indices_key, 0, -1)
+        frame_mapping = r.zrange(room_keys.trajectory_indices(), 0, -1)
 
         if not frame_mapping:
             return {
@@ -285,10 +286,10 @@ def delete_frames_batch(room_id):
         return lock_error
 
     r = current_app.extensions["redis"]
+    room_keys = RoomKeys(room_id)
 
     try:
-        indices_key = f"room:{room_id}:trajectory:indices"
-        index_manager = FrameIndexManager(r, indices_key)
+        index_manager = FrameIndexManager(r, room_keys.trajectory_indices())
         frame_mapping = index_manager.get_all()
 
         if not frame_mapping:
@@ -388,7 +389,7 @@ def delete_frames_batch(room_id):
 
         if members_to_delete:
             # Batch delete all members at once
-            r.zrem(indices_key, *members_to_delete)
+            r.zrem(room_keys.trajectory_indices(), *members_to_delete)
 
         log.info(
             f"Deleted {len(frame_indices)} frames from room '{room_id}'. Physical data preserved."
@@ -431,6 +432,7 @@ def append_frame(room_id):
         return lock_error
 
     r = current_app.extensions["redis"]
+    room_keys = RoomKeys(room_id)
 
     # Get action from query parameters
     action = request.args.get("action", "append")
@@ -443,9 +445,7 @@ def append_frame(room_id):
         serialized_data = msgpack.unpackb(request.data, strict_map_key=False)
 
         storage = get_storage(room_id)
-
-        indices_key = f"room:{room_id}:trajectory:indices"
-        index_manager = FrameIndexManager(r, indices_key)
+        index_manager = FrameIndexManager(r, room_keys.trajectory_indices())
 
         if action == "replace":
             # Get frame_id from query parameters
@@ -458,8 +458,10 @@ def append_frame(room_id):
             except ValueError:
                 return {"error": "frame_id must be an integer"}, 400
 
-            frame_mapping = r.zrange(indices_key, 0, -1)
-            frame_mapping_with_scores = r.zrange(indices_key, 0, -1, withscores=True)
+            frame_mapping = r.zrange(room_keys.trajectory_indices(), 0, -1)
+            frame_mapping_with_scores = r.zrange(
+                room_keys.trajectory_indices(), 0, -1, withscores=True
+            )
 
             # Validate target_frame_id
             if not (0 <= target_frame_id < len(frame_mapping)):
@@ -477,8 +479,11 @@ def append_frame(room_id):
             _, old_score = frame_mapping_with_scores[target_frame_id]
 
             pipeline = r.pipeline()
-            pipeline.zrem(indices_key, old_mapping_entry)
-            pipeline.zadd(indices_key, {f"{room_id}:{new_physical_index}": old_score})
+            pipeline.zrem(room_keys.trajectory_indices(), old_mapping_entry)
+            pipeline.zadd(
+                room_keys.trajectory_indices(),
+                {f"{room_id}:{new_physical_index}": old_score},
+            )
             pipeline.execute()
 
             # Remove bookmark at the logical index (if it exists)
@@ -617,6 +622,7 @@ def bulk_replace_frames(room_id):
     Body: msgpack-encoded list of frame dictionaries
     """
     r = current_app.extensions["redis"]
+    room_keys = RoomKeys(room_id)
 
     try:
         # Unpack the msgpack data - should be a list of frames
@@ -626,8 +632,7 @@ def bulk_replace_frames(room_id):
             return {"error": "Body must contain a list of frame dictionaries"}, 400
 
         storage = get_storage(room_id)
-        indices_key = f"room:{room_id}:trajectory:indices"
-        index_manager = FrameIndexManager(r, indices_key)
+        index_manager = FrameIndexManager(r, room_keys.trajectory_indices())
         frame_mapping = index_manager.get_all()
         frame_mapping_with_scores = index_manager.get_all(withscores=True)
 
@@ -673,8 +678,11 @@ def bulk_replace_frames(room_id):
                 new_physical_idx = start_physical_pos + i
 
                 # Remove old mapping and add new one with same score
-                pipeline.zrem(indices_key, old_mapping_entry)
-                pipeline.zadd(indices_key, {f"{room_id}:{new_physical_idx}": old_score})
+                pipeline.zrem(room_keys.trajectory_indices(), old_mapping_entry)
+                pipeline.zadd(
+                    room_keys.trajectory_indices(),
+                    {f"{room_id}:{new_physical_idx}": old_score},
+                )
 
             pipeline.execute()
 
@@ -723,14 +731,14 @@ def bulk_replace_frames(room_id):
 
             # 3. Rebuild the entire Redis sorted set with the new mapping
             pipeline = r.pipeline()
-            pipeline.delete(indices_key)
+            pipeline.delete(room_keys.trajectory_indices())
 
             new_mapping = {
                 physical_idx_str: logical_pos
                 for logical_pos, physical_idx_str in enumerate(new_mapping_list)
             }
             if new_mapping:
-                pipeline.zadd(indices_key, new_mapping)
+                pipeline.zadd(room_keys.trajectory_indices(), new_mapping)
 
             pipeline.execute()
 
@@ -796,8 +804,8 @@ def download_frames(room_id: str):
             return {"error": "Invalid selection format"}, 400
 
     # Get frame indices manager with correct Redis key
-    indices_key = f"room:{room_id}:trajectory:indices"
-    fim = FrameIndexManager(redis_client, indices_key)
+    room_keys = RoomKeys(room_id)
+    fim = FrameIndexManager(redis_client, room_keys.trajectory_indices())
 
     # Check if room has frames
     frame_count = len(fim)
