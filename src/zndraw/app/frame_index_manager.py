@@ -54,6 +54,40 @@ class FrameIndexManager:
         self.redis.zadd(self.key, {member: new_score})
         return new_score
 
+    def append_batch(self, members: t.List[str]) -> t.List[float]:
+        """Append multiple frames to the end of the sequence in a single batch.
+
+        This is much more efficient than calling append() multiple times,
+        as it reduces N Redis operations to just 2 (one ZRANGE and one ZADD).
+
+        Args:
+            members: List of members to add to the sorted set
+
+        Returns:
+            List of scores assigned to the new members
+        """
+        if not members:
+            return []
+
+        # Get the last element's score once
+        last_elements = self.redis.zrange(self.key, -1, -1, withscores=True)
+
+        if not last_elements:
+            # First batch of frames
+            start_score = 1.0
+        else:
+            # Add 1.0 to the last score
+            start_score = last_elements[0][1] + 1.0
+
+        # Build the mapping for all members
+        mapping = {member: start_score + i for i, member in enumerate(members)}
+
+        # Add all members in a single Redis call
+        self.redis.zadd(self.key, mapping)
+
+        # Return the list of scores
+        return [start_score + i for i in range(len(members))]
+
     def insert(self, position: int, member: str) -> float:
         """Insert a frame at a specific logical position.
 

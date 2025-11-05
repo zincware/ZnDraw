@@ -517,9 +517,9 @@ def append_frame(room_id):
             decoded_frames = [decode_data(frame) for frame in serialized_data]
             storage.extend(decoded_frames)
 
-            # 3. Append all new frames using gap method
-            for i in range(num_frames):
-                index_manager.append(f"{room_id}:{start_physical_pos + i}")
+            # 3. Batch append all new frames at once (single Redis operation)
+            members = [f"{room_id}:{start_physical_pos + i}" for i in range(num_frames)]
+            index_manager.append_batch(members)
 
             # 4. Prepare response data
             new_indices = list(range(start_logical_pos, start_logical_pos + num_frames))
