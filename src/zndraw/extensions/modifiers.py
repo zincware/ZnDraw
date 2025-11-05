@@ -154,12 +154,18 @@ class Translate(UpdateScene):
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
-        if self.steps > len(vis.segments):
+        # Get the curve geometry and interpolate
+        curve_geom = vis.geometries.get(self.curve)
+        if curve_geom is None:
+            raise ValueError(f"Curve geometry '{self.curve}' not found")
+
+        segments = curve_geom.get_interpolated_points()
+
+        if self.steps > len(segments):
             raise ValueError(
                 "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
             )
 
-        segments = vis.segments
         atoms = vis.atoms
         selection = np.array(vis.selection)
 

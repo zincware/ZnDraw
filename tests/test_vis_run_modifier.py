@@ -179,23 +179,40 @@ def test_connect_modifier(server, celery_worker):
     assert vis.selection == tuple()
 
 
-@pytest.mark.skip(reason="Translate requires vis.segments property which doesn't exist in ZnDraw")
 def test_translate_modifier(server, celery_worker):
     """Test translating atoms along curve."""
+    from zndraw.geometries import Curve
+
     vis = ZnDraw(url=server, room="test", user="tester")
 
     atoms = Atoms("HH", positions=[[0, 0, 0], [1, 0, 0]])
     vis.extend([atoms])
     vis.selection = [0]
 
-    initial_frame_count = len(vis)
-    steps = 2
+    # Add curve geometry with multiple control points for translation path
+    curve_points = [[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [2.0, 1.0, 0.0]]
+    vis.geometries["curve"] = Curve(position=curve_points, divisions=50)
 
-    modifier = modifiers.Translate(steps=steps)
-    modifier.run(vis)
+    initial_frame_count = len(vis)
+    initial_position = atoms.positions[0].copy()
+    steps = 5
+
+    # Run modifier via Celery
+    vis.run(modifiers.Translate(steps=steps, curve="curve"))
+    vis.socket.sio.sleep(CELERY_TIMEOUT)
 
     # Should create new frames
     assert len(vis) == initial_frame_count + steps
+
+    # Verify translation actually occurred in the final frame
+    final_atoms = vis[-1]
+    final_position = final_atoms.positions[0]
+
+    # Selected atom should have moved
+    assert not np.allclose(final_position, initial_position)
+
+    # Unselected atom should not have moved
+    assert np.allclose(final_atoms.positions[1], atoms.positions[1])
 
 
 def test_add_line_particles_modifier(server, celery_worker):

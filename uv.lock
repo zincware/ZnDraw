@@ -2691,6 +2691,18 @@ wheels = [
 ]
 
 [[package]]
+name = "splines"
+version = "0.3.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f8/3d/3a20cbef41deec4597e5a442297900f8c4f9fa8d92d6bbca71b11f639e5e/splines-0.3.3.tar.gz", hash = "sha256:9d9108303f0f3b0e1be8e014c4a724c674a6c0558ab101e14dd04c74505c4eb9", size = 128819, upload-time = "2025-06-25T17:55:43.801Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/a5/2a1c72741acd5383ff320496ba7d449407491f1513a7dba72ed053e7142e/splines-0.3.3-py3-none-any.whl", hash = "sha256:47b68f370b17c68d9ebe24fc6525532f61d5796bb655c3b9e7e8a76d2518ff09", size = 17699, upload-time = "2025-06-25T17:55:42.352Z" },
+]
+
+[[package]]
 name = "sse-starlette"
 version = "3.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2939,6 +2951,7 @@ dependencies = [
     { name = "python-socketio", extra = ["client"] },
     { name = "rdkit2ase" },
     { name = "redis" },
+    { name = "splines" },
     { name = "tqdm" },
     { name = "typer" },
     { name = "vesin" },
@@ -2980,6 +2993,7 @@ requires-dist = [
     { name = "python-socketio", extras = ["client"], specifier = ">=5.13.0" },
     { name = "rdkit2ase", specifier = ">=0.1.13" },
     { name = "redis", specifier = ">=6.4.0" },
+    { name = "splines", specifier = ">=0.3.3" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "typer", specifier = ">=0.19.2" },
     { name = "vesin", specifier = ">=0.3.8" },

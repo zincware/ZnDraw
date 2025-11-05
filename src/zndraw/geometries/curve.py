@@ -1,5 +1,7 @@
 import typing as t
 
+import numpy as np
+import splines
 from pydantic import BaseModel, Field
 
 from .base import BaseGeometry, ColorProp, PositionProp, apply_schema_feature
@@ -98,3 +100,18 @@ class Curve(BaseGeometry):
         default="default",
         description="Curve color",
     )
+
+    def get_interpolated_points(self) -> np.ndarray:
+        """Get interpolated points along the curve using CatmullRom spline.
+
+        Returns
+        -------
+        np.ndarray
+            Array of shape (n_points, 3) with interpolated points along the curve.
+            If less than 2 control points, returns the control points as-is.
+        """
+        points = np.array(self.position)
+        if points.shape[0] <= 1:
+            return points
+        t = np.linspace(0, len(points) - 1, len(points) * self.divisions)
+        return splines.CatmullRom(points).evaluate(t)

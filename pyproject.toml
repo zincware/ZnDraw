@@ -21,6 +21,7 @@ dependencies = [
     "python-socketio[client]>=5.13.0",
     "rdkit2ase>=0.1.13",
     "redis>=6.4.0",
+    "splines>=0.3.3",
     "tqdm>=4.67.1",
     "typer>=0.19.2",
     "vesin>=0.3.8",
