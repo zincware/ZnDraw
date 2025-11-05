@@ -10,7 +10,7 @@ import numpy as np
 from zndraw.api_manager import APIManager
 from zndraw.bookmarks_manager import Bookmarks
 from zndraw.exceptions import LockError
-from zndraw.extensions import Extension, ExtensionType
+from zndraw.extensions import Extension, Category
 from zndraw.figures_manager import Figures
 from zndraw.frame_cache import FrameCache
 from zndraw.metadata_manager import RoomMetadata
@@ -899,7 +899,7 @@ class ZnDraw(MutableSequence):
         if name in self._extensions:
             raise ValueError(f"Extension '{name}' is already registered.")
         if not hasattr(extension, "category") or extension.category not in [
-            cat.value for cat in ExtensionType
+            cat.value for cat in Category
         ]:
             raise ValueError("Extension must have a valid 'category' attribute.")
 

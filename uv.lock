@@ -2933,7 +2933,7 @@ wheels = [
 
 [[package]]
 name = "zndraw"
-version = "0.6.0a7"
+version = "0.6.0a9"
 source = { editable = "." }
 dependencies = [
     { name = "cachetools" },

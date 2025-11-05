@@ -3,13 +3,13 @@ import requests
 from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
-from zndraw.extensions import Extension, ExtensionType
+from zndraw.extensions import Extension, Category
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
 
 
 class ModifierExtension(Extension):
-    category = ExtensionType.MODIFIER
+    category = Category.MODIFIER
 
     parameter: int
 
@@ -20,7 +20,7 @@ class ModifierExtension(Extension):
 
 
 class SelectionExtension(Extension):
-    category = ExtensionType.SELECTION
+    category = Category.SELECTION
 
     parameter: int
 

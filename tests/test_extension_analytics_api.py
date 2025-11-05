@@ -6,11 +6,11 @@ from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
 from zndraw.app.job_manager import JobManager
-from zndraw.extensions import Extension, ExtensionType
+from zndraw.extensions import Extension, Category
 
 
 class DemoModifier(Extension):
-    category = ExtensionType.MODIFIER
+    category = Category.MODIFIER
     parameter: int = 0
 
     def run(self, vis: ZnDraw, **kwargs):
@@ -18,7 +18,7 @@ class DemoModifier(Extension):
 
 
 class DemoSelection(Extension):
-    category = ExtensionType.SELECTION
+    category = Category.SELECTION
 
     def run(self, vis: ZnDraw, **kwargs):
         pass

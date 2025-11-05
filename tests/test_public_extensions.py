@@ -5,13 +5,13 @@ import requests
 import pytest
 from ase import Atoms
 from zndraw import ZnDraw
-from zndraw.extensions import Extension, ExtensionType
+from zndraw.extensions import Extension, Category
 
 
 class GlobalTestExtension(Extension):
     """A test extension that will be registered globally."""
 
-    category = ExtensionType.MODIFIER
+    category = Category.MODIFIER
 
     def run(self, *args, **kwargs):
         """Dummy run method."""
@@ -21,7 +21,7 @@ class GlobalTestExtension(Extension):
 class RoomModifyingExtension(Extension):
     """Extension that modifies the room's atoms to verify correct room context."""
 
-    category = ExtensionType.MODIFIER
+    category = Category.MODIFIER
     tag: int = 999
 
     def run(self, vis: ZnDraw, **kwargs):

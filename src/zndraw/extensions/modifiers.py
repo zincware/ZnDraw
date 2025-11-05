@@ -8,7 +8,7 @@ import numpy as np
 from ase.data import chemical_symbols
 from pydantic import Field
 
-from zndraw.extensions.abc import Extension, ExtensionType
+from zndraw.extensions.abc import Extension, Category
 
 log = logging.getLogger("zndraw")
 
@@ -16,7 +16,7 @@ Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
 class UpdateScene(Extension):
-    category = ExtensionType.MODIFIER
+    category = Category.MODIFIER
 
     def apply_selection(
         self, atom_ids: list[int], atoms: ase.Atoms

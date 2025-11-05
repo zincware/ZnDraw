@@ -7,11 +7,11 @@ import requests
 from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
-from zndraw.extensions import Extension, ExtensionType
+from zndraw.extensions import Extension, Category
 
 
 class TestExtension(Extension):
-    category = ExtensionType.MODIFIER
+    category = Category.MODIFIER
     parameter: int
 
     def run(self, vis: ZnDraw, **kwargs):

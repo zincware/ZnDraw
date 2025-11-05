@@ -7,7 +7,7 @@ if t.TYPE_CHECKING:
     from zndraw.zndraw import ZnDraw
 
 
-class ExtensionType(str, enum.Enum):
+class Category(str, enum.Enum):
     MODIFIER = "modifiers"
     SELECTION = "selections"
     ANALYSIS = "analysis"
@@ -17,7 +17,7 @@ class Extension(BaseModel):
     """The base class for all ZnDraw extensions."""
 
     # This is a class attribute, not an instance attribute.
-    category: t.ClassVar[ExtensionType]
+    category: t.ClassVar[Category]
 
     def run(self, vis: "ZnDraw", **kwargs):
         """Run the extension.

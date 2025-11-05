@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.express as px
 from pydantic import Field
 
-from zndraw.extensions.abc import Extension, ExtensionType
+from zndraw.extensions.abc import Extension, Category
 
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw
@@ -14,7 +14,7 @@ if t.TYPE_CHECKING:
 class Analysis(Extension):
     """The base class for all analysis extensions."""
 
-    category: t.ClassVar[ExtensionType] = ExtensionType.ANALYSIS
+    category: t.ClassVar[Category] = Category.ANALYSIS
 
 
 class DihedralAngle(Analysis):
