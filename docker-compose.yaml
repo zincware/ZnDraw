@@ -34,9 +34,10 @@ services:
       - ZNDRAW_REDIS_URL=redis://redis:6379
 
       # Gunicorn production settings
-      # Scale workers based on your server capacity
-      # Default: 8 workers with 100 threads each = 800 concurrent connections
-      - GUNICORN_WORKERS=16
+      # Flask-SocketIO with threaded workers requires SINGLE worker process
+      # Concurrency is achieved through threads within the single worker
+      # 200 threads = 200 concurrent connections per container
+      - GUNICORN_WORKERS=1
       - GUNICORN_THREADS=100
       - GUNICORN_LOG_LEVEL=info
 
@@ -59,6 +60,13 @@ services:
 
       # SiMGen molecular generation (optional - uncomment to enable)
       # - ZNDRAW_SIMGEN_ENABLED=true
+
+      # File browser (optional - uncomment to enable)
+      # - ZNDRAW_FILE_BROWSER_ENABLED=true
+      # - ZNDRAW_FILE_BROWSER_ROOT=/app/data
+
+      # Server URL (used by Celery tasks to connect back to main app)
+      # - ZNDRAW_SERVER_URL=http://zndraw:5000
 
       # Fix for Apple Silicon hosts
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
