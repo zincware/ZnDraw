@@ -34,6 +34,16 @@ class UpdateScene(Extension):
 class Connect(UpdateScene):
     """Create guiding curve between selected atoms."""
 
+    curve: str = Field(
+        "curve",
+        description="Name of the curve geometry to use",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-geometries"],
+            "x-geometry-filter": "Curve",
+        },
+    )
+
     def run(self, vis, **kwargs) -> None:
         atoms = vis.atoms
         atom_ids = vis.selection
@@ -62,6 +72,15 @@ class Rotate(UpdateScene):
     steps: int = Field(
         30, ge=1, description="Number of steps to take to complete the rotation"
     )
+    curve: str = Field(
+        "curve",
+        description="Name of the curve geometry to use",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-geometries"],
+            "x-geometry-filter": "Curve",
+        },
+    )
 
     def run(self, vis, **kwargs) -> None:
         # split atoms object into the selected from atoms_ids and the remaining
@@ -70,7 +89,7 @@ class Rotate(UpdateScene):
                 del vis[vis.step + 1 :]
 
             points = vis.points
-            atom_ids = vis.selection
+            atom_ids = list(vis.selection)
             atoms = vis.atoms
             if atoms is None:
                 raise ValueError("No atoms in the scene.")
@@ -121,6 +140,15 @@ class Translate(UpdateScene):
     """Move the selected atoms along the line."""
 
     steps: int = Field(10, ge=1)
+    curve: str = Field(
+        "curve",
+        description="Name of the curve geometry to use",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-geometries"],
+            "x-geometry-filter": "Curve",
+        },
+    )
 
     def run(self, vis, **kwargs) -> None:
         if len(vis) > vis.step + 1:
@@ -194,6 +222,15 @@ class ChangeType(UpdateScene):
 
 class AddLineParticles(UpdateScene):
     symbol: Symbols
+    curve: str = Field(
+        "curve",
+        description="Name of the curve geometry to use",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-geometries"],
+            "x-geometry-filter": "Curve",
+        },
+    )
 
     def run(self, vis, **kwargs) -> None:
         if len(vis) > vis.step + 1:
