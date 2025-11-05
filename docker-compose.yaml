@@ -55,6 +55,9 @@ services:
       # Analytics (optional)
       # - ZNDRAW_EXTENSION_ANALYTICS_TTL=604800
 
+      # SiMGen molecular generation (optional - uncomment to enable)
+      # - ZNDRAW_SIMGEN_ENABLED=true
+
       # Fix for Apple Silicon hosts
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
     volumes:

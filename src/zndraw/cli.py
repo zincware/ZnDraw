@@ -146,6 +146,7 @@ def main(
     simgen: bool = typer.Option(
         False,
         "--simgen/--no-simgen",
+        envvar="ZNDRAW_SIMGEN_ENABLED",
         help="Enable SiMGen molecular generation features.",
     ),
 ):
