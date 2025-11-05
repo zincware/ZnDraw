@@ -77,6 +77,6 @@ exclude = [
 zndraw = "zndraw.cli:app"
 
 [project.optional-dependencies]
-test = [
-    "pytest>=8.4.2",
+production = [
+    "gunicorn>=23.0.0",
 ]

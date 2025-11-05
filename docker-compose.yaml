@@ -30,13 +30,15 @@ services:
       redis:
         condition: service_healthy
     environment:
-      # Redis configuration
+      # Redis configuration (enables multi-worker coordination)
       - ZNDRAW_REDIS_URL=redis://redis:6379
 
-      # Server configuration
-      # Note: --host is set in Dockerfile CMD to use service name 'zndraw'
-      # This allows celery tasks to connect via http://zndraw:5000
-      # Flask itself binds to 0.0.0.0 (all interfaces) by default
+      # Gunicorn production settings
+      # Scale workers based on your server capacity
+      # Default: 8 workers with 100 threads each = 800 concurrent connections
+      - GUNICORN_WORKERS=16
+      - GUNICORN_THREADS=100
+      - GUNICORN_LOG_LEVEL=info
 
       # Flask secret key (CHANGE THIS IN PRODUCTION!)
       - FLASK_SECRET_KEY=change-this-to-a-random-secret-key-in-production
@@ -67,11 +69,20 @@ services:
       - ./uploads:/tmp/zndraw_uploads
     networks:
       - zndraw-network
+    # Resource limits (adjust based on your server capacity)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '64'      # Limit to 64 cores (half of 128)
+    #       memory: 256G     # Limit to 256GB (half of 500GB)
+    #     reservations:
+    #       cpus: '8'        # Reserve at least 8 cores
+    #       memory: 16G      # Reserve at least 16GB
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()"]
       interval: 30s
       timeout: 10s
-      start_period: 40s
+      start_period: 60s  # Increased for Gunicorn startup
       retries: 3
 
   # Celery worker for background tasks
@@ -81,7 +92,7 @@ services:
       dockerfile: Dockerfile
     container_name: zndraw-celery-worker
     restart: unless-stopped
-    command: ["celery", "-A", "zndraw.app.make_celery", "worker", "--loglevel=info"]
+    command: ["celery", "-A", "zndraw.app.make_celery", "worker", "--loglevel=info", "--concurrency=16"]
     depends_on:
       redis:
         condition: service_healthy
@@ -104,6 +115,15 @@ services:
       - ./uploads:/tmp/zndraw_uploads
     networks:
       - zndraw-network
+    # Resource limits for Celery worker
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '32'      # Limit to 32 cores
+    #       memory: 128G    # Limit to 128GB
+    #     reservations:
+    #       cpus: '4'       # Reserve at least 4 cores
+    #       memory: 8G      # Reserve at least 8GB
     healthcheck:
       test: ["CMD", "celery", "-A", "zndraw.app.make_celery", "inspect", "ping"]
       interval: 30s

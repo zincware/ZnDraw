@@ -41,12 +41,13 @@ RUN useradd -m -u 1000 -s /bin/bash appuser && \
 WORKDIR /app
 
 # Copy Python dependency files first (for better layer caching)
-COPY --chown=appuser:appuser pyproject.toml uv.lock* LICENSE README.md ./
+COPY --chown=appuser:appuser pyproject.toml uv.lock* LICENSE README.md gunicorn_config.py wsgi.py ./
 
 # Install dependencies into virtual environment as appuser
+# Include production extras for Gunicorn
 USER appuser
 RUN --mount=type=cache,target=/home/appuser/.cache/uv,uid=1000,gid=1000 \
-    uv sync --frozen --no-dev --no-install-project
+    uv sync --frozen --no-dev --no-install-project --extra production
 
 # Copy application source
 COPY --chown=appuser:appuser src/ ./src/
@@ -54,9 +55,9 @@ COPY --chown=appuser:appuser src/ ./src/
 # Copy built frontend from previous stage
 COPY --from=frontend-builder --chown=appuser:appuser /src/zndraw/static/ ./src/zndraw/static/
 
-# Install the project itself
+# Install the project itself with production extras
 RUN --mount=type=cache,target=/home/appuser/.cache/uv,uid=1000,gid=1000 \
-    uv sync --frozen --no-dev
+    uv sync --frozen --no-dev --extra production
 
 # Set environment variables
 ENV VIRTUAL_ENV=/app/.venv \
@@ -81,6 +82,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()" || exit 1
 
 # Default command (can be overridden in docker-compose)
-# Use --no-celery to prevent embedded worker (dedicated celery-worker container handles tasks)
-# Use --host with the Docker service name so celery tasks can connect via internal network
-CMD ["zndraw", "--host", "zndraw", "--port", "5000", "--no-celery"]
+# Use Gunicorn as production WSGI server with threaded workers
+# Configuration is in gunicorn_config.py
+# Environment variables control workers, threads, and log level
+CMD ["gunicorn", "-c", "gunicorn_config.py", "wsgi:app"]

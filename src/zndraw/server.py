@@ -165,7 +165,14 @@ def create_app(
     redis_init_app(app, redis_url)
     services_init_app(app)
 
-    socketio.init_app(app, cors_allowed_origins="*")
+    # Configure SocketIO with Redis message queue for multi-worker support
+    # This enables pub/sub coordination across multiple Gunicorn workers
+    if redis_url:
+        log.info(f"Configuring SocketIO with Redis message queue: {redis_url}")
+        socketio.init_app(app, message_queue=redis_url, cors_allowed_origins="*")
+    else:
+        log.info("Configuring SocketIO without message queue (single worker mode)")
+        socketio.init_app(app, cors_allowed_origins="*")
 
     # Configure SECRET_KEY from environment variable or use development default
     app.config["SECRET_KEY"] = os.getenv(
