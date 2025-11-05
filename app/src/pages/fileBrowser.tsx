@@ -51,7 +51,8 @@ import { useAppStore } from "../store";
  */
 export default function FileBrowserPage() {
   const navigate = useNavigate();
-  const { showSnackbar } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const showSnackbar = useAppStore((state) => state.showSnackbar);
   const [currentPath, setCurrentPath] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [loadDialog, setLoadDialog] = useState<{

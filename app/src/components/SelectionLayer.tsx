@@ -1,5 +1,5 @@
 import { Box } from "@mui/material";
-import { useEffect } from "react";
+import { memo } from "react";
 
 interface SelectionLayerProps {
   selectedFrames: number[] | null;
@@ -14,10 +14,7 @@ const SelectionLayer: React.FC<SelectionLayerProps> = ({
   currentFrame,
   containerWidth,
 }) => {
-  useEffect(() => {
-    console.log("Selected frames updated:", selectedFrames);
-    console.log("Container width:", containerWidth);
-  }, [selectedFrames, containerWidth]);
+  // Debug logging removed for production performance
 
   const getMarkerPosition = (frame: number): string => {
     if (frameCount <= 1) return "0%";
@@ -31,8 +28,6 @@ const SelectionLayer: React.FC<SelectionLayerProps> = ({
   if (!selectedFrames || selectedFrames.length === 0 || containerWidth === 0) {
     return null;
   }
-
-  console.log("Rendering", selectedFrames.length, "selection markers");
 
   return (
     <Box
@@ -73,4 +68,5 @@ const SelectionLayer: React.FC<SelectionLayerProps> = ({
   );
 };
 
-export default SelectionLayer;
+// Memoize to prevent unnecessary re-renders
+export default memo(SelectionLayer);

@@ -24,7 +24,10 @@ export default function LoginDialog({ open, onClose }: LoginDialogProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { setUserName, setUserRole, showSnackbar } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const setUserName = useAppStore((state) => state.setUserName);
+  const setUserRole = useAppStore((state) => state.setUserRole);
+  const showSnackbar = useAppStore((state) => state.showSnackbar);
 
   const handleLoginAsGuest = async () => {
     setError(null);

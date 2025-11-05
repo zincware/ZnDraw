@@ -42,7 +42,8 @@ import {
 export default function RemoteFileBrowserPage() {
   const navigate = useNavigate();
   const { roomId } = useParams<{ roomId: string }>();
-  const { showSnackbar } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const showSnackbar = useAppStore((state) => state.showSnackbar);
 
   const [selectedFilesystem, setSelectedFilesystem] = useState<string>("");
   const [currentPath, setCurrentPath] = useState<string>("");

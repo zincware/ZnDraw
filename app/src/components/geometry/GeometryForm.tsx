@@ -31,7 +31,10 @@ import { customRenderers, injectDynamicEnums } from "../../utils/jsonforms";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
 const GeometryForm = () => {
-  const { roomId, geometries, geometryDefaults } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
+  const geometries = useAppStore((state) => state.geometries);
+  const geometryDefaults = useAppStore((state) => state.geometryDefaults);
   const userName = null; // we don't want to skip when saving the current userName, so undefined
   const {
     mode,

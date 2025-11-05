@@ -62,7 +62,11 @@ interface DuplicateFormState {
 export default function RoomManagementMenu() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const { userName, currentFrame, showSnackbar, lockMetadata } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const userName = useAppStore((state) => state.userName);
+  const currentFrame = useAppStore((state) => state.currentFrame);
+  const showSnackbar = useAppStore((state) => state.showSnackbar);
+  const lockMetadata = useAppStore((state) => state.lockMetadata);
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [roomDetail, setRoomDetail] = useState<RoomDetail | null>(null);

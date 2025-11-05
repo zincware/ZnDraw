@@ -7,7 +7,8 @@ import { useAppStore } from "../../store";
  * Similar to DrawingIndicator but for transform controls editing
  */
 export default function EditingIndicator() {
-  const { isEditing } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const isEditing = useAppStore((state) => state.isEditing);
 
   // Only show if editing mode is active
   if (!isEditing) {

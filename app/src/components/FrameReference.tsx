@@ -12,7 +12,8 @@ interface FrameReferenceProps {
 }
 
 export const FrameReference: React.FC<FrameReferenceProps> = ({ frame }) => {
-  const { frameCount } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const frameCount = useAppStore((state) => state.frameCount);
   const setFrameAtomic = useAtomicFrameSet();
 
   const handleClick = () => {

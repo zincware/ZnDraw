@@ -15,7 +15,8 @@ import { useAppStore } from "../store";
  * usePresenterToken for those cases.
  */
 export const useAtomicFrameSet = () => {
-  const { setCurrentFrame } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const setCurrentFrame = useAppStore((state) => state.setCurrentFrame);
 
   return useCallback(
     (frame: number) => {

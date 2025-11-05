@@ -33,7 +33,11 @@ export const usePropertyInspectorSettings = (
   options: UsePropertyInspectorSettingsOptions = {}
 ) => {
   const { category = "all", enabled = true } = options;
-  const { roomId, userName, currentFrame, particleCount } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
+  const userName = useAppStore((state) => state.userName);
+  const currentFrame = useAppStore((state) => state.currentFrame);
+  const particleCount = useAppStore((state) => state.particleCount);
 
   // Fetch property_inspector settings from backend
   const { data: settingsData } = useExtensionData(

@@ -24,7 +24,10 @@ interface FloorData {
 
 export const Floor = ({ data }: { data: FloorData }) => {
   const { scene } = useThree();
-  const { roomId, userName, geometryDefaults } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
+  const userName = useAppStore((state) => state.userName);
+  const geometryDefaults = useAppStore((state) => state.geometryDefaults);
   const gridRef = useRef<THREE.GridHelper | null>(null);
   const { mode } = useColorScheme();
   const theme = useTheme();

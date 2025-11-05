@@ -50,14 +50,24 @@ import { getUsername, logout as authLogout, login as authLogin, getUserRole } fr
 import Link from "@mui/material/Link";
 
 export default function MainPage() {
-  const { roomId } = useAppStore(); // Get roomId from app store
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
 
   useSocketManager({ roomId: roomId || undefined });
   useKeyboardShortcuts();
   useRestJoinManager();
   const { isDragging, handleDragOver, handleDragEnter, handleDragLeave, handleDrop } = useDragAndDrop();
 
-  const { chatOpen, setChatOpen, isDrawing, toggleDrawingMode, chatUnreadCount, serverVersion, globalSettings, setUserName, setUserRole, showSnackbar } = useAppStore();
+  const chatOpen = useAppStore((state) => state.chatOpen);
+  const setChatOpen = useAppStore((state) => state.setChatOpen);
+  const isDrawing = useAppStore((state) => state.isDrawing);
+  const toggleDrawingMode = useAppStore((state) => state.toggleDrawingMode);
+  const chatUnreadCount = useAppStore((state) => state.chatUnreadCount);
+  const serverVersion = useAppStore((state) => state.serverVersion);
+  const globalSettings = useAppStore((state) => state.globalSettings);
+  const setUserName = useAppStore((state) => state.setUserName);
+  const setUserRole = useAppStore((state) => state.setUserRole);
+  const showSnackbar = useAppStore((state) => state.showSnackbar);
   const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);

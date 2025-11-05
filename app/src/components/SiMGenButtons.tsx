@@ -14,7 +14,10 @@ interface SiMGenButtonsProps {
 }
 
 export default function SiMGenButtons({ onTutorialClick }: SiMGenButtonsProps) {
-  const { roomId, globalSettings, showSnackbar } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
+  const globalSettings = useAppStore((state) => state.globalSettings);
+  const showSnackbar = useAppStore((state) => state.showSnackbar);
   const [showAnimation, setShowAnimation] = useState(true);
 
   // Disable animation after it plays once

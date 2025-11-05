@@ -112,7 +112,7 @@ export default function Bonds({
   geometryKey: string;
   pathtracingEnabled?: boolean;
 }) {
-  const { geometryDefaults } = useAppStore();
+  const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
   // Merge with defaults from Pydantic (single source of truth)
   const fullData = getGeometryWithDefaults<BondData>(data, "Bond", geometryDefaults);
@@ -150,7 +150,18 @@ export default function Bonds({
 
   const hasDisabledGeometryRef = useRef(false);
 
-  const { roomId, currentFrame, frameCount, userName, selections, updateSelections, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
+  const currentFrame = useAppStore((state) => state.currentFrame);
+  const frameCount = useAppStore((state) => state.frameCount);
+  const userName = useAppStore((state) => state.userName);
+  const selections = useAppStore((state) => state.selections);
+  const updateSelections = useAppStore((state) => state.updateSelections);
+  const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
+  const removeGeometryFetching = useAppStore((state) => state.removeGeometryFetching);
+  const requestPathtracingUpdate = useAppStore((state) => state.requestPathtracingUpdate);
+  const updateGeometry = useAppStore((state) => state.updateGeometry);
+  const showSnackbar = useAppStore((state) => state.showSnackbar);
 
   // Use geometry-specific selection
   const bondSelection = selections[geometryKey] || [];

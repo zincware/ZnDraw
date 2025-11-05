@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback, memo } from "react";
 import {
   Box,
   Typography,
@@ -32,7 +32,10 @@ interface SecondaryPanelProps {
 }
 
 const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
-  const { roomId, userName, geometries } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
+  const userName = useAppStore((state) => state.userName);
+  const geometries = useAppStore((state) => state.geometries);
   const [localFormData, setLocalFormData] = useState<any>({});
   const ignoreFirstChangeRef = useRef(true);
 
@@ -222,4 +225,5 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
   );
 };
 
-export default SecondaryPanel;
+// Memoize to prevent unnecessary re-renders
+export default memo(SecondaryPanel);

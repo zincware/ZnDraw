@@ -25,7 +25,10 @@ export default function RegisterDialog({ open, onClose }: RegisterDialogProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { setUserName, setUserRole, showSnackbar } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const setUserName = useAppStore((state) => state.setUserName);
+  const setUserRole = useAppStore((state) => state.setUserRole);
+  const showSnackbar = useAppStore((state) => state.showSnackbar);
 
   const handleRegister = async () => {
     setError(null);

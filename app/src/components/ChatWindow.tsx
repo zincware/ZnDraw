@@ -49,7 +49,10 @@ const htmlPlugins = [rehypeKatex];
 const MemoizedMarkdown = memo(ReactMarkdown);
 
 const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
-  const { setCurrentFrame, resetChatUnread, userName } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const setCurrentFrame = useAppStore((state) => state.setCurrentFrame);
+  const resetChatUnread = useAppStore((state) => state.resetChatUnread);
+  const userName = useAppStore((state) => state.userName);
   const { roomId } = useParams<{ roomId: string }>();
   const [messageInput, setMessageInput] = useState("");
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -412,4 +415,5 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
   );
 };
 
-export default ChatWindow;
+// Memoize to prevent unnecessary re-renders
+export default memo(ChatWindow);

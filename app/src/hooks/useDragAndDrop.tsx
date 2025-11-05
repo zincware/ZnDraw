@@ -14,7 +14,8 @@ interface UseDragAndDropReturn {
 export function useDragAndDrop(): UseDragAndDropReturn {
   const [isDragging, setIsDragging] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
-  const { setRoomId } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const setRoomId = useAppStore((state) => state.setRoomId);
   const queryClient = useQueryClient();
 
   const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {

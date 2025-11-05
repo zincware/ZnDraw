@@ -17,7 +17,11 @@ interface CellData {
 export const Cell = ({ data }: {data: CellData}) => {
   const { mode } = useColorScheme();
   const theme = useTheme();
-  const { currentFrame, roomId, userName, geometryDefaults } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const currentFrame = useAppStore((state) => state.currentFrame);
+  const roomId = useAppStore((state) => state.roomId);
+  const userName = useAppStore((state) => state.userName);
+  const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
   // Merge with defaults from Pydantic (single source of truth)
   const fullData = getGeometryWithDefaults<CellData>(data, "Cell", geometryDefaults);

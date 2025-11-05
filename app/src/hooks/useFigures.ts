@@ -23,7 +23,8 @@ const figuresKeys = {
  * Fetches the list of all figure keys for the current room.
  */
 export const useFigureList = () => {
-  const { roomId } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
 
   return useQuery({
     queryKey: figuresKeys.list(roomId!),
@@ -39,7 +40,8 @@ export const useFigure = (
   key: string | null,
   options?: { enabled?: boolean },
 ) => {
-  const { roomId } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
 
   return useQuery({
     queryKey: figuresKeys.detail(roomId!, key!),
@@ -57,7 +59,8 @@ export const useFigure = (
  */
 export const useCreateFigure = () => {
   const queryClient = useQueryClient();
-  const { roomId } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
 
   return useMutation({
     mutationFn: (variables: { key: string; figure: FigureData }) =>
@@ -77,7 +80,8 @@ export const useCreateFigure = () => {
  */
 export const useDeleteFigure = () => {
   const queryClient = useQueryClient();
-  const { roomId } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
   //   const setSelectedFigureKey = useRoomStore((state) => state.setSelectedFigureKey); // TODO
 
   return useMutation({

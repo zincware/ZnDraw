@@ -57,7 +57,8 @@ interface DuplicateFormState {
 
 export default function RoomListPage() {
   const queryClient = useQueryClient();
-  const { showSnackbar } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const showSnackbar = useAppStore((state) => state.showSnackbar);
 
   // Connect to socket and join overview:public room
   useSocketManager({ isOverview: true });

@@ -23,7 +23,14 @@ interface GeometryGridProps {
 }
 
 const GeometryGrid = ({ geometries }: GeometryGridProps) => {
-  const { roomId, geometries: geometriesData, activeCurveForDrawing, setActiveCurveForDrawing, attachedCameraKey, attachToCamera, detachFromCamera } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
+  const geometriesData = useAppStore((state) => state.geometries);
+  const activeCurveForDrawing = useAppStore((state) => state.activeCurveForDrawing);
+  const setActiveCurveForDrawing = useAppStore((state) => state.setActiveCurveForDrawing);
+  const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
+  const attachToCamera = useAppStore((state) => state.attachToCamera);
+  const detachFromCamera = useAppStore((state) => state.detachFromCamera);
   const { setMode, setSelectedKey, searchFilter, setSearchFilter } =
     useGeometryStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

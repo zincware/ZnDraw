@@ -9,7 +9,11 @@ import { useAppStore } from "../../store";
  * and allows quick switching between curves via dropdown
  */
 export default function DrawingIndicator() {
-  const { isDrawing, activeCurveForDrawing, setActiveCurveForDrawing, geometries } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const isDrawing = useAppStore((state) => state.isDrawing);
+  const activeCurveForDrawing = useAppStore((state) => state.activeCurveForDrawing);
+  const setActiveCurveForDrawing = useAppStore((state) => state.setActiveCurveForDrawing);
+  const geometries = useAppStore((state) => state.geometries);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   // Only show if drawing mode is active

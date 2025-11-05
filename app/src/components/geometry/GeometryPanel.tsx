@@ -14,7 +14,8 @@ import GeometryGrid from "./GeometryGrid";
 import GeometryForm from "./GeometryForm";
 
 const GeometryPanel = () => {
-  const { roomId } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
   const { mode, setMode, resetForm } = useGeometryStore();
 
   const {

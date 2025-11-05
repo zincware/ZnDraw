@@ -61,8 +61,15 @@ interface SelectionGroupRow {
 }
 
 export default function SelectionsPanel() {
-  const { roomId, userName, selections, selectionGroups, activeSelectionGroup, updateSelectionForGeometry, geometries, showSnackbar } =
-    useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
+  const userName = useAppStore((state) => state.userName);
+  const selections = useAppStore((state) => state.selections);
+  const selectionGroups = useAppStore((state) => state.selectionGroups);
+  const activeSelectionGroup = useAppStore((state) => state.activeSelectionGroup);
+  const updateSelectionForGeometry = useAppStore((state) => state.updateSelectionForGeometry);
+  const geometries = useAppStore((state) => state.geometries);
+  const showSnackbar = useAppStore((state) => state.showSnackbar);
 
   // Selection Groups state
   const [currentGroupName, setCurrentGroupName] = useState("");

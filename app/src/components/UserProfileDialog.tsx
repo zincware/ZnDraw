@@ -31,7 +31,8 @@ export default function UserProfileDialog({ open, onClose }: UserProfileDialogPr
   const [newPassword, setNewPassword] = useState('');
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
 
-  const { showSnackbar } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const showSnackbar = useAppStore((state) => state.showSnackbar);
 
   useEffect(() => {
     if (open) {

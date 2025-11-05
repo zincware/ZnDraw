@@ -1,7 +1,11 @@
 import { useAppStore } from "../store";
 
 export function ConnectionStatus() {
-  const { isConnected, currentFrame, frameCount, roomId } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const isConnected = useAppStore((state) => state.isConnected);
+  const currentFrame = useAppStore((state) => state.currentFrame);
+  const frameCount = useAppStore((state) => state.frameCount);
+  const roomId = useAppStore((state) => state.roomId);
 
   return (
     <div className="status">

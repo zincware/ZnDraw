@@ -34,7 +34,15 @@ import { useFrameLoadTime } from "../hooks/useFrameLoadTime";
 
 // The main scene component
 function MyScene() {
-  const { roomId, userName, geometries, activeCurveForDrawing, setActiveCurveForDrawing, attachedCameraKey, snackbar, hideSnackbar } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
+  const userName = useAppStore((state) => state.userName);
+  const geometries = useAppStore((state) => state.geometries);
+  const activeCurveForDrawing = useAppStore((state) => state.activeCurveForDrawing);
+  const setActiveCurveForDrawing = useAppStore((state) => state.setActiveCurveForDrawing);
+  const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
+  const snackbar = useAppStore((state) => state.snackbar);
+  const hideSnackbar = useAppStore((state) => state.hideSnackbar);
   const theme = useTheme();
 
   // Track frame load time when not playing

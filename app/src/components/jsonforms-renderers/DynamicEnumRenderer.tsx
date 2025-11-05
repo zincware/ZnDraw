@@ -77,8 +77,10 @@ const DynamicEnumRenderer = ({
   // State for array editor dialog
   const [arrayEditorOpen, setArrayEditorOpen] = useState(false);
 
-  // Get app store for fetching frame data
-  const { roomId, currentFrame, userName } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
+  const currentFrame = useAppStore((state) => state.currentFrame);
+  const userName = useAppStore((state) => state.userName);
 
   // Infer field type from path and schema
   const fieldType: ArrayFieldType = inferFieldType(path, schema);

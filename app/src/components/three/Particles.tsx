@@ -51,7 +51,27 @@ export default function Sphere({
   geometryKey: string;
   pathtracingEnabled?: boolean;
 }) {
-  const { geometryDefaults, currentFrame, frameCount, roomId, userName, selections, updateSelections, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, hoveredGeometryInstance, setHoveredGeometryInstance, setParticleCount, requestPathtracingUpdate, updateGeometry, showSnackbar, geometries, geometryUpdateSources } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders (CRITICAL for performance)
+  const geometryDefaults = useAppStore((state) => state.geometryDefaults);
+  const currentFrame = useAppStore((state) => state.currentFrame);
+  const frameCount = useAppStore((state) => state.frameCount);
+  const roomId = useAppStore((state) => state.roomId);
+  const userName = useAppStore((state) => state.userName);
+  const selections = useAppStore((state) => state.selections);
+  const updateSelections = useAppStore((state) => state.updateSelections);
+  const setDrawingPointerPosition = useAppStore((state) => state.setDrawingPointerPosition);
+  const isDrawing = useAppStore((state) => state.isDrawing);
+  const setDrawingIsValid = useAppStore((state) => state.setDrawingIsValid);
+  const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
+  const removeGeometryFetching = useAppStore((state) => state.removeGeometryFetching);
+  const hoveredGeometryInstance = useAppStore((state) => state.hoveredGeometryInstance);
+  const setHoveredGeometryInstance = useAppStore((state) => state.setHoveredGeometryInstance);
+  const setParticleCount = useAppStore((state) => state.setParticleCount);
+  const requestPathtracingUpdate = useAppStore((state) => state.requestPathtracingUpdate);
+  const updateGeometry = useAppStore((state) => state.updateGeometry);
+  const showSnackbar = useAppStore((state) => state.showSnackbar);
+  const geometries = useAppStore((state) => state.geometries);
+  const geometryUpdateSources = useAppStore((state) => state.geometryUpdateSources);
 
   // Merge with defaults from Pydantic (single source of truth)
   const fullData = getGeometryWithDefaults<SphereData>(data, "Sphere", geometryDefaults);

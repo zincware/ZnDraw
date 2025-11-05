@@ -418,8 +418,12 @@ function FigureWindow({ windowId }: FigureWindowProps) {
   const { data: allFiguresResponse } = useFigureList();
 
   // ===== STORE ACTIONS & STATE =====
-  const { updateSelectionForGeometry, setFrameSelection, currentFrame, frame_selection, selections } =
-    useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const updateSelectionForGeometry = useAppStore((state) => state.updateSelectionForGeometry);
+  const setFrameSelection = useAppStore((state) => state.setFrameSelection);
+  const currentFrame = useAppStore((state) => state.currentFrame);
+  const frame_selection = useAppStore((state) => state.frame_selection);
+  const selections = useAppStore((state) => state.selections);
   const setFrameAtomic = useAtomicFrameSet();
 
   if (!windowInstance) {

@@ -39,7 +39,10 @@ const PropertyInspectorRenderer = ({
   label,
   errors,
 }: ControlProps) => {
-  const { roomId, particleCount, currentFrame } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const roomId = useAppStore((state) => state.roomId);
+  const particleCount = useAppStore((state) => state.particleCount);
+  const currentFrame = useAppStore((state) => state.currentFrame);
 
   // Fetch available properties with categorization
   const {

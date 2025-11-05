@@ -51,7 +51,8 @@ export default function Plane({
   geometryKey: string;
   pathtracingEnabled?: boolean;
 }) {
-  const { geometryDefaults } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
   // Merge with defaults from Pydantic (single source of truth)
   const fullData = getGeometryWithDefaults<PlaneData>(data, "Plane", geometryDefaults);
@@ -76,7 +77,25 @@ export default function Plane({
   const [instanceCount, setInstanceCount] = useState(0);
   const hasDisabledGeometryRef = useRef(false);
 
-  const { currentFrame, frameCount, roomId, userName, selections, updateSelections, hoveredGeometryInstance, setHoveredGeometryInstance, setDrawingPointerPosition, isDrawing, setDrawingIsValid, setGeometryFetching, removeGeometryFetching, requestPathtracingUpdate, updateGeometry, showSnackbar, geometries, geometryUpdateSources } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const currentFrame = useAppStore((state) => state.currentFrame);
+  const frameCount = useAppStore((state) => state.frameCount);
+  const roomId = useAppStore((state) => state.roomId);
+  const userName = useAppStore((state) => state.userName);
+  const selections = useAppStore((state) => state.selections);
+  const updateSelections = useAppStore((state) => state.updateSelections);
+  const hoveredGeometryInstance = useAppStore((state) => state.hoveredGeometryInstance);
+  const setHoveredGeometryInstance = useAppStore((state) => state.setHoveredGeometryInstance);
+  const setDrawingPointerPosition = useAppStore((state) => state.setDrawingPointerPosition);
+  const isDrawing = useAppStore((state) => state.isDrawing);
+  const setDrawingIsValid = useAppStore((state) => state.setDrawingIsValid);
+  const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
+  const removeGeometryFetching = useAppStore((state) => state.removeGeometryFetching);
+  const requestPathtracingUpdate = useAppStore((state) => state.requestPathtracingUpdate);
+  const updateGeometry = useAppStore((state) => state.updateGeometry);
+  const showSnackbar = useAppStore((state) => state.showSnackbar);
+  const geometries = useAppStore((state) => state.geometries);
+  const geometryUpdateSources = useAppStore((state) => state.geometryUpdateSources);
 
   // Use geometry-specific selection
   const planeSelection = selections[geometryKey] || [];

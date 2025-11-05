@@ -35,7 +35,8 @@ interface CurveData {
  * with optional markers that can be interactively moved.
  */
 export default function Curve({ data, geometryKey }: { data: CurveData; geometryKey: string }) {
-  const { geometryDefaults } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
   // Merge with defaults from Pydantic (single source of truth)
   // Memoize the entire result to prevent re-creation on every render
@@ -61,7 +62,20 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   const theme = useTheme();
 
-  const { currentFrame, roomId, isDrawing, drawingIsValid, drawingPointerPosition, setIsDrawing, userName, setGeometryFetching, removeGeometryFetching, setCurveLength, activeCurveForDrawing, registerCurveRef, unregisterCurveRef } = useAppStore();
+  // Use individual selectors to prevent unnecessary re-renders
+  const currentFrame = useAppStore((state) => state.currentFrame);
+  const roomId = useAppStore((state) => state.roomId);
+  const isDrawing = useAppStore((state) => state.isDrawing);
+  const drawingIsValid = useAppStore((state) => state.drawingIsValid);
+  const drawingPointerPosition = useAppStore((state) => state.drawingPointerPosition);
+  const setIsDrawing = useAppStore((state) => state.setIsDrawing);
+  const userName = useAppStore((state) => state.userName);
+  const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
+  const removeGeometryFetching = useAppStore((state) => state.removeGeometryFetching);
+  const setCurveLength = useAppStore((state) => state.setCurveLength);
+  const activeCurveForDrawing = useAppStore((state) => state.activeCurveForDrawing);
+  const registerCurveRef = useAppStore((state) => state.registerCurveRef);
+  const unregisterCurveRef = useAppStore((state) => state.unregisterCurveRef);
   const [markerPositions, setMarkerPositions] = useState<THREE.Vector3[]>([]);
   const [lineSegments, setLineSegments] = useState<THREE.Vector3[]>([]);
   const [virtualMarkerPositions, setVirtualMarkerPositions] = useState<THREE.Vector3[]>([]);
