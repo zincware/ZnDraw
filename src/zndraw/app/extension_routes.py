@@ -12,7 +12,7 @@ from flask import Blueprint, current_app, request
 from zndraw.server import socketio
 
 from .constants import SocketEvents
-from .redis_keys import ExtensionKeys
+from .redis_keys import ExtensionKeys, JobKeys, RoomKeys
 from .worker_stats import WorkerStats
 
 log = logging.getLogger(__name__)
@@ -89,8 +89,9 @@ def log_room_extension(room_id: str, category: str, extension: str):
             return {"error": f"No workers available for extension {extension}"}, 400
 
     # Store the entire extension data as a JSON string
+    room_keys = RoomKeys(room_id)
     redis_client.hset(
-        f"room:{room_id}:user:{user_name}:{category}", extension, json.dumps(data)
+        room_keys.user_extension_data(user_name, category), extension, json.dumps(data)
     )
 
     # Handle settings differently - no job queue, just update and notify
@@ -219,8 +220,9 @@ def get_extension_data(room_id: str, category: str, extension: str):
     )
 
     redis_client = current_app.extensions["redis"]
+    room_keys = RoomKeys(room_id)
     extension_data = redis_client.hget(
-        f"room:{room_id}:user:{user_name}:{category}", extension
+        room_keys.user_extension_data(user_name, category), extension
     )
     if extension_data is None:
         return {"data": None}, 200
@@ -368,13 +370,15 @@ def get_room_extensions_overview(room_id: str):
             total_workers += worker_stats.total_workers
 
             # Get jobs for this extension
+            room_keys = RoomKeys(room_id)
             job_ids = redis_client.smembers(
-                f"room:{room_id}:extension:{category}:{ext_name}:jobs"
+                room_keys.extension_jobs(category, ext_name)
             )
             jobs = []
             for job_id in job_ids:
                 job_id_str = job_id.decode() if isinstance(job_id, bytes) else job_id
-                job_data = redis_client.hgetall(f"job:{job_id_str}")
+                job_keys = JobKeys(job_id_str)
+                job_data = redis_client.hgetall(job_keys.hash_key())
                 if job_data:
                     jobs.append(
                         {
@@ -516,7 +520,8 @@ def get_global_extensions_overview():
         job_ids = redis_client.smembers(key)
         for job_id in job_ids:
             job_id_str = job_id.decode() if isinstance(job_id, bytes) else job_id
-            job_data = redis_client.hgetall(f"job:{job_id_str}")
+            job_keys = JobKeys(job_id_str)
+            job_data = redis_client.hgetall(job_keys.hash_key())
             if job_data:
                 extensions_map[map_key]["jobs"].append(
                     {
@@ -581,13 +586,15 @@ def get_extension_detailed_analytics(room_id: str, category: str, extension: str
     redis_client = current_app.extensions["redis"]
 
     # Get all jobs for this extension
+    room_keys = RoomKeys(room_id)
     job_ids = redis_client.smembers(
-        f"room:{room_id}:extension:{category}:{extension}:jobs"
+        room_keys.extension_jobs(category, extension)
     )
     jobs = []
     for job_id in job_ids:
         job_id_str = job_id.decode() if isinstance(job_id, bytes) else job_id
-        job_data = redis_client.hgetall(f"job:{job_id_str}")
+        job_keys = JobKeys(job_id_str)
+        job_data = redis_client.hgetall(job_keys.hash_key())
         if job_data:
             jobs.append(
                 {

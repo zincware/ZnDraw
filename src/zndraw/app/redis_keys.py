@@ -381,6 +381,23 @@ class RoomKeys:
         """
         return f"room:{self.room_id}:extension:{category}:{extension}:jobs"
 
+    def user_extension_data(self, username: str, category: str) -> str:
+        """User-specific extension data hash.
+
+        Parameters
+        ----------
+        username : str
+            Username
+        category : str
+            Extension category
+
+        Returns
+        -------
+        str
+            Redis key for user extension data hash
+        """
+        return f"room:{self.room_id}:user:{username}:{category}"
+
 
 @dataclass(frozen=True)
 class UserKeys:
