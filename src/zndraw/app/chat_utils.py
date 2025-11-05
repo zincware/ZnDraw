@@ -2,6 +2,8 @@ import json
 import time
 import typing as t
 
+from .redis_keys import RoomKeys
+
 
 def create_message(
     redis_client,
@@ -20,9 +22,10 @@ def create_message(
     Returns:
         dict: The created message object
     """
+    room_keys = RoomKeys(room_id)
+
     # Generate message ID using atomic counter
-    counter_key = f"room:{room_id}:chat:counter"
-    message_number = redis_client.incr(counter_key)
+    message_number = redis_client.incr(room_keys.chat_counter())
     message_id = f"msg_{room_id}_{message_number}"
 
     # Create message object
@@ -38,8 +41,8 @@ def create_message(
     }
 
     # Store message data and index
-    data_key = f"room:{room_id}:chat:data"
-    index_key = f"room:{room_id}:chat:index"
+    data_key = room_keys.chat_data()
+    index_key = room_keys.chat_index()
 
     with redis_client.pipeline() as pipe:
         # Store message data as JSON
@@ -62,8 +65,8 @@ def get_message(redis_client, room_id: str, message_id: str) -> t.Optional[dict]
     Returns:
         dict | None: The message object, or None if not found
     """
-    data_key = f"room:{room_id}:chat:data"
-    message_json = redis_client.hget(data_key, message_id)
+    room_keys = RoomKeys(room_id)
+    message_json = redis_client.hget(room_keys.chat_data(), message_id)
 
     if message_json is None:
         return None
@@ -97,7 +100,7 @@ def update_message(
     message["isEdited"] = True
 
     # Store updated message
-    data_key = f"room:{room_id}:chat:data"
-    redis_client.hset(data_key, message_id, json.dumps(message))
+    room_keys = RoomKeys(room_id)
+    redis_client.hset(room_keys.chat_data(), message_id, json.dumps(message))
 
     return message

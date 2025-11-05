@@ -8,6 +8,7 @@ from flask_socketio import SocketIO
 from redis import Redis
 
 from zndraw.app.models import LockMetadata, RoomMetadata
+from zndraw.app.redis_keys import RoomKeys
 
 log = logging.getLogger(__name__)
 
@@ -27,14 +28,15 @@ def get_room_metadata(redis_client: t.Any, room_id: str) -> RoomMetadata:
     RoomMetadata
         Complete room metadata
     """
+    room_keys = RoomKeys(room_id)
+
     # Get basic fields
-    description = redis_client.get(f"room:{room_id}:description")
-    locked = redis_client.get(f"room:{room_id}:locked") == "1"
-    hidden = redis_client.get(f"room:{room_id}:hidden") == "1"
+    description = redis_client.get(room_keys.description())
+    locked = redis_client.get(room_keys.locked()) == "1"
+    hidden = redis_client.get(room_keys.hidden()) == "1"
 
     # Get frame count
-    indices_key = f"room:{room_id}:trajectory:indices"
-    frame_count = redis_client.zcard(indices_key)
+    frame_count = redis_client.zcard(room_keys.trajectory_indices())
 
     # Check if default room
     default_room = redis_client.get("default_room")

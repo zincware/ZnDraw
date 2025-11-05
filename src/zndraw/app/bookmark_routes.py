@@ -10,6 +10,7 @@ from flask import Blueprint, current_app, request
 from zndraw.server import socketio
 
 from .constants import SocketEvents
+from .redis_keys import RoomKeys
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +25,8 @@ def get_all_bookmarks(room_id: str):
         {"bookmarks": {1: "First Frame", 5: "Middle Frame"}}
     """
     r = current_app.extensions["redis"]
-    bookmarks_raw = r.hgetall(f"room:{room_id}:bookmarks")
+    room_keys = RoomKeys(room_id)
+    bookmarks_raw = r.hgetall(room_keys.bookmarks())
     # Convert byte keys to integers
     bookmarks = {int(k): v for k, v in bookmarks_raw.items()}
     return {"bookmarks": bookmarks}, 200
@@ -35,6 +37,7 @@ def get_bookmark(room_id: str, index: int):
     """Get a specific bookmark by frame index."""
     r = current_app.extensions["redis"]
     room_service = current_app.extensions["room_service"]
+    room_keys = RoomKeys(room_id)
 
     # Check if frame index is valid
     frame_count = room_service.get_frame_count(room_id)
@@ -44,7 +47,7 @@ def get_bookmark(room_id: str, index: int):
             "type": "IndexError",
         }, 404
 
-    label = r.hget(f"room:{room_id}:bookmarks", str(index))
+    label = r.hget(room_keys.bookmarks(), str(index))
     if label is None:
         return {
             "error": f"Bookmark at index {index} does not exist",
@@ -62,6 +65,7 @@ def set_bookmark(room_id: str, index: int):
     """
     r = current_app.extensions["redis"]
     room_service = current_app.extensions["room_service"]
+    room_keys = RoomKeys(room_id)
     data = request.get_json() or {}
     label = data.get("label")
 
@@ -80,7 +84,7 @@ def set_bookmark(room_id: str, index: int):
         }, 400
 
     # Set the bookmark
-    r.hset(f"room:{room_id}:bookmarks", str(index), label)
+    r.hset(room_keys.bookmarks(), str(index), label)
 
     # Emit invalidate event
     socketio.emit(
@@ -98,8 +102,9 @@ def set_bookmark(room_id: str, index: int):
 def delete_bookmark(room_id: str, index: int):
     """Delete a bookmark at a specific frame index."""
     r = current_app.extensions["redis"]
+    room_keys = RoomKeys(room_id)
 
-    response = r.hdel(f"room:{room_id}:bookmarks", str(index))
+    response = r.hdel(room_keys.bookmarks(), str(index))
     if response == 0:
         return {
             "error": f"Bookmark at index {index} does not exist",

@@ -7,6 +7,8 @@ from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, request
 
+from .redis_keys import RoomKeys
+
 log = logging.getLogger(__name__)
 
 file_browser = Blueprint("file_browser", __name__, url_prefix="/api/file-browser")
@@ -34,8 +36,8 @@ def _get_all_rooms_metadata(redis_client) -> dict[str, dict]:
         metadata = manager.get_all()
 
         # Get room description
-        description_key = f"room:{room_id}:description"
-        description = redis_client.get(description_key)
+        room_keys = RoomKeys(room_id)
+        description = redis_client.get(room_keys.description())
 
         rooms[room_id] = {
             "room_id": room_id,
@@ -720,8 +722,8 @@ def create_room_from_existing_file():
         return jsonify({"error": "Source room has no metadata"}), 400
 
     # Check if source room exists
-    source_indices_key = f"room:{source_room}:trajectory:indices"
-    frame_count_int = redis_client.zcard(source_indices_key)
+    source_room_keys = RoomKeys(source_room)
+    frame_count_int = redis_client.zcard(source_room_keys.trajectory_indices())
 
     if frame_count_int == 0:
         return jsonify({"error": "Source room not found or has no frames"}), 404
@@ -739,15 +741,17 @@ def create_room_from_existing_file():
         new_room = generate_room_name(base_name, redis_client=redis_client)
 
     # Create identity mapping for new room
-    new_indices_key = f"room:{new_room}:trajectory:indices"
+    new_room_keys = RoomKeys(new_room)
 
     # Copy all frame references with identity mapping
     # Get all members from source room
-    source_frames = redis_client.zrange(source_indices_key, 0, -1, withscores=True)
+    source_frames = redis_client.zrange(
+        source_room_keys.trajectory_indices(), 0, -1, withscores=True
+    )
 
     # Create mapping in new room
     for frame_key, score in source_frames:
-        redis_client.zadd(new_indices_key, {frame_key: score})
+        redis_client.zadd(new_room_keys.trajectory_indices(), {frame_key: score})
 
     # Copy metadata to new room
     new_metadata_manager = RoomMetadataManager(redis_client, new_room)
@@ -755,9 +759,9 @@ def create_room_from_existing_file():
 
     # Set room description and properties
     if description:
-        redis_client.set(f"room:{new_room}:description", description)
-    redis_client.set(f"room:{new_room}:locked", "0")
-    redis_client.set(f"room:{new_room}:hidden", "0")
+        redis_client.set(new_room_keys.description(), description)
+    redis_client.set(new_room_keys.locked(), "0")
+    redis_client.set(new_room_keys.hidden(), "0")
 
     log.info(
         f"Created room '{new_room}' from '{source_room}' with {frame_count_int} frames"

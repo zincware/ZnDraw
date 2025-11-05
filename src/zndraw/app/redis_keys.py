@@ -318,6 +318,14 @@ class RoomKeys:
         """Trajectory indices sorted set."""
         return f"room:{self.room_id}:trajectory:indices"
 
+    def chat_counter(self) -> str:
+        """Chat message counter for generating IDs."""
+        return f"room:{self.room_id}:chat:counter"
+
+    def chat_data(self) -> str:
+        """Chat message data hash."""
+        return f"room:{self.room_id}:chat:data"
+
     def chat_index(self) -> str:
         """Chat message index (sorted set)."""
         return f"room:{self.room_id}:chat:index"
