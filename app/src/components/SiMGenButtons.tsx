@@ -6,7 +6,7 @@ import SchoolIcon from '@mui/icons-material/School';
 import LinkIcon from '@mui/icons-material/Link';
 import ScienceIcon from '@mui/icons-material/Science';
 import ArticleIcon from '@mui/icons-material/Article';
-import { getGlobalSettings, submitExtension, GlobalSettings } from '../myapi/client';
+import { submitExtension } from '../myapi/client';
 import { useAppStore } from '../store';
 
 interface SiMGenButtonsProps {
@@ -14,18 +14,8 @@ interface SiMGenButtonsProps {
 }
 
 export default function SiMGenButtons({ onTutorialClick }: SiMGenButtonsProps) {
-  const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
+  const { roomId, globalSettings, showSnackbar } = useAppStore();
   const [showAnimation, setShowAnimation] = useState(true);
-  const { roomId, showSnackbar } = useAppStore();
-
-  // Fetch global settings on mount
-  useEffect(() => {
-    getGlobalSettings()
-      .then(setGlobalSettings)
-      .catch((error) => {
-        console.error('Failed to fetch global settings:', error);
-      });
-  }, []);
 
   // Disable animation after it plays once
   useEffect(() => {

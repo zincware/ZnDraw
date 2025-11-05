@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { socket } from "./socket";
 import * as THREE from "three";
-import { updateSelection as updateSelectionAPI, loadSelectionGroup as loadSelectionGroupAPI, setBookmark as setBookmarkAPI, deleteBookmark as deleteBookmarkAPI, createGeometry, getGeometry } from "./myapi/client";
+import { updateSelection as updateSelectionAPI, loadSelectionGroup as loadSelectionGroupAPI, setBookmark as setBookmarkAPI, deleteBookmark as deleteBookmarkAPI, createGeometry, getGeometry, type GlobalSettings } from "./myapi/client";
 import type { UserRole } from "./utils/auth";
 
 interface AppState {
@@ -55,6 +55,7 @@ interface AppState {
   pathtracingNeedsUpdate: boolean; // Flag to signal pathtracer that scene has changed
   chatUnreadCount: number; // Number of unread chat messages
   serverVersion: string | null; // Server version for display and compatibility checking
+  globalSettings: GlobalSettings | null; // Global settings (simgen, etc.)
   snackbar: { open: boolean; message: string; severity: "success" | "info" | "warning" | "error" } | null; // Snackbar notification state
 
   // Actions (functions to modify the state)
@@ -126,6 +127,7 @@ interface AppState {
   incrementChatUnread: () => void;
   resetChatUnread: () => void;
   setServerVersion: (version: string | null) => void;
+  setGlobalSettings: (settings: GlobalSettings | null) => void;
   showSnackbar: (message: string, severity?: "success" | "info" | "warning" | "error") => void;
   hideSnackbar: () => void;
 }
@@ -188,6 +190,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   pathtracingNeedsUpdate: false,
   chatUnreadCount: 0,
   serverVersion: null,
+  globalSettings: null,
   snackbar: null,
 
   /**
@@ -754,6 +757,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   incrementChatUnread: () => set((state) => ({ chatUnreadCount: state.chatUnreadCount + 1 })),
   resetChatUnread: () => set({ chatUnreadCount: 0 }),
   setServerVersion: (version) => set({ serverVersion: version }),
+  setGlobalSettings: (settings) => set({ globalSettings: settings }),
   showSnackbar: (message, severity = "info") => set({ snackbar: { open: true, message, severity } }),
   hideSnackbar: () => set((state) => state.snackbar ? { snackbar: { ...state.snackbar, open: false } } : {}),
 }));

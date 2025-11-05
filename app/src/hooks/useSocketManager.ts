@@ -3,7 +3,7 @@ import { socket } from "../socket";
 import { useAppStore } from "../store";
 import { useQueryClient } from "@tanstack/react-query";
 import { useWindowManagerStore } from "../stores/windowManagerStore";
-import { listGeometries, getGeometry, getAllSelections, getAllBookmarks, getServerVersion } from "../myapi/client";
+import { listGeometries, getGeometry, getAllSelections, getAllBookmarks, getServerVersion, getGlobalSettings } from "../myapi/client";
 import { convertBookmarkKeys } from "../utils/bookmarks";
 import { checkVersionCompatibility, getClientVersion } from "../utils/versionCompatibility";
 import { useRoomsStore } from "../roomsStore";
@@ -36,6 +36,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     removeGeometry,
     setActiveCurveForDrawing,
     setServerVersion,
+    setGlobalSettings,
     setLockMetadata,
   } = useAppStore();
   const queryClient = useQueryClient();
@@ -79,10 +80,14 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       console.log("  isOverview:", isOverview);
 
       try {
-        // Fetch server version
+        // Fetch server version and global settings
         const { version: serverVersion } = await getServerVersion();
         console.log("Server version:", serverVersion);
         setServerVersion(serverVersion);
+
+        const globalSettings = await getGlobalSettings();
+        console.log("Global settings:", globalSettings);
+        setGlobalSettings(globalSettings);
 
         // Check version compatibility
         const clientVersion = getClientVersion();
@@ -678,6 +683,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     removeGeometry,
     setActiveCurveForDrawing,
     setServerVersion,
+    setGlobalSettings,
     setLockMetadata,
     openWindow,
   ]);

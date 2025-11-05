@@ -47,6 +47,7 @@ import AddPlotButton from "../components/AddPlotButton";
 import { useQueryClient } from "@tanstack/react-query";
 import { LAYOUT_CONSTANTS } from "../constants/layout";
 import { getUsername, logout as authLogout, login as authLogin, getUserRole } from "../utils/auth";
+import Link from "@mui/material/Link";
 
 export default function MainPage() {
   const { roomId } = useAppStore(); // Get roomId from app store
@@ -56,7 +57,7 @@ export default function MainPage() {
   useRestJoinManager();
   const { isDragging, handleDragOver, handleDragEnter, handleDragLeave, handleDrop } = useDragAndDrop();
 
-  const { chatOpen, setChatOpen, isDrawing, toggleDrawingMode, chatUnreadCount, serverVersion, setUserName, setUserRole, showSnackbar } = useAppStore();
+  const { chatOpen, setChatOpen, isDrawing, toggleDrawingMode, chatUnreadCount, serverVersion, globalSettings, setUserName, setUserRole, showSnackbar } = useAppStore();
   const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
@@ -169,6 +170,21 @@ export default function MainPage() {
               component="div"
             >
               {serverVersion ? `ZnDraw ${serverVersion}` : 'ZnDraw'}
+              {globalSettings?.simgen?.enabled && (
+                <>
+                  {' + '}
+                  <Link
+                    href="https://github.com/RokasEl/simgen"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    color="inherit"
+                    underline="hover"
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    SiMGen
+                  </Link>
+                </>
+              )}
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
             <SiMGenButtons onTutorialClick={() => setTutorialDialogOpen(true)} />
