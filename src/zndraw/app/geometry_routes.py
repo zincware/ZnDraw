@@ -11,6 +11,7 @@ from flask import Blueprint, current_app, request
 from zndraw.server import socketio
 
 from .constants import SocketEvents
+from .redis_keys import RoomKeys
 from .route_utils import check_room_locked
 
 log = logging.getLogger(__name__)
@@ -57,7 +58,8 @@ def create_geometry(room_id: str):
         }, 400
 
     r = current_app.extensions["redis"]
-    existing_geometry_json = r.hget(f"room:{room_id}:geometries", key)
+    keys = RoomKeys(room_id)
+    existing_geometry_json = r.hget(keys.geometries(), key)
 
     if existing_geometry_json:
         existing_geometry = json.loads(existing_geometry_json)
@@ -83,7 +85,7 @@ def create_geometry(room_id: str):
             "type": "ValidationError",
         }, 400
 
-    r.hset(f"room:{room_id}:geometries", key, value_to_store)
+    r.hset(keys.geometries(), key, value_to_store)
     socketio.emit(
         SocketEvents.INVALIDATE_GEOMETRY,
         {
@@ -112,7 +114,8 @@ def get_geometry(room_id: str, key: str):
         }
     """
     r = current_app.extensions["redis"]
-    geometry_data = r.hget(f"room:{room_id}:geometries", key)
+    keys = RoomKeys(room_id)
+    geometry_data = r.hget(keys.geometries(), key)
     if not geometry_data:
         return {
             "error": f"Geometry with key '{key}' not found",
@@ -135,7 +138,8 @@ def delete_geometry(room_id: str, key: str):
         return {"error": e.message}, e.status_code
 
     r = current_app.extensions["redis"]
-    response = r.hdel(f"room:{room_id}:geometries", key)
+    keys = RoomKeys(room_id)
+    response = r.hdel(keys.geometries(), key)
     if response == 0:
         return {
             "error": f"Geometry with key '{key}' does not exist",
@@ -161,7 +165,8 @@ def list_geometries(room_id: str):
         {"geometries": ["key1", "key2", ...]}
     """
     r = current_app.extensions["redis"]
-    all_keys = r.hkeys(f"room:{room_id}:geometries")
+    keys = RoomKeys(room_id)
+    all_keys = r.hkeys(keys.geometries())
     return {"geometries": list(all_keys)}, 200
 
 
@@ -193,7 +198,8 @@ def create_figure(room_id: str):
 
     # store in hash
     r = current_app.extensions["redis"]
-    r.hset(f"room:{room_id}:figures", key, json.dumps(figure))
+    keys = RoomKeys(room_id)
+    r.hset(keys.figures(), key, json.dumps(figure))
     socketio.emit(
         SocketEvents.INVALIDATE_FIGURE,
         {
@@ -208,7 +214,8 @@ def create_figure(room_id: str):
 @geometries.route("/api/rooms/<string:room_id>/figures/<string:key>", methods=["GET"])
 def get_figure(room_id: str, key: str):
     r = current_app.extensions["redis"]
-    figure_data = r.hget(f"room:{room_id}:figures", key)
+    keys = RoomKeys(room_id)
+    figure_data = r.hget(keys.figures(), key)
     if not figure_data:
         return {"error": f"Figure with key '{key}' not found", "type": "KeyError"}, 404
     figure = json.loads(figure_data)
@@ -220,7 +227,8 @@ def get_figure(room_id: str, key: str):
 )
 def delete_figure(room_id: str, key: str):
     r = current_app.extensions["redis"]
-    response = r.hdel(f"room:{room_id}:figures", key)
+    keys = RoomKeys(room_id)
+    response = r.hdel(keys.figures(), key)
     if response == 0:
         return {
             "error": f"Figure with key '{key}' does not exist",
@@ -240,7 +248,8 @@ def delete_figure(room_id: str, key: str):
 @geometries.route("/api/rooms/<string:room_id>/figures", methods=["GET"])
 def list_figures(room_id: str):
     r = current_app.extensions["redis"]
-    all_keys = r.hkeys(f"room:{room_id}:figures")
+    keys = RoomKeys(room_id)
+    all_keys = r.hkeys(keys.figures())
     return {"figures": list(all_keys)}, 200
 
 
@@ -261,17 +270,18 @@ def get_all_selections(room_id: str):
         }
     """
     r = current_app.extensions["redis"]
+    keys = RoomKeys(room_id)
 
     # Get current selections
-    selections_raw = r.hgetall(f"room:{room_id}:selections")
+    selections_raw = r.hgetall(keys.selections())
     selections = {k: json.loads(v) for k, v in selections_raw.items()}
 
     # Get selection groups
-    groups_raw = r.hgetall(f"room:{room_id}:selection_groups")
+    groups_raw = r.hgetall(keys.selection_groups())
     groups = {k: json.loads(v) for k, v in groups_raw.items()}
 
     # Get active group
-    active_group = r.get(f"room:{room_id}:active_selection_group")
+    active_group = r.get(keys.active_selection_group())
 
     return {
         "selections": selections,
@@ -286,7 +296,8 @@ def get_all_selections(room_id: str):
 def get_selection(room_id: str, geometry: str):
     """Get selection for a specific geometry."""
     r = current_app.extensions["redis"]
-    selection = r.hget(f"room:{room_id}:selections", geometry)
+    keys = RoomKeys(room_id)
+    selection = r.hget(keys.selections(), geometry)
 
     if selection is None:
         return {"selection": []}, 200
@@ -303,6 +314,7 @@ def update_selection(room_id: str, geometry: str):
     Body: {"indices": [1, 2, 3]}
     """
     r = current_app.extensions["redis"]
+    keys = RoomKeys(room_id)
     data = request.get_json()
 
     indices = data.get("indices", [])
@@ -313,10 +325,10 @@ def update_selection(room_id: str, geometry: str):
         return {"error": "All indices must be non-negative integers"}, 400
 
     # Store selection
-    r.hset(f"room:{room_id}:selections", geometry, json.dumps(indices))
+    r.hset(keys.selections(), geometry, json.dumps(indices))
 
     # Clear active group (manual edit breaks group association)
-    r.delete(f"room:{room_id}:active_selection_group")
+    r.delete(keys.active_selection_group())
 
     # Emit invalidation
     socketio.emit(
@@ -335,7 +347,8 @@ def update_selection(room_id: str, geometry: str):
 def get_selection_group(room_id: str, group_name: str):
     """Get a specific selection group."""
     r = current_app.extensions["redis"]
-    group = r.hget(f"room:{room_id}:selection_groups", group_name)
+    keys = RoomKeys(room_id)
+    group = r.hget(keys.selection_groups(), group_name)
 
     if group is None:
         return {"error": "Group not found"}, 404
@@ -353,6 +366,7 @@ def create_update_selection_group(room_id: str, group_name: str):
     Body: {"particles": [1, 3], "forces": [1, 3]}
     """
     r = current_app.extensions["redis"]
+    keys = RoomKeys(room_id)
     data = request.get_json()
 
     # Validate data is a dict of geometry -> indices
@@ -366,7 +380,7 @@ def create_update_selection_group(room_id: str, group_name: str):
             return {"error": f"Invalid indices for '{geometry}'"}, 400
 
     # Store group
-    r.hset(f"room:{room_id}:selection_groups", group_name, json.dumps(data))
+    r.hset(keys.selection_groups(), group_name, json.dumps(data))
 
     # Emit invalidation (groups list changed)
     socketio.emit(
@@ -385,18 +399,19 @@ def create_update_selection_group(room_id: str, group_name: str):
 def delete_selection_group(room_id: str, group_name: str):
     """Delete a selection group."""
     r = current_app.extensions["redis"]
+    keys = RoomKeys(room_id)
 
     # Check if group exists
-    if not r.hexists(f"room:{room_id}:selection_groups", group_name):
+    if not r.hexists(keys.selection_groups(), group_name):
         return {"error": "Group not found"}, 404
 
     # Delete group
-    r.hdel(f"room:{room_id}:selection_groups", group_name)
+    r.hdel(keys.selection_groups(), group_name)
 
     # Clear active group if it was this one
-    active_group = r.get(f"room:{room_id}:active_selection_group")
+    active_group = r.get(keys.active_selection_group())
     if active_group == group_name:
-        r.delete(f"room:{room_id}:active_selection_group")
+        r.delete(keys.active_selection_group())
 
     # Emit invalidation
     socketio.emit(
@@ -418,9 +433,10 @@ def load_selection_group(room_id: str, group_name: str):
     This sets the active group and updates all selections to match the group.
     """
     r = current_app.extensions["redis"]
+    keys = RoomKeys(room_id)
 
     # Get group
-    group_data = r.hget(f"room:{room_id}:selection_groups", group_name)
+    group_data = r.hget(keys.selection_groups(), group_name)
     if group_data is None:
         return {"error": "Group not found"}, 404
 
@@ -428,10 +444,10 @@ def load_selection_group(room_id: str, group_name: str):
 
     # Apply group to current selections
     for geometry, indices in group.items():
-        r.hset(f"room:{room_id}:selections", geometry, json.dumps(indices))
+        r.hset(keys.selections(), geometry, json.dumps(indices))
 
     # Set as active group
-    r.set(f"room:{room_id}:active_selection_group", group_name)
+    r.set(keys.active_selection_group(), group_name)
 
     # Emit invalidation (all selections changed)
     socketio.emit(
