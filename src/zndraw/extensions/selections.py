@@ -45,9 +45,11 @@ class Range(Selection):
 
 class Random(Selection):
     count: int = Field(..., description="Number of atoms to select")
+    seed: int = Field(42, description="Random seed for reproducibility")
 
     def run(self, vis) -> None:
         atoms = vis[vis.step]
+        random.seed(self.seed)
         vis.selection = random.sample(range(len(atoms)), self.count)
 
 
@@ -80,9 +82,8 @@ class ConnectedParticles(Selection):
 
         for node_id in selected_ids:
             total_ids += list(nx.node_connected_component(graph, node_id))
-            total_ids = np.array(total_ids)
 
-        vis.selection = [x.item() for x in set(total_ids)]
+        vis.selection = [int(x) for x in set(total_ids)]
 
 
 class Neighbour(Selection):
@@ -107,7 +108,7 @@ class Neighbour(Selection):
                 nx.single_source_shortest_path_length(graph, node_id, self.order).keys()
             )
 
-        vis.selection = list(set(total_ids))
+        vis.selection = [int(x) for x in set(total_ids)]
 
 
 class UpdateSelection(Selection):
@@ -126,4 +127,5 @@ selections: dict[str, t.Type[Selection]] = {
     Random.__name__: Random,
     IdenticalSpecies.__name__: IdenticalSpecies,
     Neighbour.__name__: Neighbour,
+    UpdateSelection.__name__: UpdateSelection,
 }
