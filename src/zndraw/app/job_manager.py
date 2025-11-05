@@ -9,6 +9,8 @@ from typing import Any, Optional
 
 from dateutil.parser import isoparse
 
+from .redis_keys import JobKeys, RoomKeys
+
 
 @dataclass
 class Job:
@@ -125,18 +127,19 @@ class JobManager:
         }
 
         # Store job data
-        job_key = f"job:{job_id}"
-        redis_client.hset(job_key, mapping=job_data)
+        job_keys = JobKeys(job_id)
+        room_keys = RoomKeys(room)
+        redis_client.hset(job_keys.hash_key(), mapping=job_data)
 
         # Set TTL
-        redis_client.expire(job_key, ttl)
+        redis_client.expire(job_keys.hash_key(), ttl)
 
         # Add to indexes
-        redis_client.sadd(f"room:{room}:jobs:active", job_id)
+        redis_client.sadd(room_keys.jobs_active(), job_id)
         redis_client.zadd(
-            f"room:{room}:jobs:by_time", {job_id: datetime.utcnow().timestamp()}
+            room_keys.jobs_by_time(), {job_id: datetime.utcnow().timestamp()}
         )
-        redis_client.sadd(f"room:{room}:extension:{category}:{extension}:jobs", job_id)
+        redis_client.sadd(room_keys.extension_jobs(category, extension), job_id)
 
         return job_id
 
@@ -152,16 +155,16 @@ class JobManager:
         Returns:
             True if successful, False if job not found or already started
         """
-        job_key = f"job:{job_id}"
+        job_keys = JobKeys(job_id)
 
         # Check if job exists and is queued
-        status = redis_client.hget(job_key, "status")
+        status = redis_client.hget(job_keys.hash_key(), "status")
         if not status or status != JobStatus.QUEUED:
             return False
 
         # Update status
         now = datetime.utcnow().isoformat()
-        created_at = redis_client.hget(job_key, "created_at")
+        created_at = redis_client.hget(job_keys.hash_key(), "created_at")
 
         # Calculate wait time
         wait_time_ms, _ = _calculate_durations(created_at, now, None)
@@ -174,7 +177,7 @@ class JobManager:
         if wait_time_ms is not None:
             update_data["wait_time_ms"] = str(wait_time_ms)
 
-        redis_client.hset(job_key, mapping=update_data)
+        redis_client.hset(job_keys.hash_key(), mapping=update_data)
 
         return True
 
@@ -192,13 +195,13 @@ class JobManager:
         Returns:
             True if successful, False if job not found
         """
-        job_key = f"job:{job_id}"
+        job_keys = JobKeys(job_id)
 
-        if not redis_client.exists(job_key):
+        if not redis_client.exists(job_keys.hash_key()):
             return False
 
         now = datetime.utcnow().isoformat()
-        started_at = redis_client.hget(job_key, "started_at")
+        started_at = redis_client.hget(job_keys.hash_key(), "started_at")
 
         # Calculate execution time
         _, execution_time_ms = _calculate_durations(None, started_at, now)
@@ -211,14 +214,15 @@ class JobManager:
         if execution_time_ms is not None:
             update_data["execution_time_ms"] = str(execution_time_ms)
 
-        redis_client.hset(job_key, mapping=update_data)
+        redis_client.hset(job_keys.hash_key(), mapping=update_data)
 
         # Move from active to inactive set
-        job_data = redis_client.hgetall(job_key)
+        job_data = redis_client.hgetall(job_keys.hash_key())
         room = job_data.get("room")
         if room:
+            room_keys = RoomKeys(room)
             redis_client.smove(
-                f"room:{room}:jobs:active", f"room:{room}:jobs:inactive", job_id
+                room_keys.jobs_active(), room_keys.jobs_inactive(), job_id
             )
 
         return True
@@ -235,13 +239,13 @@ class JobManager:
         Returns:
             True if successful, False if job not found
         """
-        job_key = f"job:{job_id}"
+        job_keys = JobKeys(job_id)
 
-        if not redis_client.exists(job_key):
+        if not redis_client.exists(job_keys.hash_key()):
             return False
 
         now = datetime.utcnow().isoformat()
-        started_at = redis_client.hget(job_key, "started_at")
+        started_at = redis_client.hget(job_keys.hash_key(), "started_at")
 
         # Calculate execution time
         _, execution_time_ms = _calculate_durations(None, started_at, now)
@@ -254,14 +258,15 @@ class JobManager:
         if execution_time_ms is not None:
             update_data["execution_time_ms"] = str(execution_time_ms)
 
-        redis_client.hset(job_key, mapping=update_data)
+        redis_client.hset(job_keys.hash_key(), mapping=update_data)
 
         # Move from active to inactive set
-        job_data = redis_client.hgetall(job_key)
+        job_data = redis_client.hgetall(job_keys.hash_key())
         room = job_data.get("room")
         if room:
+            room_keys = RoomKeys(room)
             redis_client.smove(
-                f"room:{room}:jobs:active", f"room:{room}:jobs:inactive", job_id
+                room_keys.jobs_active(), room_keys.jobs_inactive(), job_id
             )
 
         return True
@@ -277,8 +282,8 @@ class JobManager:
         Returns:
             Job data dict or None if not found
         """
-        job_key = f"job:{job_id}"
-        job_data = redis_client.hgetall(job_key)
+        job_keys = JobKeys(job_id)
+        job_data = redis_client.hgetall(job_keys.hash_key())
 
         if not job_data:
             return None
@@ -302,8 +307,8 @@ class JobManager:
         Returns:
             List of job data dicts
         """
-        active_key = f"room:{room}:jobs:active"
-        job_ids = redis_client.smembers(active_key)
+        room_keys = RoomKeys(room)
+        job_ids = redis_client.smembers(room_keys.jobs_active())
 
         jobs = []
         for job_id in job_ids:
@@ -329,8 +334,8 @@ class JobManager:
         Returns:
             List of job data dicts, newest first
         """
-        jobs_key = f"room:{room}:extension:{category}:{extension}:jobs"
-        job_ids = redis_client.smembers(jobs_key)
+        room_keys = RoomKeys(room)
+        job_ids = redis_client.smembers(room_keys.extension_jobs(category, extension))
 
         jobs = []
         for job_id in job_ids:
@@ -352,8 +357,8 @@ class JobManager:
         Returns:
             List of job data dicts
         """
-        inactive_key = f"room:{room}:jobs:inactive"
-        job_ids = redis_client.smembers(inactive_key)
+        room_keys = RoomKeys(room)
+        job_ids = redis_client.smembers(room_keys.jobs_inactive())
 
         jobs = []
         for job_id in job_ids:
@@ -387,8 +392,8 @@ class JobManager:
         Returns:
             True if successful, False if job not found
         """
-        job_key = f"job:{job_id}"
-        job_data = redis_client.hgetall(job_key)
+        job_keys = JobKeys(job_id)
+        job_data = redis_client.hgetall(job_keys.hash_key())
 
         if not job_data:
             return False
@@ -398,14 +403,15 @@ class JobManager:
         extension = job_data.get("extension")
 
         pipe = redis_client.pipeline()
-        pipe.delete(job_key)
+        pipe.delete(job_keys.hash_key())
 
         if room:
-            pipe.srem(f"room:{room}:jobs:active", job_id)
-            pipe.srem(f"room:{room}:jobs:inactive", job_id)
-            pipe.zrem(f"room:{room}:jobs:by_time", job_id)
+            room_keys = RoomKeys(room)
+            pipe.srem(room_keys.jobs_active(), job_id)
+            pipe.srem(room_keys.jobs_inactive(), job_id)
+            pipe.zrem(room_keys.jobs_by_time(), job_id)
             if category and extension:
-                pipe.srem(f"room:{room}:extension:{category}:{extension}:jobs", job_id)
+                pipe.srem(room_keys.extension_jobs(category, extension), job_id)
 
         pipe.execute()
         return True

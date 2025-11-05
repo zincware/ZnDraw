@@ -352,6 +352,35 @@ class RoomKeys:
         """
         return f"room:{self.room_id}:frame_selection:{group}"
 
+    def jobs_active(self) -> str:
+        """Active jobs set (queued or running)."""
+        return f"room:{self.room_id}:jobs:active"
+
+    def jobs_inactive(self) -> str:
+        """Inactive jobs set (completed or failed)."""
+        return f"room:{self.room_id}:jobs:inactive"
+
+    def jobs_by_time(self) -> str:
+        """Jobs sorted set by timestamp."""
+        return f"room:{self.room_id}:jobs:by_time"
+
+    def extension_jobs(self, category: str, extension: str) -> str:
+        """Jobs set for a specific extension.
+
+        Parameters
+        ----------
+        category : str
+            Extension category
+        extension : str
+            Extension name
+
+        Returns
+        -------
+        str
+            Redis key for extension jobs set
+        """
+        return f"room:{self.room_id}:extension:{category}:{extension}:jobs"
+
 
 @dataclass(frozen=True)
 class UserKeys:
@@ -381,3 +410,14 @@ class SessionKeys:
     def role(self) -> str:
         """Session role."""
         return f"sid:{self.sid}:role"
+
+
+@dataclass(frozen=True)
+class JobKeys:
+    """Redis keys for job tracking."""
+
+    job_id: str
+
+    def hash_key(self) -> str:
+        """Job data hash containing all job fields."""
+        return f"job:{self.job_id}"
