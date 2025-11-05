@@ -144,7 +144,6 @@ def test_empty_modifier(server, celery_worker):
     assert len(vis[-1]) == 0
 
 
-@pytest.mark.skip(reason="NewCanvas has bug: imports non-existent 'zndraw.draw' module")
 def test_new_canvas_modifier(server, celery_worker):
     """Test clearing scene with new canvas."""
     vis = ZnDraw(url=server, room="test", user="tester")
@@ -160,6 +159,12 @@ def test_new_canvas_modifier(server, celery_worker):
     # Should add empty frame
     assert len(vis) == initial_frame_count + 1
     assert len(vis.atoms) == 0
+    # Should have added a plane geometry
+    assert "plane" in vis.geometries
+    # Should have cleared curve points
+    assert "curve" in vis.geometries
+    # Should have created a bookmark
+    assert (len(vis) - 1) in vis.bookmarks
 
 
 @pytest.mark.skip(reason="Connect has bug: uses undefined get_scaled_radii() function")

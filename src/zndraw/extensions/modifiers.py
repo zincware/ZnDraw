@@ -370,25 +370,21 @@ class NewCanvas(UpdateScene):
     """Clear the scene, deleting all atoms and points."""
 
     def run(self, vis, **kwargs) -> None:
-        from zndraw.draw import Plane
+        from zndraw.geometries import Curve, Plane
 
-        del vis[vis.step + 1 :]
-        vis.points = []
+        # Clear points by setting curve geometry to empty position list
+        vis.geometries["curve"] = Curve(position=[])
         vis.append(ase.Atoms())
         vis.selection = []
         step = len(vis) - 1
         vis.step = step
-        vis.bookmarks = vis.bookmarks | {step: "New Scene"}
-        vis.camera = {"position": [0, 0, -15], "target": [0, 0, 0]}
-        vis.geometries = [
-            Plane(
-                position=[0, 0, 0],
-                rotation=[0, 0, 0],
-                scale=[1, 1, 1],
-                width=10,
-                height=10,
-            )
-        ]
+        vis.bookmarks[step] = "New Scene"
+        vis.geometries["plane"] = Plane(
+            position=[(0.0, 0.0, 0.0)],
+            rotation=[(0.0, 0.0, 0.0)],
+            scale=1.0,
+            size=[(10.0, 10.0)],
+        )
 
 
 class RemoveAtoms(UpdateScene):
