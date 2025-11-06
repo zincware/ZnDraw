@@ -1,3 +1,6 @@
+# Production-ready Docker Compose configuration for ZnDraw
+# Architecture: Nginx (reverse proxy + static files) → ZnDraw app × 3 → Redis → Celery workers × 2
+
 services:
   # Redis service for state management and Celery broker
   redis:
@@ -5,10 +8,10 @@ services:
     container_name: zndraw-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
-    volumes:
-      - redis-data:/data
+    # volumes:
+    #   - redis-data:/data
     ports:
-      - "6380:6379"  # Changed to 6380 to avoid conflict with existing Redis
+      - "6380:6379"  # Exposed on host for debugging/monitoring
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -28,12 +31,11 @@ services:
   # Nginx reverse proxy and static file server
   nginx:
     build:
-      context: .
-      dockerfile: Dockerfile
-      target: nginx
+      context: ..  # Repository root (one level up from docker/)
+      dockerfile: docker/nginx/Dockerfile
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "5000:80"
     depends_on:
       - zndraw
     networks:
@@ -56,8 +58,8 @@ services:
   # Main ZnDraw application (scaled across multiple replicas)
   zndraw:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..  # Repository root (one level up from docker/)
+      dockerfile: docker/zndraw/Dockerfile
     restart: unless-stopped
     # Note: No container_name - required for scaling with replicas
     # Note: No exposed ports - traffic goes through nginx
@@ -100,21 +102,23 @@ services:
       # - ZNDRAW_FILE_BROWSER_ENABLED=true
       # - ZNDRAW_FILE_BROWSER_ROOT=/app/data
 
-      # Server URL (used by Celery tasks to connect back to main app)
-      - ZNDRAW_SERVER_URL=http://zndraw:5000
+      # Server URL (used by Celery tasks and extension workers to connect back)
+      # IMPORTANT: Use nginx for sticky session support (required for WebSocket)
+      - ZNDRAW_SERVER_URL=http://nginx
 
       # Fix for Apple Silicon hosts
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
     volumes:
       # Persistent data storage (shared across all replicas)
-      - ./data:/app/data
+      - ../data:/app/data
       # Upload temporary storage (shared across all replicas)
-      - ./uploads:/tmp/zndraw_uploads
+      - ../uploads:/tmp/zndraw_uploads
     networks:
       - zndraw-network
     deploy:
       # Scale to 3 replicas for production workload
       # Adjust based on your load (2-5 recommended for 128 core server)
+      # IMPORTANT: When changing replicas, update nginx/nginx.conf upstream block!
       replicas: 3
       # resources:
       #   limits:
@@ -133,8 +137,8 @@ services:
   # Celery worker for background tasks (scaled for parallel processing)
   celery-worker:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..  # Repository root (one level up from docker/)
+      dockerfile: docker/zndraw/Dockerfile
     restart: unless-stopped
     # Note: No container_name - required for scaling with replicas
     user: appuser
@@ -154,16 +158,17 @@ services:
       # Upload configuration (must match main app - shared volume)
       - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
 
-      # Server URL (for Celery tasks to connect back to main app)
-      - ZNDRAW_SERVER_URL=http://zndraw:5000
+      # Server URL (for Celery tasks to connect back to main app via nginx)
+      # IMPORTANT: Use nginx for sticky session support (required for WebSocket)
+      - ZNDRAW_SERVER_URL=http://nginx
 
       # Fix for Apple Silicon hosts
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
     volumes:
       # Share data with main app (shared across all workers and app replicas)
-      - ./data:/app/data
+      - ../data:/app/data
       # Share upload storage with main app (shared across all workers and app replicas)
-      - ./uploads:/tmp/zndraw_uploads
+      - ../uploads:/tmp/zndraw_uploads
     networks:
       - zndraw-network
     deploy:

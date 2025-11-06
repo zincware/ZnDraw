@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for ZnDraw
+# Multi-stage Dockerfile for ZnDraw Application
 # Stage 1: Build frontend with Bun
 FROM oven/bun:1 AS frontend-builder
 
@@ -13,13 +13,13 @@ RUN bun install --frozen-lockfile
 # Copy frontend source and build configuration
 COPY app/ ./
 
-# Build frontend (outputs to dist/)
+# Build frontend (outputs to /src/zndraw/static per vite.config.ts)
 # Skip tsc type checking for faster builds - vite will handle transpilation
 RUN bun run vite build
 
 # ============================================================================
 # Stage 2: Python application with uv
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS app
 
 # Install runtime dependencies for RDKit Draw module
 RUN apt-get update && \
@@ -52,7 +52,7 @@ RUN --mount=type=cache,target=/home/appuser/.cache/uv,uid=1000,gid=1000 \
 # Copy application source
 COPY --chown=appuser:appuser src/ ./src/
 
-# Copy built frontend from previous stage
+# Copy built frontend from frontend-builder stage
 # Vite builds to /src/zndraw/static (see app/vite.config.ts)
 COPY --from=frontend-builder --chown=appuser:appuser /src/zndraw/static/ ./src/zndraw/static/
 
@@ -82,33 +82,7 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()" || exit 1
 
-# Default command (can be overridden in docker-compose)
-# Use Gunicorn as production WSGI server with threaded workers
+# Default command: Use Gunicorn as production WSGI server with threaded workers
 # Configuration is in gunicorn_config.py
 # Environment variables control workers, threads, and log level
 CMD ["gunicorn", "-c", "gunicorn_config.py", "wsgi:app"]
-
-# ============================================================================
-# Stage 3: Nginx for static file serving and reverse proxy
-FROM nginx:1.25-alpine AS nginx
-
-# Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
-
-# Copy built frontend static files from frontend-builder stage
-# Vite builds to /src/zndraw/static (see app/vite.config.ts)
-COPY --from=frontend-builder /src/zndraw/static /usr/share/nginx/html
-
-# Create nginx user and set permissions
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chmod -R 755 /usr/share/nginx/html
-
-# Expose HTTP port
-EXPOSE 80
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
-
-# Start nginx in foreground
-CMD ["nginx", "-g", "daemon off;"]

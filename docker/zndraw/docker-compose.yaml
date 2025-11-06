@@ -1,0 +1,130 @@
+# Development/Testing Docker Compose for ZnDraw
+# Simple single-instance setup without nginx load balancing
+# For production deployment, use /docker/docker-compose.yaml instead
+
+services:
+  # Redis service for state management and Celery broker
+  redis:
+    image: redis:7-alpine
+    container_name: zndraw-dev-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6380:6379"  # Exposed for debugging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zndraw-dev
+
+  # ZnDraw application (single instance, direct port exposure)
+  zndraw:
+    build:
+      context: ../..  # Repository root (two levels up from docker/zndraw/)
+      dockerfile: docker/zndraw/Dockerfile
+    container_name: zndraw-dev-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"  # Direct port exposure for development
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      # Redis configuration
+      - ZNDRAW_REDIS_URL=redis://redis:6379
+
+      # Gunicorn development settings
+      # Single worker with 50 threads for development workload
+      - GUNICORN_WORKERS=1
+      - GUNICORN_THREADS=50
+      - GUNICORN_LOG_LEVEL=debug
+
+      # Flask secret key (change for your environment)
+      - FLASK_SECRET_KEY=development-secret-key
+
+      # Admin access (optional)
+      # - ZNDRAW_ADMIN_USERNAME=admin
+      # - ZNDRAW_ADMIN_PASSWORD=admin
+
+      # Upload configuration
+      - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
+      - ZNDRAW_MAX_UPLOAD_MB=500
+
+      # Storage path
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data.zarr
+
+      # Server URL (for Celery tasks)
+      - ZNDRAW_SERVER_URL=http://zndraw:5000
+
+      # Optional features
+      # - ZNDRAW_SIMGEN_ENABLED=true
+      # - ZNDRAW_FILE_BROWSER_ENABLED=true
+      # - ZNDRAW_FILE_BROWSER_ROOT=/app/data
+
+      # Fix for Apple Silicon
+      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    volumes:
+      # Persistent data storage
+      - ../../data:/app/data
+      # Upload temporary storage
+      - ../../uploads:/tmp/zndraw_uploads
+    networks:
+      - zndraw-dev
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  # Celery worker for background tasks
+  celery-worker:
+    build:
+      context: ../..  # Repository root
+      dockerfile: docker/zndraw/Dockerfile
+    container_name: zndraw-dev-celery
+    restart: unless-stopped
+    user: appuser
+    working_dir: /app
+    command: ["sh", "-c", "celery -A zndraw.app.make_celery worker --loglevel=debug --concurrency=4"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      # Redis configuration
+      - ZNDRAW_REDIS_URL=redis://redis:6379
+
+      # Storage path (must match main app)
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data.zarr
+
+      # Upload configuration
+      - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
+
+      # Server URL
+      - ZNDRAW_SERVER_URL=http://zndraw:5000
+
+      # Fix for Apple Silicon
+      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    volumes:
+      # Share data with main app
+      - ../../data:/app/data
+      # Share upload storage
+      - ../../uploads:/tmp/zndraw_uploads
+    networks:
+      - zndraw-dev
+    healthcheck:
+      test: ["CMD", "sh", "-c", "celery -A zndraw.app.make_celery inspect ping"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+
+networks:
+  zndraw-dev:
+    driver: bridge
+
+# Note: This configuration is for DEVELOPMENT/TESTING only
+# For production deployment with nginx load balancing and scaling,
+# use /docker/docker-compose.yaml instead
