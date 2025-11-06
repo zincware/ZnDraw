@@ -40,8 +40,11 @@ RUN useradd -m -u 1000 -s /bin/bash appuser && \
 # Set working directory
 WORKDIR /app
 
+# Copy production server configuration from docker/zndraw/
+COPY --chown=appuser:appuser docker/zndraw/gunicorn_config.py docker/zndraw/wsgi.py ./
+
 # Copy Python dependency files first (for better layer caching)
-COPY --chown=appuser:appuser pyproject.toml uv.lock* LICENSE README.md gunicorn_config.py wsgi.py ./
+COPY --chown=appuser:appuser pyproject.toml uv.lock* LICENSE README.md ./
 
 # Install dependencies into virtual environment as appuser
 # Include production extras for Gunicorn

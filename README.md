@@ -4,10 +4,20 @@
 1. Run the server: `uv run src/server.py`
 
 ### Docker Deployment (Recommended)
-1. Build and start all services: `docker-compose up -d`
-2. Access ZnDraw at `http://localhost:5000`
-3. View logs: `docker-compose logs -f`
-4. Stop services: `docker-compose down`
+
+**Production:**
+```bash
+cd docker
+docker compose up -d
+```
+Access at `http://localhost` (port 80)
+
+**Development:**
+```bash
+cd docker/zndraw
+docker compose up -d
+```
+Access at `http://localhost:5000`
 
 For detailed Docker setup instructions, see the [Docker Deployment](#docker-deployment) section below.
 
@@ -209,44 +219,72 @@ This keeps the control channel lightweight.
 
 # Docker Deployment
 
-ZnDraw can be deployed using Docker Compose, which provides a production-ready setup with Redis and Celery workers.
+ZnDraw provides two Docker setups:
+
+1. **Production** (`/docker/`) - Nginx + load balancing + multiple replicas
+2. **Development** (`/docker/zndraw/`) - Single instance for local testing
 
 ## Prerequisites
 
 - Docker (version 20.10 or later)
 - Docker Compose (version 2.0 or later)
 
-## Architecture
+## Production Deployment
 
-The Docker setup consists of three services:
+**Location:** `/docker/docker-compose.yaml`
 
-1. **redis**: Redis server for state management, locks, and Celery message broker
-2. **zndraw**: Main Flask+SocketIO application serving the web interface
-3. **celery-worker**: Background worker for processing file uploads and compute-intensive tasks
-
-## Quick Start
+Full production setup with:
+- Nginx reverse proxy + static file serving
+- 3 × ZnDraw app replicas (load balanced)
+- 2 × Celery workers (parallel task processing)
+- Redis with persistence
+- Sticky sessions for WebSocket support
 
 ```bash
+cd docker
+
 # Build and start all services
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
-# Stop all services
-docker-compose down
-
-# Stop and remove volumes (WARNING: deletes all data)
-docker-compose down -v
+# Stop services
+docker compose down
 ```
 
-Access the application at `http://localhost:5000`
+Access: `http://localhost` (port 80)
+
+**📖 See `/docker/README.md` for full production documentation**
+
+## Development/Testing
+
+**Location:** `/docker/zndraw/docker-compose.yaml`
+
+Simple single-instance setup for development:
+
+```bash
+cd docker/zndraw
+
+# Build and start services
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop services
+docker compose down
+```
+
+Access: `http://localhost:5000`
+
+**📖 See `/docker/zndraw/README.md` for development documentation**
 
 ## Configuration
 
 ### Environment Variables
 
-Edit `docker-compose.yaml` to configure the following environment variables:
+Edit the appropriate `docker-compose.yaml` file (`/docker/` or `/docker/zndraw/`) to configure environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -267,49 +305,62 @@ python -c "import secrets; print(secrets.token_hex(32))"
 
 ### Volumes
 
-The setup uses the following volumes for data persistence:
+**Production** (`/docker/`) uses Docker named volumes:
+- `redis-data`: Redis persistence
+- `zndraw-data`: Application data (zarr files)
+- `upload-temp`: Temporary upload storage
 
-#### Named Volumes
-- `redis-data`: Redis persistence (AOF snapshots)
+**Development** (`/docker/zndraw/`) uses Docker named volumes:
+- `redis-data`: Redis persistence
+- `zndraw-data`: Application data
+- `upload-temp`: Temporary upload storage
 
-#### Bind Mounts
-- `./data`: Zarr trajectory data storage
-- `./uploads`: Temporary upload storage
-
-These directories will be created automatically on first run with proper permissions.
-
-### Ports
-
-- **5000**: ZnDraw web interface (HTTP)
-- **6379**: Redis (exposed for debugging, can be removed in production)
-
-## Production Deployment
+Docker manages permissions automatically for named volumes.
 
 ### Security Recommendations
 
+For production deployment:
+
 1. **Change the Flask secret key** to a random value
-2. **Set admin credentials** if you want admin access
-3. **Remove Redis port exposure** from `docker-compose.yaml` if not needed:
+2. **Set admin credentials** in `/docker/docker-compose.yaml`:
+   ```yaml
+   - ZNDRAW_ADMIN_USERNAME=your-admin
+   - ZNDRAW_ADMIN_PASSWORD=secure-random-password
+   ```
+3. **Remove Redis port exposure** if not needed for monitoring:
    ```yaml
    redis:
      # Comment out or remove the ports section
      # ports:
      #   - "6379:6379"
    ```
-4. **Use a reverse proxy** (nginx, Traefik) for HTTPS termination
-5. **Limit upload size** based on your requirements
+4. **Use HTTPS** - Configure SSL/TLS in nginx (production setup includes nginx)
+5. **Limit upload size** via `ZNDRAW_MAX_UPLOAD_MB` environment variable
 
-### Scaling Workers
+### Scaling
 
-To scale Celery workers for better performance:
+The production setup (`/docker/docker-compose.yaml`) includes:
+- 3 × ZnDraw app replicas (adjustable)
+- 2 × Celery worker replicas (adjustable)
 
-```bash
-docker-compose up -d --scale celery-worker=3
+Edit the `replicas:` value in `/docker/docker-compose.yaml`:
+
+```yaml
+services:
+  zndraw:
+    deploy:
+      replicas: 5  # Increase for more capacity
+
+  celery-worker:
+    deploy:
+      replicas: 4  # Increase for more background processing
 ```
+
+**Important:** When changing `zndraw` replicas, update `/docker/nginx/nginx.conf` upstream block!
 
 ### Resource Limits
 
-Add resource limits to `docker-compose.yaml`:
+Resource limits are commented out by default. Uncomment and adjust in `/docker/docker-compose.yaml`:
 
 ```yaml
 services:
@@ -326,6 +377,10 @@ services:
 ```
 
 ## Development with Docker
+
+**Note:** Commands below assume you're in the appropriate directory:
+- Production: `cd docker`
+- Development: `cd docker/zndraw`
 
 ### Hot Reload
 
@@ -396,6 +451,8 @@ docker-compose up -d
 
 ## Troubleshooting
 
+**Note:** Commands assume you're in the appropriate directory (`docker/` or `docker/zndraw/`)
+
 ### Container won't start
 
 ```bash
@@ -426,22 +483,29 @@ docker-compose restart celery-worker
 
 ### Permission errors
 
-If you encounter permission errors with volumes:
+With Docker named volumes, permissions are managed automatically. If using bind mounts, ensure correct ownership:
 
 ```bash
-# Fix permissions
+# Fix permissions (only for bind mounts)
 sudo chown -R 1000:1000 ./data ./uploads
 ```
 
 ### Port already in use
 
-If port 5000 is already in use, modify the port mapping in `docker-compose.yaml`:
-
+**Development setup:** Port 5000 is exposed. Change in `/docker/zndraw/docker-compose.yaml`:
 ```yaml
 services:
   zndraw:
     ports:
       - "8080:5000"  # Use port 8080 instead
+```
+
+**Production setup:** Port 80 is exposed via nginx. Change in `/docker/docker-compose.yaml`:
+```yaml
+services:
+  nginx:
+    ports:
+      - "8080:80"  # Use port 8080 instead
 ```
 
 ## Technical Details
