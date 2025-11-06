@@ -110,9 +110,9 @@ services:
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
     volumes:
       # Persistent data storage (shared across all replicas)
-      - ../data:/app/data
+      - zndraw-data:/app/data
       # Upload temporary storage (shared across all replicas)
-      - ../uploads:/tmp/zndraw_uploads
+      - upload-temp:/tmp/zndraw_uploads
     networks:
       - zndraw-network
     deploy:
@@ -166,9 +166,9 @@ services:
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
     volumes:
       # Share data with main app (shared across all workers and app replicas)
-      - ../data:/app/data
+      - zndraw-data:/app/data
       # Share upload storage with main app (shared across all workers and app replicas)
-      - ../uploads:/tmp/zndraw_uploads
+      - upload-temp:/tmp/zndraw_uploads
     networks:
       - zndraw-network
     deploy:
@@ -196,4 +196,8 @@ networks:
 
 volumes:
   redis-data:
+    driver: local
+  zndraw-data:
+    driver: local
+  upload-temp:
     driver: local

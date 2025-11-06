@@ -247,16 +247,46 @@ Before deploying to production:
 - [ ] Load test under expected peak conditions
 - [ ] Document your specific configuration
 
-## File Locations
+## Data Storage
 
-All paths in docker-compose.yaml are relative to the docker directory:
+Production deployment uses Docker named volumes for data persistence:
 
 ```yaml
-context: ..                # Repository root (one level up)
 volumes:
-  - ../data:/app/data     # data/ in repository root
-  - ../uploads:/tmp/...   # uploads/ in repository root
+  redis-data:    # Redis persistence
+  zndraw-data:   # ZnDraw application data (zarr files)
+  upload-temp:   # Temporary upload storage
 ```
+
+### Managing Volumes
+
+```bash
+# List all volumes
+docker volume ls
+
+# Inspect volume details
+docker volume inspect docker_zndraw-data
+
+# Backup volume data
+docker run --rm -v docker_zndraw-data:/data -v $(pwd):/backup \
+  alpine tar czf /backup/zndraw-data-backup.tar.gz -C /data .
+
+# Restore volume data
+docker run --rm -v docker_zndraw-data:/data -v $(pwd):/backup \
+  alpine sh -c "cd /data && tar xzf /backup/zndraw-data-backup.tar.gz"
+
+# Access volume data (for debugging)
+docker run --rm -it -v docker_zndraw-data:/data alpine sh
+```
+
+### Volume Locations
+
+On the host system, Docker stores volumes in:
+- Linux: `/var/lib/docker/volumes/`
+- Mac: `~/Library/Containers/com.docker.docker/Data/vms/0/`
+- Windows: `C:\ProgramData\Docker\volumes\`
+
+**Note:** Use Docker commands to manage volumes, not direct filesystem access.
 
 ## Further Documentation
 
