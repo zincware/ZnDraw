@@ -1,13 +1,19 @@
 """WSGI entry point for production deployment with Gunicorn.
 
 This module creates the Flask application instance for Gunicorn.
-Configuration is read from environment variables:
+Configuration is read from environment variables.
+
+Uses threaded workers (sync worker class) to avoid event loop conflicts
+with Zarr v3 synchronous operations. Redis message queue coordinates
+SocketIO communication across containers.
+
+Environment Variables:
 - ZNDRAW_STORAGE_PATH: Path to Zarr storage (default: ./zndraw-data.zarr)
 - ZNDRAW_REDIS_URL: Redis URL for state management (default: None)
 - ZNDRAW_SIMGEN_ENABLED: Enable SiMGen molecular generation (default: false)
 - FLASK_SECRET_KEY: Flask secret key for sessions (default: dev key)
-- ZNDRAW_ADMIN_USERNAME: Admin username (optional)
-- ZNDRAW_ADMIN_PASSWORD: Admin password (optional)
+- ZNDRAW_FILE_BROWSER_ENABLED: Enable file browser (default: false)
+- ZNDRAW_FILE_BROWSER_ROOT: File browser root directory (default: cwd)
 """
 
 import os

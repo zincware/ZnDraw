@@ -1,7 +1,14 @@
 """Gunicorn configuration for production deployment.
 
 This configuration is optimized for Flask-SocketIO with Redis message queue.
-Uses threaded workers with simple-websocket for WebSocket support.
+Uses threaded workers for WebSocket support without event loop conflicts.
+
+Key points:
+- Sync worker with threads for concurrent request handling
+- Single worker process required for Flask-SocketIO with threaded mode
+- Threads parameter controls concurrent connections
+- No event loop, compatible with Zarr v3 synchronous operations
+- For horizontal scaling, deploy multiple containers instead of multiple workers
 """
 
 import os
@@ -12,24 +19,17 @@ backlog = 2048
 
 # Worker processes
 # Flask-SocketIO with threaded workers requires SINGLE worker process
-# Multiple workers are only supported with eventlet/gevent async frameworks
 # For horizontal scaling, deploy multiple containers instead of multiple workers
 workers = int(os.getenv("GUNICORN_WORKERS", "1"))
 
-# Worker class - use sync (threaded) for Flask-SocketIO without gevent/eventlet
-# Flask-SocketIO will use simple-websocket for WebSocket support
+# Worker class - sync (default) for threaded mode
+# This avoids event loop conflicts with Zarr v3
 worker_class = "sync"
 
-# Threads per worker
-# Each worker can handle up to 'threads' concurrent requests
-# With 1 worker, increase threads for higher concurrency
-# 200 threads = 200 concurrent connections
-# For 128 cores, you can increase this to 500-1000 threads if needed
-threads = int(os.getenv("GUNICORN_THREADS", "200"))
-
-# Worker connections (for async workers like gevent/eventlet)
-# Not used with sync workers, but including for future reference
-# worker_connections = 1000
+# Number of threads per worker
+# Each thread handles one concurrent connection
+# Default: 100 threads for testing, increase to 500-1000 for production
+threads = int(os.getenv("GUNICORN_THREADS", "100"))
 
 # Timeouts
 # Increased timeout for large file uploads (5 minutes)
@@ -71,11 +71,13 @@ def on_starting(server):
     """Called just before the master process is initialized."""
     server.log.info("=" * 80)
     server.log.info("ZnDraw Gunicorn server starting")
-    server.log.info(f"Workers: {workers}, Threads per worker: {threads}")
-    server.log.info(f"Max concurrent connections: {threads}")
+    server.log.info(f"Workers: {workers}")
     server.log.info(f"Worker class: {worker_class}")
+    server.log.info(f"Threads per worker: {threads}")
+    server.log.info(f"Max concurrent connections: {threads}")
     server.log.info(f"Timeout: {timeout}s")
-    server.log.info("Note: Flask-SocketIO uses 1 worker + Redis for scaling")
+    server.log.info("Note: Threaded workers with Redis for SocketIO coordination")
+    server.log.info("Note: Redis coordinates SocketIO across multiple containers")
     server.log.info("=" * 80)
 
 

@@ -33,12 +33,13 @@ services:
       # Redis configuration (enables multi-worker coordination)
       - ZNDRAW_REDIS_URL=redis://redis:6379
 
-      # Gunicorn production settings
-      # Flask-SocketIO with threaded workers requires SINGLE worker process
-      # Concurrency is achieved through threads within the single worker
-      # 200 threads = 200 concurrent connections per container
+      # Gunicorn production settings with threaded workers
+      # Sync worker: 1 worker process with multiple threads
+      # threads controls concurrent connections
+      # For testing: 16 concurrent threads
+      # For production: increase to 100-1000 based on load
       - GUNICORN_WORKERS=1
-      - GUNICORN_THREADS=100
+      - GUNICORN_THREADS=16
       - GUNICORN_LOG_LEVEL=info
 
       # Flask secret key (CHANGE THIS IN PRODUCTION!)
@@ -66,7 +67,7 @@ services:
       # - ZNDRAW_FILE_BROWSER_ROOT=/app/data
 
       # Server URL (used by Celery tasks to connect back to main app)
-      # - ZNDRAW_SERVER_URL=http://zndraw:5000
+      - ZNDRAW_SERVER_URL=http://zndraw:5000
 
       # Fix for Apple Silicon hosts
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
@@ -100,7 +101,7 @@ services:
       dockerfile: Dockerfile
     container_name: zndraw-celery-worker
     restart: unless-stopped
-    command: ["celery", "-A", "zndraw.app.make_celery", "worker", "--loglevel=info", "--concurrency=16"]
+    command: ["celery", "-A", "zndraw.app.make_celery", "worker", "--loglevel=info", "--concurrency=4"]
     depends_on:
       redis:
         condition: service_healthy
@@ -113,6 +114,9 @@ services:
 
       # Upload configuration (must match main app)
       - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
+
+      # Server URL (for Celery tasks to connect back to main app)
+      - ZNDRAW_SERVER_URL=http://zndraw:5000
 
       # Fix for Apple Silicon hosts
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
