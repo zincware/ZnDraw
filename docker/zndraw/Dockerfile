@@ -40,17 +40,13 @@ RUN useradd -m -u 1000 -s /bin/bash appuser && \
 # Set working directory
 WORKDIR /app
 
-# Copy production server configuration from docker/zndraw/
-COPY --chown=appuser:appuser docker/zndraw/gunicorn_config.py docker/zndraw/wsgi.py ./
-
 # Copy Python dependency files first (for better layer caching)
 COPY --chown=appuser:appuser pyproject.toml uv.lock* LICENSE README.md ./
 
 # Install dependencies into virtual environment as appuser
-# Include production extras for Gunicorn
 USER appuser
 RUN --mount=type=cache,target=/home/appuser/.cache/uv,uid=1000,gid=1000 \
-    uv sync --frozen --no-dev --no-install-project --extra production
+    uv sync --frozen --no-dev --no-install-project
 
 # Copy application source
 COPY --chown=appuser:appuser src/ ./src/
@@ -59,9 +55,9 @@ COPY --chown=appuser:appuser src/ ./src/
 # Vite builds to /src/zndraw/static (see app/vite.config.ts)
 COPY --from=frontend-builder --chown=appuser:appuser /src/zndraw/static/ ./src/zndraw/static/
 
-# Install the project itself with production extras
+# Install the project itself
 RUN --mount=type=cache,target=/home/appuser/.cache/uv,uid=1000,gid=1000 \
-    uv sync --frozen --no-dev --extra production
+    uv sync --frozen --no-dev
 
 # Set environment variables
 ENV VIRTUAL_ENV=/app/.venv \
@@ -69,7 +65,7 @@ ENV VIRTUAL_ENV=/app/.venv \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     # Storage paths
-    ZNDRAW_STORAGE_PATH=/app/data/zndraw-data.zarr \
+    ZNDRAW_STORAGE_PATH=/app/data/zndraw-data \
     ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads \
     # Server configuration
     ZNDRAW_SERVER_HOST=0.0.0.0 \
@@ -85,7 +81,6 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()" || exit 1
 
-# Default command: Use Gunicorn as production WSGI server with threaded workers
-# Configuration is in gunicorn_config.py
-# Environment variables control workers, threads, and log level
-CMD ["gunicorn", "-c", "gunicorn_config.py", "wsgi:app"]
+# Default command: Use zndraw CLI with eventlet server
+# Configuration via environment variables (see docker-compose.yaml)
+CMD ["uv", "run", "zndraw", "--no-browser"]

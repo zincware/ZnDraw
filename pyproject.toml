@@ -78,8 +78,3 @@ exclude = [
 
 [project.scripts]
 zndraw = "zndraw.cli_entry:app"
-
-[project.optional-dependencies]
-production = [
-    "gunicorn>=23.0.0",
-]

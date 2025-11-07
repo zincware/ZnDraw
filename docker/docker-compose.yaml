@@ -73,14 +73,6 @@ services:
       # Logging configuration
       - ZNDRAW_LOG_LEVEL=INFO
 
-      # Gunicorn production settings with threaded workers
-      # Sync worker: 1 worker process with multiple threads
-      # Per container: 100 threads for production workload
-      # Total capacity: 100 threads × 3 replicas = 300 concurrent connections
-      - GUNICORN_WORKERS=1
-      - GUNICORN_THREADS=100
-      - GUNICORN_LOG_LEVEL=info
-
       # Flask secret key (CHANGE THIS IN PRODUCTION!)
       - FLASK_SECRET_KEY=change-this-to-a-random-secret-key-in-production
 
@@ -92,8 +84,8 @@ services:
       - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
       - ZNDRAW_MAX_UPLOAD_MB=500
 
-      # Storage path
-      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data.zarr
+      # Storage path (without .zarr extension for new LMDB backend)
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
 
       # Analytics (optional)
       # - ZNDRAW_EXTENSION_ANALYTICS_TTL=604800
@@ -159,7 +151,7 @@ services:
       - ZNDRAW_LOG_LEVEL=INFO
 
       # Storage path (must match main app - shared volume)
-      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data.zarr
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
 
       # Upload configuration (must match main app - shared volume)
       - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
