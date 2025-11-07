@@ -19,9 +19,10 @@ def test_keyboard_interrupt_not_caught():
 
     # Create test data
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
-    from zndraw.utils import atoms_to_dict, update_colors_and_radii
+    from asebytes import encode
+    from zndraw.utils import update_colors_and_radii
     update_colors_and_radii(atoms)
-    dicts = [atoms_to_dict(atoms) for _ in range(5)]
+    dicts = [encode(atoms) for _ in range(5)]
 
     # Mock extend_frames to raise KeyboardInterrupt
     vis.extend_frames = Mock(side_effect=KeyboardInterrupt("User cancelled"))
@@ -55,9 +56,10 @@ def test_connection_error_triggers_retry():
     vis.local = LocalSettings(max_retries=3, retry_delay=0.01)  # Fast for testing
 
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
-    from zndraw.utils import atoms_to_dict, update_colors_and_radii
+    from asebytes import encode
+    from zndraw.utils import update_colors_and_radii
     update_colors_and_radii(atoms)
-    dicts = [atoms_to_dict(atoms) for _ in range(2)]
+    dicts = [encode(atoms) for _ in range(2)]
 
     # Mock extend_frames to fail twice, then succeed
     call_count = 0
@@ -101,9 +103,10 @@ def test_max_retries_exceeded_raises_error():
     vis.local = LocalSettings(max_retries=2, retry_delay=0.01)
 
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
-    from zndraw.utils import atoms_to_dict, update_colors_and_radii
+    from asebytes import encode
+    from zndraw.utils import update_colors_and_radii
     update_colors_and_radii(atoms)
-    dicts = [atoms_to_dict(atoms) for _ in range(2)]
+    dicts = [encode(atoms) for _ in range(2)]
 
     # Mock extend_frames to always fail
     vis.extend_frames = Mock(side_effect=ConnectionError("Always fails"))
@@ -136,9 +139,10 @@ def test_specific_exceptions_only():
     vis.local = LocalSettings(max_retries=3, retry_delay=0.01)
 
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
-    from zndraw.utils import atoms_to_dict, update_colors_and_radii
+    from asebytes import encode
+    from zndraw.utils import update_colors_and_radii
     update_colors_and_radii(atoms)
-    dicts = [atoms_to_dict(atoms) for _ in range(2)]
+    dicts = [encode(atoms) for _ in range(2)]
 
     # Mock extend_frames to raise ValueError (not a retryable exception)
     vis.extend_frames = Mock(side_effect=ValueError("Bad value"))
@@ -170,9 +174,10 @@ def test_exponential_backoff_timing():
     vis.local = LocalSettings(max_retries=3, retry_delay=1.0)
 
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
-    from zndraw.utils import atoms_to_dict, update_colors_and_radii
+    from asebytes import encode
+    from zndraw.utils import update_colors_and_radii
     update_colors_and_radii(atoms)
-    dicts = [atoms_to_dict(atoms) for _ in range(2)]
+    dicts = [encode(atoms) for _ in range(2)]
 
     # Mock extend_frames to fail 3 times, then succeed
     call_count = 0

@@ -9,9 +9,36 @@ import ase
 import ase.constraints
 import pytest
 
+from asebytes import encode
 from zndraw.geometries import Sphere
 from zndraw.transformations import InArrayTransform
-from zndraw.utils import atoms_to_dict
+
+
+def _decode_msgpack_dict(obj):
+    """Recursively decode msgpack dict[bytes, bytes] to regular Python dict."""
+    import msgpack
+    import msgpack_numpy as m
+
+    if isinstance(obj, dict):
+        result = {}
+        for k, v in obj.items():
+            # Decode key
+            key = k.decode() if isinstance(k, bytes) else k
+            # Decode value if it's bytes (msgpack-encoded)
+            if isinstance(v, bytes):
+                try:
+                    value = msgpack.unpackb(v, object_hook=m.decode, strict_map_key=False)
+                    value = _decode_msgpack_dict(value)
+                except:
+                    value = v
+            else:
+                value = _decode_msgpack_dict(v)
+            result[key] = value
+        return result
+    elif isinstance(obj, list):
+        return [_decode_msgpack_dict(item) for item in obj]
+    else:
+        return obj
 
 
 def test_in_array_transform_creation():
@@ -162,12 +189,17 @@ def test_sphere_deserialization_with_transform():
 
 def test_transform_with_fixatoms_constraint():
     """Integration test: Create atoms with FixAtoms constraint and verify transform path."""
+    import msgpack
+    import msgpack_numpy as m
+
     atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
     constraint = ase.constraints.FixAtoms(indices=[0, 2])
     atoms.set_constraint(constraint)
 
-    # Serialize atoms to dict
-    frame_data = atoms_to_dict(atoms)
+    # Serialize atoms to bytes and unpack for testing
+    frame_bytes = encode(atoms)
+    # Convert to regular Python dict for testing (simulates frontend decoding)
+    frame_data = _decode_msgpack_dict(frame_bytes)
 
     # Verify constraint structure matches transform path
     assert "constraints" in frame_data
@@ -189,6 +221,9 @@ def test_transform_with_fixatoms_constraint():
 
 def test_transform_with_multiple_constraints():
     """Test transform path with multiple constraints."""
+    import msgpack
+    import msgpack_numpy as m
+
     atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
     constraints = [
         ase.constraints.FixAtoms(indices=[0]),
@@ -196,7 +231,10 @@ def test_transform_with_multiple_constraints():
     ]
     atoms.set_constraint(constraints)
 
-    frame_data = atoms_to_dict(atoms)
+    # Serialize and unpack for testing
+    frame_bytes = encode(atoms)
+    # Convert to regular Python dict for testing (simulates frontend decoding)
+    frame_data = _decode_msgpack_dict(frame_bytes)
 
     # First constraint (FixAtoms)
     transform_0 = InArrayTransform(

@@ -22,8 +22,8 @@ from zndraw.scene_manager import Geometries
 from zndraw.server_manager import get_server_status
 from zndraw.settings import RoomConfig, settings
 from zndraw.socket_manager import SocketIOLock, SocketManager
-from zndraw.storage import encode_data
-from zndraw.utils import atoms_from_dict, atoms_to_dict, update_colors_and_radii
+from asebytes import encode, decode
+from zndraw.utils import update_colors_and_radii
 from zndraw.version_utils import validate_server_version
 
 from rich.progress import (
@@ -704,13 +704,45 @@ class ZnDraw(MutableSequence):
         return self._len
 
     @t.overload
-    def get(self, index: int, keys: list[str] | None = None) -> dict: ...
+    def get(self, index: int, keys: list[str] | None = None) -> dict[str, t.Any]: ...
     @t.overload
-    def get(self, index: list[int], keys: list[str] | None = None) -> list[dict]: ...
+    def get(self, index: list[int], keys: list[str] | None = None) -> list[dict[str, t.Any]]: ...
     @t.overload
-    def get(self, index: slice, keys: list[str] | None = None) -> list[dict]: ...
+    def get(self, index: slice, keys: list[str] | None = None) -> list[dict[str, t.Any]]: ...
+    def _decode_frame_dict(self, frame_data: dict[bytes, bytes]) -> dict[str, t.Any]:
+        """Decode dict[bytes, bytes] to user-friendly dict[str, Any] format.
+
+        Converts byte keys to strings and unpacks msgpack-encoded byte values.
+        """
+        import msgpack
+        import msgpack_numpy as m
+
+        result = {}
+        for k, v in frame_data.items():
+            # Decode key from bytes to string
+            key = k.decode() if isinstance(k, bytes) else k
+
+            # Unpack value from msgpack bytes
+            if isinstance(v, bytes):
+                try:
+                    value = msgpack.unpackb(v, object_hook=m.decode, strict_map_key=False)
+                except:
+                    value = v
+            else:
+                value = v
+
+            result[key] = value
+
+        return result
+
     def get(self, index, keys: list[str] | None = None):
-        """Get frame data as dictionaries, optionally with specific keys."""
+        """Get frame data as dictionaries with decoded values.
+
+        Internally caches raw dict[bytes, bytes] format for efficiency, but decodes
+        to user-friendly dict[str, Any] format before returning.
+
+        For ase.Atoms objects, use __getitem__ (vis[index]) instead.
+        """
         if isinstance(index, np.ndarray):
             index = index.tolist() if index.ndim > 0 else int(index.item())
 
@@ -727,12 +759,19 @@ class ZnDraw(MutableSequence):
                 and self.cache is not None
                 and normalized_index in self.cache
             ):
-                return self.cache.get(normalized_index)
+                # Cache stores dict[bytes, bytes], decode to dict[str, Any]
+                raw_data = self.cache.get(normalized_index)
+                return self._decode_frame_dict(raw_data)
 
+            # Fetch from API (returns dict[bytes, bytes])
             frame_data = self.api.get_frames([normalized_index], keys=keys)[0]
+
+            # Cache raw bytes format
             if keys is None and self.cache is not None:
                 self.cache.set(normalized_index, frame_data)
-            return frame_data
+
+            # Return decoded format
+            return self._decode_frame_dict(frame_data)
 
         elif isinstance(index, slice):
             # Pass slice directly to API for efficiency
@@ -740,15 +779,16 @@ class ZnDraw(MutableSequence):
             if not indices:
                 return []
 
-            # Fetch frames using slice
+            # Fetch frames using slice (returns list[dict[bytes, bytes]])
             fetched_data = self.api.get_frames(index, keys=keys)
 
-            # Cache individual frames if keys is None
+            # Cache individual frames if keys is None (cache stores raw bytes)
             if keys is None and self.cache is not None:
                 for idx, frame in zip(indices, fetched_data):
                     self.cache.set(idx, frame)
 
-            return fetched_data
+            # Return decoded format
+            return [self._decode_frame_dict(frame) for frame in fetched_data]
 
         elif isinstance(index, list):
             # Validate all indices are integers
@@ -768,16 +808,21 @@ class ZnDraw(MutableSequence):
             results_dict, misses = {}, []
             for idx in normalized_indices:
                 if keys is None and self.cache is not None and idx in self.cache:
-                    results_dict[idx] = self.cache.get(idx)
+                    # Get from cache (raw bytes) and decode
+                    raw_data = self.cache.get(idx)
+                    results_dict[idx] = self._decode_frame_dict(raw_data)
                 elif idx not in misses:
                     misses.append(idx)
 
             if misses:
+                # Fetch from API (returns list[dict[bytes, bytes]])
                 fetched_data = self.api.get_frames(misses, keys=keys)
                 for idx, frame in zip(misses, fetched_data):
+                    # Cache raw bytes format
                     if keys is None and self.cache is not None:
                         self.cache.set(idx, frame)
-                    results_dict[idx] = frame
+                    # Store decoded format in results
+                    results_dict[idx] = self._decode_frame_dict(frame)
 
             return [results_dict[idx] for idx in normalized_indices]
 
@@ -794,10 +839,93 @@ class ZnDraw(MutableSequence):
     @t.overload
     def __getitem__(self, index: np.ndarray) -> ase.Atoms | list[ase.Atoms]: ...
     def __getitem__(self, index):
-        data = self.get(index, keys=None)
-        if isinstance(data, list):
-            return [atoms_from_dict(d) for d in data]
-        return atoms_from_dict(data)
+        """Get frame(s) as ase.Atoms object(s).
+
+        Retrieves raw dict[bytes, bytes] from cache/server and decodes
+        on-demand to ase.Atoms.
+        """
+        # We need to get the raw dict[bytes, bytes] format, not the decoded format from get()
+        # So we'll fetch directly from cache/API and bypass get()'s decoding
+        if isinstance(index, np.ndarray):
+            index = index.tolist() if index.ndim > 0 else int(index.item())
+
+        length = len(self)
+
+        if isinstance(index, int):
+            normalized_index = index if index >= 0 else length + index
+            if not (0 <= normalized_index < length):
+                raise IndexError("Index out of range")
+
+            # Check cache first
+            if self.cache is not None and normalized_index in self.cache:
+                raw_data = self.cache.get(normalized_index)
+            else:
+                # Fetch from API
+                raw_data = self.api.get_frames([normalized_index], keys=None)[0]
+                if self.cache is not None:
+                    self.cache.set(normalized_index, raw_data)
+
+            return decode(raw_data)
+
+        elif isinstance(index, slice):
+            indices = list(range(*index.indices(length)))
+            if not indices:
+                return []
+
+            # Fetch frames (check cache for each)
+            frames = []
+            misses = []
+            miss_indices = []
+
+            for idx in indices:
+                if self.cache is not None and idx in self.cache:
+                    frames.append(self.cache.get(idx))
+                else:
+                    misses.append(idx)
+                    miss_indices.append(len(frames))
+                    frames.append(None)  # Placeholder
+
+            if misses:
+                fetched_data = self.api.get_frames(misses, keys=None)
+                for i, (idx, frame) in enumerate(zip(misses, fetched_data)):
+                    if self.cache is not None:
+                        self.cache.set(idx, frame)
+                    frames[miss_indices[i]] = frame
+
+            return [decode(f) for f in frames]
+
+        elif isinstance(index, list):
+            for idx in index:
+                if not isinstance(idx, (int, np.integer)):
+                    raise TypeError(
+                        f"List indices must be integers, not {type(idx).__name__}"
+                    )
+
+            if not index:
+                return []
+
+            normalized_indices = [idx if idx >= 0 else length + idx for idx in index]
+
+            # Fetch frames (check cache for each)
+            results_dict, misses = {}, []
+            for idx in normalized_indices:
+                if self.cache is not None and idx in self.cache:
+                    results_dict[idx] = self.cache.get(idx)
+                elif idx not in misses:
+                    misses.append(idx)
+
+            if misses:
+                fetched_data = self.api.get_frames(misses, keys=None)
+                for idx, frame in zip(misses, fetched_data):
+                    if self.cache is not None:
+                        self.cache.set(idx, frame)
+                    results_dict[idx] = frame
+
+            return [decode(results_dict[idx]) for idx in normalized_indices]
+
+        raise TypeError(
+            f"Index must be int, slice, or list, not {type(index).__name__}"
+        )
 
     @t.overload
     def __setitem__(self, index: int, atoms: ase.Atoms) -> None: ...
@@ -816,11 +944,11 @@ class ZnDraw(MutableSequence):
             dicts = []
             for atom in atoms:
                 update_colors_and_radii(atom)
-                dicts.append(atoms_to_dict(atom))
+                dicts.append(encode(atom))
             self.set_frames(index, dicts)
         elif isinstance(atoms, ase.Atoms):
             update_colors_and_radii(atoms)
-            self.set_frames(index, atoms_to_dict(atoms))
+            self.set_frames(index, encode(atoms))
         else:
             raise TypeError("Only ase.Atoms or list of ase.Atoms are supported.")
 
@@ -899,7 +1027,7 @@ class ZnDraw(MutableSequence):
         if not isinstance(atoms, ase.Atoms):
             raise TypeError("Only ase.Atoms objects are supported")
         update_colors_and_radii(atoms)
-        value = atoms_to_dict(atoms)
+        value = encode(atoms)
         if index < 0:
             index = max(0, len(self) + index + 1)
         elif index > len(self):
@@ -910,28 +1038,27 @@ class ZnDraw(MutableSequence):
         if not isinstance(atoms, ase.Atoms):
             raise TypeError("Only ase.Atoms objects are supported")
         update_colors_and_radii(atoms)
-        self.append_frame(atoms_to_dict(atoms))
+        self.append_frame(encode(atoms))
 
     def _calculate_chunk_boundaries(
-        self, dicts: list[dict]
-    ) -> tuple[list[list[dict]], list[int]]:
+        self, dicts: list[dict[bytes, bytes]]
+    ) -> tuple[list[list[dict[bytes, bytes]]], list[int]]:
         """Calculate chunk boundaries based on exact sizes.
 
         Parameters
         ----------
-        dicts : list[dict]
-            List of frame dictionaries
+        dicts : list[dict[bytes, bytes]]
+            List of frame data as msgpack bytes dictionaries
 
         Returns
         -------
-        chunks : list[list[dict]]
-            List of chunks (each chunk is a list of dicts)
+        chunks : list[list[dict[bytes, bytes]]]
+            List of chunks (each chunk is a list of msgpack dicts)
         chunk_sizes : list[int]
             Size in bytes of each chunk
         """
-        # Encode all frames to get exact sizes
-        encoded_frames = [encode_data(d) for d in dicts]
-        packed_frames = [msgpack.packb(e) for e in encoded_frames]
+        # Get exact sizes by packing the msgpack frames
+        packed_frames = [msgpack.packb(frame) for frame in dicts]
         frame_sizes = [len(p) for p in packed_frames]
 
         # Calculate chunk boundaries
@@ -1051,7 +1178,7 @@ class ZnDraw(MutableSequence):
             if not isinstance(atoms, ase.Atoms):
                 raise TypeError("Only ase.Atoms objects are supported")
             update_colors_and_radii(atoms)
-            dicts.append(atoms_to_dict(atoms))
+            dicts.append(encode(atoms))
 
         if not dicts:
             log.warning("No frames to upload")

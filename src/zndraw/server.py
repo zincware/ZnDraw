@@ -10,8 +10,7 @@ from znsocket import MemoryStorage
 
 log = logging.getLogger(__name__)
 
-socketio = SocketIO(cors_allowed_origins="*", async_mode="threading")
-# socketio = SocketIO(cors_allowed_origins="*")
+socketio = SocketIO(cors_allowed_origins="*")
 
 
 def upload_data():
@@ -78,9 +77,18 @@ def services_init_app(app: Flask) -> None:
 
 
 def create_app(
-    storage_path: str = "./zndraw-data.zarr",
+    storage_path: str = "./zndraw-data",
     redis_url: str | None = None,
 ) -> Flask:
+    # Configure logging level from environment variable
+    log_level_name = os.getenv("ZNDRAW_LOG_LEVEL", "WARNING").upper()
+    log_level = getattr(logging, log_level_name, logging.WARNING)
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    log.info(f"Logging configured at level: {log_level_name}")
+
     # Priority: explicit parameter > environment variable > None
     if redis_url is None:
         redis_url = os.getenv("ZNDRAW_REDIS_URL")
@@ -114,6 +122,7 @@ def create_app(
 
     # Store configuration
     app.config["STORAGE_PATH"] = storage_path
+    app.config["STORAGE_TYPE"] = "asebytes"  # Only asebytes backend is supported
     app.config["REDIS_URL"] = redis_url
 
     # Upload configuration

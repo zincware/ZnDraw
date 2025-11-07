@@ -1,49 +1,55 @@
 import axios from "axios";
-import { decode } from "@msgpack/msgpack";
+import { unpackBinary } from "../utils/msgpack-numpy";
 import { getToken } from "../utils/auth";
 
-const numpyDtypeToTypedArray = {
-  float32: Float32Array,
-  float64: Float64Array,
-  int8: Int8Array,
-  int16: Int16Array,
-  int32: Int32Array,
-  int64: BigInt64Array,
-  uint8: Uint8Array,
-  uint16: Uint16Array,
-  uint32: Uint32Array,
-  uint64: BigUint64Array,
-};
-
+/**
+ * Decodes frame data from the backend msgpack format.
+ *
+ * Backend sends: List[Dict[bytes, bytes]] where:
+ * - Outer layer is msgpack list with bytes keys
+ * - Each frame is dict with bytes keys and msgpack-numpy encoded bytes values
+ * - Keys like b"arrays.positions", b"arrays.numbers", etc.
+ *
+ * Our custom unpackBinary handles:
+ * - Bytes keys at all levels (using mapKeyConverter)
+ * - Nested msgpack-numpy encoding (recursive decoding)
+ * - Row-major array format (no transposition needed)
+ *
+ * @param encoded - Raw arraybuffer from HTTP response
+ * @param key - Key to extract from frame (e.g., "arrays.positions")
+ * @returns Decoded value for the specified key (TypedArray or other data)
+ */
 function decodeTypedData(encoded: any, key: string) {
   if (!encoded) return undefined;
   try {
-    const decodedMsg = decode(encoded);
-    const decoded = decodedMsg[0][key];
+    // Decode everything in one go with our custom msgpack-numpy decoder
+    // This handles bytes keys, nested msgpack, and numpy arrays automatically
+    const framesList = unpackBinary(encoded instanceof Uint8Array ? encoded : new Uint8Array(encoded));
 
-    // Handle plain JSON data (e.g., constraints) - no dtype field
-    if (typeof decoded !== 'object' || decoded === null || !('dtype' in decoded)) {
-      // Plain JSON data, return as-is
-      return decoded;
+    if (!Array.isArray(framesList) || framesList.length === 0) {
+      console.error("Expected non-empty array of frames");
+      return undefined;
     }
 
-    // Handle typed data with dtype field
-    const typedData = decoded as { dtype: string; data: any };
+    // Get first frame (assuming single frame query based on original code)
+    const frameDict = framesList[0];
 
-    // Handle object dtype (e.g., hex color strings)
-    // Object dtype arrays are sent as JSON-encoded strings in msgpack
-    if (typedData.dtype === 'object') {
-      // The data field contains a JSON string that needs to be parsed
-      if (typeof typedData.data === 'string') {
-        return JSON.parse(typedData.data);
-      }
-      // If already parsed (shouldn't happen, but handle gracefully)
-      return typedData.data;
+    if (typeof frameDict !== "object" || frameDict === null) {
+      console.error("Expected frame to be a dict");
+      return undefined;
     }
 
-    const TypedArrayCtor = numpyDtypeToTypedArray[typedData.dtype as keyof typeof numpyDtypeToTypedArray];
-    if (!TypedArrayCtor) throw new Error(`Unsupported dtype: ${typedData.dtype}`);
-    return new TypedArrayCtor(typedData.data.slice().buffer);
+    // Get the value for the requested key
+    // Keys are strings (converted from bytes by mapKeyConverter)
+    const value = frameDict[key];
+
+    if (value === undefined) {
+      console.error(`Key "${key}" not found in frame. Available keys:`, Object.keys(frameDict));
+      return undefined;
+    }
+
+    // Value is already decoded (TypedArray for numpy arrays, or other types)
+    return value;
   } catch (err) {
     console.error(`Failed to decode ${key}:`, err);
     return undefined;
@@ -555,7 +561,6 @@ export const getFrames = async (
 export interface ChatMessage {
   id: string;
   content: string;
-  userName: string;
   userName: string;
   createdAt: number;
   updatedAt?: number;

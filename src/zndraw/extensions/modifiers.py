@@ -214,7 +214,7 @@ class ChangeType(UpdateScene):
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
-        atoms = vis.atoms
+        atoms = vis.atoms.copy()
         for atom_id in vis.selection:
             atoms[atom_id].symbol = self.symbol.name
 

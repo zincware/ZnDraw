@@ -2,9 +2,8 @@ import dataclasses
 import typing as t
 
 import msgpack
+import msgpack_numpy as m
 import requests
-
-from zndraw.storage import decode_data, encode_data
 
 
 @dataclasses.dataclass
@@ -275,7 +274,12 @@ class APIManager:
         # Return the worker_id assigned by server so caller can store it
         return response.get("workerId")
 
-    def get_frames(self, indices_or_slice, keys: list[str] | None = None) -> list[dict]:
+    def get_frames(self, indices_or_slice, keys: list[str] | None = None) -> list[dict[bytes, bytes]]:
+        """Get frames as raw dict[bytes, bytes] format.
+
+        Returns frames in their serialized form - decoding to ase.Atoms
+        should be done on-demand by the caller.
+        """
         if isinstance(indices_or_slice, list):
             payload = {"indices": ",".join(str(i) for i in indices_or_slice)}
         elif isinstance(indices_or_slice, slice):
@@ -312,17 +316,23 @@ class APIManager:
 
         response.raise_for_status()
 
-        serialized_frames = msgpack.unpackb(response.content, strict_map_key=False)
-        return [decode_data(frame) for frame in serialized_frames]
+        # Deserialize msgpack response - returns list[dict[bytes, bytes]]
+        # The server sends msgpack-encoded list of frames, where each frame
+        # is dict[bytes, bytes] with msgpack-encoded values
+        serialized_frames = msgpack.unpackb(
+            response.content, strict_map_key=False
+        )
+
+        # Return raw dict[bytes, bytes] format - no decoding
+        return serialized_frames
 
     def upload_frames(self, action: str, data, **kwargs) -> dict:
         try:
-            serialized_data = (
-                encode_data(data)
-                if isinstance(data, dict)
-                else [encode_data(frame) for frame in data]
+            # Serialize data with msgpack-numpy support for numpy arrays
+            # This handles both dict[bytes, bytes] from encode() and raw dicts with numpy arrays
+            packed_data = msgpack.packb(
+                data if isinstance(data, dict) else data, default=m.encode
             )
-            packed_data = msgpack.packb(serialized_data)
 
             upload_url = f"{self.url}/api/rooms/{self.room}/frames"
             params = {"action": action}
@@ -398,8 +408,9 @@ class APIManager:
     def bulk_patch_frames(
         self, data: list, start: int = None, stop: int = None, indices: list[int] = None
     ):
-        serialized_data = [encode_data(value) for value in data]
-        packed_data = msgpack.packb(serialized_data)
+        # Serialize data with msgpack-numpy support for numpy arrays
+        # This handles both dict[bytes, bytes] from encode() and raw dicts with numpy arrays
+        packed_data = msgpack.packb(data, default=m.encode)
 
         bulk_url = f"{self.url}/api/rooms/{self.room}/frames/bulk"
         params = {}

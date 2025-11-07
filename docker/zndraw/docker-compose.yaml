@@ -88,7 +88,7 @@ services:
     restart: unless-stopped
     user: appuser
     working_dir: /app
-    command: ["sh", "-c", "celery -A zndraw.app.make_celery worker --loglevel=debug --concurrency=4"]
+    command: ["sh", "-c", "celery -A zndraw.app.make_celery worker --loglevel=debug --pool=eventlet"]
     depends_on:
       redis:
         condition: service_healthy

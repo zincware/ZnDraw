@@ -22,14 +22,12 @@ backlog = 2048
 # For horizontal scaling, deploy multiple containers instead of multiple workers
 workers = int(os.getenv("GUNICORN_WORKERS", "1"))
 
-# Worker class - sync (default) for threaded mode
-# This avoids event loop conflicts with Zarr v3
-worker_class = "sync"
+worker_class = "eventlet"
 
-# Number of threads per worker
-# Each thread handles one concurrent connection
-# Default: 100 threads for testing, increase to 500-1000 for production
-threads = int(os.getenv("GUNICORN_THREADS", "100"))
+# # Number of threads per worker
+# # Each thread handles one concurrent connection
+# # Default: 100 threads for testing, increase to 500-1000 for production
+# threads = int(os.getenv("GUNICORN_THREADS", "100"))
 
 # Timeouts
 # Increased timeout for large file uploads (5 minutes)
@@ -73,8 +71,8 @@ def on_starting(server):
     server.log.info("ZnDraw Gunicorn server starting")
     server.log.info(f"Workers: {workers}")
     server.log.info(f"Worker class: {worker_class}")
-    server.log.info(f"Threads per worker: {threads}")
-    server.log.info(f"Max concurrent connections: {threads}")
+    # server.log.info(f"Threads per worker: {threads}")
+    # server.log.info(f"Max concurrent connections: {threads}")
     server.log.info(f"Timeout: {timeout}s")
     server.log.info("Note: Threaded workers with Redis for SocketIO coordination")
     server.log.info("Note: Redis coordinates SocketIO across multiple containers")

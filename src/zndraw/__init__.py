@@ -1,5 +1,4 @@
 """ZnDraw communication package with physical-to-logical frame mapping."""
-
 import importlib.metadata
 import logging
 

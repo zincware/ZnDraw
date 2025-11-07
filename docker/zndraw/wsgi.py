@@ -15,6 +15,8 @@ Environment Variables:
 - ZNDRAW_FILE_BROWSER_ENABLED: Enable file browser (default: false)
 - ZNDRAW_FILE_BROWSER_ROOT: File browser root directory (default: cwd)
 """
+import eventlet
+eventlet.monkey_patch()
 
 import os
 

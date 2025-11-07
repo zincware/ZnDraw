@@ -54,10 +54,11 @@ def test_calculate_chunk_boundaries_single_chunk():
 
     # Create small test data (will fit in one chunk)
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
-    from zndraw.utils import atoms_to_dict, update_colors_and_radii
+    from asebytes import encode
+    from zndraw.utils import update_colors_and_radii
 
     update_colors_and_radii(atoms)
-    dicts = [atoms_to_dict(atoms) for _ in range(10)]
+    dicts = [encode(atoms) for _ in range(10)]
 
     # Call the method
     chunks, chunk_sizes = ZnDraw._calculate_chunk_boundaries(vis, dicts)
@@ -79,10 +80,11 @@ def test_calculate_chunk_boundaries_multiple_chunks():
 
     # Create test data
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
-    from zndraw.utils import atoms_to_dict, update_colors_and_radii
+    from asebytes import encode
+    from zndraw.utils import update_colors_and_radii
 
     update_colors_and_radii(atoms)
-    dicts = [atoms_to_dict(atoms) for _ in range(10)]
+    dicts = [encode(atoms) for _ in range(10)]
 
     # Call the method
     chunks, chunk_sizes = ZnDraw._calculate_chunk_boundaries(vis, dicts)
@@ -106,7 +108,7 @@ def test_calculate_chunk_boundaries_multiple_chunks():
 def test_calculate_chunk_boundaries_exact_sizes():
     """Test that chunk sizes are calculated from exact encoded sizes."""
     from zndraw.zndraw import ZnDraw
-    from zndraw.storage import encode_data
+    from asebytes import encode
     import msgpack
     from unittest.mock import Mock
 
@@ -116,14 +118,13 @@ def test_calculate_chunk_boundaries_exact_sizes():
 
     # Create test data
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
-    from zndraw.utils import atoms_to_dict, update_colors_and_radii
+    from zndraw.utils import update_colors_and_radii
 
     update_colors_and_radii(atoms)
-    dicts = [atoms_to_dict(atoms) for _ in range(100)]
+    dicts = [encode(atoms) for _ in range(100)]
 
-    # Calculate expected size manually
-    encoded = [encode_data(d) for d in dicts]
-    packed = [msgpack.packb(e) for e in encoded]
+    # Calculate expected size manually (dicts are already msgpack format)
+    packed = [msgpack.packb(d) for d in dicts]
     expected_total_size = sum(len(p) for p in packed)
 
     # Call the method
@@ -177,11 +178,12 @@ def test_single_frame_exceeds_chunk_size():
     positions = np.random.rand(100, 3) * 10
     atoms = ase.Atoms(numbers=[6] * 100, positions=positions)
 
-    from zndraw.utils import atoms_to_dict, update_colors_and_radii
+    from asebytes import encode
+    from zndraw.utils import update_colors_and_radii
     update_colors_and_radii(atoms)
 
     # Create just one frame
-    dicts = [atoms_to_dict(atoms)]
+    dicts = [encode(atoms)]
 
     # Calculate chunks - single frame should be in a chunk by itself
     chunks, chunk_sizes = ZnDraw._calculate_chunk_boundaries(vis, dicts)
@@ -207,12 +209,13 @@ def test_chunk_size_realistic():
     numbers = [6] * 20 + [8] * 4 + [7] * 4
     atoms = ase.Atoms(numbers=numbers, positions=positions)
 
-    from zndraw.utils import atoms_to_dict, update_colors_and_radii
+    from asebytes import encode
+    from zndraw.utils import update_colors_and_radii
 
     update_colors_and_radii(atoms)
 
     # Create 1000 frames like in the user's scenario
-    dicts = [atoms_to_dict(atoms) for _ in range(1000)]
+    dicts = [encode(atoms) for _ in range(1000)]
 
     # Calculate chunks
     chunks, chunk_sizes = ZnDraw._calculate_chunk_boundaries(vis, dicts)

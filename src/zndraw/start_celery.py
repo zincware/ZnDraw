@@ -16,12 +16,15 @@ def run_celery_worker(redis_url: str | None) -> subprocess.Popen:
         my_env["ZNDRAW_REDIS_URL"] = redis_url
 
     worker = subprocess.Popen(
+        # eventlet worker
         [
             "celery",
             "-A",
             "zndraw.app.make_celery",
             "worker",
             "--loglevel=info",
+            "--pool=eventlet",
+
         ],
         env=my_env,
     )

@@ -64,7 +64,7 @@ def redis_client():
 @pytest.fixture
 def server(tmp_path) -> t.Generator[str, None, None]:
     port = random.randint(10000, 20000)
-    storage_path = tmp_path / "zndraw-data.zarr"
+    storage_path = tmp_path / "zndraw-data"
     redis_url = "redis://localhost:6379"
 
     # Log files for debugging

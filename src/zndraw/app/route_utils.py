@@ -7,20 +7,18 @@ following DRY principles and reducing code duplication.
 import json
 import logging
 
-import zarr
 from flask import current_app
-from zarr.storage import MemoryStore
 
 from zndraw.server import socketio
-from zndraw.storage import ZarrStorageSequence
+from zndraw.storage import StorageBackend, create_storage
 
 from .constants import SocketEvents
 from .redis_keys import RoomKeys
 
 log = logging.getLogger(__name__)
 
-# Shared storage dictionary for Zarr stores
-STORAGE: dict[str, MemoryStore] = {}
+# Shared storage dictionary for storage backend instances
+STORAGE: dict[str, StorageBackend] = {}
 
 
 def get_lock_key(room: str, target: str) -> str:
@@ -41,8 +39,8 @@ def get_lock_key(room: str, target: str) -> str:
     return RoomKeys(room).lock(target)
 
 
-def get_zarr_store_path(room_id: str) -> str:
-    """Return the path to the Zarr store for a given room.
+def get_storage(room_id: str) -> StorageBackend:
+    """Get or create a storage backend for a room.
 
     Parameters
     ----------
@@ -51,33 +49,24 @@ def get_zarr_store_path(room_id: str) -> str:
 
     Returns
     -------
-    str
-        Path to the Zarr store
-    """
-    storage_path = current_app.config.get("STORAGE_PATH", "./zndraw-data.zarr")
-    # Remove .zarr extension if present to append room_id
-    base_path = storage_path.rstrip("/").removesuffix(".zarr")
-    return f"{base_path}/{room_id}.zarr"
-
-
-def get_storage(room_id: str) -> ZarrStorageSequence:
-    """Get or create a Zarr storage sequence for a room.
-
-    Parameters
-    ----------
-    room_id : str
-        Room identifier
-
-    Returns
-    -------
-    ZarrStorageSequence
-        Zarr storage sequence for the room
+    StorageBackend
+        ASEBytesStorageBackend instance for the room
     """
     if room_id not in STORAGE:
-        STORAGE[room_id] = MemoryStore()
-    root = zarr.group(STORAGE[room_id])
-    storage = ZarrStorageSequence(root)
-    return storage
+        storage_path = current_app.config.get("STORAGE_PATH")
+
+        # Extract base path (remove extensions if present)
+        base_path = None
+        if storage_path:
+            base_path = storage_path.rstrip("/").removesuffix(".zarr").removesuffix(".lmdb")
+
+        STORAGE[room_id] = create_storage(
+            room_id=room_id,
+            base_path=base_path
+        )
+        log.info(f"Created ASEBytes storage for room '{room_id}'")
+
+    return STORAGE[room_id]
 
 
 def check_room_locked(

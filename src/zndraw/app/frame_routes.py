@@ -6,13 +6,11 @@ deleting frames and downloading trajectories.
 
 import json
 import logging
+import time
 import traceback
 
 import msgpack
-import zarr
 from flask import Blueprint, Response, current_app, request, send_file
-
-from zndraw.storage import decode_data, encode_data
 
 from .frame_index_manager import FrameIndexManager
 from .redis_keys import RoomKeys
@@ -35,7 +33,7 @@ frames = Blueprint("frames", __name__)
 @frames.route("/api/rooms/<string:room_id>/frames", methods=["GET"])
 def get_frames(room_id):
     """
-    Serves multiple frames' data from the room's Zarr store using either
+    Serves multiple frames' data from the room's storage backend using either
     indices or slice parameters. This implementation is optimized and uses
     the FrameIndexManager for all index operations.
     """
@@ -47,10 +45,11 @@ def get_frames(room_id):
         frame_count = manager.get_count()
 
         if frame_count == 0:
-            return {
-                "error": f"Index out of range for data with {frame_count} frames in room '{room_id}'",
-                "type": "IndexError",
-            }, 404
+            return Response(
+                json.dumps({"error": f"No frames found in room '{room_id}'", "type": "IndexError"}),
+                status=404,
+                content_type="application/json"
+            )
 
         max_frame_idx = frame_count - 1
         physical_keys = []
@@ -63,7 +62,11 @@ def get_frames(room_id):
                 try:
                     frame_indices = [int(idx.strip()) for idx in indices_str.split(",")]
                 except ValueError:
-                    return {"error": "Indices must be comma-separated integers"}, 400
+                    return Response(
+                        json.dumps({"error": "Indices must be comma-separated integers"}),
+                        status=400,
+                        content_type="application/json"
+                    )
 
             for frame_id in frame_indices:
                 if not (0 <= frame_id <= max_frame_idx):
@@ -91,7 +94,11 @@ def get_frames(room_id):
             step = int(step_param) if step_param is not None else 1
 
             if step is not None and step == 0:
-                return {"error": "step cannot be zero"}, 400
+                return Response(
+                    json.dumps({"error": "step cannot be zero"}),
+                    status=400,
+                    content_type="application/json"
+                )
 
             slice_obj = slice(start, stop, step)
             start, stop, step_val = slice_obj.indices(frame_count)
@@ -106,7 +113,7 @@ def get_frames(room_id):
 
         # If no keys were found (e.g., empty indices list), return empty response
         if not physical_keys:
-            return Response(msgpack.packb([]), content_type="application/octet-stream")
+            return Response(msgpack.packb([]), content_type="application/msgpack")
 
         keys_str = request.args.get("keys")
         requested_keys = [k.strip() for k in keys_str.split(",")] if keys_str else None
@@ -129,9 +136,10 @@ def get_frames(room_id):
                     source_storage = get_storage(room_id)
 
                 frame_data = source_storage.get(physical_index, keys=requested_keys)
-                frames_data.append(encode_data(frame_data))
+                # frame_data is already dict[bytes, bytes] from ASEBytesStorageBackend
+                frames_data.append(frame_data)
         except (KeyError, IndexError) as e:
-            # Handle both Zarr key errors and physical index errors
+            # Handle both storage key errors and physical index errors
             return Response(
                 json.dumps(
                     {
@@ -144,7 +152,7 @@ def get_frames(room_id):
             )
 
         packed_data = msgpack.packb(frames_data)
-        return Response(packed_data, content_type="application/octet-stream")
+        return Response(packed_data, content_type="application/msgpack")
 
     except Exception as e:
         log.error(f"Server error in get_frames: {e}\n{traceback.format_exc()}")
@@ -201,65 +209,82 @@ def get_frame_metadata(room_id: str, frame_id: int):
         physical_index = int(physical_index_str)
         source_storage = get_storage(source_room_id)
 
-        # Get the Zarr group
-        zarr_group = source_storage.group
+        # Get the actual frame data (dict[bytes, bytes])
+        frame_data = source_storage.get(physical_index)
 
-        # Get valid keys for this frame
-        if "__valid_keys__" not in zarr_group:
-            return {
-                "error": "No metadata available for this frame",
-                "type": "MetadataError",
-            }, 404
+        # Use asebytes.get_metadata to extract metadata without unpacking all values
+        from asebytes import get_metadata
 
-        try:
-            valid_keys_array = zarr_group["__valid_keys__"]
-            valid_keys_json = valid_keys_array[physical_index].item()  # type: ignore
-            valid_keys = json.loads(valid_keys_json)
-        except IndexError:
-            return {
-                "error": f"Frame index {frame_id} is out of bounds",
-                "type": "IndexError",
-            }, 404
+        raw_metadata = get_metadata(frame_data)
 
-        # Build metadata for each key
+        # Convert asebytes metadata format to the expected format
         keys_metadata = {}
+        for key, meta in raw_metadata.items():
+            # Special case: arrays.colors is treated as JSON in the API
+            if key == "arrays.colors":
+                keys_metadata[key] = {"type": "json", "dtype": "json"}
+            elif meta["type"] == "ndarray":
+                keys_metadata[key] = {
+                    "type": "array",
+                    "dtype": meta["dtype"],
+                    "shape": list(meta["shape"]),
+                }
+            elif meta["type"] == "numpy_scalar":
+                # Scalar values are treated as 0-dimensional arrays
+                keys_metadata[key] = {
+                    "type": "array",
+                    "dtype": meta["dtype"],
+                    "shape": [],
+                }
+            elif meta["type"] == "float":
+                # Python floats in info/calc are treated as 0-dimensional float64 arrays
+                keys_metadata[key] = {
+                    "type": "array",
+                    "dtype": "float64",
+                    "shape": [],
+                }
+            elif meta["type"] == "int":
+                # Python ints in info/calc are treated as 0-dimensional int64 arrays
+                keys_metadata[key] = {
+                    "type": "array",
+                    "dtype": "int64",
+                    "shape": [],
+                }
+            else:
+                # Other types (dict, list, str, etc.)
+                keys_metadata[key] = {"type": meta["type"]}
 
-        for key in valid_keys:
-            if key in zarr_group:
-                item = zarr_group[key]
+        # Sort keys in a consistent order matching ASE Atoms attribute order
+        # arrays.* first (in specific order), then cell/pbc, then info.*, then calc.*
+        arrays_order = ["numbers", "positions", "colors", "radii", "forces"]
 
-                if isinstance(item, zarr.Array):
-                    # Get shape and dtype for this array
-                    is_json = item.attrs.get("format") == "json"
+        def sort_key(k):
+            if k.startswith("arrays."):
+                # Extract suffix after "arrays."
+                suffix = k[7:]  # Remove "arrays." prefix
+                try:
+                    # Use predefined order for known arrays
+                    return (0, arrays_order.index(suffix))
+                except ValueError:
+                    # Unknown arrays come after known ones
+                    return (0, 1000 + ord(suffix[0]))
+            elif k in ("cell", "pbc"):
+                # cell and pbc come after arrays
+                return (1, 0 if k == "cell" else 1)
+            elif k.startswith("info."):
+                return (2, k)
+            elif k.startswith("calc."):
+                return (3, k)
+            else:
+                return (4, k)
 
-                    if is_json:
-                        # For JSON-encoded arrays, we can't determine shape without loading
-                        keys_metadata[key] = {"type": "json", "dtype": "json"}
-                    else:
-                        # Regular numpy array
-                        shape = item.shape[1:]  # Remove the frame dimension
-
-                        # Check if there's a mask for variable-sized arrays
-                        mask_key = f"__mask__{key}__"
-                        if mask_key in zarr_group:
-                            mask_array = zarr_group[mask_key]
-                            actual_size = int(mask_array[physical_index])  # type: ignore
-                            shape = (actual_size,) + shape[1:]
-
-                        keys_metadata[key] = {
-                            "type": "array",
-                            "shape": list(shape),
-                            "dtype": str(item.dtype),
-                        }
-                elif isinstance(item, zarr.Group):
-                    # For nested groups, indicate it's a group
-                    keys_metadata[key] = {"type": "group"}
+        sorted_keys = sorted(raw_metadata.keys(), key=sort_key)
 
         return {
             "frameId": frame_id,
             # "physicalIndex": physical_index,
             "sourceRoom": source_room_id if ":" in mapping_entry else room_id,
-            "keys": valid_keys,
+            "keys": sorted_keys,
             "metadata": keys_metadata,
         }, 200
 
@@ -441,8 +466,39 @@ def append_frame(room_id):
         return {"error": "Invalid action specified"}, 400
 
     try:
-        # Unpack the msgpack data
-        serialized_data = msgpack.unpackb(request.data, strict_map_key=False)
+        # Unpack the msgpack data WITHOUT object_hook to keep values as bytes
+        # The client sends either:
+        # 1. dict[bytes, bytes] from encode() - keys and values are bytes
+        # 2. dict[str, Any] from raw dicts - keys are strings, values may not be bytes
+        unpacked_data = msgpack.unpackb(
+            request.data, strict_map_key=False
+        )
+
+        # Normalize to dict[bytes, bytes] format for storage
+        def ensure_bytes_dict(obj):
+            if isinstance(obj, dict):
+                result = {}
+                for k, v in obj.items():
+                    # Ensure key is bytes
+                    key = k if isinstance(k, bytes) else k.encode()
+                    # Ensure value is bytes (msgpack-encoded)
+                    if isinstance(v, bytes):
+                        value = v
+                    else:
+                        # Value is not bytes, need to encode it
+                        import msgpack_numpy as m
+                        value = msgpack.packb(v, default=m.encode)
+                    result[key] = value
+                return result
+            else:
+                return obj
+
+        if isinstance(unpacked_data, dict):
+            serialized_data = ensure_bytes_dict(unpacked_data)
+        elif isinstance(unpacked_data, list):
+            serialized_data = [ensure_bytes_dict(item) for item in unpacked_data]
+        else:
+            raise ValueError(f"Expected dict or list, got {type(unpacked_data)}")
 
         storage = get_storage(room_id)
         index_manager = FrameIndexManager(r, room_keys.trajectory_indices())
@@ -471,8 +527,8 @@ def append_frame(room_id):
                 }, 404
 
             new_physical_index = len(storage)
-            decoded_data = decode_data(serialized_data)
-            storage.append(decoded_data)
+            # serialized_data is already dict[bytes, bytes] (msgpack format)
+            storage.append(serialized_data)
 
             old_mapping_entry = frame_mapping[target_frame_id]
             # Get the original score to preserve gap-based indexing
@@ -503,32 +559,58 @@ def append_frame(room_id):
 
         elif action == "extend":
             # Extend operation: add multiple frames in one go
+            extend_start_time = time.perf_counter()
+
             if not isinstance(serialized_data, list):
                 return {
                     "error": "For extend action, data must be a list of frame dictionaries"
                 }, 400
 
             # 1. Determine starting logical and physical positions
+            positions_start = time.perf_counter()
             start_logical_pos = index_manager.get_count()
             start_physical_pos = len(storage)
             num_frames = len(serialized_data)
+            positions_time = time.perf_counter() - positions_start
 
-            # 2. Decode all frames and extend the physical storage
-            decoded_frames = [decode_data(frame) for frame in serialized_data]
+            # 2. Extend the physical storage
+            # serialized_data is already list[dict[bytes, bytes]] (msgpack format)
+            decode_start = time.perf_counter()
+            decoded_frames = serialized_data
+            decode_time = time.perf_counter() - decode_start
+
+            storage_start = time.perf_counter()
             storage.extend(decoded_frames)
+            storage_time = time.perf_counter() - storage_start
 
             # 3. Batch append all new frames at once (single Redis operation)
+            redis_start = time.perf_counter()
             members = [f"{room_id}:{start_physical_pos + i}" for i in range(num_frames)]
             index_manager.append_batch(members)
+            redis_time = time.perf_counter() - redis_start
 
             # 4. Prepare response data
+            response_start = time.perf_counter()
             new_indices = list(range(start_logical_pos, start_logical_pos + num_frames))
 
             # Emit len_frames update to notify clients of frame count change
             emit_len_frames_update(room_id)
+            response_time = time.perf_counter() - response_start
+
+            extend_total_time = time.perf_counter() - extend_start_time
+
+            # Calculate frames per second, avoiding division by zero
+            decode_fps = f"{num_frames/decode_time:.0f}" if decode_time > 0 else "N/A"
+            storage_fps = f"{num_frames/storage_time:.0f}" if storage_time > 0 else "N/A"
 
             log.info(
-                f"Extended trajectory with {num_frames} frames (physical: {start_physical_pos}-{start_physical_pos + num_frames - 1}) to room '{room_id}'"
+                f"PERFORMANCE: Extended trajectory with {num_frames} frames to room '{room_id}' | "
+                f"Total: {extend_total_time:.4f}s | "
+                f"Positions: {positions_time:.4f}s | "
+                f"Decode: {decode_time:.4f}s ({decode_fps} frames/s) | "
+                f"Storage: {storage_time:.4f}s ({storage_fps} frames/s) | "
+                f"Redis: {redis_time:.4f}s | "
+                f"Response: {response_time:.4f}s"
             )
             return {"success": True, "new_indices": new_indices}
 
@@ -555,9 +637,9 @@ def append_frame(room_id):
             # 1. Determine the new physical index
             new_physical_index = len(storage)
 
-            # 2. Decode and append the new frame data to the physical store
-            decoded_data = decode_data(serialized_data)
-            storage.append(decoded_data)
+            # 2. Append the new frame data to the physical store
+            # serialized_data is already dict[bytes, bytes] (msgpack format)
+            storage.append(serialized_data)
 
             # 3. Insert using gap method (O(log N) instead of O(N))
             index_manager.insert(insert_position, f"{room_id}:{new_physical_index}")
@@ -584,9 +666,9 @@ def append_frame(room_id):
             logical_position = index_manager.get_count()
             new_physical_index = len(storage)
 
-            # 2. Decode and append the new frame data
-            decoded_data = decode_data(serialized_data)
-            storage.append(decoded_data)
+            # 2. Append the new frame data
+            # serialized_data is already dict[bytes, bytes] (msgpack format)
+            storage.append(serialized_data)
 
             # 3. Add the new physical index to the logical sequence using gap method
             index_manager.append(f"{room_id}:{new_physical_index}")
@@ -603,7 +685,7 @@ def append_frame(room_id):
             # Default case for any unknown actions
             return {"error": f"The requested action '{action}' is not supported."}, 400
     except Exception as e:
-        log.error(f"Failed to write to Zarr store: {e}\n{traceback.format_exc()}")
+        log.error(f"Failed to write to storage backend: {e}\n{traceback.format_exc()}")
         return {"error": "Failed to write to data store"}, 500
 
 
@@ -625,11 +707,34 @@ def bulk_replace_frames(room_id):
     room_keys = RoomKeys(room_id)
 
     try:
-        # Unpack the msgpack data - should be a list of frames
-        serialized_data = msgpack.unpackb(request.data, strict_map_key=False)
+        # Unpack the msgpack data WITHOUT object_hook to keep values as bytes
+        unpacked_data = msgpack.unpackb(
+            request.data, strict_map_key=False
+        )
 
-        if not isinstance(serialized_data, list):
+        if not isinstance(unpacked_data, list):
             return {"error": "Body must contain a list of frame dictionaries"}, 400
+
+        # Normalize to list[dict[bytes, bytes]] format for storage
+        def ensure_bytes_dict(obj):
+            if isinstance(obj, dict):
+                result = {}
+                for k, v in obj.items():
+                    # Ensure key is bytes
+                    key = k if isinstance(k, bytes) else k.encode()
+                    # Ensure value is bytes (msgpack-encoded)
+                    if isinstance(v, bytes):
+                        value = v
+                    else:
+                        # Value is not bytes, need to encode it
+                        import msgpack_numpy as m
+                        value = msgpack.packb(v, default=m.encode)
+                    result[key] = value
+                return result
+            else:
+                return obj
+
+        serialized_data = [ensure_bytes_dict(item) for item in unpacked_data]
 
         storage = get_storage(room_id)
         index_manager = FrameIndexManager(r, room_keys.trajectory_indices())
@@ -667,8 +772,8 @@ def bulk_replace_frames(room_id):
 
             # Replace each frame
             start_physical_pos = len(storage)
-            decoded_frames = [decode_data(frame) for frame in serialized_data]
-            storage.extend(decoded_frames)
+            # serialized_data is already list[dict[bytes, bytes]] (msgpack format)
+            storage.extend(serialized_data)
 
             pipeline = r.pipeline()
             for i, logical_idx in enumerate(target_indices):
@@ -713,10 +818,10 @@ def bulk_replace_frames(room_id):
             # Delete the old frames and insert the new ones
             # This is more complex because the length can change
 
-            # 1. Decode all new frames and add to physical storage
+            # 1. Add all new frames to physical storage
             start_physical_pos = len(storage)
-            decoded_frames = [decode_data(frame) for frame in serialized_data]
-            storage.extend(decoded_frames)
+            # serialized_data is already list[dict[bytes, bytes]] (msgpack format)
+            storage.extend(serialized_data)
 
             # 2. Build the new frame mapping
             # Keep frames before the slice
@@ -785,8 +890,7 @@ def download_frames(room_id: str):
     from io import StringIO
 
     import ase.io
-
-    from zndraw.utils import atoms_from_dict
+    from asebytes import decode
 
     redis_client = current_app.extensions["redis"]
 
@@ -865,10 +969,10 @@ def download_frames(room_id: str):
                     source_storage = get_storage(room_id)
 
                 # Access storage using physical index
-                atoms_dict = source_storage[physical_index]
+                atoms_bytes = source_storage[physical_index]
 
-                # Convert to ASE Atoms object using the proper utility function
-                atoms = atoms_from_dict(atoms_dict)
+                # Convert to ASE Atoms object using asebytes
+                atoms = decode(atoms_bytes)
 
                 # Apply selection filter if provided
                 if selection:

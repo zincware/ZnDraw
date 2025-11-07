@@ -70,6 +70,9 @@ services:
       # Redis configuration (enables multi-worker coordination)
       - ZNDRAW_REDIS_URL=redis://redis:6379
 
+      # Logging configuration
+      - ZNDRAW_LOG_LEVEL=INFO
+
       # Gunicorn production settings with threaded workers
       # Sync worker: 1 worker process with multiple threads
       # Per container: 100 threads for production workload
@@ -144,13 +147,16 @@ services:
     user: appuser
     working_dir: /app
     # Use shell form to ensure PATH is correctly set
-    command: ["sh", "-c", "celery -A zndraw.app.make_celery worker --loglevel=info --concurrency=8"]
+    command: ["sh", "-c", "celery -A zndraw.app.make_celery worker --loglevel=info --pool=eventlet"]
     depends_on:
       redis:
         condition: service_healthy
     environment:
       # Redis configuration
       - ZNDRAW_REDIS_URL=redis://redis:6379
+
+      # Logging configuration
+      - ZNDRAW_LOG_LEVEL=INFO
 
       # Storage path (must match main app - shared volume)
       - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data.zarr

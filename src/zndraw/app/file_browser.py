@@ -695,7 +695,7 @@ def create_room_from_existing_file():
     Notes
     -----
     Creates a new room with identity mapping {i: i for i in range(frame_count_original)}
-    WITHOUT re-uploading the file. Reuses the same physical Zarr storage.
+    WITHOUT re-uploading the file. Reuses the same physical storage backend.
     """
     # Check if feature is enabled
     error = check_feature_enabled()
