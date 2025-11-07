@@ -93,7 +93,11 @@ def main(
     debug: bool = False,
     verbose: bool = False,
     celery: bool = True,
-    storage_path: str = "./zndraw-data",
+    storage_path: str = typer.Option(
+        "./zndraw-data",
+        envvar="ZNDRAW_STORAGE_PATH",
+        help="Path to storage directory for trajectory data (LMDB files per room)",
+    ),
     redis_url: str | None = typer.Option(
         None,
         help="Redis server URL (e.g., `redis://localhost:6379`). If not provided, an in-memory storage will be used.",
