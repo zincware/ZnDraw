@@ -75,3 +75,7 @@
 - [ ] disallow selection / hover on fix atoms constraints
 - [ ] uploading triggers canvas re-renders (activate e.g. path tracer to see the effect)
 - [ ] fix hosted url path in e.g. `copy python code`
+- [ ] remove batch upload from read_file and filesystem. The `extend` has included batching!
+- [ ] consider where to compute connectivity: server / client / on-the-fly / delayed?
+- [ ] fix the presenter lock!!
+- [ ] test register_fs, search `filesystem:load`
