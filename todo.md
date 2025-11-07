@@ -13,7 +13,7 @@
 - [x] curve, have "default" as color
 - [ ] default value for modifiers / selection / settings / analyses
 - [x] link to github
-- [ ] SiMGen buttons and tutorial
+- [x] SiMGen buttons and tutorial
 - [x] sync mode default should be on
 - [x] make the snackbar pop ups, e.g. `room locked` appear higher to not interfere with the progress bar.
 - [ ] close zndraw button via "settings" menu upper right and different icons, must be distinguishable, also via name
@@ -67,19 +67,6 @@
 - [x] can not change settings!
 - [x] fix `vis.geometries` to only show keys and not full data
 - [ ] being at frame 1 and then removing the first one might not update the frame to shift to 0. Check!
-- [ ] zarr storage issue, use `structures.h5` and then `rdkit2ase.pack` (2025-10-30 11:07:56,361 - zndraw.app.frame_routes - ERROR - Failed to write to Zarr store: Shape mismatch for key 'arrays.residuenames': existing shape (68,), new shape (320,).
-Traceback (most recent call last):
-  File "/work/fzills/uv-cache/archive-v0/zfPFBvtlCbskoEh1EZHjp/lib/python3.11/site-packages/zndraw/app/frame_routes.py", line 584, in append_frame
-    storage.append(decoded_data)
-  File "/work/fzills/uv-cache/archive-v0/zfPFBvtlCbskoEh1EZHjp/lib/python3.11/site-packages/zndraw/storage.py", line 468, in append
-    self.extend([value])
-  File "/work/fzills/uv-cache/archive-v0/zfPFBvtlCbskoEh1EZHjp/lib/python3.11/site-packages/zndraw/storage.py", line 471, in extend
-    extend_zarr(self.group, values)
-  File "/work/fzills/uv-cache/archive-v0/zfPFBvtlCbskoEh1EZHjp/lib/python3.11/site-packages/zndraw/storage.py", line 365, in extend_zarr
-    _extend_recursive(root, entry, current_index, total_entries)
-  File "/work/fzills/uv-cache/archive-v0/zfPFBvtlCbskoEh1EZHjp/lib/python3.11/site-packages/zndraw/storage.py", line 303, in _extend_recursive
-    raise ValueError(
-ValueError: Shape mismatch for key 'arrays.residuenames': existing shape (68,), new shape (320,).)
 - [ ] instead of `apply_schema_feature` use `Field(json_schema_extra={"x-custom-type":"smiles-pack-array"})`
 - [ ] path tracer does not accept changes to materials ( might only be with presets)
 - [ ] drag and drop: ask for append, insert at cursor position (using virtual canvas, or so), or create a new room or even replace?
