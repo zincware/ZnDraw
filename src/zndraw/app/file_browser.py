@@ -314,7 +314,8 @@ def check_feature_enabled() -> tuple[dict[str, str], int] | None:
     tuple[dict[str, str], int] | None
         Error response if disabled, None if enabled.
     """
-    if not current_app.config.get("FILE_BROWSER_ENABLED", False):
+    config = current_app.extensions.get("config")
+    if not config or not config.file_browser_enabled:
         return {"error": "File browser feature is not enabled"}, 403
     return None
 
@@ -346,7 +347,8 @@ def list_directory():
     # Get requested path and search pattern
     requested_path = request.args.get("path", "")
     search_pattern = request.args.get("search")
-    root = current_app.config.get("FILE_BROWSER_ROOT", ".")
+    config = current_app.extensions["config"]
+    root = config.file_browser_root
 
     # Validate path
     target_path = validate_path(requested_path, root)
@@ -470,7 +472,8 @@ def load_file():
         return jsonify({"error": "Missing required field: path"}), 400
 
     requested_path = data["path"]
-    root = current_app.config.get("FILE_BROWSER_ROOT", ".")
+    config = current_app.extensions["config"]
+    root = config.file_browser_root
 
     # Validate path
     target_path = validate_path(requested_path, root)
@@ -528,7 +531,8 @@ def load_file():
     # Queue file loading task
     from zndraw.app.tasks import read_file
 
-    server_url = current_app.config.get("SERVER_URL", "http://localhost:5000")
+    config = current_app.extensions["config"]
+    server_url = config.server_url
 
     # Create description indicating file browser load
     description = f"{target_path.name} (loaded from file browser)"
@@ -605,7 +609,8 @@ def upload_file():
         return jsonify({"error": f"Unsupported format: {ext}"}), 400
 
     # Create temporary directory for uploads
-    temp_dir = current_app.config.get("UPLOAD_TEMP_DIR", "/tmp/zndraw_uploads")
+    config = current_app.extensions["config"]
+    temp_dir = config.upload_temp
     os.makedirs(temp_dir, exist_ok=True)
 
     # Generate unique filename to avoid collisions
@@ -637,7 +642,8 @@ def upload_file():
     # Queue Celery task with temp file path
     from zndraw.app.tasks import read_file
 
-    server_url = current_app.config.get("SERVER_URL", "http://localhost:5000")
+    config = current_app.extensions["config"]
+    server_url = config.server_url
 
     # Create description indicating drag/drop upload
     description = f"{file.filename} (uploaded via drag & drop)"

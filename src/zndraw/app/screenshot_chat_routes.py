@@ -23,8 +23,8 @@ MAX_SCREENSHOT_SIZE = 10 * 1024 * 1024
 
 def _get_screenshot_manager(room_id: str) -> ScreenshotManager:
     """Helper to create ScreenshotManager instance."""
-    storage_path = current_app.config.get("STORAGE_PATH", "./zndraw-data")
-    return ScreenshotManager(room_id, storage_path)
+    config = current_app.extensions["config"]
+    return ScreenshotManager(room_id, config.storage_path)
 
 
 @media.route("/api/rooms/<string:room_id>/chat/messages", methods=["GET"])

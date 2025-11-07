@@ -1197,43 +1197,44 @@ class ZnDraw(MutableSequence):
         )
 
         # Upload chunks with progress bar
-        with self._progress_bar(total_bytes, total_frames, num_chunks) as update_progress:
-            bytes_uploaded = 0
-            frames_uploaded = 0
+        with self.lock:
+            with self._progress_bar(total_bytes, total_frames, num_chunks) as update_progress:
+                bytes_uploaded = 0
+                frames_uploaded = 0
 
-            for chunk_idx, (chunk, chunk_size) in enumerate(zip(chunks, chunk_sizes)):
-                # Upload this chunk with retry logic
-                for attempt in range(self.local.max_retries + 1):
-                    try:
-                        self.extend_frames(chunk)
-                        break  # Success
-                    except (ConnectionError, IOError, TimeoutError, OSError) as e:
-                        # Only retry network-related exceptions
-                        if attempt == self.local.max_retries:
-                            # Final attempt failed
-                            log.error(
-                                f"Failed to upload chunk {chunk_idx + 1}/{num_chunks} "
-                                f"after {self.local.max_retries} retries: {e}"
-                            )
-                            raise
-                        else:
-                            # Retry with backoff
-                            delay = self.local.retry_delay * (2**attempt)
-                            log.warning(
-                                f"Chunk {chunk_idx + 1}/{num_chunks} failed (attempt {attempt + 1}), "
-                                f"retrying in {delay:.1f}s: {e}"
-                            )
-                            time.sleep(delay)
+                for chunk_idx, (chunk, chunk_size) in enumerate(zip(chunks, chunk_sizes)):
+                    # Upload this chunk with retry logic
+                    for attempt in range(self.local.max_retries + 1):
+                        try:
+                            self.extend_frames(chunk)
+                            break  # Success
+                        except (ConnectionError, IOError, TimeoutError, OSError) as e:
+                            # Only retry network-related exceptions
+                            if attempt == self.local.max_retries:
+                                # Final attempt failed
+                                log.error(
+                                    f"Failed to upload chunk {chunk_idx + 1}/{num_chunks} "
+                                    f"after {self.local.max_retries} retries: {e}"
+                                )
+                                raise
+                            else:
+                                # Retry with backoff
+                                delay = self.local.retry_delay * (2**attempt)
+                                log.warning(
+                                    f"Chunk {chunk_idx + 1}/{num_chunks} failed (attempt {attempt + 1}), "
+                                    f"retrying in {delay:.1f}s: {e}"
+                                )
+                                time.sleep(delay)
 
-                # Update progress
-                bytes_uploaded += chunk_size
-                frames_uploaded += len(chunk)
-                update_progress(bytes_uploaded, frames_uploaded)
+                    # Update progress
+                    bytes_uploaded += chunk_size
+                    frames_uploaded += len(chunk)
+                    update_progress(bytes_uploaded, frames_uploaded)
 
-                log.debug(
-                    f"Uploaded chunk {chunk_idx + 1}/{num_chunks}: "
-                    f"{len(chunk)} frames, {chunk_size / 1024:.1f} KB"
-                )
+                    log.debug(
+                        f"Uploaded chunk {chunk_idx + 1}/{num_chunks}: "
+                        f"{len(chunk)} frames, {chunk_size / 1024:.1f} KB"
+                    )
 
         log.info(f"Successfully uploaded {total_frames} frames")
 

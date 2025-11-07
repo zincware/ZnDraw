@@ -35,11 +35,12 @@ services:
       # Redis configuration
       - ZNDRAW_REDIS_URL=redis://redis:6379
 
-      # Gunicorn development settings
-      # Single worker with 50 threads for development workload
-      - GUNICORN_WORKERS=1
-      - GUNICORN_THREADS=50
-      - GUNICORN_LOG_LEVEL=debug
+      # Logging configuration
+      - ZNDRAW_LOG_LEVEL=DEBUG
+
+      # Server configuration
+      - ZNDRAW_SERVER_PORT=5000
+      - ZNDRAW_SERVER_HOST=0.0.0.0
 
       # Flask secret key (change for your environment)
       - FLASK_SECRET_KEY=development-secret-key
@@ -52,16 +53,19 @@ services:
       - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
       - ZNDRAW_MAX_UPLOAD_MB=500
 
-      # Storage path
-      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data.zarr
+      # Storage path (no .zarr extension for LMDB backend)
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
 
-      # Server URL (for Celery tasks)
+      # Server URL (for Celery tasks to connect back)
       - ZNDRAW_SERVER_URL=http://zndraw:5000
 
       # Optional features
       # - ZNDRAW_SIMGEN_ENABLED=true
       # - ZNDRAW_FILE_BROWSER_ENABLED=true
       # - ZNDRAW_FILE_BROWSER_ROOT=/app/data
+
+      # Celery configuration
+      - ZNDRAW_CELERY_ENABLED=true
 
       # Fix for Apple Silicon
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
@@ -88,7 +92,8 @@ services:
     restart: unless-stopped
     user: appuser
     working_dir: /app
-    command: ["sh", "-c", "celery -A zndraw.app.make_celery worker --loglevel=debug --pool=eventlet"]
+    # Use zndraw_cli.celery module which applies eventlet monkey patch first
+    command: ["sh", "-c", "celery -A zndraw_cli.celery worker --loglevel=debug --pool=eventlet"]
     depends_on:
       redis:
         condition: service_healthy
@@ -96,14 +101,20 @@ services:
       # Redis configuration
       - ZNDRAW_REDIS_URL=redis://redis:6379
 
-      # Storage path (must match main app)
-      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data.zarr
+      # Logging configuration
+      - ZNDRAW_LOG_LEVEL=DEBUG
+
+      # Storage path (must match main app - no .zarr extension)
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
 
       # Upload configuration
       - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
 
-      # Server URL
+      # Server URL (for tasks to connect back)
       - ZNDRAW_SERVER_URL=http://zndraw:5000
+
+      # Celery configuration
+      - ZNDRAW_CELERY_ENABLED=true
 
       # Fix for Apple Silicon
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES

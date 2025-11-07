@@ -66,7 +66,7 @@ wheels = [
 
 [[package]]
 name = "asebytes"
-version = "0.1.3"
+version = "0.1.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ase" },
@@ -74,9 +74,9 @@ dependencies = [
     { name = "msgpack" },
     { name = "msgpack-numpy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e8/0a/002941d36de59bee5f914208317ef180cc39a7511c68f8fcb2fac21bb520/asebytes-0.1.3.tar.gz", hash = "sha256:a69f16514e66f1231bb2ad95fc74bc812151bca53f7f8d6cda407e653ec215bb", size = 7721, upload-time = "2025-11-07T10:14:04.518Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f6/5f/8bdebd20faa8fee3b4b1b8c821918bd4548d334687b8f29686237c96f853/asebytes-0.1.4.tar.gz", hash = "sha256:58b767e1a1a0d461e4a548e0b5cd10175ddbaea3b1e936500e9dc8057d04db40", size = 7721, upload-time = "2025-11-07T15:37:04.102Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/01/cb/72a75b6c2f343c92d2612eef5f18a4c09f3b8a26caf12e80cd81696c22d2/asebytes-0.1.3-py3-none-any.whl", hash = "sha256:fb0cc25d9ca12344071fa4eec6fab66f08cde34a16e0ae73deff906d096a6211", size = 9394, upload-time = "2025-11-07T10:14:03.342Z" },
+    { url = "https://files.pythonhosted.org/packages/69/f7/8195e0235b1901f8f7aced62977a5e901f1643106708c3c94c4e8e3f3a45/asebytes-0.1.4-py3-none-any.whl", hash = "sha256:76e08d323960881a80117dd91040381da14bdb79604fa4322a7895a66164b858", size = 9394, upload-time = "2025-11-07T15:37:03.295Z" },
 ]
 
 [[package]]
@@ -2982,7 +2982,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "ase", specifier = ">=3.26.0" },
-    { name = "asebytes", specifier = ">=0.1.3" },
+    { name = "asebytes", specifier = ">=0.1.4" },
     { name = "cachetools", specifier = ">=6.2.0" },
     { name = "celery", specifier = ">=5.5.3" },
     { name = "eventlet", specifier = ">=0.40.3" },

@@ -77,23 +77,53 @@ def services_init_app(app: Flask) -> None:
 
 
 def create_app(
-    storage_path: str = "./zndraw-data",
+    config: "ZnDrawConfig | None" = None,
+    storage_path: str | None = None,
     redis_url: str | None = None,
 ) -> Flask:
-    # Configure logging level from environment variable
-    log_level_name = os.getenv("ZNDRAW_LOG_LEVEL", "WARNING").upper()
-    log_level = getattr(logging, log_level_name, logging.WARNING)
+    """Create and configure Flask application.
+
+    Parameters
+    ----------
+    config : ZnDrawConfig | None
+        Configuration object. If None, loads from environment via get_config().
+    storage_path : str | None
+        Override storage path (for backwards compatibility).
+    redis_url : str | None
+        Override Redis URL (for backwards compatibility).
+
+    Returns
+    -------
+    Flask
+        Configured Flask application instance.
+    """
+    from zndraw.config import get_config as _get_config
+
+    # Load config from environment if not provided
+    if config is None:
+        config = _get_config()
+
+    # Apply overrides for backwards compatibility
+    if storage_path is not None:
+        config.storage_path = storage_path
+    if redis_url is not None:
+        config.redis_url = redis_url
+
+    # Configure logging from config
+    log_level = getattr(logging, config.log_level.upper(), logging.WARNING)
     logging.basicConfig(
         level=log_level,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    log.info(f"Logging configured at level: {log_level_name}")
-
-    # Priority: explicit parameter > environment variable > None
-    if redis_url is None:
-        redis_url = os.getenv("ZNDRAW_REDIS_URL")
+    log.info(f"Logging configured at level: {config.log_level}")
 
     app = Flask(__name__)
+
+    # Store config object in extensions for direct access
+    app.extensions["config"] = config
+
+    # Set Flask secret key
+    app.config["SECRET_KEY"] = config.flask_secret_key
 
     from zndraw.app import (
         bookmarks,
@@ -120,25 +150,8 @@ def create_app(
     app.register_blueprint(file_browser_blueprint)
     app.register_blueprint(filesystem_bp)
 
-    # Store configuration
-    app.config["STORAGE_PATH"] = storage_path
-    app.config["STORAGE_TYPE"] = "asebytes"  # Only asebytes backend is supported
-    app.config["REDIS_URL"] = redis_url
-
-    # Upload configuration
-    app.config["UPLOAD_TEMP_DIR"] = os.getenv(
-        "ZNDRAW_UPLOAD_TEMP", "/tmp/zndraw_uploads"
-    )
-    app.config["MAX_CONTENT_LENGTH"] = (
-        int(os.getenv("ZNDRAW_MAX_UPLOAD_MB", "500")) * 1024 * 1024
-    )
-
-    # Extension analytics TTL in seconds (default: 7 days)
-    app.config["EXTENSION_ANALYTICS_TTL"] = int(
-        os.getenv("ZNDRAW_EXTENSION_ANALYTICS_TTL", str(7 * 86400))
-    )
-
-    if redis_url is None:
+    # Configure Celery based on Redis availability
+    if config.redis_url is None:
         data_folder = Path("~/.zincware/zndraw/celery/out").expanduser()
         data_folder_processed = Path("~/.zincware/zndraw/celery/processed").expanduser()
         control_folder = Path("~/.zincware/zndraw/celery/ctrl").expanduser()
@@ -164,29 +177,23 @@ def create_app(
     else:
         app.config.from_mapping(
             CELERY=dict(
-                broker_url=redis_url,
-                result_backend=redis_url,
+                broker_url=config.redis_url,
+                result_backend=config.redis_url,
                 task_ignore_result=True,
             ),
         )
 
     app.config.from_prefixed_env()
     celery_init_app(app)
-    redis_init_app(app, redis_url)
+    redis_init_app(app, config.redis_url)
     services_init_app(app)
 
     # Configure SocketIO with Redis message queue for multi-worker support
-    # This enables pub/sub coordination across multiple Gunicorn workers
-    if redis_url:
-        log.info(f"Configuring SocketIO with Redis message queue: {redis_url}")
-        socketio.init_app(app, message_queue=redis_url, cors_allowed_origins="*")
+    if config.redis_url:
+        log.info(f"Configuring SocketIO with Redis message queue: {config.redis_url}")
+        socketio.init_app(app, message_queue=config.redis_url, cors_allowed_origins="*")
     else:
         log.info("Configuring SocketIO without message queue (single worker mode)")
         socketio.init_app(app, cors_allowed_origins="*")
-
-    # Configure SECRET_KEY from environment variable or use development default
-    app.config["SECRET_KEY"] = os.getenv(
-        "FLASK_SECRET_KEY", "dev-secret-key-change-in-production"
-    )
 
     return app

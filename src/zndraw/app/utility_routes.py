@@ -46,9 +46,10 @@ def get_global_settings():
     dict
         Global settings including feature flags for SiMGen and other features.
     """
+    config = current_app.extensions["config"]
     return {
         "simgen": {
-            "enabled": current_app.config.get("SIMGEN_ENABLED", False),
+            "enabled": config.simgen_enabled,
         }
     }, 200
 

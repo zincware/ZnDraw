@@ -53,7 +53,8 @@ def get_storage(room_id: str) -> StorageBackend:
         ASEBytesStorageBackend instance for the room
     """
     if room_id not in STORAGE:
-        storage_path = current_app.config.get("STORAGE_PATH")
+        config = current_app.extensions["config"]
+        storage_path = config.storage_path
 
         # Extract base path (remove extensions if present)
         base_path = None

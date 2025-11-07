@@ -352,12 +352,28 @@ def main(
         else "No files loaded on startup."
     )
 
-    flask_app = create_app(storage_path=storage_path, redis_url=redis_url)
-    server_url = f"http://{host}:{port}"
-    flask_app.config["SERVER_URL"] = server_url
-    flask_app.config["FILE_BROWSER_ENABLED"] = file_browser
-    flask_app.config["FILE_BROWSER_ROOT"] = file_browser_root or os.getcwd()
-    flask_app.config["SIMGEN_ENABLED"] = simgen
+    # Load configuration from environment and apply CLI overrides
+    from zndraw.config import get_config
+    config = get_config()
+
+    # Override config with CLI arguments
+    if redis_url is not None:
+        config.redis_url = redis_url
+    config.storage_path = storage_path
+    config.server_host = host
+    config.server_port = port
+    config.simgen_enabled = simgen
+    config.file_browser_enabled = file_browser
+    if file_browser_root is not None:
+        config.file_browser_root = file_browser_root
+    else:
+        config.file_browser_root = os.getcwd()
+    config.celery_enabled = celery
+
+    # Revalidate after overrides
+    config._validate()
+
+    flask_app = create_app(config=config)
 
     # Track the first room for browser opening
     first_room = None
@@ -374,13 +390,13 @@ def main(
 
     # Start celery worker after daemonization so its logs go to the log file
     if celery:
-        worker = run_celery_worker(redis_url)
+        worker = run_celery_worker(config)
 
     # Write server info to PID file
     server_info = ServerInfo(pid=os.getpid(), port=port, version=__version__)
     write_server_info(server_info)
     typer.echo(f"✓ Server started (PID: {server_info.pid}, Port: {port})")
-    typer.echo(f"  Server URL: http://localhost:{port}")
+    typer.echo(f"  Server URL: {config.server_url}")
 
     # Queue file loading tasks after worker is started
     if path is not None:
@@ -391,7 +407,7 @@ def main(
             read_file.delay(
                 file=p,
                 room=room,
-                server_url=server_url,
+                server_url=config.server_url,
                 start=start,
                 stop=stop,
                 step=step,
@@ -413,7 +429,7 @@ def main(
         webbrowser.open(browser_url)
 
     try:
-        socketio.run(flask_app, debug=debug, host="0.0.0.0", port=port)
+        socketio.run(flask_app, debug=debug, host="0.0.0.0", port=config.server_port)
     finally:
         shutil.rmtree("data", ignore_errors=True)
         flask_app.extensions["redis"].flushall()

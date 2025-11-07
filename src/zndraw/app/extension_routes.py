@@ -147,7 +147,8 @@ def log_room_extension(room_id: str, category: str, extension: str):
         # Trigger a celery worker task to pick up the job
         from zndraw.app.tasks import celery_job_worker
 
-        server_url = current_app.config.get("SERVER_URL", "http://localhost:5000")
+        config = current_app.extensions["config"]
+        server_url = config.server_url
         _ = celery_job_worker.delay(room_id, server_url)
 
         # Notify all clients in room about queue update

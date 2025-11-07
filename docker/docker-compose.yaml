@@ -73,6 +73,10 @@ services:
       # Logging configuration
       - ZNDRAW_LOG_LEVEL=INFO
 
+      # Server configuration
+      - ZNDRAW_SERVER_PORT=5000
+      - ZNDRAW_SERVER_HOST=0.0.0.0
+
       # Flask secret key (CHANGE THIS IN PRODUCTION!)
       - FLASK_SECRET_KEY=change-this-to-a-random-secret-key-in-production
 
@@ -84,7 +88,7 @@ services:
       - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
       - ZNDRAW_MAX_UPLOAD_MB=500
 
-      # Storage path (without .zarr extension for new LMDB backend)
+      # Storage path (no .zarr extension for LMDB backend)
       - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
 
       # Analytics (optional)
@@ -100,6 +104,9 @@ services:
       # Server URL (used by Celery tasks and extension workers to connect back)
       # IMPORTANT: Use nginx for sticky session support (required for WebSocket)
       - ZNDRAW_SERVER_URL=http://nginx
+
+      # Celery configuration
+      - ZNDRAW_CELERY_ENABLED=true
 
       # Fix for Apple Silicon hosts
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
@@ -139,7 +146,8 @@ services:
     user: appuser
     working_dir: /app
     # Use shell form to ensure PATH is correctly set
-    command: ["sh", "-c", "celery -A zndraw.app.make_celery worker --loglevel=info --pool=eventlet"]
+    # Use zndraw_cli.celery module which applies eventlet monkey patch first
+    command: ["sh", "-c", "celery -A zndraw_cli.celery worker --loglevel=info --pool=eventlet"]
     depends_on:
       redis:
         condition: service_healthy
@@ -150,7 +158,7 @@ services:
       # Logging configuration
       - ZNDRAW_LOG_LEVEL=INFO
 
-      # Storage path (must match main app - shared volume)
+      # Storage path (must match main app - shared volume, no .zarr extension)
       - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
 
       # Upload configuration (must match main app - shared volume)
@@ -159,6 +167,9 @@ services:
       # Server URL (for Celery tasks to connect back to main app via nginx)
       # IMPORTANT: Use nginx for sticky session support (required for WebSocket)
       - ZNDRAW_SERVER_URL=http://nginx
+
+      # Celery configuration
+      - ZNDRAW_CELERY_ENABLED=true
 
       # Fix for Apple Silicon hosts
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES

@@ -40,8 +40,9 @@ def update_colors_and_radii(atoms: ase.Atoms) -> None:
             r, g, b = (np.clip(rgb, 0, 1) * 255).astype(int)
             hex_colors.append(f"#{r:02x}{g:02x}{b:02x}")
 
-        # Store as numpy array of object dtype (required for ASE)
-        atoms.set_array("colors", np.array(hex_colors))
+        # Store as numpy array with Unicode string dtype (not object dtype)
+        # object dtype uses pickle encoding which is not supported in JavaScript
+        atoms.set_array("colors", np.array(hex_colors, dtype="U7"))
     if "radii" not in atoms.arrays:
         radii = covalent_radii[atoms.numbers].astype(np.float32)
         atoms.set_array("radii", radii)
