@@ -13,14 +13,6 @@ log = logging.getLogger(__name__)
 socketio = SocketIO(cors_allowed_origins="*")
 
 
-def upload_data():
-    from zndraw import Client
-
-    c = Client(room="testroom", url="http://localhost:5000")
-    c.connect()
-    c.append({"x": 10, "y": 10})
-
-
 def celery_init_app(app: Flask) -> Celery:
     class FlaskTask(Task):
         def __call__(self, *args: object, **kwargs: object) -> object:

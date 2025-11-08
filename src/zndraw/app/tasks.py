@@ -73,7 +73,7 @@ def calculate_adaptive_resolution(num_particles: int) -> int:
 def read_file(
     file: str,
     room: str,
-    server_url: str = "http://localhost:5000",
+    server_url: str,
     start: int | None = None,
     stop: int | None = None,
     step: int | None = None,
@@ -348,7 +348,7 @@ def read_file(
 
 
 @shared_task(bind=True)
-def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"):
+def celery_job_worker(self, room: str, server_url: str):
     """Celery worker that polls for server-side extension jobs.
 
     This task continuously polls the /jobs/next endpoint looking for jobs
@@ -375,6 +375,7 @@ def celery_job_worker(self, room: str, server_url: str = "http://localhost:5000"
         "analysis": analysis,
     }
     log.info(f"Celery worker {worker_id} starting to poll for jobs in room {room}")
+    log.info(f"Celery worker {worker_id} using server_url: {server_url}")
 
     # Use room-agnostic endpoint (Celery workers can handle jobs from any room)
     response = requests.post(

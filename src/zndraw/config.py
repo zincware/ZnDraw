@@ -186,8 +186,11 @@ class ZnDrawConfig:
             )
             self.log_level = "WARNING"
 
-        # Auto-generate server_url if not explicitly set
-        if self.server_url is None:
+        # Auto-generate server_url if not explicitly set via environment variable
+        # Check if server_url came from environment or was auto-generated
+        env_server_url = os.getenv("ZNDRAW_SERVER_URL")
+        if env_server_url is None:
+            # Not set via environment, so regenerate from host:port
             # Don't use "localhost" in URL if host is 0.0.0.0 (Docker case)
             url_host = self.server_host
             if url_host == "0.0.0.0":
