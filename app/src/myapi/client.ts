@@ -138,12 +138,23 @@ export const deleteFigure = async (
   return data;
 };
 
+export interface FrameKeysResponse {
+  frameId: number;
+  keys: string[];
+  sourceRoom: string;
+}
+
 export interface FrameMetadata {
   frameId: number;
   keys: string[];
   metadata: Record<string, any>;
   sourceRoom: string;
 }
+
+export const getFrameKeys = async (roomId: string, frameId: number = 0): Promise<FrameKeysResponse> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}/frames/${frameId}/keys`);
+  return data;
+};
 
 export const getFrameMetadata = async (roomId: string, frameId: number = 0): Promise<FrameMetadata> => {
   const { data } = await apiClient.get(`/api/rooms/${roomId}/frames/${frameId}/metadata`);

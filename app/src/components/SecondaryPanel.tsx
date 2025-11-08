@@ -19,7 +19,7 @@ import {
   useSchemas,
   useExtensionData,
   useSubmitExtension,
-  useFrameMetadata,
+  useFrameKeys,
 } from "../hooks/useSchemas";
 import { useAppStore } from "../store";
 import { ExtensionStatusChips } from "./ExtensionStatusChips";
@@ -59,8 +59,8 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
     [currentSchema]
   );
 
-  // --- MODIFICATION: Fetch the frame metadata only when needed (deferred loading) ---
-  const { data: metadata, isLoading: isLoadingMetadata } = useFrameMetadata(
+  // --- MODIFICATION: Fetch the frame keys only when needed (deferred loading) ---
+  const { data: metadata, isLoading: isLoadingMetadata } = useFrameKeys(
     roomId,
     0,
     needsMetadata // Only fetch if the current schema needs it

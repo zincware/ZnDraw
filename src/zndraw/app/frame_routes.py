@@ -20,6 +20,7 @@ from .route_utils import (
     emit_frames_invalidate,
     emit_len_frames_update,
     get_storage,
+    parse_frame_mapping,
     remove_bookmark_at_index,
     shift_bookmarks_on_delete,
     shift_bookmarks_on_insert,
@@ -163,6 +164,61 @@ def get_frames(room_id):
         )
 
 
+@frames.route("/api/rooms/<string:room_id>/frames/<int:frame_id>/keys", methods=["GET"])
+def get_frame_keys(room_id: str, frame_id: int):
+    """Get available keys for a specific frame (lightweight).
+
+    Returns just the list of available keys without shapes/dtypes metadata.
+    This is more efficient than get_frame_metadata when only keys are needed.
+    Uses BytesIO.get_available_keys() directly without fetching full frame data.
+    """
+    r = current_app.extensions["redis"]
+
+    try:
+        room_keys = RoomKeys(room_id)
+        manager = FrameIndexManager(r, room_keys.trajectory_indices())
+
+        # Validate frame_id
+        frame_count = manager.get_count()
+        if frame_count == 0:
+            return {
+                "error": f"No frames found in room '{room_id}'",
+                "type": "IndexError",
+            }, 404
+
+        if frame_id < 0 or frame_id >= frame_count:
+            return {
+                "error": f"Invalid frame index {frame_id}, valid range: 0-{frame_count - 1}",
+                "type": "IndexError",
+            }, 404
+
+        # Get mapping entry using FrameIndexManager
+        mapping_entry = manager[frame_id]
+
+        # Parse mapping to get source room and physical index
+        source_room_id, physical_index = parse_frame_mapping(mapping_entry, room_id)
+        source_storage = get_storage(source_room_id)
+
+        # Use storage backend to get available keys (efficient - no full data fetch)
+        keys = source_storage.get_available_keys(physical_index)
+
+        return {
+            "frameId": frame_id,
+            "sourceRoom": source_room_id,
+            "keys": keys,
+        }, 200
+
+    except Exception as e:
+        error_data = {
+            "error": f"Server error: {e}",
+            "type": type(e).__name__,
+        }
+        log.error(f"Error getting frame keys: {e}\n{traceback.format_exc()}")
+        return Response(
+            json.dumps(error_data), status=500, content_type="application/json"
+        )
+
+
 @frames.route(
     "/api/rooms/<string:room_id>/frames/<int:frame_id>/metadata", methods=["GET"]
 )
@@ -175,38 +231,28 @@ def get_frame_metadata(room_id: str, frame_id: int):
     r = current_app.extensions["redis"]
 
     try:
-        storage = get_storage(room_id)
         room_keys = RoomKeys(room_id)
+        manager = FrameIndexManager(r, room_keys.trajectory_indices())
 
-        # Get logical-to-physical mapping from Redis
-        frame_mapping = r.zrange(room_keys.trajectory_indices(), 0, -1)
-
-        if not frame_mapping:
+        # Validate frame_id
+        frame_count = manager.get_count()
+        if frame_count == 0:
             return {
                 "error": f"No frames found in room '{room_id}'",
                 "type": "IndexError",
             }, 404
 
-        max_frame = len(frame_mapping) - 1
-
-        # Validate frame_id
-        if frame_id < 0 or frame_id > max_frame:
+        if frame_id < 0 or frame_id >= frame_count:
             return {
-                "error": f"Invalid frame index {frame_id}, valid range: 0-{max_frame}",
+                "error": f"Invalid frame index {frame_id}, valid range: 0-{frame_count - 1}",
                 "type": "IndexError",
             }, 404
 
-        # Get the physical index for this frame
-        mapping_entry = frame_mapping[frame_id]
+        # Get mapping entry using FrameIndexManager
+        mapping_entry = manager[frame_id]
 
-        if ":" not in mapping_entry:
-            return {
-                "error": f"Invalid frame mapping format for frame {frame_id}",
-                "type": "ValueError",
-            }, 500
-
-        source_room_id, physical_index_str = mapping_entry.split(":", 1)
-        physical_index = int(physical_index_str)
+        # Parse mapping to get source room and physical index
+        source_room_id, physical_index = parse_frame_mapping(mapping_entry, room_id)
         source_storage = get_storage(source_room_id)
 
         # Get the actual frame data (dict[bytes, bytes])
@@ -254,37 +300,13 @@ def get_frame_metadata(room_id: str, frame_id: int):
                 # Other types (dict, list, str, etc.)
                 keys_metadata[key] = {"type": meta["type"]}
 
-        # Sort keys in a consistent order matching ASE Atoms attribute order
-        # arrays.* first (in specific order), then cell/pbc, then info.*, then calc.*
-        arrays_order = ["numbers", "positions", "colors", "radii", "forces"]
-
-        def sort_key(k):
-            if k.startswith("arrays."):
-                # Extract suffix after "arrays."
-                suffix = k[7:]  # Remove "arrays." prefix
-                try:
-                    # Use predefined order for known arrays
-                    return (0, arrays_order.index(suffix))
-                except ValueError:
-                    # Unknown arrays come after known ones
-                    return (0, 1000 + ord(suffix[0]))
-            elif k in ("cell", "pbc"):
-                # cell and pbc come after arrays
-                return (1, 0 if k == "cell" else 1)
-            elif k.startswith("info."):
-                return (2, k)
-            elif k.startswith("calc."):
-                return (3, k)
-            else:
-                return (4, k)
-
-        sorted_keys = sorted(raw_metadata.keys(), key=sort_key)
+        # Return keys in natural order (no sorting needed)
+        keys = list(raw_metadata.keys())
 
         return {
             "frameId": frame_id,
-            # "physicalIndex": physical_index,
-            "sourceRoom": source_room_id if ":" in mapping_entry else room_id,
-            "keys": sorted_keys,
+            "sourceRoom": source_room_id,
+            "keys": keys,
             "metadata": keys_metadata,
         }, 200
 

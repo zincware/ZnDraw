@@ -50,6 +50,22 @@ class StorageBackend(MutableSequence, ABC):
         pass
 
     @abstractmethod
+    def get_available_keys(self, index: int) -> list[str]:
+        """List all keys available for a frame.
+
+        Parameters
+        ----------
+        index : int
+            Frame index
+
+        Returns
+        -------
+        list[str]
+            List of available keys (e.g., ["arrays.positions", "info.energy"])
+        """
+        pass
+
+    @abstractmethod
     def __len__(self) -> int:
         """Return the number of frames in storage."""
         pass

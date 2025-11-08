@@ -23,7 +23,7 @@ import CustomSmilesPackEditor, {
 import MaterialEditor, {
   materialEditorTester,
 } from "../components/jsonforms-renderers/MaterialEditor";
-import { FrameMetadata } from "../myapi/client";
+import { FrameMetadata, FrameKeysResponse } from "../myapi/client";
 
 /**
  * Custom JSONForms renderers including material renderers and custom components.
@@ -86,7 +86,7 @@ export const schemaRequiresMetadata = (schema: any): boolean => {
  */
 export const injectDynamicEnums = (
   schema: any,
-  metadata: FrameMetadata | undefined,
+  metadata: FrameMetadata | FrameKeysResponse | undefined,
   geometries?: Record<string, any>
 ): any => {
   // Create a deep copy to avoid mutating the original object from the react-query cache.

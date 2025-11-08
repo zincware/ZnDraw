@@ -40,7 +40,7 @@ import {
   useSchemas,
   useExtensionData,
   useSubmitExtension,
-  useFrameMetadata,
+  useFrameKeys,
 } from "../hooks/useSchemas";
 import {
   createUpdateSelectionGroup,
@@ -101,7 +101,7 @@ export default function SelectionsPanel() {
     [currentSchema]
   );
 
-  const { data: metadata, isLoading: isLoadingMetadata } = useFrameMetadata(
+  const { data: metadata, isLoading: isLoadingMetadata } = useFrameKeys(
     roomId!,
     0,
     needsMetadata

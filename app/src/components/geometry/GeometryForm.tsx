@@ -26,7 +26,7 @@ import {
   useCreateGeometry,
 } from "../../hooks/useGeometries";
 import { useAppStore } from "../../store";
-import { useFrameMetadata } from "../../hooks/useSchemas";
+import { useFrameKeys } from "../../hooks/useSchemas";
 import { customRenderers, injectDynamicEnums } from "../../utils/jsonforms";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
@@ -61,9 +61,9 @@ const GeometryForm = () => {
     isError: isSchemasError,
   } = useGeometrySchemas(roomId);
 
-  // Fetch frame metadata for dynamic enums
+  // Fetch frame keys for dynamic enums
   const { data: metadata, isLoading: isLoadingMetadata } =
-    useFrameMetadata(roomId);
+    useFrameKeys(roomId!);
 
   // Fetch existing geometry if in edit mode
   const {

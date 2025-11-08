@@ -297,6 +297,33 @@ def emit_len_frames_update(room_id: str):
     emit_room_update(socketio, room_id, frameCount=frame_count)
 
 
+def parse_frame_mapping(mapping_entry: str | bytes, default_room: str) -> tuple[str, int]:
+    """Parse a frame mapping entry to extract source room and physical index.
+
+    Parameters
+    ----------
+    mapping_entry : str | bytes
+        Mapping entry in format "room_id:physical_index" or just "physical_index"
+    default_room : str
+        Default room ID to use if mapping entry doesn't contain room prefix
+
+    Returns
+    -------
+    tuple[str, int]
+        Tuple of (source_room_id, physical_index)
+    """
+    # Decode bytes to string if necessary
+    if isinstance(mapping_entry, bytes):
+        mapping_entry = mapping_entry.decode("utf-8")
+
+    # Parse mapping entry
+    if ":" in mapping_entry:
+        source_room_id, physical_index_str = mapping_entry.split(":", 1)
+        return source_room_id, int(physical_index_str)
+    else:
+        return default_room, int(mapping_entry)
+
+
 def get_metadata_lock_info(room_id: str) -> dict | None:
     """Get metadata lock information for a room.
 

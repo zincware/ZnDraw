@@ -5,6 +5,56 @@ from ase.calculators.singlepoint import SinglePointCalculator
 from zndraw import ZnDraw
 
 
+def test_frame_keys_s22(server, s22):
+    """Test the lightweight /keys endpoint."""
+    vis = ZnDraw(url=server, room="s22-0", user="user1")
+    vis.extend(s22)
+
+    response = requests.get(f"{server}/api/rooms/s22-0/frames/0/keys")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Check structure
+    assert "frameId" in data
+    assert "sourceRoom" in data
+    assert "keys" in data
+    assert "metadata" not in data  # Keys endpoint doesn't include metadata
+
+    # Check values
+    assert data["frameId"] == 0
+    assert data["sourceRoom"] == "s22-0"
+    assert set(data["keys"]) == {
+        "arrays.numbers",
+        "arrays.positions",
+        "arrays.colors",
+        "arrays.radii",
+        "cell",
+        "pbc",
+    }
+
+    # Test last frame
+    response = requests.get(f"{server}/api/rooms/s22-0/frames/21/keys")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["frameId"] == 21
+    assert set(data["keys"]) == {
+        "arrays.numbers",
+        "arrays.positions",
+        "arrays.colors",
+        "arrays.radii",
+        "cell",
+        "pbc",
+    }
+
+    # Test non-existing frame
+    response = requests.get(f"{server}/api/rooms/s22-0/frames/22/keys")
+    assert response.status_code == 404
+    assert response.json() == {
+        "error": "Invalid frame index 22, valid range: 0-21",
+        "type": "IndexError",
+    }
+
+
 def test_metadata_s22(server, s22):
     vis = ZnDraw(url=server, room="s22-0", user="user1")
     vis.extend(s22)
@@ -12,17 +62,21 @@ def test_metadata_s22(server, s22):
     response = requests.get(f"{server}/api/rooms/s22-0/frames/0/metadata")
     assert response.status_code == 200
     metadata = response.json()
-    assert metadata == {
-        "frameId": 0,
-        "keys": [
-            "arrays.numbers",
-            "arrays.positions",
-            "arrays.colors",
-            "arrays.radii",
-            "cell",
-            "pbc",
-        ],
-        "metadata": {
+
+    # Check structure and keys (order doesn't matter)
+    assert metadata["frameId"] == 0
+    assert metadata["sourceRoom"] == "s22-0"
+    assert set(metadata["keys"]) == {
+        "arrays.numbers",
+        "arrays.positions",
+        "arrays.colors",
+        "arrays.radii",
+        "cell",
+        "pbc",
+    }
+
+    # Check metadata details
+    assert metadata["metadata"] == {
             "cell": {
                 "dtype": "float64",
                 "shape": [
@@ -64,9 +118,7 @@ def test_metadata_s22(server, s22):
                 ],
                 "type": "array",
             },
-        },
-        "sourceRoom": "s22-0",
-    }
+        }
 
     # last frame
     response = requests.get(f"{server}/api/rooms/s22-0/frames/21/metadata")
@@ -74,17 +126,18 @@ def test_metadata_s22(server, s22):
     assert response.status_code == 200
     metadata = response.json()
 
-    assert metadata == {
-        "frameId": 21,
-        "keys": [
-            "arrays.numbers",
-            "arrays.positions",
-            "arrays.colors",
-            "arrays.radii",
-            "cell",
-            "pbc",
-        ],
-        "metadata": {
+    assert metadata["frameId"] == 21
+    assert metadata["sourceRoom"] == "s22-0"
+    assert set(metadata["keys"]) == {
+        "arrays.numbers",
+        "arrays.positions",
+        "arrays.colors",
+        "arrays.radii",
+        "cell",
+        "pbc",
+    }
+
+    assert metadata["metadata"] == {
             "cell": {
                 "dtype": "float64",
                 "shape": [
@@ -126,9 +179,7 @@ def test_metadata_s22(server, s22):
                 ],
                 "type": "array",
             },
-        },
-        "sourceRoom": "s22-0",
-    }
+        }
 
     # non-existing frame
     response = requests.get(f"{server}/api/rooms/s22-0/frames/22/metadata")

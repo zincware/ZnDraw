@@ -1,4 +1,4 @@
-import { getFrameMetadata, getSchemas, getExtensionData, submitExtension as submitExtensionApi, listJobs, getJob } from "../myapi/client";
+import { getFrameKeys, getFrameMetadata, getSchemas, getExtensionData, submitExtension as submitExtensionApi, listJobs, getJob } from "../myapi/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export interface ExtensionMetadata {
@@ -168,6 +168,21 @@ export const useJob = (room: string, jobId: string) => {
   });
 };
 
+
+export const useFrameKeys = (
+  roomId: string,
+  frameId: number = 0,
+  enabled: boolean = true
+) => {
+  return useQuery({
+    queryKey: ['frame-keys', roomId, frameId],
+    queryFn: async () => {
+      return await getFrameKeys(roomId, frameId);
+    },
+    enabled: !!roomId && enabled,
+    staleTime: 1000 * 60 * 5, // Keys rarely change
+  });
+};
 
 export const useFrameMetadata = (
   roomId: string,
