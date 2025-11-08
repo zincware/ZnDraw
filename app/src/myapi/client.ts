@@ -1145,3 +1145,90 @@ export const loadFilesystemFile = async (
   return data;
 };
 
+// ==================== Lock API ====================
+
+export interface LockAcquireResponse {
+  success: boolean;
+  ttl?: number;
+  refreshInterval?: number;
+  error?: string;
+}
+
+export interface LockRefreshResponse {
+  success: boolean;
+  error?: string;
+}
+
+export interface LockReleaseResponse {
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * Acquire a lock for a specific target in a room.
+ *
+ * @param roomId - Room identifier
+ * @param target - Lock target (e.g., "trajectory:meta")
+ * @param msg - Optional message describing the lock purpose
+ * @returns Promise with lock acquisition result including server-provided TTL and refresh interval
+ */
+export const acquireLock = async (
+  roomId: string,
+  target: string,
+  msg?: string
+): Promise<LockAcquireResponse> => {
+  const payload: { msg?: string } = {};
+  if (msg) {
+    payload.msg = msg;
+  }
+
+  const { data } = await apiClient.post(
+    `/api/rooms/${roomId}/locks/${target}/acquire`,
+    payload
+  );
+  return data;
+};
+
+/**
+ * Refresh a lock to extend its TTL and optionally update the message.
+ *
+ * @param roomId - Room identifier
+ * @param target - Lock target (e.g., "trajectory:meta")
+ * @param msg - Optional updated message (if provided, updates the lock message)
+ * @returns Promise with refresh result
+ */
+export const refreshLock = async (
+  roomId: string,
+  target: string,
+  msg?: string
+): Promise<LockRefreshResponse> => {
+  const payload: { msg?: string } = {};
+  if (msg) {
+    payload.msg = msg;
+  }
+
+  const { data } = await apiClient.post(
+    `/api/rooms/${roomId}/locks/${target}/refresh`,
+    payload
+  );
+  return data;
+};
+
+/**
+ * Release a lock.
+ *
+ * @param roomId - Room identifier
+ * @param target - Lock target (e.g., "trajectory:meta")
+ * @returns Promise with release result
+ */
+export const releaseLock = async (
+  roomId: string,
+  target: string
+): Promise<LockReleaseResponse> => {
+  const { data } = await apiClient.post(
+    `/api/rooms/${roomId}/locks/${target}/release`,
+    {}
+  );
+  return data;
+};
+

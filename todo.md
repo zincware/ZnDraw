@@ -82,4 +82,4 @@
 - [ ] let the celery workers directly write to the storage instead of using `vis.extend`. Add a way to emit?! Access redis / znsocket?!
 - [ ] allow to invalidate all frames or just specific keys!
 - [ ] write tests for append / extend / insert / delitem / setitem where you patch ZnDraw.lock to be nullcontext and assert lock errors!
-
+- [ ] lock should be per connection and not per user!

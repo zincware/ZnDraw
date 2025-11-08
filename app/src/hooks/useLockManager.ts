@@ -1,33 +1,50 @@
 import { useCallback } from "react";
-import { socket } from "../socket";
+import { useAppStore } from "../store";
+import { acquireLock, refreshLock, releaseLock } from "../myapi/client";
 
 /**
- * Hook for managing room locks via socket.io
+ * Hook for managing room locks via REST API
  *
  * Provides methods to acquire, release, and manage locks with the backend.
  * Locks are used to ensure exclusive access to resources (e.g., trajectory meta, geometry editing).
+ *
+ * Server controls TTL and refresh intervals - clients no longer specify TTL.
  */
 export function useLockManager() {
+  const roomId = useAppStore((state) => state.roomId);
+
   /**
    * Acquire a lock for a specific target
    * @param target - Lock target (e.g., "trajectory:meta", "geometry:editing")
-   * @param ttl - Time to live in seconds (default 60, max 300)
    * @param msg - Optional message to display to other users
-   * @returns Promise<boolean> - true if lock acquired, false if already held by another client
+   * @returns Promise<{success: boolean, ttl?: number, refreshInterval?: number}> - Lock acquisition result with server-provided TTL and refresh interval
    */
-  const acquireLock = useCallback(
-    async (target: string, ttl: number = 60, msg?: string): Promise<boolean> => {
-      return new Promise((resolve) => {
-        socket.emit("lock:acquire", { target, ttl }, (response: any) => {
-          if (response.success && msg) {
-            // Update lock message after acquiring
-            socket.emit("lock:msg", { target, msg });
-          }
-          resolve(response.success || false);
-        });
-      });
+  const acquireLock_ = useCallback(
+    async (
+      target: string,
+      msg?: string
+    ): Promise<{ success: boolean; ttl?: number; refreshInterval?: number }> => {
+      if (!roomId) {
+        console.error("Cannot acquire lock: no room ID");
+        return { success: false };
+      }
+
+      try {
+        const response = await acquireLock(roomId, target, msg);
+        return response;
+      } catch (error: any) {
+        console.error("Failed to acquire lock:", error);
+        // Check if error is 423 Locked
+        if (error.response?.status === 423) {
+          return {
+            success: false,
+            ...error.response.data,
+          };
+        }
+        return { success: false };
+      }
     },
-    []
+    [roomId]
   );
 
   /**
@@ -35,55 +52,66 @@ export function useLockManager() {
    * @param target - Lock target to release
    * @returns Promise<boolean> - true if lock released, false otherwise
    */
-  const releaseLock = useCallback(
+  const releaseLock_ = useCallback(
     async (target: string): Promise<boolean> => {
-      return new Promise((resolve) => {
-        socket.emit("lock:release", { target }, (response: any) => {
-          resolve(response.success || false);
-        });
-      });
+      if (!roomId) {
+        console.error("Cannot release lock: no room ID");
+        return false;
+      }
+
+      try {
+        const response = await releaseLock(roomId, target);
+        return response.success || false;
+      } catch (error) {
+        console.error("Failed to release lock:", error);
+        return false;
+      }
     },
-    []
+    [roomId]
   );
 
   /**
-   * Refresh a lock to extend its TTL
+   * Refresh a lock to extend its TTL and optionally update message
    * @param target - Lock target to refresh
-   * @param ttl - New time to live in seconds (default 60, max 300)
+   * @param msg - Optional updated message (if provided, updates the lock message)
    * @returns Promise<boolean> - true if lock refreshed, false otherwise
    */
-  const refreshLock = useCallback(
-    async (target: string, ttl: number = 60): Promise<boolean> => {
-      return new Promise((resolve) => {
-        socket.emit("lock:refresh", { target, ttl }, (response: any) => {
-          resolve(response.success || false);
-        });
-      });
+  const refreshLock_ = useCallback(
+    async (target: string, msg?: string): Promise<boolean> => {
+      if (!roomId) {
+        console.error("Cannot refresh lock: no room ID");
+        return false;
+      }
+
+      try {
+        const response = await refreshLock(roomId, target, msg);
+        return response.success || false;
+      } catch (error) {
+        console.error("Failed to refresh lock:", error);
+        return false;
+      }
     },
-    []
+    [roomId]
   );
 
   /**
    * Update the message associated with a lock
+   * This is just an alias for refreshLock with a message parameter
    * @param target - Lock target
    * @param msg - New message to display
    * @returns Promise<boolean> - true if message updated, false otherwise
    */
   const updateLockMessage = useCallback(
     async (target: string, msg: string): Promise<boolean> => {
-      return new Promise((resolve) => {
-        socket.emit("lock:msg", { target, msg }, (response: any) => {
-          resolve(response.success || false);
-        });
-      });
+      return refreshLock_(target, msg);
     },
-    []
+    [refreshLock_]
   );
 
   return {
-    acquireLock,
-    releaseLock,
-    refreshLock,
+    acquireLock: acquireLock_,
+    releaseLock: releaseLock_,
+    refreshLock: refreshLock_,
     updateLockMessage,
   };
 }

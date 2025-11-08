@@ -18,3 +18,11 @@ class SocketEvents:
     INVALIDATE_SELECTION_GROUPS = "invalidate:selection_groups"
     INVALIDATE_BOOKMARK = "bookmarks:invalidate"
     FILESYSTEMS_UPDATE = "filesystems:update"
+
+
+class LockConfig:
+    """Lock configuration constants."""
+
+    DEFAULT_TTL = 60  # Default lock TTL in seconds
+    MAX_TTL = 300  # Maximum allowed lock TTL (5 minutes)
+    DEFAULT_REFRESH_INTERVAL = 30  # Default refresh interval in seconds

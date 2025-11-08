@@ -69,7 +69,7 @@ def test_list_rooms_metadata_locked(server, s22):
     assert test_room["metadataLocked"] is False
 
     # Acquire metadata lock - need to store the lock instance
-    lock = vis.lock
+    lock = vis.get_lock()
     lock.acquire()
     try:
         # Now metadataLocked should be True
@@ -103,7 +103,7 @@ def test_list_rooms_metadata_locked_context_manager(server, s22):
     assert test_room["metadataLocked"] is False
 
     # Acquire metadata lock using context manager
-    with vis.lock:
+    with vis.get_lock():
         # Now metadataLocked should be True
         response = requests.get(f"{server}/api/rooms")
         assert response.status_code == 200
@@ -125,16 +125,14 @@ def test_metadata_lock_refresh_long_operation(server, s22):
     """Test that lock refresh keeps the lock active during long operations."""
     import time
 
-    from zndraw.socket_manager import SocketIOLock
-
     vis = ZnDraw(url=server, room="test-room-metalock-long", user="user1")
     vis.append(s22[0])
 
-    # Create a lock with short TTL (5 seconds) for faster testing
-    short_lock = SocketIOLock(vis.socket.sio, target="trajectory:meta", ttl=3)
+    # Use the default server-controlled TTL (60s with refresh every 30s)
+    lock = vis.get_lock(msg="Long running operation")
 
-    # Acquire lock and hold it for 12 seconds (past one TTL cycle)
-    short_lock.acquire()
+    # Acquire lock and hold it for a few seconds
+    lock.acquire()
     try:
         # Verify lock is held
         response = requests.get(f"{server}/api/rooms")
@@ -144,10 +142,10 @@ def test_metadata_lock_refresh_long_operation(server, s22):
         ]
         assert test_room["metadataLocked"] is True
 
-        # Wait 5 seconds - the refresh thread should refresh the lock at  seconds
-        time.sleep(5)
+        # Wait 3 seconds - verify lock is still held
+        time.sleep(3)
 
-        # Lock should still be held (refreshed by background thread)
+        # Lock should still be held (background refresh thread keeps it alive)
         response = requests.get(f"{server}/api/rooms")
         rooms = response.json()
         test_room = [room for room in rooms if room["id"] == "test-room-metalock-long"][
@@ -155,7 +153,7 @@ def test_metadata_lock_refresh_long_operation(server, s22):
         ]
         assert test_room["metadataLocked"] is True
     finally:
-        short_lock.release()
+        lock.release()
 
     # After release, lock should be gone
     response = requests.get(f"{server}/api/rooms")
@@ -165,26 +163,18 @@ def test_metadata_lock_refresh_long_operation(server, s22):
 
 
 def test_metadata_lock_ttl_validation(server, s22):
-    """Test that lock TTL is validated and cannot exceed 300 seconds."""
-    from zndraw.socket_manager import SocketIOLock
-
+    """Test that lock TTL is controlled by server configuration."""
     vis = ZnDraw(url=server, room="test-room-ttl-validation", user="user1")
     vis.append(s22[0])
 
-    # Test with valid TTL (60 seconds - should work)
-    lock_60 = SocketIOLock(vis.socket.sio, target="test:60", ttl=60)
-    assert lock_60.acquire()
-    lock_60.release()
-
-    # Test with TTL at the limit (300 seconds - should work)
-    lock_300 = SocketIOLock(vis.socket.sio, target="test:300", ttl=300)
-    assert lock_300.acquire()
-    lock_300.release()
-
-    # Test with TTL exceeding limit (301 seconds - should fail)
-    lock_301 = SocketIOLock(vis.socket.sio, target="test:301", ttl=301)
-    with pytest.raises(ValueError, match="TTL cannot exceed 300 seconds"):
-        lock_301.acquire()
+    # TTL is now server-controlled via LockConfig.DEFAULT_TTL (60 seconds)
+    # Client cannot specify custom TTL
+    with vis.get_lock(msg="Testing server-controlled TTL") as lock:
+        # Verify lock was acquired successfully
+        # Server will use DEFAULT_TTL=60 and DEFAULT_REFRESH_INTERVAL=30
+        assert lock._is_held
+        assert lock._ttl == 60  # Server-provided TTL
+        assert lock._refresh_interval == 30  # Server-provided refresh interval
 
 
 def test_get_room_details(server, s22):
@@ -548,7 +538,7 @@ def test_lock_with_message(server, s22):
     vis.append(s22[0])
 
     # Acquire lock with message
-    with vis.lock(msg="Uploading trajectory data"):
+    with vis.get_lock(msg="Uploading trajectory data"):
         # Check lock status via REST API
         response = requests.get(
             f"{server}/api/rooms/test-lock-msg/locks/trajectory:meta"
@@ -571,12 +561,12 @@ def test_lock_with_message(server, s22):
 
 
 def test_lock_with_custom_metadata(server, s22):
-    """Test that lock can be acquired with custom metadata."""
+    """Test that lock can be acquired with a message."""
     vis = ZnDraw(url=server, room="test-lock-metadata", user="user1")
     vis.append(s22[0])
 
-    # Acquire lock with custom metadata
-    with vis.lock(metadata={"operation": "simulation", "step": 42, "total": 100}):
+    # Acquire lock with message
+    with vis.get_lock(msg="Processing simulation step 42/100"):
         # Check lock status
         response = requests.get(
             f"{server}/api/rooms/test-lock-metadata/locks/trajectory:meta"
@@ -585,9 +575,7 @@ def test_lock_with_custom_metadata(server, s22):
         lock_status = response.json()
 
         assert lock_status["locked"] is True
-        assert lock_status["metadata"]["operation"] == "simulation"
-        assert lock_status["metadata"]["step"] == 42
-        assert lock_status["metadata"]["total"] == 100
+        assert lock_status["metadata"]["msg"] == "Processing simulation step 42/100"
 
     # After release, lock should be gone
     response = requests.get(
@@ -598,12 +586,12 @@ def test_lock_with_custom_metadata(server, s22):
 
 
 def test_lock_with_message_and_metadata(server, s22):
-    """Test that lock can be acquired with both message and metadata."""
+    """Test that lock can be acquired with a message."""
     vis = ZnDraw(url=server, room="test-lock-both", user="user1")
     vis.append(s22[0])
 
-    # Acquire lock with both message and metadata
-    with vis.lock(msg="Processing batch", metadata={"batch": 1, "total": 10}):
+    # Acquire lock with message
+    with vis.get_lock(msg="Processing batch 1/10"):
         # Check lock status
         response = requests.get(
             f"{server}/api/rooms/test-lock-both/locks/trajectory:meta"
@@ -612,9 +600,7 @@ def test_lock_with_message_and_metadata(server, s22):
         lock_status = response.json()
 
         assert lock_status["locked"] is True
-        assert lock_status["metadata"]["msg"] == "Processing batch"
-        assert lock_status["metadata"]["batch"] == 1
-        assert lock_status["metadata"]["total"] == 10
+        assert lock_status["metadata"]["msg"] == "Processing batch 1/10"
 
 
 def test_lock_reentrant_with_different_messages(server, s22):
@@ -622,7 +608,7 @@ def test_lock_reentrant_with_different_messages(server, s22):
     vis = ZnDraw(url=server, room="test-lock-reentrant", user="user1")
     vis.append(s22[0])
 
-    with vis.lock(msg="Outer operation"):
+    with vis.get_lock(msg="Outer operation"):
         # Check outer message
         response = requests.get(
             f"{server}/api/rooms/test-lock-reentrant/locks/trajectory:meta"
@@ -632,7 +618,7 @@ def test_lock_reentrant_with_different_messages(server, s22):
 
         # Nested locking should fail to acquire (server rejects it)
         with pytest.raises(RuntimeError, match="Failed to acquire lock"):
-            with vis.lock(msg="Inner operation"):
+            with vis.get_lock(msg="Inner operation"):
                 pass
 
     # After release, lock should be gone
@@ -649,7 +635,7 @@ def test_lock_without_metadata_still_works(server, s22):
     vis.append(s22[0])
 
     # Acquire lock without metadata (old style)
-    with vis.lock:
+    with vis.get_lock():
         # Check lock is acquired
         response = requests.get(
             f"{server}/api/rooms/test-lock-no-meta/locks/trajectory:meta"

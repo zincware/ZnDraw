@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { socket } from "./socket";
 import * as THREE from "three";
-import { updateSelection as updateSelectionAPI, loadSelectionGroup as loadSelectionGroupAPI, setBookmark as setBookmarkAPI, deleteBookmark as deleteBookmarkAPI, createGeometry, getGeometry, type GlobalSettings } from "./myapi/client";
+import { updateSelection as updateSelectionAPI, loadSelectionGroup as loadSelectionGroupAPI, setBookmark as setBookmarkAPI, deleteBookmark as deleteBookmarkAPI, createGeometry, getGeometry, type GlobalSettings, acquireLock, refreshLock, releaseLock } from "./myapi/client";
 import type { UserRole } from "./utils/auth";
 
 interface AppState {
@@ -39,6 +39,7 @@ interface AppState {
     ttl?: number;
   } | null; // Lock metadata for trajectory:meta lock (vis.lock)
   lockRenewalIntervalId: number | null; // Interval ID for lock renewal
+  lockRefreshInterval: number | null; // Server-provided refresh interval in milliseconds
   geometryFetchingStates: Record<string, boolean>; // Tracks fetching state per geometry key
   synchronizedMode: boolean; // Whether playback should wait for all active geometries to finish fetching
   showInfoBoxes: boolean; // Whether to show info boxes (toggled with 'i' key)
@@ -175,6 +176,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   editingCallbacks: new Map(),
   lockMetadata: null,
   lockRenewalIntervalId: null,
+  lockRefreshInterval: null,
   geometryFetchingStates: {},
   synchronizedMode: true,
   showInfoBoxes: false,
@@ -350,25 +352,28 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLockMetadata: (metadata) => set({ lockMetadata: metadata }),
 
   startLockRenewal: () => {
-    const { lockRenewalIntervalId, stopLockRenewal } = get();
+    const { lockRenewalIntervalId, lockRefreshInterval, roomId, stopLockRenewal } = get();
 
     // Clear existing interval if any
     if (lockRenewalIntervalId !== null) {
       stopLockRenewal();
     }
 
-    // Renew every 15 seconds (well before 60s expiry)
-    const intervalId = window.setInterval(() => {
+    // Use server-provided refresh interval (in seconds), default to 30s
+    const refreshIntervalMs = (lockRefreshInterval || 30) * 1000;
+
+    // Renew periodically to keep lock alive
+    const intervalId = window.setInterval(async () => {
       const state = get();
-      if (!state.isEditing) {
+      if (!state.isEditing || !state.roomId) {
         // Not editing anymore, stop renewal
         stopLockRenewal();
         return;
       }
 
-      // Refresh lock to extend TTL by 60s
-      // Use lock:refresh instead of lock:acquire to extend existing lock
-      socket.emit("lock:refresh", { target: "trajectory:meta", ttl: 60 }, (response: any) => {
+      // Refresh lock via REST API (server controls TTL)
+      try {
+        const response = await refreshLock(state.roomId, "trajectory:meta");
         if (!response.success) {
           console.warn("Failed to refresh edit lock");
           // Lock was stolen or expired, exit editing mode
@@ -376,8 +381,14 @@ export const useAppStore = create<AppState>((set, get) => ({
           get().showSnackbar("Edit lock lost - exiting editing mode", "warning");
           get().stopLockRenewal();
         }
-      });
-    }, 15000); // 15 seconds
+      } catch (error) {
+        console.error("Error refreshing lock:", error);
+        // Network error or other issue
+        get().setIsEditing(false);
+        get().showSnackbar("Failed to refresh lock - exiting editing mode", "error");
+        get().stopLockRenewal();
+      }
+    }, refreshIntervalMs);
 
     set({ lockRenewalIntervalId: intervalId });
   },
@@ -543,7 +554,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleEditingMode: async () => {
     const state = get();
-    const { isEditing, lockMetadata, userName } = state;
+    const { isEditing, lockMetadata, userName, roomId } = state;
 
     // Import dynamically to avoid circular dependency
     const { socket } = await import("./socket");
@@ -571,12 +582,20 @@ export const useAppStore = create<AppState>((set, get) => ({
         return;
       }
 
-      // Try to acquire lock
-      return new Promise((resolve) => {
-        socket.emit("lock:acquire", { target: "trajectory:meta", ttl: 60 }, async (response: any) => {
+      // Try to acquire lock via REST API
+      return (async () => {
+        if (!roomId) {
+          state.showSnackbar("Cannot acquire lock - no room ID", "error");
+          return;
+        }
+
+        try {
+          const response = await acquireLock(roomId, "trajectory:meta", "editing geometries");
           if (response.success) {
-            // Update lock message
-            socket.emit("lock:msg", { target: "trajectory:meta", msg: "editing geometries" });
+            // Store server-provided refresh interval
+            if (response.refreshInterval) {
+              set({ lockRefreshInterval: response.refreshInterval });
+            }
 
             // Enter editing mode
             set({ isEditing: true });
@@ -584,27 +603,41 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             // Start lock renewal to keep lock alive
             get().startLockRenewal();
-
-            resolve();
           } else {
             // Failed to acquire lock
             state.showSnackbar(
-              "Cannot enter edit mode - room is locked by another user",
+              response.error || "Cannot enter edit mode - room is locked by another user",
               "warning"
             );
-            resolve();
           }
-        });
-      });
+        } catch (error: any) {
+          console.error("Error acquiring lock:", error);
+          // Check if 423 Locked
+          if (error.response?.status === 423) {
+            state.showSnackbar(
+              error.response.data?.error || "Cannot enter edit mode - room is locked by another user",
+              "warning"
+            );
+          } else {
+            state.showSnackbar("Failed to acquire lock", "error");
+          }
+        }
+      })();
     }
     // If turning OFF editing mode
     else {
       // Stop lock renewal
       get().stopLockRenewal();
 
-      // Release the lock
-      return new Promise((resolve) => {
-        socket.emit("lock:release", { target: "trajectory:meta" }, (response: any) => {
+      // Release the lock via REST API
+      return (async () => {
+        if (!roomId) {
+          set({ isEditing: false });
+          return;
+        }
+
+        try {
+          const response = await releaseLock(roomId, "trajectory:meta");
           // Exit editing mode regardless of release success
           set({ isEditing: false });
 
@@ -613,9 +646,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           } else {
             console.warn("Failed to release lock, but exiting editing mode anyway");
           }
-          resolve();
-        });
-      });
+        } catch (error) {
+          console.error("Error releasing lock:", error);
+          // Exit editing mode regardless of release success
+          set({ isEditing: false });
+        }
+      })();
     }
   },
 

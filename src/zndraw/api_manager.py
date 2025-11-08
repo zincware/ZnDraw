@@ -1026,3 +1026,121 @@ class APIManager:
         )
         response.raise_for_status()
         return response.json().get("success", False)
+
+    # ========================================================================
+    # Lock API Methods
+    # ========================================================================
+
+    def lock_acquire(self, target: str, msg: str | None = None) -> dict:
+        """Acquire a lock for a specific target.
+
+        Parameters
+        ----------
+        target : str
+            Lock target identifier (e.g., "trajectory:meta")
+        msg : str | None
+            Optional message describing the lock purpose
+
+        Returns
+        -------
+        dict
+            {"success": true, "ttl": 60, "refreshInterval": 30}
+
+        Raises
+        ------
+        RuntimeError
+            If the lock is already held by another user (423 Locked)
+        requests.HTTPError
+            If the request fails
+        """
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
+        payload = {}
+        if msg is not None:
+            payload["msg"] = msg
+
+        url = f"{self.url}/api/rooms/{self.room}/locks/{target}/acquire"
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+
+        if response.status_code == 423:  # Locked
+            error_data = response.json()
+            raise RuntimeError(f"Failed to acquire lock: {error_data.get('error')}")
+
+        response.raise_for_status()
+        return response.json()
+
+    def lock_refresh(self, target: str, msg: str | None = None) -> dict:
+        """Refresh lock TTL and optionally update message.
+
+        Parameters
+        ----------
+        target : str
+            Lock target identifier (e.g., "trajectory:meta")
+        msg : str | None
+            Optional updated message (if None, keeps existing message)
+
+        Returns
+        -------
+        dict
+            {"success": true}
+
+        Raises
+        ------
+        PermissionError
+            If not the lock holder (403 Forbidden)
+        requests.HTTPError
+            If the request fails
+        """
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
+        payload = {}
+        if msg is not None:
+            payload["msg"] = msg
+
+        url = f"{self.url}/api/rooms/{self.room}/locks/{target}/refresh"
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+
+        if response.status_code == 403:
+            error_data = response.json()
+            raise PermissionError(f"Failed to refresh lock: {error_data.get('error')}")
+
+        response.raise_for_status()
+        return response.json()
+
+    def lock_release(self, target: str) -> dict:
+        """Release a lock.
+
+        Parameters
+        ----------
+        target : str
+            Lock target identifier (e.g., "trajectory:meta")
+
+        Returns
+        -------
+        dict
+            {"success": true}
+
+        Raises
+        ------
+        PermissionError
+            If not the lock holder (403 Forbidden)
+        requests.HTTPError
+            If the request fails
+        """
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
+        url = f"{self.url}/api/rooms/{self.room}/locks/{target}/release"
+        response = requests.post(url, json={}, headers=headers, timeout=30)
+
+        if response.status_code == 403:
+            error_data = response.json()
+            raise PermissionError(f"Failed to release lock: {error_data.get('error')}")
+
+        response.raise_for_status()
+        return response.json()

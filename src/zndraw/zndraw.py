@@ -399,17 +399,20 @@ class ZnDraw(MutableSequence):
             auto_pickup_jobs=False,
         )
 
-    @property
-    def lock(self) -> SocketIOLock:
-        """Get a new SocketIOLock instance for distributed locking.
+    def get_lock(self, msg: str | None = None, target: str = "trajectory:meta") -> SocketIOLock:
+        """Get a SocketIOLock instance for distributed locking.
 
-        Creates a fresh lock instance each time to prevent nested locking issues.
-        TTL of 60 seconds with automatic refresh every 30 seconds.
+        Parameters
+        ----------
+        msg : str | None
+            Optional message describing the lock purpose
+        target : str
+            Lock target identifier (default: "trajectory:meta")
 
         Returns
         -------
         SocketIOLock
-            A new lock instance for the trajectory metadata
+            Lock instance ready to use as context manager
 
         Raises
         ------
@@ -418,14 +421,14 @@ class ZnDraw(MutableSequence):
 
         Examples
         --------
-        >>> with vis.lock:
+        >>> with vis.get_lock(msg="Uploading trajectory") as lock:
         ...     vis.extend(frames)
-        >>> with vis.lock(msg="Uploading data"):
-        ...     vis.extend(frames)
+        ...     lock.update_msg("Upload 50% complete")
+        ...     vis.extend(more_frames)
         """
         if not self.socket.sio.connected:
             raise RuntimeError("Lock requires an active connection. Ensure client is connected.")
-        return SocketIOLock(self.socket.sio, target="trajectory:meta", ttl=60)
+        return SocketIOLock(self.api, target=target, msg=msg)
 
     @property
     def geometries(self) -> Geometries:
@@ -988,10 +991,10 @@ class ZnDraw(MutableSequence):
             if index < 0:
                 index += length
             # Single frame replacement - acquire lock
-            with self.lock:
+            with self.get_lock(msg=f"Replacing frame at index {index}"):
                 self._replace_frame(index, value)
         elif isinstance(index, (slice, list)):
-            with self.lock:
+            with self.get_lock(msg=f"Replacing frames in index {index}"):
                 if isinstance(index, slice):
                     start, stop, step = index.indices(length)
                     if step == 1:
@@ -1046,7 +1049,7 @@ class ZnDraw(MutableSequence):
                     )
             index = [idx if idx >= 0 else length + idx for idx in index]
 
-        with self.lock:
+        with self.get_lock(msg="Deleting frames"):
             self.api.delete_frames(index)
 
     def insert(self, index: int, atoms: ase.Atoms):
@@ -1059,7 +1062,7 @@ class ZnDraw(MutableSequence):
         elif index > len(self):
             index = len(self)
         # Public API - acquire lock
-        with self.lock:
+        with self.get_lock(msg="Inserting frame"):
             self._insert_frame(index, value)
 
     def append(self, atoms: ase.Atoms):
@@ -1067,7 +1070,7 @@ class ZnDraw(MutableSequence):
             raise TypeError("Only ase.Atoms objects are supported")
         update_colors_and_radii(atoms)
         # Public API - acquire lock
-        with self.lock:
+        with self.get_lock(msg="Appending frame"):
             self._append_frame(encode(atoms))
 
     def _calculate_chunk_boundaries(
@@ -1227,7 +1230,7 @@ class ZnDraw(MutableSequence):
         )
 
         # Upload chunks with progress bar - acquire lock once for entire extend
-        with self.lock:
+        with self.get_lock(msg="Uploading frames"):
             with self._progress_bar(total_bytes, total_frames, num_chunks) as update_progress:
                 bytes_uploaded = 0
                 frames_uploaded = 0

@@ -5,6 +5,7 @@ from .filesystem_routes import filesystem_bp
 from .frame_routes import frames
 from .geometry_routes import geometries
 from .job_routes import jobs
+from .lock_routes import locks
 from .room_routes import rooms
 from .screenshot_chat_routes import media
 from .utility_routes import utility
@@ -20,4 +21,5 @@ __all__ = [
     "bookmarks",
     "media",
     "filesystem_bp",
+    "locks",
 ]

@@ -124,6 +124,7 @@ def create_app(
         frames,
         geometries,
         jobs,
+        locks,
         media,
         rooms,
         tasks,  # noqa: F401
@@ -141,6 +142,7 @@ def create_app(
     app.register_blueprint(media)
     app.register_blueprint(file_browser_blueprint)
     app.register_blueprint(filesystem_bp)
+    app.register_blueprint(locks)
 
     # Configure Celery based on Redis availability
     if config.redis_url is None:

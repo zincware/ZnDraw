@@ -165,7 +165,7 @@ def test_lock_acquisition_broadcasts_with_iso_timestamp(server, s22):
     vis = ZnDraw(url=server, room="lock-test-room", user="test-user")
 
     # Acquire lock - this should broadcast room:update with LockMetadata
-    with vis.lock(msg="Testing lock broadcast"):
+    with vis.get_lock(msg="Testing lock broadcast"):
         # Lock is acquired and metadata is broadcast
         # The timestamp should be in ISO format, not float
 
