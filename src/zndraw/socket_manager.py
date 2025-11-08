@@ -18,8 +18,8 @@ log = logging.getLogger(__name__)
 class SocketIOLock:
     """A client-side context manager for a distributed lock via Socket.IO.
 
-    This lock is re-entrant - the same client can acquire it multiple times
-    and must release it the same number of times.
+    Simplified design: each acquire/release directly communicates with the server.
+    No client-side re-entrancy - nested locks are not supported and will raise errors.
 
     Includes automatic lock renewal to prevent TTL expiration during long operations.
 
@@ -31,7 +31,6 @@ class SocketIOLock:
     sio: socketio.Client
     target: str
     ttl: int = 60  # TTL in seconds (must be <= 300 as validated by server)
-    _lock_count: int = dataclasses.field(default=0, init=False)
     _refresh_thread: threading.Thread | None = dataclasses.field(
         default=None, init=False
     )
@@ -39,13 +38,12 @@ class SocketIOLock:
         default_factory=threading.Event, init=False
     )
     _pending_metadata: dict | None = dataclasses.field(default=None, init=False)
+    _is_held: bool = dataclasses.field(default=False, init=False)
 
     def __call__(
         self, msg: str | None = None, metadata: dict | None = None
     ) -> "SocketIOLock":
         """Set optional metadata for this lock acquisition.
-
-        Returns self to maintain singleton pattern and support re-entrant locking.
 
         Parameters
         ----------
@@ -57,7 +55,7 @@ class SocketIOLock:
         Returns
         -------
         SocketIOLock
-            Returns self for use as context manager
+            Returns a new SocketIOLock instance for use as context manager
 
         Examples
         --------
@@ -66,12 +64,14 @@ class SocketIOLock:
         >>> with vis.lock(metadata={"step": 1, "total": 10}):
         ...     process_batch()
         """
-        self._pending_metadata = {}
+        # Create a new instance with the same sio, target, ttl but with metadata
+        new_lock = SocketIOLock(sio=self.sio, target=self.target, ttl=self.ttl)
+        new_lock._pending_metadata = {}
         if msg is not None:
-            self._pending_metadata["msg"] = msg
+            new_lock._pending_metadata["msg"] = msg
         if metadata:
-            self._pending_metadata.update(metadata)
-        return self
+            new_lock._pending_metadata.update(metadata)
+        return new_lock
 
     def _refresh_lock_periodically(self):
         """Background thread that refreshes the lock periodically to prevent TTL expiration.
@@ -124,24 +124,35 @@ class SocketIOLock:
             )
 
     def acquire(self, timeout: float = 60) -> bool:
-        """
-        Acquire a lock for the specific target.
-        If already held by this client, increment the lock count.
-        Starts a background thread to refresh the lock periodically.
+        """Acquire a lock for the specific target.
 
-        Args:
-            timeout: Socket.IO call timeout (not the lock TTL)
+        Nested locking is not supported - attempting to acquire an already-held
+        lock will raise RuntimeError.
 
-        Returns:
+        Parameters
+        ----------
+        timeout : float
+            Socket.IO call timeout (not the lock TTL)
+
+        Returns
+        -------
+        bool
             True if lock acquired successfully, False otherwise
+
+        Raises
+        ------
+        RuntimeError
+            If attempting to acquire an already-held lock (nested locking)
+        ValueError
+            If server returns an error
         """
-        # If we already hold the lock, just increment the count
-        if self._lock_count > 0:
-            self._lock_count += 1
-            return True
+        if self._is_held:
+            raise RuntimeError(
+                f"Lock for target '{self.target}' is already held by this instance. "
+                "Nested locking is not supported."
+            )
 
         payload = {"target": self.target, "ttl": self.ttl}
-        # sio.call is inherently blocking, so it waits for the server's response.
         response = self.sio.call("lock:acquire", payload, timeout=int(timeout))
 
         # Check if server returned an error
@@ -150,7 +161,7 @@ class SocketIOLock:
 
         success = response and response.get("success", False)
         if success:
-            self._lock_count = 1
+            self._is_held = True
             # Start the refresh thread
             self._refresh_stop.clear()
             self._refresh_thread = threading.Thread(
@@ -162,39 +173,38 @@ class SocketIOLock:
         return success
 
     def release(self) -> bool:
-        """Release the lock. Only actually releases when count reaches 0.
-        Stops the refresh thread when the lock is fully released."""
-        if self._lock_count == 0:
+        """Release the lock and stop the refresh thread.
+
+        Returns
+        -------
+        bool
+            True if successfully released, False otherwise
+        """
+        if not self._is_held:
             warnings.warn(
                 f"Attempting to release lock for '{self.target}' but not held"
             )
             return False
 
-        self._lock_count -= 1
+        # Stop the refresh thread first
+        self._refresh_stop.set()
+        if self._refresh_thread and self._refresh_thread.is_alive():
+            self._refresh_thread.join(timeout=2)
 
-        # Only actually release the lock when count reaches 0
-        if self._lock_count == 0:
-            # Stop the refresh thread first
-            self._refresh_stop.set()
-            if self._refresh_thread and self._refresh_thread.is_alive():
-                self._refresh_thread.join(timeout=2)
-
-            payload = {"target": self.target}
-            response = self.sio.call("lock:release", payload, timeout=10)
-            return response and response.get("success", False)
-
-        return True  # Successfully decremented count
+        payload = {"target": self.target}
+        response = self.sio.call("lock:release", payload, timeout=10)
+        self._is_held = False
+        return response and response.get("success", False)
 
     def __enter__(self):
         if not self.acquire():
             raise RuntimeError(f"Failed to acquire lock for target '{self.target}'")
 
-        # Send metadata if present (works for both initial and re-entrant)
+        # Send metadata if present
         if self._pending_metadata:
             self._send_metadata()
-
-        # Always clear to prevent stale metadata
-        self._pending_metadata = None
+            # Clear to prevent stale metadata
+            self._pending_metadata = None
 
         return self
 

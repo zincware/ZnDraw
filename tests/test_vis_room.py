@@ -184,7 +184,8 @@ def test_lock_acquisition_broadcasts_with_iso_timestamp(server, s22):
                 timestamp=1234567890.123,  # Float should fail
             )
 
-        vis.extend(s22)
+    # Release lock before extend (no nested locking in simplified design)
+    vis.extend(s22)
 
-    # Lock released
+    # Verify frames were added
     assert len(vis) == len(s22)

@@ -68,8 +68,9 @@ def test_list_rooms_metadata_locked(server, s22):
     test_room = [room for room in rooms if room["id"] == "test-room-metalock"][0]
     assert test_room["metadataLocked"] is False
 
-    # Acquire metadata lock using vis.lock context manager
-    vis.lock.acquire()
+    # Acquire metadata lock - need to store the lock instance
+    lock = vis.lock
+    lock.acquire()
     try:
         # Now metadataLocked should be True
         response = requests.get(f"{server}/api/rooms")
@@ -78,8 +79,8 @@ def test_list_rooms_metadata_locked(server, s22):
         test_room = [room for room in rooms if room["id"] == "test-room-metalock"][0]
         assert test_room["metadataLocked"] is True
     finally:
-        # Release lock
-        vis.lock.release()
+        # Release lock - use the same instance
+        lock.release()
 
     # metadataLocked should be False again
     response = requests.get(f"{server}/api/rooms")
@@ -617,7 +618,7 @@ def test_lock_with_message_and_metadata(server, s22):
 
 
 def test_lock_reentrant_with_different_messages(server, s22):
-    """Test that re-entrant lock can update metadata."""
+    """Test that nested locking is not supported and raises RuntimeError."""
     vis = ZnDraw(url=server, room="test-lock-reentrant", user="user1")
     vis.append(s22[0])
 
@@ -629,15 +630,12 @@ def test_lock_reentrant_with_different_messages(server, s22):
         lock_status = response.json()
         assert lock_status["metadata"]["msg"] == "Outer operation"
 
-        with vis.lock(msg="Inner operation"):
-            # Check inner message (should update)
-            response = requests.get(
-                f"{server}/api/rooms/test-lock-reentrant/locks/trajectory:meta"
-            )
-            lock_status = response.json()
-            assert lock_status["metadata"]["msg"] == "Inner operation"
+        # Nested locking should fail to acquire (server rejects it)
+        with pytest.raises(RuntimeError, match="Failed to acquire lock"):
+            with vis.lock(msg="Inner operation"):
+                pass
 
-    # After both releases, lock should be gone
+    # After release, lock should be gone
     response = requests.get(
         f"{server}/api/rooms/test-lock-reentrant/locks/trajectory:meta"
     )

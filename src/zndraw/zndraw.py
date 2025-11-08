@@ -300,7 +300,6 @@ class ZnDraw(MutableSequence):
         default_factory=dict, init=False
     )
     _figures: dict[str, dict] = dataclasses.field(default_factory=dict, init=False)
-    _lock: SocketIOLock | None = dataclasses.field(default=None, init=False)
     _metadata: RoomMetadata | None = dataclasses.field(default=None, init=False)
 
     def __post_init__(self):
@@ -352,10 +351,6 @@ class ZnDraw(MutableSequence):
         self.socket = SocketManager(zndraw_instance=self)
         self.connect()
 
-        # Initialize the lock after socket is connected
-        # TTL of 60 seconds with automatic refresh every 30 seconds
-        self._lock = SocketIOLock(self.socket.sio, target="trajectory:meta", ttl=60)
-
         if response_data["frame_selection"] is not None:
             self._frame_selection = frozenset(response_data["frame_selection"])
         if response_data.get("bookmarks") is not None:
@@ -406,9 +401,31 @@ class ZnDraw(MutableSequence):
 
     @property
     def lock(self) -> SocketIOLock:
-        if self._lock is None:
-            raise RuntimeError("Lock not initialized. Ensure client is connected.")
-        return self._lock
+        """Get a new SocketIOLock instance for distributed locking.
+
+        Creates a fresh lock instance each time to prevent nested locking issues.
+        TTL of 60 seconds with automatic refresh every 30 seconds.
+
+        Returns
+        -------
+        SocketIOLock
+            A new lock instance for the trajectory metadata
+
+        Raises
+        ------
+        RuntimeError
+            If the client is not connected
+
+        Examples
+        --------
+        >>> with vis.lock:
+        ...     vis.extend(frames)
+        >>> with vis.lock(msg="Uploading data"):
+        ...     vis.extend(frames)
+        """
+        if not self.socket.sio.connected:
+            raise RuntimeError("Lock requires an active connection. Ensure client is connected.")
+        return SocketIOLock(self.socket.sio, target="trajectory:meta", ttl=60)
 
     @property
     def geometries(self) -> Geometries:
@@ -681,24 +698,31 @@ class ZnDraw(MutableSequence):
     def disconnect(self):
         self.socket.disconnect()
 
-    def _perform_locked_upload(self, action: str, data, **kwargs):
+    def _upload_frames(self, action: str, data, **kwargs):
+        """Internal upload method - does NOT acquire lock.
+
+        Server validates locks, so only public methods need to acquire.
+        """
         if not self.socket.sio.connected:
             raise RuntimeError("Client is not connected.")
-        with self.lock:
-            return self.api.upload_frames(action, data, **kwargs)
+        return self.api.upload_frames(action, data, **kwargs)
 
-    def append_frame(self, data: dict):
-        self._perform_locked_upload("append", data)
+    def _append_frame(self, data: dict):
+        """Internal append - does NOT acquire lock."""
+        self._upload_frames("append", data)
 
-    def extend_frames(self, data: list[dict]):
-        result = self._perform_locked_upload("extend", data)
+    def _extend_frames(self, data: list[dict]):
+        """Internal extend - does NOT acquire lock."""
+        result = self._upload_frames("extend", data)
         return result.get("new_indices", [])
 
-    def replace_frame(self, frame_id: int, data: dict):
-        self._perform_locked_upload("replace", data, frame_id=frame_id)
+    def _replace_frame(self, frame_id: int, data: dict):
+        """Internal replace - does NOT acquire lock."""
+        self._upload_frames("replace", data, frame_id=frame_id)
 
-    def insert_frame(self, index: int, data: dict):
-        self._perform_locked_upload("insert", data, insert_position=index)
+    def _insert_frame(self, index: int, data: dict):
+        """Internal insert - does NOT acquire lock."""
+        self._upload_frames("insert", data, insert_position=index)
 
     def __len__(self) -> int:
         return self._len
@@ -963,7 +987,9 @@ class ZnDraw(MutableSequence):
         if isinstance(index, int):
             if index < 0:
                 index += length
-            self.replace_frame(index, value)
+            # Single frame replacement - acquire lock
+            with self.lock:
+                self._replace_frame(index, value)
         elif isinstance(index, (slice, list)):
             with self.lock:
                 if isinstance(index, slice):
@@ -1032,13 +1058,17 @@ class ZnDraw(MutableSequence):
             index = max(0, len(self) + index + 1)
         elif index > len(self):
             index = len(self)
-        self.insert_frame(index, value)
+        # Public API - acquire lock
+        with self.lock:
+            self._insert_frame(index, value)
 
     def append(self, atoms: ase.Atoms):
         if not isinstance(atoms, ase.Atoms):
             raise TypeError("Only ase.Atoms objects are supported")
         update_colors_and_radii(atoms)
-        self.append_frame(encode(atoms))
+        # Public API - acquire lock
+        with self.lock:
+            self._append_frame(encode(atoms))
 
     def _calculate_chunk_boundaries(
         self, dicts: list[dict[bytes, bytes]]
@@ -1196,7 +1226,7 @@ class ZnDraw(MutableSequence):
             f"in {num_chunks} chunk(s)"
         )
 
-        # Upload chunks with progress bar
+        # Upload chunks with progress bar - acquire lock once for entire extend
         with self.lock:
             with self._progress_bar(total_bytes, total_frames, num_chunks) as update_progress:
                 bytes_uploaded = 0
@@ -1206,7 +1236,7 @@ class ZnDraw(MutableSequence):
                     # Upload this chunk with retry logic
                     for attempt in range(self.local.max_retries + 1):
                         try:
-                            self.extend_frames(chunk)
+                            self._extend_frames(chunk)
                             break  # Success
                         except (ConnectionError, IOError, TimeoutError, OSError) as e:
                             # Only retry network-related exceptions
