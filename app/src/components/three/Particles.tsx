@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { getFrames, updateGeometryActive, createGeometry } from "../../myapi/client";
+import { getFrames, createGeometry } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { useGeometryEditing } from "../../hooks/useGeometryEditing";
@@ -20,6 +20,7 @@ import { _vec3, _vec3_2, _matrix, _matrix2, _quat2, _color } from "../../utils/t
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 import { isTransform, evaluateTransform, getTransformSources, type Transform } from "../../utils/transformProcessor";
+import { useFrameKeys } from "../../hooks/useSchemas";
 
 interface InteractionSettings {
   enabled: boolean;
@@ -93,8 +94,33 @@ export default function Sphere({
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
   const mergedMeshRef = useRef<THREE.Mesh | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
-  const hasDisabledGeometryRef = useRef(false);
 
+  // Fetch frame keys to check if required data is available
+  const { data: frameKeysData, isLoading: isLoadingKeys } = useFrameKeys(roomId!, currentFrame);
+
+  // Check if required keys are available for this geometry
+  const requiredKeys = useMemo(() => {
+    const keys: string[] = [];
+    const sources = isTransform(positionProp) ? getTransformSources(positionProp) : [];
+    if (typeof positionProp === "string") {
+      keys.push(positionProp);
+    } else if (sources.length > 0) {
+      keys.push(...sources);
+    }
+    return keys;
+  }, [positionProp]);
+
+  const hasRequiredKeys = useMemo(() => {
+    // While loading keys, assume we have them (keep previous frame rendered)
+    if (isLoadingKeys) return true;
+    // Static data (no keys needed)
+    if (requiredKeys.length === 0) return true;
+    // If no keys data yet, assume we have them (keep previous frame)
+    if (!frameKeysData?.keys) return true;
+    // Only when we have keys data, check if required keys are available
+    const availableKeys = new Set(frameKeysData.keys);
+    return requiredKeys.every(key => availableKeys.has(key));
+  }, [frameKeysData, requiredKeys, isLoadingKeys]);
 
   // Use geometry-specific selection
   const particleSelection = selections[geometryKey] || [];
@@ -257,68 +283,6 @@ export default function Sphere({
 
     debouncedPersist();
   }, [geometries[geometryKey]?.data?.position, geometryUpdateSources[geometryKey], debouncedPersist, geometryKey]);
-
-  // Detect critical fetch failures and disable geometry
-  useEffect(() => {
-    if (!roomId || !userName || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
-      return;
-    }
-
-    // Critical error for Particles/Sphere: position query failed
-    const hasCriticalError =
-      (positionIsTransform && isTransformError) ||
-      (typeof positionProp === "string" && !positionIsTransform && isPositionError);
-
-    if (hasCriticalError) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(
-          `Particles geometry "${geometryKey}": Critical data fetch failed. Disabling geometry.`,
-          { positionError: isPositionError, transformError: isTransformError }
-        );
-      }
-      hasDisabledGeometryRef.current = true;
-
-      // Optimistically update local state immediately
-      const updatedGeometry = {
-        type: "Sphere",
-        data: { ...data, active: false }
-      };
-      updateGeometry(geometryKey, updatedGeometry);
-
-      // Show snackbar notification
-      showSnackbar(`Geometry "${geometryKey}" disabled - data fetch failed`, "warning");
-
-      // Then update server (server will skip emitting back to this client)
-      updateGeometryActive(roomId, geometryKey, "Sphere", false)
-        .then(() => {
-          if (process.env.NODE_ENV !== 'production') {
-            console.info(`Particles geometry "${geometryKey}" disabled successfully on server.`);
-          }
-        })
-        .catch((error) => {
-          console.error(`Failed to disable Particles geometry "${geometryKey}" on server:`, error);
-          // Rollback optimistic update on error
-          const rollbackGeometry = {
-            type: "Sphere",
-            data: { ...data }
-          };
-          updateGeometry(geometryKey, rollbackGeometry);
-          hasDisabledGeometryRef.current = false;
-        });
-    }
-  }, [
-    roomId,
-    userName,
-    geometryKey,
-    frameCount,
-    isFetching,
-    positionProp,
-    positionIsTransform,
-    isPositionError,
-    isTransformError,
-    updateGeometry,
-    showSnackbar,
-  ]);
 
   // Consolidated data processing and mesh update
   useEffect(() => {
@@ -583,8 +547,8 @@ export default function Sphere({
 
   if (!userName || !roomId) return null;
 
-  // Don't render if geometry is disabled
-  if (fullData.active === false) {
+  // Don't render if geometry is disabled OR if required keys are not available
+  if (fullData.active === false || !hasRequiredKeys) {
     return null;
   }
 

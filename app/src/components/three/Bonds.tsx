@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { getFrames, updateGeometryActive } from "../../myapi/client";
+import { getFrames } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback, useReducer } from "react";
 import { renderMaterial } from "./materials";
@@ -15,6 +15,7 @@ import {
 import { _vec3, _vec3_2, _vec3_3, _vec3_4, _quat, _quat2, _matrix, _matrix2, _color } from "../../utils/threeObjectPools";
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
+import { useFrameKeys } from "../../hooks/useSchemas";
 
 interface InteractionSettings {
   enabled: boolean;
@@ -148,8 +149,6 @@ export default function Bonds({
   });
   const { instanceCount, bondPairs, instanceToBondMap, bondPairsHash } = bondState;
 
-  const hasDisabledGeometryRef = useRef(false);
-
   // Use individual selectors to prevent unnecessary re-renders
   const roomId = useAppStore((state) => state.roomId);
   const currentFrame = useAppStore((state) => state.currentFrame);
@@ -160,8 +159,27 @@ export default function Bonds({
   const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
   const removeGeometryFetching = useAppStore((state) => state.removeGeometryFetching);
   const requestPathtracingUpdate = useAppStore((state) => state.requestPathtracingUpdate);
-  const updateGeometry = useAppStore((state) => state.updateGeometry);
-  const showSnackbar = useAppStore((state) => state.showSnackbar);
+
+  // Fetch frame keys to check if required data is available
+  const { data: frameKeysData, isLoading: isLoadingKeys } = useFrameKeys(roomId!, currentFrame);
+
+  // Check if required keys are available for this geometry
+  const requiredKeys = useMemo(() => {
+    const keys: string[] = [];
+    if (typeof positionProp === "string") keys.push(positionProp);
+    if (typeof connectivityProp === "string") keys.push(connectivityProp);
+    return keys;
+  }, [positionProp, connectivityProp]);
+
+  const hasRequiredKeys = useMemo(() => {
+    // While loading keys, assume we have them (keep previous frame rendered)
+    if (isLoadingKeys) return true;
+    // If no keys data yet, assume we have them (keep previous frame)
+    if (!frameKeysData?.keys) return true;
+    // Only when we have keys data, check if required keys are available
+    const availableKeys = new Set(frameKeysData.keys);
+    return requiredKeys.every(key => availableKeys.has(key));
+  }, [frameKeysData, requiredKeys, isLoadingKeys]);
 
   // Use geometry-specific selection
   const bondSelection = selections[geometryKey] || [];
@@ -259,16 +277,6 @@ export default function Bonds({
     (typeof radiusProp === "string" && isRadiusFetching) ||
     (typeof connectivityProp === "string" && isConnectivityFetching);
 
-  // Check if any query has errored - treat as data unavailable
-  const hasQueryError = useMemo(
-    () =>
-      (typeof positionProp === "string" && isPositionError) ||
-      (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp as string) && isColorError) ||
-      (typeof radiusProp === "string" && isRadiusError) ||
-      (typeof connectivityProp === "string" && isConnectivityError),
-    [positionProp, isPositionError, colorProp, isColorError, radiusProp, isRadiusError, connectivityProp, isConnectivityError]
-  );
-
   // Report fetching state to global store
   useEffect(() => {
     setGeometryFetching(geometryKey, isFetching);
@@ -280,71 +288,6 @@ export default function Bonds({
       removeGeometryFetching(geometryKey);
     };
   }, [geometryKey, removeGeometryFetching]);
-
-  // Detect critical fetch failures and disable geometry
-  useEffect(() => {
-    if (!roomId || !userName || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
-      return;
-    }
-
-    // Critical errors for Bonds: position or connectivity queries failed
-    const hasCriticalError =
-      (typeof positionProp === "string" && isPositionError) ||
-      (typeof connectivityProp === "string" && isConnectivityError);
-
-    if (hasCriticalError) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(
-          `Bonds geometry "${geometryKey}": Critical data fetch failed. Disabling geometry.`,
-          {
-            positionError: typeof positionProp === "string" && isPositionError,
-            connectivityError: typeof connectivityProp === "string" && isConnectivityError
-          }
-        );
-      }
-      hasDisabledGeometryRef.current = true;
-
-      // Optimistically update local state immediately
-      const updatedGeometry = {
-        type: "Bond",
-        data: { ...data, active: false }
-      };
-      updateGeometry(geometryKey, updatedGeometry);
-
-      // Show snackbar notification
-      showSnackbar(`Geometry "${geometryKey}" disabled - data fetch failed`, "warning");
-
-      // Then update server (server will skip emitting back to this client)
-      updateGeometryActive(roomId, geometryKey, "Bond", false)
-        .then(() => {
-          if (process.env.NODE_ENV !== 'production') {
-            console.info(`Bonds geometry "${geometryKey}" disabled successfully on server.`);
-          }
-        })
-        .catch((error) => {
-          console.error(`Failed to disable Bonds geometry "${geometryKey}" on server:`, error);
-          // Rollback optimistic update on error
-          const rollbackGeometry = {
-            type: "Bond",
-            data: { ...data }
-          };
-          updateGeometry(geometryKey, rollbackGeometry);
-          hasDisabledGeometryRef.current = false;
-        });
-    }
-  }, [
-    roomId,
-    userName,
-    geometryKey,
-    frameCount,
-    isFetching,
-    positionProp,
-    connectivityProp,
-    isPositionError,
-    isConnectivityError,
-    updateGeometry,
-    showSnackbar,
-  ]);
 
   // Consolidated data processing and mesh update
   useEffect(() => {
@@ -718,8 +661,8 @@ export default function Bonds({
 
   if (!userName || !roomId) return null;
 
-  // Don't render if geometry is disabled
-  if (fullData.active === false) {
+  // Don't render if geometry is disabled OR if required keys are not available
+  if (fullData.active === false || !hasRequiredKeys) {
     return null;
   }
 

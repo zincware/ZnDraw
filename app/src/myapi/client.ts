@@ -209,15 +209,6 @@ export const createGeometry = async (
   return data;
 };
 
-export const updateGeometryActive = async (
-  roomId: string,
-  key: string,
-  geometryType: string,
-  active: boolean,
-): Promise<{ status: string }> => {
-  return createGeometry(roomId, key, geometryType, { active });
-};
-
 export const deleteGeometry = async (
   roomId: string,
   key: string,

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { getFrames, updateGeometryActive, createGeometry } from "../../myapi/client";
+import { getFrames, createGeometry } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { debounce } from "lodash";
@@ -21,6 +21,7 @@ import {
 import { _vec3, _vec3_2, _vec3_3, _euler, _matrix, _matrix2, _quat, _quat2, _color } from "../../utils/threeObjectPools";
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
+import { useFrameKeys } from "../../hooks/useSchemas";
 
 interface InteractionSettings {
   enabled: boolean;
@@ -75,7 +76,6 @@ export default function Plane({
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
   const mergedMeshRef = useRef<THREE.Mesh | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
-  const hasDisabledGeometryRef = useRef(false);
 
   // Use individual selectors to prevent unnecessary re-renders
   const currentFrame = useAppStore((state) => state.currentFrame);
@@ -92,10 +92,30 @@ export default function Plane({
   const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
   const removeGeometryFetching = useAppStore((state) => state.removeGeometryFetching);
   const requestPathtracingUpdate = useAppStore((state) => state.requestPathtracingUpdate);
-  const updateGeometry = useAppStore((state) => state.updateGeometry);
   const showSnackbar = useAppStore((state) => state.showSnackbar);
   const geometries = useAppStore((state) => state.geometries);
   const geometryUpdateSources = useAppStore((state) => state.geometryUpdateSources);
+
+  // Fetch frame keys to check if required data is available
+  const { data: frameKeysData, isLoading: isLoadingKeys } = useFrameKeys(roomId!, currentFrame);
+
+  // Check if required keys are available for this geometry
+  const requiredKeys = useMemo(() => {
+    const keys: string[] = [];
+    if (typeof positionProp === "string") keys.push(positionProp);
+    if (typeof sizeProp === "string") keys.push(sizeProp);
+    return keys;
+  }, [positionProp, sizeProp]);
+
+  const hasRequiredKeys = useMemo(() => {
+    // While loading keys, assume we have them (keep previous frame rendered)
+    if (isLoadingKeys) return true;
+    // If no keys data yet, assume we have them (keep previous frame)
+    if (!frameKeysData?.keys) return true;
+    // Only when we have keys data, check if required keys are available
+    const availableKeys = new Set(frameKeysData.keys);
+    return requiredKeys.every(key => availableKeys.has(key));
+  }, [frameKeysData, requiredKeys, isLoadingKeys]);
 
   // Use geometry-specific selection
   const planeSelection = selections[geometryKey] || [];
@@ -242,64 +262,6 @@ export default function Plane({
 
     debouncedPersist();
   }, [geometries[geometryKey]?.data?.position, geometryUpdateSources[geometryKey], debouncedPersist, geometryKey]);
-
-  // Detect critical fetch failures and disable geometry
-  useEffect(() => {
-    if (!roomId || !userName || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
-      return;
-    }
-
-    // Critical error for Plane: position query failed
-    const hasCriticalError = typeof positionProp === "string" && isPositionError;
-
-    if (hasCriticalError) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(
-          `Plane geometry "${geometryKey}": Critical data fetch failed. Disabling geometry.`,
-          { positionError: isPositionError }
-        );
-      }
-      hasDisabledGeometryRef.current = true;
-
-      // Optimistically update local state immediately
-      const updatedGeometry = {
-        type: "Plane",
-        data: { ...data, active: false }
-      };
-      updateGeometry(geometryKey, updatedGeometry);
-
-      // Show snackbar notification
-      showSnackbar(`Geometry "${geometryKey}" disabled - data fetch failed`, "warning");
-
-      // Then update server (server will skip emitting back to this client)
-      updateGeometryActive(roomId, geometryKey, "Plane", false)
-        .then(() => {
-          if (process.env.NODE_ENV !== 'production') {
-            console.info(`Plane geometry "${geometryKey}" disabled successfully on server.`);
-          }
-        })
-        .catch((error) => {
-          console.error(`Failed to disable Plane geometry "${geometryKey}" on server:`, error);
-          // Rollback optimistic update on error
-          const rollbackGeometry = {
-            type: "Plane",
-            data: { ...data }
-          };
-          updateGeometry(geometryKey, rollbackGeometry);
-          hasDisabledGeometryRef.current = false;
-        });
-    }
-  }, [
-    roomId,
-    userName,
-    geometryKey,
-    frameCount,
-    isFetching,
-    positionProp,
-    isPositionError,
-    updateGeometry,
-    showSnackbar,
-  ]);
 
   // Consolidated data processing and mesh update
   useEffect(() => {
@@ -528,8 +490,8 @@ export default function Plane({
 
   if (!userName || !roomId) return null;
 
-  // Don't render if geometry is disabled
-  if (fullData.active === false) {
+  // Don't render if geometry is disabled OR if required keys are not available
+  if (fullData.active === false || !hasRequiredKeys) {
     return null;
   }
 

@@ -223,10 +223,11 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       queryClient.invalidateQueries({
         predicate: (query) => {
           // Query keys are expected to be in the format: ['frame', roomId, frameIndex]
+          // or ['frame-keys', roomId, frameIndex]
           const [type, qRoomId, frameIndex] = query.queryKey;
 
-          // Only invalidate frame queries for this room
-          if (type !== "frame" || qRoomId !== roomId) return false;
+          // Only invalidate frame and frame-keys queries for this room
+          if ((type !== "frame" && type !== "frame-keys") || qRoomId !== roomId) return false;
 
           // Ensure we are only dealing with queries for specific frames
           if (typeof frameIndex !== "number") return false;

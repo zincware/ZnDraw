@@ -11,6 +11,7 @@ import { useAppStore } from "../../store";
 import { getFrames, createGeometry } from "../../myapi/client";
 import { debounce } from "lodash";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
+import { useFrameKeys } from "../../hooks/useSchemas";
 
 interface MarkerData {
   enabled: boolean;
@@ -76,6 +77,27 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
   const activeCurveForDrawing = useAppStore((state) => state.activeCurveForDrawing);
   const registerCurveRef = useAppStore((state) => state.registerCurveRef);
   const unregisterCurveRef = useAppStore((state) => state.unregisterCurveRef);
+
+  // Fetch frame keys to check if required data is available
+  const { data: frameKeysData, isLoading: isLoadingKeys } = useFrameKeys(roomId!, currentFrame);
+
+  // Check if required keys are available for this geometry
+  const requiredKeys = useMemo(() => {
+    const keys: string[] = [];
+    if (typeof positionProp === "string") keys.push(positionProp);
+    return keys;
+  }, [positionProp]);
+
+  const hasRequiredKeys = useMemo(() => {
+    // While loading keys, assume we have them (keep previous frame rendered)
+    if (isLoadingKeys) return true;
+    // If no keys data yet, assume we have them (keep previous frame)
+    if (!frameKeysData?.keys) return true;
+    // Only when we have keys data, check if required keys are available
+    const availableKeys = new Set(frameKeysData.keys);
+    return requiredKeys.every(key => availableKeys.has(key));
+  }, [frameKeysData, requiredKeys, isLoadingKeys]);
+
   const [markerPositions, setMarkerPositions] = useState<THREE.Vector3[]>([]);
   const [lineSegments, setLineSegments] = useState<THREE.Vector3[]>([]);
   const [virtualMarkerPositions, setVirtualMarkerPositions] = useState<THREE.Vector3[]>([]);
@@ -326,6 +348,8 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
   // Early returns after all hooks (Rules of Hooks)
   if (!roomId) return null;
   if (!marker || !virtual_marker) return null;
+  // Don't render if required keys are not available
+  if (!hasRequiredKeys) return null;
 
   // --- Render ---
   return (

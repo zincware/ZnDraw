@@ -4,7 +4,7 @@ import { useRef, useMemo, useEffect, useState, useCallback } from "react";
 import { useGeometryEditing } from "../../hooks/useGeometryEditing";
 import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
 import { renderMaterial } from "./materials";
-import { getFrames, updateGeometryActive, createGeometry } from "../../myapi/client";
+import { getFrames, createGeometry } from "../../myapi/client";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { debounce } from "lodash";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
@@ -21,6 +21,7 @@ import {
 import { _vec3, _vec3_2, _vec3_3, _quat, _quat2, _matrix, _matrix2, _color } from "../../utils/threeObjectPools";
 import { convertInstancedMeshToMerged, disposeMesh } from "../../utils/convertInstancedMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
+import { useFrameKeys } from "../../hooks/useSchemas";
 
 interface InteractionSettings {
   enabled: boolean;
@@ -86,14 +87,23 @@ export default function Arrow({
 
   // Merge with defaults from Pydantic (single source of truth)
   const fullData = getGeometryWithDefaults<ArrowData>(data, "Arrow", geometryDefaults);
-  const { position, direction, color, radius, scale, material, opacity, selecting, hovering } = fullData;
+  const {
+    position: positionProp,
+    direction: directionProp,
+    color,
+    radius,
+    scale,
+    material,
+    opacity,
+    selecting,
+    hovering
+  } = fullData;
 
   const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const hoverMeshRef = useRef<THREE.Mesh | null>(null);
   const mergedMeshRef = useRef<THREE.Mesh | null>(null);
   const [instanceCount, setInstanceCount] = useState(0);
-  const hasDisabledGeometryRef = useRef(false);
 
   // Use individual selectors to prevent unnecessary re-renders
   const currentFrame = useAppStore((state) => state.currentFrame);
@@ -110,10 +120,30 @@ export default function Arrow({
   const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
   const removeGeometryFetching = useAppStore((state) => state.removeGeometryFetching);
   const requestPathtracingUpdate = useAppStore((state) => state.requestPathtracingUpdate);
-  const updateGeometry = useAppStore((state) => state.updateGeometry);
   const showSnackbar = useAppStore((state) => state.showSnackbar);
   const geometries = useAppStore((state) => state.geometries);
   const geometryUpdateSources = useAppStore((state) => state.geometryUpdateSources);
+
+  // Fetch frame keys to check if required data is available
+  const { data: frameKeysData, isLoading: isLoadingKeys } = useFrameKeys(roomId!, currentFrame);
+
+  // Check if required keys are available for this geometry
+  const requiredKeys = useMemo(() => {
+    const keys: string[] = [];
+    if (typeof positionProp === "string") keys.push(positionProp);
+    if (typeof directionProp === "string") keys.push(directionProp);
+    return keys;
+  }, [positionProp, directionProp]);
+
+  const hasRequiredKeys = useMemo(() => {
+    // While loading keys, assume we have them (keep previous frame rendered)
+    if (isLoadingKeys) return true;
+    // If no keys data yet, assume we have them (keep previous frame)
+    if (!frameKeysData?.keys) return true;
+    // Only when we have keys data, check if required keys are available
+    const availableKeys = new Set(frameKeysData.keys);
+    return requiredKeys.every(key => availableKeys.has(key));
+  }, [frameKeysData, requiredKeys, isLoadingKeys]);
 
   // Use geometry-specific selection
   const arrowSelection = selections[geometryKey] || [];
@@ -125,25 +155,25 @@ export default function Arrow({
   );
 
   // Individual queries for each attribute - enables perfect cross-component caching
-  const { data: positionData, isFetching: isPositionFetching, isError: isPositionError } = useQuery({
-    queryKey: ["frame", roomId, currentFrame, position],
+  const { data: positionData, isFetching: isPositionFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, positionProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
-      getFrames(roomId!, currentFrame, [position as string], signal),
-    enabled: !!roomId && !!userName && frameCount > 0 && typeof position === "string",
+      getFrames(roomId!, currentFrame, [positionProp as string], signal),
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof positionProp === "string",
     placeholderData: keepPreviousData,
     retry: false,
   });
 
-  const { data: directionData, isFetching: isDirectionFetching, isError: isDirectionError } = useQuery({
-    queryKey: ["frame", roomId, currentFrame, direction],
+  const { data: directionData, isFetching: isDirectionFetching } = useQuery({
+    queryKey: ["frame", roomId, currentFrame, directionProp],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
-      getFrames(roomId!, currentFrame, [direction as string], signal),
-    enabled: !!roomId && !!userName && frameCount > 0 && typeof direction === "string",
+      getFrames(roomId!, currentFrame, [directionProp as string], signal),
+    enabled: !!roomId && !!userName && frameCount > 0 && typeof directionProp === "string",
     placeholderData: keepPreviousData,
     retry: false,
   });
 
-  const { data: colorData, isFetching: isColorFetching, isError: isColorError } = useQuery({
+  const { data: colorData, isFetching: isColorFetching } = useQuery({
     queryKey: ["frame", roomId, currentFrame, color],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [color as string], signal),
@@ -152,7 +182,7 @@ export default function Arrow({
     retry: false,
   });
 
-  const { data: radiusData, isFetching: isRadiusFetching, isError: isRadiusError } = useQuery({
+  const { data: radiusData, isFetching: isRadiusFetching } = useQuery({
     queryKey: ["frame", roomId, currentFrame, radius],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [radius as string], signal),
@@ -161,7 +191,7 @@ export default function Arrow({
     retry: false,
   });
 
-  const { data: scaleData, isFetching: isScaleFetching, isError: isScaleError } = useQuery({
+  const { data: scaleData, isFetching: isScaleFetching } = useQuery({
     queryKey: ["frame", roomId, currentFrame, scale],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
       getFrames(roomId!, currentFrame, [scale as string], signal),
@@ -172,22 +202,11 @@ export default function Arrow({
 
   // Check if any enabled query is still fetching
   const isFetching =
-    (typeof position === "string" && isPositionFetching) ||
-    (typeof direction === "string" && isDirectionFetching) ||
+    (typeof positionProp === "string" && isPositionFetching) ||
+    (typeof directionProp === "string" && isDirectionFetching) ||
     (typeof color === "string" && shouldFetchAsFrameData(color as string) && isColorFetching) ||
     (typeof radius === "string" && isRadiusFetching) ||
     (typeof scale === "string" && isScaleFetching);
-
-  // Check if any query has errored - treat as data unavailable
-  const hasQueryError = useMemo(
-    () =>
-      (typeof position === "string" && isPositionError) ||
-      (typeof direction === "string" && isDirectionError) ||
-      (typeof color === "string" && shouldFetchAsFrameData(color as string) && isColorError) ||
-      (typeof radius === "string" && isRadiusError) ||
-      (typeof scale === "string" && isScaleError),
-    [position, isPositionError, direction, isDirectionError, color, isColorError, radius, isRadiusError, scale, isScaleError]
-  );
 
   // Report fetching state to global store
   useEffect(() => {
@@ -202,7 +221,7 @@ export default function Arrow({
   }, [geometryKey, removeGeometryFetching]);
 
   // Handle geometry editing with transform controls
-  const finalPositionData = typeof position === "string" ? positionData?.[position] : position;
+  const finalPositionData = typeof positionProp === "string" ? positionData?.[positionProp] : positionProp;
   useGeometryEditing(
     geometryKey,
     finalPositionData,
@@ -268,70 +287,6 @@ export default function Arrow({
     debouncedPersist();
   }, [geometries[geometryKey]?.data?.position, geometryUpdateSources[geometryKey], debouncedPersist, geometryKey]);
 
-  // Detect critical fetch failures and disable geometry
-  useEffect(() => {
-    if (!roomId || !userName || hasDisabledGeometryRef.current || isFetching || frameCount === 0) {
-      return;
-    }
-
-    // Critical errors for Arrow: position or direction queries failed
-    const hasCriticalError =
-      (typeof position === "string" && isPositionError) ||
-      (typeof direction === "string" && isDirectionError);
-
-    if (hasCriticalError) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(
-          `Arrow geometry "${geometryKey}": Critical data fetch failed. Disabling geometry.`,
-          {
-            positionError: typeof position === "string" && isPositionError,
-            directionError: typeof direction === "string" && isDirectionError
-          }
-        );
-      }
-      hasDisabledGeometryRef.current = true;
-
-      // Optimistically update local state immediately
-      const updatedGeometry = {
-        type: "Arrow",
-        data: { ...data, active: false }
-      };
-      updateGeometry(geometryKey, updatedGeometry);
-
-      // Show snackbar notification
-      showSnackbar(`Geometry "${geometryKey}" disabled - data fetch failed`, "warning");
-
-      // Then update server (server will skip emitting back to this client)
-      updateGeometryActive(roomId, geometryKey, "Arrow", false)
-        .then(() => {
-          if (process.env.NODE_ENV !== 'production') {
-            console.info(`Arrow geometry "${geometryKey}" disabled successfully on server.`);
-          }
-        })
-        .catch((error) => {
-          console.error(`Failed to disable Arrow geometry "${geometryKey}" on server:`, error);
-          // Rollback optimistic update on error
-          const rollbackGeometry = {
-            type: "Arrow",
-            data: { ...data }
-          };
-          updateGeometry(geometryKey, rollbackGeometry);
-          hasDisabledGeometryRef.current = false;
-        });
-    }
-  }, [
-    roomId,
-    userName,
-    geometryKey,
-    frameCount,
-    isFetching,
-    position,
-    direction,
-    isPositionError,
-    isDirectionError,
-    updateGeometry,
-    showSnackbar,
-  ]);
 
   useEffect(() => {
     if (isFetching) {
@@ -344,8 +299,8 @@ export default function Arrow({
     try {
       // --- Data Processing Step ---
       // Get fetched data or use static values
-      const fetchedPosition = typeof position === 'string' ? positionData?.[position as string] : undefined;
-      const finalCount = getInstanceCount(position, fetchedPosition);
+      const fetchedPosition = typeof positionProp === 'string' ? positionData?.[positionProp as string] : undefined;
+      const finalCount = getInstanceCount(positionProp, fetchedPosition);
 
       if (finalCount === 0) {
         if (instanceCount !== 0) setInstanceCount(0);
@@ -353,7 +308,7 @@ export default function Arrow({
       }
 
       // Process all attributes using utility functions
-      const finalPositions = processNumericAttribute(position, fetchedPosition, finalCount);
+      const finalPositions = processNumericAttribute(positionProp, fetchedPosition, finalCount);
 
       const fetchedColor = typeof color === 'string' ? colorData?.[color as string] : undefined;
       const colorHexArray = processColorData(color, fetchedColor, finalCount);
@@ -361,8 +316,8 @@ export default function Arrow({
       const fetchedRadius = typeof radius === 'string' ? radiusData?.[radius as string] : undefined;
       const finalRadii = processNumericAttribute(radius, fetchedRadius, finalCount);
 
-      const fetchedDirection = typeof direction === 'string' ? directionData?.[direction as string] : undefined;
-      const finalDirections = processNumericAttribute(direction, fetchedDirection, finalCount);
+      const fetchedDirection = typeof directionProp === 'string' ? directionData?.[directionProp as string] : undefined;
+      const finalDirections = processNumericAttribute(directionProp, fetchedDirection, finalCount);
 
       const fetchedScale = typeof scale === 'string' ? scaleData?.[scale as string] : undefined;
       const finalScales = processNumericAttribute(scale, fetchedScale, finalCount);
@@ -471,14 +426,13 @@ export default function Arrow({
   }, [
     data, // Add data to dependencies to ensure updates trigger
     isFetching,
-    hasQueryError,
     positionData,
     directionData,
     colorData,
     radiusData,
     scaleData,
-    position,
-    direction,
+    positionProp,
+    directionProp,
     color,
     radius,
     scale,
@@ -587,8 +541,8 @@ export default function Arrow({
     return null;
   }
 
-  // Don't render if geometry is disabled
-  if (fullData.active === false) {
+  // Don't render if geometry is disabled OR if required keys are not available
+  if (fullData.active === false || !hasRequiredKeys) {
     return null;
   }
 
