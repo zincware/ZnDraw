@@ -240,6 +240,7 @@ def emit_frames_invalidate(
     operation: str,
     affected_index: int | None = None,
     affected_from: int | None = None,
+    affected_keys: list[str] | None = None,
 ):
     """Emit frames:invalidate event to tell clients to clear their frame cache.
 
@@ -248,11 +249,15 @@ def emit_frames_invalidate(
     room_id : str
         The room identifier
     operation : str
-        Type of operation - 'delete', 'insert', or 'replace'
+        Type of operation - 'delete', 'insert', 'replace', or 'bulk_replace'
     affected_index : int | None, optional
         For 'replace' - the specific frame index that was replaced
     affected_from : int | None, optional
-        For 'delete'/'insert' - all frames from this index onward are affected
+        For 'delete'/'insert'/'bulk_replace' - all frames from this index onward are affected
+    affected_keys : list[str] | None, optional
+        Optional list of frame data keys that changed (e.g., ["arrays.position", "arrays.radii"]).
+        If None, invalidates ALL keys for affected frames (backward compatible behavior).
+        If empty list, no frame data changed (only metadata/structure).
     """
     data = {
         "roomId": room_id,
@@ -263,6 +268,8 @@ def emit_frames_invalidate(
         data["affectedIndex"] = affected_index
     if affected_from is not None:
         data["affectedFrom"] = affected_from
+    if affected_keys is not None:
+        data["affectedKeys"] = affected_keys
 
     log.info(f"Emitting frames:invalidate for room '{room_id}': {data}")
 

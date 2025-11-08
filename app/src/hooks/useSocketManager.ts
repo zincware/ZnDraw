@@ -207,13 +207,18 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     );
 
     function onFramesInvalidate(data: any) {
-      const { roomId, operation, affectedIndex, affectedFrom } = data;
+      const { roomId, operation, affectedIndex, affectedFrom, affectedKeys } = data;
       console.log("Invalidating frame cache:", {
         roomId,
         operation,
         affectedIndex,
         affectedFrom,
+        affectedKeys,
       });
+
+      if (affectedKeys) {
+        console.warn("Frame invalidation with affectedKeys is not yet implemented. Invalidating all frames.");
+      }
 
       queryClient.invalidateQueries({
         predicate: (query) => {

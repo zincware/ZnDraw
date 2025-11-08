@@ -394,6 +394,13 @@ class SocketManager:
             return
 
         operation = data.get("operation")
+        affected_keys = data.get("affectedKeys")
+
+        # Log key-level invalidation info if present
+        if affected_keys:
+            log.warning(
+                "Key-level invalidation received, but frame cache does not support key-level invalidation. Clearing entire frame cache."
+            )
 
         if operation == "replace":
             idx = data.get("affectedIndex")

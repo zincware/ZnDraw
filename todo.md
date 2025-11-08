@@ -79,3 +79,5 @@
 - [ ] consider where to compute connectivity: server / client / on-the-fly / delayed?
 - [ ] fix the presenter lock!!
 - [ ] test register_fs, search `filesystem:load`
+- [ ] let the celery workers directly write to the storage instead of using `vis.extend`. Add a way to emit?! Access redis / znsocket?!
+- [ ] allow to invalidate all frames or just specific keys!
