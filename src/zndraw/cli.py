@@ -373,6 +373,17 @@ def main(
     # Revalidate after overrides
     config._validate()
 
+    # Check for stale LMDB data on startup when using in-memory mode
+    # This can happen if the server was killed without clean shutdown
+    if config.redis_url is None and os.path.exists(config.storage_path):
+        typer.echo(f"⚠️  Warning: Found existing LMDB data at {config.storage_path}")
+        typer.echo("   This data may be stale when using in-memory storage (no Redis).")
+        if typer.confirm("   Delete and start fresh?", default=True):
+            shutil.rmtree(config.storage_path)
+            typer.echo(f"✓ Cleaned storage directory: {config.storage_path}")
+        else:
+            typer.echo("⚠️  Continuing with existing data (may cause state inconsistencies)")
+
     flask_app = create_app(config=config)
 
     # Track the first room for browser opening
@@ -431,7 +442,12 @@ def main(
     try:
         socketio.run(flask_app, debug=debug, host="0.0.0.0", port=config.server_port)
     finally:
-        shutil.rmtree("data", ignore_errors=True)
+        # Clean up LMDB storage for in-memory mode
+        # In-memory mode has ephemeral Redis state, so LMDB data becomes stale
+        if config.redis_url is None and os.path.exists(config.storage_path):
+            typer.echo(f"🧹 Cleaning LMDB storage: {config.storage_path}")
+            shutil.rmtree(config.storage_path)
+
         flask_app.extensions["redis"].flushall()
         if celery:
             # Properly terminate celery worker and all its child processes
