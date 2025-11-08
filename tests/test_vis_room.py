@@ -59,10 +59,7 @@ def test_rest_join_new_room(server):
         assert response.status_code == 404
         data = response.json()
         assert data["type"] == "IndexError"
-        assert (
-            data["error"]
-            == f"Index out of range for data with 0 frames in room '{room}'"
-        )
+        assert data["error"] == f"No frames found in room '{room}'"
 
 
 def test_join_existing_room(server):

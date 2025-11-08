@@ -7,6 +7,8 @@ from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, request
 
+from zndraw.auth import require_auth
+
 from .redis_keys import RoomKeys
 
 log = logging.getLogger(__name__)
@@ -321,6 +323,7 @@ def check_feature_enabled() -> tuple[dict[str, str], int] | None:
 
 
 @file_browser.route("/list", methods=["GET"])
+@require_auth
 def list_directory():
     """
     List contents of a directory.
@@ -437,6 +440,7 @@ def list_directory():
 
 
 @file_browser.route("/load", methods=["POST"])
+@require_auth
 def load_file():
     """
     Load a file into ZnDraw.
@@ -681,6 +685,7 @@ def upload_file():
 
 
 @file_browser.route("/create-room-from-file", methods=["POST"])
+@require_auth
 def create_room_from_existing_file():
     """Create a new room reusing physical storage from an existing room.
 
