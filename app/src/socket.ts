@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 import { getToken } from "./utils/auth";
-import { useAppStore } from "../store";
+import { useAppStore } from "./store"
 
 
 const URL = process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:5000';

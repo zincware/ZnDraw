@@ -24,6 +24,7 @@ from zndraw.settings import RoomConfig, settings
 from zndraw.socket_manager import SocketManager
 from zndraw.lock import ZnDrawLock
 from asebytes import encode, decode
+from zndraw.connectivity import add_connectivity
 from zndraw.utils import update_colors_and_radii
 from zndraw.version_utils import validate_server_version
 
@@ -270,6 +271,11 @@ class ZnDraw(MutableSequence):
         Optional description for the room.
     copy_from
         Optional room name to copy initial state from.
+    connectivity_threshold
+        Maximum number of atoms for automatic connectivity calculation.
+        When atoms are added via append/extend/insert/setitem, connectivity
+        will be automatically computed if the structure has fewer atoms than
+        this threshold and connectivity is not already present. Default: 1000.
 
     """
 
@@ -280,6 +286,7 @@ class ZnDraw(MutableSequence):
     auto_pickup_jobs: bool = True
     description: str | None = None
     copy_from: str | None = None
+    connectivity_threshold: int = 1000
 
     _step: int = 0
     _len: int = 0
@@ -962,11 +969,11 @@ class ZnDraw(MutableSequence):
                 raise TypeError("All elements must be ase.Atoms objects")
             dicts = []
             for atom in atoms:
-                update_colors_and_radii(atom)
+                self._prepare_atoms(atom)
                 dicts.append(encode(atom))
             self.set_frames(index, dicts)
         elif isinstance(atoms, ase.Atoms):
-            update_colors_and_radii(atoms)
+            self._prepare_atoms(atoms)
             self.set_frames(index, encode(atoms))
         else:
             raise TypeError("Only ase.Atoms or list of ase.Atoms are supported.")
@@ -1044,10 +1051,23 @@ class ZnDraw(MutableSequence):
         with self.get_lock(msg="Deleting frames"):
             self.api.delete_frames(index)
 
+    def _prepare_atoms(self, atoms: ase.Atoms) -> None:
+        """Prepare atoms for upload: add connectivity if needed, update colors and radii.
+
+        Parameters
+        ----------
+        atoms
+            The atoms object to prepare.
+
+        """
+        if len(atoms) < self.connectivity_threshold and "connectivity" not in atoms.info:
+            add_connectivity(atoms)
+        update_colors_and_radii(atoms)
+
     def insert(self, index: int, atoms: ase.Atoms):
         if not isinstance(atoms, ase.Atoms):
             raise TypeError("Only ase.Atoms objects are supported")
-        update_colors_and_radii(atoms)
+        self._prepare_atoms(atoms)
         value = encode(atoms)
         if index < 0:
             index = max(0, len(self) + index + 1)
@@ -1060,7 +1080,7 @@ class ZnDraw(MutableSequence):
     def append(self, atoms: ase.Atoms):
         if not isinstance(atoms, ase.Atoms):
             raise TypeError("Only ase.Atoms objects are supported")
-        update_colors_and_radii(atoms)
+        self._prepare_atoms(atoms)
         # Public API - acquire lock
         with self.get_lock(msg="Appending frame"):
             self._append_frame(encode(atoms))
@@ -1202,7 +1222,7 @@ class ZnDraw(MutableSequence):
         for atoms in atoms_list:
             if not isinstance(atoms, ase.Atoms):
                 raise TypeError("Only ase.Atoms objects are supported")
-            update_colors_and_radii(atoms)
+            self._prepare_atoms(atoms)
             dicts.append(encode(atoms))
 
         if not dicts:

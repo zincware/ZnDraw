@@ -368,7 +368,6 @@ class SocketManager:
             # Import utilities from tasks.py
             from zndraw.app.tasks import (
                 FORMAT_BACKENDS,
-                add_connectivity,
                 batch_generator,
                 calculate_adaptive_resolution,
             )
@@ -457,10 +456,8 @@ class SocketManager:
                 # Process frames in batches
                 if frame_iterator:
                     for batch in batch_generator(frame_iterator, batch_size):
-                        # Add connectivity for small structures
+                        # Track max particle count
                         for atoms in batch:
-                            if len(atoms) < 1000:
-                                add_connectivity(atoms)
                             max_particles = max(max_particles, len(atoms))
 
                         temp_vis.extend(batch)

@@ -14,7 +14,6 @@ import znh5md
 from celery import shared_task
 
 from zndraw.app.file_browser import FORMAT_BACKENDS
-from zndraw.connectivity import add_connectivity
 
 log = logging.getLogger(__name__)
 
@@ -241,11 +240,8 @@ def read_file(
             )
 
             for batch in batch_generator(frame_iterator, batch_size):
-                # compute connectivity for each frame in the batch, if reasonable sized
+                # Track max particle count
                 for atoms in batch:
-                    if len(atoms) < 1000:
-                        add_connectivity(atoms)
-                    # Track max particle count
                     max_particles = max(max_particles, len(atoms))
                 vis.extend(batch)
                 loaded_frame_count += len(batch)

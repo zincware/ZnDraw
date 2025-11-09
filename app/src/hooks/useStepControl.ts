@@ -4,7 +4,6 @@ import { socket } from "../socket";
 import { useLockManager } from "./useLockManager";
 import { useAppStore } from "../store";
 import { updateStep } from "../myapi/client";
-import { getSessionId } from "../utils/auth";
 
 interface StepControlHook {
   setStep: (frame: number) => Promise<void>;
@@ -175,7 +174,7 @@ export const useStepControl = (): StepControlHook => {
     const onLockUpdate = (data: any) => {
       if (data.target !== "step") return;
 
-      const mySessionId = getSessionId();
+      const mySessionId = useAppStore.getState().sessionId;
 
       console.log(
         "Step lock update received:",
