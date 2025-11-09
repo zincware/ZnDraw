@@ -7,7 +7,7 @@ import typing as t
 from flask_socketio import SocketIO
 from redis import Redis
 
-from zndraw.app.models import LockMetadata, RoomMetadata
+from zndraw.app.models import RoomMetadata
 from zndraw.app.redis_keys import RoomKeys
 
 log = logging.getLogger(__name__)
@@ -42,21 +42,6 @@ def get_room_metadata(redis_client: t.Any, room_id: str) -> RoomMetadata:
     default_room = redis_client.get("default_room")
     is_default = default_room == room_id
 
-    # Get lock metadata (if exists) - stored as JSON string
-    lock_metadata_key = f"lock:trajectory:meta:{room_id}:metadata"
-    lock_data_json = redis_client.get(lock_metadata_key)
-    metadata_locked = None
-    if lock_data_json:
-        try:
-            lock_data = json.loads(lock_data_json)
-            metadata_locked = LockMetadata(
-                msg=lock_data.get("msg"),
-                userName=lock_data.get("userName"),
-                timestamp=lock_data.get("timestamp"),
-            )
-        except (json.JSONDecodeError, KeyError) as e:
-            log.warning(f"Failed to parse lock metadata for room {room_id}: {e}")
-
     # Get presenter (if exists) - assuming stored as presenter:{room_id}
     presenter_sid = redis_client.get(f"presenter:{room_id}")
 
@@ -67,7 +52,6 @@ def get_room_metadata(redis_client: t.Any, room_id: str) -> RoomMetadata:
         locked=locked,
         hidden=hidden,
         isDefault=is_default,
-        metadataLocked=metadata_locked,
         presenterSid=presenter_sid,
     )
 
@@ -105,7 +89,6 @@ def emit_room_update(
     --------
     >>> emit_room_update(socketio, "my-room", frameCount=120)
     >>> emit_room_update(socketio, "my-room", locked=True, description="Updated")
-    >>> emit_room_update(socketio, "my-room", metadataLocked=None)
     >>> # Skip the initiating client
     >>> emit_room_update(socketio, "my-room", skip_sid=request.sid, presenterSid="abc123")
     """

@@ -500,21 +500,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       console.log("Room update:", data);
       const { roomId: updateRoomId, created, ...updates } = data;
 
-      // Handle lock metadata update
-      if ("metadataLocked" in updates) {
-        if (updates.metadataLocked) {
-          setLockMetadata({
-            locked: true,
-            holder: updates.metadataLocked.userName,
-            userName: updates.metadataLocked.userName,
-            msg: updates.metadataLocked.msg,
-            timestamp: updates.metadataLocked.timestamp,
-          });
-        } else {
-          setLockMetadata({ locked: false });
-        }
-      }
-
       // Handle frame count update
       if ("frameCount" in updates) {
         setFrameCount(updates.frameCount);
@@ -541,6 +526,30 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       console.log("Room deleted:", data);
       const { roomId: deletedRoomId } = data;
       useRoomsStore.getState().removeRoom(deletedRoomId);
+    }
+
+    function onLockUpdate(data: any) {
+      console.log("Lock update:", data);
+      const { roomId: lockRoomId, target, action, holder, message, timestamp } = data;
+
+      // Handle trajectory:meta lock updates
+      if (target === "trajectory:meta") {
+        if (action === "acquired" || action === "refreshed") {
+          setLockMetadata({
+            locked: true,
+            holder: holder,
+            userName: holder,
+            msg: message,
+            timestamp: timestamp,
+          });
+        } else if (action === "released") {
+          setLockMetadata({ locked: false });
+        }
+      }
+
+      // Future: handle other lock targets
+      // if (target === "geometry:selection") { ... }
+      // if (target === "frame:position") { ... }
     }
 
     async function onConnectError(err: any) {
@@ -617,6 +626,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     socket.on("invalidate:selection_groups", onSelectionGroupsInvalidate);
     socket.on("room:update", onRoomUpdate);
     socket.on("room:delete", onRoomDelete);
+    socket.on("lock:update", onLockUpdate);
 
     // Ensure user is authenticated before connecting socket
     // This will auto-login with a server-generated username if no token exists
@@ -667,6 +677,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       socket.off("invalidate:selection_groups", onSelectionGroupsInvalidate);
       socket.off("room:update", onRoomUpdate);
       socket.off("room:delete", onRoomDelete);
+      socket.off("lock:update", onLockUpdate);
 
       // Disconnect socket when component unmounts to ensure clean reconnection
       socket.disconnect();

@@ -331,6 +331,53 @@ def emit_frames_invalidate(
     )
 
 
+def emit_lock_update(
+    room_id: str,
+    target: str,
+    action: str,
+    user_name: str | None = None,
+    message: str | None = None,
+    timestamp: str | None = None,
+    skip_sid: str | None = None
+):
+    """Emit lock status update to all clients in room.
+
+    Parameters
+    ----------
+    room_id : str
+        The room identifier
+    target : str
+        Lock target (e.g., "trajectory:meta")
+    action : str
+        Lock action - "acquired", "released", or "refreshed"
+    user_name : str | None, optional
+        Username of lock holder (None for released)
+    message : str | None, optional
+        Lock message describing the operation
+    timestamp : str | None, optional
+        ISO 8601 timestamp
+    skip_sid : str | None, optional
+        Socket ID to skip (typically the initiating client)
+    """
+    payload = {
+        "roomId": room_id,
+        "target": target,
+        "action": action,
+        "holder": user_name,
+        "message": message,
+        "timestamp": timestamp
+    }
+
+    socketio.emit(
+        "lock:update",
+        payload,
+        to=f"room:{room_id}",
+        skip_sid=skip_sid
+    )
+
+    log.debug(f"Emitted lock:update for room '{room_id}': {payload}")
+
+
 def emit_len_frames_update(room_id: str):
     """Emit len_frames event to update clients about the frame count after mutations.
 

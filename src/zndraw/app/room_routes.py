@@ -279,8 +279,6 @@ def join_room(room_id):
         settings_service.initialize_defaults(room_id, user_name)
 
         # Broadcast room creation to all connected clients
-        metadata_locked = get_metadata_lock_info(room_id)
-
         emit_room_update(
             socketio,
             room_id,
@@ -290,7 +288,6 @@ def join_room(room_id):
             locked=False,
             hidden=False,
             isDefault=False,
-            metadataLocked=metadata_locked,
         )
 
     # Get frame count using service

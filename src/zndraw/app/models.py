@@ -41,8 +41,6 @@ class RoomMetadata(BaseModel):
         Hidden from room list
     isDefault : bool
         Set as default room
-    metadataLocked : LockMetadata | None
-        Temporary lock metadata (e.g., during uploads)
     presenterSid : str | None
         Socket ID of current presenter (for presenter mode)
     """
@@ -53,7 +51,4 @@ class RoomMetadata(BaseModel):
     locked: bool = Field(False, description="Permanent lock (immutable)")
     hidden: bool = Field(False, description="Hidden from room list")
     isDefault: bool = Field(False, description="Set as default room")
-    metadataLocked: LockMetadata | None = Field(
-        None, description="Temporary lock metadata"
-    )
     presenterSid: str | None = Field(None, description="Socket ID of current presenter")

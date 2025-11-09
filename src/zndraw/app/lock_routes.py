@@ -10,8 +10,7 @@ from flask import Blueprint, current_app, jsonify, request
 from zndraw.auth import AuthError, get_current_user
 
 from .constants import LockConfig
-from .room_manager import emit_room_update
-from .route_utils import get_lock_key
+from .route_utils import emit_lock_update, get_lock_key
 
 log = logging.getLogger(__name__)
 
@@ -93,22 +92,27 @@ def acquire_lock(room_id, target):
     # Acquire lock (nx=True means only set if not exists)
     if r.set(lock_key, lock_data, nx=True, ex=int(ttl)):
         # Store metadata if provided
+        timestamp = None
         if msg:
             metadata_key = f"{lock_key}:metadata"
+            timestamp = datetime.datetime.utcnow().isoformat()
             metadata = {
                 "msg": msg,
                 "userName": user_name,
-                "timestamp": datetime.datetime.utcnow().isoformat(),
+                "timestamp": timestamp,
             }
             r.set(metadata_key, json.dumps(metadata), ex=int(ttl))
 
-            # Broadcast lock acquisition for trajectory:meta locks
-            if target == "trajectory:meta":
-                from . import events
-
-                emit_room_update(
-                    events.socketio, room_id, metadataLocked=metadata, skip_sid=None
-                )
+        # Broadcast lock acquisition event
+        emit_lock_update(
+            room_id=room_id,
+            target=target,
+            action="acquired",
+            user_name=user_name,
+            message=msg,
+            timestamp=timestamp,
+            skip_sid=None
+        )
 
         log.debug(
             f"Lock acquired for '{target}' in room '{room_id}' by user {user_name} with token {lock_token[:8]}... and TTL {ttl}s"
@@ -216,35 +220,46 @@ def refresh_lock(room_id, target):
     r.set(lock_key, lock_data_str, ex=int(ttl))
 
     # Update metadata if msg provided
+    timestamp = None
     if msg:
         metadata_key = f"{lock_key}:metadata"
+        timestamp = datetime.datetime.utcnow().isoformat()
         metadata = {
             "msg": msg,
             "userName": user_name,
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": timestamp,
         }
         r.set(metadata_key, json.dumps(metadata), ex=int(ttl))
-
-        # Broadcast update for trajectory:meta locks
-        if target == "trajectory:meta":
-            from . import events
-
-            emit_room_update(
-                events.socketio, room_id, metadataLocked=metadata, skip_sid=None
-            )
 
         log.debug(
             f"Lock refreshed for '{target}' in room '{room_id}' by {user_name} with updated message"
         )
     else:
-        # Just refresh metadata TTL without updating
+        # Just refresh metadata TTL without updating - check if metadata exists
         metadata_key = f"{lock_key}:metadata"
         if r.exists(metadata_key):
             r.expire(metadata_key, int(ttl))
+            # Get existing metadata for broadcast
+            metadata_raw = r.get(metadata_key)
+            if metadata_raw:
+                existing_metadata = json.loads(metadata_raw)
+                msg = existing_metadata.get("msg")
+                timestamp = existing_metadata.get("timestamp")
 
         log.debug(
             f"Lock refreshed for '{target}' in room '{room_id}' by {user_name}"
         )
+
+    # Broadcast lock refresh event
+    emit_lock_update(
+        room_id=room_id,
+        target=target,
+        action="refreshed",
+        user_name=user_name,
+        message=msg,
+        timestamp=timestamp,
+        skip_sid=None
+    )
 
     return jsonify({"success": True})
 
@@ -319,11 +334,16 @@ def release_lock(room_id, target):
     r.delete(lock_key)
     r.delete(f"{lock_key}:metadata")
 
-    # Broadcast lock release for trajectory:meta locks
-    if target == "trajectory:meta":
-        from . import events
-
-        emit_room_update(events.socketio, room_id, metadataLocked=None, skip_sid=None)
+    # Broadcast lock release event
+    emit_lock_update(
+        room_id=room_id,
+        target=target,
+        action="released",
+        user_name=None,
+        message=None,
+        timestamp=None,
+        skip_sid=None
+    )
 
     log.debug(
         f"Lock released for '{target}' in room '{room_id}' by user {user_name}"
