@@ -43,6 +43,7 @@ function MyScene() {
   const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
   const snackbar = useAppStore((state) => state.snackbar);
   const hideSnackbar = useAppStore((state) => state.hideSnackbar);
+  const mode = useAppStore((state) => state.mode);
   const theme = useTheme();
 
   // Track frame load time when not playing

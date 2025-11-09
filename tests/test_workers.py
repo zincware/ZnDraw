@@ -85,6 +85,10 @@ def test_register_extensions(server, category):
     # disconnect extension via client disconnect
     vis.disconnect()
 
+    # Wait for async cleanup to complete
+    import time
+    time.sleep(0.5)
+
     response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
     assert response.status_code == 200
     response_json = response.json()
@@ -106,6 +110,10 @@ def test_register_extensions(server, category):
     assert response_json["totalWorkers"] == 2
 
     vis1.disconnect()
+
+    # Wait for async cleanup to complete
+    time.sleep(0.5)
+
     response = requests.get(
         f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/workers"
     )
@@ -115,6 +123,10 @@ def test_register_extensions(server, category):
     assert response_json["totalWorkers"] == 1
 
     vis2.disconnect()
+
+    # Wait for async cleanup to complete
+    time.sleep(0.5)
+
     response = requests.get(
         f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/workers"
     )

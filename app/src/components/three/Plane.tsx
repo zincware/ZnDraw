@@ -82,12 +82,13 @@ export default function Plane({
   const frameCount = useAppStore((state) => state.frameCount);
   const roomId = useAppStore((state) => state.roomId);
   const userName = useAppStore((state) => state.userName);
+  const lock = useAppStore((state) => state.lock);
   const selections = useAppStore((state) => state.selections);
   const updateSelections = useAppStore((state) => state.updateSelections);
   const hoveredGeometryInstance = useAppStore((state) => state.hoveredGeometryInstance);
   const setHoveredGeometryInstance = useAppStore((state) => state.setHoveredGeometryInstance);
   const setDrawingPointerPosition = useAppStore((state) => state.setDrawingPointerPosition);
-  const isDrawing = useAppStore((state) => state.isDrawing);
+  const mode = useAppStore((state) => state.mode);
   const setDrawingIsValid = useAppStore((state) => state.setDrawingIsValid);
   const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
   const removeGeometryFetching = useAppStore((state) => state.removeGeometryFetching);
@@ -221,12 +222,12 @@ export default function Plane({
     }
 
     try {
-      await createGeometry(roomId, geometryKey, "Plane", currentGeometry.data);
-    } catch (error) {
+      await createGeometry(roomId, geometryKey, "Plane", currentGeometry.data, lock?.token);
+    } catch (error: any) {
       console.error(`[Plane] Failed to persist ${geometryKey}:`, error);
-      showSnackbar(`Failed to save positions for ${geometryKey}`, "error");
+      // Snackbar is shown automatically by withAutoLock for lock failures
     }
-  }, [roomId, geometryKey, geometries, showSnackbar]);
+  }, [roomId, geometryKey, geometries, lock, showSnackbar]);
 
   // Memoize debounced persist function to avoid recreation on every render
   const debouncedPersist = useMemo(
@@ -471,10 +472,10 @@ export default function Plane({
   const onPointerMoveHandler = useCallback((event: any) => {
     if (event.instanceId === undefined) return;
     event.stopPropagation();
-    if (isDrawing) {
+    if (mode === 'drawing') {
       setDrawingPointerPosition(event.point);
     }
-  }, [isDrawing, setDrawingPointerPosition]);
+  }, [mode, setDrawingPointerPosition]);
 
   const onPointerEnterHandler = useCallback((event: any) => {
     if (event.instanceId === undefined) return;

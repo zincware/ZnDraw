@@ -32,12 +32,14 @@ export function useGeometryEditing(
   fullGeometryData: any
 ) {
   const {
-    isEditing,
+    mode,
     subscribeToEditing,
     updateGeometry,
     editingCombinedCentroid,
     geometries,
   } = useAppStore();
+
+  const isEditing = mode === 'editing';
 
   // Early return if position is not static - this geometry can't be edited
   // This prevents any side effects for dynamic geometries like particles

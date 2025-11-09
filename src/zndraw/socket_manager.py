@@ -14,178 +14,6 @@ if t.TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-@dataclasses.dataclass
-class SocketIOLock:
-    """A client-side context manager for a distributed lock via REST API.
-
-    Simplified design: delegates all REST calls to APIManager.
-    Server controls TTL and refresh interval.
-    No client-side re-entrancy - nested locks are not supported.
-
-    Usage:
-        with vis.get_lock(msg="Uploading trajectory data") as lock:
-            vis.extend(frames)
-            lock.update_msg("Processing chunk 5/10")
-    """
-
-    api: "APIManager"  # type: ignore # Forward reference
-    target: str
-    msg: str | None = None
-
-    # Server-provided values (set on acquire)
-    _ttl: int | None = dataclasses.field(default=None, init=False)
-    _refresh_interval: int | None = dataclasses.field(default=None, init=False)
-    _refresh_thread: threading.Thread | None = dataclasses.field(
-        default=None, init=False
-    )
-    _refresh_stop: threading.Event = dataclasses.field(
-        default_factory=threading.Event, init=False
-    )
-    _is_held: bool = dataclasses.field(default=False, init=False)
-
-    def _refresh_lock_periodically(self):
-        """Background thread that refreshes the lock periodically."""
-        while not self._refresh_stop.is_set():
-            if self._refresh_stop.wait(timeout=self._refresh_interval):
-                break
-
-            try:
-                # Refresh without updating message (APIManager handles the request)
-                self.api.lock_refresh(self.target)
-                log.debug(
-                    f"Lock refreshed for target '{self.target}' with TTL {self._ttl}s"
-                )
-            except Exception as e:
-                log.error(f"Error refreshing lock for target '{self.target}': {e}")
-
-    def acquire(self, timeout: float = 60) -> bool:
-        """Acquire the lock via APIManager.
-
-        Nested locking is not supported - attempting to acquire an already-held
-        lock will raise RuntimeError.
-
-        Parameters
-        ----------
-        timeout : float
-            Request timeout (not used, kept for compatibility)
-
-        Returns
-        -------
-        bool
-            True if lock acquired successfully
-
-        Raises
-        ------
-        RuntimeError
-            If attempting to acquire an already-held lock or if acquisition fails
-        """
-        if self._is_held:
-            raise RuntimeError(
-                f"Lock for target '{self.target}' is already held by this instance. "
-                "Nested locking is not supported."
-            )
-
-        try:
-            # APIManager handles authentication and request
-            response = self.api.lock_acquire(self.target, msg=self.msg)
-
-            success = response.get("success", False)
-            if success:
-                self._is_held = True
-                self._ttl = response.get("ttl", 60)
-                self._refresh_interval = response.get("refreshInterval", 30)
-
-                # Start refresh thread
-                self._refresh_stop.clear()
-                self._refresh_thread = threading.Thread(
-                    target=self._refresh_lock_periodically,
-                    daemon=True,
-                    name=f"lock-refresh-{self.target}",
-                )
-                self._refresh_thread.start()
-
-            return success
-        except RuntimeError:
-            raise  # Re-raise lock acquisition failures
-        except Exception as e:
-            raise RuntimeError(f"Failed to acquire lock: {e}") from e
-
-    def refresh(self, msg: str | None = None) -> bool:
-        """Refresh lock TTL and optionally update message.
-
-        Parameters
-        ----------
-        msg : str | None
-            Optional updated message
-
-        Returns
-        -------
-        bool
-            True if successfully refreshed
-        """
-        try:
-            response = self.api.lock_refresh(self.target, msg=msg)
-            if msg is not None:
-                self.msg = msg  # Update instance message
-            return response.get("success", False)
-        except Exception as e:
-            log.warning(f"Failed to refresh lock: {e}")
-            return False
-
-    def update_msg(self, msg: str) -> bool:
-        """Update lock message (convenience method).
-
-        Parameters
-        ----------
-        msg : str
-            New message to set
-
-        Returns
-        -------
-        bool
-            True if successfully updated
-        """
-        return self.refresh(msg=msg)
-
-    def release(self) -> bool:
-        """Release the lock and stop refresh thread.
-
-        Returns
-        -------
-        bool
-            True if successfully released
-        """
-        if not self._is_held:
-            warnings.warn(
-                f"Attempting to release lock for '{self.target}' but not held"
-            )
-            return False
-
-        # Stop refresh thread
-        self._refresh_stop.set()
-        if self._refresh_thread and self._refresh_thread.is_alive():
-            self._refresh_thread.join(timeout=2)
-
-        try:
-            response = self.api.lock_release(self.target)
-            self._is_held = False
-            return response.get("success", False)
-        except Exception as e:
-            log.warning(f"Failed to release lock: {e}")
-            self._is_held = False
-            return False
-
-    def __enter__(self):
-        if not self.acquire():
-            raise RuntimeError(f"Failed to acquire lock for target '{self.target}'")
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if not self.release():
-            warnings.warn(
-                f"Failed to release lock for target '{self.target}'. It may have expired."
-            )
-
 
 class SocketManager:
     def __init__(self, zndraw_instance: "ZnDraw"):
@@ -553,90 +381,90 @@ class SocketManager:
             loaded_frame_count = 0
             max_particles = 0
 
-            with temp_vis.lock(msg=f"Loading {path}..."):
-                # Determine file mode based on format
-                # Binary formats need "rb", text formats need "r"
-                binary_formats = {"h5", "h5md", "traj", "db", "nc", "hdf5"}
-                mode = "rb" if ext in binary_formats else "r"
+            # Note: extend() internally acquires lock, so we can't wrap this in get_lock()
+            # Determine file mode based on format
+            # Binary formats need "rb", text formats need "r"
+            binary_formats = {"h5", "h5md", "traj", "db", "nc", "hdf5"}
+            mode = "rb" if ext in binary_formats else "r"
 
-                # Open file from fsspec filesystem
-                with fs.open(path, mode) as f:
-                    frame_iterator = None
+            # Open file from fsspec filesystem
+            with fs.open(path, mode) as f:
+                frame_iterator = None
 
-                    if backend_name == "ZnH5MD":
-                        # Use ZnH5MD for H5/H5MD files
-                        if step is not None and step <= 0:
-                            raise ValueError("Step must be a positive integer for H5MD files.")
+                if backend_name == "ZnH5MD":
+                    # Use ZnH5MD for H5/H5MD files
+                    if step is not None and step <= 0:
+                        raise ValueError("Step must be a positive integer for H5MD files.")
 
-                        io = znh5md.IO(f)
-                        n_frames = len(io)
+                    io = znh5md.IO(f)
+                    n_frames = len(io)
 
-                        if start is not None and start >= n_frames:
-                            raise ValueError(f"Start frame {start} exceeds file length")
+                    if start is not None and start >= n_frames:
+                        raise ValueError(f"Start frame {start} exceeds file length")
 
-                        s = slice(start, stop, step)
-                        _start, _stop, _step = s.indices(n_frames)
-                        frame_iterator = itertools.islice(io, _start, _stop, _step)
+                    s = slice(start, stop, step)
+                    _start, _stop, _step = s.indices(n_frames)
+                    frame_iterator = itertools.islice(io, _start, _stop, _step)
 
-                    elif backend_name == "ASE-DB":
-                        # ASE database - note: this may not work with file objects
-                        temp_vis.log("⚠️ Warning: ASE database format may not support remote filesystems")
-                        # Try anyway in case fsspec filesystem supports it
-                        db = ase.db.connect(f)
-                        n_rows = db.count()
+                elif backend_name == "ASE-DB":
+                    # ASE database - note: this may not work with file objects
+                    temp_vis.log("⚠️ Warning: ASE database format may not support remote filesystems")
+                    # Try anyway in case fsspec filesystem supports it
+                    db = ase.db.connect(f)
+                    n_rows = db.count()
 
-                        if n_rows == 0:
-                            temp_vis.log("⚠️ Warning: Database is empty")
-                            raise ValueError("Database is empty")
+                    if n_rows == 0:
+                        temp_vis.log("⚠️ Warning: Database is empty")
+                        raise ValueError("Database is empty")
 
-                        if step is not None and step <= 0:
-                            raise ValueError("Step must be a positive integer for database files.")
+                    if step is not None and step <= 0:
+                        raise ValueError("Step must be a positive integer for database files.")
 
-                        _start = start if start is not None else 0
-                        _stop = stop if stop is not None else n_rows
-                        _step = step if step is not None else 1
+                    _start = start if start is not None else 0
+                    _stop = stop if stop is not None else n_rows
+                    _step = step if step is not None else 1
 
-                        if _start >= n_rows:
-                            raise ValueError(f"Start row {_start} exceeds database size")
+                    if _start >= n_rows:
+                        raise ValueError(f"Start row {_start} exceeds database size")
 
-                        if _stop > n_rows:
-                            _stop = n_rows
+                    if _stop > n_rows:
+                        _stop = n_rows
 
-                        selected_ids = list(range(_start + 1, _stop + 1, _step))
+                    selected_ids = list(range(_start + 1, _stop + 1, _step))
 
-                        def db_iterator():
-                            for row_id in selected_ids:
-                                try:
-                                    row = db.get(id=row_id)
-                                    yield row.toatoms()
-                                except KeyError:
-                                    temp_vis.log(
-                                        f"⚠️ Warning: Row ID {row_id} not found, skipping"
-                                    )
-                                    continue
+                    def db_iterator():
+                        for row_id in selected_ids:
+                            try:
+                                row = db.get(id=row_id)
+                                yield row.toatoms()
+                            except KeyError:
+                                temp_vis.log(
+                                    f"⚠️ Warning: Row ID {row_id} not found, skipping"
+                                )
+                                continue
 
-                        frame_iterator = db_iterator()
+                    frame_iterator = db_iterator()
 
-                    else:
-                        # Use ASE for all other formats
-                        start_str = str(start) if start is not None else ""
-                        stop_str = str(stop) if stop is not None else ""
-                        step_str = str(step) if step is not None else ""
-                        index_str = f"{start_str}:{stop_str}:{step_str}"
+                else:
+                    # Use ASE for all other formats
+                    start_str = str(start) if start is not None else ""
+                    stop_str = str(stop) if stop is not None else ""
+                    step_str = str(step) if step is not None else ""
+                    index_str = f"{start_str}:{stop_str}:{step_str}"
 
-                        frame_iterator = ase.io.iread(f, index=index_str, format=ext or None)
+                    frame_iterator = ase.io.iread(f, index=index_str, format=ext or None)
 
-                    # Process frames in batches
-                    if frame_iterator:
-                        for batch in batch_generator(frame_iterator, batch_size):
-                            # Add connectivity for small structures
-                            for atoms in batch:
-                                if len(atoms) < 1000:
-                                    add_connectivity(atoms)
-                                max_particles = max(max_particles, len(atoms))
+                # Process frames in batches
+                if frame_iterator:
+                    for batch in batch_generator(frame_iterator, batch_size):
+                        # Add connectivity for small structures
+                        for atoms in batch:
+                            if len(atoms) < 1000:
+                                add_connectivity(atoms)
+                            max_particles = max(max_particles, len(atoms))
 
-                            temp_vis.extend(batch)
-                            loaded_frame_count += len(batch)
+                        temp_vis.extend(batch)
+                        loaded_frame_count += len(batch)
 
             temp_vis.log(f"✓ Successfully loaded {loaded_frame_count} frames from {path}")
 

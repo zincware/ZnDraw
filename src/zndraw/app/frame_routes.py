@@ -15,13 +15,13 @@ from flask import Blueprint, Response, current_app, request, send_file
 from .frame_index_manager import FrameIndexManager
 from .redis_keys import RoomKeys
 from .route_utils import (
-    check_room_locked,
     emit_bookmarks_invalidate,
     emit_frames_invalidate,
     emit_len_frames_update,
     get_storage,
     parse_frame_mapping,
     remove_bookmark_at_index,
+    requires_lock,
     shift_bookmarks_on_delete,
     shift_bookmarks_on_insert,
 )
@@ -322,16 +322,9 @@ def get_frame_metadata(room_id: str, frame_id: int):
 
 
 @frames.route("/api/rooms/<string:room_id>/frames", methods=["DELETE"])
-def delete_frames_batch(room_id):
+@requires_lock(target="trajectory:meta")
+def delete_frames_batch(room_id: str, session_id: str, user_id: str):
     """Deletes frames using either a single frame_id, indices, or slice parameters from query params."""
-    # Get userName from query params (if provided)
-    user_name = request.args.get("userName")
-
-    # Check if room is locked (passes userName for lock holder check)
-    lock_error = check_room_locked(room_id, user_name)
-    if lock_error:
-        return lock_error
-
     r = current_app.extensions["redis"]
     room_keys = RoomKeys(room_id)
 
@@ -468,16 +461,9 @@ def delete_frames_batch(room_id):
 
 
 @frames.route("/api/rooms/<string:room_id>/frames", methods=["POST"])
-def append_frame(room_id):
+@requires_lock(target="trajectory:meta")
+def append_frame(room_id: str, session_id: str, user_id: str):
     """Handles frame operations (append, extend, replace, insert) based on action query parameter."""
-    # Get userName from query params (if provided)
-    user_name = request.args.get("userName")
-
-    # Check if room is locked (passes userName for lock holder check)
-    lock_error = check_room_locked(room_id, user_name)
-    if lock_error:
-        return lock_error
-
     r = current_app.extensions["redis"]
     room_keys = RoomKeys(room_id)
 

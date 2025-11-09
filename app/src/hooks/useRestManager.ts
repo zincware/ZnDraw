@@ -12,6 +12,7 @@ export const useRestJoinManager = () => {
     setRoomId,
     setUserName,
     setUserRole,
+    setSessionId,
     setCurrentFrame,
     setFrameCount,
     setSelections,
@@ -78,6 +79,12 @@ export const useRestJoinManager = () => {
     try {
       const data = await joinRoomApi(room, requestBody, controller.signal);
       console.log("Join response data:", data);
+
+      // Store session ID for this browser tab
+      if (data.sessionId) {
+        console.log("Setting sessionId from join:", data.sessionId);
+        setSessionId(data.sessionId);
+      }
 
       // Update Zustand store with room data
       // TODO: all of these should be fetched lazily instead of at join time
@@ -189,6 +196,7 @@ export const useRestJoinManager = () => {
     setRoomId,
     setUserName,
     setUserRole,
+    setSessionId,
     setCurrentFrame,
     setFrameCount,
     setSelections,

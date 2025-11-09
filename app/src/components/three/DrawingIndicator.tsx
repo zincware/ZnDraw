@@ -10,14 +10,14 @@ import { useAppStore } from "../../store";
  */
 export default function DrawingIndicator() {
   // Use individual selectors to prevent unnecessary re-renders
-  const isDrawing = useAppStore((state) => state.isDrawing);
+  const mode = useAppStore((state) => state.mode);
   const activeCurveForDrawing = useAppStore((state) => state.activeCurveForDrawing);
   const setActiveCurveForDrawing = useAppStore((state) => state.setActiveCurveForDrawing);
   const geometries = useAppStore((state) => state.geometries);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   // Only show if drawing mode is active
-  if (!isDrawing || !activeCurveForDrawing) {
+  if (mode !== 'drawing' || !activeCurveForDrawing) {
     return null;
   }
 

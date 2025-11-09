@@ -27,7 +27,8 @@ def test_append_and_get_frame(server):
             "points": np.random.rand(5, 3),
             "colors": np.random.randint(0, 255, size=(5, 4), dtype=np.uint8),
         }
-        client.append_frame(data)
+        with client.get_lock():
+            client._append_frame(data)
         assert len(client) == i + 1
         frame = client.get(i)
         assert np.array_equal(frame["index"], data["index"])
@@ -41,7 +42,8 @@ def test_append_and_get_frame(server):
 def test_delete_frame(server):
     client = ZnDraw(room=uuid.uuid4().hex, url=server)
     for i in range(5):
-        client.append_frame({"index": np.array([i])})
+        with client.get_lock():
+            client._append_frame({"index": np.array([i])})
     assert len(client) == 5
     del client[0]
     assert len(client) == 4
@@ -58,14 +60,16 @@ def test_delete_frame(server):
 def test_replace_frame(server):
     client = ZnDraw(room=uuid.uuid4().hex, url=server)
     for i in range(10):
-        client.append_frame({"index": np.array([i])})
+        with client.get_lock():
+            client._append_frame({"index": np.array([i])})
     assert len(client) == 10
 
     # Replace frame at index 5
     new_data = {
         "index": np.array([999]),
     }
-    client.replace_frame(5, new_data)
+    with client.get_lock():
+        client._replace_frame(5, new_data)
     frame = client.get(5)
     assert np.array_equal(frame["index"], new_data["index"])
     assert len(client) == 10
@@ -79,7 +83,8 @@ def test_extend_frames(server):
 
     # Start with a few frames
     for i in range(3):
-        client.append_frame({"index": np.array([i]), "points": np.random.rand(5, 3)})
+        with client.get_lock():
+            client._append_frame({"index": np.array([i]), "points": np.random.rand(5, 3)})
     assert len(client) == 3
 
     # Extend with multiple frames at once
@@ -89,7 +94,8 @@ def test_extend_frames(server):
         {"index": np.array([30]), "points": np.random.rand(5, 3)},
     ]
 
-    new_indices = client.extend_frames(extend_data)
+    with client.get_lock():
+        new_indices = client._extend_frames(extend_data)
     assert len(client) == 6
     assert new_indices == [3, 4, 5]  # Should be appended at these logical positions
 
@@ -110,7 +116,8 @@ def test_get_frames_with_indices(server):
     test_data = []
     for i in range(10):
         data = {"index": np.array([i * 10]), "points": np.random.rand(3, 3)}
-        client.append_frame(data)
+        with client.get_lock():
+            client._append_frame(data)
         test_data.append(data)
 
     # Test fetching specific frames by indices
@@ -133,7 +140,8 @@ def test_get_frames_with_slice(server):
     test_data = []
     for i in range(20):
         data = {"index": np.array([i])}
-        client.append_frame(data)
+        with client.get_lock():
+            client._append_frame(data)
         test_data.append(data)
 
     # Test fetching frames with slice notation
@@ -169,8 +177,9 @@ def test_get_frames_empty_result(server):
     client = ZnDraw(room=uuid.uuid4().hex, url=server)
 
     # Add a few frames
-    for i in range(5):
-        client.append_frame({"index": np.array([i])})
+    with client.get_lock():
+        for i in range(5):
+            client._append_frame({"index": np.array([i])})
 
     # Test slice that results in no frames
     frames = client.get(slice(10, 20))  # Beyond available frames
@@ -193,9 +202,11 @@ def test_mutable_sequence_interface(server):
     # Test append()
     frame1 = {"index": np.array([10])}
     frame2 = {"index": np.array([20])}
-    client.append_frame(frame1)
+    with client.get_lock():
+        client._append_frame(frame1)
     assert len(client) == 1
-    client.append_frame(frame2)
+    with client.get_lock():
+        client._append_frame(frame2)
     assert len(client) == 2
 
     # Test __getitem__ with positive index
@@ -214,13 +225,15 @@ def test_mutable_sequence_interface(server):
 
     # Test __setitem__ (replace)
     new_frame = {"index": np.array([999])}
-    client.replace_frame(1, new_frame)
+    with client.get_lock():
+        client._replace_frame(1, new_frame)
     retrieved = client.get(1)
     assert np.array_equal(retrieved["index"], new_frame["index"])
 
     # Test extend()
     extend_data = [{"index": np.array([100])}, {"index": np.array([200])}]
-    client.extend_frames(extend_data)
+    with client.get_lock():
+        client._extend_frames(extend_data)
     assert len(client) == 4
     assert np.array_equal(client.get(2)["index"], extend_data[0]["index"])
     assert np.array_equal(client.get(3)["index"], extend_data[1]["index"])
@@ -246,14 +259,16 @@ def test_insert_frame_functionality(server, s22):
         {"index": np.array([1]), "value": np.array([200])},
         {"index": np.array([2]), "value": np.array([300])},
     ]
-    for frame in initial_frames:
-        client.append_frame(frame)
+    with client.get_lock():
+        for frame in initial_frames:
+            client._append_frame(frame)
 
     assert len(client) == 3
 
     # Test insert at beginning
     insert_frame_0 = {"index": np.array([999]), "value": np.array([999])}
-    client.insert_frame(0, insert_frame_0)
+    with client.get_lock():
+        client._insert_frame(0, insert_frame_0)
     assert len(client) == 4
 
     # Verify the insertion shifted everything
@@ -264,7 +279,8 @@ def test_insert_frame_functionality(server, s22):
 
     # Test insert in middle
     insert_frame_2 = {"index": np.array([888]), "value": np.array([888])}
-    client.insert_frame(2, insert_frame_2)
+    with client.get_lock():
+        client._insert_frame(2, insert_frame_2)
     assert len(client) == 5
 
     # Verify the insertion
@@ -276,7 +292,8 @@ def test_insert_frame_functionality(server, s22):
 
     # Test insert at end (equivalent to append)
     insert_frame_end = {"index": np.array([777]), "value": np.array([777])}
-    client.insert_frame(len(client), insert_frame_end)
+    with client.get_lock():
+        client._insert_frame(len(client), insert_frame_end)
     assert len(client) == 6
 
     # Should be at the last position
@@ -297,15 +314,16 @@ def test_mutable_sequence_insert(server):
         {"data": np.array([4, 5, 6])},
         {"data": np.array([7, 8, 9])},
     ]
-
-    for frame in frames:
-        client.append_frame(frame)
+    with client.get_lock():
+        for frame in frames:
+            client._append_frame(frame)
 
     assert len(client) == 3
 
     # Test MutableSequence insert at position 1
     insert_data = {"data": np.array([99, 99, 99])}
-    client.insert_frame(1, insert_data)
+    with client.get_lock():
+        client._insert_frame(1, insert_data)
     assert len(client) == 4
 
     # Verify the order
@@ -351,9 +369,9 @@ def test_slice_assignment_vs_python_list(server):
         # Clear client and set up initial data
         while len(client) > 0:
             del client[0]
-
-        for frame in initial_frames:
-            client.append_frame(frame)
+        with client.get_lock():
+            for frame in initial_frames:
+                client._append_frame(frame)
 
         # Perform slice assignment
         client.set_frames(slice_obj, value_frames)
@@ -412,8 +430,9 @@ def test_extended_slice_assignment_vs_python_list(server):
         while len(client) > 0:
             del client[0]
 
-        for frame in initial_frames:
-            client.append_frame(frame)
+        with client.get_lock():
+            for frame in initial_frames:
+                client._append_frame(frame)
 
         # Perform extended slice assignment
         client.set_frames(slice_obj, value_frames)
@@ -440,8 +459,10 @@ def test_slice_assignment_error_conditions(server):
 
     # Set up initial data
     initial_frames = [{"index": np.array([i])} for i in range(1, 6)]  # [1, 2, 3, 4, 5]
-    for frame in initial_frames:
-        client.append_frame(frame)
+    
+    with client.get_lock():
+        for frame in initial_frames:
+            client._append_frame(frame)
 
     # Test extended slice with wrong number of values (should raise ValueError)
     value_frames = [{"index": np.array([10])}]  # Only 1 value for 3 positions
@@ -518,9 +539,9 @@ def test_slice_assignment_edge_cases(server):
         # Clear client and set up initial data
         while len(client) > 0:
             del client[0]
-
-        for frame in initial_frames:
-            client.append_frame(frame)
+        with client.get_lock():
+            for frame in initial_frames:
+                client._append_frame(frame)
 
         # Perform slice assignment
         client.set_frames(slice_obj, value_frames)
@@ -547,8 +568,9 @@ def test_slice_assignment_single_value(server):
 
     # Set up initial data
     initial_frames = [{"index": np.array([i])} for i in range(1, 4)]  # [1, 2, 3]
-    for frame in initial_frames:
-        client.append_frame(frame)
+    with client.get_lock():
+        for frame in initial_frames:
+            client._append_frame(frame)
 
     # Test assigning single frame to slice (should be treated as [frame])
     single_frame = {"index": np.array([99])}
@@ -587,7 +609,9 @@ def test_nested_dict_handling(server):
             "details": {"version": 1.0, "tags": ["test", "nested"]},
         },
     }
-    client.append_frame(nested_data)
+    
+    with client.get_lock():
+        client._append_frame(nested_data)
     assert len(client) == 1
 
     # Retrieve and verify the nested structure
@@ -658,7 +682,8 @@ def test_comprehensive_atom_dict(server):
     }
 
     client = ZnDraw(room=uuid.uuid4().hex, url=server)
-    client.append_frame(data)
+    with client.get_lock():
+        client._append_frame(data)
     assert len(client) == 1
     frame = client.get(0)
     assert np.array_equal(frame["numbers"], data["numbers"])
@@ -700,7 +725,8 @@ def test_partial_key_retrieval(server):
         "colors": np.random.randint(0, 255, size=(5, 4), dtype=np.uint8),
         "extra": "This is some extra info",
     }
-    client.append_frame(data)
+    with client.get_lock():
+        client._append_frame(data)
     assert len(client) == 1
 
     # Retrieve only 'points' key

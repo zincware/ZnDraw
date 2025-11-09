@@ -8,10 +8,10 @@ import { useAppStore } from "../../store";
  */
 export default function EditingIndicator() {
   // Use individual selectors to prevent unnecessary re-renders
-  const isEditing = useAppStore((state) => state.isEditing);
+  const mode = useAppStore((state) => state.mode);
 
   // Only show if editing mode is active
-  if (!isEditing) {
+  if (mode !== 'editing') {
     return null;
   }
 

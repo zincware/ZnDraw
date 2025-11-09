@@ -476,33 +476,6 @@ def test_duplicate_to_existing_room_fails(server, s22):
     assert response.status_code == 409
 
 
-def test_locked_room_rejects_append(server, s22):
-    """Test that locked rooms reject frame append operations."""
-    vis = ZnDraw(url=server, room="locked-room-1", user="user1")
-    vis.append(s22[0])
-
-    r = redis.Redis(host="localhost", port=6379, decode_responses=True)
-    r.set("room:locked-room-1:locked", "1")
-
-    # Try to append another frame (should fail)
-    with pytest.raises(RuntimeError, match="locked"):
-        vis.append(s22[1])
-
-
-def test_locked_room_rejects_delete(server, s22):
-    """Test that locked rooms reject frame delete operations."""
-    vis = ZnDraw(url=server, room="locked-room-2", user="user1")
-    vis.append(s22[0])
-
-    r = redis.Redis(host="localhost", port=6379, decode_responses=True)
-    r.set("room:locked-room-2:locked", "1")
-
-    response = requests.delete(f"{server}/api/rooms/locked-room-2/frames?frame_id=0")
-    assert response.status_code == 403
-    data = response.json()
-    assert "locked" in data["error"].lower()
-
-
 def test_unlocked_room_allows_mutations(server, s22):
     """Test that unlocked rooms allow mutations."""
     vis = ZnDraw(url=server, room="unlocked-room", user="user1")

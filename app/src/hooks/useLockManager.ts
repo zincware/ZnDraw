@@ -17,13 +17,13 @@ export function useLockManager() {
    * Acquire a lock for a specific target
    * @param target - Lock target (e.g., "trajectory:meta", "geometry:editing")
    * @param msg - Optional message to display to other users
-   * @returns Promise<{success: boolean, ttl?: number, refreshInterval?: number}> - Lock acquisition result with server-provided TTL and refresh interval
+   * @returns Promise<{success: boolean, lockToken?: string, ttl?: number, refreshInterval?: number}> - Lock acquisition result with server-provided lock token, TTL and refresh interval
    */
   const acquireLock_ = useCallback(
     async (
       target: string,
       msg?: string
-    ): Promise<{ success: boolean; ttl?: number; refreshInterval?: number }> => {
+    ): Promise<{ success: boolean; lockToken?: string; ttl?: number; refreshInterval?: number }> => {
       if (!roomId) {
         console.error("Cannot acquire lock: no room ID");
         return { success: false };
@@ -50,17 +50,18 @@ export function useLockManager() {
   /**
    * Release a lock for a specific target
    * @param target - Lock target to release
+   * @param lockToken - Lock token from acquire response
    * @returns Promise<boolean> - true if lock released, false otherwise
    */
   const releaseLock_ = useCallback(
-    async (target: string): Promise<boolean> => {
+    async (target: string, lockToken: string): Promise<boolean> => {
       if (!roomId) {
         console.error("Cannot release lock: no room ID");
         return false;
       }
 
       try {
-        const response = await releaseLock(roomId, target);
+        const response = await releaseLock(roomId, target, lockToken);
         return response.success || false;
       } catch (error) {
         console.error("Failed to release lock:", error);
@@ -73,18 +74,19 @@ export function useLockManager() {
   /**
    * Refresh a lock to extend its TTL and optionally update message
    * @param target - Lock target to refresh
+   * @param lockToken - Lock token from acquire response
    * @param msg - Optional updated message (if provided, updates the lock message)
    * @returns Promise<boolean> - true if lock refreshed, false otherwise
    */
   const refreshLock_ = useCallback(
-    async (target: string, msg?: string): Promise<boolean> => {
+    async (target: string, lockToken: string, msg?: string): Promise<boolean> => {
       if (!roomId) {
         console.error("Cannot refresh lock: no room ID");
         return false;
       }
 
       try {
-        const response = await refreshLock(roomId, target, msg);
+        const response = await refreshLock(roomId, target, lockToken, msg);
         return response.success || false;
       } catch (error) {
         console.error("Failed to refresh lock:", error);
@@ -98,12 +100,13 @@ export function useLockManager() {
    * Update the message associated with a lock
    * This is just an alias for refreshLock with a message parameter
    * @param target - Lock target
+   * @param lockToken - Lock token from acquire response
    * @param msg - New message to display
    * @returns Promise<boolean> - true if message updated, false otherwise
    */
   const updateLockMessage = useCallback(
-    async (target: string, msg: string): Promise<boolean> => {
-      return refreshLock_(target, msg);
+    async (target: string, lockToken: string, msg: string): Promise<boolean> => {
+      return refreshLock_(target, lockToken, msg);
     },
     [refreshLock_]
   );

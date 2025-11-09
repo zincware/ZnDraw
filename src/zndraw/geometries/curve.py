@@ -4,7 +4,13 @@ import numpy as np
 import splines
 from pydantic import BaseModel, Field
 
-from .base import BaseGeometry, ColorProp, PositionProp, apply_schema_feature
+from .base import (
+    BaseGeometry,
+    ColorProp,
+    InteractionSettings,
+    PositionProp,
+    apply_schema_feature,
+)
 
 
 class CurveMarker(BaseModel):
@@ -28,6 +34,14 @@ class CurveMarker(BaseModel):
         description="Opacity of the markers",
         ge=0,
         le=1,
+    )
+    selecting: InteractionSettings = Field(
+        default=InteractionSettings(color="#FF6A00", opacity=0.5),
+        description="Selection interaction settings for markers.",
+    )
+    hovering: InteractionSettings = Field(
+        default=InteractionSettings(color="#FF0000", opacity=0.5),
+        description="Hover interaction settings for markers.",
     )
 
 

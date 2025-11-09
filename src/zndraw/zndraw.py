@@ -21,7 +21,8 @@ from zndraw.metadata_manager import RoomMetadata
 from zndraw.scene_manager import Geometries
 from zndraw.server_manager import get_server_status
 from zndraw.settings import RoomConfig, settings
-from zndraw.socket_manager import SocketIOLock, SocketManager
+from zndraw.socket_manager import SocketManager
+from zndraw.lock import ZnDrawLock
 from asebytes import encode, decode
 from zndraw.utils import update_colors_and_radii
 from zndraw.version_utils import validate_server_version
@@ -399,7 +400,7 @@ class ZnDraw(MutableSequence):
             auto_pickup_jobs=False,
         )
 
-    def get_lock(self, msg: str | None = None, target: str = "trajectory:meta") -> SocketIOLock:
+    def get_lock(self, msg: str | None = None, target: str = "trajectory:meta") -> ZnDrawLock:
         """Get a SocketIOLock instance for distributed locking.
 
         Parameters
@@ -428,7 +429,7 @@ class ZnDraw(MutableSequence):
         """
         if not self.socket.sio.connected:
             raise RuntimeError("Lock requires an active connection. Ensure client is connected.")
-        return SocketIOLock(self.api, target=target, msg=msg)
+        return ZnDrawLock(self.api, target=target, msg=msg)
 
     @property
     def geometries(self) -> Geometries:

@@ -12,7 +12,7 @@ from zndraw.server import socketio
 
 from .constants import SocketEvents
 from .redis_keys import RoomKeys
-from .route_utils import check_room_locked
+from .route_utils import requires_lock
 
 log = logging.getLogger(__name__)
 
@@ -20,8 +20,14 @@ geometries = Blueprint("geometries", __name__)
 
 
 @geometries.route("/api/rooms/<string:room_id>/geometries", methods=["POST"])
-def create_geometry(room_id: str):
+@requires_lock(target="trajectory:meta")
+def create_geometry(room_id: str, session_id: str, user_id: str):
     """Create or update a geometry in the room.
+
+    Requires trajectory:meta lock (enforced by @requires_lock decorator).
+
+    Headers:
+        X-Session-ID: Session ID from /join
 
     Request body:
         {
@@ -30,13 +36,8 @@ def create_geometry(room_id: str):
             "data": {...}  // geometry-specific data
         }
     """
-    from zndraw.auth import AuthError, get_current_user
-
-    # Authenticate and get userName from JWT token
-    try:
-        user_name = get_current_user()
-    except AuthError as e:
-        return {"error": e.message}, e.status_code
+    # session_id, user_id, lock_token are injected by @requires_lock decorator
+    # No need to manually authenticate or validate lock
 
     data = request.get_json() or {}
     key = data.get("key")
@@ -128,14 +129,16 @@ def get_geometry(room_id: str, key: str):
 @geometries.route(
     "/api/rooms/<string:room_id>/geometries/<string:key>", methods=["DELETE"]
 )
-def delete_geometry(room_id: str, key: str):
-    from zndraw.auth import AuthError, get_current_user
+@requires_lock(target="trajectory:meta")
+def delete_geometry(room_id: str, key: str, session_id: str, user_id: str):
+    """Delete a geometry from the room.
 
-    # Authenticate and get userName from JWT token
-    try:
-        user_name = get_current_user()
-    except AuthError as e:
-        return {"error": e.message}, e.status_code
+    Requires trajectory:meta lock (enforced by @requires_lock decorator).
+
+    Headers:
+        X-Session-ID: Session ID from /join
+    """
+    # session_id and user_id are injected by @requires_lock decorator
 
     r = current_app.extensions["redis"]
     keys = RoomKeys(room_id)

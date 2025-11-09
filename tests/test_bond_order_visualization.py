@@ -4,7 +4,6 @@ import ase
 import numpy as np
 import pytest
 import requests
-from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
 from zndraw.geometries import Bond
@@ -211,27 +210,20 @@ def test_bond_order_custom_radius_scale(server):
 
 
 def test_bond_order_rest_api(joined_room):
-    """Test bond order configuration via REST API."""
+    """Test bond order configuration via Python client."""
     server, room = joined_room
 
-    # Update bond geometry with parallel mode
-    bond_data = {
-        "connectivity": "info.connectivity",
-        "bond_order_mode": "parallel",
-        "bond_order_offset": 0.2,
-        "scale": 0.15,
-    }
+    # Use ZnDraw client which handles lock acquisition automatically
+    vis = ZnDraw(url=server, room=room, user="test-bond-order-update")
 
-    response = requests.post(
-        f"{server}/api/rooms/{room}/geometries",
-        json={
-            "key": "bonds",
-            "data": bond_data,
-            "type": "Bond",
-        },
-        headers=get_jwt_auth_headers(server),
+    # Update bond geometry with parallel mode
+    bond = Bond(
+        connectivity="info.connectivity",
+        bond_order_mode="parallel",
+        bond_order_offset=0.2,
+        scale=0.15,
     )
-    assert response.status_code == 200
+    vis.geometries["bonds"] = bond
 
     # Verify the update
     response = requests.get(f"{server}/api/rooms/{room}/geometries/bonds")

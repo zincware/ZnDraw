@@ -60,8 +60,9 @@ export default function MainPage() {
 
   const chatOpen = useAppStore((state) => state.chatOpen);
   const setChatOpen = useAppStore((state) => state.setChatOpen);
-  const isDrawing = useAppStore((state) => state.isDrawing);
-  const toggleDrawingMode = useAppStore((state) => state.toggleDrawingMode);
+  const interactionMode = useAppStore((state) => state.mode);
+  const enterDrawingMode = useAppStore((state) => state.enterDrawingMode);
+  const exitDrawingMode = useAppStore((state) => state.exitDrawingMode);
   const chatUnreadCount = useAppStore((state) => state.chatUnreadCount);
   const serverVersion = useAppStore((state) => state.serverVersion);
   const globalSettings = useAppStore((state) => state.globalSettings);
@@ -75,7 +76,7 @@ export default function MainPage() {
   const [userProfileDialogOpen, setUserProfileDialogOpen] = useState(false);
   const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
   const profileMenuOpen = Boolean(profileAnchorEl);
-  const { mode, setMode } = useColorScheme();
+  const { mode: colorMode, setMode: setColorMode } = useColorScheme();
   const queryClient = useQueryClient();
 
   // Tutorial dialog state
@@ -109,7 +110,7 @@ export default function MainPage() {
   };
 
   const handleToggleColorMode = () => {
-    setMode(mode === "light" ? "dark" : "light");
+    setColorMode(colorMode === "light" ? "dark" : "light");
   };
 
   const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -199,13 +200,13 @@ export default function MainPage() {
             <Box sx={{ flexGrow: 1 }} />
             <SiMGenButtons onTutorialClick={() => setTutorialDialogOpen(true)} />
             <Box sx={{ flexGrow: 1 }} />
-            <Tooltip title={isDrawing ? "Disable drawing mode" : "Enable drawing mode"}>
+            <Tooltip title={interactionMode === 'drawing' ? "Disable drawing mode" : "Enable drawing mode"}>
               <IconButton
                 color="inherit"
                 aria-label="toggle drawing mode"
-                onClick={() => toggleDrawingMode(queryClient)}
+                onClick={() => interactionMode === 'drawing' ? exitDrawingMode() : enterDrawingMode(queryClient)}
                 sx={{
-                  backgroundColor: isDrawing ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                  backgroundColor: interactionMode === 'drawing' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
                 }}
               >
                 <BrushIcon />
@@ -213,7 +214,7 @@ export default function MainPage() {
             </Tooltip>
             <Tooltip
               title={
-                mode === "light"
+                colorMode === "light"
                   ? "Switch to dark mode"
                   : "Switch to light mode"
               }
@@ -223,7 +224,7 @@ export default function MainPage() {
                 aria-label="toggle color mode"
                 onClick={handleToggleColorMode}
               >
-                {mode === "light" ? <DarkModeIcon /> : <LightModeIcon />}
+                {colorMode === "light" ? <DarkModeIcon /> : <LightModeIcon />}
               </IconButton>
             </Tooltip>
             <Tooltip title={"Python code connection info"}>

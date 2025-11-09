@@ -1,6 +1,7 @@
 import axios from "axios";
 import { unpackBinary } from "../utils/msgpack-numpy";
 import { getToken } from "../utils/auth";
+import { useAppStore } from "../store";
 
 /**
  * Decodes frame data from the backend msgpack format.
@@ -80,12 +81,22 @@ export interface GlobalSettings {
 
 const apiClient = axios.create({});
 
-// Add interceptor to include JWT token in all requests
+// Add interceptor to include JWT token and session ID in all requests
 apiClient.interceptors.request.use((config) => {
   const token = getToken();
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;
   }
+
+  // Add session ID header if available
+  const sessionId = useAppStore.getState().sessionId;
+  if (sessionId) {
+    config.headers['X-Session-ID'] = sessionId;
+    console.log(`[API] Adding X-Session-ID header: ${sessionId} for ${config.url}`);
+  } else {
+    console.log(`[API] No sessionId available for ${config.url}`);
+  }
+
   return config;
 });
 
@@ -197,24 +208,58 @@ export const createGeometry = async (
   key: string,
   geometryType: string,
   geometryData: Record<string, any>,
+  lockToken?: string,
 ): Promise<{ status: string }> => {
+  console.log(`[createGeometry] roomId: ${roomId}, key: ${key}, type: ${geometryType}, lockToken: ${lockToken ? 'provided (ignored)' : 'not needed'}`);
+
   const requestBody = {
     key,
     type: geometryType,
     data: geometryData,
   };
+  
+  // If lockToken is provided (from edit mode), client has lock so perform operation directly
+  if (lockToken) {
+    const { data } = await apiClient.post(`/api/rooms/${roomId}/geometries`, requestBody);
+    return data;
+  }
 
-  const { data } = await apiClient.post(`/api/rooms/${roomId}/geometries`, requestBody);
-
-  return data;
+  // Otherwise, auto-acquire lock, perform operation, and release
+  return withAutoLock(
+    roomId,
+    "trajectory:meta",
+    async (_autoLockToken) => {
+      const { data } = await apiClient.post(`/api/rooms/${roomId}/geometries`, requestBody);
+      return data;
+    },
+    `Creating geometry: ${key}`
+  );
 };
 
 export const deleteGeometry = async (
   roomId: string,
   key: string,
+  lockToken?: string,
 ): Promise<{ status: string }> => {
-  const { data } = await apiClient.delete(`/api/rooms/${roomId}/geometries/${key}`);
-  return data;
+  console.log(`[deleteGeometry] roomId: ${roomId}, key: ${key}, lockToken: ${lockToken ? 'provided (ignored)' : 'not needed'}`);
+
+  // If lockToken is provided (from edit mode), client has lock so perform operation directly
+  if (lockToken) {
+    const { data } = await apiClient.delete(`/api/rooms/${roomId}/geometries/${key}`);
+    return data;
+  }
+
+  // Otherwise, auto-acquire lock, perform operation, and release
+  return withAutoLock(
+    roomId,
+    "trajectory:meta",
+    async (_autoLockToken) => {
+      // Session ID is automatically added by interceptor, server validates session holds lock
+      const { data } = await apiClient.delete(`/api/rooms/${roomId}/geometries/${key}`);
+      return data;
+    },
+    `Deleting geometry: ${key}`
+  );
 };
 
 export const getGeometrySchemas = async (
@@ -354,6 +399,7 @@ export interface JoinRoomRequest {
 export interface JoinRoomResponse {
   status: string;
   userName: string;
+  sessionId: string; // Session ID for this browser tab
   frameCount: number;
   roomId: string;
   template: string;
@@ -1149,6 +1195,7 @@ export const loadFilesystemFile = async (
 
 export interface LockAcquireResponse {
   success: boolean;
+  lockToken?: string;
   ttl?: number;
   refreshInterval?: number;
   error?: string;
@@ -1163,6 +1210,56 @@ export interface LockReleaseResponse {
   success: boolean;
   error?: string;
 }
+
+/**
+ * Execute an operation with automatic lock acquire/release.
+ *
+ * This helper acquires a lock, executes the operation with the lock token,
+ * and ensures the lock is released even if the operation fails.
+ * Shows a snackbar notification if lock acquisition fails.
+ *
+ * @param roomId - Room identifier
+ * @param target - Lock target (e.g., "trajectory:meta")
+ * @param operation - Async function that receives the lock token and performs the operation
+ * @param msg - Optional message describing the lock purpose
+ * @returns Promise with the operation result
+ * @throws Error if lock acquisition fails or operation fails
+ */
+export const withAutoLock = async <T>(
+  roomId: string,
+  target: string,
+  operation: (lockToken: string) => Promise<T>,
+  msg?: string
+): Promise<T> => {
+  // 1. Acquire lock (snackbar shown by acquireLock on failure)
+  const acquireResponse = await acquireLock(roomId, target, msg);
+
+  if (!acquireResponse.success || !acquireResponse.lockToken) {
+    const errorMsg = acquireResponse.error || "Failed to acquire lock";
+    throw new Error(errorMsg);
+  }
+
+  const lockToken = acquireResponse.lockToken;
+
+  try {
+    // 2. Execute operation with lock token
+    const result = await operation(lockToken);
+
+    // 3. Release lock on success
+    await releaseLock(roomId, target, lockToken);
+
+    return result;
+  } catch (error) {
+    // 3. Release lock on failure
+    try {
+      await releaseLock(roomId, target, lockToken);
+    } catch (releaseError) {
+      console.error("Failed to release lock after error:", releaseError);
+    }
+
+    throw error;
+  }
+};
 
 /**
  * Acquire a lock for a specific target in a room.
@@ -1182,11 +1279,21 @@ export const acquireLock = async (
     payload.msg = msg;
   }
 
-  const { data } = await apiClient.post(
-    `/api/rooms/${roomId}/locks/${target}/acquire`,
-    payload
-  );
-  return data;
+  try {
+    const { data } = await apiClient.post(
+      `/api/rooms/${roomId}/locks/${target}/acquire`,
+      payload
+    );
+    return data;
+  } catch (error: any) {
+    // Show snackbar for lock acquisition failure (423 or other errors)
+    useAppStore.getState().showSnackbar(
+      "Cannot perform action - room is locked by another user",
+      "warning"
+    );
+    // Re-throw the error so callers know it failed
+    throw error;
+  }
 };
 
 /**
@@ -1194,15 +1301,17 @@ export const acquireLock = async (
  *
  * @param roomId - Room identifier
  * @param target - Lock target (e.g., "trajectory:meta")
+ * @param lockToken - Lock token from acquire response
  * @param msg - Optional updated message (if provided, updates the lock message)
  * @returns Promise with refresh result
  */
 export const refreshLock = async (
   roomId: string,
   target: string,
+  lockToken: string,
   msg?: string
 ): Promise<LockRefreshResponse> => {
-  const payload: { msg?: string } = {};
+  const payload: { lockToken: string; msg?: string } = { lockToken };
   if (msg) {
     payload.msg = msg;
   }
@@ -1219,15 +1328,17 @@ export const refreshLock = async (
  *
  * @param roomId - Room identifier
  * @param target - Lock target (e.g., "trajectory:meta")
+ * @param lockToken - Lock token from acquire response
  * @returns Promise with release result
  */
 export const releaseLock = async (
   roomId: string,
-  target: string
+  target: string,
+  lockToken: string
 ): Promise<LockReleaseResponse> => {
   const { data } = await apiClient.post(
     `/api/rooms/${roomId}/locks/${target}/release`,
-    {}
+    { lockToken }
   );
   return data;
 };

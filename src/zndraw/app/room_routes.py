@@ -14,7 +14,6 @@ from .frame_index_manager import FrameIndexManager
 from .redis_keys import RoomKeys
 from .room_manager import emit_room_update
 from .route_utils import (
-    check_room_locked,
     emit_bookmarks_invalidate,
     get_lock_key,
     get_metadata_lock_info,
@@ -170,6 +169,10 @@ def get_room(room_id):
 def join_room(room_id):
     """Join a room (requires JWT authentication).
 
+    Generates a unique sessionId for this client connection.
+    The sessionId identifies this specific browser tab/client instance
+    and is used for per-connection lock ownership.
+
     Headers
     -------
     Authorization: Bearer <jwt-token> (required)
@@ -188,12 +191,16 @@ def join_room(room_id):
         "status": "ok",
         "roomId": "room-name",
         "userName": "username",
+        "sessionId": "unique-session-uuid",
         "frameCount": 0,
         "step": 0,
         "created": true,
         ...
     }
     """
+    import datetime
+    import uuid
+
     from zndraw.auth import AuthError, get_current_user
 
     data = request.get_json() or {}
@@ -205,6 +212,9 @@ def join_room(room_id):
         user_name = get_current_user()
     except AuthError as e:
         return {"error": e.message}, e.status_code
+
+    # Generate unique session ID for this client connection
+    session_id = str(uuid.uuid4())
     description = data.get("description")
     copy_from = data.get("copyFrom")
     allow_create = data.get("allowCreate", True)
@@ -212,6 +222,19 @@ def join_room(room_id):
     room_service = current_app.extensions["room_service"]
     client_service = current_app.extensions["client_service"]
     settings_service = current_app.extensions["settings_service"]
+
+    # Store session mapping in Redis (sessionId → userId)
+    # TTL: 24 hours (session expires if no activity)
+    session_key = f"session:{session_id}"
+    session_data = json.dumps({
+        "userId": user_name,
+        "roomId": room_id,
+        "connectedAt": datetime.datetime.utcnow().isoformat(),
+        "lastActivity": datetime.datetime.utcnow().isoformat()
+    })
+    r.set(session_key, session_data, ex=86400)  # 24 hour TTL
+
+    log.info(f"User {user_name} joined room {room_id} with session {session_id}")
 
     # Check if room already exists
     room_exists = room_service.room_exists(room_id)
@@ -226,11 +249,10 @@ def join_room(room_id):
     # Update client room membership atomically (using userName as identifier)
     client_service.update_user_and_room_membership(user_name, room_id)
 
-    log.info(f"User {user_name} joined room: {room_id}")
-
     response = {
         "status": "ok",
         "userName": user_name,
+        "sessionId": session_id,  # Return session ID to client
         "frameCount": 0,
         "roomId": room_id,
         "selections": None,

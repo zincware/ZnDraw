@@ -2,6 +2,7 @@
 
 This is a new application and you must not consider migrations or backwards compatibility.
 Design all new features with maintainability and performance in mind.
+Always do a clean implementation, do not try to patch existing code for backwards compatibility, but remove and refactor it instead!
 Use KISS, DRY, SOLID and YAGNI principles.
 When refactoring, you can break backwards compatibility.
 Always consider a better design approach compared to the existing one.

@@ -5,6 +5,8 @@ import msgpack
 import msgpack_numpy as m
 import requests
 
+from zndraw.lock import ZnDrawLock
+
 
 @dataclasses.dataclass
 class APIManager:
@@ -12,6 +14,7 @@ class APIManager:
     room: str
     user_name: str | None = None
     jwt_token: str | None = None
+    session_id: str | None = None  # Session ID from /join response
 
     def login(self, user_name: str | None, password: str | None = None) -> dict:
         """Authenticate and get JWT token.
@@ -47,6 +50,21 @@ class APIManager:
         self.jwt_token = data["token"]
         self.user_name = data["userName"]
         return data
+
+    def _get_headers(self) -> dict:
+        """Build headers for API requests.
+
+        Returns
+        -------
+        dict
+            Headers dictionary with Authorization and X-Session-ID
+        """
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+        if self.session_id:
+            headers["X-Session-ID"] = self.session_id
+        return headers
 
     def _raise_for_error_type(self, response: requests.Response) -> None:
         """Convert API error responses to appropriate Python exceptions.
@@ -131,7 +149,11 @@ class APIManager:
             raise RuntimeError(
                 f"Failed to join room '{self.room}': {response.status_code} {response.text}"
             )
-        return response.json()
+
+        data = response.json()
+        # Store session ID for subsequent requests
+        self.session_id = data.get("sessionId")
+        return data
 
     def get_next_job(self, worker_id: str) -> dict | None:
         """Poll for the next available job for this worker (room-agnostic).
@@ -150,9 +172,7 @@ class APIManager:
             Job data including jobId, room, category, extension, data, etc.
             Returns None if no jobs are available.
         """
-        headers = {}
-        if self.jwt_token:
-            headers["Authorization"] = f"Bearer {self.jwt_token}"
+        headers = self._get_headers()
 
         response = requests.post(
             f"{self.url}/api/jobs/next",
@@ -171,9 +191,7 @@ class APIManager:
     def update_job_status(
         self, job_id: str, status: str, worker_id: str, error: str | None = None
     ) -> None:
-        headers = {}
-        if self.jwt_token:
-            headers["Authorization"] = f"Bearer {self.jwt_token}"
+        headers = self._get_headers()
 
         payload = {"status": status, "workerId": worker_id}
         if error:
@@ -298,8 +316,9 @@ class APIManager:
         if keys is not None:
             payload["keys"] = ",".join(keys)
 
+        headers = self._get_headers()
         full_url = f"{self.url}/api/rooms/{self.room}/frames"
-        response = requests.get(full_url, params=payload, timeout=30)
+        response = requests.get(full_url, params=payload, headers=headers, timeout=30)
 
         if response.status_code == 404:
             try:
@@ -326,7 +345,7 @@ class APIManager:
         # Return raw dict[bytes, bytes] format - no decoding
         return serialized_frames
 
-    def upload_frames(self, action: str, data, **kwargs) -> dict:
+    def upload_frames(self, action: str, data, lock_token: str | None = None, **kwargs) -> dict:
         try:
             # Serialize data with msgpack-numpy support for numpy arrays
             # This handles both dict[bytes, bytes] from encode() and raw dicts with numpy arrays
@@ -338,12 +357,9 @@ class APIManager:
             params = {"action": action}
             params.update(kwargs)
 
-            # Add userName if available (for lock checking)
-            if self.user_name:
-                params["userName"] = self.user_name
-
+            headers = self._get_headers()
             http_response = requests.post(
-                upload_url, data=packed_data, params=params, timeout=30
+                upload_url, data=packed_data, params=params, headers=headers, timeout=30
             )
 
             if http_response.status_code == 404:
@@ -387,7 +403,8 @@ class APIManager:
         if self.user_name:
             params["userName"] = self.user_name
 
-        response = requests.delete(delete_url, params=params, timeout=30)
+        headers = self._get_headers()
+        response = requests.delete(delete_url, params=params, headers=headers, timeout=30)
 
         if response.status_code == 404:
             try:
@@ -421,7 +438,8 @@ class APIManager:
         else:
             raise ValueError("Either start/stop or indices must be provided.")
 
-        response = requests.patch(bulk_url, data=packed_data, params=params, timeout=30)
+        headers = self._get_headers()
+        response = requests.patch(bulk_url, data=packed_data, params=params, headers=headers, timeout=30)
 
         if response.status_code == 404:
             try:
@@ -437,9 +455,7 @@ class APIManager:
         response.raise_for_status()
 
     def get_extension_settings(self, extension_name: str) -> dict:
-        headers = {}
-        if self.jwt_token:
-            headers["Authorization"] = f"Bearer {self.jwt_token}"
+        headers = self._get_headers()
 
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/extensions/settings/{extension_name}/data",
@@ -449,9 +465,7 @@ class APIManager:
         return response.json()
 
     def submit_extension_settings(self, extension_name: str, data: dict) -> None:
-        headers = {}
-        if self.jwt_token:
-            headers["Authorization"] = f"Bearer {self.jwt_token}"
+        headers = self._get_headers()
 
         response = requests.post(
             f"{self.url}/api/rooms/{self.room}/extensions/settings/{extension_name}/submit",
@@ -461,9 +475,7 @@ class APIManager:
         response.raise_for_status()
 
     def run_extension(self, category: str, name: str, data: dict) -> dict:
-        headers = {}
-        if self.jwt_token:
-            headers["Authorization"] = f"Bearer {self.jwt_token}"
+        headers = self._get_headers()
 
         response = requests.post(
             f"{self.url}/api/rooms/{self.room}/extensions/{category}/{name}/submit",
@@ -493,8 +505,9 @@ class APIManager:
         if after:
             params["after"] = after
 
+        headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/chat/messages", params=params
+            f"{self.url}/api/rooms/{self.room}/chat/messages", params=params, headers=headers
         )
         response.raise_for_status()
         return response.json()
@@ -507,16 +520,15 @@ class APIManager:
             key: The geometry key/name
             geometry_type: The type of geometry (Sphere, Arrow, Bond, Curve)
         """
-        headers = {}
-        if self.jwt_token:
-            headers["Authorization"] = f"Bearer {self.jwt_token}"
+        with ZnDrawLock(api=self, target="trajectory:meta", msg=None) as lock:
+            headers = self._get_headers()
 
-        response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/geometries",
-            json={"key": key, "data": data, "type": geometry_type},
-            headers=headers,
-        )
-        response.raise_for_status()
+            response = requests.post(
+                f"{self.url}/api/rooms/{self.room}/geometries",
+                json={"key": key, "data": data, "type": geometry_type},
+                headers=headers,
+            )
+            response.raise_for_status()
 
     def get_geometry(self, key: str) -> dict | None:
         """Get a specific geometry by key.
@@ -527,8 +539,10 @@ class APIManager:
         Returns:
             The geometry dict with 'type' and 'data' keys, or None if not found
         """
+        headers = self._get_headers()
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/geometries/{key}",
+            headers=headers,
         )
         if response.status_code == 404:
             return None
@@ -541,20 +555,19 @@ class APIManager:
         Args:
             key: The geometry key/name
         """
-        headers = {}
-        if self.jwt_token:
-            headers["Authorization"] = f"Bearer {self.jwt_token}"
+        with ZnDrawLock(api=self, target="trajectory:meta", msg=None) as lock:
+            headers = self._get_headers()
 
-        response = requests.delete(
-            f"{self.url}/api/rooms/{self.room}/geometries/{key}", headers=headers
-        )
-        response_data = response.json()
-        if response.status_code != 200:
-            error = response_data.get("error", None)
-            error_type = response_data.get("type", None)
-            if error_type == "KeyError":
-                raise KeyError(error)
-        response.raise_for_status()
+            response = requests.delete(
+                f"{self.url}/api/rooms/{self.room}/geometries/{key}", headers=headers
+            )
+            response_data = response.json()
+            if response.status_code != 200:
+                error = response_data.get("error", None)
+                error_type = response_data.get("type", None)
+                if error_type == "KeyError":
+                    raise KeyError(error)
+            response.raise_for_status()
 
     def list_geometries(self) -> list[str]:
         """List all geometry keys.
@@ -562,8 +575,10 @@ class APIManager:
         Returns:
             List of geometry keys
         """
+        headers = self._get_headers()
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/geometries",
+            headers=headers,
         )
         response.raise_for_status()
         return response.json().get("geometries", [])
@@ -589,15 +604,19 @@ class APIManager:
         return result
 
     def add_figure(self, key: str, figure: dict) -> None:
+        headers = self._get_headers()
         response = requests.post(
             f"{self.url}/api/rooms/{self.room}/figures",
             json={"key": key, "figure": figure},
+            headers=headers,
         )
         response.raise_for_status()
 
     def delete_figure(self, key: str) -> None:
+        headers = self._get_headers()
         response = requests.delete(
             f"{self.url}/api/rooms/{self.room}/figures/{key}",
+            headers=headers,
         )
         response_data = response.json()
         if response.status_code != 200:
@@ -609,8 +628,10 @@ class APIManager:
         response.raise_for_status()
 
     def get_figure(self, key: str) -> dict | None:
+        headers = self._get_headers()
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/figures/{key}",
+            headers=headers,
         )
         if response.status_code == 404:
             return None
@@ -618,8 +639,10 @@ class APIManager:
         return response.json().get("figure", None)
 
     def list_figures(self) -> list[str]:
+        headers = self._get_headers()
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/figures",
+            headers=headers,
         )
         response.raise_for_status()
         return response.json().get("figures", [])
@@ -632,7 +655,8 @@ class APIManager:
         dict[str, str]
             Dictionary of metadata fields.
         """
-        response = requests.get(f"{self.url}/api/rooms/{self.room}/metadata")
+        headers = self._get_headers()
+        response = requests.get(f"{self.url}/api/rooms/{self.room}/metadata", headers=headers)
         response.raise_for_status()
         return response.json().get("metadata", {})
 
@@ -649,8 +673,9 @@ class APIManager:
         requests.HTTPError
             If the request fails (e.g., room is locked).
         """
+        headers = self._get_headers()
         response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/metadata", json=data
+            f"{self.url}/api/rooms/{self.room}/metadata", json=data, headers=headers
         )
         response.raise_for_status()
 
@@ -667,7 +692,8 @@ class APIManager:
         requests.HTTPError
             If the request fails (e.g., room is locked).
         """
-        response = requests.delete(f"{self.url}/api/rooms/{self.room}/metadata/{field}")
+        headers = self._get_headers()
+        response = requests.delete(f"{self.url}/api/rooms/{self.room}/metadata/{field}", headers=headers)
         response.raise_for_status()
 
     # ========================================================================
@@ -686,7 +712,8 @@ class APIManager:
                 "activeGroup": "group1" | None
             }
         """
-        response = requests.get(f"{self.url}/api/rooms/{self.room}/selections")
+        headers = self._get_headers()
+        response = requests.get(f"{self.url}/api/rooms/{self.room}/selections", headers=headers)
         response.raise_for_status()
         return response.json()
 
@@ -703,8 +730,10 @@ class APIManager:
         dict
             {"selection": [1, 2, 3]}
         """
+        headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/selections/{geometry}"
+            f"{self.url}/api/rooms/{self.room}/selections/{geometry}",
+            headers=headers,
         )
         response.raise_for_status()
         return response.json()
@@ -724,9 +753,11 @@ class APIManager:
         requests.HTTPError
             If the request fails (e.g., invalid indices).
         """
+        headers = self._get_headers()
         response = requests.put(
             f"{self.url}/api/rooms/{self.room}/selections/{geometry}",
             json={"indices": indices},
+            headers=headers,
         )
         response.raise_for_status()
 
@@ -748,8 +779,10 @@ class APIManager:
         requests.HTTPError
             If group not found (404).
         """
+        headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}"
+            f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}",
+            headers=headers,
         )
         response.raise_for_status()
         return response.json()
@@ -772,9 +805,11 @@ class APIManager:
         requests.HTTPError
             If the request fails (e.g., invalid data).
         """
+        headers = self._get_headers()
         response = requests.put(
             f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}",
             json=group_data,
+            headers=headers,
         )
         response.raise_for_status()
 
@@ -791,8 +826,10 @@ class APIManager:
         requests.HTTPError
             If group not found (404).
         """
+        headers = self._get_headers()
         response = requests.delete(
-            f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}"
+            f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}",
+            headers=headers,
         )
         response.raise_for_status()
 
@@ -811,8 +848,10 @@ class APIManager:
         requests.HTTPError
             If group not found (404).
         """
+        headers = self._get_headers()
         response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}/load"
+            f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}/load",
+            headers=headers,
         )
         response.raise_for_status()
 
@@ -828,7 +867,8 @@ class APIManager:
         dict[int, str]
             Dictionary mapping frame indices to bookmark labels.
         """
-        response = requests.get(f"{self.url}/api/rooms/{self.room}/bookmarks")
+        headers = self._get_headers()
+        response = requests.get(f"{self.url}/api/rooms/{self.room}/bookmarks", headers=headers)
         response.raise_for_status()
         bookmarks = response.json().get("bookmarks", {})
         # Convert string keys from JSON back to integers
@@ -854,7 +894,8 @@ class APIManager:
         IndexError
             If index is out of range
         """
-        response = requests.get(f"{self.url}/api/rooms/{self.room}/bookmarks/{index}")
+        headers = self._get_headers()
+        response = requests.get(f"{self.url}/api/rooms/{self.room}/bookmarks/{index}", headers=headers)
         if response.status_code == 404:
             self._raise_for_error_type(response)
 
@@ -878,9 +919,11 @@ class APIManager:
         IndexError
             If index is out of range
         """
+        headers = self._get_headers()
         response = requests.put(
             f"{self.url}/api/rooms/{self.room}/bookmarks/{index}",
             json={"label": label},
+            headers=headers,
         )
         if response.status_code == 400:
             self._raise_for_error_type(response)
@@ -900,8 +943,10 @@ class APIManager:
         KeyError
             If bookmark not found at the given index
         """
+        headers = self._get_headers()
         response = requests.delete(
-            f"{self.url}/api/rooms/{self.room}/bookmarks/{index}"
+            f"{self.url}/api/rooms/{self.room}/bookmarks/{index}",
+            headers=headers,
         )
         if response.status_code == 404:
             self._raise_for_error_type(response)
@@ -941,9 +986,11 @@ class APIManager:
                 "offset": 0
             }
         """
+        headers = self._get_headers()
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/screenshots",
             params={"limit": limit, "offset": offset},
+            headers=headers,
         )
         response.raise_for_status()
         return response.json()
@@ -973,8 +1020,10 @@ class APIManager:
         requests.HTTPError
             If screenshot not found (404).
         """
+        headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}/metadata"
+            f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}/metadata",
+            headers=headers,
         )
         response.raise_for_status()
         return response.json()
@@ -997,8 +1046,10 @@ class APIManager:
         requests.HTTPError
             If screenshot not found (404).
         """
+        headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}"
+            f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}",
+            headers=headers,
         )
         response.raise_for_status()
         return response.content
@@ -1021,8 +1072,10 @@ class APIManager:
         requests.HTTPError
             If screenshot not found (404).
         """
+        headers = self._get_headers()
         response = requests.delete(
-            f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}"
+            f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}",
+            headers=headers,
         )
         response.raise_for_status()
         return response.json().get("success", False)
@@ -1044,7 +1097,7 @@ class APIManager:
         Returns
         -------
         dict
-            {"success": true, "ttl": 60, "refreshInterval": 30}
+            {"success": true, "lockToken": "...", "ttl": 60, "refreshInterval": 30}
 
         Raises
         ------
@@ -1053,9 +1106,8 @@ class APIManager:
         requests.HTTPError
             If the request fails
         """
-        headers = {}
-        if self.jwt_token:
-            headers["Authorization"] = f"Bearer {self.jwt_token}"
+        # Include session ID header for lock acquisition
+        headers = self._get_headers()
 
         payload = {}
         if msg is not None:
@@ -1071,13 +1123,15 @@ class APIManager:
         response.raise_for_status()
         return response.json()
 
-    def lock_refresh(self, target: str, msg: str | None = None) -> dict:
+    def lock_refresh(self, target: str, lock_token: str, msg: str | None = None) -> dict:
         """Refresh lock TTL and optionally update message.
 
         Parameters
         ----------
         target : str
             Lock target identifier (e.g., "trajectory:meta")
+        lock_token : str
+            Lock token from acquire response
         msg : str | None
             Optional updated message (if None, keeps existing message)
 
@@ -1093,11 +1147,10 @@ class APIManager:
         requests.HTTPError
             If the request fails
         """
-        headers = {}
-        if self.jwt_token:
-            headers["Authorization"] = f"Bearer {self.jwt_token}"
+        # Include session ID header for lock refresh
+        headers = self._get_headers()
 
-        payload = {}
+        payload = {"lockToken": lock_token}
         if msg is not None:
             payload["msg"] = msg
 
@@ -1111,13 +1164,15 @@ class APIManager:
         response.raise_for_status()
         return response.json()
 
-    def lock_release(self, target: str) -> dict:
+    def lock_release(self, target: str, lock_token: str) -> dict:
         """Release a lock.
 
         Parameters
         ----------
         target : str
             Lock target identifier (e.g., "trajectory:meta")
+        lock_token : str
+            Lock token from acquire response
 
         Returns
         -------
@@ -1131,12 +1186,12 @@ class APIManager:
         requests.HTTPError
             If the request fails
         """
-        headers = {}
-        if self.jwt_token:
-            headers["Authorization"] = f"Bearer {self.jwt_token}"
+        # Include session ID header for lock release
+        headers = self._get_headers()
 
+        payload = {"lockToken": lock_token}
         url = f"{self.url}/api/rooms/{self.room}/locks/{target}/release"
-        response = requests.post(url, json={}, headers=headers, timeout=30)
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
 
         if response.status_code == 403:
             error_data = response.json()

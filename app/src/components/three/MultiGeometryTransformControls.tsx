@@ -26,7 +26,7 @@ import {
  */
 export default function MultiGeometryTransformControls() {
   const {
-    isEditing,
+    mode,
     geometries,
     selections,
     notifyEditingChange,
@@ -47,7 +47,7 @@ export default function MultiGeometryTransformControls() {
 
   // Validate selections ONCE when entering edit mode - deselect invalid ones
   useEffect(() => {
-    if (!isEditing) {
+    if (mode !== 'editing') {
       validatedGeometriesRef.current.clear();
       return;
     }
@@ -79,11 +79,11 @@ export default function MultiGeometryTransformControls() {
     }
     // Note: showSnackbar and updateSelectionForGeometry are stable Zustand actions, omit from deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditing, geometries, selections]);
+  }, [mode, geometries, selections]);
 
   // Calculate centroid separately (doesn't trigger selection updates)
   useEffect(() => {
-    if (!isEditing) {
+    if (mode !== 'editing') {
       setCentroid(null);
       setHasValidSelections(false);
       setEditingCombinedCentroid(null); // Clear combined centroid when exiting edit mode
@@ -115,7 +115,7 @@ export default function MultiGeometryTransformControls() {
       virtualObjectRef.current.rotation.set(0, 0, 0);
       virtualObjectRef.current.scale.set(1, 1, 1);
     }
-  }, [isEditing, geometries, selections, setEditingCombinedCentroid]);
+  }, [mode, geometries, selections, setEditingCombinedCentroid]);
 
   // Throttle the notification to geometry components
   // This limits how often geometries update their Zustand state
@@ -158,7 +158,7 @@ export default function MultiGeometryTransformControls() {
   }, [throttledNotify]);
 
   // Don't render if not editing or no valid selections
-  if (!isEditing || !centroid || !hasValidSelections) {
+  if (mode !== 'editing' || !centroid || !hasValidSelections) {
     return null;
   }
 

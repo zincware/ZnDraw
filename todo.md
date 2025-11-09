@@ -82,4 +82,15 @@
 - [ ] let the celery workers directly write to the storage instead of using `vis.extend`. Add a way to emit?! Access redis / znsocket?!
 - [ ] allow to invalidate all frames or just specific keys!
 - [ ] write tests for append / extend / insert / delitem / setitem where you patch ZnDraw.lock to be nullcontext and assert lock errors!
-- [ ] lock should be per connection and not per user!
+- [x] lock should be per connection and not per user!
+- [ ] update lock meta for editing data and for changing e.g. step (playback lock?), what else?
+- [ ] use celery background thread instead of redis ttl and also check that locks are removed on socket connection close (required? short ttl will take care? locks independet of socket?)
+- [ ] refactor workerId to use sessionId!
+- [ ] remove check_room_locked and other code duplication beyond the lock decorator!
+- [ ] remove `f"room:{self.room_id}:locked"` has been replaced by fine-grained locks!
+- [ ] check how to assign the SessionID to the flask socket connection! And clean alternative identifiers!! We have 
+```py
+join_room(f"room:{current_room}")
+join_room(f"user:{user_name}")
+```
+which can not work, because one user can have multiple sessions in different rooms!

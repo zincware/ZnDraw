@@ -181,14 +181,34 @@ def handle_disconnect():
     else:
         log.info(f"User {user_name} disconnected (was not in a room)")
 
-    # --- Existing Lock Cleanup Logic ---
+    # --- Lock Cleanup Logic ---
+    # Scan for locks held by this session
     lock_keys = r.scan_iter("*:lock:*")
     for key in lock_keys:
-        if r.get(key) == sid:
-            log.warning(
-                f"Cleaning up orphaned lock '{key}' held by disconnected user {sid}"
-            )
-            r.delete(key)
+        # Skip metadata keys
+        if key.endswith(b":metadata") or (isinstance(key, str) and key.endswith(":metadata")):
+            continue
+
+        lock_data_str = r.get(key)
+        if not lock_data_str:
+            continue
+
+        try:
+            lock_data = json.loads(lock_data_str)
+            lock_session_id = lock_data.get("sessionId")
+
+            # If this lock is held by the disconnecting session, clean it up
+            if lock_session_id == sid:
+                log.warning(
+                    f"Cleaning up orphaned lock '{key}' held by disconnected session {sid}"
+                )
+                r.delete(key)
+                # Also delete associated metadata if it exists
+                metadata_key = f"{key}:metadata" if isinstance(key, str) else key + b":metadata"
+                r.delete(metadata_key)
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            # If lock data is not JSON (old format), skip it
+            continue
 
     if room_name:
         room_keys = RoomKeys(room_name)

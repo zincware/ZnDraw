@@ -152,7 +152,9 @@ const GeometryForm = () => {
         },
         onError: (error: any) => {
           setIsSaving(false);
-          setError(error.message || "Failed to save geometry");
+          const errorMsg = error.message || "Failed to save geometry";
+          setError(errorMsg);
+          // Snackbar is now shown automatically by withAutoLock for lock failures
         },
       }
     );

@@ -4,11 +4,13 @@ This module contains common functions used across multiple route blueprints,
 following DRY principles and reducing code duplication.
 """
 
+import functools
 import json
 import logging
 
-from flask import current_app
+from flask import current_app, jsonify, request
 
+from zndraw.auth import AuthError, get_current_user
 from zndraw.server import socketio
 from zndraw.storage import StorageBackend, create_storage
 
@@ -70,55 +72,104 @@ def get_storage(room_id: str) -> StorageBackend:
     return STORAGE[room_id]
 
 
-def check_room_locked(
-    room_id: str, user_name: str | None = None
-) -> tuple[dict[str, str], int] | None:
-    """Check if a room is locked.
+def requires_lock(target: str):
+    """Decorator to validate that the session holds a lock for protected operations.
 
-    This checks BOTH:
-    1. Permanent room lock (room:{room_id}:locked)
-    2. Temporary trajectory lock (trajectory:meta) - used by vis.lock context manager
+    Validates that the request has:
+    1. Valid JWT token (user authentication)
+    2. Valid session ID (client instance identification)
+    3. Session holds the lock for the specified target
 
     Parameters
     ----------
-    room_id : str
-        The room ID to check
-    user_name : str | None, optional
-        Optional userName - if provided and this user holds the trajectory lock,
-        the check will pass
+    target : str
+        Lock target (e.g., "trajectory:meta")
+
+    Injects into wrapped function:
+    ----------------------------------
+    - session_id: str - Validated session ID
+    - user_id: str - User ID from JWT
 
     Returns
     -------
-    tuple[dict[str, str], int] | None
-        Error tuple if locked and user doesn't hold lock, None otherwise
+    function
+        Decorated function that validates lock before execution
+
+    Example
+    -------
+    @requires_lock(target="trajectory:meta")
+    def create_geometry(room_id: str, session_id: str, user_id: str):
+        # session_id and user_id are injected by decorator
+        pass
     """
-    redis_client = current_app.extensions["redis"]
-    room_keys = RoomKeys(room_id)
+    def decorator(f):
+        @functools.wraps(f)
+        def wrapped(*args, **kwargs):
+            # Extract room_id from route parameters
+            room_id = kwargs.get("room_id")
+            if not room_id:
+                return jsonify({"error": "room_id required"}), 400
 
-    # Check permanent room lock
-    locked = redis_client.get(room_keys.locked())
-    if locked == "1":
-        return {"error": "Room is locked and cannot be modified"}, 403
+            log.info(f"@requires_lock({target}) - room: {room_id}, user: {request.headers.get('Authorization', 'NO_AUTH')[:50]}, session: {request.headers.get('X-Session-ID', 'MISSING')}")
 
-    # Check trajectory lock (from vis.lock context manager)
-    # This protects ALL trajectory operations: append, delete, upload, etc.
-    trajectory_lock_key = get_lock_key(room_id, "trajectory:meta")
-    lock_holder = redis_client.get(trajectory_lock_key)
+            # 1. Authenticate user via JWT
+            try:
+                user_id = get_current_user()
+            except AuthError as e:
+                log.warning(f"JWT auth failed: {e.message}")
+                return jsonify({"error": e.message}), e.status_code
 
-    if lock_holder:
-        log.debug(
-            f"Lock check: room={room_id}, lock_holder={lock_holder}, user_name={user_name}"
-        )
-        # If a user_name is provided and it holds the lock, allow the operation
-        if user_name and lock_holder == user_name:
-            return None
-        # Otherwise, the room is locked by another operation
-        log.warning(
-            f"Lock rejected: lock_holder={lock_holder} != user_name={user_name}"
-        )
-        return {"error": "Room is temporarily locked by another operation"}, 423
+            # 2. Extract and validate session ID
+            session_id = request.headers.get("X-Session-ID")
+            if not session_id:
+                log.warning(f"X-Session-ID header missing for {target} in room {room_id}")
+                return jsonify({"error": "X-Session-ID header required"}), 400
 
-    return None
+            r = current_app.extensions["redis"]
+            session_key = f"session:{session_id}"
+            session_data_str = r.get(session_key)
+
+            if not session_data_str:
+                return jsonify({"error": "Invalid or expired session"}), 401
+
+            try:
+                session_data = json.loads(session_data_str)
+                session_user = session_data.get("userId")
+            except json.JSONDecodeError:
+                return jsonify({"error": "Invalid session data"}), 500
+
+            # Verify session belongs to authenticated user
+            if session_user != user_id:
+                return jsonify({"error": "Session/user mismatch"}), 403
+
+            # 3. Verify session holds the lock for this target
+            lock_key = get_lock_key(room_id, target)
+            lock_data_str = r.get(lock_key)
+
+            if not lock_data_str:
+                return jsonify({"error": f"Lock not held for {target}"}), 423
+
+            try:
+                lock_data = json.loads(lock_data_str)
+            except json.JSONDecodeError:
+                return jsonify({"error": "Invalid lock data"}), 500
+
+            # Verify session holds the lock (only check sessionId, not token)
+            if lock_data.get("sessionId") != session_id:
+                log.warning(
+                    f"Lock validation failed: {target} in room {room_id} "
+                    f"- session {session_id} does not hold lock (held by {lock_data.get('sessionId')})"
+                )
+                return jsonify({"error": "Session does not hold the lock"}), 403
+
+            # Inject validated parameters into route handler
+            kwargs["session_id"] = session_id
+            kwargs["user_id"] = user_id
+
+            return f(*args, **kwargs)
+
+        return wrapped
+    return decorator
 
 
 def shift_bookmarks_on_delete(room_id: str, deleted_indices: list[int]):
@@ -361,9 +412,15 @@ def get_metadata_lock_info(room_id: str) -> dict | None:
         )
         return lock_metadata.model_dump()
 
-    # Lock exists but no metadata - get basic info from lock holder
-    lock_holder_user_name = r.get(metadata_lock_key)
+    # Lock exists but no metadata - get basic info from lock data
+    lock_data_str = r.get(metadata_lock_key)
+    if lock_data_str:
+        lock_data = json.loads(lock_data_str)
+        lock_holder_user_name = lock_data.get("userId", "unknown")
+    else:
+        lock_holder_user_name = "unknown"
+
     lock_metadata = LockMetadata(
-        msg=None, userName=lock_holder_user_name or "unknown", timestamp=None
+        msg=None, userName=lock_holder_user_name, timestamp=None
     )
     return lock_metadata.model_dump()

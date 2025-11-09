@@ -12,11 +12,12 @@ import { useAppStore } from "../../store";
 export default function VirtualCanvas() {
   const { camera } = useThree();
   // Use individual selectors to prevent unnecessary re-renders
-  const isDrawing = useAppStore((state) => state.isDrawing);
+  const mode = useAppStore((state) => state.mode);
   const setDrawingPointerPosition = useAppStore((state) => state.setDrawingPointerPosition);
-  const setIsDrawing = useAppStore((state) => state.setIsDrawing);
   const drawingIsValid = useAppStore((state) => state.drawingIsValid);
   const planeRef = useRef<THREE.Mesh>(null);
+
+  const isDrawing = mode === 'drawing';
   
   const distance = 10; // Fixed distance from camera
 

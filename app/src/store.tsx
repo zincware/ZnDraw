@@ -4,11 +4,24 @@ import * as THREE from "three";
 import { updateSelection as updateSelectionAPI, loadSelectionGroup as loadSelectionGroupAPI, setBookmark as setBookmarkAPI, deleteBookmark as deleteBookmarkAPI, createGeometry, getGeometry, type GlobalSettings, acquireLock, refreshLock, releaseLock } from "./myapi/client";
 import type { UserRole } from "./utils/auth";
 
+/**
+ * Lock state for a specific target
+ * Simplified design: if you have the lock token for a target, you can use it for anything
+ */
+interface LockState {
+  target: string;  // e.g., "trajectory:meta"
+  token: string;
+  refreshInterval: number | null;
+  acquiredAt: number;
+  message: string; // What we're doing with the lock (for display to other users)
+}
+
 interface AppState {
   // Connection & Room
   roomId: string | null;
   userName: string | null;
   userRole: UserRole | null;
+  sessionId: string | null; // Session ID from /join response (identifies this browser tab)
   isConnected: boolean;
   isLoading: boolean;
   currentFrame: number;
@@ -25,10 +38,9 @@ interface AppState {
   geometries: Record<string, any>; // Store geometries by their IDs
   geometryDefaults: Record<string, any>; // Default values for each geometry type from Pydantic
   geometryUpdateSources: Record<string, 'local' | 'remote'>; // Track update source per geometry
-  isDrawing: boolean;
+  mode: 'view' | 'drawing' | 'editing'; // Current interaction mode
   drawingPointerPosition: THREE.Vector3 | null; // 3D position of mouse cursor for drawing
   drawingIsValid: boolean; // Whether the drawing position is valid (over geometry)
-  isEditing: boolean; // Whether the user is in geometry editing mode (transform controls)
   editingCallbacks: Map<string, Set<(matrix: THREE.Matrix4) => void>>; // Callbacks for geometry components to subscribe to transform changes, keyed by geometryKey
   lockMetadata: {
     locked: boolean;
@@ -38,8 +50,10 @@ interface AppState {
     timestamp?: number;
     ttl?: number;
   } | null; // Lock metadata for trajectory:meta lock (vis.lock)
+
+  // Centralized lock state - single source of truth
+  lock: LockState | null; // Current lock ownership
   lockRenewalIntervalId: number | null; // Interval ID for lock renewal
-  lockRefreshInterval: number | null; // Server-provided refresh interval in milliseconds
   geometryFetchingStates: Record<string, boolean>; // Tracks fetching state per geometry key
   synchronizedMode: boolean; // Whether playback should wait for all active geometries to finish fetching
   showInfoBoxes: boolean; // Whether to show info boxes (toggled with 'i' key)
@@ -63,6 +77,7 @@ interface AppState {
   setRoomId: (roomId: string) => void;
   setUserName: (userName: string) => void;
   setUserRole: (role: UserRole) => void;
+  setSessionId: (sessionId: string | null) => void;
   setConnected: (status: boolean) => void;
   setCurrentFrame: (frame: number) => void;
   setFrameCount: (count: number) => void;
@@ -83,16 +98,18 @@ interface AppState {
   updateGeometry: (key: string, geometry: any, source?: 'local' | 'remote') => void; // update specific geometry
   geometryUpdateSources: Record<string, 'local' | 'remote'>; // track update source per geometry
   removeGeometry: (key: string) => void; // remove specific geometry
-  setIsDrawing: (isDrawing: boolean) => void;
+  setMode: (mode: 'view' | 'drawing' | 'editing') => void;
+  enterDrawingMode: (queryClient?: any) => Promise<void>;
+  exitDrawingMode: () => Promise<void>;
+  enterEditingMode: () => Promise<void>;
+  exitEditingMode: () => Promise<void>;
   setDrawingPointerPosition: (position: THREE.Vector3 | null) => void;
   updateSelections: (geometryKey: string, id: number, isShiftPressed: boolean) => void;
   setDrawingIsValid: (isValid: boolean) => void;
-  setIsEditing: (isEditing: boolean) => void;
   editingCombinedCentroid: [number, number, number] | null;
   setEditingCombinedCentroid: (centroid: [number, number, number] | null) => void;
   subscribeToEditing: (geometryKey: string, callback: (matrix: THREE.Matrix4) => void) => () => void;
   notifyEditingChange: (matrix: THREE.Matrix4) => void;
-  toggleEditingMode: () => Promise<void>;
   setLockMetadata: (metadata: {
     locked: boolean;
     holder?: string;
@@ -103,6 +120,12 @@ interface AppState {
   } | null) => void;
   startLockRenewal: () => void;
   stopLockRenewal: () => void;
+
+  // Simplified lock management - target-based (aligns with server API)
+  acquireLock: (target: string, msg: string) => Promise<boolean>;
+  releaseLock: (target: string) => Promise<boolean>;
+  hasLock: (target: string) => boolean;
+  updateLockMessage: (target: string, msg: string) => Promise<boolean>;
   setGeometryFetching: (geometryKey: string, isFetching: boolean) => void;
   removeGeometryFetching: (geometryKey: string) => void;
   getIsFetching: () => boolean; // Computed: returns true if any active geometry is fetching
@@ -118,7 +141,6 @@ interface AppState {
   setFrameLoadTime: (time: number | null) => void;
   setLastFrameChangeTime: (time: number | null) => void;
   setActiveCurveForDrawing: (key: string | null) => void;
-  toggleDrawingMode: (queryClient?: any) => Promise<void>;
   attachToCamera: (cameraKey: string) => void;
   detachFromCamera: () => void;
   registerCurveRef: (key: string, curve: THREE.CatmullRomCurve3) => void;
@@ -151,6 +173,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   roomId: null,
   userName: null,
   userRole: null,
+  sessionId: null, // Will be set after /join
   isConnected: false,
   currentFrame: 0,
   frameCount: 0,
@@ -168,15 +191,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   geometries: {},
   geometryDefaults: {},
   geometryUpdateSources: {},
-  isDrawing: false,
+  mode: 'view',
   drawingPointerPosition: null,
   drawingIsValid: false,
-  isEditing: false,
   editingCombinedCentroid: null,
   editingCallbacks: new Map(),
   lockMetadata: null,
+  lock: null, // Centralized lock state
   lockRenewalIntervalId: null,
-  lockRefreshInterval: null,
   geometryFetchingStates: {},
   synchronizedMode: true,
   showInfoBoxes: false,
@@ -212,6 +234,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setRoomId: (roomId) => set({ roomId }),
   setUserName: (userName) => set({ userName }),
   setUserRole: (role) => set({ userRole: role }),
+  setSessionId: (sessionId) => set({ sessionId }),
   setCurrentFrame: (frame) => set({ currentFrame: frame }),
   setFrameCount: (count) =>
     set((state) => {
@@ -316,10 +339,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         editingCallbacks: newEditingCallbacks,
       };
     }),
-  setIsDrawing: (isDrawing) => set({ isDrawing: isDrawing }),
+  setMode: (mode) => set({ mode }),
   setDrawingPointerPosition: (position) => set({ drawingPointerPosition: position }),
   setDrawingIsValid: (isValid) => set({ drawingIsValid: isValid }),
-  setIsEditing: (isEditing) => set({ isEditing: isEditing }),
   setEditingCombinedCentroid: (centroid) => set({ editingCombinedCentroid: centroid }),
   subscribeToEditing: (geometryKey, callback) => {
     const callbacks = get().editingCallbacks;
@@ -352,7 +374,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLockMetadata: (metadata) => set({ lockMetadata: metadata }),
 
   startLockRenewal: () => {
-    const { lockRenewalIntervalId, lockRefreshInterval, roomId, stopLockRenewal } = get();
+    const { lockRenewalIntervalId, lock, roomId, stopLockRenewal } = get();
+
+    if (!lock) {
+      console.warn("[startLockRenewal] No lock to renew");
+      return;
+    }
 
     // Clear existing interval if any
     if (lockRenewalIntervalId !== null) {
@@ -360,32 +387,35 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     // Use server-provided refresh interval (in seconds), default to 30s
-    const refreshIntervalMs = (lockRefreshInterval || 30) * 1000;
+    const refreshIntervalMs = (lock.refreshInterval || 30) * 1000;
 
     // Renew periodically to keep lock alive
     const intervalId = window.setInterval(async () => {
       const state = get();
-      if (!state.isEditing || !state.roomId) {
-        // Not editing anymore, stop renewal
+      const currentLock = state.lock;
+
+      if (!currentLock || !state.roomId) {
+        // No lock anymore, stop renewal
         stopLockRenewal();
         return;
       }
 
-      // Refresh lock via REST API (server controls TTL)
       try {
-        const response = await refreshLock(state.roomId, "trajectory:meta");
+        const response = await refreshLock(state.roomId, currentLock.target, currentLock.token);
         if (!response.success) {
-          console.warn("Failed to refresh edit lock");
-          // Lock was stolen or expired, exit editing mode
-          get().setIsEditing(false);
-          get().showSnackbar("Edit lock lost - exiting editing mode", "warning");
+          console.warn(`[startLockRenewal] Failed to refresh lock for ${currentLock.target}`);
+          // Lock was stolen or expired
+          set({ lock: null });
+          get().showSnackbar("Lock lost - returning to view mode", "warning");
+          // Exit to view mode if active
+          set({ mode: 'view' });
           get().stopLockRenewal();
         }
       } catch (error) {
-        console.error("Error refreshing lock:", error);
-        // Network error or other issue
-        get().setIsEditing(false);
-        get().showSnackbar("Failed to refresh lock - exiting editing mode", "error");
+        console.error("[startLockRenewal] Error refreshing lock:", error);
+        set({ lock: null });
+        get().showSnackbar("Failed to refresh lock", "error");
+        set({ mode: 'view' });
         get().stopLockRenewal();
       }
     }, refreshIntervalMs);
@@ -398,6 +428,132 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (lockRenewalIntervalId !== null) {
       window.clearInterval(lockRenewalIntervalId);
       set({ lockRenewalIntervalId: null });
+    }
+  },
+
+  // Simplified Lock Manager - Target-based (aligns with server API)
+  acquireLock: async (target, msg) => {
+    const state = get();
+    const { roomId, lock } = state;
+
+    if (!roomId) {
+      console.error(`[acquireLock] No roomId for target: ${target}`);
+      return false;
+    }
+
+    // If we already have the lock for this target, just update the message
+    if (lock && lock.target === target) {
+      console.log(`[acquireLock] Already have lock for ${target}, updating message`);
+      await get().updateLockMessage(target, msg);
+      return true;
+    }
+
+    // Acquire new lock
+    try {
+      console.log(`[acquireLock] Acquiring lock for ${target}: ${msg}`);
+      const response = await acquireLock(roomId, target, msg);
+
+      if (!response.success || !response.lockToken) {
+        console.log(`[acquireLock] Failed to acquire lock for ${target}`);
+        return false;
+      }
+
+      // Store lock state
+      set({
+        lock: {
+          target,
+          token: response.lockToken,
+          refreshInterval: response.refreshInterval || null,
+          acquiredAt: Date.now(),
+          message: msg,
+        }
+      });
+
+      // Start lock renewal
+      get().startLockRenewal();
+
+      console.log(`[acquireLock] Lock acquired for ${target}`);
+      return true;
+    } catch (error) {
+      console.error(`[acquireLock] Error acquiring lock for ${target}:`, error);
+      return false;
+    }
+  },
+
+  releaseLock: async (target) => {
+    const state = get();
+    const { roomId, lock } = state;
+
+    if (!lock) {
+      console.log(`[releaseLock] No lock to release for ${target}`);
+      return true;
+    }
+
+    // Check if we have the lock for this target
+    if (lock.target !== target) {
+      console.log(`[releaseLock] Don't have lock for ${target} (have: ${lock.target})`);
+      return false;
+    }
+
+    if (!roomId) {
+      console.error(`[releaseLock] No roomId`);
+      return false;
+    }
+
+    try {
+      console.log(`[releaseLock] Releasing lock for ${target}`);
+      await releaseLock(roomId, target, lock.token);
+
+      // Clear lock state
+      set({ lock: null });
+      get().stopLockRenewal();
+
+      console.log(`[releaseLock] Lock released for ${target}`);
+      return true;
+    } catch (error) {
+      console.error(`[releaseLock] Error releasing lock for ${target}:`, error);
+      return false;
+    }
+  },
+
+  hasLock: (target) => {
+    const { lock } = get();
+    return lock !== null && lock.target === target;
+  },
+
+  updateLockMessage: async (target, msg) => {
+    const state = get();
+    const { roomId, lock } = state;
+
+    if (!lock || lock.target !== target) {
+      console.warn(`[updateLockMessage] Don't have lock for ${target}`);
+      return false;
+    }
+
+    if (!roomId) {
+      console.error(`[updateLockMessage] No roomId`);
+      return false;
+    }
+
+    try {
+      console.log(`[updateLockMessage] Updating message for ${target}: ${msg}`);
+      const response = await refreshLock(roomId, target, lock.token, msg);
+
+      if (response.success) {
+        // Update local message
+        set({
+          lock: {
+            ...lock,
+            message: msg,
+          }
+        });
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error(`[updateLockMessage] Error updating message for ${target}:`, error);
+      return false;
     }
   },
 
@@ -552,114 +708,65 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLastFrameChangeTime: (time) => set({ lastFrameChangeTime: time }),
   setActiveCurveForDrawing: (key) => set({ activeCurveForDrawing: key }),
 
-  toggleEditingMode: async () => {
+  enterEditingMode: async () => {
     const state = get();
-    const { isEditing, lockMetadata, userName, roomId } = state;
+    const { mode } = state;
 
-    // Import dynamically to avoid circular dependency
-    const { socket } = await import("./socket");
-
-    // If turning ON editing mode
-    if (!isEditing) {
-      // Check if room is already locked
-      if (lockMetadata && lockMetadata.locked) {
-        // Check if WE hold the lock
-        if (lockMetadata.holder === userName) {
-          // We already hold the lock, just enter editing mode
-          set({ isEditing: true });
-          state.showSnackbar("Entered editing mode", "success");
-
-          // Start lock renewal
-          get().startLockRenewal();
-          return;
-        }
-
-        // Someone else holds the lock
-        state.showSnackbar(
-          `Cannot enter edit mode - room is locked by ${lockMetadata.userName || "another user"}`,
-          "warning"
-        );
-        return;
-      }
-
-      // Try to acquire lock via REST API
-      return (async () => {
-        if (!roomId) {
-          state.showSnackbar("Cannot acquire lock - no room ID", "error");
-          return;
-        }
-
-        try {
-          const response = await acquireLock(roomId, "trajectory:meta", "editing geometries");
-          if (response.success) {
-            // Store server-provided refresh interval
-            if (response.refreshInterval) {
-              set({ lockRefreshInterval: response.refreshInterval });
-            }
-
-            // Enter editing mode
-            set({ isEditing: true });
-            state.showSnackbar("Entered editing mode", "success");
-
-            // Start lock renewal to keep lock alive
-            get().startLockRenewal();
-          } else {
-            // Failed to acquire lock
-            state.showSnackbar(
-              response.error || "Cannot enter edit mode - room is locked by another user",
-              "warning"
-            );
-          }
-        } catch (error: any) {
-          console.error("Error acquiring lock:", error);
-          // Check if 423 Locked
-          if (error.response?.status === 423) {
-            state.showSnackbar(
-              error.response.data?.error || "Cannot enter edit mode - room is locked by another user",
-              "warning"
-            );
-          } else {
-            state.showSnackbar("Failed to acquire lock", "error");
-          }
-        }
-      })();
+    // Only enter from view mode
+    if (mode !== 'view') {
+      console.warn(`Cannot enter editing mode from ${mode} mode`);
+      return;
     }
-    // If turning OFF editing mode
-    else {
-      // Stop lock renewal
-      get().stopLockRenewal();
 
-      // Release the lock via REST API
-      return (async () => {
-        if (!roomId) {
-          set({ isEditing: false });
-          return;
-        }
-
-        try {
-          const response = await releaseLock(roomId, "trajectory:meta");
-          // Exit editing mode regardless of release success
-          set({ isEditing: false });
-
-          if (response.success) {
-            state.showSnackbar("Exited editing mode", "info");
-          } else {
-            console.warn("Failed to release lock, but exiting editing mode anyway");
-          }
-        } catch (error) {
-          console.error("Error releasing lock:", error);
-          // Exit editing mode regardless of release success
-          set({ isEditing: false });
-        }
-      })();
+    const acquired = await get().acquireLock("trajectory:meta", "editing geometries");
+    if (acquired) {
+      set({ mode: 'editing' });
+      state.showSnackbar("Entered editing mode", "success");
     }
   },
 
-  toggleDrawingMode: async (queryClient?: any) => {
+  exitEditingMode: async () => {
     const state = get();
-    const { geometries, activeCurveForDrawing, isDrawing, roomId } = state;
+    const { mode } = state;
 
-    // Get all active curves using helper function
+    if (mode !== 'editing') {
+      console.warn(`Not in editing mode, current mode: ${mode}`);
+      return;
+    }
+
+    // Clear selections when exiting editing mode
+    const { selections } = state;
+    for (const geometryKey of Object.keys(selections)) {
+      get().updateSelectionForGeometry(geometryKey, []);
+    }
+
+    const released = await get().releaseLock("trajectory:meta");
+    set({ mode: 'view' });
+    if (released) {
+      state.showSnackbar("Exited editing mode", "info");
+    } else {
+      // Even if release failed, exit editing mode
+      console.warn("Failed to release lock when exiting editing mode");
+    }
+  },
+
+  enterDrawingMode: async (queryClient?: any) => {
+    const state = get();
+    const { geometries, mode, roomId } = state;
+
+    // Only enter from view mode
+    if (mode !== 'view') {
+      console.warn(`Cannot enter drawing mode from ${mode} mode`);
+      return;
+    }
+
+    // Acquire lock for drawing mode
+    const acquired = await get().acquireLock("trajectory:meta", "drawing on curve");
+    if (!acquired) {
+      return;
+    }
+
+    // Get all active curves
     const activeCurves = getActiveCurves(geometries);
 
     // Case 1: No curves exist - create one named "curve"
@@ -681,14 +788,15 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         },
         activeCurveForDrawing: "curve",
-        isDrawing: true
+        mode: 'drawing'
       }));
 
       try {
-        // Create geometry on backend
+        // Create geometry on backend using current lock
+        const { lock } = get();
         await createGeometry(roomId, "curve", "Curve", {
           position: [],
-        });
+        }, lock?.token);
         console.log("Default curve created successfully");
 
         // Fetch the validated geometry from backend to get defaults/transformations
@@ -718,32 +826,42 @@ export const useAppStore = create<AppState>((set, get) => ({
           return {
             geometries: rest,
             activeCurveForDrawing: null,
-            isDrawing: false
+            mode: 'view'
           };
         });
       }
       return;
     }
 
-    // Case 2: One curve exists - auto-select it and toggle
+    // Case 2: One curve exists - auto-select it and enter drawing mode
     if (activeCurves.length === 1) {
       const singleCurveKey = activeCurves[0];
-      if (!activeCurveForDrawing) {
-        set({ activeCurveForDrawing: singleCurveKey, isDrawing: !isDrawing });
-      } else {
-        set({ isDrawing: !isDrawing });
-      }
+      set({ activeCurveForDrawing: singleCurveKey, mode: 'drawing' });
       return;
     }
 
-    // Case 3: Multiple curves exist
-    if (!activeCurveForDrawing || !activeCurves.includes(activeCurveForDrawing)) {
-      // No curve selected OR selected curve no longer exists - select preferred curve
-      const preferredCurve = selectPreferredCurve(activeCurves);
-      set({ activeCurveForDrawing: preferredCurve, isDrawing: true });
-    } else {
-      // Already have a valid selected curve - just toggle drawing
-      set({ isDrawing: !isDrawing });
+    // Case 3: Multiple curves exist - preserve last selection if valid, otherwise select preferred
+    const lastSelectedCurve = state.activeCurveForDrawing;
+    const curveToActivate = (lastSelectedCurve && activeCurves.includes(lastSelectedCurve))
+      ? lastSelectedCurve
+      : selectPreferredCurve(activeCurves);
+    set({ activeCurveForDrawing: curveToActivate, mode: 'drawing' });
+  },
+
+  exitDrawingMode: async () => {
+    const state = get();
+    const { mode } = state;
+
+    if (mode !== 'drawing') {
+      console.warn(`Not in drawing mode, current mode: ${mode}`);
+      return;
+    }
+
+    const released = await get().releaseLock("trajectory:meta");
+    // Keep activeCurveForDrawing to remember the last selected curve
+    set({ mode: 'view' });
+    if (!released) {
+      console.warn("Failed to release lock when exiting drawing mode");
     }
   },
 

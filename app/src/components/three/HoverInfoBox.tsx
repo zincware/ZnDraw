@@ -16,7 +16,7 @@ export default function HoverInfoBox() {
     showInfoBoxes,
     hoveredGeometryInstance,
     curveLength,
-    isDrawing,
+    mode,
   } = useAppStore();
 
   // Extract particle ID from hovered geometry instance
@@ -40,19 +40,29 @@ export default function HoverInfoBox() {
   });
 
   useEffect(() => {
+    console.log('[HoverInfoBox] Setting up mousemove listener');
+    let eventCount = 0;
+
     const handleMouseMove = (event: MouseEvent) => {
+      eventCount++;
+      if (eventCount % 60 === 0) { // Log every 60 events to avoid spam
+        console.log('[HoverInfoBox] Mouse move event count:', eventCount);
+      }
       setMousePosition({ x: event.clientX, y: event.clientY });
     };
 
     window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
+    return () => {
+      console.log('[HoverInfoBox] Cleaning up mousemove listener, total events:', eventCount);
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
   }, []);
 
   if (!showInfoBoxes) return null;
 
   // Determine what to show
   const showParticleInfo = hoveredParticleId != null; // Loose equality checks both null and undefined
-  const showCurveInfo = isDrawing && curveLength > 0;
+  const showCurveInfo = mode === 'drawing' && curveLength > 0;
   const hasContent = showParticleInfo || showCurveInfo;
 
   if (!hasContent) return null;

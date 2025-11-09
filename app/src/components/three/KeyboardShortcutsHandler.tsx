@@ -37,8 +37,11 @@ export const KeyboardShortcutsHandler = () => {
     selections,
     updateSelectionForGeometry,
     toggleInfoBoxes,
-    toggleDrawingMode,
-    toggleEditingMode,
+    mode,
+    enterDrawingMode,
+    exitDrawingMode,
+    enterEditingMode,
+    exitEditingMode,
     roomId,
   } = useAppStore();
 
@@ -127,17 +130,31 @@ export const KeyboardShortcutsHandler = () => {
         return;
       }
 
-      // Handle x/X for toggle drawing mode
+      // Handle x/X for drawing mode (mutually exclusive with editing)
       if (event.key === "x" || event.key === "X") {
         event.preventDefault();
-        toggleDrawingMode(queryClient);
+        if (mode === 'drawing') {
+          // Exit drawing mode
+          exitDrawingMode();
+        } else if (mode === 'view') {
+          // Enter drawing mode (only from view mode)
+          enterDrawingMode(queryClient);
+        }
+        // If in editing mode, do nothing (modes are exclusive)
         return;
       }
 
-      // Handle e/E for toggle editing mode
+      // Handle e/E for editing mode (mutually exclusive with drawing)
       if (event.key === "e" || event.key === "E") {
         event.preventDefault();
-        toggleEditingMode();
+        if (mode === 'editing') {
+          // Exit editing mode
+          exitEditingMode();
+        } else if (mode === 'view') {
+          // Enter editing mode (only from view mode)
+          enterEditingMode();
+        }
+        // If in drawing mode, do nothing (modes are exclusive)
         return;
       }
 
@@ -195,8 +212,11 @@ export const KeyboardShortcutsHandler = () => {
     queryClient,
     currentFrame,
     toggleInfoBoxes,
-    toggleDrawingMode,
-    toggleEditingMode,
+    mode,
+    enterDrawingMode,
+    exitDrawingMode,
+    enterEditingMode,
+    exitEditingMode,
     roomId,
   ]);
 
