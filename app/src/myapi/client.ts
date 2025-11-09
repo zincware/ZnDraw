@@ -92,7 +92,6 @@ apiClient.interceptors.request.use((config) => {
   const sessionId = useAppStore.getState().sessionId;
   if (sessionId) {
     config.headers['X-Session-ID'] = sessionId;
-    console.log(`[API] Adding X-Session-ID header: ${sessionId} for ${config.url}`);
   } else {
     console.log(`[API] No sessionId available for ${config.url}`);
   }
@@ -1188,6 +1187,49 @@ export const loadFilesystemFile = async (
     `/api/rooms/${roomId}/filesystems/${fsName}/load`,
     request
   );
+  return data;
+};
+
+// ==================== Step API ====================
+
+export interface StepResponse {
+  step: number;
+  totalFrames: number;
+}
+
+export interface UpdateStepRequest {
+  step: number;
+}
+
+export interface UpdateStepResponse {
+  success: boolean;
+  step: number;
+}
+
+/**
+ * Get current step/frame for a room.
+ *
+ * @param roomId - Room identifier
+ * @returns Promise with current step and total frame count
+ */
+export const getStep = async (roomId: string): Promise<StepResponse> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}/step`);
+  return data;
+};
+
+/**
+ * Set current step/frame for a room.
+ * Requires holding the 'step' lock for the room.
+ *
+ * @param roomId - Room identifier
+ * @param step - Frame index to set
+ * @returns Promise with update result
+ */
+export const updateStep = async (
+  roomId: string,
+  step: number
+): Promise<UpdateStepResponse> => {
+  const { data } = await apiClient.put(`/api/rooms/${roomId}/step`, { step });
   return data;
 };
 

@@ -9,14 +9,16 @@ import logging
 from flask import Blueprint, current_app, request
 
 from zndraw.server import socketio
+from zndraw.app.constants import SocketEvents
 
 from .frame_index_manager import FrameIndexManager
-from .redis_keys import RoomKeys
+from .redis_keys import RoomKeys, SessionKeys
 from .room_manager import emit_room_update
 from .route_utils import (
     emit_bookmarks_invalidate,
     get_lock_key,
     get_metadata_lock_info,
+    requires_lock,
 )
 
 log = logging.getLogger(__name__)
@@ -820,3 +822,120 @@ def get_room_schema(room_id: str, category: str):
             }
 
     return schema
+
+
+@rooms.route("/api/rooms/<string:room_id>/step", methods=["GET"])
+def get_step(room_id: str):
+    """Get current step/frame for a room.
+
+    Convenience endpoint to read current frame without authentication.
+
+    Parameters
+    ----------
+    room_id : str
+        Room identifier
+
+    Returns
+    -------
+    dict
+        Current step and total frame count
+
+    Example response:
+        {
+            "step": 42,
+            "totalFrames": 100
+        }
+    """
+    room_service = current_app.extensions["room_service"]
+
+    # Get current frame and total count
+    current_frame = room_service.get_current_frame(room_id)
+    total_frames = room_service.get_frame_count(room_id)
+
+    return {
+        "step": current_frame,
+        "totalFrames": total_frames,
+    }
+
+
+@rooms.route("/api/rooms/<string:room_id>/step", methods=["PUT"])
+@requires_lock(target="step")
+def update_step(room_id: str, session_id: str, user_id: str):
+    """Set current step/frame for a room.
+
+    Requires holding the 'step' lock for the room. Used for both:
+    - Atomic updates: acquire lock → PUT step → release lock
+    - Continuous updates: acquire lock → PUT step × N → release lock
+
+    Parameters
+    ----------
+    room_id : str
+        Room identifier
+    session_id : str
+        Session ID (injected by @requires_lock decorator)
+    user_id : str
+        User ID (injected by @requires_lock decorator)
+
+    Request Body
+    ------------
+    {
+        "step": 42  // Frame index (non-negative integer)
+    }
+
+    Returns
+    -------
+    dict
+        Success status and updated step
+
+    Raises
+    ------
+    400
+        Invalid step value (negative or non-integer)
+    401
+        Invalid JWT or session
+    403
+        Session/user mismatch
+    423
+        Lock not held for target="step"
+
+    Example response:
+        {
+            "success": true,
+            "step": 42
+        }
+
+    Side Effects
+    ------------
+    Emits 'frame_update' Socket.IO event to all clients in the room
+    (excluding the session that made the update).
+    """
+    redis_client = current_app.extensions["redis"]
+    data = request.get_json()
+    step = data.get("step")
+
+    # Validate step
+    # Handle both integer and float strings (Plotly may send "42.5")
+    try:
+        step = int(float(step))
+        if step < 0:
+            return {"error": "Step must be non-negative"}, 400
+    except (ValueError, TypeError):
+        return {"error": "Invalid step value"}, 400
+
+    # Update Redis
+    keys = RoomKeys(room_id)
+    redis_client.set(keys.current_frame(), step)
+
+    # Get socket ID for this session to skip emitting to the sender
+    sid = redis_client.get(SessionKeys.session_to_sid(session_id))
+    if sid:
+        sid = sid.decode() if isinstance(sid, bytes) else sid
+
+    # Emit frame update for live updates (skip the session that made the change)
+    socketio.emit(
+        SocketEvents.FRAME_UPDATE,
+        {"frame": step},
+        to=f"room:{room_id}",
+        skip_sid=sid,
+    )
+    return {"success": True, "step": step}

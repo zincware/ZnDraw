@@ -98,7 +98,6 @@ export function getUsername(): string | null {
   return localStorage.getItem(USERNAME_KEY);
 }
 
-
 /**
  * Clear stored authentication data.
  */

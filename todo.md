@@ -94,3 +94,4 @@ join_room(f"room:{current_room}")
 join_room(f"user:{user_name}")
 ```
 which can not work, because one user can have multiple sessions in different rooms!
+- [ ] unit locks im frontend! metaDataLock / presenterLock ... should be combined into one lock system!

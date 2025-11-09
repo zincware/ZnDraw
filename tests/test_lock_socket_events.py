@@ -82,6 +82,7 @@ def test_lock_acquire_emits_lock_update(authenticated_session):
     assert event["holder"] == user_name
     assert event["message"] == "Creating test geometry"
     assert event["timestamp"] is not None
+    assert event["sessionId"] == session_id  # Session ID should be included
 
     sio_client.disconnect()
 
@@ -135,6 +136,7 @@ def test_lock_refresh_emits_lock_update(authenticated_session):
     assert event["holder"] == user_name
     assert event["message"] == "Updated message"
     assert event["timestamp"] is not None
+    assert event["sessionId"] == session_id
 
     sio_client.disconnect()
 
@@ -188,6 +190,7 @@ def test_lock_release_emits_lock_update(authenticated_session):
     assert event["holder"] is None
     assert event["message"] is None
     assert event["timestamp"] is None
+    assert event["sessionId"] == session_id
 
     sio_client.disconnect()
 
@@ -323,5 +326,83 @@ def test_multiple_clients_receive_lock_events(server):
     event = user2_events[0]
     assert event["holder"] == user1_name
     assert event["message"] == "User 1 lock"
+    assert event["sessionId"] == user1_session  # Should include user1's sessionId
+
+    sio_client.disconnect()
+
+
+def test_lock_event_includes_session_id_for_filtering(authenticated_session):
+    """Test that lock:update events include sessionId so clients can filter their own events."""
+    server, room, session_id, auth_headers, sio_client, user_name = authenticated_session
+
+    # Track all received events
+    received_events = []
+
+    def on_lock_update(data):
+        received_events.append(data)
+
+    sio_client.on("lock:update", on_lock_update)
+
+    # Connect to socket
+    sio_client.connect(server, auth={"token": auth_headers["Authorization"].split(" ")[1]})
+    sio_client.emit("join:room", {"roomId": room})
+    time.sleep(0.5)
+
+    # Acquire lock
+    response = requests.post(
+        f"{server}/api/rooms/{room}/locks/step/acquire",
+        json={"msg": "Testing step lock"},
+        headers={**auth_headers, "X-Session-ID": session_id},
+    )
+    assert response.status_code == 200
+    lock_token = response.json()["lockToken"]
+
+    # Wait for socket event
+    time.sleep(0.5)
+
+    # Verify event was received with sessionId
+    assert len(received_events) == 1
+    acquire_event = received_events[0]
+    assert acquire_event["target"] == "step"
+    assert acquire_event["action"] == "acquired"
+    assert acquire_event["sessionId"] == session_id
+    assert acquire_event["holder"] == user_name
+
+    # Client can now filter: if event.sessionId == mySessionId, ignore it
+    my_session_id = session_id
+    should_ignore = acquire_event["sessionId"] == my_session_id
+    assert should_ignore is True  # This is our own event, should be ignored
+
+    # Refresh the lock
+    received_events.clear()
+    response = requests.post(
+        f"{server}/api/rooms/{room}/locks/step/refresh",
+        json={"lockToken": lock_token, "msg": "Still updating"},
+        headers={**auth_headers, "X-Session-ID": session_id},
+    )
+    assert response.status_code == 200
+    time.sleep(0.5)
+
+    # Verify refresh event also includes sessionId
+    assert len(received_events) == 1
+    refresh_event = received_events[0]
+    assert refresh_event["action"] == "refreshed"
+    assert refresh_event["sessionId"] == session_id
+
+    # Release the lock
+    received_events.clear()
+    response = requests.post(
+        f"{server}/api/rooms/{room}/locks/step/release",
+        json={"lockToken": lock_token},
+        headers={**auth_headers, "X-Session-ID": session_id},
+    )
+    assert response.status_code == 200
+    time.sleep(0.5)
+
+    # Verify release event includes sessionId
+    assert len(received_events) == 1
+    release_event = received_events[0]
+    assert release_event["action"] == "released"
+    assert release_event["sessionId"] == session_id
 
     sio_client.disconnect()

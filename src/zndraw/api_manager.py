@@ -1199,3 +1199,67 @@ class APIManager:
 
         response.raise_for_status()
         return response.json()
+
+    def get_step(self) -> dict:
+        """Get current step/frame for the room.
+
+        Returns
+        -------
+        dict
+            {"step": int, "totalFrames": int}
+
+        Raises
+        ------
+        RuntimeError
+            If the GET request fails
+        """
+        url = f"{self.url}/api/rooms/{self.room}/step"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        return response.json()
+
+    def update_step(self, step: int) -> dict:
+        """Set current step/frame for the room.
+
+        Requires holding the 'step' lock for the room.
+
+        Parameters
+        ----------
+        step : int
+            Frame index to set (non-negative integer)
+
+        Returns
+        -------
+        dict
+            {"success": bool, "step": int}
+
+        Raises
+        ------
+        ValueError
+            If step is negative or non-integer
+        RuntimeError
+            If the PUT request fails (401, 403, 423)
+        """
+        if not isinstance(step, int) or step < 0:
+            raise ValueError("Step must be a non-negative integer")
+
+        headers = self._get_headers()
+        url = f"{self.url}/api/rooms/{self.room}/step"
+        response = requests.put(url, json={"step": step}, headers=headers, timeout=10)
+
+        if response.status_code == 400:
+            error_data = response.json()
+            raise ValueError(f"Invalid step value: {error_data.get('error')}")
+        elif response.status_code == 401:
+            error_data = response.json()
+            raise PermissionError(f"Authentication failed: {error_data.get('error')}")
+        elif response.status_code == 403:
+            error_data = response.json()
+            raise PermissionError(f"Access denied: {error_data.get('error')}")
+        elif response.status_code == 423:
+            from zndraw.exceptions import LockError
+            error_data = response.json()
+            raise LockError(f"Lock not held for target='step': {error_data.get('error')}")
+
+        response.raise_for_status()
+        return response.json()

@@ -111,7 +111,7 @@ def acquire_lock(room_id, target):
             user_name=user_name,
             message=msg,
             timestamp=timestamp,
-            skip_sid=None
+            session_id=session_id
         )
 
         log.debug(
@@ -258,7 +258,7 @@ def refresh_lock(room_id, target):
         user_name=user_name,
         message=msg,
         timestamp=timestamp,
-        skip_sid=None
+        session_id=session_id
     )
 
     return jsonify({"success": True})
@@ -342,7 +342,7 @@ def release_lock(room_id, target):
         user_name=None,
         message=None,
         timestamp=None,
-        skip_sid=None
+        session_id=session_id
     )
 
     log.debug(

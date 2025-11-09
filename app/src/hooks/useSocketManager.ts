@@ -530,9 +530,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
     function onLockUpdate(data: any) {
       console.log("Lock update:", data);
-      const { roomId: lockRoomId, target, action, holder, message, timestamp } = data;
+      const { roomId: lockRoomId, target, action, holder, message, timestamp, sessionId } = data;
 
       // Handle trajectory:meta lock updates
+      // in the UI (lock icon should show current user as holder)
       if (target === "trajectory:meta") {
         if (action === "acquired" || action === "refreshed") {
           setLockMetadata({
@@ -547,9 +548,11 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
         }
       }
 
+      // Step lock updates are handled by useStepControl hook
+      // (no action needed here)
+
       // Future: handle other lock targets
       // if (target === "geometry:selection") { ... }
-      // if (target === "frame:position") { ... }
     }
 
     async function onConnectError(err: any) {
@@ -587,7 +590,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
         // Force a new login
         try {
           const loginData = await login();
-          console.log(`Re-login successful with new user: ${loginData.userName}`);
+          console.log(`Re-login successful with new user: ${loginData.userName} and ${loginData.sessionId}`);
 
           // Update store with new username
           const newUsername = getUsername();

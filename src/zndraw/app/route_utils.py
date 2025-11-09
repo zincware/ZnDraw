@@ -338,7 +338,7 @@ def emit_lock_update(
     user_name: str | None = None,
     message: str | None = None,
     timestamp: str | None = None,
-    skip_sid: str | None = None
+    session_id: str | None = None
 ):
     """Emit lock status update to all clients in room.
 
@@ -356,8 +356,9 @@ def emit_lock_update(
         Lock message describing the operation
     timestamp : str | None, optional
         ISO 8601 timestamp
-    skip_sid : str | None, optional
-        Socket ID to skip (typically the initiating client)
+    session_id : str | None, optional
+        Session ID of the client that initiated the lock action.
+        Clients can use this to filter out their own events.
     """
     payload = {
         "roomId": room_id,
@@ -365,14 +366,15 @@ def emit_lock_update(
         "action": action,
         "holder": user_name,
         "message": message,
-        "timestamp": timestamp
+        "timestamp": timestamp,
+        "sessionId": session_id
     }
 
     socketio.emit(
         "lock:update",
         payload,
         to=f"room:{room_id}",
-        skip_sid=skip_sid
+        skip_sid=None  # Send to all clients; they filter by sessionId
     )
 
     log.debug(f"Emitted lock:update for room '{room_id}': {payload}")

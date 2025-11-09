@@ -14,10 +14,8 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import SyncIcon from "@mui/icons-material/Sync";
 import SyncDisabledIcon from "@mui/icons-material/SyncDisabled";
 import { useAppStore } from "../store";
-import { throttle } from "lodash";
 import { socket } from "../socket";
-import { usePresenterMode } from "../hooks/usePresenterMode";
-import { useAtomicFrameSet } from "../hooks/useAtomicFrameSet";
+import { useStepControl } from "../hooks/useStepControl";
 import SelectionLayer from "./SelectionLayer";
 import BookmarkLayer from "./BookmarkLayer";
 import SelectionTrackOverlay from "./SelectionTrackOverlay";
@@ -28,10 +26,6 @@ const FrameProgressBar = () => {
   const [inputValue, setInputValue] = useState("0");
   const sliderContainerRef = useRef<HTMLDivElement>(null);
   const [sliderWidth, setSliderWidth] = useState(0);
-
-  // Refs to manage the scrubbing logic without causing re-renders
-  const scrubTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isScrubbingRef = useRef(false);
 
   const {
     currentFrame,
@@ -52,9 +46,7 @@ const FrameProgressBar = () => {
     getIsFetching,
   } = useAppStore();
 
-  const { requestPresenterMode, releasePresenterMode, presenterMode } =
-    usePresenterMode();
-  const setFrameAtomic = useAtomicFrameSet();
+  const { setStep, remoteLocked } = useStepControl();
 
   // Find nearest selected frame when filtering is enabled
   const findNearestSelectedFrame = (targetFrame: number): number => {
@@ -80,73 +72,11 @@ const FrameProgressBar = () => {
     return nearest;
   };
 
-  // Emits CONTINUOUS updates while dragging
-  const throttledFrameUpdate = useMemo(
-    () =>
-      throttle((frame: number) => {
-        // Only send if we are confirmed to be the presenter
-        if (presenterMode === "presenting") {
-          socket.emit("set_frame_continuous", { frame });
-        }
-      }, 100),
-    [presenterMode],
-  );
-
   // This is the primary handler for the slider
   const handleSliderChange = (_e: Event, newFrame: number | number[]) => {
     // Apply snap-to-selected-frame logic if filtering is enabled
     const snappedFrame = findNearestSelectedFrame(newFrame as number);
-    setCurrentFrame(snappedFrame);
-
-    // If we're already in scrubbing mode, just send throttled updates
-    if (isScrubbingRef.current) {
-      throttledFrameUpdate(snappedFrame);
-      return;
-    }
-
-    // If a timer is running, it means this is the 2nd change event -> it's a scrub!
-    if (scrubTimerRef.current) {
-      clearTimeout(scrubTimerRef.current);
-      scrubTimerRef.current = null;
-      isScrubbingRef.current = true;
-      requestPresenterMode(); // Request presenter mode
-    }
-    // This is the first change event. Treat it as an atomic jump for now.
-    else {
-      socket.emit(
-        "set_frame_atomic",
-        { frame: snappedFrame },
-        (response: any) => {
-          if (response && !response.success) {
-            console.error(
-              `Failed to set frame: ${response.error} - ${response.message}`,
-            );
-          }
-        },
-      );
-      // Start a timer. If it completes, the interaction was just a click.
-      scrubTimerRef.current = setTimeout(() => {
-        scrubTimerRef.current = null;
-      }, 150); // A short delay to detect a drag
-    }
-  };
-
-  // This handler cleans up after the interaction ends
-  const handleScrubEnd = () => {
-    // Always clear any pending timer
-    if (scrubTimerRef.current) {
-      clearTimeout(scrubTimerRef.current);
-      scrubTimerRef.current = null;
-    }
-
-    // If we were in scrubbing mode, release the token
-    if (isScrubbingRef.current) {
-      throttledFrameUpdate.flush(); // Send the final frame
-      releasePresenterMode(); // Release presenter mode
-    }
-
-    // Reset the scrubbing flag for the next interaction
-    isScrubbingRef.current = false;
+    setStep(snappedFrame);
   };
 
   // Measure slider container width
@@ -162,18 +92,6 @@ const FrameProgressBar = () => {
     return () => window.removeEventListener("resize", updateWidth);
   }, []);
 
-  // Ensure timers are cleaned up if the component unmounts
-  useEffect(() => {
-    return () => {
-      if (scrubTimerRef.current) {
-        clearTimeout(scrubTimerRef.current);
-      }
-      // Release presenter mode if still active
-      if (isScrubbingRef.current) {
-        releasePresenterMode();
-      }
-    };
-  }, [releasePresenterMode]);
 
   // Auto-disable frame selection filter when frame selection is reset
   useEffect(() => {
@@ -214,7 +132,7 @@ const FrameProgressBar = () => {
   const handleInputSubmit = () => {
     const newFrame = parseInt(inputValue, 10);
     if (!isNaN(newFrame) && newFrame >= 0 && newFrame <= frameCount - 1) {
-      setFrameAtomic(newFrame);
+      setStep(newFrame);
     } else {
       setInputValue(currentFrame.toString());
     }
@@ -328,7 +246,7 @@ const FrameProgressBar = () => {
           frameCount={frameCount}
           currentFrame={currentFrame}
           containerWidth={sliderWidth}
-          onBookmarkClick={setFrameAtomic}
+          onBookmarkClick={setStep}
           onBookmarkDelete={deleteBookmark}
           onBookmarkEdit={addBookmark}
         />
@@ -340,7 +258,7 @@ const FrameProgressBar = () => {
           containerWidth={sliderWidth}
           enabled={frameSelectionEnabled}
           currentFrame={currentFrame}
-          disabled={presenterMode === "locked"}
+          disabled={remoteLocked}
         />
 
         {/* Selection Markers - Shows individual selected frames when filtering is disabled */}
@@ -358,11 +276,7 @@ const FrameProgressBar = () => {
           orientation="horizontal"
           value={currentFrame}
           onChange={handleSliderChange}
-          onMouseUp={handleScrubEnd}
-          onMouseDown={() => {
-            isScrubbingRef.current = false;
-          }}
-          disabled={presenterMode === "locked"}
+          disabled={remoteLocked}
           max={frameCount - 1}
           aria-label="Frame Progress"
           valueLabelDisplay="auto"

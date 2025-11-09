@@ -456,6 +456,26 @@ class SessionKeys:
         """Session role."""
         return f"sid:{self.sid}:role"
 
+    def session_id(self) -> str:
+        """Socket ID to session ID mapping (for cleanup on disconnect)."""
+        return f"sid:{self.sid}:session"
+
+    @staticmethod
+    def session_to_sid(session_id: str) -> str:
+        """Session ID to socket ID reverse mapping.
+
+        Parameters
+        ----------
+        session_id : str
+            The session identifier
+
+        Returns
+        -------
+        str
+            Redis key for session ID to socket ID mapping
+        """
+        return f"session:{session_id}:sid"
+
 
 @dataclass(frozen=True)
 class JobKeys:

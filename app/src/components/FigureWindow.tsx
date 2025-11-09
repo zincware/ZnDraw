@@ -19,7 +19,7 @@ declare module "plotly.js-dist-min" {
 import { useWindowManagerStore } from "../stores/windowManagerStore";
 import { useFigure, useFigureList } from "../hooks/useFigures";
 import { useAppStore } from "../store";
-import { useAtomicFrameSet } from "../hooks/useAtomicFrameSet";
+import { useStepControl } from "../hooks/useStepControl";
 
 // MUI Imports
 import {
@@ -424,7 +424,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
   const currentFrame = useAppStore((state) => state.currentFrame);
   const frame_selection = useAppStore((state) => state.frame_selection);
   const selections = useAppStore((state) => state.selections);
-  const setFrameAtomic = useAtomicFrameSet();
+  const { setStep } = useStepControl();
 
   if (!windowInstance) {
     return null;
@@ -497,7 +497,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 
       // Apply aggregated selections
       if (stepFrame !== undefined) {
-        setFrameAtomic(stepFrame);
+        setStep(stepFrame);
       }
 
       // Send each geometry selection to server
@@ -505,7 +505,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
         updateSelectionForGeometry(geometryName, indices);
       });
     },
-    [setFrameAtomic, updateSelectionForGeometry],
+    [setStep, updateSelectionForGeometry],
   );
 
   const onPlotSelected = useCallback(

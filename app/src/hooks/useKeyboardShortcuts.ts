@@ -1,12 +1,10 @@
 import { useEffect, useCallback } from "react";
 import { useAppStore } from "../store";
-import { usePresenterToken } from "./usePresenterToken";
-import { useAtomicFrameSet } from "./useAtomicFrameSet";
+import { useStepControl } from "./useStepControl";
 
 export const useKeyboardShortcuts = () => {
   const {
     currentFrame,
-    setCurrentFrame,
     frameCount,
     frame_selection,
     frameSelectionEnabled,
@@ -21,8 +19,7 @@ export const useKeyboardShortcuts = () => {
     setLastFrameChangeTime,
   } = useAppStore();
 
-  const goToFrameAtomic = useAtomicFrameSet();
-  const { requestToken, releaseToken, setFrame } = usePresenterToken(goToFrameAtomic);
+  const { setStep } = useStepControl();
 
   const getNavigableFrames = useCallback((): number[] => {
     if (
@@ -35,19 +32,9 @@ export const useKeyboardShortcuts = () => {
     return Array.from({ length: frameCount }, (_, i) => i);
   }, [frameSelectionEnabled, frame_selection, frameCount]);
 
-  // For playback - uses continuous mode with presenter token
-  const goToFrameContinuous = useCallback(
-    (frame: number) => {
-      setCurrentFrame(frame);
-      setFrame(frame);
-    },
-    [setCurrentFrame, setFrame],
-  );
-
-  const handlePreviousFrame = useCallback(() => {
+  const handlePreviousFrame = useCallback(async () => {
     // Pause playback when manually navigating
     if (playing) {
-      releaseToken();
       setPlaying(false);
     }
 
@@ -55,17 +42,16 @@ export const useKeyboardShortcuts = () => {
     const currentIndex = navigableFrames.indexOf(currentFrame);
 
     if (currentIndex > 0) {
-      goToFrameAtomic(navigableFrames[currentIndex - 1]);
+      setStep(navigableFrames[currentIndex - 1]);
     } else {
       // Wrap to last frame
-      goToFrameAtomic(navigableFrames[navigableFrames.length - 1]);
+      setStep(navigableFrames[navigableFrames.length - 1]);
     }
-  }, [currentFrame, getNavigableFrames, goToFrameAtomic, playing, setPlaying, releaseToken]);
+  }, [currentFrame, getNavigableFrames, setStep, playing, setPlaying]);
 
-  const handleNextFrame = useCallback(() => {
+  const handleNextFrame = useCallback(async () => {
     // Pause playback when manually navigating
     if (playing) {
-      releaseToken();
       setPlaying(false);
     }
 
@@ -73,18 +59,17 @@ export const useKeyboardShortcuts = () => {
     const currentIndex = navigableFrames.indexOf(currentFrame);
 
     if (currentIndex < navigableFrames.length - 1) {
-      goToFrameAtomic(navigableFrames[currentIndex + 1]);
+      setStep(navigableFrames[currentIndex + 1]);
     } else {
       // Wrap to first frame
-      goToFrameAtomic(navigableFrames[0]);
+      setStep(navigableFrames[0]);
     }
   }, [
     currentFrame,
     getNavigableFrames,
-    goToFrameAtomic,
+    setStep,
     playing,
     setPlaying,
-    releaseToken,
   ]);
 
   const handleTogglePlayback = useCallback(async () => {
@@ -93,28 +78,22 @@ export const useKeyboardShortcuts = () => {
       currentFrame === navigableFrames[navigableFrames.length - 1];
 
     if (!playing) {
-      // Starting playback - request presenter token
-      const success = await requestToken();
-      if (success) {
+      // Starting playback
+      if (isAtLastFrame) {
         // If at last frame, jump to first before playing
-        if (isAtLastFrame) {
-          goToFrameContinuous(navigableFrames[0]);
-        }
-        setPlaying(true);
+        setStep(navigableFrames[0]);
       }
+      setPlaying(true);
     } else {
-      // Stopping playback - release presenter token
-      releaseToken();
+      // Stopping playback
       setPlaying(false);
     }
   }, [
     playing,
-    setPlaying,
     currentFrame,
     getNavigableFrames,
-    requestToken,
-    releaseToken,
-    goToFrameContinuous,
+    setStep,
+    setPlaying,
   ]);
 
   // Add bookmark (B)
@@ -123,12 +102,11 @@ export const useKeyboardShortcuts = () => {
   }, [addBookmark, currentFrame]);
 
   // Jump to previous bookmark (Shift + ArrowLeft)
-  const handlePreviousBookmark = useCallback(() => {
+  const handlePreviousBookmark = useCallback(async () => {
     if (!bookmarks) return;
 
     // Pause playback when manually navigating
     if (playing) {
-      releaseToken();
       setPlaying(false);
     }
 
@@ -144,20 +122,19 @@ export const useKeyboardShortcuts = () => {
       .find((frame) => frame < currentFrame);
 
     if (prevBookmark !== undefined) {
-      goToFrameAtomic(prevBookmark);
+      setStep(prevBookmark);
     } else {
       // Wrap to last bookmark
-      goToFrameAtomic(bookmarkFrames[0]);
+      setStep(bookmarkFrames[0]);
     }
-  }, [bookmarks, currentFrame, goToFrameAtomic, playing, setPlaying, releaseToken]);
+  }, [bookmarks, currentFrame, setStep, playing, setPlaying]);
 
   // Jump to next bookmark (Shift + ArrowRight)
-  const handleNextBookmark = useCallback(() => {
+  const handleNextBookmark = useCallback(async () => {
     if (!bookmarks) return;
 
     // Pause playback when manually navigating
     if (playing) {
-      releaseToken();
       setPlaying(false);
     }
 
@@ -171,12 +148,12 @@ export const useKeyboardShortcuts = () => {
     const nextBookmark = bookmarkFrames.find((frame) => frame > currentFrame);
 
     if (nextBookmark !== undefined) {
-      goToFrameAtomic(nextBookmark);
+      setStep(nextBookmark);
     } else {
       // Wrap to first bookmark
-      goToFrameAtomic(bookmarkFrames[0]);
+      setStep(bookmarkFrames[0]);
     }
-  }, [bookmarks, currentFrame, goToFrameAtomic, playing, setPlaying, releaseToken]);
+  }, [bookmarks, currentFrame, setStep, playing, setPlaying]);
 
   // Handle automatic frame advancement during playback
   useEffect(() => {
@@ -196,13 +173,12 @@ export const useKeyboardShortcuts = () => {
       const nextIndex = currentIndex + skipFrames;
 
       if (nextIndex < lastIndex) {
-        goToFrameContinuous(navigableFrames[nextIndex]);
+        setStep(navigableFrames[nextIndex]);
       } else if (currentIndex < lastIndex) {
         // If next skip would overshoot, go to last frame
-        goToFrameContinuous(navigableFrames[lastIndex]);
+        setStep(navigableFrames[lastIndex]);
       } else {
-        // Already at last frame, stop playing and release presenter token
-        releaseToken();
+        // Already at last frame, stop playing
         setPlaying(false);
       }
     }, 33); // approximately 30 fps
@@ -212,10 +188,9 @@ export const useKeyboardShortcuts = () => {
     playing,
     currentFrame,
     getNavigableFrames,
-    goToFrameContinuous,
-    setPlaying,
+    setStep,
     skipFrames,
-    releaseToken,
+    setPlaying,
     synchronizedMode,
     getIsFetching,
   ]);
@@ -247,14 +222,6 @@ export const useKeyboardShortcuts = () => {
     setLastFrameChangeTime(now);
   }, [playing, currentFrame, setFps, setLastFrameChangeTime]); // Only depend on playing and currentFrame changes
 
-  // Cleanup presenter token when component unmounts while playing
-  useEffect(() => {
-    return () => {
-      if (playing) {
-        releaseToken();
-      }
-    };
-  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

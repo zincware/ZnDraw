@@ -87,7 +87,19 @@ def handle_connect(auth):
 
     # Get JWT token from auth
     token = auth.get("token") if auth else None
-
+    if "sessionId" not in auth:
+        log.critical(f"Client {sid} connected without sessionId in auth")
+    else:
+        session_id = auth.get("sessionId")
+        if session_id is None:
+            log.critical(f"Client {sid} connected with null sessionId")
+        else:
+            # Bidirectional mapping for session cleanup:
+            # session_id → sid (used for skip_sid in emit)
+            r.set(SessionKeys.session_to_sid(session_id), sid)
+            # sid → session_id (used for cleanup on disconnect)
+            session_keys = SessionKeys(sid)
+            r.set(session_keys.session_id(), session_id)
     if not token:
         log.warning(f"Client {sid} connected without JWT token")
         raise ConnectionRefusedError("Authentication token required")
@@ -115,7 +127,6 @@ def handle_connect(auth):
             "lastActivity": datetime.datetime.utcnow().isoformat(),
         },
     )
-
     # Register SID → userName mapping and role mapping
     session_keys = SessionKeys(sid)
     r.set(session_keys.username(), user_name)
@@ -162,6 +173,14 @@ def handle_disconnect():
     # Clean up connection lookup
     r.delete(session_keys.username())
 
+    # Clean up session→sid bidirectional mapping (prevents memory leak)
+    session_id = r.get(session_keys.session_id())
+    if session_id:
+        # Remove session_id→sid mapping
+        r.delete(SessionKeys.session_to_sid(session_id))
+        # Remove sid→session_id mapping
+        r.delete(session_keys.session_id())
+
     # Update user's currentSid to empty (user still exists but disconnected)
     r.hset(user_keys.hash_key(), "currentSid", "")
 
@@ -186,7 +205,7 @@ def handle_disconnect():
     lock_keys = r.scan_iter("*:lock:*")
     for key in lock_keys:
         # Skip metadata keys
-        if key.endswith(b":metadata") or (isinstance(key, str) and key.endswith(":metadata")):
+        if key.endswith(":metadata"):
             continue
 
         lock_data_str = r.get(key)
@@ -740,77 +759,6 @@ def handle_filesystem_register(data):
     return {"success": True, "workerId": worker_id}
 
 
-@socketio.on("set_frame_atomic")
-def handle_set_frame_atomic(data):
-    """
-    Handles a single frame jump. REJECTED if a presenter is active.
-    """
-    room = get_project_room_from_session(request.sid)
-    room_keys = RoomKeys(room)
-    redis_client = current_app.extensions["redis"]
-
-    if redis_client.get(room_keys.presenter_lock()) not in [request.sid, None]:
-        return {
-            "success": False,
-            "error": "LockError",
-            "message": "Cannot set frame while presenter is active",
-        }
-
-    frame = data.get("frame")
-    if frame is not None:
-        try:
-            # Validate and convert to int (Plotly may send float)
-            frame_int = int(frame)
-            if frame_int < 0:
-                return {"success": False, "error": "Frame must be non-negative"}
-            redis_client.set(room_keys.current_frame(), frame_int)
-            emit(
-                "frame_update",
-                {"frame": frame_int},
-                to=f"room:{room}",
-                skip_sid=request.sid,
-            )
-            return {"success": True}
-        except (ValueError, TypeError) as e:
-            log.error(f"Invalid frame value: {frame} - {e}")
-            return {"success": False, "error": f"Invalid frame value: {frame}"}
-
-    return {"success": False, "error": "Frame parameter missing"}
-
-
-@socketio.on("set_frame_continuous")
-def handle_set_frame_continuous(data):
-    """
-    Handles continuous frame updates. REQUIRES sender to be the presenter.
-    """
-    room = get_project_room_from_session(request.sid)
-    room_keys = RoomKeys(room)
-    redis_client = current_app.extensions["redis"]
-
-    presenter_sid = redis_client.get(room_keys.presenter_lock())
-
-    if presenter_sid and presenter_sid == request.sid:
-        frame = data.get("frame")
-        if frame is not None:
-            try:
-                # Validate and convert to int (Plotly may send float)
-                frame_int = int(frame)
-                if frame_int < 0:
-                    log.warning(f"Negative frame rejected: {frame_int}")
-                    return {"success": False, "error": "Frame must be non-negative"}
-                redis_client.set(room_keys.current_frame(), frame_int)
-                emit(
-                    "frame_update",
-                    {"frame": frame_int},
-                    to=f"room:{room}",
-                    skip_sid=request.sid,
-                )
-                return {"success": True}
-            except (ValueError, TypeError) as e:
-                log.error(f"Invalid frame value in continuous: {frame} - {e}")
-                return {"success": False, "error": f"Invalid frame value: {frame}"}
-
-
 @socketio.on("frame_selection:set")
 def handle_frame_selection_set(data):
     """
@@ -842,57 +790,6 @@ def handle_frame_selection_set(data):
     )
 
     return {"success": True}
-
-
-@socketio.on("request_presenter_token")
-def handle_request_presenter_token():
-    sid = request.sid
-    room = get_project_room_from_session(sid)
-    print(f"Presenter token requested by {sid} in room {room}")
-    if not room:
-        return {"success": False, "reason": "Not in a valid room"}
-
-    room_keys = RoomKeys(room)
-    r = current_app.extensions["redis"]
-
-    # --- UPDATED LOGIC ---
-    # Get the current holder of the lock
-    current_holder = r.get(room_keys.presenter_lock())
-
-    # Case 1: No one has the lock, or the requester already has it (renewal)
-    if current_holder is None or current_holder == sid:
-        # Set (or reset) the lock with the new expiry
-        r.set(room_keys.presenter_lock(), sid, ex=TOKEN_EXPIRY_SECONDS)
-
-        # If this is a brand new presenter, inform the room
-        if current_holder is None:
-            from zndraw.app.room_manager import emit_room_update
-
-            emit_room_update(socketio, room, skip_sid=sid, presenterSid=sid)
-
-        return {"success": True}
-    else:
-        # Case 2: Someone else has the lock
-        return {"success": False, "reason": "Presenter lock is held by another user"}
-
-
-@socketio.on("release_presenter_token")
-def handle_release_presenter_token():
-    room = get_project_room_from_session(request.sid)
-    room_keys = RoomKeys(room)
-    print(f"Presenter token release requested by {request.sid} in room {room}")
-    r = current_app.extensions["redis"]
-
-    presenter_sid = r.get(room_keys.presenter_lock())
-
-    if presenter_sid and presenter_sid == request.sid:
-        r.delete(room_keys.presenter_lock())
-        from zndraw.app.room_manager import emit_room_update
-
-        emit_room_update(socketio, room, skip_sid=request.sid, presenterSid=None)
-        return {"success": True}
-    else:
-        return {"success": False, "error": "Not the current presenter"}
 
 
 @socketio.on("join:overview")

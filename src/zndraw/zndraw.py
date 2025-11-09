@@ -564,19 +564,10 @@ class ZnDraw(MutableSequence):
                 f"Step {value} is out of bounds. Current number of frames: {self._len}."
             )
         self._step = value
-        if self.socket.sio.connected:
-            response = self.socket.sio.call(
-                "set_frame_atomic", {"frame": value}, timeout=5
-            )
-            if response and not response.get("success", False):
-                error_type = response.get("error")
-                error_msg = response.get("message", "Failed to set frame")
-                if error_type == "LockError":
-                    raise LockError(error_msg)
-                else:
-                    raise RuntimeError(error_msg)
-        else:
-            raise RuntimeError("Client is not connected.")
+
+        # Use REST API with auto-lock pattern: acquire lock → update step → release lock
+        with self.get_lock(target="step"):
+            self.api.update_step(value)
 
     @property
     def points(self) -> np.ndarray:
