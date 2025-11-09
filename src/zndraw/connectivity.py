@@ -32,6 +32,8 @@ def add_connectivity(atoms: ase.Atoms, scale: float = 1.2) -> None:
     None
         The function modifies the Atoms object in-place.
     """
+    if len(atoms) == 0:
+        return
     # Calculate scaled covalent radii for each atom
     atom_radii = np.array(natural_cutoffs(atoms, mult=scale))
 

@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 import ase.build
 from zndraw.zndraw import ZnDraw
@@ -185,3 +184,97 @@ def test_connectivity_mixed_sizes_in_extend(server):
 
     # Large structure should NOT have connectivity
     assert "connectivity" not in vis[1].info
+
+
+def test_empty_atoms_append(server):
+    """Test that empty Atoms objects can be appended without errors."""
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+
+    # Create empty Atoms
+    empty_atoms = ase.Atoms()
+    assert len(empty_atoms) == 0
+    assert "connectivity" not in empty_atoms.info
+
+    # Should not raise an error
+    vis.append(empty_atoms)
+
+    # Retrieve and verify
+    retrieved = vis[0]
+    assert len(retrieved) == 0
+    assert "connectivity" not in retrieved.info
+    # Colors and radii should still be added
+    assert "colors" in retrieved.arrays
+    assert "radii" in retrieved.arrays
+
+
+def test_empty_atoms_extend(server):
+    """Test that empty Atoms objects can be extended without errors."""
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+
+    # Create list with empty and non-empty Atoms
+    empty_atoms = ase.Atoms()
+    water = ase.build.molecule("H2O")
+
+    atoms_list = [empty_atoms, water, empty_atoms]
+    vis.extend(atoms_list)
+
+    # Check empty atoms don't have connectivity
+    assert len(vis[0]) == 0
+    assert "connectivity" not in vis[0].info
+
+    # Check non-empty atoms do have connectivity
+    assert len(vis[1]) == 3
+    assert "connectivity" in vis[1].info
+
+    # Check second empty atoms
+    assert len(vis[2]) == 0
+    assert "connectivity" not in vis[2].info
+
+
+def test_empty_atoms_insert(server):
+    """Test that empty Atoms objects can be inserted without errors."""
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+
+    # Add initial atoms
+    vis.append(ase.build.molecule("H2O"))
+
+    # Insert empty atoms
+    empty_atoms = ase.Atoms()
+    vis.insert(0, empty_atoms)
+
+    # Verify
+    assert len(vis[0]) == 0
+    assert "connectivity" not in vis[0].info
+
+
+def test_empty_atoms_setitem(server):
+    """Test that empty Atoms objects can replace existing frames without errors."""
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+
+    # Add initial atoms
+    vis.append(ase.build.molecule("H2O"))
+
+    # Replace with empty atoms
+    empty_atoms = ase.Atoms()
+    vis[0] = empty_atoms
+
+    # Verify
+    retrieved = vis[0]
+    assert len(retrieved) == 0
+    assert "connectivity" not in retrieved.info
+
+
+def test_empty_atoms_with_custom_info(server):
+    """Test that empty Atoms with custom info are handled correctly."""
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+
+    # Create empty Atoms with custom info
+    empty_atoms = ase.Atoms()
+    empty_atoms.info["custom_key"] = "custom_value"
+
+    vis.append(empty_atoms)
+
+    # Verify custom info is preserved
+    retrieved = vis[0]
+    assert retrieved.info["custom_key"] == "custom_value"
+    assert "connectivity" not in retrieved.info
