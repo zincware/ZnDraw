@@ -10,6 +10,7 @@ from flask import Blueprint, current_app, request
 
 from zndraw.server import socketio
 from zndraw.app.constants import SocketEvents
+from zndraw.auth import require_auth
 
 from .frame_index_manager import FrameIndexManager
 from .redis_keys import RoomKeys, SessionKeys
@@ -939,3 +940,144 @@ def update_step(room_id: str, session_id: str, user_id: str):
         skip_sid=sid,
     )
     return {"success": True, "step": step}
+
+
+# ==================== Progress Tracking REST API ====================
+
+
+@rooms.route("/api/rooms/<string:room_id>/progress", methods=["POST"])
+@require_auth
+def create_progress(room_id):
+    """Start tracking progress for a long-running operation.
+
+    Request Body
+    ------------
+    {
+        "progressId": "unique-progress-id",
+        "description": "Operation description"
+    }
+
+    Returns
+    -------
+    Response
+        JSON response with success status
+    """
+    data = request.get_json()
+    if not data:
+        return {"error": "Request body required"}, 400
+
+    progress_id = data.get("progressId")
+    description = data.get("description")
+
+    if not progress_id or not description:
+        return {"error": "Missing required fields: progressId, description"}, 400
+
+    r = current_app.extensions["redis"]
+
+    try:
+        # Store progress in Redis
+        room_keys = RoomKeys(room_id)
+        progress_data = json.dumps({"roomId": room_id, "description": description, "progress": None})
+        r.hset(room_keys.progress(), progress_id, progress_data)
+
+        # Broadcast to room
+        socketio.emit(
+            "progress:started",
+            {"progressId": progress_id, "roomId": room_id, "description": description},
+            to=f"room:{room_id}",
+        )
+
+        return {"success": True, "progressId": progress_id}, 201
+    except Exception as e:
+        log.error(f"Failed to start progress tracking: {e}")
+        return {"error": f"Failed to start progress tracking: {str(e)}"}, 500
+
+
+@rooms.route("/api/rooms/<string:room_id>/progress/<string:progress_id>", methods=["PUT"])
+@require_auth
+def update_progress(room_id, progress_id):
+    """Update progress tracking for an ongoing operation.
+
+    Request Body
+    ------------
+    {
+        "description": "Updated description (optional)",
+        "progress": 50.0  (optional, 0-100)
+    }
+
+    Returns
+    -------
+    Response
+        JSON response with success status
+    """
+    data = request.get_json()
+    if not data:
+        return {"error": "Request body required"}, 400
+
+    description = data.get("description")
+    progress = data.get("progress")
+
+    if description is None and progress is None:
+        return {"error": "At least one of description or progress is required"}, 400
+
+    r = current_app.extensions["redis"]
+
+    try:
+        # Get existing progress entry
+        room_keys = RoomKeys(room_id)
+        existing_data = r.hget(room_keys.progress(), progress_id)
+
+        if not existing_data:
+            return {"error": "Progress tracker not found"}, 404
+
+        # Update progress data
+        progress_dict = json.loads(existing_data)
+        if description is not None:
+            progress_dict["description"] = description
+        if progress is not None:
+            progress_dict["progress"] = progress
+
+        r.hset(room_keys.progress(), progress_id, json.dumps(progress_dict))
+
+        # Broadcast update to room
+        update_payload = {"progressId": progress_id, "roomId": room_id}
+        if description is not None:
+            update_payload["description"] = description
+        if progress is not None:
+            update_payload["progress"] = progress
+
+        socketio.emit("progress:updated", update_payload, to=f"room:{room_id}")
+
+        return {"success": True}, 200
+    except Exception as e:
+        log.error(f"Failed to update progress: {e}")
+        return {"error": f"Failed to update progress: {str(e)}"}, 500
+
+
+@rooms.route("/api/rooms/<string:room_id>/progress/<string:progress_id>", methods=["DELETE"])
+@require_auth
+def complete_progress(room_id, progress_id):
+    """Complete and remove progress tracking for an operation.
+
+    Returns
+    -------
+    Response
+        JSON response with success status
+    """
+    r = current_app.extensions["redis"]
+
+    try:
+        # Remove progress from Redis
+        room_keys = RoomKeys(room_id)
+        removed_count = r.hdel(room_keys.progress(), progress_id)
+
+        if removed_count == 0:
+            return {"error": "Progress tracker not found"}, 404
+
+        # Broadcast completion to room
+        socketio.emit("progress:completed", {"progressId": progress_id, "roomId": room_id}, to=f"room:{room_id}")
+
+        return {"success": True}, 200
+    except Exception as e:
+        log.error(f"Failed to complete progress: {e}")
+        return {"error": f"Failed to complete progress: {str(e)}"}, 500

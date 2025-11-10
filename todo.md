@@ -98,3 +98,4 @@ which can not work, because one user can have multiple sessions in different roo
 - [ ] can not jump to frame when playing / playing mode is not exited when clicking on progress bar!
 - [ ] Failed to apply adaptive resolution: 1 validation error for Sphere
 resolution on remote filesystem uploads.
+- [ ] make the lock Clickable? lock description only in tooltip? Make it look different? currently, the changing description messes up headbar layout!

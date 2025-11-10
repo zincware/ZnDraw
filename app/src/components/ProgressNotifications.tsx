@@ -4,21 +4,21 @@ import { useState } from "react";
 import { useAppStore } from "../store";
 import { LAYOUT_CONSTANTS } from "../constants/layout";
 
-export default function TaskNotifications() {
-  const tasks = useAppStore((state) => state.tasks);
+export default function ProgressNotifications() {
+  const progressTrackers = useAppStore((state) => state.progressTrackers);
   const roomId = useAppStore((state) => state.roomId);
-  const [hiddenTaskIds, setHiddenTaskIds] = useState<Set<string>>(new Set());
+  const [hiddenProgressIds, setHiddenProgressIds] = useState<Set<string>>(new Set());
 
-  // Filter out hidden tasks and tasks from other rooms
-  const taskList = Object.values(tasks).filter(
-    task => !hiddenTaskIds.has(task.taskId) && task.roomId === roomId
+  // Filter out hidden progress trackers and trackers from other rooms
+  const progressList = Object.values(progressTrackers).filter(
+    tracker => !hiddenProgressIds.has(tracker.progressId) && tracker.roomId === roomId
   );
 
-  const handleHideTask = (taskId: string) => {
-    setHiddenTaskIds(prev => new Set(prev).add(taskId));
+  const handleHideProgress = (progressId: string) => {
+    setHiddenProgressIds(prev => new Set(prev).add(progressId));
   };
 
-  if (taskList.length === 0) {
+  if (progressList.length === 0) {
     return null;
   }
 
@@ -35,8 +35,8 @@ export default function TaskNotifications() {
         maxWidth: 400,
       }}
     >
-      {taskList.map((task) => (
-        <Fade key={task.taskId} in={true}>
+      {progressList.map((tracker) => (
+        <Fade key={tracker.progressId} in={true}>
           <Paper
             elevation={8}
             sx={{
@@ -51,7 +51,7 @@ export default function TaskNotifications() {
             {/* Close button */}
             <IconButton
               size="small"
-              onClick={() => handleHideTask(task.taskId)}
+              onClick={() => handleHideProgress(tracker.progressId)}
               sx={{
                 position: 'absolute',
                 top: 8,
@@ -65,23 +65,23 @@ export default function TaskNotifications() {
               <CloseIcon fontSize="small" />
             </IconButton>
 
-            {/* Task description */}
+            {/* Progress description */}
             <Box sx={{ pr: 4 }}>
               <Typography variant="body1" fontWeight={600}>
-                {task.description}
+                {tracker.description}
               </Typography>
             </Box>
 
             {/* Progress indicator */}
-            {task.progress !== null ? (
+            {tracker.progress !== null ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 <LinearProgress
                   variant="determinate"
-                  value={task.progress}
+                  value={tracker.progress}
                   sx={{ height: 6, borderRadius: 3 }}
                 />
                 <Typography variant="caption" color="text.secondary" textAlign="right">
-                  {Math.round(task.progress)}%
+                  {Math.round(tracker.progress)}%
                 </Typography>
               </Box>
             ) : (

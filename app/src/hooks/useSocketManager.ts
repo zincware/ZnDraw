@@ -38,10 +38,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     setServerVersion,
     setGlobalSettings,
     setLockMetadata,
-    setTasks,
-    addTask,
-    updateTask,
-    removeTask,
+    setProgressTrackers,
+    addProgressTracker,
+    updateProgressTracker,
+    removeProgressTracker,
   } = useAppStore();
   const queryClient = useQueryClient();
   const { openWindow } = useWindowManagerStore();
@@ -559,30 +559,30 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       // if (target === "geometry:selection") { ... }
     }
 
-    function onTasksInitial(data: any) {
-      console.log("Tasks initial:", data);
-      const { tasks } = data;
-      if (tasks) {
-        setTasks(tasks);
+    function onProgressInitial(data: any) {
+      console.log("Progress initial:", data);
+      const { progressTrackers } = data;
+      if (progressTrackers) {
+        setProgressTrackers(progressTrackers);
       }
     }
 
-    function onTaskStarted(data: any) {
-      console.log("Task started:", data);
-      const { taskId, roomId, description } = data;
-      addTask(taskId, description, null, roomId);
+    function onProgressStarted(data: any) {
+      console.log("Progress started:", data);
+      const { progressId, roomId, description } = data;
+      addProgressTracker(progressId, description, null, roomId);
     }
 
-    function onTaskUpdate(data: any) {
-      console.log("Task update:", data);
-      const { taskId, description, progress } = data;
-      updateTask(taskId, description, progress);
+    function onProgressUpdate(data: any) {
+      console.log("Progress update:", data);
+      const { progressId, description, progress } = data;
+      updateProgressTracker(progressId, description, progress);
     }
 
-    function onTaskComplete(data: any) {
-      console.log("Task complete:", data);
-      const { taskId } = data;
-      removeTask(taskId);
+    function onProgressComplete(data: any) {
+      console.log("Progress complete:", data);
+      const { progressId } = data;
+      removeProgressTracker(progressId);
     }
 
     async function onConnectError(err: any) {
@@ -660,10 +660,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     socket.on("room:update", onRoomUpdate);
     socket.on("room:delete", onRoomDelete);
     socket.on("lock:update", onLockUpdate);
-    socket.on("tasks:initial", onTasksInitial);
-    socket.on("task:started", onTaskStarted);
-    socket.on("task:updated", onTaskUpdate);
-    socket.on("task:completed", onTaskComplete);
+    socket.on("progress:initial", onProgressInitial);
+    socket.on("progress:started", onProgressStarted);
+    socket.on("progress:updated", onProgressUpdate);
+    socket.on("progress:completed", onProgressComplete);
 
     // Ensure user is authenticated before connecting socket
     // This will auto-login with a server-generated username if no token exists
@@ -715,10 +715,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       socket.off("room:update", onRoomUpdate);
       socket.off("room:delete", onRoomDelete);
       socket.off("lock:update", onLockUpdate);
-      socket.off("tasks:initial", onTasksInitial);
-      socket.off("task:started", onTaskStarted);
-      socket.off("task:updated", onTaskUpdate);
-      socket.off("task:completed", onTaskComplete);
+      socket.off("progress:initial", onProgressInitial);
+      socket.off("progress:started", onProgressStarted);
+      socket.off("progress:updated", onProgressUpdate);
+      socket.off("progress:completed", onProgressComplete);
 
       // Disconnect socket when component unmounts to ensure clean reconnection
       socket.disconnect();
@@ -743,10 +743,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     setServerVersion,
     setGlobalSettings,
     setLockMetadata,
-    setTasks,
-    addTask,
-    updateTask,
-    removeTask,
+    setProgressTrackers,
+    addProgressTracker,
+    updateProgressTracker,
+    removeProgressTracker,
     openWindow,
   ]);
 };

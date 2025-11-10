@@ -364,8 +364,8 @@ class SocketManager:
                 password=getattr(self.zndraw, "password", None),
             )
 
-            # Use task tracking for loading progress
-            with temp_vis.task_description(f"Loading {path} from {fs_name}") as task:
+            # Use progress tracking for loading progress
+            with temp_vis.progress_tracker(f"Loading {path} from {fs_name}") as task:
                 temp_vis.log(f"Loading {path} from {fs_name}...")
 
                 # Import utilities from tasks.py

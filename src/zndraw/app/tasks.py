@@ -133,12 +133,12 @@ def read_file(
     # TODO: vis._extend() which does extend without aquire/release 
     # so we can do it here?
     try:
-        # Create task description with slice info
-        task_description_text = f"Loading {file_path.name}"
+        # Create progress tracker with slice info
+        progress_description_text = f"Loading {file_path.name}"
         if slice_info != "all frames":
-            task_description_text = f"Loading {file_path.name} ({slice_info})"
+            progress_description_text = f"Loading {file_path.name} ({slice_info})"
 
-        with vis.task_description(task_description_text) as task_desc:
+        with vis.progress_tracker(progress_description_text) as task_desc:
             frame_iterator = None
             total_expected_frames = None  # Will be set if we know the frame count
 

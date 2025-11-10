@@ -248,63 +248,68 @@ class LocalSettings(BaseModel):
     )
 
 
-class TaskDescription:
-    """Context manager for tracking long-running tasks.
+class ProgressTracker:
+    """Context manager for tracking progress of long-running operations.
 
     Parameters
     ----------
     vis : ZnDraw
         The ZnDraw instance
     description : str
-        Initial task description
+        Initial progress description
 
     Examples
     --------
-    >>> with vis.task_description("Loading data...") as task_description:
+    >>> with vis.progress_tracker("Loading data...") as tracker:
     ...     # Do some work
-    ...     task_description.update(progress=50)
+    ...     tracker.update(progress=50)
     ...     # Do more work
-    ...     task_description.update(description="Processing...", progress=100)
+    ...     tracker.update(description="Processing...", progress=100)
     """
 
     def __init__(self, vis: "ZnDraw", description: str):
         self.vis = vis
         self.description = description
-        self.task_id = str(uuid.uuid4())
+        self.progress_id = str(uuid.uuid4())
 
     def __enter__(self):
-        """Start the task."""
+        """Start tracking progress."""
         if not self.vis.socket.sio.connected:
             raise RuntimeError("Client is not connected.")
 
-        event_data = self.vis.api.task_start(self.task_id, self.description)
-        self.vis.socket.sio.emit(event_data["event"], event_data["data"])
+        # Use REST API to start progress tracking (more reliable than socket emit)
+        self.vis.api.progress_start(self.progress_id, self.description)
         return self
 
     def update(self, description: str | None = None, progress: float | None = None):
-        """Update the task description and/or progress.
+        """Update the progress description and/or percentage.
 
         Parameters
         ----------
         description : str | None
-            New task description
+            New progress description
         progress : float | None
-            Task progress (0-100)
+            Progress percentage (0-100)
         """
         if not self.vis.socket.sio.connected:
             raise RuntimeError("Client is not connected.")
 
-        event_data = self.vis.api.task_update(self.task_id, description, progress)
-        self.vis.socket.sio.emit(event_data["event"], event_data["data"])
+        # Use REST API to update progress (more reliable than socket emit)
+        self.vis.api.progress_update(self.progress_id, description, progress)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Complete the task."""
+        """Complete progress tracking."""
         if not self.vis.socket.sio.connected:
             # If disconnected, just return without error
             return False
 
-        event_data = self.vis.api.task_complete(self.task_id)
-        self.vis.socket.sio.emit(event_data["event"], event_data["data"])
+        # Use REST API to complete progress tracking (more reliable than socket emit)
+        try:
+            self.vis.api.progress_complete(self.progress_id)
+        except Exception as e:
+            # Log but don't raise - progress completion is best-effort
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to complete progress {self.progress_id}: {e}")
         return False
 
 
@@ -1507,28 +1512,28 @@ class ZnDraw(MutableSequence):
     ) -> dict:
         return self.api.get_messages(limit=limit, before=before, after=after)
 
-    def task_description(self, description: str) -> TaskDescription:
-        """Create a task context manager for tracking long-running operations.
+    def progress_tracker(self, description: str) -> ProgressTracker:
+        """Create a progress tracker context manager for tracking long-running operations.
 
         Parameters
         ----------
         description : str
-            Initial task description
+            Initial progress description
 
         Returns
         -------
-        TaskDescription
-            A context manager that tracks task progress
+        ProgressTracker
+            A context manager that tracks operation progress
 
         Examples
         --------
-        >>> with vis.task_description("Loading data...") as task:
+        >>> with vis.progress_tracker("Loading data...") as tracker:
         ...     # Do some work
-        ...     task.update(progress=50)
+        ...     tracker.update(progress=50)
         ...     # Do more work
-        ...     task.update(description="Processing...", progress=100)
+        ...     tracker.update(description="Processing...", progress=100)
         """
-        return TaskDescription(self, description)
+        return ProgressTracker(self, description)
 
     def _repr_html_(self):
         """Get an HTML representation for embedding the viewer in Jupyter notebooks.

@@ -345,9 +345,9 @@ class RoomKeys:
         """
         return f"room:{self.room_id}:chat:message:{message_id}"
 
-    def tasks(self) -> str:
-        """Active tasks hash (taskId -> task data)."""
-        return f"room:{self.room_id}:tasks"
+    def progress(self) -> str:
+        """Active progress tracking hash (progressId -> progress data)."""
+        return f"room:{self.room_id}:progress"
 
     def frame_selection(self, group: str = "default") -> str:
         """Frame selection for a specific group.

@@ -1264,66 +1264,74 @@ class APIManager:
         response.raise_for_status()
         return response.json()
 
-    def task_start(self, task_id: str, description: str):
-        """Start a new task.
+    def progress_start(self, progress_id: str, description: str):
+        """Start tracking progress for a long-running operation via REST API.
 
         Parameters
         ----------
-        task_id : str
-            Unique task identifier
+        progress_id : str
+            Unique progress identifier
         description : str
-            Task description
+            Progress description
 
         Returns
         -------
         dict
-            Event data for socket emission
+            Response from server
         """
-        return {
-            "event": "task:start",
-            "data": {"room": self.room, "taskId": task_id, "description": description},
-        }
+        url = f"{self.url}/api/rooms/{self.room}/progress"
+        response = requests.post(
+            url,
+            json={"progressId": progress_id, "description": description},
+            headers=self._get_headers(),
+        )
+        response.raise_for_status()
+        return response.json()
 
-    def task_update(
-        self, task_id: str, description: str | None = None, progress: float | None = None
+    def progress_update(
+        self, progress_id: str, description: str | None = None, progress: float | None = None
     ):
-        """Update an existing task.
+        """Update progress tracking for an ongoing operation via REST API.
 
         Parameters
         ----------
-        task_id : str
-            Task identifier
+        progress_id : str
+            Progress identifier
         description : str | None
-            Updated task description (optional)
+            Updated progress description (optional)
         progress : float | None
-            Task progress 0-100 (optional)
+            Progress percentage 0-100 (optional)
 
         Returns
         -------
         dict
-            Event data for socket emission
+            Response from server
         """
-        data = {"room": self.room, "taskId": task_id}
+        data = {}
         if description is not None:
             data["description"] = description
         if progress is not None:
             data["progress"] = progress
-        return {"event": "task:update", "data": data}
 
-    def task_complete(self, task_id: str):
-        """Complete a task.
+        url = f"{self.url}/api/rooms/{self.room}/progress/{progress_id}"
+        response = requests.put(url, json=data, headers=self._get_headers())
+        response.raise_for_status()
+        return response.json()
+
+    def progress_complete(self, progress_id: str):
+        """Complete and remove progress tracking for an operation via REST API.
 
         Parameters
         ----------
-        task_id : str
-            Task identifier
+        progress_id : str
+            Progress identifier
 
         Returns
         -------
         dict
-            Event data for socket emission
+            Response from server
         """
-        return {
-            "event": "task:complete",
-            "data": {"room": self.room, "taskId": task_id},
-        }
+        url = f"{self.url}/api/rooms/{self.room}/progress/{progress_id}"
+        response = requests.delete(url, headers=self._get_headers())
+        response.raise_for_status()
+        return response.json()

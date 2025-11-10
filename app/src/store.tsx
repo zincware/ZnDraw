@@ -17,11 +17,11 @@ interface LockState {
 }
 
 /**
- * Task tracking state
+ * Progress tracking state
  */
-export interface Task {
-  taskId: string;
-  roomId: string; // Room this task belongs to
+export interface Progress {
+  progressId: string;
+  roomId: string; // Room this progress tracker belongs to
   description: string;
   progress: number | null; // 0-100 for progress bar, null for spinner
 }
@@ -82,7 +82,7 @@ interface AppState {
   serverVersion: string | null; // Server version for display and compatibility checking
   globalSettings: GlobalSettings | null; // Global settings (simgen, etc.)
   snackbar: { open: boolean; message: string; severity: "success" | "info" | "warning" | "error" } | null; // Snackbar notification state
-  tasks: Record<string, Task>; // Active tasks keyed by taskId
+  progressTrackers: Record<string, Progress>; // Active progress trackers keyed by progressId
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -163,10 +163,10 @@ interface AppState {
   setGlobalSettings: (settings: GlobalSettings | null) => void;
   showSnackbar: (message: string, severity?: "success" | "info" | "warning" | "error") => void;
   hideSnackbar: () => void;
-  setTasks: (tasks: Record<string, Task>) => void;
-  addTask: (taskId: string, description: string, progress: number | null, roomId: string) => void;
-  updateTask: (taskId: string, description?: string, progress?: number | null) => void;
-  removeTask: (taskId: string) => void;
+  setProgressTrackers: (trackers: Record<string, Progress>) => void;
+  addProgressTracker: (progressId: string, description: string, progress: number | null, roomId: string) => void;
+  updateProgressTracker: (progressId: string, description?: string, progress?: number | null) => void;
+  removeProgressTracker: (progressId: string) => void;
 }
 
 // Helper functions (pure, exported for reuse across components)
@@ -230,7 +230,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   serverVersion: null,
   globalSettings: null,
   snackbar: null,
-  tasks: {},
+  progressTrackers: {},
 
   /**
    * Non-serializable THREE.js curve objects shared between Curve and Camera components.
@@ -929,32 +929,32 @@ export const useAppStore = create<AppState>((set, get) => ({
   setGlobalSettings: (settings) => set({ globalSettings: settings }),
   showSnackbar: (message, severity = "info") => set({ snackbar: { open: true, message, severity } }),
   hideSnackbar: () => set((state) => state.snackbar ? { snackbar: { ...state.snackbar, open: false } } : {}),
-  setTasks: (tasks) => set({ tasks }),
-  addTask: (taskId, description, progress, roomId) =>
+  setProgressTrackers: (progressTrackers) => set({ progressTrackers }),
+  addProgressTracker: (progressId, description, progress, roomId) =>
     set((state) => ({
-      tasks: {
-        ...state.tasks,
-        [taskId]: { taskId, roomId, description, progress },
+      progressTrackers: {
+        ...state.progressTrackers,
+        [progressId]: { progressId, roomId, description, progress },
       },
     })),
-  updateTask: (taskId, description, progress) =>
+  updateProgressTracker: (progressId, description, progress) =>
     set((state) => {
-      const task = state.tasks[taskId];
-      if (!task) return {};
+      const tracker = state.progressTrackers[progressId];
+      if (!tracker) return {};
       return {
-        tasks: {
-          ...state.tasks,
-          [taskId]: {
-            ...task,
+        progressTrackers: {
+          ...state.progressTrackers,
+          [progressId]: {
+            ...tracker,
             ...(description !== undefined && { description }),
             ...(progress !== undefined && { progress }),
           },
         },
       };
     }),
-  removeTask: (taskId) =>
+  removeProgressTracker: (progressId) =>
     set((state) => {
-      const { [taskId]: _, ...remainingTasks } = state.tasks;
-      return { tasks: remainingTasks };
+      const { [progressId]: _, ...remainingTrackers } = state.progressTrackers;
+      return { progressTrackers: remainingTrackers };
     }),
 }));

@@ -38,7 +38,7 @@ import MyScene from "../components/Canvas";
 import ChatWindow from "../components/ChatWindow";
 import ConnectionDialog from "../components/ConnectionDialog";
 import DropOverlay from "../components/DropOverlay";
-import TaskNotifications from "../components/TaskNotifications";
+import ProgressNotifications from "../components/ProgressNotifications";
 import { useAppStore } from "../store";
 import { useRestJoinManager } from "../hooks/useRestManager";
 import React, { useState, useEffect } from "react";
@@ -472,8 +472,8 @@ export default function MainPage() {
         url="https://slides.com/rokasel/zndrawtutorial-9cc179/fullscreen?style=light"
       />
 
-      {/* Task notifications */}
-      <TaskNotifications />
+      {/* Progress notifications */}
+      <ProgressNotifications />
     </>
   );
 }
