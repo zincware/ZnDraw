@@ -76,8 +76,8 @@
 - [ ] uploading triggers canvas re-renders (activate e.g. path tracer to see the effect)
 - [ ] fix hosted url path in e.g. `copy python code`
 - [ ] remove batch upload from read_file and filesystem. The `extend` has included batching!
-- [ ] consider where to compute connectivity: server / client / on-the-fly / delayed?
-- [ ] fix the presenter lock!!
+- [x] consider where to compute connectivity: server / client / on-the-fly / delayed?
+- [x] fix the presenter lock!!
 - [ ] test register_fs, search `filesystem:load`
 - [ ] let the celery workers directly write to the storage instead of using `vis.extend`. Add a way to emit?! Access redis / znsocket?!
 - [ ] allow to invalidate all frames or just specific keys!
@@ -94,4 +94,4 @@ join_room(f"room:{current_room}")
 join_room(f"user:{user_name}")
 ```
 which can not work, because one user can have multiple sessions in different rooms!
-- [ ] unit locks im frontend! metaDataLock / presenterLock ... should be combined into one lock system!
+- [ ] unite locks im frontend! metaDataLock / presenterLock ... should be combined into one lock system!

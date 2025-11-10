@@ -58,11 +58,13 @@ export default function SiMGenButtons({ onTutorialClick }: SiMGenButtonsProps) {
 
   return (
     <Box
+      component="fieldset"
       sx={{
         display: 'flex',
         gap: 0.5,
         px: 2,
-        py: 0.5,
+        py: 0,
+        m: 0,
         borderRadius: 2,
         bgcolor: (theme) => theme.palette.mode === 'light'
           ? 'rgba(255, 191, 0, 0)'
@@ -83,6 +85,17 @@ export default function SiMGenButtons({ onTutorialClick }: SiMGenButtonsProps) {
         },
       }}
     >
+      <Box
+        component="legend"
+        sx={{
+          px: 1,
+          m: 0,
+          fontSize: '0.75rem',
+          lineHeight: 1.2,
+        }}
+      >
+        SiMGen
+      </Box>
       <Tooltip title="SiMGen Tutorial">
         <Button
           color="inherit"
