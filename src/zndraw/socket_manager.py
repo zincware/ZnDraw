@@ -334,6 +334,7 @@ class SocketManager:
 
         import ase.db
         import ase.io
+        import h5py
         import znh5md
 
         request_id = data.get("requestId")
@@ -395,7 +396,9 @@ class SocketManager:
                     if step is not None and step <= 0:
                         raise ValueError("Step must be a positive integer for H5MD files.")
 
-                    io = znh5md.IO(f)
+                    # Wrap fsspec file object with h5py.File for znh5md compatibility
+                    h5_file = h5py.File(f, "r")
+                    io = znh5md.IO(file_handle=h5_file)
                     n_frames = len(io)
 
                     if start is not None and start >= n_frames:
