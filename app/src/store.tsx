@@ -16,6 +16,16 @@ interface LockState {
   message: string; // What we're doing with the lock (for display to other users)
 }
 
+/**
+ * Task tracking state
+ */
+export interface Task {
+  taskId: string;
+  roomId: string; // Room this task belongs to
+  description: string;
+  progress: number | null; // 0-100 for progress bar, null for spinner
+}
+
 interface AppState {
   // Connection & Room
   roomId: string | null;
@@ -72,6 +82,7 @@ interface AppState {
   serverVersion: string | null; // Server version for display and compatibility checking
   globalSettings: GlobalSettings | null; // Global settings (simgen, etc.)
   snackbar: { open: boolean; message: string; severity: "success" | "info" | "warning" | "error" } | null; // Snackbar notification state
+  tasks: Record<string, Task>; // Active tasks keyed by taskId
 
   // Actions (functions to modify the state)
   setRoomId: (roomId: string) => void;
@@ -96,7 +107,6 @@ interface AppState {
   setGeometries: (geometries: Record<string, any>) => void;
   setGeometryDefaults: (defaults: Record<string, any>) => void;
   updateGeometry: (key: string, geometry: any, source?: 'local' | 'remote') => void; // update specific geometry
-  geometryUpdateSources: Record<string, 'local' | 'remote'>; // track update source per geometry
   removeGeometry: (key: string) => void; // remove specific geometry
   setMode: (mode: 'view' | 'drawing' | 'editing') => void;
   enterDrawingMode: (queryClient?: any) => Promise<void>;
@@ -153,6 +163,10 @@ interface AppState {
   setGlobalSettings: (settings: GlobalSettings | null) => void;
   showSnackbar: (message: string, severity?: "success" | "info" | "warning" | "error") => void;
   hideSnackbar: () => void;
+  setTasks: (tasks: Record<string, Task>) => void;
+  addTask: (taskId: string, description: string, progress: number | null, roomId: string) => void;
+  updateTask: (taskId: string, description?: string, progress?: number | null) => void;
+  removeTask: (taskId: string) => void;
 }
 
 // Helper functions (pure, exported for reuse across components)
@@ -216,6 +230,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   serverVersion: null,
   globalSettings: null,
   snackbar: null,
+  tasks: {},
 
   /**
    * Non-serializable THREE.js curve objects shared between Curve and Camera components.
@@ -914,4 +929,32 @@ export const useAppStore = create<AppState>((set, get) => ({
   setGlobalSettings: (settings) => set({ globalSettings: settings }),
   showSnackbar: (message, severity = "info") => set({ snackbar: { open: true, message, severity } }),
   hideSnackbar: () => set((state) => state.snackbar ? { snackbar: { ...state.snackbar, open: false } } : {}),
+  setTasks: (tasks) => set({ tasks }),
+  addTask: (taskId, description, progress, roomId) =>
+    set((state) => ({
+      tasks: {
+        ...state.tasks,
+        [taskId]: { taskId, roomId, description, progress },
+      },
+    })),
+  updateTask: (taskId, description, progress) =>
+    set((state) => {
+      const task = state.tasks[taskId];
+      if (!task) return {};
+      return {
+        tasks: {
+          ...state.tasks,
+          [taskId]: {
+            ...task,
+            ...(description !== undefined && { description }),
+            ...(progress !== undefined && { progress }),
+          },
+        },
+      };
+    }),
+  removeTask: (taskId) =>
+    set((state) => {
+      const { [taskId]: _, ...remainingTasks } = state.tasks;
+      return { tasks: remainingTasks };
+    }),
 }));

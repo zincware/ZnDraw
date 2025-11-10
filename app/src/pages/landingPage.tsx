@@ -38,6 +38,7 @@ import MyScene from "../components/Canvas";
 import ChatWindow from "../components/ChatWindow";
 import ConnectionDialog from "../components/ConnectionDialog";
 import DropOverlay from "../components/DropOverlay";
+import TaskNotifications from "../components/TaskNotifications";
 import { useAppStore } from "../store";
 import { useRestJoinManager } from "../hooks/useRestManager";
 import React, { useState, useEffect } from "react";
@@ -50,8 +51,6 @@ import { LAYOUT_CONSTANTS } from "../constants/layout";
 import { getUsername, logout as authLogout, login as authLogin, getUserRole } from "../utils/auth";
 import { loadFilesystemFile } from "../myapi/client";
 import Link from "@mui/material/Link";
-import Backdrop from "@mui/material/Backdrop";
-import CircularProgress from "@mui/material/CircularProgress";
 
 export default function MainPage() {
   // Use individual selectors to prevent unnecessary re-renders
@@ -89,7 +88,6 @@ export default function MainPage() {
   const [tutorialDialogOpen, setTutorialDialogOpen] = useState(false);
 
   // Filesystem load state
-  const [isLoadingFromFilesystem, setIsLoadingFromFilesystem] = useState(false);
   const [pendingFilesystemLoad, setPendingFilesystemLoad] = useState<any>(null);
 
   // Mutation for loading files from filesystem
@@ -98,14 +96,12 @@ export default function MainPage() {
       loadFilesystemFile(roomId!, data.fsName, data.request),
     onSuccess: (data) => {
       showSnackbar(`File loaded successfully: ${data.frameCount} frames`, "success");
-      setIsLoadingFromFilesystem(false);
     },
     onError: (error: any) => {
       showSnackbar(
         error?.response?.data?.error || "Failed to load file from filesystem",
         "error"
       );
-      setIsLoadingFromFilesystem(false);
     },
   });
 
@@ -127,8 +123,7 @@ export default function MainPage() {
       // Clear pending load so this only runs once
       setPendingFilesystemLoad(null);
 
-      // Start loading
-      setIsLoadingFromFilesystem(true);
+      // Trigger the mutation
       filesystemLoadMutation.mutate({ fsName, request });
     }
   }, [pendingFilesystemLoad, roomId]);
@@ -477,24 +472,8 @@ export default function MainPage() {
         url="https://slides.com/rokasel/zndrawtutorial-9cc179/fullscreen?style=light"
       />
 
-      {/* Filesystem loading overlay */}
-      <Backdrop
-        open={isLoadingFromFilesystem}
-        sx={{
-          color: '#fff',
-          zIndex: (theme) => theme.zIndex.drawer + 2,
-          flexDirection: 'column',
-          gap: 2,
-        }}
-      >
-        <CircularProgress color="inherit" size={60} />
-        <Typography variant="h6">
-          Loading file from remote filesystem...
-        </Typography>
-        <Typography variant="body2" sx={{ opacity: 0.8 }}>
-          Progress messages will appear in the chat log
-        </Typography>
-      </Backdrop>
+      {/* Task notifications */}
+      <TaskNotifications />
     </>
   );
 }

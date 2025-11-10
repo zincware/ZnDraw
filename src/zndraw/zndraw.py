@@ -4,6 +4,7 @@ import functools
 import logging
 import time
 import typing as t
+import uuid
 from collections.abc import MutableSequence
 
 import ase
@@ -245,6 +246,66 @@ class LocalSettings(BaseModel):
         ge=0,
         description="Delay in seconds between retries",
     )
+
+
+class TaskDescription:
+    """Context manager for tracking long-running tasks.
+
+    Parameters
+    ----------
+    vis : ZnDraw
+        The ZnDraw instance
+    description : str
+        Initial task description
+
+    Examples
+    --------
+    >>> with vis.task_description("Loading data...") as task_description:
+    ...     # Do some work
+    ...     task_description.update(progress=50)
+    ...     # Do more work
+    ...     task_description.update(description="Processing...", progress=100)
+    """
+
+    def __init__(self, vis: "ZnDraw", description: str):
+        self.vis = vis
+        self.description = description
+        self.task_id = str(uuid.uuid4())
+
+    def __enter__(self):
+        """Start the task."""
+        if not self.vis.socket.sio.connected:
+            raise RuntimeError("Client is not connected.")
+
+        event_data = self.vis.api.task_start(self.task_id, self.description)
+        self.vis.socket.sio.emit(event_data["event"], event_data["data"])
+        return self
+
+    def update(self, description: str | None = None, progress: float | None = None):
+        """Update the task description and/or progress.
+
+        Parameters
+        ----------
+        description : str | None
+            New task description
+        progress : float | None
+            Task progress (0-100)
+        """
+        if not self.vis.socket.sio.connected:
+            raise RuntimeError("Client is not connected.")
+
+        event_data = self.vis.api.task_update(self.task_id, description, progress)
+        self.vis.socket.sio.emit(event_data["event"], event_data["data"])
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Complete the task."""
+        if not self.vis.socket.sio.connected:
+            # If disconnected, just return without error
+            return False
+
+        event_data = self.vis.api.task_complete(self.task_id)
+        self.vis.socket.sio.emit(event_data["event"], event_data["data"])
+        return False
 
 
 @dataclasses.dataclass
@@ -1445,6 +1506,29 @@ class ZnDraw(MutableSequence):
         self, limit: int = 30, before: int | None = None, after: int | None = None
     ) -> dict:
         return self.api.get_messages(limit=limit, before=before, after=after)
+
+    def task_description(self, description: str) -> TaskDescription:
+        """Create a task context manager for tracking long-running operations.
+
+        Parameters
+        ----------
+        description : str
+            Initial task description
+
+        Returns
+        -------
+        TaskDescription
+            A context manager that tracks task progress
+
+        Examples
+        --------
+        >>> with vis.task_description("Loading data...") as task:
+        ...     # Do some work
+        ...     task.update(progress=50)
+        ...     # Do more work
+        ...     task.update(description="Processing...", progress=100)
+        """
+        return TaskDescription(self, description)
 
     def _repr_html_(self):
         """Get an HTML representation for embedding the viewer in Jupyter notebooks.

@@ -1263,3 +1263,67 @@ class APIManager:
 
         response.raise_for_status()
         return response.json()
+
+    def task_start(self, task_id: str, description: str):
+        """Start a new task.
+
+        Parameters
+        ----------
+        task_id : str
+            Unique task identifier
+        description : str
+            Task description
+
+        Returns
+        -------
+        dict
+            Event data for socket emission
+        """
+        return {
+            "event": "task:start",
+            "data": {"room": self.room, "taskId": task_id, "description": description},
+        }
+
+    def task_update(
+        self, task_id: str, description: str | None = None, progress: float | None = None
+    ):
+        """Update an existing task.
+
+        Parameters
+        ----------
+        task_id : str
+            Task identifier
+        description : str | None
+            Updated task description (optional)
+        progress : float | None
+            Task progress 0-100 (optional)
+
+        Returns
+        -------
+        dict
+            Event data for socket emission
+        """
+        data = {"room": self.room, "taskId": task_id}
+        if description is not None:
+            data["description"] = description
+        if progress is not None:
+            data["progress"] = progress
+        return {"event": "task:update", "data": data}
+
+    def task_complete(self, task_id: str):
+        """Complete a task.
+
+        Parameters
+        ----------
+        task_id : str
+            Task identifier
+
+        Returns
+        -------
+        dict
+            Event data for socket emission
+        """
+        return {
+            "event": "task:complete",
+            "data": {"room": self.room, "taskId": task_id},
+        }

@@ -843,6 +843,20 @@ def handle_join_room(data):
     user_keys = UserKeys(user_name)
     r.hset(user_keys.hash_key(), "currentRoom", room_id)
 
+    # Send current tasks to joining client
+    room_keys = RoomKeys(room_id)
+    tasks_data = r.hgetall(room_keys.tasks())
+
+    # Convert Redis data to client format
+    tasks = {}
+    for task_id, task_json in tasks_data.items():
+        task_dict = json.loads(task_json)
+        tasks[task_id] = task_dict
+
+    # Emit tasks to joining client only
+    if tasks:
+        emit("tasks:initial", {"tasks": tasks}, to=sid)
+
     log.debug(f"User {sid} (userName: {user_name}) joined room:{room_id}")
     return {"status": "joined", "room": f"room:{room_id}"}
 
@@ -953,4 +967,122 @@ def handle_chat_message_edit(data):
         return {"success": True, "message": updated_message}
     except Exception as e:
         log.error(f"Failed to edit chat message: {e}")
+        return {"success": False, "error": str(e)}
+
+
+# ============================================================================
+# Task Tracking Events
+# ============================================================================
+
+
+@socketio.on("task:start")
+def handle_task_start(data):
+    """Handle task start event from Python client.
+
+    Data: {room, taskId, description}
+    """
+    sid = request.sid
+    r = current_app.extensions["redis"]
+
+    try:
+        room = data.get("room")
+        task_id = data.get("taskId")
+        description = data.get("description")
+
+        if not room or not task_id or not description:
+            return {"success": False, "error": "Missing required fields"}
+
+        # Store task in Redis
+        room_keys = RoomKeys(room)
+        task_data = json.dumps({"roomId": room, "description": description, "progress": None})
+        r.hset(room_keys.tasks(), task_id, task_data)
+
+        # Broadcast to room
+        emit(
+            "task:started",
+            {"taskId": task_id, "roomId": room, "description": description},
+            to=f"room:{room}",
+        )
+
+        return {"success": True}
+    except Exception as e:
+        log.error(f"Failed to start task: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@socketio.on("task:update")
+def handle_task_update(data):
+    """Handle task update event from Python client.
+
+    Data: {room, taskId, description?, progress?}
+    """
+    sid = request.sid
+    r = current_app.extensions["redis"]
+
+    try:
+        room = data.get("room")
+        task_id = data.get("taskId")
+        description = data.get("description")
+        progress = data.get("progress")
+
+        if not room or not task_id:
+            return {"success": False, "error": "Missing required fields"}
+
+        # Get existing task
+        room_keys = RoomKeys(room)
+        existing_data = r.hget(room_keys.tasks(), task_id)
+
+        if not existing_data:
+            return {"success": False, "error": "Task not found"}
+
+        # Update task data
+        task_dict = json.loads(existing_data)
+        if description is not None:
+            task_dict["description"] = description
+        if progress is not None:
+            task_dict["progress"] = progress
+
+        r.hset(room_keys.tasks(), task_id, json.dumps(task_dict))
+
+        # Broadcast update to room
+        update_payload = {"taskId": task_id, "roomId": room}
+        if description is not None:
+            update_payload["description"] = description
+        if progress is not None:
+            update_payload["progress"] = progress
+
+        emit("task:updated", update_payload, to=f"room:{room}")
+
+        return {"success": True}
+    except Exception as e:
+        log.error(f"Failed to update task: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@socketio.on("task:complete")
+def handle_task_complete(data):
+    """Handle task completion event from Python client.
+
+    Data: {room, taskId}
+    """
+    sid = request.sid
+    r = current_app.extensions["redis"]
+
+    try:
+        room = data.get("room")
+        task_id = data.get("taskId")
+
+        if not room or not task_id:
+            return {"success": False, "error": "Missing required fields"}
+
+        # Remove task from Redis
+        room_keys = RoomKeys(room)
+        r.hdel(room_keys.tasks(), task_id)
+
+        # Broadcast completion to room
+        emit("task:completed", {"taskId": task_id, "roomId": room}, to=f"room:{room}")
+
+        return {"success": True}
+    except Exception as e:
+        log.error(f"Failed to complete task: {e}")
         return {"success": False, "error": str(e)}

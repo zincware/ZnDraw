@@ -38,6 +38,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     setServerVersion,
     setGlobalSettings,
     setLockMetadata,
+    setTasks,
+    addTask,
+    updateTask,
+    removeTask,
   } = useAppStore();
   const queryClient = useQueryClient();
   const { openWindow } = useWindowManagerStore();
@@ -555,6 +559,32 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       // if (target === "geometry:selection") { ... }
     }
 
+    function onTasksInitial(data: any) {
+      console.log("Tasks initial:", data);
+      const { tasks } = data;
+      if (tasks) {
+        setTasks(tasks);
+      }
+    }
+
+    function onTaskStarted(data: any) {
+      console.log("Task started:", data);
+      const { taskId, roomId, description } = data;
+      addTask(taskId, description, null, roomId);
+    }
+
+    function onTaskUpdate(data: any) {
+      console.log("Task update:", data);
+      const { taskId, description, progress } = data;
+      updateTask(taskId, description, progress);
+    }
+
+    function onTaskComplete(data: any) {
+      console.log("Task complete:", data);
+      const { taskId } = data;
+      removeTask(taskId);
+    }
+
     async function onConnectError(err: any) {
       console.error("Socket connection error:", err);
 
@@ -630,6 +660,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     socket.on("room:update", onRoomUpdate);
     socket.on("room:delete", onRoomDelete);
     socket.on("lock:update", onLockUpdate);
+    socket.on("tasks:initial", onTasksInitial);
+    socket.on("task:started", onTaskStarted);
+    socket.on("task:updated", onTaskUpdate);
+    socket.on("task:completed", onTaskComplete);
 
     // Ensure user is authenticated before connecting socket
     // This will auto-login with a server-generated username if no token exists
@@ -681,6 +715,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       socket.off("room:update", onRoomUpdate);
       socket.off("room:delete", onRoomDelete);
       socket.off("lock:update", onLockUpdate);
+      socket.off("tasks:initial", onTasksInitial);
+      socket.off("task:started", onTaskStarted);
+      socket.off("task:updated", onTaskUpdate);
+      socket.off("task:completed", onTaskComplete);
 
       // Disconnect socket when component unmounts to ensure clean reconnection
       socket.disconnect();
@@ -705,6 +743,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     setServerVersion,
     setGlobalSettings,
     setLockMetadata,
+    setTasks,
+    addTask,
+    updateTask,
+    removeTask,
     openWindow,
   ]);
 };

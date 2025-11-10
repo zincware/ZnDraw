@@ -364,133 +364,144 @@ class SocketManager:
                 password=getattr(self.zndraw, "password", None),
             )
 
-            temp_vis.log(f"Loading {path} from {fs_name}...")
+            # Use task tracking for loading progress
+            with temp_vis.task_description(f"Loading {path} from {fs_name}") as task:
+                temp_vis.log(f"Loading {path} from {fs_name}...")
 
-            # Import utilities from tasks.py
-            from zndraw.app.tasks import (
-                FORMAT_BACKENDS,
-                batch_generator,
-                calculate_adaptive_resolution,
-            )
+                # Import utilities from tasks.py
+                from zndraw.app.tasks import (
+                    FORMAT_BACKENDS,
+                    batch_generator,
+                    calculate_adaptive_resolution,
+                )
 
-            # Determine backend based on file extension
-            ext = Path(path).suffix.lstrip(".").lower()
-            backends = FORMAT_BACKENDS.get(ext, ["ASE"])
-            backend_name = backends[0]
+                # Determine backend based on file extension
+                ext = Path(path).suffix.lstrip(".").lower()
+                backends = FORMAT_BACKENDS.get(ext, ["ASE"])
+                backend_name = backends[0]
 
-            loaded_frame_count = 0
-            max_particles = 0
+                loaded_frame_count = 0
+                max_particles = 0
+                total_expected_frames = None  # Will be set if we know file size
 
-            # Note: extend() internally acquires lock, so we can't wrap this in get_lock()
-            # Determine file mode based on format
-            # Binary formats need "rb", text formats need "r"
-            binary_formats = {"h5", "h5md", "traj", "db", "nc", "hdf5"}
-            mode = "rb" if ext in binary_formats else "r"
+                # Note: extend() internally acquires lock, so we can't wrap this in get_lock()
+                # Determine file mode based on format
+                # Binary formats need "rb", text formats need "r"
+                binary_formats = {"h5", "h5md", "traj", "db", "nc", "hdf5"}
+                mode = "rb" if ext in binary_formats else "r"
 
-            # Open file from fsspec filesystem
-            with fs.open(path, mode) as f:
-                frame_iterator = None
+                # Open file from fsspec filesystem
+                with fs.open(path, mode) as f:
+                    frame_iterator = None
 
-                if backend_name == "ZnH5MD":
-                    # Use ZnH5MD for H5/H5MD files
-                    if step is not None and step <= 0:
-                        raise ValueError("Step must be a positive integer for H5MD files.")
+                    if backend_name == "ZnH5MD":
+                        # Use ZnH5MD for H5/H5MD files
+                        if step is not None and step <= 0:
+                            raise ValueError("Step must be a positive integer for H5MD files.")
 
-                    # Wrap fsspec file object with h5py.File for znh5md compatibility
-                    h5_file = h5py.File(f, "r")
-                    io = znh5md.IO(file_handle=h5_file)
-                    n_frames = len(io)
+                        # Wrap fsspec file object with h5py.File for znh5md compatibility
+                        h5_file = h5py.File(f, "r")
+                        io = znh5md.IO(file_handle=h5_file)
+                        n_frames = len(io)
+                        total_expected_frames = (_stop - _start) // _step if step else n_frames
 
-                    if start is not None and start >= n_frames:
-                        raise ValueError(f"Start frame {start} exceeds file length")
+                        if start is not None and start >= n_frames:
+                            raise ValueError(f"Start frame {start} exceeds file length")
 
-                    s = slice(start, stop, step)
-                    _start, _stop, _step = s.indices(n_frames)
-                    frame_iterator = itertools.islice(io, _start, _stop, _step)
+                        s = slice(start, stop, step)
+                        _start, _stop, _step = s.indices(n_frames)
+                        frame_iterator = itertools.islice(io, _start, _stop, _step)
 
-                elif backend_name == "ASE-DB":
-                    # ASE database - note: this may not work with file objects
-                    temp_vis.log("⚠️ Warning: ASE database format may not support remote filesystems")
-                    # Try anyway in case fsspec filesystem supports it
-                    db = ase.db.connect(f)
-                    n_rows = db.count()
+                    elif backend_name == "ASE-DB":
+                        # ASE database - note: this may not work with file objects
+                        temp_vis.log("⚠️ Warning: ASE database format may not support remote filesystems")
+                        # Try anyway in case fsspec filesystem supports it
+                        db = ase.db.connect(f)
+                        n_rows = db.count()
 
-                    if n_rows == 0:
-                        temp_vis.log("⚠️ Warning: Database is empty")
-                        raise ValueError("Database is empty")
+                        if n_rows == 0:
+                            temp_vis.log("⚠️ Warning: Database is empty")
+                            raise ValueError("Database is empty")
 
-                    if step is not None and step <= 0:
-                        raise ValueError("Step must be a positive integer for database files.")
+                        if step is not None and step <= 0:
+                            raise ValueError("Step must be a positive integer for database files.")
 
-                    _start = start if start is not None else 0
-                    _stop = stop if stop is not None else n_rows
-                    _step = step if step is not None else 1
+                        _start = start if start is not None else 0
+                        _stop = stop if stop is not None else n_rows
+                        _step = step if step is not None else 1
 
-                    if _start >= n_rows:
-                        raise ValueError(f"Start row {_start} exceeds database size")
+                        if _start >= n_rows:
+                            raise ValueError(f"Start row {_start} exceeds database size")
 
-                    if _stop > n_rows:
-                        _stop = n_rows
+                        if _stop > n_rows:
+                            _stop = n_rows
 
-                    selected_ids = list(range(_start + 1, _stop + 1, _step))
+                        selected_ids = list(range(_start + 1, _stop + 1, _step))
+                        total_expected_frames = len(selected_ids)
 
-                    def db_iterator():
-                        for row_id in selected_ids:
-                            try:
-                                row = db.get(id=row_id)
-                                yield row.toatoms()
-                            except KeyError:
+                        def db_iterator():
+                            for row_id in selected_ids:
+                                try:
+                                    row = db.get(id=row_id)
+                                    yield row.toatoms()
+                                except KeyError:
+                                    temp_vis.log(
+                                        f"⚠️ Warning: Row ID {row_id} not found, skipping"
+                                    )
+                                    continue
+
+                        frame_iterator = db_iterator()
+
+                    else:
+                        # Use ASE for all other formats
+                        start_str = str(start) if start is not None else ""
+                        stop_str = str(stop) if stop is not None else ""
+                        step_str = str(step) if step is not None else ""
+                        index_str = f"{start_str}:{stop_str}:{step_str}"
+
+                        frame_iterator = ase.io.iread(f, index=index_str, format=ext or None)
+
+                    # Process frames in batches
+                    if frame_iterator:
+                        for batch in batch_generator(frame_iterator, batch_size):
+                            # Track max particle count
+                            for atoms in batch:
+                                max_particles = max(max_particles, len(atoms))
+
+                            temp_vis.extend(batch)
+                            loaded_frame_count += len(batch)
+
+                            # Update task progress if we know total frames
+                            if total_expected_frames and total_expected_frames > 0:
+                                progress = (loaded_frame_count / total_expected_frames) * 100
+                                task.update(progress=min(progress, 99))  # Cap at 99 until complete
+
+                temp_vis.log(f"✓ Successfully loaded {loaded_frame_count} frames from {path}")
+
+                # Apply adaptive resolution if needed
+                if loaded_frame_count > 0 and max_particles > 0:
+                    adaptive_resolution = calculate_adaptive_resolution(max_particles)
+                    if adaptive_resolution < 16:
+                        try:
+                            from zndraw.geometries import Sphere
+
+                            sphere = temp_vis.geometries.get("particles")
+                            if sphere and isinstance(sphere, Sphere):
+                                sphere.resolution = adaptive_resolution
+                                temp_vis.geometries["particles"] = sphere
                                 temp_vis.log(
-                                    f"⚠️ Warning: Row ID {row_id} not found, skipping"
+                                    f"ℹ️ Reduced particle resolution to {adaptive_resolution} for {max_particles} particles"
                                 )
-                                continue
+                        except Exception as e:
+                            log.warning(f"Failed to apply adaptive resolution: {e}")
 
-                    frame_iterator = db_iterator()
-
-                else:
-                    # Use ASE for all other formats
-                    start_str = str(start) if start is not None else ""
-                    stop_str = str(stop) if stop is not None else ""
-                    step_str = str(step) if step is not None else ""
-                    index_str = f"{start_str}:{stop_str}:{step_str}"
-
-                    frame_iterator = ase.io.iread(f, index=index_str, format=ext or None)
-
-                # Process frames in batches
-                if frame_iterator:
-                    for batch in batch_generator(frame_iterator, batch_size):
-                        # Track max particle count
-                        for atoms in batch:
-                            max_particles = max(max_particles, len(atoms))
-
-                        temp_vis.extend(batch)
-                        loaded_frame_count += len(batch)
-
-            temp_vis.log(f"✓ Successfully loaded {loaded_frame_count} frames from {path}")
-
-            # Apply adaptive resolution if needed
-            if loaded_frame_count > 0 and max_particles > 0:
-                adaptive_resolution = calculate_adaptive_resolution(max_particles)
-                if adaptive_resolution < 16:
-                    try:
-                        from zndraw.geometries import Sphere
-
-                        sphere = temp_vis.geometries.get("particles")
-                        if sphere and isinstance(sphere, Sphere):
-                            sphere.resolution = adaptive_resolution
-                            temp_vis.geometries["particles"] = sphere
-                            temp_vis.log(
-                                f"ℹ️ Reduced particle resolution to {adaptive_resolution} for {max_particles} particles"
-                            )
-                    except Exception as e:
-                        log.warning(f"Failed to apply adaptive resolution: {e}")
-
-            # Return success response (for socketio.call() on server)
-            return {
-                "requestId": request_id,
-                "success": True,
-                "frameCount": loaded_frame_count,
-            }
+                # Task will complete automatically when exiting context manager
+                # Return success response (for socketio.call() on server)
+                return {
+                    "requestId": request_id,
+                    "success": True,
+                    "frameCount": loaded_frame_count,
+                }
 
         except Exception as e:
             log.error(f"Error loading file from filesystem '{fs_name}': {e}")
