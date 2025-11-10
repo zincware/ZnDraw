@@ -234,7 +234,7 @@ def main(
 
             # Open browser before uploading so user can watch progress
             if browser:
-                browser_url = f"{connect}/rooms/{first_room}?waitForCreation=true"
+                browser_url = f"{connect}/rooms/{first_room}"
                 typer.echo(f"Opening browser at {browser_url}")
                 webbrowser.open(browser_url)
 
@@ -297,7 +297,7 @@ def main(
 
                 # Open browser before uploading so user can watch progress
                 if browser:
-                    browser_url = f"http://localhost:{server_info.port}/rooms/{first_room}?waitForCreation=true"
+                    browser_url = f"http://localhost:{server_info.port}/rooms/{first_room}"
                     typer.echo(f"Opening browser at {browser_url}")
                     webbrowser.open(browser_url)
 
@@ -428,10 +428,9 @@ def main(
 
     # Open browser if requested
     if browser:
-        # If we have a file being loaded, open to that room with waitForCreation flag
         if first_room:
             browser_url = (
-                f"http://localhost:{port}/rooms/{first_room}?waitForCreation=true"
+                f"http://localhost:{port}/rooms/{first_room}"
             )
             typer.echo(f"Opening browser at {browser_url}")
         else:

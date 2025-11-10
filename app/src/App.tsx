@@ -1,12 +1,10 @@
 import {
   createBrowserRouter,
   RouterProvider,
-  useSearchParams,
 } from "react-router-dom";
 import MainPage from "./pages/landingPage";
 import TemplateSelectionPage from "./pages/templateSelection";
 import RoomListPage from "./pages/roomList";
-import RoomWaitingPage from "./pages/roomWaiting";
 import FileBrowserPage from "./pages/fileBrowser";
 import RemoteFileBrowserPage from "./pages/remoteFileBrowser";
 import { ExtensionsOverview } from "./pages/extensionsOverview";
@@ -22,19 +20,6 @@ const theme = createTheme({
   },
   defaultColorScheme: "light",
 });
-
-// Component for /rooms/:roomId route
-// Shows waiting page if waitForCreation=true, otherwise shows main page
-const RoomPage = () => {
-  const [searchParams] = useSearchParams();
-  const waitForCreation = searchParams.get("waitForCreation") === "true";
-
-  if (waitForCreation) {
-    return <RoomWaitingPage />;
-  }
-
-  return <MainPage />;
-};
 
 const router = createBrowserRouter([
   {
@@ -63,11 +48,11 @@ const router = createBrowserRouter([
   },
   {
     path: "/rooms/:roomId",
-    element: <RoomPage />,
+    element: <MainPage />,
   },
   {
     path: "/room/:roomId",
-    element: <RoomPage />,
+    element: <MainPage />,
   },
 ]);
 

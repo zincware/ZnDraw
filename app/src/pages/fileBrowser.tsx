@@ -133,8 +133,8 @@ export default function FileBrowserPage() {
         showSnackbar(`File loading queued in room: ${data.room}`, "success");
         setLoadDialog({ open: false, file: null });
 
-        // Navigate to the room with waitForCreation flag
-        navigate(`/rooms/${data.room}?waitForCreation=true`);
+        // Navigate directly to the room
+        navigate(`/rooms/${data.room}`);
       }
     },
     onError: (error: any) => {
