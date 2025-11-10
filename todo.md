@@ -95,3 +95,4 @@ join_room(f"user:{user_name}")
 ```
 which can not work, because one user can have multiple sessions in different rooms!
 - [ ] unite locks im frontend! metaDataLock / presenterLock ... should be combined into one lock system!
+- [ ] can not jump to frame when playing / playing mode is not exited when clicking on progress bar!

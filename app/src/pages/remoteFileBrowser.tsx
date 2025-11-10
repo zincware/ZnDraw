@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   Box,
   Container,
@@ -19,11 +19,9 @@ import CloudIcon from "@mui/icons-material/Cloud";
 import {
   listFilesystems,
   listFilesystemFiles,
-  loadFilesystemFile,
   FilesystemFileItem,
   LoadFilesystemFileRequest,
 } from "../myapi/client";
-import { useAppStore } from "../store";
 import {
   FilesystemSelector,
   FileBreadcrumbs,
@@ -42,8 +40,6 @@ import {
 export default function RemoteFileBrowserPage() {
   const navigate = useNavigate();
   const { roomId } = useParams<{ roomId: string }>();
-  // Use individual selectors to prevent unnecessary re-renders
-  const showSnackbar = useAppStore((state) => state.showSnackbar);
 
   const [selectedFilesystem, setSelectedFilesystem] = useState<string>("");
   const [currentPath, setCurrentPath] = useState<string>("");
@@ -88,27 +84,23 @@ export default function RemoteFileBrowserPage() {
     retry: false,
   });
 
-  // Mutation for loading files
-  const loadFileMutation = useMutation({
-    mutationFn: (request: { fsName: string; request: LoadFilesystemFileRequest }) =>
-      loadFilesystemFile(roomId!, request.fsName, request.request),
-    onSuccess: (data) => {
-      showSnackbar(`File loaded successfully: ${data.frameCount} frames`, "success");
-      setLoadDialog({ open: false, file: null });
+  // Navigate to room immediately with load request state
+  const handleLoadFile = (request: LoadFilesystemFileRequest & { targetRoom: string }) => {
+    const targetRoom = request.targetRoom || roomId;
 
-      // Navigate to the target room if specified
-      const targetRoom = (loadDialog.file as any)?.targetRoom || roomId;
-      if (targetRoom) {
-        navigate(`/rooms/${targetRoom}`);
-      }
-    },
-    onError: (error: any) => {
-      showSnackbar(
-        error?.response?.data?.error || "Failed to load file",
-        "error"
-      );
-    },
-  });
+    // Close dialog immediately
+    setLoadDialog({ open: false, file: null });
+
+    // Navigate to target room with pending load state
+    navigate(`/rooms/${targetRoom}`, {
+      state: {
+        pendingFilesystemLoad: {
+          fsName: selectedFilesystem,
+          request,
+        },
+      },
+    });
+  };
 
   // Navigation handlers
   const handleItemClick = (item: FilesystemFileItem) => {
@@ -146,10 +138,6 @@ export default function RemoteFileBrowserPage() {
   const handleFilesystemSelect = (name: string) => {
     setSelectedFilesystem(name);
     setCurrentPath(""); // Reset path when changing filesystem
-  };
-
-  const handleLoadFile = (request: LoadFilesystemFileRequest & { targetRoom: string }) => {
-    loadFileMutation.mutate({ fsName: selectedFilesystem, request });
   };
 
   // Show error state for filesystems
@@ -252,7 +240,7 @@ export default function RemoteFileBrowserPage() {
         open={loadDialog.open}
         file={loadDialog.file}
         defaultRoomId={roomId || ""}
-        isLoading={loadFileMutation.isPending}
+        isLoading={false}
         onClose={() => setLoadDialog({ open: false, file: null })}
         onLoad={handleLoadFile}
       />

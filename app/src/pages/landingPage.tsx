@@ -40,18 +40,24 @@ import ConnectionDialog from "../components/ConnectionDialog";
 import DropOverlay from "../components/DropOverlay";
 import { useAppStore } from "../store";
 import { useRestJoinManager } from "../hooks/useRestManager";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useColorScheme } from "@mui/material/styles";
+import { useLocation, useNavigate } from "react-router-dom";
 import WindowManager from "../components/WindowManager";
 import AddPlotButton from "../components/AddPlotButton";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { LAYOUT_CONSTANTS } from "../constants/layout";
 import { getUsername, logout as authLogout, login as authLogin, getUserRole } from "../utils/auth";
+import { loadFilesystemFile } from "../myapi/client";
 import Link from "@mui/material/Link";
+import Backdrop from "@mui/material/Backdrop";
+import CircularProgress from "@mui/material/CircularProgress";
 
 export default function MainPage() {
   // Use individual selectors to prevent unnecessary re-renders
   const roomId = useAppStore((state) => state.roomId);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useSocketManager({ roomId: roomId || undefined });
   useKeyboardShortcuts();
@@ -82,6 +88,51 @@ export default function MainPage() {
   // Tutorial dialog state
   const [tutorialDialogOpen, setTutorialDialogOpen] = useState(false);
 
+  // Filesystem load state
+  const [isLoadingFromFilesystem, setIsLoadingFromFilesystem] = useState(false);
+  const [pendingFilesystemLoad, setPendingFilesystemLoad] = useState<any>(null);
+
+  // Mutation for loading files from filesystem
+  const filesystemLoadMutation = useMutation({
+    mutationFn: (data: { fsName: string; request: any }) =>
+      loadFilesystemFile(roomId!, data.fsName, data.request),
+    onSuccess: (data) => {
+      showSnackbar(`File loaded successfully: ${data.frameCount} frames`, "success");
+      setIsLoadingFromFilesystem(false);
+    },
+    onError: (error: any) => {
+      showSnackbar(
+        error?.response?.data?.error || "Failed to load file from filesystem",
+        "error"
+      );
+      setIsLoadingFromFilesystem(false);
+    },
+  });
+
+  // Extract pending load from navigation state once
+  useEffect(() => {
+    const state = location.state as any;
+    if (state?.pendingFilesystemLoad) {
+      setPendingFilesystemLoad(state.pendingFilesystemLoad);
+      // Clear navigation state immediately
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname]); // Only when pathname changes (new navigation)
+
+  // Trigger load when we have both roomId and pending load
+  useEffect(() => {
+    if (pendingFilesystemLoad && roomId) {
+      const { fsName, request } = pendingFilesystemLoad;
+
+      // Clear pending load so this only runs once
+      setPendingFilesystemLoad(null);
+
+      // Start loading
+      setIsLoadingFromFilesystem(true);
+      filesystemLoadMutation.mutate({ fsName, request });
+    }
+  }, [pendingFilesystemLoad, roomId]);
+
   // File upload ref for button click
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -101,7 +152,7 @@ export default function MainPage() {
       dataTransfer: { files: [file] }
     } as any;
 
-    await handleDrop(uploadEvent);
+    handleDrop(uploadEvent);
 
     // Reset input
     if (fileInputRef.current) {
@@ -425,6 +476,25 @@ export default function MainPage() {
         onClose={() => setTutorialDialogOpen(false)}
         url="https://slides.com/rokasel/zndrawtutorial-9cc179/fullscreen?style=light"
       />
+
+      {/* Filesystem loading overlay */}
+      <Backdrop
+        open={isLoadingFromFilesystem}
+        sx={{
+          color: '#fff',
+          zIndex: (theme) => theme.zIndex.drawer + 2,
+          flexDirection: 'column',
+          gap: 2,
+        }}
+      >
+        <CircularProgress color="inherit" size={60} />
+        <Typography variant="h6">
+          Loading file from remote filesystem...
+        </Typography>
+        <Typography variant="body2" sx={{ opacity: 0.8 }}>
+          Progress messages will appear in the chat log
+        </Typography>
+      </Backdrop>
     </>
   );
 }
