@@ -141,6 +141,23 @@ class JobManager:
         )
         redis_client.sadd(room_keys.extension_jobs(category, extension), job_id)
 
+        # Update Prometheus metrics - increment counter for submitted jobs
+        from zndraw.analytics import (
+            running_analysis,
+            running_modifiers,
+            running_selections,
+        )
+
+        gauge_map = {
+            'modifiers': running_modifiers,
+            'selections': running_selections,
+            'analysis': running_analysis,
+        }
+        gauge = gauge_map.get(category)
+        if gauge:
+            # Use 'room' as scope since jobs are room-scoped
+            gauge.labels(scope='room').inc()
+
         return job_id
 
     @staticmethod

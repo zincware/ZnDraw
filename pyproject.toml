@@ -32,6 +32,7 @@ dependencies = [
     "vesin>=0.3.8",
     "znh5md>=0.4.8",
     "znsocket>=0.2.13a4",
+    "prometheus-client>=0.23.1",
 ]
 
 [dependency-groups]

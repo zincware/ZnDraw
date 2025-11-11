@@ -8,6 +8,7 @@ import uuid
 from flask import current_app, request
 from flask_socketio import emit
 
+from zndraw.analytics import connected_users
 from zndraw.server import socketio
 
 from .constants import SocketEvents
@@ -143,6 +144,9 @@ def handle_connect(auth):
     else:
         log.info(f"User {user_name} connected but not in any room yet (sid: {sid})")
 
+    # Increment connected users metric
+    connected_users.inc()
+
     return {"status": "ok", "userName": user_name}
 
 
@@ -160,9 +164,14 @@ def handle_disconnect():
     session_keys = SessionKeys(sid)
     user_name = r.get(session_keys.username())
 
+    # Decrement connected users metric
+    connected_users.dec()
+
     if not user_name:
         log.info(f"Client disconnected: {sid} (no userName found)")
         return
+
+
 
     # Get user data
     user_keys = UserKeys(user_name)

@@ -1,12 +1,17 @@
 import logging
-import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import redis
 from celery import Celery, Task
 from flask import Flask
 from flask_socketio import SocketIO
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from prometheus_client import make_wsgi_app
 from znsocket import MemoryStorage
+
+if TYPE_CHECKING:
+    from zndraw.config import ZnDrawConfig
 
 log = logging.getLogger(__name__)
 
@@ -189,5 +194,10 @@ def create_app(
     else:
         log.info("Configuring SocketIO without message queue (single worker mode)")
         socketio.init_app(app, cors_allowed_origins="*")
+
+    app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
+        '/metrics': make_wsgi_app()
+    })
+    log.info("Prometheus metrics endpoint enabled at /metrics")
 
     return app
