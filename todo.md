@@ -57,7 +57,7 @@
 - [ ] loading a room with frames 0:10:100 should not set the room to be already loaded (could think about a clever way to reuse this data though)
 - [x] selection no longer in sync (only on page refresh) also true for menus
 - [x] new messages info should clear when leaving the room
-- [ ] include presenter lock into room metadata and lock:* endpoints, like metadata-lock.
+- [x] include presenter lock into room metadata and lock:* endpoints, like metadata-lock.
 - [ ] make the overview per user, remove "hidden" rooms but allow to restrain rooms for specific users. Remove user from url, but allow ?user=... to login. Have a anonymous user that only sees "public" rooms.
 - [x] check adding geometries via python appear without reload (also in the geometries sidebar)
 - [x] drag/drop not allowed when --file-browser not active
@@ -86,7 +86,7 @@
 - [ ] update lock meta for editing data and for changing e.g. step (playback lock?), what else?
 - [ ] use celery background thread instead of redis ttl and also check that locks are removed on socket connection close (required? short ttl will take care? locks independet of socket?)
 - [ ] refactor workerId to use sessionId!
-- [ ] remove check_room_locked and other code duplication beyond the lock decorator!
+- [x] remove check_room_locked and other code duplication beyond the lock decorator!
 - [ ] remove `f"room:{self.room_id}:locked"` has been replaced by fine-grained locks!
 - [ ] check how to assign the SessionID to the flask socket connection! And clean alternative identifiers!! We have 
 ```py

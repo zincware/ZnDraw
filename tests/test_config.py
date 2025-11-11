@@ -251,19 +251,3 @@ def test_config_file_browser_root_custom(clean_env):
     config = ZnDrawConfig()
 
     assert config.file_browser_root == "/custom/browser/root"
-
-
-def test_config_extension_analytics_ttl_default(clean_env):
-    """Test that extension_analytics_ttl defaults to 7 days in seconds."""
-    config = ZnDrawConfig()
-
-    assert config.extension_analytics_ttl == 7 * 86400  # 7 days
-
-
-def test_config_extension_analytics_ttl_custom(clean_env):
-    """Test that custom extension_analytics_ttl is used when set."""
-    os.environ["ZNDRAW_EXTENSION_ANALYTICS_TTL"] = "3600"  # 1 hour
-
-    config = ZnDrawConfig()
-
-    assert config.extension_analytics_ttl == 3600

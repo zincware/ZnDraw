@@ -91,9 +91,6 @@ services:
       # Storage path (no .zarr extension for LMDB backend)
       - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
 
-      # Analytics (optional)
-      # - ZNDRAW_EXTENSION_ANALYTICS_TTL=604800
-
       # SiMGen molecular generation (optional - uncomment to enable)
       # - ZNDRAW_SIMGEN_ENABLED=true
 

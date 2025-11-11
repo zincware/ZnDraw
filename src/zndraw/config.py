@@ -68,8 +68,6 @@ class ZnDrawConfig:
         Temporary directory for file uploads.
     max_upload_mb : int
         Maximum upload size in megabytes.
-    extension_analytics_ttl : int
-        Extension analytics retention time in seconds.
     simgen_enabled : bool
         Enable SiMGen molecular generation features.
     file_browser_enabled : bool
@@ -121,11 +119,6 @@ class ZnDrawConfig:
     )
     max_upload_mb: int = field(
         default_factory=lambda: _getenv_int("ZNDRAW_MAX_UPLOAD_MB", 500)
-    )
-    extension_analytics_ttl: int = field(
-        default_factory=lambda: _getenv_int(
-            "ZNDRAW_EXTENSION_ANALYTICS_TTL", 7 * 86400
-        )
     )
 
     # Optional features

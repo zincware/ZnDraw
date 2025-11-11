@@ -312,7 +312,6 @@ Edit the appropriate `docker-compose.yaml` file (`/docker/` or `/docker/zndraw/`
 |----------|-------------|---------|--------------|---------|
 | `ZNDRAW_UPLOAD_TEMP` | Temporary upload directory | `/tmp/zndraw_uploads` | N/A | Main app, Celery workers |
 | `ZNDRAW_MAX_UPLOAD_MB` | Maximum upload size in MB | `500` | N/A | Main app |
-| `ZNDRAW_EXTENSION_ANALYTICS_TTL` | Extension analytics retention (seconds) | `604800` (7 days) | N/A | Main app |
 
 #### Optional Features
 
