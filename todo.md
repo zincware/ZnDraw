@@ -103,3 +103,4 @@ resolution on remote filesystem uploads.
 - [ ] test register a room filesystem, which already exists as global filesystem! (UI!!) Make sure room/global in included, not just the name!
 - [ ] move "filesystem:register" to REST
 - [ ] remove / unify `workerId` and `sessionId`
+- [ ] Store tokens in HttpOnly cookies / use package for managing JWT token!

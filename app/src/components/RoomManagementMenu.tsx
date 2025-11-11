@@ -85,7 +85,6 @@ export default function RoomManagementMenu() {
   // Fetch camera settings to check preserve_drawing_buffer
   const { data: cameraSettings } = useExtensionData(
     roomId || "",
-    userName || "",
     "settings",
     "camera",
   );

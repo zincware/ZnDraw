@@ -66,13 +66,27 @@ class SocketManager:
         log.debug(f"Connected to server")
 
         # Re-register any extensions that were registered before connection
-        for name, ext in self.zndraw._extensions.items():
+        # Process public extensions
+        for name, ext in self.zndraw._public_extensions.items():
             worker_id = self.zndraw.api.register_extension(
                 name=name,
                 category=ext["extension"].category,
                 schema=ext["extension"].model_json_schema(),
                 socket_manager=self,
-                public=ext["public"],
+                public=True,
+            )
+            # Store the worker_id assigned by server
+            if worker_id:
+                self.zndraw._worker_id = worker_id
+
+        # Process private extensions
+        for name, ext in self.zndraw._private_extensions.items():
+            worker_id = self.zndraw.api.register_extension(
+                name=name,
+                category=ext["extension"].category,
+                schema=ext["extension"].model_json_schema(),
+                socket_manager=self,
+                public=False,
             )
             # Store the worker_id assigned by server
             if worker_id:
@@ -141,6 +155,7 @@ class SocketManager:
                     extension=job_data.get("extension"),
                     category=job_data.get("category"),
                     room=job_data.get("room"),  # Pass room from job metadata
+                    public=job_data.get("public", "false"),  # Pass public flag from job metadata
                 )
                 self.zndraw.api.update_job_status(
                     job_id=job_data.get("jobId"),
@@ -159,7 +174,7 @@ class SocketManager:
                 )
             self._on_queue_update({})
 
-    def _on_task_run(self, data: dict, extension: str, category: str, room: str):
+    def _on_task_run(self, data: dict, extension: str, category: str, room: str, public: str = "false"):
         """Execute an extension job with proper room context.
 
         Creates a temporary ZnDraw instance connected to the job's target room,
@@ -175,6 +190,8 @@ class SocketManager:
             Extension category
         room : str
             Room where the job was triggered (may differ from worker's room)
+        public : str
+            Whether this is a public/global extension ("true" or "false")
         """
         from zndraw import ZnDraw
 
@@ -187,10 +204,24 @@ class SocketManager:
         )
 
         try:
-            ext = self.zndraw._extensions[extension]["extension"]
+            # Redis stores booleans as strings, so check for "true"
+            public_bool = public == "true"
+
+            # Find the extension in the correct namespace
+            extensions_dict = self.zndraw._public_extensions if public_bool else self.zndraw._private_extensions
+            ext_data = extensions_dict.get(extension)
+
+            if ext_data is None:
+                namespace = "public" if public_bool else "private"
+                raise ValueError(
+                    f"Extension '{extension}' not found in {namespace} namespace. "
+                    f"Available extensions in {namespace}: {list(extensions_dict.keys())}"
+                )
+
+            ext = ext_data["extension"]
             instance = ext(**(data))
             instance.run(
-                temp_vis, **(self.zndraw._extensions[extension]["run_kwargs"] or {})
+                temp_vis, **(ext_data["run_kwargs"] or {})
             )
         finally:
             # Cleanup: disconnect temporary instance

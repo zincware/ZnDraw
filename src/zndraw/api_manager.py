@@ -489,18 +489,22 @@ class APIManager:
     def submit_extension_settings(self, extension_name: str, data: dict) -> None:
         headers = self._get_headers()
 
+        # Settings extensions are always server-side (Celery) extensions,
+        # so they use the public endpoint
         response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/extensions/settings/{extension_name}/submit",
+            f"{self.url}/api/rooms/{self.room}/extensions/public/settings/{extension_name}/submit",
             json=data,
             headers=headers,
         )
         response.raise_for_status()
 
-    def run_extension(self, category: str, name: str, data: dict) -> dict:
+    def run_extension(self, category: str, name: str, data: dict, public: bool = False) -> dict:
         headers = self._get_headers()
 
+        # Route to correct endpoint based on public flag
+        scope = "public" if public else "private"
         response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/extensions/{category}/{name}/submit",
+            f"{self.url}/api/rooms/{self.room}/extensions/{scope}/{category}/{name}/submit",
             json={"data": data},
             headers=headers,
         )

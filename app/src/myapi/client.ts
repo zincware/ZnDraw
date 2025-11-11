@@ -499,14 +499,16 @@ export interface SubmitExtensionRequest {
   category: string;
   extension: string;
   data: any;
+  isPublic?: boolean; // Whether this is a global/public extension (default: false)
 }
 
 export const submitExtension = async (
   request: SubmitExtensionRequest,
 ): Promise<{ status: string; queuePosition?: number; jobId?: string }> => {
-  const { roomId, category, extension, data: extensionData } = request;
+  const { roomId, category, extension, data: extensionData, isPublic = false } = request;
+  const scope = isPublic ? 'public' : 'private';
   const { data } = await apiClient.post(
-    `/api/rooms/${roomId}/extensions/${category}/${extension}/submit`,
+    `/api/rooms/${roomId}/extensions/${scope}/${category}/${extension}/submit`,
     {
       data: extensionData,
     },

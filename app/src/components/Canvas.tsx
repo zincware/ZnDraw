@@ -54,21 +54,18 @@ function MyScene() {
 
   const { data: studioLightingSettings } = useExtensionData(
     roomId || "",
-    userName || "",
     "settings",
     "studio_lighting",
   );
 
   const { data: cameraSettings } = useExtensionData(
     roomId || "",
-    userName || "",
     "settings",
     "camera",
   );
 
   const { data: pathtracingSettings } = useExtensionData(
     roomId || "",
-    userName || "",
     "settings",
     "pathtracing",
   );

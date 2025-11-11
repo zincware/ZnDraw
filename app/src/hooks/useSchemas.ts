@@ -1,9 +1,11 @@
 import { getFrameKeys, getFrameMetadata, getSchemas, getExtensionData, submitExtension as submitExtensionApi, listJobs, getJob } from "../myapi/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAppStore } from "../store";
 
 export interface ExtensionMetadata {
   schema: any;
   provider: "celery" | number; // "celery" for server-side, or number of workers for client-side
+  public: boolean; // Whether this is a global/public extension
   queueLength: number;
   idleWorkers: number;
   progressingWorkers: number;
@@ -51,10 +53,12 @@ export const useSchemas = (room: string, category: string) => {
 
 export const useExtensionData = (
   room: string,
-  user: string,
   category: string,
   extension: string,
 ) => {
+  // Get userName from app store instead of props (data is per-user, but API uses JWT)
+  const userName = useAppStore((state) => state.userName);
+
   const initialData: Record<string, any> = {
     "studio_lighting": {
       "ambient_light": 0.35,
@@ -73,7 +77,7 @@ export const useExtensionData = (
   }
 
   return useQuery({
-    queryKey: ["extensionData", room, user, category, extension],
+    queryKey: ["extensionData", room, userName, category, extension],
     queryFn: async () => {
       const result = await getExtensionData(room, category, extension);
       if (import.meta.env.DEV) {
@@ -84,20 +88,22 @@ export const useExtensionData = (
     // Remove staleTime: Infinity if you expect this data to be updated externally
     initialData: initialData[extension] || undefined,
     staleTime: Infinity,
-    enabled: !!room && !!user && !!category && !!extension,
+    enabled: !!room && !!userName && !!category && !!extension,
   });
 };
 
 export const useSubmitExtension = () => {
   const queryClient = useQueryClient();
+  // Get userName from app store for cache invalidation (API uses JWT)
+  const userName = useAppStore((state) => state.userName);
 
   return useMutation({
     mutationFn: async (variables: {
       roomId: string;
-      userName: string;
       category: string;
       extension: string;
       data: any;
+      isPublic?: boolean; // Whether this is a global/public extension
     }) => {
       return submitExtensionApi(variables);
     },
@@ -108,13 +114,13 @@ export const useSubmitExtension = () => {
       }
       const {
         roomId,
-        userName,
         category,
         extension,
         data: submittedData,
       } = variables;
 
       // Define the exact query key for the data we want to update
+      // userName is from app store (extension data is per-user)
       const queryKey = ["extensionData", roomId, userName, category, extension];
 
       // Replace the cached data with the data the user just submitted.

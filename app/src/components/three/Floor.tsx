@@ -38,7 +38,6 @@ export const Floor = ({ data }: { data: FloorData }) => {
   // Get camera settings for camera_far
   const { data: cameraSettings } = useExtensionData(
     roomId || "",
-    userName || "",
     "settings",
     "camera"
   );
@@ -46,7 +45,6 @@ export const Floor = ({ data }: { data: FloorData }) => {
   // Get background color for fog
   const { data: studioSettings } = useExtensionData(
     roomId || "",
-    userName || "",
     "settings",
     "studio_lighting"
   );

@@ -46,8 +46,10 @@ def test_register_extensions(server, category):
     response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
     assert response.status_code == 200
     response_json = response.json()
-    assert isinstance(response_json, dict)
-    assert set(response_json.keys()) == default_keys
+    # Schema endpoint now returns a list of extension objects
+    assert isinstance(response_json, list)
+    returned_names = {ext["name"] for ext in response_json}
+    assert returned_names == default_keys
 
     for default_mod in default_keys:
         response = requests.get(
@@ -67,8 +69,9 @@ def test_register_extensions(server, category):
     response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
     assert response.status_code == 200
     response_json = response.json()
-    assert isinstance(response_json, dict)
-    assert set(response_json.keys()) == default_keys | {mod.__name__}
+    assert isinstance(response_json, list)
+    returned_names = {ext["name"] for ext in response_json}
+    assert returned_names == default_keys | {mod.__name__}
 
     response = requests.get(
         f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/workers"
@@ -92,8 +95,9 @@ def test_register_extensions(server, category):
     response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
     assert response.status_code == 200
     response_json = response.json()
-    assert isinstance(response_json, dict)
-    assert set(response_json.keys()) == default_keys
+    assert isinstance(response_json, list)
+    returned_names = {ext["name"] for ext in response_json}
+    assert returned_names == default_keys
 
     # connect two workers
     vis1 = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
@@ -151,10 +155,10 @@ def test_run_client_extensions(server, category):
     vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
     vis.register_extension(mod)
 
-    # /api/rooms/${roomId}/extensions/${category}/${extension}/submit
+    # Client-registered extensions use /private endpoint
     # post request with data = {}
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -245,7 +249,7 @@ def test_run_client_extensions(server, category):
 
     # let's queue two more job
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 43}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -257,7 +261,7 @@ def test_run_client_extensions(server, category):
         "status": "success",
     }
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 44}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -373,26 +377,26 @@ def test_run_different_client_different_extensions(server):
 
     # queue job for mod1
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod1.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod1.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     # queue job for mod2
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/selections/{mod2.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/selections/{mod2.__name__}/submit",
         json={"data": {"parameter": 43}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/selections/{mod2.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/selections/{mod2.__name__}/submit",
         json={"data": {"parameter": 43}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -454,7 +458,7 @@ def test_run_different_client_different_extensions(server):
 
     # queue another job for mod1
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod1.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod1.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -521,7 +525,7 @@ def test_run_different_client_same_extensions(server):
     # queue 4 job
     for idx in range(4):
         _ = requests.post(
-            f"{server}/api/rooms/{room}/extensions/modifiers/{ModifierExtension.__name__}/submit",
+            f"{server}/api/rooms/{room}/extensions/private/modifiers/{ModifierExtension.__name__}/submit",
             json={"data": {"parameter": 42 + idx}, "userId": user},
             headers=get_jwt_auth_headers(server, user),
         )
@@ -594,7 +598,7 @@ def test_worker_finish_nonstarted_job(server):
 
     # queue job for mod1
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -659,7 +663,7 @@ def test_worker_fail_job(server):
 
     # queue job for mod1
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -750,7 +754,7 @@ def test_delete_job(server):
 
     # queue job for mod1
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -801,7 +805,7 @@ def test_worker_pickup_task(server):
     vis.register_extension(mod, run_kwargs={"info": shared_dict})
     # submit a job
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -826,7 +830,7 @@ def test_worker_pickup_task(server):
     shared_dict["raise"] = True
     # submit another job
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 43}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -861,7 +865,7 @@ def test_worker_pickup_task(server):
     job_ids = []
     for idx in range(2):
         response = requests.post(
-            f"{server}/api/rooms/{room}/extensions/modifiers/{mod.__name__}/submit",
+            f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod.__name__}/submit",
             json={"data": {"parameter": 44 + idx}, "userId": user},
             headers=get_jwt_auth_headers(server, user),
         )
@@ -901,8 +905,9 @@ def test_celery_task(server):
     mod_name = next(iter(modifiers.keys()))
 
     # Create a celery job by calling a server-side modifier extension
+    # Server-side (Celery) extensions use the public endpoint
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{mod_name}/submit",
+        f"{server}/api/rooms/{room}/extensions/public/modifiers/{mod_name}/submit",
         json={"data": {}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -969,12 +974,13 @@ def test_register_extensions_reconnect_with_queue(server, category):
     response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
     assert response.status_code == 200
     response_json = response.json()
-    assert isinstance(response_json, dict)
-    assert set(response_json.keys()) == default_keys | {mod.__name__}
+    assert isinstance(response_json, list)
+    returned_names = {ext["name"] for ext in response_json}
+    assert returned_names == default_keys | {mod.__name__}
 
     # submit a job
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -998,8 +1004,9 @@ def test_register_extensions_reconnect_with_queue(server, category):
     response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
     assert response.status_code == 200
     response_json = response.json()
-    assert isinstance(response_json, dict)
-    assert set(response_json.keys()) == default_keys | {mod.__name__}
+    assert isinstance(response_json, list)
+    returned_names = {ext["name"] for ext in response_json}
+    assert returned_names == default_keys | {mod.__name__}
 
     # get available workers for the job
     response = requests.get(
@@ -1012,7 +1019,7 @@ def test_register_extensions_reconnect_with_queue(server, category):
 
     # try submit a job -> should not fail
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
@@ -1071,8 +1078,9 @@ def test_register_extensions_reconnect_without_queue(server, category):
     response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
     assert response.status_code == 200
     response_json = response.json()
-    assert isinstance(response_json, dict)
-    assert set(response_json.keys()) == default_keys | {mod.__name__}
+    assert isinstance(response_json, list)
+    returned_names = {ext["name"] for ext in response_json}
+    assert returned_names == default_keys | {mod.__name__}
     # disconnect client
     vis.disconnect()
     vis.socket.sio.sleep(1)  # give some time to process disconnect
@@ -1080,21 +1088,22 @@ def test_register_extensions_reconnect_without_queue(server, category):
     response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
     assert response.status_code == 200
     response_json = response.json()
-    assert isinstance(response_json, dict)
+    assert isinstance(response_json, list)
+    returned_names_after = {ext["name"] for ext in response_json}
     assert (
-        set(response_json.keys()) == default_keys
+        returned_names_after == default_keys
     )  # no more jobs in queue, so the modifier should be gone
 
-    # try submit a job -> should fail
+    # try submit a job -> should fail because extension no longer exists
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/{category}/{mod.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
-    assert response.status_code == 400
-    assert response.json() == {
-        "error": f"No workers available for extension {mod.__name__}"
-    }
+    assert response.status_code == 404
+    response_data = response.json()
+    assert "not found" in response_data["error"].lower()
+    assert response_data["code"] == "EXTENSION_NOT_FOUND"
 
 
 def test_submit_task_via_vis_run(server):

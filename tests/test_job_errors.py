@@ -139,7 +139,7 @@ def test_get_next_job_with_running_job(server):
     # Submit two jobs
     for i in range(2):
         response = requests.post(
-            f"{server}/api/rooms/{room}/extensions/modifiers/{TestExtension.__name__}/submit",
+            f"{server}/api/rooms/{room}/extensions/private/modifiers/{TestExtension.__name__}/submit",
             json={"data": {"parameter": i}, "userId": user},
             headers=auth_headers,
         )
@@ -189,7 +189,7 @@ def test_extension_execution_with_auto_pickup(server):
 
     # Submit a job
     response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/modifiers/{TestExtension.__name__}/submit",
+        f"{server}/api/rooms/{room}/extensions/private/modifiers/{TestExtension.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
         headers=auth_headers,
     )

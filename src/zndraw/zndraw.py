@@ -40,6 +40,34 @@ from rich.progress import (
 log = logging.getLogger(__name__)
 
 
+def _is_celery_extension(extension_name: str, category: str) -> bool:
+    """Check if an extension is a server-side Celery extension.
+
+    Parameters
+    ----------
+    extension_name : str
+        The extension class name
+    category : str
+        The extension category
+
+    Returns
+    -------
+    bool
+        True if the extension is a Celery (server-side) extension
+    """
+    from zndraw.extensions.analysis import analysis
+    from zndraw.extensions.modifiers import modifiers
+    from zndraw.extensions.selections import selections
+
+    category_map = {
+        "modifiers": modifiers,
+        "selections": selections,
+        "analysis": analysis,
+    }
+
+    return category in category_map and extension_name in category_map[category]
+
+
 class _GeometryStore(t.TypedDict):
     type: str
     data: dict
@@ -357,7 +385,10 @@ class ZnDraw(MutableSequence):
     _step: int = 0
     _len: int = 0
     _settings: dict = dataclasses.field(default_factory=dict, init=False)
-    _extensions: dict[str, _ExtensionStore] = dataclasses.field(
+    _public_extensions: dict[str, _ExtensionStore] = dataclasses.field(
+        default_factory=dict, init=False
+    )
+    _private_extensions: dict[str, _ExtensionStore] = dataclasses.field(
         default_factory=dict, init=False
     )
     _filesystems: dict[str, dict] = dataclasses.field(
@@ -1371,8 +1402,17 @@ class ZnDraw(MutableSequence):
         run_kwargs: dict | None = None,
     ):
         name = extension.__name__
-        if name in self._extensions:
-            raise ValueError(f"Extension '{name}' is already registered.")
+
+        # Select the appropriate dictionary based on public flag
+        extensions_dict = self._public_extensions if public else self._private_extensions
+
+        # Check if this specific extension is already registered in this namespace
+        if name in extensions_dict:
+            namespace = "public" if public else "private"
+            raise ValueError(
+                f"Extension '{name}' is already registered in {namespace} namespace."
+            )
+
         if not hasattr(extension, "category") or extension.category not in [
             cat.value for cat in Category
         ]:
@@ -1385,7 +1425,7 @@ class ZnDraw(MutableSequence):
                 "Please authenticate with admin credentials to register global extensions."
             )
 
-        self._extensions[name] = {
+        extensions_dict[name] = {
             "public": public,
             "run_kwargs": run_kwargs,
             "extension": extension,
@@ -1410,11 +1450,58 @@ class ZnDraw(MutableSequence):
         )
         self.socket._on_queue_update({})
 
-    def run(self, extension: Extension) -> dict:
+    def run(self, extension: Extension, public: bool | None = None) -> dict:
+        """Run an extension.
+
+        Parameters
+        ----------
+        extension : Extension
+            The extension instance to run
+        public : bool | None
+            Which namespace to use:
+            - True: use public/global namespace
+            - False: use private/room-scoped namespace
+            - None: try public first, fall back to private
+
+        Returns
+        -------
+        dict
+            Response from the server containing status and jobId
+        """
+        extension_name = extension.__class__.__name__
+        category = extension.category.value
+        is_celery = _is_celery_extension(extension_name, category)
+
+        # Determine which namespace to use
+        if public is None:
+            # Auto-detect from registration
+            if extension_name in self._public_extensions:
+                public = True
+            elif extension_name in self._private_extensions:
+                public = False
+            elif is_celery:
+                # Celery extensions are always public (global)
+                public = True
+            else:
+                raise ValueError(
+                    f"Extension '{extension_name}' not registered. "
+                    f"Call register_extension(extension_class, public=True/False) first."
+                )
+        else:
+            # Explicit public flag provided - validate it
+            expected_dict = self._public_extensions if public else self._private_extensions
+            if extension_name not in expected_dict and not is_celery:
+                namespace = "public" if public else "private"
+                raise ValueError(
+                    f"Extension '{extension_name}' not registered in {namespace} namespace. "
+                    f"Available {namespace} extensions: {list(expected_dict.keys())}"
+                )
+
         return self.api.run_extension(
-            category=extension.category.value,
-            name=extension.__class__.__name__,
+            category=category,
+            name=extension_name,
             data=extension.model_dump(),
+            public=public,
         )
 
     def register_filesystem(

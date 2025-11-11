@@ -38,11 +38,13 @@ export default function SiMGenButtons({ onTutorialClick }: SiMGenButtonsProps) {
     }
 
     try {
+      // SiMGen extensions are registered publicly
       await submitExtension({
         roomId,
         category: 'modifiers',
         extension: extensionName,
         data: {},
+        isPublic: true,
       });
       showSnackbar(`${extensionName} submitted successfully`, 'success');
     } catch (error) {

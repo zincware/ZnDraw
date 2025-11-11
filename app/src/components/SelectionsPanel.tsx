@@ -86,7 +86,7 @@ export default function SelectionsPanel() {
   const panelTitle = "selections";
 
   const { selectedExtensions, setSelectedExtension } = useFormStore();
-  const selectedExtension = selectedExtensions[panelTitle] || null;
+  const selectedExtensionKey = selectedExtensions[panelTitle] || null;
 
   const {
     data: schemas,
@@ -94,8 +94,26 @@ export default function SelectionsPanel() {
     isError: isSchemasError,
   } = useSchemas(roomId!, panelTitle);
 
+  // Parse composite key "name:public" to extract name and public flag
+  const parseExtensionKey = (key: string | null): { name: string; public: boolean } | null => {
+    if (!key) return null;
+    const [name, publicStr] = key.split(":");
+    return { name, public: publicStr === "true" };
+  };
+
+  const selectedExtension = parseExtensionKey(selectedExtensionKey);
+  const selectedExtensionName = selectedExtension?.name || null;
+
+  // Find the selected extension object in the schemas list
+  const selectedExtensionObject = useMemo(() => {
+    if (!schemas || !selectedExtension) return null;
+    return schemas.find(
+      ext => ext.name === selectedExtension.name && ext.public === selectedExtension.public
+    );
+  }, [schemas, selectedExtension]);
+
   // Check if the selected extension's schema requires metadata
-  const currentSchema = schemas?.[selectedExtension ?? ""]?.schema;
+  const currentSchema = selectedExtensionObject?.schema;
   const needsMetadata = useMemo(
     () => currentSchema ? schemaRequiresMetadata(currentSchema) : false,
     [currentSchema]
@@ -111,30 +129,30 @@ export default function SelectionsPanel() {
     data: serverData,
     isLoading: isLoadingData,
     isError: isDataError,
-  } = useExtensionData(roomId!, userName!, panelTitle, selectedExtension || "");
+  } = useExtensionData(roomId!, panelTitle, selectedExtensionName || "");
 
   useEffect(() => {
     if (!isLoadingData && serverData !== undefined) {
       setLocalFormData(serverData ?? {});
       ignoreFirstChangeRef.current = true;
     }
-  }, [isLoadingData, serverData, selectedExtension]);
+  }, [isLoadingData, serverData, selectedExtensionKey]);
 
   const { mutate: submit, isPending: isSubmitting } = useSubmitExtension();
 
   const debouncedSubmit = useMemo(
     () =>
       debounce((data: any) => {
-        if (!selectedExtension || !roomId || !userName) return;
+        if (!selectedExtensionName || !selectedExtension || !roomId || !userName) return;
         submit({
           roomId,
-          userName,
           category: panelTitle,
-          extension: selectedExtension,
+          extension: selectedExtensionName,
           data: data,
+          isPublic: selectedExtension.public,
         });
       }, 100),
-    [selectedExtension, roomId, userName, submit],
+    [selectedExtensionName, selectedExtension, roomId, userName, submit],
   );
 
   useEffect(() => {
@@ -160,23 +178,43 @@ export default function SelectionsPanel() {
   };
 
   const handleSubmit = () => {
-    if (!selectedExtension || !roomId || !userName) return;
+    if (!selectedExtensionName || !selectedExtension || !roomId || !userName) return;
+
     submit({
       roomId,
-      userName,
       category: panelTitle,
-      extension: selectedExtension,
+      extension: selectedExtensionName,
       data: localFormData,
+      isPublic: selectedExtension.public,
     });
   };
 
   const dynamicSchema = useMemo(() => {
-    const originalSchema = schemas?.[selectedExtension ?? ""]?.schema;
+    const originalSchema = selectedExtensionObject?.schema;
     if (!originalSchema) return null;
     return injectDynamicEnums(originalSchema, metadata, geometries);
-  }, [schemas, selectedExtension, metadata, geometries]);
+  }, [selectedExtensionObject, metadata, geometries]);
 
-  const formOptions = useMemo(() => Object.keys(schemas || {}), [schemas]);
+  // Create form options with composite keys and check for duplicates
+  const formOptions = useMemo(() => {
+    if (!schemas || !Array.isArray(schemas)) return [];
+
+    // Check for duplicate names with different public flags
+    const nameCounts = new Map<string, { hasPublic: boolean; hasPrivate: boolean }>();
+    schemas.forEach(ext => {
+      const existing = nameCounts.get(ext.name) || { hasPublic: false, hasPrivate: false };
+      if (ext.public) existing.hasPublic = true;
+      else existing.hasPrivate = true;
+      nameCounts.set(ext.name, existing);
+    });
+
+    return schemas.map(ext => ({
+      name: ext.name,
+      compositeKey: `${ext.name}:${ext.public}`,
+      showBadge: nameCounts.get(ext.name)!.hasPublic && nameCounts.get(ext.name)!.hasPrivate,
+      isPublic: ext.public,
+    }));
+  }, [schemas]);
 
   // Selection Groups logic
   const allGeometryKeys = useMemo(() => {
@@ -563,20 +601,29 @@ export default function SelectionsPanel() {
               <InputLabel id="panel-select-label">Selection Method</InputLabel>
               <Select
                 labelId="panel-select-label"
-                value={selectedExtension || ""}
+                value={selectedExtensionKey || ""}
                 label="Selection Method"
                 onChange={handleSelectionChange}
               >
-                {formOptions.map((item) => (
-                  <MenuItem key={item} value={item}>
-                    {item}
+                {formOptions.map((option) => (
+                  <MenuItem key={option.compositeKey} value={option.compositeKey}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Typography>{option.name}</Typography>
+                      {option.showBadge && (
+                        <Chip
+                          label={option.isPublic ? "Public" : "Private"}
+                          size="small"
+                          color={option.isPublic ? "success" : "default"}
+                        />
+                      )}
+                    </Box>
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
 
-            {selectedExtension && schemas && schemas[selectedExtension] && (
-              <ExtensionStatusChips metadata={schemas[selectedExtension]} />
+            {selectedExtensionObject && (
+              <ExtensionStatusChips metadata={selectedExtensionObject} />
             )}
 
             {dynamicSchema && (
@@ -599,7 +646,7 @@ export default function SelectionsPanel() {
                   <Fade in={!isLoadingData && !isLoadingMetadata} timeout={200}>
                     <Box>
                       <JsonForms
-                        key={selectedExtension}
+                        key={selectedExtensionKey}
                         schema={dynamicSchema}
                         data={localFormData}
                         renderers={customRenderers}

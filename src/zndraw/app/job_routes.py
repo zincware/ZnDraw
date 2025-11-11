@@ -280,70 +280,62 @@ def get_next_job_agnostic():
                 }
 
                 if category in category_map:
-                    # Check all extensions for celery jobs in all rooms
+                    # Celery extensions use global keys (shared across all rooms)
                     for extension in category_map[category].keys():
-                        # Need to scan all rooms for this extension
-                        # Pattern: room:*:extensions:{category}:{extension}:queue
-                        queue_pattern = f"room:*:extensions:{category}:{extension}:queue"
-                        for queue_key in redis_client.scan_iter(match=queue_pattern):
-                            # Extract room from key
-                            parts = queue_key.split(":")
-                            if len(parts) >= 2:
-                                room_id = parts[1]
-                                keys = ExtensionKeys.for_extension(
-                                    room_id, category, extension
-                                )
-                                queue_length = redis_client.llen(keys.queue)
+                        # Check global queue for this Celery extension
+                        keys = ExtensionKeys.for_global_extension(category, extension)
+                        queue_length = redis_client.llen(keys.queue)
 
-                                if queue_length > 0:
-                                    # Peek at first job to check if it's a celery job
-                                    task_data = redis_client.lindex(keys.queue, 0)
-                                    if task_data:
-                                        try:
-                                            task_info = json.loads(task_data)
-                                        except json.JSONDecodeError as e:
-                                            log.error(
-                                                f"Invalid JSON in queue {keys.queue}: {e}, data: {task_data}"
-                                            )
-                                            redis_client.lpop(keys.queue)
-                                            continue
+                        if queue_length > 0:
+                            # Peek at first job to check if it's a celery job
+                            task_data = redis_client.lindex(keys.queue, 0)
+                            if task_data:
+                                try:
+                                    task_info = json.loads(task_data)
+                                except json.JSONDecodeError as e:
+                                    log.error(
+                                        f"Invalid JSON in queue {keys.queue}: {e}, data: {task_data}"
+                                    )
+                                    redis_client.lpop(keys.queue)
+                                    continue
 
-                                        if task_info.get("provider") == "celery":
-                                            # This is a celery job, pop it
-                                            redis_client.lpop(keys.queue)
-                                            job_id = task_info.get("jobId")
+                                if task_info.get("provider") == "celery":
+                                    # This is a celery job, pop it
+                                    redis_client.lpop(keys.queue)
+                                    job_id = task_info.get("jobId")
+                                    room_id = task_info.get("room")  # Room context from job data
 
-                                            # Get full job details
-                                            job = JobManager.get_job(
-                                                redis_client, job_id
-                                            )
-                                            if job:
-                                                # Mark job as started by this worker
-                                                JobManager.start_job(
-                                                    redis_client, job_id, worker_id
-                                                )
+                                    # Get full job details
+                                    job = JobManager.get_job(
+                                        redis_client, job_id
+                                    )
+                                    if job:
+                                        # Mark job as started by this worker
+                                        JobManager.start_job(
+                                            redis_client, job_id, worker_id
+                                        )
 
-                                                # Emit queue update
-                                                emit_queue_update(
-                                                    redis_client,
-                                                    room_id,
-                                                    category,
-                                                    extension,
-                                                    socketio,
-                                                )
+                                        # Emit queue update (global for Celery)
+                                        emit_queue_update(
+                                            redis_client,
+                                            None,  # Global notification
+                                            category,
+                                            extension,
+                                            socketio,
+                                        )
 
-                                                # Get updated job details
-                                                job = JobManager.get_job(
-                                                    redis_client, job_id
-                                                )
+                                        # Get updated job details
+                                        job = JobManager.get_job(
+                                            redis_client, job_id
+                                        )
 
-                                                # Rename 'id' to 'jobId'
-                                                job["jobId"] = job.pop("id")
+                                        # Rename 'id' to 'jobId'
+                                        job["jobId"] = job.pop("id")
 
-                                                log.info(
-                                                    f"Assigned celery job {job_id} to worker {worker_id} from room {room_id}"
-                                                )
-                                                return job, 200
+                                        log.info(
+                                            f"Assigned celery job {job_id} to worker {worker_id} from room {room_id}"
+                                        )
+                                        return job, 200
                 continue  # Skip to next category for Celery workers
             # First, check global extensions for this worker
             global_user_extensions_key = ExtensionKeys.global_user_extensions_key(

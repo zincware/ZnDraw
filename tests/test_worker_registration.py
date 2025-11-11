@@ -65,7 +65,9 @@ def test_register_room_extension_basic(server):
     response = requests.get(f"{server}/api/rooms/test_room/schema/modifiers")
     assert response.status_code == 200
     schemas = response.json()
-    assert "TestExtension" in schemas
+    assert isinstance(schemas, list), "Schema should be a list"
+    extension_names = [ext["name"] for ext in schemas]
+    assert "TestExtension" in extension_names
 
 
 def test_register_same_schema_twice_allowed(server):
@@ -81,7 +83,9 @@ def test_register_same_schema_twice_allowed(server):
     response = requests.get(f"{server}/api/rooms/test_room/schema/modifiers")
     assert response.status_code == 200
     schemas = response.json()
-    assert "TestExtension" in schemas
+    assert isinstance(schemas, list), "Schema should be a list"
+    extension_names = [ext["name"] for ext in schemas]
+    assert "TestExtension" in extension_names
 
 
 def test_register_different_schema_error(server):
@@ -111,9 +115,16 @@ def test_room_extension_overrides_global_allowed(server):
 
     # Both should exist
     global_response = requests.get(f"{server}/api/rooms/global_room/schema/modifiers")
-    assert "TestExtension" in global_response.json()
+    global_schemas = global_response.json()
+    assert isinstance(global_schemas, list), "Schema should be a list"
+    global_names = [ext["name"] for ext in global_schemas]
+    assert "TestExtension" in global_names
+
     room_response = requests.get(f"{server}/api/rooms/specific_room/schema/modifiers")
-    assert "TestExtension" in room_response.json()
+    room_schemas = room_response.json()
+    assert isinstance(room_schemas, list), "Schema should be a list"
+    room_names = [ext["name"] for ext in room_schemas]
+    assert "TestExtension" in room_names
 
 
 def test_global_extension_duplicate_schema_error(server):
@@ -140,7 +151,9 @@ def test_reserved_name_protection_per_room(server):
     response = requests.get(f"{server}/api/rooms/test_room/schema/modifiers")
     assert response.status_code == 200
     schemas = response.json()
-    assert "RemoveAtoms" in schemas
+    assert isinstance(schemas, list), "Schema should be a list"
+    extension_names = [ext["name"] for ext in schemas]
+    assert "RemoveAtoms" in extension_names
 
 def test_reserved_name_protection_global(server):
     """Test that extensions cannot override server-side extension names globally."""
@@ -189,8 +202,13 @@ def test_schema_validation_on_registration(server):
     assert response.status_code == 200
     schemas = response.json()
 
-    assert "TestExtension" in schemas
-    schema = schemas["TestExtension"]
+    assert isinstance(schemas, list), "Schema should be a list"
+    extension_names = [ext["name"] for ext in schemas]
+    assert "TestExtension" in extension_names
+
+    # Find the TestExtension in the list
+    test_ext = next(ext for ext in schemas if ext["name"] == "TestExtension")
+    schema = test_ext["schema"]
     # Schema should be a dict with type definitions
     assert isinstance(schema, dict)
 
@@ -203,7 +221,10 @@ def test_disconnect_cleans_up_extension(server):
     vis.register_extension(TestExtension, public=False)
     # Verify extension exists
     response = requests.get(f"{server}/api/rooms/test_room/schema/modifiers")
-    assert "TestExtension" in response.json()
+    schemas = response.json()
+    assert isinstance(schemas, list), "Schema should be a list"
+    extension_names = [ext["name"] for ext in schemas]
+    assert "TestExtension" in extension_names
 
     # Disconnect
     vis.socket.disconnect()
@@ -212,4 +233,7 @@ def test_disconnect_cleans_up_extension(server):
 
     # Extension should be removed (assuming no queued jobs)
     response = requests.get(f"{server}/api/rooms/test_room/schema/modifiers")
-    assert "TestExtension" not in response.json()
+    schemas_after = response.json()
+    assert isinstance(schemas_after, list), "Schema should be a list"
+    extension_names_after = [ext["name"] for ext in schemas_after]
+    assert "TestExtension" not in extension_names_after

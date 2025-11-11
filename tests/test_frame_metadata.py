@@ -30,6 +30,7 @@ def test_frame_keys_s22(server, s22):
         "arrays.radii",
         "cell",
         "pbc",
+        "info.connectivity",
     }
 
     # Test last frame
@@ -44,6 +45,7 @@ def test_frame_keys_s22(server, s22):
         "arrays.radii",
         "cell",
         "pbc",
+        "info.connectivity",
     }
 
     # Test non-existing frame
@@ -73,10 +75,11 @@ def test_metadata_s22(server, s22):
         "arrays.radii",
         "cell",
         "pbc",
+        "info.connectivity",
     }
 
     # Check metadata details
-    assert metadata["metadata"] == {
+    expected_metadata = {
             "cell": {
                 "dtype": "float64",
                 "shape": [
@@ -119,6 +122,16 @@ def test_metadata_s22(server, s22):
                 "type": "array",
             },
         }
+
+    # info.connectivity is added automatically, check it exists and has correct type
+    assert "info.connectivity" in metadata["metadata"]
+    assert metadata["metadata"]["info.connectivity"]["dtype"] == "int32"
+    assert metadata["metadata"]["info.connectivity"]["type"] == "array"
+    assert len(metadata["metadata"]["info.connectivity"]["shape"]) == 2  # [n_bonds, 3]
+
+    # Check other metadata matches expected
+    for key, value in expected_metadata.items():
+        assert metadata["metadata"][key] == value, f"Metadata mismatch for {key}"
 
     # last frame
     response = requests.get(f"{server}/api/rooms/s22-0/frames/21/metadata")
@@ -135,9 +148,10 @@ def test_metadata_s22(server, s22):
         "arrays.radii",
         "cell",
         "pbc",
+        "info.connectivity",
     }
 
-    assert metadata["metadata"] == {
+    expected_metadata_frame21 = {
             "cell": {
                 "dtype": "float64",
                 "shape": [
@@ -180,6 +194,16 @@ def test_metadata_s22(server, s22):
                 "type": "array",
             },
         }
+
+    # info.connectivity is added automatically, check it exists and has correct type
+    assert "info.connectivity" in metadata["metadata"]
+    assert metadata["metadata"]["info.connectivity"]["dtype"] == "int32"
+    assert metadata["metadata"]["info.connectivity"]["type"] == "array"
+    assert len(metadata["metadata"]["info.connectivity"]["shape"]) == 2  # [n_bonds, 3]
+
+    # Check other metadata matches expected
+    for key, value in expected_metadata_frame21.items():
+        assert metadata["metadata"][key] == value, f"Metadata mismatch for {key}"
 
     # non-existing frame
     response = requests.get(f"{server}/api/rooms/s22-0/frames/22/metadata")
@@ -207,6 +231,7 @@ def test_metadata_s22_arrays(server, s22):
         "arrays.radii",
         "cell",
         "pbc",
+        "info.connectivity",
         "arrays.forces",
     }
 
@@ -234,6 +259,7 @@ def test_metadata_s22_info(server, s22):
         "arrays.radii",
         "cell",
         "pbc",
+        "info.connectivity",
         "info.energy",
     }
 
@@ -263,6 +289,7 @@ def test_metadata_s22_calc(server, s22):
         "arrays.radii",
         "cell",
         "pbc",
+        "info.connectivity",
         "calc.energy",
         "calc.forces",
     }
@@ -300,6 +327,7 @@ def test_metadata_s22_info_arrays_calc(server, s22):
         "arrays.radii",
         "cell",
         "pbc",
+        "info.connectivity",
         "arrays.forces",
         "info.energy",
         "calc.energy",

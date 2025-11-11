@@ -51,9 +51,9 @@ def test_public_extension_visible_across_rooms(server):
     # Register the extension as public (global)
     vis_room1.register_extension(GlobalTestExtension, public=True)
 
-    # Verify it was registered locally
-    assert "GlobalTestExtension" in vis_room1._extensions
-    assert vis_room1._extensions["GlobalTestExtension"]["public"] is True
+    # Verify it was registered locally in public namespace
+    assert "GlobalTestExtension" in vis_room1._public_extensions
+    assert vis_room1._public_extensions["GlobalTestExtension"]["public"] is True
 
     # Step 2: Query the schema endpoint from room2 (different room)
     # The global extension should be visible here
@@ -61,8 +61,11 @@ def test_public_extension_visible_across_rooms(server):
     assert response.status_code == 200
     schemas_room2 = response.json()
 
+    # Schema is now a list of extension objects
+    assert isinstance(schemas_room2, list), "Schema should be a list"
+
     # The global extension should be in the list
-    extension_names = list(schemas_room2.keys())
+    extension_names = [ext["name"] for ext in schemas_room2]
     assert "GlobalTestExtension" in extension_names, (
         f"Global extension not found in room2. Available: {extension_names}"
     )
@@ -72,14 +75,16 @@ def test_public_extension_visible_across_rooms(server):
     assert response.status_code == 200
     schemas_room3 = response.json()
 
-    extension_names = list(schemas_room3.keys())
+    assert isinstance(schemas_room3, list), "Schema should be a list"
+    extension_names = [ext["name"] for ext in schemas_room3]
     assert "GlobalTestExtension" in extension_names, (
         f"Global extension not found in room3. Available: {extension_names}"
     )
 
     # Step 4: Verify the schema is the same across rooms
-    schema_room2 = schemas_room2["GlobalTestExtension"]
-    schema_room3 = schemas_room3["GlobalTestExtension"]
+    # Find the extension object by name
+    schema_room2 = next(ext for ext in schemas_room2 if ext["name"] == "GlobalTestExtension")
+    schema_room3 = next(ext for ext in schemas_room3 if ext["name"] == "GlobalTestExtension")
     assert schema_room2 == schema_room3, "Schema should be identical across rooms"
 
 
@@ -98,13 +103,13 @@ def test_global_extension_modifies_correct_room(server):
     atoms_room2 = Atoms("CH4", positions=[(0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0)])
 
     # Connect to room1 and add atoms
-    vis_room1 = ZnDraw(url=server, room="room1", user="worker_user")
+    vis_room1 = ZnDraw(url=server, room="room1", user="worker_user", auto_pickup_jobs=True)
     vis_room1.extend([atoms_room1])
     assert len(vis_room1) == 1
     assert len(vis_room1[0]) == 3  # H2O has 3 atoms
 
     # Connect to room2 and add atoms
-    vis_room2 = ZnDraw(url=server, room="room2", user="user2")
+    vis_room2 = ZnDraw(url=server, room="room2", user="user2", auto_pickup_jobs=False)
     vis_room2.extend([atoms_room2])
     assert len(vis_room2) == 1
     assert len(vis_room2[0]) == 5  # CH4 has 5 atoms
@@ -115,8 +120,8 @@ def test_global_extension_modifies_correct_room(server):
 
     # Trigger the extension from room2 with tag=222
     response = requests.post(
-        f"{server}/api/rooms/room2/extensions/modifiers/RoomModifyingExtension/submit",
-        json={"tag": 222},
+        f"{server}/api/rooms/room2/extensions/public/modifiers/RoomModifyingExtension/submit",
+        json={"data": {"tag": 222}},
         headers={"Authorization": f"Bearer {vis_room2.api.jwt_token}"},
     )
     assert response.status_code in [200, 201], f"Failed to submit job: {response.text}"
@@ -160,14 +165,21 @@ def test_global_extension_cleanup_on_disconnect(server):
     response_room2 = requests.get(f"{server}/api/rooms/room2/schema/modifiers")
     assert response_room2.status_code == 200
     schemas_room2_before = response_room2.json()
-    assert "GlobalTestExtension" in schemas_room2_before, (
+
+    # Schema is now a list of extension objects
+    assert isinstance(schemas_room2_before, list), "Schema should be a list"
+    extension_names_room2 = [ext["name"] for ext in schemas_room2_before]
+    assert "GlobalTestExtension" in extension_names_room2, (
         "Global extension should be visible in room2 before disconnect"
     )
 
     response_room3 = requests.get(f"{server}/api/rooms/room3/schema/modifiers")
     assert response_room3.status_code == 200
     schemas_room3_before = response_room3.json()
-    assert "GlobalTestExtension" in schemas_room3_before, (
+
+    assert isinstance(schemas_room3_before, list), "Schema should be a list"
+    extension_names_room3 = [ext["name"] for ext in schemas_room3_before]
+    assert "GlobalTestExtension" in extension_names_room3, (
         "Global extension should be visible in room3 before disconnect"
     )
 
@@ -180,24 +192,33 @@ def test_global_extension_cleanup_on_disconnect(server):
     response_room2_after = requests.get(f"{server}/api/rooms/room2/schema/modifiers")
     assert response_room2_after.status_code == 200
     schemas_room2_after = response_room2_after.json()
-    assert "GlobalTestExtension" not in schemas_room2_after, (
+
+    assert isinstance(schemas_room2_after, list), "Schema should be a list"
+    extension_names_room2_after = [ext["name"] for ext in schemas_room2_after]
+    assert "GlobalTestExtension" not in extension_names_room2_after, (
         f"Global extension should be removed from room2 after disconnect. "
-        f"Available extensions: {list(schemas_room2_after.keys())}"
+        f"Available extensions: {extension_names_room2_after}"
     )
 
     response_room3_after = requests.get(f"{server}/api/rooms/room3/schema/modifiers")
     assert response_room3_after.status_code == 200
     schemas_room3_after = response_room3_after.json()
-    assert "GlobalTestExtension" not in schemas_room3_after, (
+
+    assert isinstance(schemas_room3_after, list), "Schema should be a list"
+    extension_names_room3_after = [ext["name"] for ext in schemas_room3_after]
+    assert "GlobalTestExtension" not in extension_names_room3_after, (
         f"Global extension should be removed from room3 after disconnect. "
-        f"Available extensions: {list(schemas_room3_after.keys())}"
+        f"Available extensions: {extension_names_room3_after}"
     )
 
     # Also verify it's removed from room1
     response_room1_after = requests.get(f"{server}/api/rooms/room1/schema/modifiers")
     assert response_room1_after.status_code == 200
     schemas_room1_after = response_room1_after.json()
-    assert "GlobalTestExtension" not in schemas_room1_after, (
+
+    assert isinstance(schemas_room1_after, list), "Schema should be a list"
+    extension_names_room1_after = [ext["name"] for ext in schemas_room1_after]
+    assert "GlobalTestExtension" not in extension_names_room1_after, (
         f"Global extension should be removed from room1 after disconnect. "
-        f"Available extensions: {list(schemas_room1_after.keys())}"
+        f"Available extensions: {extension_names_room1_after}"
     )

@@ -87,6 +87,7 @@ class JobManager:
         data: dict,
         user_name: str,
         provider: str,
+        public: bool = False,
         ttl: int = 86400,
     ) -> str:
         """Create a new job and store in Redis.
@@ -99,6 +100,7 @@ class JobManager:
             data: Job input parameters
             user_name: Username who submitted the job
             provider: "celery" or worker count
+            public: Whether this is a public/global extension (default: False)
             ttl: Time-to-live in seconds (default: 86400 = 24 hours)
 
         Returns:
@@ -116,6 +118,7 @@ class JobManager:
             "user_name": user_name,
             "status": JobStatus.QUEUED,
             "provider": provider,
+            "public": str(public).lower(),  # Store as "true" or "false" string for Redis
             "created_at": now,
             "started_at": "",
             "completed_at": "",

@@ -759,17 +759,20 @@ def get_room_schema(room_id: str, category: str):
         return {"error": f"Unknown schema category '{category}'"}
 
     redis_client = current_app.extensions["redis"]
-    schema = {}
+    # Changed from dict to list to support duplicate names with different public flags
+    schema_list = []
 
-    # Add server-provided extensions (Celery-based)
+    # Add server-provided extensions (Celery-based - always public)
     for name, cls in category_map[category].items():
-        schema[name] = {
+        schema_list.append({
+            "name": name,
             "schema": cls.model_json_schema(),
             "provider": "celery",
+            "public": True,  # Celery extensions are always public
             "queueLength": 0,
             "idleWorkers": 0,
             "progressingWorkers": 0,
-        }
+        })
 
     # Add client-provided extensions from Redis (room-scoped)
     from .redis_keys import ExtensionKeys
@@ -785,18 +788,25 @@ def get_room_schema(room_id: str, category: str):
         keys = ExtensionKeys.for_extension(room_id, category, name)
         stats = WorkerStats.fetch(redis_client, keys)
 
-        if name in schema:
-            if schema[name]["schema"] != sch:
-                log.warning(
-                    f"{category.capitalize()} extension '{name}' schema "
-                    "in Redis differs from server schema."
-                )
+        # Check if this exact combination (name + public=False) already exists
+        existing = any(
+            ext["name"] == name and ext["public"] is False
+            for ext in schema_list
+        )
+
+        if existing:
+            log.warning(
+                f"{category.capitalize()} extension '{name}' (room-scoped) "
+                "is already registered."
+            )
         else:
-            schema[name] = {
+            schema_list.append({
+                "name": name,
                 "schema": sch,
                 "provider": stats.total_workers,  # Number of workers for client extensions
+                "public": False,  # Room-scoped extensions
                 **stats.to_dict(),
-            }
+            })
 
     # Add global (public) extensions from Redis
     global_schema_key = ExtensionKeys.global_schema_key(category)
@@ -809,20 +819,27 @@ def get_room_schema(room_id: str, category: str):
         keys = ExtensionKeys.for_global_extension(category, name)
         stats = WorkerStats.fetch(redis_client, keys)
 
-        if name in schema:
-            if schema[name]["schema"] != sch:
-                log.warning(
-                    f"{category.capitalize()} global extension '{name}' schema "
-                    "differs from existing schema (room or server)."
-                )
+        # Check if this exact combination (name + public=True) already exists
+        existing = any(
+            ext["name"] == name and ext["public"] is True
+            for ext in schema_list
+        )
+
+        if existing:
+            log.warning(
+                f"{category.capitalize()} global extension '{name}' "
+                "is already registered."
+            )
         else:
-            schema[name] = {
+            schema_list.append({
+                "name": name,
                 "schema": sch,
                 "provider": stats.total_workers,  # Number of workers for global extensions
+                "public": True,  # Global extensions
                 **stats.to_dict(),
-            }
+            })
 
-    return schema
+    return schema_list
 
 
 @rooms.route("/api/rooms/<string:room_id>/step", methods=["GET"])
