@@ -1017,13 +1017,8 @@ export const shutdownServer = async (): Promise<{ success: boolean }> => {
 export interface FilesystemInfo {
   name: string;
   fsType: string;
-  userName: string;
   public: boolean;
-  workerId: string;
-}
-
-export interface ListFilesystemsResponse {
-  filesystems: FilesystemInfo[];
+  sessionId: string;
 }
 
 export interface FilesystemFileItem {
@@ -1052,7 +1047,7 @@ export interface LoadFilesystemFileResponse {
   frameCount: number;
 }
 
-export const listFilesystems = async (roomId: string): Promise<ListFilesystemsResponse> => {
+export const listFilesystems = async (roomId: string): Promise<FilesystemInfo[]> => {
   const { data } = await apiClient.get(`/api/rooms/${roomId}/filesystems`);
   return data;
 };
@@ -1084,6 +1079,37 @@ export const loadFilesystemFile = async (
 ): Promise<LoadFilesystemFileResponse> => {
   const { data } = await apiClient.post(
     `/api/rooms/${roomId}/filesystems/${fsName}/load`,
+    request
+  );
+  return data;
+};
+
+// Global filesystem operations
+export const listGlobalFilesystemFiles = async (
+  fsName: string,
+  path?: string,
+  recursive?: boolean,
+  filterExtensions?: string[]
+): Promise<ListFilesystemFilesResponse> => {
+  const params = new URLSearchParams();
+  if (path) params.append("path", path);
+  if (recursive) params.append("recursive", "true");
+  if (filterExtensions && filterExtensions.length > 0) {
+    params.append("filterExtensions", filterExtensions.join(","));
+  }
+
+  const { data } = await apiClient.get(
+    `/api/filesystems/${fsName}/list?${params}`
+  );
+  return data;
+};
+
+export const loadGlobalFilesystemFile = async (
+  fsName: string,
+  request: LoadFilesystemFileRequest
+): Promise<LoadFilesystemFileResponse> => {
+  const { data } = await apiClient.post(
+    `/api/filesystems/${fsName}/load`,
     request
   );
   return data;

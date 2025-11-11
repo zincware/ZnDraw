@@ -11,7 +11,7 @@ from flask import Blueprint, current_app, request
 from zndraw.server import socketio
 
 from .constants import SocketEvents
-from .redis_keys import ExtensionKeys, SessionKeys
+from .redis_keys import ExtensionKeys, FilesystemKeys, SessionKeys
 
 log = logging.getLogger(__name__)
 
@@ -252,3 +252,191 @@ def register_worker():
             "workerId": worker_id,
             "message": "Extension registered successfully",
         }, 200
+
+
+@workers.route("/api/workers/filesystem/register", methods=["POST"])
+def register_filesystem():
+    """Register a worker filesystem via REST.
+
+    Request Payload
+    ---------------
+    {
+        "sessionId": str,
+        "roomId": str,
+        "name": str,
+        "fsType": str,
+        "public": bool (optional, defaults to False)
+    }
+
+    Returns
+    -------
+    200 OK:
+        {
+            "success": true,
+            "workerId": str,
+            "message": str
+        }
+    400 Bad Request:
+        {
+            "success": false,
+            "error": str,
+            "code": "MISSING_FIELD"
+        }
+    403 Forbidden:
+        {
+            "success": false,
+            "error": str,
+            "code": "ADMIN_REQUIRED"
+        }
+    409 Conflict:
+        {
+            "success": false,
+            "error": str,
+            "code": "ALREADY_REGISTERED"
+        }
+    """
+    from zndraw.auth import AuthError, get_current_user
+
+    r = current_app.extensions["redis"]
+
+    # Authenticate and get user from JWT token
+    try:
+        user_name = get_current_user()
+    except AuthError as e:
+        return {"success": False, "error": e.message}, e.status_code
+
+    # Parse request payload
+    data = request.json
+    if not data:
+        return {
+            "success": False,
+            "error": "Request body required",
+            "code": "MISSING_FIELD",
+        }, 400
+
+    try:
+        session_id = data["sessionId"]
+        room_id = data["roomId"]
+        name = data["name"]
+        fs_type = data["fsType"]
+        public = data.get("public", False)
+    except KeyError as e:
+        return {
+            "success": False,
+            "error": f"Missing required field: {e}",
+            "code": "MISSING_FIELD",
+        }, 400
+
+    # Resolve sessionId to socket sid (worker_id)
+    sid = r.get(SessionKeys.session_to_sid(session_id))
+    if not sid:
+        return {
+            "success": False,
+            "error": "Session not found. Client must connect via socket before registering.",
+            "code": "SESSION_NOT_FOUND",
+        }, 400
+
+    worker_id = sid
+
+    # Check admin privileges for public filesystems
+    if public:
+        try:
+            session_keys = SessionKeys(sid)
+            role = r.get(session_keys.role())
+            if role is None:
+                log.error(f"Role not found for sid {sid}")
+                return {
+                    "success": False,
+                    "error": "Failed to verify admin privileges",
+                    "code": "AUTH_ERROR",
+                }, 500
+
+            if role != "admin":
+                log.warning(
+                    f"User {user_name} (role: {role}) attempted to register public filesystem '{name}'"
+                )
+                return {
+                    "success": False,
+                    "error": "Only admin users can register public filesystems",
+                    "code": "ADMIN_REQUIRED",
+                }, 403
+        except Exception as e:
+            log.error(f"Failed to check user role: {e}")
+            return {
+                "success": False,
+                "error": "Failed to verify admin privileges",
+                "code": "AUTH_ERROR",
+            }, 500
+
+    scope = "global" if public else f"room {room_id}"
+    log.info(
+        f"Registering {'global' if public else 'room-scoped'} filesystem: name={name}, type={fs_type}, worker_id={worker_id}, scope={scope}"
+    )
+
+    # Use global or room-scoped keys based on public flag
+    if public:
+        keys = FilesystemKeys.for_global_filesystem(name)
+        worker_filesystems_key = FilesystemKeys.global_user_filesystems_key(worker_id)
+    else:
+        keys = FilesystemKeys.for_filesystem(room_id, name)
+        worker_filesystems_key = FilesystemKeys.user_filesystems_key(room_id, worker_id)
+
+    # Check if filesystem already exists
+    existing_worker = r.get(keys.worker)
+
+    if existing_worker is not None:
+        if existing_worker != worker_id:
+            # Different worker already registered this filesystem
+            return {
+                "success": False,
+                "error": f"Filesystem '{name}' is already registered by another worker",
+                "code": "ALREADY_REGISTERED",
+            }, 409
+
+        # Same worker re-registering - update metadata
+        log.info(
+            f"Worker {worker_id} re-registered filesystem '{name}', updating metadata"
+        )
+
+    # Store filesystem metadata
+    fs_metadata = {
+        "name": name,
+        "fsType": fs_type,
+        "sessionId": session_id,
+        "userName": user_name,
+        "public": "true" if public else "false",
+    }
+
+    with r.pipeline() as pipe:
+        # Store filesystem metadata as a hash
+        pipe.hset(keys.metadata, mapping=fs_metadata)
+        # Store worker ID
+        pipe.set(keys.worker, worker_id)
+        # Add filesystem name to worker's filesystem set
+        pipe.sadd(worker_filesystems_key, name)
+        pipe.execute()
+
+    # Emit filesystem update event
+    if public:
+        # Global filesystem - notify all clients
+        socketio.emit(SocketEvents.FILESYSTEMS_UPDATE, {"scope": "global"})
+    else:
+        # Room-scoped filesystem - notify clients in that room
+        socketio.emit(
+            SocketEvents.FILESYSTEMS_UPDATE,
+            {"scope": "room"},
+            to=f"room:{room_id}",
+        )
+
+    message = (
+        "Filesystem registered successfully"
+        if existing_worker is None
+        else "Filesystem metadata updated successfully"
+    )
+    log.info(f"Filesystem '{name}' registered successfully by worker {worker_id}")
+
+    return {
+        "success": True,
+        "workerId": worker_id,
+        "message": message,
+    }, 200

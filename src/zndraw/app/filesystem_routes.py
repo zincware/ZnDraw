@@ -67,9 +67,8 @@ def _list_filesystems_impl(room_id: str | None):
                 filesystems.append({
                     "name": metadata.get("name"),
                     "fsType": metadata.get("fsType"),
-                    "userName": metadata.get("userName"),
                     "public": metadata.get("public") == "true",
-                    "workerId": metadata.get("workerId"),
+                    "sessionId": metadata.get("sessionId"),
                 })
 
     # Get global filesystems
@@ -85,23 +84,24 @@ def _list_filesystems_impl(room_id: str | None):
             filesystems.append({
                 "name": metadata.get("name"),
                 "fsType": metadata.get("fsType"),
-                "userName": metadata.get("userName"),
                 "public": metadata.get("public") == "true",
-                "workerId": metadata.get("workerId"),
+                "sessionId": metadata.get("sessionId"),
             })
 
     return filesystems
 
 
-def _list_files_impl(room_id: str | None, fs_name: str):
+def _list_files_impl(fs_name: str, public: bool, room_id: str | None = None):
     """Shared implementation for listing files from a filesystem.
 
     Parameters
     ----------
-    room_id : str | None
-        Room ID for room-scoped filesystem, or None for global
     fs_name : str
         Filesystem name
+    public : bool
+        Whether this is a global (public=True) or room-scoped (public=False) filesystem
+    room_id : str | None
+        Room ID, required if public=False
 
     Returns
     -------
@@ -112,20 +112,20 @@ def _list_files_impl(room_id: str | None, fs_name: str):
 
     r = current_app.extensions["redis"]
 
-    # Find the worker for this filesystem
-    if room_id:
-        keys = FilesystemKeys.for_filesystem(room_id, fs_name)
-        worker_id = r.get(keys.worker)
-        # Fallback to global if not found in room
-        if not worker_id:
-            keys = FilesystemKeys.for_global_filesystem(fs_name)
-            worker_id = r.get(keys.worker)
-    else:
-        keys = FilesystemKeys.for_global_filesystem(fs_name)
-        worker_id = r.get(keys.worker)
+    # Validate parameters
+    if not public and not room_id:
+        return jsonify({"error": "room_id required for room-scoped filesystem"}), 400
 
+    # Find the worker for this filesystem
+    if public:
+        keys = FilesystemKeys.for_global_filesystem(fs_name)
+        fs_type = "global"
+    else:
+        keys = FilesystemKeys.for_filesystem(room_id, fs_name)
+        fs_type = "room-scoped"
+
+    worker_id = r.get(keys.worker)
     if not worker_id:
-        fs_type = "global" if not room_id else "room-scoped or global"
         return jsonify({"error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found"}), 404
 
     # Generate request ID
@@ -147,6 +147,7 @@ def _list_files_impl(room_id: str | None, fs_name: str):
             {
                 "requestId": request_id,
                 "fsName": fs_name,
+                "public": public,
                 "path": path,
                 "recursive": recursive,
                 "filterExtensions": filter_extensions,
@@ -169,15 +170,17 @@ def _list_files_impl(room_id: str | None, fs_name: str):
         return jsonify({"error": str(e)}), 500
 
 
-def _load_file_impl(room_id: str | None, fs_name: str, require_target_room: bool = False):
+def _load_file_impl(fs_name: str, public: bool, room_id: str | None = None, require_target_room: bool = False):
     """Shared implementation for loading files from a filesystem.
 
     Parameters
     ----------
-    room_id : str | None
-        Room ID for room-scoped filesystem, or None for global
     fs_name : str
         Filesystem name
+    public : bool
+        Whether this is a global (public=True) or room-scoped (public=False) filesystem
+    room_id : str | None
+        Room ID, required if public=False
     require_target_room : bool
         Whether targetRoom is required in request body
 
@@ -189,6 +192,10 @@ def _load_file_impl(room_id: str | None, fs_name: str, require_target_room: bool
     from zndraw.server import socketio
 
     r = current_app.extensions["redis"]
+
+    # Validate parameters
+    if not public and not room_id:
+        return jsonify({"error": "room_id required for room-scoped filesystem"}), 400
 
     data = request.get_json()
     if not data:
@@ -211,19 +218,15 @@ def _load_file_impl(room_id: str | None, fs_name: str, require_target_room: bool
     step = data.get("step")
 
     # Find the worker for this filesystem
-    if room_id:
-        keys = FilesystemKeys.for_filesystem(room_id, fs_name)
-        worker_id = r.get(keys.worker)
-        # Fallback to global if not found in room
-        if not worker_id:
-            keys = FilesystemKeys.for_global_filesystem(fs_name)
-            worker_id = r.get(keys.worker)
-    else:
+    if public:
         keys = FilesystemKeys.for_global_filesystem(fs_name)
-        worker_id = r.get(keys.worker)
+        fs_type = "global"
+    else:
+        keys = FilesystemKeys.for_filesystem(room_id, fs_name)
+        fs_type = "room-scoped"
 
+    worker_id = r.get(keys.worker)
     if not worker_id:
-        fs_type = "global" if not room_id else "room-scoped or global"
         return jsonify({"error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found"}), 404
 
     # Generate request ID
@@ -236,6 +239,7 @@ def _load_file_impl(room_id: str | None, fs_name: str, require_target_room: bool
             {
                 "requestId": request_id,
                 "fsName": fs_name,
+                "public": public,
                 "path": path,
                 "room": target_room,
                 "batchSize": batch_size,
@@ -273,17 +277,14 @@ def list_filesystems(room_id: str):
 
     Returns
     -------
-    {
-        "filesystems": [
-            {
-                "name": str,
-                "fsType": str,
-                "userName": str,
-                "public": bool,
-                "workerId": str
-            }
-        ]
-    }
+    [
+        {
+            "name": str,
+            "fsType": str,
+            "public": bool,
+            "sessionId": str
+        }
+    ]
     """
     try:
         _require_authentication()
@@ -291,12 +292,12 @@ def list_filesystems(room_id: str):
         return jsonify({"error": e.message}), e.status_code
 
     filesystems = _list_filesystems_impl(room_id)
-    return jsonify({"filesystems": filesystems})
+    return jsonify(filesystems)
 
 
 @filesystem_bp.route("/api/rooms/<room_id>/filesystems/<fs_name>/list", methods=["GET"])
 def list_files(room_id: str, fs_name: str):
-    """List files from a registered filesystem.
+    """List files from a room-scoped filesystem.
 
     Requires JWT authentication.
 
@@ -330,14 +331,80 @@ def list_files(room_id: str, fs_name: str):
     except AuthError as e:
         return jsonify({"error": e.message}), e.status_code
 
-    return _list_files_impl(room_id, fs_name)
+    return _list_files_impl(fs_name=fs_name, public=False, room_id=room_id)
+
+
+def _get_file_metadata_impl(fs_name: str, public: bool, room_id: str | None = None):
+    """Shared implementation for getting file metadata.
+
+    Parameters
+    ----------
+    fs_name : str
+        Filesystem name
+    public : bool
+        Whether this is a global (public=True) or room-scoped (public=False) filesystem
+    room_id : str | None
+        Room ID, required if public=False
+
+    Returns
+    -------
+    tuple[dict, int]
+        JSON response and HTTP status code
+    """
+    from zndraw.server import socketio
+
+    r = current_app.extensions["redis"]
+
+    # Validate parameters
+    if not public and not room_id:
+        return jsonify({"error": "room_id required for room-scoped filesystem"}), 400
+
+    path = request.args.get("path")
+    if not path:
+        return jsonify({"error": "Missing 'path' query parameter"}), 400
+
+    # Find the worker for this filesystem
+    if public:
+        keys = FilesystemKeys.for_global_filesystem(fs_name)
+        fs_type = "global"
+    else:
+        keys = FilesystemKeys.for_filesystem(room_id, fs_name)
+        fs_type = "room-scoped"
+
+    worker_id = r.get(keys.worker)
+    if not worker_id:
+        return jsonify({"error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found"}), 404
+
+    # Generate request ID
+    request_id = str(uuid.uuid4())
+
+    # Send request to client via Socket.IO with timeout
+    try:
+        response = socketio.call(
+            "filesystem:metadata",
+            {"requestId": request_id, "fsName": fs_name, "public": public, "path": path},
+            to=worker_id,
+            timeout=SOCKET_IO_TIMEOUT,
+        )
+
+        if not response:
+            return jsonify({"error": "No response from worker"}), 500
+
+        if not response.get("success"):
+            return jsonify({"error": response.get("error", "Unknown error")}), 500
+
+        return jsonify({"metadata": response.get("metadata")})
+
+    except Exception as e:
+        log.error(f"Error getting metadata from filesystem '{fs_name}': {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @filesystem_bp.route(
     "/api/rooms/<room_id>/filesystems/<fs_name>/metadata", methods=["GET"]
 )
 def get_file_metadata(room_id: str, fs_name: str):
-    """Get metadata for a specific file.
+    """Get metadata for a specific file from a room-scoped filesystem.
 
     Requires JWT authentication.
 
@@ -359,59 +426,17 @@ def get_file_metadata(room_id: str, fs_name: str):
         }
     }
     """
-    from zndraw.server import socketio
-
     try:
         _require_authentication()
     except AuthError as e:
         return jsonify({"error": e.message}), e.status_code
 
-    r = current_app.extensions["redis"]
-
-    path = request.args.get("path")
-    if not path:
-        return jsonify({"error": "Missing 'path' query parameter"}), 400
-
-    # Find the worker for this filesystem
-    keys = FilesystemKeys.for_filesystem(room_id, fs_name)
-    worker_id = r.get(keys.worker)
-
-    if not worker_id:
-        # Try global filesystem
-        keys = FilesystemKeys.for_global_filesystem(fs_name)
-        worker_id = r.get(keys.worker)
-
-    if not worker_id:
-        return jsonify({"error": f"Filesystem '{fs_name}' not found"}), 404
-
-    # Generate request ID
-    request_id = str(uuid.uuid4())
-
-    # Send request to client via Socket.IO with timeout
-    try:
-        response = socketio.call(
-            "filesystem:metadata",
-            {"requestId": request_id, "fsName": fs_name, "path": path},
-            to=worker_id,
-            timeout=SOCKET_IO_TIMEOUT,
-        )
-
-        if not response:
-            return jsonify({"error": "No response from worker"}), 500
-
-        if not response.get("success"):
-            return jsonify({"error": response.get("error", "Unknown error")}), 500
-
-        return jsonify({"metadata": response.get("metadata")})
-
-    except Exception as e:
-        log.error(f"Error getting metadata from filesystem '{fs_name}': {e}")
-        return jsonify({"error": str(e)}), 500
+    return _get_file_metadata_impl(fs_name=fs_name, public=False, room_id=room_id)
 
 
 @filesystem_bp.route("/api/rooms/<room_id>/filesystems/<fs_name>/load", methods=["POST"])
 def load_file(room_id: str, fs_name: str):
-    """Load a file from a filesystem and upload to the target room.
+    """Load a file from a room-scoped filesystem and upload to the target room.
 
     Requires JWT authentication.
 
@@ -438,7 +463,7 @@ def load_file(room_id: str, fs_name: str):
     except AuthError as e:
         return jsonify({"error": e.message}), e.status_code
 
-    return _load_file_impl(room_id, fs_name, require_target_room=False)
+    return _load_file_impl(fs_name=fs_name, public=False, room_id=room_id, require_target_room=False)
 
 
 # Global filesystem endpoints (no room_id required)
@@ -509,7 +534,7 @@ def list_global_files(fs_name: str):
     except AuthError as e:
         return jsonify({"error": e.message}), e.status_code
 
-    return _list_files_impl(None, fs_name)
+    return _list_files_impl(fs_name=fs_name, public=True)
 
 
 @filesystem_bp.route("/api/filesystems/<fs_name>/load", methods=["POST"])
@@ -541,4 +566,4 @@ def load_global_file(fs_name: str):
     except AuthError as e:
         return jsonify({"error": e.message}), e.status_code
 
-    return _load_file_impl(None, fs_name, require_target_room=True)
+    return _load_file_impl(fs_name=fs_name, public=True, require_target_room=True)

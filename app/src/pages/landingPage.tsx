@@ -49,7 +49,7 @@ import AddPlotButton from "../components/AddPlotButton";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { LAYOUT_CONSTANTS } from "../constants/layout";
 import { getUsername, logout as authLogout, login as authLogin, getUserRole } from "../utils/auth";
-import { loadFilesystemFile } from "../myapi/client";
+import { loadFilesystemFile, loadGlobalFilesystemFile } from "../myapi/client";
 import Link from "@mui/material/Link";
 
 export default function MainPage() {
@@ -92,8 +92,12 @@ export default function MainPage() {
 
   // Mutation for loading files from filesystem
   const filesystemLoadMutation = useMutation({
-    mutationFn: (data: { fsName: string; request: any }) =>
-      loadFilesystemFile(roomId!, data.fsName, data.request),
+    mutationFn: (data: { fsName: string; request: any; isPublic?: boolean }) => {
+      // Route to correct endpoint based on isPublic flag
+      return data.isPublic
+        ? loadGlobalFilesystemFile(data.fsName, data.request)
+        : loadFilesystemFile(roomId!, data.fsName, data.request);
+    },
     onSuccess: (data) => {
       showSnackbar(`File loaded successfully: ${data.frameCount} frames`, "success");
     },
@@ -118,13 +122,13 @@ export default function MainPage() {
   // Trigger load when we have both roomId and pending load
   useEffect(() => {
     if (pendingFilesystemLoad && roomId) {
-      const { fsName, request } = pendingFilesystemLoad;
+      const { fsName, request, isPublic } = pendingFilesystemLoad;
 
       // Clear pending load so this only runs once
       setPendingFilesystemLoad(null);
 
-      // Trigger the mutation
-      filesystemLoadMutation.mutate({ fsName, request });
+      // Trigger the mutation with isPublic flag
+      filesystemLoadMutation.mutate({ fsName, request, isPublic });
     }
   }, [pendingFilesystemLoad, roomId]);
 

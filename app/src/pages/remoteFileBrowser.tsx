@@ -19,6 +19,9 @@ import CloudIcon from "@mui/icons-material/Cloud";
 import {
   listFilesystems,
   listFilesystemFiles,
+  listGlobalFilesystemFiles,
+  loadFilesystemFile,
+  loadGlobalFilesystemFile,
   FilesystemFileItem,
   LoadFilesystemFileRequest,
 } from "../myapi/client";
@@ -41,7 +44,11 @@ export default function RemoteFileBrowserPage() {
   const navigate = useNavigate();
   const { roomId } = useParams<{ roomId: string }>();
 
-  const [selectedFilesystem, setSelectedFilesystem] = useState<string>("");
+  // Filesystem identifier is a composite key of (name, public)
+  const [selectedFilesystem, setSelectedFilesystem] = useState<{
+    name: string;
+    public: boolean;
+  } | null>(null);
   const [currentPath, setCurrentPath] = useState<string>("");
   const [loadDialog, setLoadDialog] = useState<{
     open: boolean;
@@ -64,12 +71,20 @@ export default function RemoteFileBrowserPage() {
   React.useEffect(() => {
     if (
       filesystemsData &&
-      filesystemsData.filesystems.length === 1 &&
+      filesystemsData.length === 1 &&
       !selectedFilesystem
     ) {
-      setSelectedFilesystem(filesystemsData.filesystems[0].name);
+      setSelectedFilesystem({
+        name: filesystemsData[0].name,
+        public: filesystemsData[0].public,
+      });
     }
   }, [filesystemsData, selectedFilesystem]);
+
+  // Get selected filesystem metadata
+  const selectedFs = filesystemsData?.find(
+    fs => fs.name === selectedFilesystem?.name && fs.public === selectedFilesystem?.public
+  );
 
   // Query for directory listing
   const {
@@ -77,15 +92,23 @@ export default function RemoteFileBrowserPage() {
     isLoading: isLoadingFiles,
     error: filesError,
   } = useQuery({
-    queryKey: ["filesystemFiles", roomId, selectedFilesystem, currentPath],
-    queryFn: () =>
-      listFilesystemFiles(roomId!, selectedFilesystem, currentPath || undefined),
-    enabled: !!roomId && !!selectedFilesystem,
+    queryKey: ["filesystemFiles", roomId, selectedFilesystem?.name, selectedFilesystem?.public, currentPath],
+    queryFn: () => {
+      if (!selectedFs || !selectedFilesystem) return Promise.reject("No filesystem selected");
+
+      // Route to correct endpoint based on public flag
+      return selectedFilesystem.public
+        ? listGlobalFilesystemFiles(selectedFilesystem.name, currentPath || undefined)
+        : listFilesystemFiles(roomId!, selectedFilesystem.name, currentPath || undefined);
+    },
+    enabled: !!roomId && !!selectedFilesystem && !!selectedFs,
     retry: false,
   });
 
   // Navigate to room immediately with load request state
   const handleLoadFile = (request: LoadFilesystemFileRequest & { targetRoom: string }) => {
+    if (!selectedFilesystem) return;
+
     const targetRoom = request.targetRoom || roomId;
 
     // Close dialog immediately
@@ -95,8 +118,9 @@ export default function RemoteFileBrowserPage() {
     navigate(`/rooms/${targetRoom}`, {
       state: {
         pendingFilesystemLoad: {
-          fsName: selectedFilesystem,
+          fsName: selectedFilesystem.name,
           request,
+          isPublic: selectedFilesystem.public,
         },
       },
     });
@@ -135,8 +159,11 @@ export default function RemoteFileBrowserPage() {
     }
   };
 
-  const handleFilesystemSelect = (name: string) => {
-    setSelectedFilesystem(name);
+  const handleFilesystemSelect = (filesystemKey: string) => {
+    // Parse the composite key "name:public" back to {name, public}
+    const [name, publicStr] = filesystemKey.split(":");
+    const isPublic = publicStr === "true";
+    setSelectedFilesystem({ name, public: isPublic });
     setCurrentPath(""); // Reset path when changing filesystem
   };
 
@@ -167,7 +194,7 @@ export default function RemoteFileBrowserPage() {
   }
 
   // Show no filesystems message
-  if (filesystemsData && filesystemsData.filesystems.length === 0) {
+  if (filesystemsData && filesystemsData.length === 0) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Alert severity="info">
@@ -205,8 +232,8 @@ export default function RemoteFileBrowserPage() {
           {/* Filesystem Selector */}
           {filesystemsData && (
             <FilesystemSelector
-              filesystems={filesystemsData.filesystems}
-              selected={selectedFilesystem}
+              filesystems={filesystemsData}
+              selected={selectedFilesystem ? `${selectedFilesystem.name}:${selectedFilesystem.public}` : ""}
               onSelect={handleFilesystemSelect}
             />
           )}

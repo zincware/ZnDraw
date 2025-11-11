@@ -125,7 +125,7 @@ export default function RoomManagementMenu() {
       if (!roomId) return;
       try {
         const data = await listFilesystems(roomId);
-        setRemoteFilesystemsAvailable(data.filesystems.length > 0);
+        setRemoteFilesystemsAvailable(data.length > 0);
       } catch (error) {
         // If error, assume no filesystems available
         setRemoteFilesystemsAvailable(false);

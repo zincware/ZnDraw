@@ -99,5 +99,7 @@ which can not work, because one user can have multiple sessions in different roo
 - [ ] Failed to apply adaptive resolution: 1 validation error for Sphere
 resolution on remote filesystem uploads.
 - [ ] make the lock Clickable? lock description only in tooltip? Make it look different? currently, the changing description messes up headbar layout!
-- [ ] test register a room extension, which already exists as global extension!
+- [ ] test register a room extension, which already exists as global extension! (UI!!) Make sure room/global in included, not just the name!
+- [ ] test register a room filesystem, which already exists as global filesystem! (UI!!) Make sure room/global in included, not just the name!
 - [ ] move "filesystem:register" to REST
+- [ ] remove / unify `workerId` and `sessionId`

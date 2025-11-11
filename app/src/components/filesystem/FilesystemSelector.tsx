@@ -11,6 +11,7 @@ interface FilesystemSelectorProps {
 /**
  * Dropdown selector for choosing a filesystem.
  * Shows filesystem type and public status as chips.
+ * Uses composite key "name:public" to uniquely identify filesystems across namespaces.
  */
 export function FilesystemSelector({ filesystems, selected, onSelect }: FilesystemSelectorProps) {
   if (filesystems.length === 0) {
@@ -39,15 +40,19 @@ export function FilesystemSelector({ filesystems, selected, onSelect }: Filesyst
           label="Select Filesystem"
           onChange={(e) => onSelect(e.target.value)}
         >
-          {filesystems.map((fs) => (
-            <MenuItem key={fs.name} value={fs.name}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography>{fs.name}</Typography>
-                <Chip label={fs.fsType} size="small" color="primary" variant="outlined" />
-                {fs.public && <Chip label="Public" size="small" color="success" />}
-              </Box>
-            </MenuItem>
-          ))}
+          {filesystems.map((fs) => {
+            // Create composite key: "name:public"
+            const compositeKey = `${fs.name}:${fs.public}`;
+            return (
+              <MenuItem key={fs.sessionId} value={compositeKey}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography>{fs.name}</Typography>
+                  <Chip label={fs.fsType} size="small" color="primary" variant="outlined" />
+                  {fs.public && <Chip label="Public" size="small" color="success" />}
+                </Box>
+              </MenuItem>
+            );
+          })}
         </Select>
       </FormControl>
     </Box>

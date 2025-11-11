@@ -234,24 +234,31 @@ class SocketManager:
     def _on_filesystem_list(self, data: dict):
         """Handle filesystem list request from server.
 
-        Server sends: {requestId, fsName, path, recursive, filterExtensions, search}
+        Server sends: {requestId, fsName, public, path, recursive, filterExtensions, search}
         Client responds: {requestId, success, files, error}
         """
         import re
 
         request_id = data.get("requestId")
         fs_name = data.get("fsName")
+        public = data.get("public", False)
         path = data.get("path", "")
         recursive = data.get("recursive", False)
         filter_extensions = data.get("filterExtensions")
         search = data.get("search")
 
         try:
-            # Get the filesystem instance
-            if fs_name not in self.zndraw._filesystems:
-                raise ValueError(f"Filesystem '{fs_name}' not found")
+            # Get the filesystem instance using composite key
+            fs_key = f"global:{fs_name}" if public else f"room:{self.zndraw.room}:{fs_name}"
+            if fs_key not in self.zndraw._filesystems:
+                available_keys = list(self.zndraw._filesystems.keys())
+                raise ValueError(
+                    f"Filesystem '{fs_name}' (key: '{fs_key}') not found. "
+                    f"Available: {available_keys}. "
+                    f"Public flag: {public}, Room: {self.zndraw.room}"
+                )
 
-            fs = self.zndraw._filesystems[fs_name]["fs"]
+            fs = self.zndraw._filesystems[fs_key]["fs"]
 
             # Compile search pattern if provided
             search_pattern = None
@@ -327,7 +334,7 @@ class SocketManager:
         it to a target room using normal vis.extend() logic.
 
         Server sends: {
-            requestId, fsName, path, room,
+            requestId, fsName, public, path, room,
             batchSize (optional), start (optional), stop (optional), step (optional)
         }
         Client: Reads file, uploads to room, sends completion response
@@ -342,6 +349,7 @@ class SocketManager:
 
         request_id = data.get("requestId")
         fs_name = data.get("fsName")
+        public = data.get("public", False)
         path = data.get("path")
         target_room = data.get("room")
         batch_size = data.get("batchSize", 10)
@@ -351,11 +359,17 @@ class SocketManager:
 
         temp_vis = None
         try:
-            # Get the filesystem instance
-            if fs_name not in self.zndraw._filesystems:
-                raise ValueError(f"Filesystem '{fs_name}' not found")
+            # Get the filesystem instance using composite key
+            fs_key = f"global:{fs_name}" if public else f"room:{self.zndraw.room}:{fs_name}"
+            if fs_key not in self.zndraw._filesystems:
+                available_keys = list(self.zndraw._filesystems.keys())
+                raise ValueError(
+                    f"Filesystem '{fs_name}' (key: '{fs_key}') not found. "
+                    f"Available: {available_keys}. "
+                    f"Public flag: {public}, Room: {self.zndraw.room}"
+                )
 
-            fs = self.zndraw._filesystems[fs_name]["fs"]
+            fs = self.zndraw._filesystems[fs_key]["fs"]
 
             # Create a temporary ZnDraw instance for the target room
             from zndraw import ZnDraw
@@ -525,19 +539,26 @@ class SocketManager:
     def _on_filesystem_metadata(self, data: dict):
         """Handle filesystem metadata request from server.
 
-        Server sends: {requestId, fsName, path}
+        Server sends: {requestId, fsName, public, path}
         Client responds: {requestId, success, metadata, error}
         """
         request_id = data.get("requestId")
         fs_name = data.get("fsName")
+        public = data.get("public", False)
         path = data.get("path")
 
         try:
-            # Get the filesystem instance
-            if fs_name not in self.zndraw._filesystems:
-                raise ValueError(f"Filesystem '{fs_name}' not found")
+            # Get the filesystem instance using composite key
+            fs_key = f"global:{fs_name}" if public else f"room:{self.zndraw.room}:{fs_name}"
+            if fs_key not in self.zndraw._filesystems:
+                available_keys = list(self.zndraw._filesystems.keys())
+                raise ValueError(
+                    f"Filesystem '{fs_name}' (key: '{fs_key}') not found. "
+                    f"Available: {available_keys}. "
+                    f"Public flag: {public}, Room: {self.zndraw.room}"
+                )
 
-            fs = self.zndraw._filesystems[fs_name]["fs"]
+            fs = self.zndraw._filesystems[fs_key]["fs"]
 
             # Get metadata using fsspec API
             info = fs.info(path)

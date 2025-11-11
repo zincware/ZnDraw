@@ -264,10 +264,10 @@ class APIManager:
         socket_manager,
         public: bool = False,
     ) -> None:
-        """Register filesystem via Socket.IO (not REST).
+        """Register filesystem via REST endpoint.
 
-        This ensures worker_id (request.sid) is consistent between
-        registration and disconnect cleanup.
+        This uses the sessionId to identify the worker, which the server
+        maps to the socket sid for consistent worker tracking.
 
         Parameters
         ----------
@@ -276,29 +276,43 @@ class APIManager:
         fs_type : str
             Filesystem class name (e.g., 'LocalFileSystem', 'S3FileSystem')
         socket_manager : SocketManager
-            Socket manager to use for the call
+            Socket manager (unused, kept for API compatibility)
         public : bool
             If True, register as global filesystem (requires admin privileges)
         """
-        response = socket_manager.sio.call(
-            "filesystem:register",
-            {
-                "roomId": self.room,
-                "name": name,
-                "fsType": fs_type,
-                "public": public,
-            },
+        headers = self._get_headers()
+
+        payload = {
+            "sessionId": self.session_id,
+            "roomId": self.room,
+            "name": name,
+            "fsType": fs_type,
+            "public": public,
+        }
+
+        response = requests.post(
+            f"{self.url}/api/workers/filesystem/register",
+            json=payload,
+            headers=headers,
             timeout=10,
         )
 
-        if not response or not response.get("success"):
-            error = (
-                response.get("error", "Unknown error") if response else "No response"
-            )
+        if response.status_code != 200:
+            try:
+                error_data = response.json()
+                error = error_data.get("error", response.text)
+            except Exception:
+                error = response.text
             raise RuntimeError(f"Filesystem registration failed: {error}")
 
+        data = response.json()
+        if not data.get("success"):
+            raise RuntimeError(
+                f"Filesystem registration failed: {data.get('error', 'Unknown error')}"
+            )
+
         # Return the worker_id assigned by server so caller can store it
-        return response.get("workerId")
+        return data.get("workerId")
 
     def get_frames(self, indices_or_slice, keys: list[str] | None = None) -> list[dict[bytes, bytes]]:
         """Get frames as raw dict[bytes, bytes] format.

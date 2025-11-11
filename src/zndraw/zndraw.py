@@ -1455,8 +1455,12 @@ class ZnDraw(MutableSequence):
         >>> s3 = s3fs.S3FileSystem(anon=False, key='...', secret='...')
         >>> vis.register_filesystem(s3, name="s3-data", public=True)
         """
-        if name in self._filesystems:
-            raise ValueError(f"Filesystem '{name}' is already registered.")
+        # Use composite key to separate global and room-scoped namespaces
+        fs_key = f"global:{name}" if public else f"room:{self.room}:{name}"
+
+        if fs_key in self._filesystems:
+            scope = "global" if public else f"room '{self.room}'"
+            raise ValueError(f"Filesystem '{name}' is already registered in {scope}.")
 
         # Validate that public filesystems require admin privileges
         if public and not self.is_admin:
@@ -1465,10 +1469,11 @@ class ZnDraw(MutableSequence):
                 "Please authenticate with admin credentials to register global filesystems."
             )
 
-        # Store locally
-        self._filesystems[name] = {
+        # Store locally with composite key
+        self._filesystems[fs_key] = {
             "fs": fs,
             "public": public,
+            "name": name,
         }
         print(f"Registered filesystem '{name}' (type: {fs.__class__.__name__}).")
 
