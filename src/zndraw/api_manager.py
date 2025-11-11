@@ -206,10 +206,10 @@ class APIManager:
     def register_extension(
         self, name: str, category: str, schema: dict, socket_manager, public: bool = False
     ) -> None:
-        """Register extension via Socket.IO (not REST).
+        """Register extension via REST endpoint.
 
-        This ensures worker_id (request.sid) is consistent between
-        registration and disconnect cleanup.
+        This uses the sessionId to identify the worker, which the server
+        maps to the socket sid for consistent worker tracking.
 
         Parameters
         ----------
@@ -220,34 +220,42 @@ class APIManager:
         schema : dict
             JSON schema for the extension
         socket_manager : SocketManager
-            Socket manager to use for the call
+            Socket manager (unused, kept for API compatibility)
         public : bool
             If True, register as global extension (requires admin privileges)
         """
-        # Note: Don't check socket_manager.sio.connected here because during
-        # reconnection, _on_connect may fire before the client reports as fully
-        # connected. The sio.call() will fail with a clear error if not connected.
+        headers = self._get_headers()
 
-        response = socket_manager.sio.call(
-            "extension:register",
-            {
-                "roomId": self.room,
-                "name": name,
-                "category": category,
-                "schema": schema,
-                "public": public,
-            },
+        payload = {
+            "sessionId": self.session_id,
+            "roomId": self.room,
+            "name": name,
+            "category": category,
+            "schema": schema,
+            "public": public,
+        }
+
+        response = requests.post(
+            f"{self.url}/api/workers/register",
+            json=payload,
+            headers=headers,
             timeout=10,
         )
 
-        if not response or not response.get("success"):
-            error = (
-                response.get("error", "Unknown error") if response else "No response"
-            )
+        if response.status_code != 200:
+            try:
+                error_data = response.json()
+                error = error_data.get("error", response.text)
+            except Exception:
+                error = response.text
             raise RuntimeError(f"Extension registration failed: {error}")
 
+        data = response.json()
+        if not data.get("success"):
+            raise RuntimeError(f"Extension registration failed: {data.get('error', 'Unknown error')}")
+
         # Return the worker_id assigned by server so caller can store it
-        return response.get("workerId")
+        return data.get("workerId")
 
     def register_filesystem(
         self,

@@ -42,10 +42,13 @@ class SocketManager:
         if self.sio.connected:
             print("Already connected.")
             return
-        # Connect with JWT token for authentication
+        # Connect with JWT token and sessionId for authentication
         self.sio.connect(
             self.zndraw.url,
-            auth={"token": self.zndraw.api.jwt_token},
+            auth={
+                "token": self.zndraw.api.jwt_token,
+                "sessionId": self.zndraw.api.session_id,
+            },
             wait=True,
         )
 

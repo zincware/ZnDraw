@@ -134,6 +134,7 @@ def create_app(
         rooms,
         tasks,  # noqa: F401
         utility,
+        workers,
     )
     from zndraw.app.file_browser import file_browser as file_browser_blueprint
 
@@ -148,6 +149,7 @@ def create_app(
     app.register_blueprint(file_browser_blueprint)
     app.register_blueprint(filesystem_bp)
     app.register_blueprint(locks)
+    app.register_blueprint(workers)
 
     # Configure Celery based on Redis availability
     if config.redis_url is None:

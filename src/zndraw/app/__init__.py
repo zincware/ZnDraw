@@ -9,6 +9,7 @@ from .lock_routes import locks
 from .room_routes import rooms
 from .screenshot_chat_routes import media
 from .utility_routes import utility
+from .worker_routes import workers
 
 __all__ = [
     "events",
@@ -22,4 +23,5 @@ __all__ = [
     "media",
     "filesystem_bp",
     "locks",
+    "workers",
 ]

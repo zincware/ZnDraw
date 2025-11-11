@@ -99,3 +99,5 @@ which can not work, because one user can have multiple sessions in different roo
 - [ ] Failed to apply adaptive resolution: 1 validation error for Sphere
 resolution on remote filesystem uploads.
 - [ ] make the lock Clickable? lock description only in tooltip? Make it look different? currently, the changing description messes up headbar layout!
+- [ ] test register a room extension, which already exists as global extension!
+- [ ] move "filesystem:register" to REST
