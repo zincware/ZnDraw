@@ -365,102 +365,44 @@ def read_file(
 
 
 @shared_task(bind=True)
-def celery_job_worker(self, room: str, server_url: str):
-    """Celery worker that polls for server-side extension jobs.
+def celery_job_worker(self, job_data: dict, server_url: str):
+    """Celery worker that executes a server-side extension job.
 
-    This task continuously polls the /jobs/next endpoint looking for jobs
-    with provider="celery". It executes the extension and marks the job
-    as completed or failed.
+    This task is triggered when a job is submitted for a Celery extension.
+    The job has already been created and assigned to this worker - this task
+    just needs to execute it following the standard workflow:
+    1. Fetch job details via GET /api/jobs/{job_id}
+    2. Update status to 'processing'
+    3. Execute extension
+    4. Update status to 'completed' or 'failed'
+
+    This uses the same execution path as remote workers (job_executor.execute_job_for_worker).
 
     Args:
         self: Celery task instance (bound)
-        room: The room ID to poll for jobs
+        job_data: Job data dict with jobId, room, category, extension, etc.
         server_url: The ZnDraw server URL
     """
-    from zndraw.extensions.analysis import analysis
-    from zndraw.extensions.modifiers import modifiers
-    from zndraw.extensions.selections import selections
-    from zndraw.settings import settings
-    from zndraw.zndraw import ZnDraw
+    from zndraw.job_executor import execute_job_for_worker
 
     worker_id = f"celery:{self.request.id}"
+    job_id = job_data.get("id")
 
-    category_map = {
-        "selections": selections,
-        "modifiers": modifiers,
-        "settings": settings,
-        "analysis": analysis,
-    }
-    log.info(f"Celery worker {worker_id} starting to poll for jobs in room {room}")
-    log.info(f"Celery worker {worker_id} using server_url: {server_url}")
-
-    # Use room-agnostic endpoint (Celery workers can handle jobs from any room)
-    response = requests.post(
-        f"{server_url}/api/jobs/next",
-        json={"workerId": worker_id},
+    log.info(
+        f"Celery worker {worker_id} starting job {job_id}: "
+        f"{job_data.get('category')}/{job_data.get('extension')} in room {job_data.get('room')}"
     )
 
-    if response.status_code == 400:
-        # No jobs available or worker not idle
-        error_msg = response.json().get("error", "")
-        if "No jobs available" in error_msg:
-            log.debug(f"No jobs available, worker {worker_id}.")
-            return
-        else:
-            log.warning(f"Worker {worker_id} got 400: {error_msg}")
-            return
-
-    if response.status_code != 200:
-        log.error(f"Failed to fetch next job: {response.status_code} {response.text}")
-        return
-
-    job_data = response.json()
-    job_id = job_data.get("jobId")
-    category = job_data.get("category")
-    extension = job_data.get("extension")
-    data = job_data.get("data", {})
-
-    log.info(f"Worker {worker_id} picked up job {job_id}: {category}/{extension}")
-
+    # Use shared job executor (same code as remote workers)
     try:
-        # Validate category and extension
-        if category not in category_map:
-            raise ValueError(f"Unknown category: {category}")
-
-        if extension not in category_map[category]:
-            raise ValueError(
-                f"Unknown extension '{extension}' in category '{category}'"
-            )
-
-        # Get the extension class and instantiate it with the provided data
-        ext_class = category_map[category][extension]
-        instance = ext_class(**data)
-
-        # Create a ZnDraw client connected to the specific room
-        vis = ZnDraw(room=room, url=server_url, user=worker_id)
-
-        # Run the extension
-        instance.run(vis)
-
-        log.info(f"Worker {worker_id} successfully completed job {job_id}")
-
-        # Mark job as completed
-        requests.put(
-            f"{server_url}/api/rooms/{room}/jobs/{job_id}/status",
-            json={"status": "completed", "result": {}, "workerId": worker_id},
+        execute_job_for_worker(
+            job_id=job_id,
+            server_url=server_url,
+            worker_id=worker_id,
         )
-
+        log.info(f"Celery worker {worker_id} completed job {job_id}")
     except Exception as e:
-        vis.log(f"Error executing job {job_id}: {e} \n{traceback.format_exc()}")
         log.error(
-            f"Worker {worker_id} error executing job {job_id}: {e}", exc_info=True
+            f"Celery worker {worker_id} failed to execute job {job_id}: {e}",
+            exc_info=True,
         )
-        requests.put(
-            f"{server_url}/api/rooms/{room}/jobs/{job_id}/status",
-            json={"status": "failed", "error": str(e), "workerId": worker_id},
-        )
-    finally:
-        try:
-            vis.disconnect()
-        except Exception:
-            pass

@@ -126,3 +126,20 @@ GET    /api/jobs?status=failed&roomId=room-123
 
 # ==================== USER ====================
 GET    /api/users/{userId}/jobs
+
+
+
+1. Server assigns job to worker
+   Server -->|socket| Worker: emit('job:assigned', {jobId: '123'})
+   Server: job.status = 'assigned', worker.state = 'assigned'
+   OR if celery
+   run_celery_task.delay(jobId)
+
+2. Worker receives notification and fetches details
+   Worker -->|REST| Server: GET /api/jobs/123
+   Server --> Worker: 200 OK + {jobId, roomId, ...}
+
+3. Worker validates and starts processing
+   Worker -->|REST| Server: PUT /api/jobs/123/status {status: 'processing'}
+   Server --> Worker: 200 OK
+   Server: job.status = 'processing', worker.state = 'processing'

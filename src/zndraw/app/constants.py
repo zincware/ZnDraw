@@ -6,7 +6,8 @@ class SocketEvents:
 
     TASK_RUN = "task:run"
     TASK_FINISHED = "task:finished"
-    QUEUE_UPDATE = "queue:update"
+    JOB_ASSIGNED = "job:assigned"  # Server sends job to specific worker
+    JOB_STATE_CHANGED = "job:state_changed"  # Job state updates to room
     INVALIDATE = "invalidate"
     INVALIDATE_SCHEMA = "invalidate:schema"
     REGISTER_EXTENSION = "register:extension"
@@ -18,6 +19,12 @@ class SocketEvents:
     INVALIDATE_SELECTION_GROUPS = "invalidate:selection_groups"
     INVALIDATE_BOOKMARK = "bookmarks:invalidate"
     FILESYSTEMS_UPDATE = "filesystems:update"
+    ROOM_DELETE = "room:delete"
+    ROOM_UPDATE = "room:update"
+    PROGRESS_UPDATED = "progress:updated"
+    PROGRESS_COMPLETED = "progress:completed"
+    CHAT_MESSAGE_NEW = "chat:message:new"
+    CHAT_MESSAGE_UPDATED = "chat:message:updated"
 
 
 class LockConfig:

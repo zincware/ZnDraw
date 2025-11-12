@@ -140,7 +140,7 @@ def test_constraints_with_storage(tmp_path):
 
     # Store in ASEBytes
     db_path = str(tmp_path / "test.lmdb")
-    store = ASEBytesStorageBackend(db_path)
+    store = ASEBytesStorageBackend(db_path, map_size=1_000_000_000)
     store.append(data)
 
     # Retrieve from storage
@@ -174,7 +174,7 @@ def test_constraints_with_variable_sized_atoms(tmp_path):
 
     # Store in ASEBytes
     db_path = str(tmp_path / "test.lmdb")
-    store = ASEBytesStorageBackend(db_path)
+    store = ASEBytesStorageBackend(db_path, map_size=1_000_000_000)
     store.extend([data1, data2, data3])
 
     # Retrieve and verify
@@ -253,7 +253,7 @@ def test_constraint_roundtrip_fixbondlength():
 def test_constraints_preserved_across_multiple_frames(tmp_path):
     """Test that different constraints are preserved independently across frames."""
     db_path = str(tmp_path / "test.lmdb")
-    store = ASEBytesStorageBackend(db_path)
+    store = ASEBytesStorageBackend(db_path, map_size=1_000_000_000)
 
     # Frame 1: FixAtoms
     atoms1 = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])

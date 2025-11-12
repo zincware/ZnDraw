@@ -27,18 +27,20 @@ class ASEBytesStorageBackend(StorageBackend):
     - Keys use dot notation: b"arrays.positions", b"info.energy"
     """
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str, map_size: int):
         """Initialize ASE bytes storage backend.
 
         Parameters
         ----------
         db_path : str
             Path to LMDB database file
+        map_size : int
+            Maximum size of the database in bytes (virtual allocation)
         """
         self.db_path = db_path
         # No prefix needed since we use one database per room
-        self.io = BytesIO(db_path, prefix=b"")
-        log.info(f"Initialized ASEBytesStorageBackend at '{db_path}'")
+        self.io = BytesIO(db_path, prefix=b"", map_size=map_size)
+        log.info(f"Initialized ASEBytesStorageBackend at '{db_path}' (map_size={map_size / 1024**3:.2f} GB)")
 
     def get(
         self,

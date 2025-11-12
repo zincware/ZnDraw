@@ -15,7 +15,7 @@ from zndraw.server import socketio
 from zndraw.storage import StorageBackend, create_storage
 
 from .constants import SocketEvents
-from .redis_keys import RoomKeys
+from .redis_keys import RoomKeys, SessionKeys
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +65,8 @@ def get_storage(room_id: str) -> StorageBackend:
 
         STORAGE[room_id] = create_storage(
             room_id=room_id,
-            base_path=base_path
+            base_path=base_path,
+            map_size=config.lmdb_map_size
         )
         log.info(f"Created ASEBytes storage for room '{room_id}'")
 
@@ -126,7 +127,7 @@ def requires_lock(target: str):
                 return jsonify({"error": "X-Session-ID header required"}), 400
 
             r = current_app.extensions["redis"]
-            session_key = f"session:{session_id}"
+            session_key = SessionKeys.session_data(session_id)
             session_data_str = r.get(session_key)
 
             if not session_data_str:

@@ -17,7 +17,7 @@ class ExtensionKeys:
     schema: str
     idle_workers: str
     progressing_workers: str
-    queue: str
+    pending_jobs: str
 
     @classmethod
     def for_extension(
@@ -38,7 +38,7 @@ class ExtensionKeys:
             schema=base,
             idle_workers=f"{base}:{extension}:idle_workers",
             progressing_workers=f"{base}:{extension}:progressing_workers",
-            queue=f"{base}:{extension}:queue",
+            pending_jobs=f"{base}:{extension}:pending_jobs",
         )
 
     @staticmethod
@@ -89,7 +89,7 @@ class ExtensionKeys:
             schema=base,
             idle_workers=f"{base}:{extension}:idle_workers",
             progressing_workers=f"{base}:{extension}:progressing_workers",
-            queue=f"{base}:{extension}:queue",
+            pending_jobs=f"{base}:{extension}:pending_jobs",
         )
 
     @staticmethod
@@ -121,6 +121,31 @@ class ExtensionKeys:
             Redis key for the user's global extensions set
         """
         return f"global:extensions:{category}:{sid}"
+
+    @staticmethod
+    def worker_state_key(room_id: str | None, category: str, extension: str, worker_id: str) -> str:
+        """Get the worker state hash key for a specific worker and extension.
+
+        Stores worker state information including:
+        - state (idle, assigned, running)
+        - assigned_at (timestamp)
+        - job_id (current job being processed)
+
+        Args:
+            room_id: The room identifier (None for global extensions)
+            category: The extension category
+            extension: The extension name
+            worker_id: The worker identifier (socket sid or celery task id)
+
+        Returns:
+            Redis key for the worker state hash
+        """
+        if room_id is None:
+            # Global extension
+            return f"global:extensions:{category}:{extension}:worker:{worker_id}:state"
+        else:
+            # Room-scoped extension
+            return f"room:{room_id}:extensions:{category}:{extension}:worker:{worker_id}:state"
 
 
 @dataclass
@@ -430,6 +455,16 @@ class RoomKeys:
         """
         return f"room:{self.room_id}:filesystems:*"
 
+    def all_keys_pattern(self) -> str:
+        """Pattern for scanning all keys for this room.
+
+        Returns
+        -------
+        str
+            Redis key pattern for scanning all room keys
+        """
+        return f"room:{self.room_id}:*"
+
 
 @dataclass(frozen=True)
 class UserKeys:
@@ -465,6 +500,24 @@ class SessionKeys:
         return f"sid:{self.sid}:session"
 
     @staticmethod
+    def session_data(session_id: str) -> str:
+        """Session data storage key.
+
+        Stores session metadata (userId, roomId, timestamps, etc.)
+
+        Parameters
+        ----------
+        session_id : str
+            The session identifier
+
+        Returns
+        -------
+        str
+            Redis key for session data storage
+        """
+        return f"session:{session_id}"
+
+    @staticmethod
     def session_to_sid(session_id: str) -> str:
         """Session ID to socket ID reverse mapping.
 
@@ -490,3 +543,14 @@ class JobKeys:
     def hash_key(self) -> str:
         """Job data hash containing all job fields."""
         return f"job:{self.job_id}"
+
+
+@dataclass(frozen=True)
+class WorkerKeys:
+    """Redis keys for worker-related data."""
+
+    worker_id: str
+
+    def active_jobs(self) -> str:
+        """Set of active job IDs assigned to this worker."""
+        return f"worker:{self.worker_id}:jobs"

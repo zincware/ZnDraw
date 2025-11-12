@@ -7,6 +7,7 @@ import typing as t
 from flask_socketio import SocketIO
 from redis import Redis
 
+from zndraw.app.constants import SocketEvents
 from zndraw.app.models import RoomMetadata
 from zndraw.app.redis_keys import RoomKeys
 
@@ -112,12 +113,12 @@ def emit_room_update(
 
     # Broadcast to overview:public (room list), optionally skipping initiating client
     socketio.emit(
-        "room:update", payload, to="overview:public", skip_sid=skip_sid, namespace="/"
+        SocketEvents.ROOM_UPDATE, payload, to="overview:public", skip_sid=skip_sid, namespace="/"
     )
 
     # Broadcast to specific room, optionally skipping initiating client
     socketio.emit(
-        "room:update", payload, to=f"room:{room_id}", skip_sid=skip_sid, namespace="/"
+        SocketEvents.ROOM_UPDATE, payload, to=f"room:{room_id}", skip_sid=skip_sid, namespace="/"
     )
 
     log.debug(f"Emitted room:update for '{room_id}' (skip_sid={skip_sid}): {changes}")
@@ -136,9 +137,9 @@ def emit_room_delete(socketio: SocketIO, room_id: str):
     payload = {"roomId": room_id}
 
     # Broadcast to overview:public (room list)
-    socketio.emit("room:delete", payload, to="overview:public", namespace="/")
+    socketio.emit(SocketEvents.ROOM_DELETE, payload, to="overview:public", namespace="/")
 
     # Broadcast to specific room (clients should navigate away)
-    socketio.emit("room:delete", payload, to=f"room:{room_id}", namespace="/")
+    socketio.emit(SocketEvents.ROOM_DELETE, payload, to=f"room:{room_id}", namespace="/")
 
     log.info(f"Emitted room:delete for '{room_id}'")

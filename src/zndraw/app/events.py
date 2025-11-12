@@ -151,7 +151,7 @@ def handle_connect(auth):
 
 
 @socketio.on("disconnect")
-def handle_disconnect():
+def handle_disconnect(*args, **kwargs):
     """Handle client disconnect.
 
     Note: No parameters needed - Flask-SocketIO provides request.sid automatically.
@@ -171,16 +171,11 @@ def handle_disconnect():
         log.info(f"Client disconnected: {sid} (no userName found)")
         return
 
-
-
     # Get user data
     user_keys = UserKeys(user_name)
     room_name = r.hget(user_keys.hash_key(), "currentRoom")
 
     log.info(f"User disconnected: sid={sid}, user={user_name}, room={room_name}")
-
-    # Clean up connection lookup
-    r.delete(session_keys.username())
 
     # Clean up session→sid bidirectional mapping (prevents memory leak)
     session_id = r.get(session_keys.session_id())
@@ -248,12 +243,77 @@ def handle_disconnect():
 
             emit_room_update(socketio, room_name, skip_sid=sid, presenterSid=None)
 
-    # Extension cleanup - workers are tracked by server's sid
+    # --- Job Cleanup Logic ---
+    # Handle jobs assigned to or being processed by this worker
     if not sid:
         log.error(f"No sid during disconnect cleanup")
         return
 
     worker_id = sid  # Workers are tracked by server's socket sid
+
+    # Get all jobs assigned to this worker using the reverse mapping
+    from .redis_keys import WorkerKeys
+    worker_keys = WorkerKeys(worker_id)
+    worker_job_ids = list(r.smembers(worker_keys.active_jobs()))
+
+    if worker_job_ids:
+        log.warning(
+            f"Worker {worker_id} disconnected with {len(worker_job_ids)} active job(s): {worker_job_ids}"
+        )
+
+        from .job_manager import JobManager, JobStatus
+
+        for job_id in worker_job_ids:
+            try:
+                # Get job details
+                job_data = JobManager.get_job(r, job_id)
+                if not job_data:
+                    log.error(f"Job {job_id} not found during disconnect cleanup")
+                    r.srem(worker_keys.active_jobs(), job_id)
+                    continue
+
+                category = job_data.get("category")
+                extension = job_data.get("extension")
+                job_room = job_data.get("room")
+                current_status = job_data.get("status")
+
+                log.info(
+                    f"Failing job {job_id} ({category}/{extension} in room {job_room}, status: {current_status})"
+                )
+
+                # Only fail jobs that are assigned or processing (not already completed/failed)
+                if current_status in [JobStatus.ASSIGNED, JobStatus.PROCESSING]:
+                    # Fail the job
+                    JobManager.fail_job(
+                        r,
+                        job_id,
+                        f"Worker {worker_id} disconnected while processing job"
+                    )
+                    log.info(f"Marked job {job_id} as failed due to worker disconnect")
+
+                    # Emit job state change
+                    socketio.emit(
+                        SocketEvents.JOB_STATE_CHANGED,
+                        {"jobId": job_id, "status": JobStatus.FAILED},
+                        to=f"room:{job_room}",
+                    )
+                else:
+                    log.info(f"Job {job_id} has status {current_status}, not failing")
+
+                # Job will be removed from worker set by fail_job()
+
+            except Exception as e:
+                log.error(
+                    f"Failed to fail job {job_id} after worker disconnect: {e}"
+                )
+                # Clean up manually if fail_job errored
+                r.srem(worker_keys.active_jobs(), job_id)
+
+        # Clean up worker's job set (should be empty after fail_job removes entries)
+        r.delete(worker_keys.active_jobs())
+        log.info(f"Cleaned up worker job set for {worker_id}")
+
+    # Extension cleanup - workers are tracked by server's sid
     extension_categories = ["modifiers", "selections", "analysis"]
     log.info(
         f"Cleaning up extensions for worker_id={worker_id} (user={user_name}) in room '{room_name}'..."
@@ -303,19 +363,19 @@ def handle_disconnect():
                 f"Extension '{ext_name}': {total_remaining} workers remaining after removing {worker_id}."
             )
 
-            # Only delete extension if no workers AND no jobs in queue
+            # Only delete extension if no workers AND no pending jobs
             if total_remaining == 0:
                 keys = ExtensionKeys.for_extension(room_name, category, ext_name)
-                queue_length = r.llen(keys.queue)
+                pending_jobs_count = r.zcard(keys.pending_jobs)
 
-                if queue_length == 0:
+                if pending_jobs_count == 0:
                     extensions_to_delete.append(ext_name)
                     log.info(
-                        f"Extension '{ext_name}' marked for deletion: no workers, no queued jobs"
+                        f"Extension '{ext_name}' marked for deletion: no workers, no pending jobs"
                     )
                 else:
                     log.info(
-                        f"Extension '{ext_name}' kept despite no workers: {queue_length} jobs in queue"
+                        f"Extension '{ext_name}' kept despite no workers: {pending_jobs_count} pending jobs"
                     )
 
         # If any extensions are now orphaned, delete them and their state sets
@@ -395,19 +455,19 @@ def handle_disconnect():
                 f"Global extension '{ext_name}': {total_remaining} workers remaining after removing {worker_id}."
             )
 
-            # Only delete if no workers AND no jobs in queue
+            # Only delete if no workers AND no pending jobs
             if total_remaining == 0:
                 keys = ExtensionKeys.for_global_extension(category, ext_name)
-                queue_length = r.llen(keys.queue)
+                pending_jobs_count = r.zcard(keys.pending_jobs)
 
-                if queue_length == 0:
+                if pending_jobs_count == 0:
                     global_extensions_to_delete.append(ext_name)
                     log.info(
-                        f"Global extension '{ext_name}' marked for deletion: no workers, no queued jobs"
+                        f"Global extension '{ext_name}' marked for deletion: no workers, no pending jobs"
                     )
                 else:
                     log.info(
-                        f"Global extension '{ext_name}' kept despite no workers: {queue_length} jobs in queue"
+                        f"Global extension '{ext_name}' kept despite no workers: {pending_jobs_count} pending jobs"
                     )
 
         # Delete orphaned global extensions
@@ -489,6 +549,11 @@ def handle_disconnect():
 
         # Notify all clients that global filesystems changed
         socketio.emit(SocketEvents.FILESYSTEMS_UPDATE, {"scope": "global"})
+
+    # Clean up connection lookup - MUST BE LAST to prevent double-disconnect issues
+    # If this handler is called twice, the second call will find no username and return early
+    r.delete(session_keys.username())
+    log.info(f"Cleaned up connection lookup for session {sid}")
 
 
 @socketio.on("frame_selection:set")
@@ -639,7 +704,7 @@ def handle_chat_message_create(data):
         message = create_message(r, room, user_name, content)
 
         # Emit to room (excluding sender)
-        emit("chat:message:new", message, to=f"room:{room}", include_self=True)
+        emit(SocketEvents.CHAT_MESSAGE_NEW, message, to=f"room:{room}", include_self=True)
 
         return {"success": True, "message": message}
     except Exception as e:
@@ -694,7 +759,7 @@ def handle_chat_message_edit(data):
         updated_message = update_message(r, room, message_id, content)
 
         # Emit to room
-        emit("chat:message:updated", updated_message, to=f"room:{room}")
+        emit(SocketEvents.CHAT_MESSAGE_UPDATED, updated_message, to=f"room:{room}")
 
         return {"success": True, "message": updated_message}
     except Exception as e:

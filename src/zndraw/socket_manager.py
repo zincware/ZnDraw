@@ -27,7 +27,7 @@ class SocketManager:
         self.sio.on("selection:update", self._on_selection_update)
         self.sio.on("room:update", self._on_room_update)
         self.sio.on("invalidate", self._on_invalidate)
-        self.sio.on("queue:update", self._on_queue_update)
+        self.sio.on("job:assigned", self._on_job_assigned)
         self.sio.on("frame_selection:update", self._on_frame_selection_update)
         self.sio.on("bookmarks:invalidate", self._on_bookmarks_invalidate)
         self.sio.on("frames:invalidate", self._on_frames_invalidate)
@@ -106,8 +106,6 @@ class SocketManager:
             if worker_id:
                 self.zndraw._worker_id = worker_id
 
-        self._on_queue_update({})
-
     def _on_frame_update(self, data):
         if "frame" in data:
             self.zndraw._step = data["frame"]
@@ -142,37 +140,57 @@ class SocketManager:
         if key := data.get("key"):
             self.zndraw._figures.pop(key, None)
 
-    def _on_queue_update(self, data: dict):
-        print(f"Queue update received: {data}")
-        if not self.zndraw.auto_pickup_jobs:
+    def _on_job_assigned(self, data: dict):
+        """Handle job:assigned socket event.
+
+        New workflow (REST-based):
+        1. Receive socket notification with jobId
+        2. Fetch full job details via GET /api/jobs/{jobId}
+        3. Execute job using shared executor
+        4. Status updates handled by executor via PUT endpoints
+
+        Parameters
+        ----------
+        data : dict
+            Event payload containing:
+            - jobId: Job identifier to fetch and execute
+        """
+        job_id = data.get("jobId")
+
+        if not job_id:
+            log.error("Received job:assigned event without jobId")
             return
 
-        job_data = self.zndraw.api.get_next_job(self.zndraw.sid)
-        if job_data and "jobId" in job_data:
-            try:
-                self._on_task_run(
-                    data=job_data.get("data"),
-                    extension=job_data.get("extension"),
-                    category=job_data.get("category"),
-                    room=job_data.get("room"),  # Pass room from job metadata
-                    public=job_data.get("public", "false"),  # Pass public flag from job metadata
-                )
-                self.zndraw.api.update_job_status(
-                    job_id=job_data.get("jobId"),
-                    status="completed",
-                    worker_id=self.zndraw.sid,
-                )
-            except Exception as e:
-                self.zndraw.log(f"Error processing job {job_data.get('jobId')}: {e}")
-                log.error(f"Error processing job {job_data.get('jobId')}: {e}")
-                traceback.print_exc()
-                self.zndraw.api.update_job_status(
-                    job_id=job_data.get("jobId"),
-                    status="failed",
-                    error=str(e),
-                    worker_id=self.zndraw.sid,
-                )
-            self._on_queue_update({})
+        if not self.zndraw.auto_pickup_jobs:
+            log.info(f"Auto-pickup disabled, ignoring job assignment {job_id}")
+            return
+
+        log.info(f"Worker {self.zndraw.sid} received job assignment: {job_id}")
+
+        # Use shared job executor (same code as Celery workers)
+        from zndraw.job_executor import execute_job_for_worker
+
+        # Build extension registry from parent's public and private extensions
+        # Store entire _ExtensionStore objects to preserve run_kwargs
+        extension_registry = {}
+        for ext_name, ext_store in self.zndraw._public_extensions.items():
+            # Use actual category from extension, not all categories
+            category = ext_store["extension"].category.value
+            extension_registry[f"{category}:{ext_name}"] = ext_store
+        for ext_name, ext_store in self.zndraw._private_extensions.items():
+            category = ext_store["extension"].category.value
+            extension_registry[f"{category}:{ext_name}"] = ext_store
+
+        try:
+            execute_job_for_worker(
+                job_id=job_id,
+                server_url=self.zndraw.url,
+                worker_id=self.zndraw.sid,
+                extension_registry=extension_registry,
+            )
+        except Exception as e:
+            log.error(f"Error executing assigned job {job_id}: {e}", exc_info=True)
+            # Error handling is done inside execute_job_for_worker
 
     def _on_task_run(self, data: dict, extension: str, category: str, room: str, public: str = "false"):
         """Execute an extension job with proper room context.

@@ -204,6 +204,18 @@ def register_worker():
             f"in category '{category}', invalidating schema"
         )
 
+        # Assign any pending jobs to this newly idle worker
+        from .job_dispatcher import assign_pending_jobs_for_extension
+
+        ext_room_id = None if public else room_id
+        assigned = assign_pending_jobs_for_extension(
+            r, socketio, ext_room_id, category, name, worker_id
+        )
+        if assigned > 0:
+            log.info(
+                f"Assigned {assigned} pending job(s) to re-registered worker {worker_id}"
+            )
+
         # Emit schema invalidation
         if public:
             # Broadcast to all connected clients (global extension)
@@ -246,6 +258,18 @@ def register_worker():
             )
 
         log.info(f"Successfully registered new extension '{name}' for worker {worker_id}")
+
+        # Assign any pending jobs to this newly idle worker
+        from .job_dispatcher import assign_pending_jobs_for_extension
+
+        ext_room_id = None if public else room_id
+        assigned = assign_pending_jobs_for_extension(
+            r, socketio, ext_room_id, category, name, worker_id
+        )
+        if assigned > 0:
+            log.info(
+                f"Assigned {assigned} pending job(s) to newly registered worker {worker_id}"
+            )
 
         return {
             "success": True,

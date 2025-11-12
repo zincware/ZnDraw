@@ -155,47 +155,61 @@ class APIManager:
         self.session_id = data.get("sessionId")
         return data
 
-    def get_next_job(self, worker_id: str) -> dict | None:
-        """Poll for the next available job for this worker (room-agnostic).
-
-        Uses the room-agnostic endpoint that checks both global and room-specific
-        extension queues for jobs assigned to this worker.
+    def get_job(self, job_id: str) -> dict:
+        """Get job details via REST API.
 
         Parameters
         ----------
-        worker_id : str
-            The worker ID (typically socket session ID)
+        job_id : str
+            Job ID
 
         Returns
         -------
-        dict | None
-            Job data including jobId, room, category, extension, data, etc.
-            Returns None if no jobs are available.
+        dict
+            Job details with keys: jobId, room, category, extension, data, public, status, etc.
+
+        Raises
+        ------
+        requests.HTTPError
+            If job not found (404) or request fails
+        """
+        headers = self._get_headers()
+        url = f"{self.url}/api/jobs/{job_id}"
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+    def update_job_status(
+        self,
+        job_id: str,
+        status: str,
+        worker_id: str,
+        error: str | None = None,
+    ) -> None:
+        """Update job status via REST API.
+
+        Parameters
+        ----------
+        job_id : str
+            Job ID
+        status : str
+            New status (processing, completed, failed)
+        worker_id : str
+            Worker ID
+        error : str | None
+            Error message (for failed status)
+
+        Raises
+        ------
+        requests.HTTPError
+            If status update fails
         """
         headers = self._get_headers()
 
-        response = requests.post(
-            f"{self.url}/api/jobs/next",
-            json={"workerId": worker_id},
-            headers=headers,
-        )
-        if response.status_code == 200:
-            return response.json()
-        elif response.status_code == 400:
-            print("No jobs available.")
-            return None
-        else:
-            response.raise_for_status()
-            return None
-
-    def update_job_status(
-        self, job_id: str, status: str, worker_id: str, error: str | None = None
-    ) -> None:
-        headers = self._get_headers()
-
         payload = {"status": status, "workerId": worker_id}
-        if error:
+        if error is not None:
             payload["error"] = error
+
         response = requests.put(
             f"{self.url}/api/rooms/{self.room}/jobs/{job_id}/status",
             json=payload,

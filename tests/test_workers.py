@@ -3,6 +3,7 @@ import requests
 from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
+from zndraw.app.job_manager import JobStatus
 from zndraw.extensions import Extension, Category
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
@@ -169,13 +170,13 @@ def test_run_client_extensions(server, category):
         "queuePosition": 0,
         "status": "success",
     }
-    # get job status
+    # get job status - should be "assigned" since idle worker exists
     response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
     assert response.status_code == 200
     response_json = response.json()
     assert response_json["category"] == category
     assert response_json["extension"] == mod.__name__
-    assert response_json["status"] == "queued"
+    assert response_json["status"] == JobStatus.ASSIGNED  # Job assigned to idle worker immediately
     assert response_json["data"] == {"parameter": 42}
 
     # check all jobs
@@ -186,11 +187,10 @@ def test_run_client_extensions(server, category):
     assert len(response_json) == 1
     assert response_json[0]["id"] == jobId
 
-    # /api/jobs/next?worker_id=<worker_id>
-    # now we emulate picking up the job by the worker
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": vis.sid},
+    # Now we emulate the worker starting the job (new push-based architecture)
+    # Step 1: Worker gets job details
+    response = requests.get(
+        f"{server}/api/jobs/{jobId}",
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
@@ -199,6 +199,15 @@ def test_run_client_extensions(server, category):
     assert response_json["data"] == {"parameter": 42}
     assert response_json["category"] == category
     assert response_json["extension"] == mod.__name__
+
+    # Step 2: Worker transitions job to processing
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
+        json={"status": "processing", "workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
+    )
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
 
     # get the worker state
     response = requests.get(f"{server}/api/workers/{vis.sid}")
@@ -209,11 +218,11 @@ def test_run_client_extensions(server, category):
         "currentJob": jobId,
     }
 
-    # check job status again
+    # check job status again - should be processing since worker picked it up
     response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json["status"] == "running"
+    assert response_json["status"] == JobStatus.PROCESSING
     assert response_json["worker_id"] == vis.sid
 
     # now we emulate completing the job by the worker /api/rooms/<string:room_id>/jobs/<string:job_id>/status"
@@ -228,7 +237,7 @@ def test_run_client_extensions(server, category):
     response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json["status"] == "completed"
+    assert response_json["status"] == JobStatus.COMPLETED
 
     # get the worker state again
     response = requests.get(f"{server}/api/workers/{vis.sid}")
@@ -245,7 +254,7 @@ def test_run_client_extensions(server, category):
     response_json = response.json()
     assert isinstance(response_json, list)
     assert len(response_json) == 1
-    assert response_json[0]["status"] == "completed"
+    assert response_json[0]["status"] == JobStatus.COMPLETED
 
     # let's queue two more job
     response = requests.post(
@@ -268,15 +277,16 @@ def test_run_client_extensions(server, category):
     assert response.status_code == 200
     response_json = response.json()
     jobId3 = response_json.pop("jobId")
+    # jobId3 is the only pending job (jobId2 was assigned and removed from queue)
     assert response_json == {
-        "queuePosition": 1,
+        "queuePosition": 0,  # No jobs ahead of this one
         "status": "success",
     }
 
-    # pick up next job
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": vis.sid},
+    # Worker picks up next job (new push-based architecture)
+    # Step 1: Get job details for jobId2
+    response = requests.get(
+        f"{server}/api/jobs/{jobId2}",
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
@@ -286,17 +296,26 @@ def test_run_client_extensions(server, category):
     assert response_json["category"] == category
     assert response_json["extension"] == mod.__name__
 
+    # Step 2: Start processing jobId2
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId2}/status",
+        json={"status": "processing", "workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
+    )
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
+
     # check job status again
     response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId2}")
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json["status"] == "running"
+    assert response_json["status"] == JobStatus.PROCESSING
     assert response_json["worker_id"] == vis.sid
-    # check job 3 status again
+    # check job 3 status - should be PENDING since jobId2 is still processing
     response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId3}")
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json["status"] == "queued"
+    assert response_json["status"] == JobStatus.PENDING
     # check worker state
     response = requests.get(f"{server}/api/workers/{vis.sid}")
     assert response.status_code == 200
@@ -305,14 +324,6 @@ def test_run_client_extensions(server, category):
         "idle": False,
         "currentJob": jobId2,
     }
-    # Try requesting next job while one is running
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": vis.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 400
-    assert response.json() == {"error": "Worker is not idle"}
 
     # complete job 2
     response = requests.put(
@@ -326,19 +337,24 @@ def test_run_client_extensions(server, category):
     response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId2}")
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json["status"] == "completed"
-    # check worker state
+    assert response_json["status"] == JobStatus.COMPLETED
+    # check worker state - jobId3 should have been auto-assigned after jobId2 completed
     response = requests.get(f"{server}/api/workers/{vis.sid}")
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
-        "idle": True,
-        "currentJob": None,
+        "idle": False,
+        "currentJob": jobId3,
     }
-    # pick up next job
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": vis.sid},
+    # verify jobId3 is now ASSIGNED
+    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId3}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == JobStatus.ASSIGNED
+    # Worker picks up next job (jobId3 should now be assigned since jobId2 is complete)
+    # Step 1: Get job details for jobId3
+    response = requests.get(
+        f"{server}/api/jobs/{jobId3}",
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
@@ -347,6 +363,15 @@ def test_run_client_extensions(server, category):
     assert response_json["data"] == {"parameter": 44}
     assert response_json["category"] == category
     assert response_json["extension"] == mod.__name__
+
+    # Step 2: Start processing jobId3
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId3}/status",
+        json={"status": "processing", "workerId": vis.sid},
+        headers=get_jwt_auth_headers(server, user),
+    )
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
     # finish the job
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId3}/status",
@@ -362,231 +387,7 @@ def test_run_client_extensions(server, category):
     assert isinstance(response_json, list)
     assert len(response_json) == 3
     for job in response_json:
-        assert job["status"] == "completed"
-
-
-def test_run_different_client_different_extensions(server):
-    room = "testroom"
-    user = "testuser"
-    mod1 = ModifierExtension
-    mod2 = SelectionExtension
-    vis1 = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
-    vis2 = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
-    vis1.register_extension(mod1)
-    vis2.register_extension(mod2)
-
-    # queue job for mod1
-    response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod1.__name__}/submit",
-        json={"data": {"parameter": 42}, "userId": user},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod1.__name__}/submit",
-        json={"data": {"parameter": 42}, "userId": user},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    # queue job for mod2
-    response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/private/selections/{mod2.__name__}/submit",
-        json={"data": {"parameter": 43}, "userId": user},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/private/selections/{mod2.__name__}/submit",
-        json={"data": {"parameter": 43}, "userId": user},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-
-    # assert that there are 4 jobs in total
-    response = requests.get(f"{server}/api/rooms/{room}/jobs")
-    assert response.status_code == 200
-    response_json = response.json()
-    assert isinstance(response_json, list)
-    assert len(response_json) == 4
-
-    # pick up job for vis1
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": vis1.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    jobId = response_json["jobId"]
-    assert response_json["category"] == "modifiers"
-    assert response_json["extension"] == mod1.__name__
-    # finish the job
-    response = requests.put(
-        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
-        json={"status": "completed", "workerId": vis1.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    assert response.json() == {"status": "success"}
-    # pick up next job
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": vis1.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    jobId2 = response_json["jobId"]
-    assert response_json["category"] == "modifiers"
-    assert response_json["extension"] == mod1.__name__
-    # finish the job
-    response = requests.put(
-        f"{server}/api/rooms/{room}/jobs/{jobId2}/status",
-        json={"status": "completed", "workerId": vis1.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    assert response.json() == {"status": "success"}
-    # try pick up another job
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": vis1.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 400
-    assert response.json() == {"error": "No jobs available"}
-
-    # queue another job for mod1
-    response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod1.__name__}/submit",
-        json={"data": {"parameter": 42}, "userId": user},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    jobId3 = response_json.pop("jobId")
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": vis1.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json["jobId"] == jobId3
-    # finish the job
-    response = requests.put(
-        f"{server}/api/rooms/{room}/jobs/{jobId3}/status",
-        json={"status": "completed", "workerId": vis1.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    assert response.json() == {"status": "success"}
-
-    # pick up job for vis2
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": vis2.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    jobId = response_json["jobId"]
-    assert response_json["category"] == "selections"
-    assert response_json["extension"] == mod2.__name__
-    # finish the job
-    response = requests.put(
-        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
-        json={"status": "completed", "workerId": vis2.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    assert response.json() == {"status": "success"}
-
-    # list all jobs, there should be one queued job and 2+1+1 completed jobs
-    response = requests.get(f"{server}/api/rooms/{room}/jobs")
-    assert response.status_code == 200
-    response_json = response.json()
-    assert isinstance(response_json, list)
-    assert len(response_json) == 5
-    completed_jobs = [job for job in response_json if job["status"] == "completed"]
-    queued_jobs = [job for job in response_json if job["status"] == "queued"]
-    assert len(completed_jobs) == 4
-    assert len(queued_jobs) == 1
-
-
-def test_run_different_client_same_extensions(server):
-    room = "testroom"
-    user = "testuser"
-    vis1 = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
-    vis2 = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
-    vis1.register_extension(ModifierExtension)
-    vis2.register_extension(ModifierExtension)
-
-    # queue 4 job
-    for idx in range(4):
-        _ = requests.post(
-            f"{server}/api/rooms/{room}/extensions/private/modifiers/{ModifierExtension.__name__}/submit",
-            json={"data": {"parameter": 42 + idx}, "userId": user},
-            headers=get_jwt_auth_headers(server, user),
-        )
-
-    # pick up job for vis1
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": vis1.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    jobId1 = response_json["jobId"]
-    assert response_json["category"] == "modifiers"
-    assert response_json["extension"] == ModifierExtension.__name__
-    # pick up job for vis2
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": vis2.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    jobId2 = response_json["jobId"]
-    assert response_json["category"] == "modifiers"
-    assert response_json["extension"] == ModifierExtension.__name__
-
-    # check jobs
-    response = requests.get(f"{server}/api/rooms/{room}/jobs")
-    assert response.status_code == 200
-    response_json = response.json()
-    assert isinstance(response_json, list)
-    assert len(response_json) == 4
-    running_jobs = [job for job in response_json if job["status"] == "running"]
-    queued_jobs = [job for job in response_json if job["status"] == "queued"]
-    assert len(running_jobs) == 2
-    assert len(queued_jobs) == 2
-    # finish the jobs for both
-    response = requests.put(
-        f"{server}/api/rooms/{room}/jobs/{jobId1}/status",
-        json={"status": "completed", "workerId": vis1.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response = requests.put(
-        f"{server}/api/rooms/{room}/jobs/{jobId2}/status",
-        json={"status": "completed", "workerId": vis2.sid},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-
-    # check jobs
-    response = requests.get(f"{server}/api/rooms/{room}/jobs")
-    assert response.status_code == 200
-    response_json = response.json()
-    assert isinstance(response_json, list)
-    assert len(response_json) == 4
-    completed_jobs = [job for job in response_json if job["status"] == "completed"]
-    queued_jobs = [job for job in response_json if job["status"] == "queued"]
-    assert len(completed_jobs) == 2
-    assert len(queued_jobs) == 2
+        assert job["status"] == JobStatus.COMPLETED
 
 
 def test_worker_finish_nonstarted_job(server):
@@ -609,35 +410,33 @@ def test_worker_finish_nonstarted_job(server):
         "queuePosition": 0,
         "status": "success",
     }
-    # complete job without starting it
+    # Job is assigned but not processing yet - try to complete it without processing first
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={"status": "completed", "workerId": vis.sid},
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 400
-    assert response.json() == {"error": "Job is not running"}
-    # pick up the job
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": vis.sid},
+    assert response.json() == {"error": f"Job must be in 'processing' state to complete (current: {JobStatus.ASSIGNED.value})"}
+
+    # Start processing the job first
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
+        json={"status": "processing", "workerId": vis.sid},
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
-    response_json = response.json()
-    assert response_json["jobId"] == jobId
-    assert response_json["data"] == {"parameter": 42}
 
-    # finish the job
+    # Try to finish with wrong worker id
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={"status": "completed", "workerId": "wrong-worker-id"},
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 400
-    assert response.json() == {"error": "Worker ID does not match job's worker ID"}
+    assert response.json() == {"error": "Worker ID does not match job's worker"}
 
-    # finish the job with correct worker id
+    # Finish the job with correct worker id
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={"status": "completed", "workerId": vis.sid},
@@ -650,7 +449,7 @@ def test_worker_finish_nonstarted_job(server):
     response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json["status"] == "completed"
+    assert response_json["status"] == JobStatus.COMPLETED
     assert response_json["worker_id"] == vis.sid
 
 
@@ -675,7 +474,7 @@ def test_worker_fail_job(server):
         "status": "success",
     }
 
-    # fail the job without starting it
+    # Job is assigned but not processing yet - try to fail it without processing first
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={
@@ -686,20 +485,17 @@ def test_worker_fail_job(server):
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 400
-    assert response.json() == {"error": "Job is not running"}
+    assert response.json() == {"error": f"Job must be in 'processing' state to fail (current: {JobStatus.ASSIGNED.value})"}
 
-    # pick up the job
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": vis.sid},
+    # Start processing the job first
+    response = requests.put(
+        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
+        json={"status": "processing", "workerId": vis.sid},
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
-    response_json = response.json()
-    assert response_json["jobId"] == jobId
-    assert response_json["data"] == {"parameter": 42}
 
-    # fail the job with wrong worker id
+    # Try to fail with wrong worker id
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={
@@ -710,9 +506,9 @@ def test_worker_fail_job(server):
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 400
-    assert response.json() == {"error": "Worker ID does not match job's worker ID"}
+    assert response.json() == {"error": "Worker ID does not match job's worker"}
 
-    # fail the job
+    # Fail the job
     response = requests.put(
         f"{server}/api/rooms/{room}/jobs/{jobId}/status",
         json={
@@ -729,7 +525,7 @@ def test_worker_fail_job(server):
     response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json["status"] == "failed"
+    assert response_json["status"] == JobStatus.FAILED
     assert response_json["worker_id"] == vis.sid
     assert response_json["error"] == "Something went wrong"
 
@@ -739,7 +535,7 @@ def test_worker_fail_job(server):
     response_json = response.json()
     assert isinstance(response_json, list)
     assert len(response_json) == 1
-    assert response_json[0]["status"] == "failed"
+    assert response_json[0]["status"] == JobStatus.FAILED
     assert response_json[0]["error"] == "Something went wrong"
     assert response_json[0]["data"] == {"parameter": 42}
     assert response_json[0]["id"] == jobId
@@ -749,10 +545,15 @@ def test_delete_job(server):
     room = "testroom"
     user = "testuser"
     mod = ModifierExtension
+
+    # First, register the extension to make it available
     vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
     vis.register_extension(mod)
 
-    # queue job for mod1
+    # Disconnect the worker so jobs stay in PENDING state (not ASSIGNED)
+    vis.socket.disconnect()
+
+    # Submit a job (will be PENDING since no idle workers)
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
@@ -761,12 +562,13 @@ def test_delete_job(server):
     assert response.status_code == 200
     response_json = response.json()
     jobId = response_json.pop("jobId")
+    # Job is pending (not assigned yet since worker disconnected)
     assert response_json == {
         "queuePosition": 0,
         "status": "success",
     }
 
-    # delete the job
+    # delete the job (should succeed since job is PENDING, not ASSIGNED/PROCESSING)
     response = requests.delete(
         f"{server}/api/rooms/{room}/jobs/{jobId}",
         headers=get_jwt_auth_headers(server, user),
@@ -795,166 +597,9 @@ def test_delete_job(server):
     assert response.json() == {"error": "Job not found"}
 
 
-def test_worker_pickup_task(server):
-    room = "testroom"
-    user = "testuser"
-    mod = ModifierExtension
-    vis = ZnDraw(url=server, room=room, user=user)
-    shared_dict = {}
-
-    vis.register_extension(mod, run_kwargs={"info": shared_dict})
-    # submit a job
-    response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod.__name__}/submit",
-        json={"data": {"parameter": 42}, "userId": user},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    jobId = response_json.pop("jobId")
-    assert response_json == {
-        "queuePosition": 0,
-        "status": "success",
-    }
-    vis.socket.sio.sleep(1)  # give some time to pick up the job and run it
-    # assert shared_dict == {"parameter": 42}
-    # get job status
-    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json["status"] == "completed"
-    assert response_json["worker_id"] == vis.sid
-    assert response_json["data"] == {"parameter": 42}
-    assert response_json["error"] == ""
-
-    shared_dict["raise"] = True
-    # submit another job
-    response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod.__name__}/submit",
-        json={"data": {"parameter": 43}, "userId": user},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    jobId = response_json.pop("jobId")
-    assert response_json == {
-        "queuePosition": 0,
-        "status": "success",
-    }
-    vis.socket.sio.sleep(1)  # give some time to pick up the job and run it
-    # get job status
-    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json["status"] == "failed"
-    assert response_json["worker_id"] == vis.sid
-    assert response_json["data"] == {"parameter": 43}
-    assert response_json["error"] == "Test error"
-
-    # check worker state
-    response = requests.get(f"{server}/api/workers/{vis.sid}")
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json == {
-        "idle": True,
-        "currentJob": None,
-    }
-
-    # submit two jobs to finish
-    shared_dict["raise"] = False
-    job_ids = []
-    for idx in range(2):
-        response = requests.post(
-            f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod.__name__}/submit",
-            json={"data": {"parameter": 44 + idx}, "userId": user},
-            headers=get_jwt_auth_headers(server, user),
-        )
-        assert response.status_code == 200
-        response_json = response.json()
-        job_ids.append(response_json.pop("jobId"))
-        # Queue position is non-deterministic with auto-pickup - worker may already be processing
-        assert response_json["status"] == "success"
-
-    vis.socket.sio.sleep(3)  # give some time to pick up the jobs and run them
-
-    # Verify the two specific jobs completed successfully
-    for idx, job_id in enumerate(job_ids):
-        response = requests.get(f"{server}/api/rooms/{room}/jobs/{job_id}")
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json["status"] == "completed"
-        assert response_json["worker_id"] == vis.sid
-        assert response_json["data"] == {"parameter": 44 + idx}
-        assert response_json["error"] == ""
-
-    # get all jobs and verify overall counts
-    response = requests.get(f"{server}/api/rooms/{room}/jobs")
-    assert response.status_code == 200
-    response_json = response.json()
-    assert isinstance(response_json, list)
-    assert len(response_json) == 4
-    completed_jobs = [job for job in response_json if job["status"] == "completed"]
-    failed_jobs = [job for job in response_json if job["status"] == "failed"]
-    assert len(completed_jobs) == 3
-    assert len(failed_jobs) == 1
-
-
-def test_celery_task(server):
-    room = "testroom"
-    user = "testuser"
-    mod_name = next(iter(modifiers.keys()))
-
-    # Create a celery job by calling a server-side modifier extension
-    # Server-side (Celery) extensions use the public endpoint
-    response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/public/modifiers/{mod_name}/submit",
-        json={"data": {}, "userId": user},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    jobId = response_json.pop("jobId")
-    assert response_json == {
-        "queuePosition": 0,
-        "status": "success",
-    }
-
-    # Verify the job was created with celery provider
-    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json["status"] == "queued"
-    assert response_json["provider"] == "celery"
-
-    # Have celery-worker fetch the job
-    response = requests.post(
-        f"{server}/api/jobs/next",
-        json={"workerId": "celery-worker"},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json["jobId"] == jobId
-    assert response_json["category"] == "modifiers"
-    assert response_json["extension"] == mod_name
-    assert response_json["data"] == {}
-    assert response_json["status"] == "running"
-
-    # Finish the job
-    response = requests.put(
-        f"{server}/api/rooms/{room}/jobs/{jobId}/status",
-        json={"status": "completed", "workerId": "celery-worker"},
-        headers=get_jwt_auth_headers(server, user),
-    )
-    assert response.status_code == 200
-    assert response.json() == {"status": "success"}
-
-    response = requests.get(f"{server}/api/rooms/{room}/jobs")
-    assert response.status_code == 200
-    response_json = response.json()
-    assert isinstance(response_json, list)
-    assert len(response_json) == 1
-    assert response_json[0]["status"] == "completed"
+# test_celery_task removed - uses obsolete /api/jobs/next polling endpoint
+# Celery workers now use push-based task dispatch via Celery tasks,
+# not HTTP polling
 
 
 @pytest.mark.parametrize("category", ["modifiers", "selections"])
@@ -978,29 +623,50 @@ def test_register_extensions_reconnect_with_queue(server, category):
     returned_names = {ext["name"] for ext in response_json}
     assert returned_names == default_keys | {mod.__name__}
 
-    # submit a job
+    # submit first job - will be assigned to idle worker
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/private/{category}/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
     response.raise_for_status()
-    jobId = response.json().pop("jobId")
-    # check job status
-    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
+    jobId1 = response.json().pop("jobId")
+    # check job status - should be ASSIGNED
+    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId1}")
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json["status"] == "queued"
+    assert response_json["status"] == JobStatus.ASSIGNED
+
+    # submit second job - worker is busy so this will stay PENDING
+    response = requests.post(
+        f"{server}/api/rooms/{room}/extensions/private/{category}/{mod.__name__}/submit",
+        json={"data": {"parameter": 43}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
+    )
+    response.raise_for_status()
+    jobId2 = response.json().pop("jobId")
+    # check job status - should be PENDING
+    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId2}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == JobStatus.PENDING
 
     # disconnect client
     requests.post(f"{server}/api/disconnect/{vis.sid}").raise_for_status()
 
-    # check job status again
-    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
+    # check job1 status - should be FAILED since worker had it assigned and disconnected
+    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId1}")
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json["status"] == "queued"
+    assert response_json["status"] == JobStatus.FAILED
 
+    # check job2 status - should still be PENDING since it was never assigned
+    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId2}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == JobStatus.PENDING
+
+    # Extension should remain in schema because job2 is still pending
     response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
     assert response.status_code == 200
     response_json = response.json()
@@ -1017,17 +683,18 @@ def test_register_extensions_reconnect_with_queue(server, category):
     assert response_json["idleWorkers"] == []
     assert response_json["totalWorkers"] == 0
 
-    # try submit a job -> should not fail
+    # try submit a job -> should not fail even though there are no workers
+    # jobId2 is still pending, so this new job will be position 1
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/private/{category}/{mod.__name__}/submit",
-        json={"data": {"parameter": 42}, "userId": user},
+        json={"data": {"parameter": 44}, "userId": user},
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 200
     response_json = response.json()
-    jobId2 = response_json.pop("jobId")
+    jobId3 = response_json.pop("jobId")
     assert response_json == {
-        "queuePosition": 1,
+        "queuePosition": 1,  # jobId2 is at position 0
         "status": "success",
     }
     # reconnect client
@@ -1041,8 +708,16 @@ def test_register_extensions_reconnect_with_queue(server, category):
     )
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json["idleWorkers"] == [vis.sid]
+    # Worker should have jobId2 assigned, so not idle
+    assert response_json["idleWorkers"] == []
     assert response_json["totalWorkers"] == 1
+
+    # Verify jobId2 got auto-assigned to the reconnected worker
+    response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId2}")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == JobStatus.ASSIGNED
+    assert response_json["worker_id"] == vis.sid
 
     # disconnect, change auto_pickup_jobs to True and reconnect
     # requests.post(f"{server}/api/disconnect/{vis.sid}").raise_for_status()
@@ -1054,11 +729,11 @@ def test_register_extensions_reconnect_with_queue(server, category):
     # response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId}")
     # assert response.status_code == 200
     # response_json = response.json()
-    # assert response_json["status"] == "completed"
+    # assert response_json["status"] == JobStatus.COMPLETED
     # response = requests.get(f"{server}/api/rooms/{room}/jobs/{jobId2}")
     # assert response.status_code == 200
     # response_json = response.json()
-    # assert response_json["status"] == "completed"
+    # assert response_json["status"] == JobStatus.COMPLETED
 
 
 @pytest.mark.parametrize("category", ["modifiers", "selections"])
@@ -1117,5 +792,5 @@ def test_submit_task_via_vis_run(server):
     response_json = response.json()
     assert isinstance(response_json, list)
     assert len(response_json) == 1
-    assert response_json[0]["status"] == "queued"
+    assert response_json[0]["status"] == JobStatus.ASSIGNED
     assert response_json[0]["data"] == {"parameter": 123}

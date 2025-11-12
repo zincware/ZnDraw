@@ -54,19 +54,18 @@ def test_vis_run_with_public_parameter_explicit(server):
     ext = DualExtension(parameter=42)
 
     # Run with explicit public=True should use public endpoint
-    # We'll verify this by checking the API call made
-    # Note: This will create jobs but not process them (auto_pickup_jobs=False)
-    result_public = vis.run(ext, public=True)
-    assert result_public["status"] == "success"
-    assert "jobId" in result_public
+    # vis.run() now returns a Job object
+    job_public = vis.run(ext, public=True)
+    assert job_public.job_id is not None
+    assert job_public.is_assigned()  # Job assigned but not processed (auto_pickup=False)
 
     # Run with explicit public=False should use private endpoint
-    result_private = vis.run(ext, public=False)
-    assert result_private["status"] == "success"
-    assert "jobId" in result_private
+    job_private = vis.run(ext, public=False)
+    assert job_private.job_id is not None
+    assert job_private.is_assigned()
 
     # The jobs should be different
-    assert result_public["jobId"] != result_private["jobId"]
+    assert job_public.job_id != job_private.job_id
 
 
 def test_vis_run_with_public_none_prioritizes_public(server):
@@ -81,9 +80,9 @@ def test_vis_run_with_public_none_prioritizes_public(server):
     ext = DualExtension(parameter=99)
 
     # Run without specifying public (should default to None and try public first)
-    result = vis.run(ext)
-    assert result["status"] == "success"
-    assert "jobId" in result
+    job = vis.run(ext)
+    assert job.job_id is not None
+    assert job.is_assigned()
 
     # To verify it used public, we'd need to check the actual endpoint called
     # For now, we just verify it succeeded
@@ -100,9 +99,9 @@ def test_vis_run_with_public_none_falls_back_to_private(server):
     ext = DualExtension(parameter=77)
 
     # Run without specifying public - should fall back to private
-    result = vis.run(ext)
-    assert result["status"] == "success"
-    assert "jobId" in result
+    job = vis.run(ext)
+    assert job.job_id is not None
+    assert job.is_assigned()
 
 
 def test_vis_run_explicit_public_fails_if_only_private_registered(server):
@@ -145,8 +144,6 @@ def test_vis_run_explicit_private_fails_if_only_public_registered(server):
 
 def test_auto_pickup_jobs_with_dual_registration(server):
     """Test that auto_pickup_jobs works when extension is registered in both namespaces."""
-    import time
-
     vis = ZnDraw(url=server, room="test_room", user="admin", auto_pickup_jobs=True)
 
     # Register extension in BOTH namespaces
@@ -155,10 +152,11 @@ def test_auto_pickup_jobs_with_dual_registration(server):
 
     # Submit a job using private namespace
     ext = DualExtension(parameter=99)
-    result = vis.run(ext, public=False)
-    assert result["status"] == "success"
+    job = vis.run(ext, public=False)
+    assert job.job_id is not None
 
-    # Give worker time to pick up and process
-    time.sleep(0.5)
+    # Wait for worker to pick up and process (uses socketio.sleep to not block event loop)
+    job.wait(timeout=5)
 
-    # Job should have been processed successfully (no errors)
+    # Job should have been processed successfully
+    assert job.is_completed()

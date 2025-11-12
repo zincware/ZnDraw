@@ -9,7 +9,7 @@ from typing import Any, Optional
 
 from dateutil.parser import isoparse
 
-from .redis_keys import JobKeys, RoomKeys
+from .redis_keys import JobKeys, RoomKeys, WorkerKeys
 
 
 @dataclass
@@ -27,7 +27,6 @@ class Job:
     completed_at: Optional[str] = None
     worker_id: Optional[str] = None  # SID or "celery:{task_id}"
     error: Optional[str] = None
-    result: Optional[dict] = None
     wait_time_ms: Optional[int] = None  # started_at - created_at
     execution_time_ms: Optional[int] = None  # completed_at - started_at
 
@@ -35,8 +34,9 @@ class Job:
 class JobStatus(str, Enum):
     """Job status states."""
 
-    QUEUED = "queued"
-    RUNNING = "running"
+    PENDING = "pending"  # Waiting for idle worker
+    ASSIGNED = "assigned"  # Emitted to worker, awaiting confirmation
+    PROCESSING = "processing"  # Worker confirmed and actively processing
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -89,6 +89,7 @@ class JobManager:
         provider: str,
         public: bool = False,
         ttl: int = 86400,
+        initial_status: str = JobStatus.PENDING,
     ) -> str:
         """Create a new job and store in Redis.
 
@@ -102,6 +103,7 @@ class JobManager:
             provider: "celery" or worker count
             public: Whether this is a public/global extension (default: False)
             ttl: Time-to-live in seconds (default: 86400 = 24 hours)
+            initial_status: Initial job status (default: PENDING)
 
         Returns:
             job_id: Unique job identifier
@@ -116,7 +118,7 @@ class JobManager:
             "extension": extension,
             "data": json.dumps(data),
             "user_name": user_name,
-            "status": JobStatus.QUEUED,
+            "status": initial_status,
             "provider": provider,
             "public": str(public).lower(),  # Store as "true" or "false" string for Redis
             "created_at": now,
@@ -124,7 +126,6 @@ class JobManager:
             "completed_at": "",
             "worker_id": "",
             "error": "",
-            "result": "",
             "wait_time_ms": "",
             "execution_time_ms": "",
         }
@@ -164,8 +165,10 @@ class JobManager:
         return job_id
 
     @staticmethod
-    def start_job(redis_client: Any, job_id: str, worker_id: str) -> bool:
-        """Mark job as running and calculate wait time.
+    def assign_job(redis_client: Any, job_id: str, worker_id: str) -> bool:
+        """Mark job as assigned to a worker.
+
+        Transition: PENDING -> ASSIGNED
 
         Args:
             redis_client: Redis client instance
@@ -173,26 +176,80 @@ class JobManager:
             worker_id: Worker identifier (SID or "celery:{task_id}")
 
         Returns:
-            True if successful, False if job not found or already started
+            True if successful, False if job not in PENDING state
         """
         job_keys = JobKeys(job_id)
 
-        # Check if job exists and is queued
+        # Check if job exists and is pending
+        job_data = redis_client.hgetall(job_keys.hash_key())
+        if not job_data or job_data.get("status") != JobStatus.PENDING:
+            return False
+
+        # Update status and add to worker's job set
+        update_data = {
+            "status": JobStatus.ASSIGNED,
+            "worker_id": worker_id,
+        }
+
+        redis_client.hset(job_keys.hash_key(), mapping=update_data)
+
+        # Remove job from extension's pending_jobs sorted set
+        from .redis_keys import ExtensionKeys
+        category = job_data.get("category")
+        extension = job_data.get("extension")
+        room = job_data.get("room")
+        is_public = job_data.get("public") == "true"
+
+        if category and extension:
+            ext_room = None if is_public else room
+            if ext_room:
+                keys = ExtensionKeys.for_extension(ext_room, category, extension)
+            else:
+                keys = ExtensionKeys.for_global_extension(category, extension)
+            redis_client.zrem(keys.pending_jobs, job_id)
+
+        # Add job to worker's active jobs set (for disconnect cleanup)
+        worker_keys = WorkerKeys(worker_id)
+        redis_client.sadd(worker_keys.active_jobs(), job_id)
+
+        return True
+
+    @staticmethod
+    def start_processing(redis_client: Any, job_id: str, worker_id: str) -> bool:
+        """Mark job as processing (worker confirmed and started work).
+
+        Transition: ASSIGNED -> PROCESSING
+
+        Args:
+            redis_client: Redis client instance
+            job_id: Job identifier
+            worker_id: Worker identifier (SID or "celery:{task_id}")
+
+        Returns:
+            True if successful, False if job not in ASSIGNED state
+        """
+        job_keys = JobKeys(job_id)
+
+        # Check if job exists and is assigned
         status = redis_client.hget(job_keys.hash_key(), "status")
-        if not status or status != JobStatus.QUEUED:
+        if not status or status != JobStatus.ASSIGNED:
+            return False
+
+        # Verify worker_id matches
+        assigned_worker = redis_client.hget(job_keys.hash_key(), "worker_id")
+        if assigned_worker != worker_id:
             return False
 
         # Update status
         now = datetime.utcnow().isoformat()
         created_at = redis_client.hget(job_keys.hash_key(), "created_at")
 
-        # Calculate wait time
+        # Calculate wait time (from creation to processing start)
         wait_time_ms, _ = _calculate_durations(created_at, now, None)
 
         update_data = {
-            "status": JobStatus.RUNNING,
+            "status": JobStatus.PROCESSING,
             "started_at": now,
-            "worker_id": worker_id,
         }
         if wait_time_ms is not None:
             update_data["wait_time_ms"] = str(wait_time_ms)
@@ -202,15 +259,12 @@ class JobManager:
         return True
 
     @staticmethod
-    def complete_job(
-        redis_client: Any, job_id: str, result: Optional[dict] = None
-    ) -> bool:
+    def complete_job(redis_client: Any, job_id: str) -> bool:
         """Mark job as completed and calculate execution time.
 
         Args:
             redis_client: Redis client instance
             job_id: Job identifier
-            result: Optional job result data
 
         Returns:
             True if successful, False if job not found
@@ -229,7 +283,6 @@ class JobManager:
         update_data = {
             "status": JobStatus.COMPLETED,
             "completed_at": now,
-            "result": json.dumps(result) if result else "",
         }
         if execution_time_ms is not None:
             update_data["execution_time_ms"] = str(execution_time_ms)
@@ -244,6 +297,12 @@ class JobManager:
             redis_client.smove(
                 room_keys.jobs_active(), room_keys.jobs_inactive(), job_id
             )
+
+        # Remove job from worker's active jobs set
+        worker_id = job_data.get("worker_id")
+        if worker_id:
+            worker_keys = WorkerKeys(worker_id)
+            redis_client.srem(worker_keys.active_jobs(), job_id)
 
         return True
 
@@ -289,6 +348,12 @@ class JobManager:
                 room_keys.jobs_active(), room_keys.jobs_inactive(), job_id
             )
 
+        # Remove job from worker's active jobs set
+        worker_id = job_data.get("worker_id")
+        if worker_id:
+            worker_keys = WorkerKeys(worker_id)
+            redis_client.srem(worker_keys.active_jobs(), job_id)
+
         return True
 
     @staticmethod
@@ -311,8 +376,6 @@ class JobManager:
         # Parse JSON fields
         if job_data.get("data"):
             job_data["data"] = json.loads(job_data["data"])
-        if job_data.get("result"):
-            job_data["result"] = json.loads(job_data["result"])
 
         return job_data
 
@@ -449,13 +512,14 @@ class JobManager:
             extension: Extension name
 
         Returns:
-            Dict with queued, running, completed, failed counts
+            Dict with pending, assigned, processing, completed, failed counts
         """
         jobs = JobManager.list_extension_jobs(redis_client, room, category, extension)
 
         stats = {
-            "queued": 0,
-            "running": 0,
+            "pending": 0,
+            "assigned": 0,
+            "processing": 0,
             "completed": 0,
             "failed": 0,
         }

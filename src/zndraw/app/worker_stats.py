@@ -32,8 +32,8 @@ class WorkerStats:
         """
         idle = int(redis_client.scard(keys.idle_workers))
         progressing = int(redis_client.scard(keys.progressing_workers))
-        queued = int(redis_client.llen(keys.queue))
-        return cls(idle_count=idle, progressing_count=progressing, queue_length=queued)
+        pending = int(redis_client.zcard(keys.pending_jobs))
+        return cls(idle_count=idle, progressing_count=progressing, queue_length=pending)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""

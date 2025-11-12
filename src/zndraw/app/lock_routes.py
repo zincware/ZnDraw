@@ -54,11 +54,13 @@ def acquire_lock(room_id, target):
     if not session_id:
         return jsonify({"success": False, "error": "Session ID required"}), 400
 
+    from .redis_keys import SessionKeys
+
     r = current_app.extensions["redis"]
     msg = request.json.get("msg") if request.json else None
 
     # Validate session exists and matches user
-    session_key = f"session:{session_id}"
+    session_key = SessionKeys.session_data(session_id)
     session_data_str = r.get(session_key)
     if not session_data_str:
         return jsonify({"success": False, "error": "Invalid or expired session"}), 401

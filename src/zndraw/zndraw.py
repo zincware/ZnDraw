@@ -1448,9 +1448,8 @@ class ZnDraw(MutableSequence):
         print(
             f"Extension '{name}' registered with {scope} (worker_id: {self._worker_id})."
         )
-        self.socket._on_queue_update({})
 
-    def run(self, extension: Extension, public: bool | None = None) -> dict:
+    def run(self, extension: Extension, public: bool | None = None):
         """Run an extension.
 
         Parameters
@@ -1465,9 +1464,11 @@ class ZnDraw(MutableSequence):
 
         Returns
         -------
-        dict
-            Response from the server containing status and jobId
+        Job
+            Job object for tracking progress and retrieving results
         """
+        from zndraw.job import Job
+
         extension_name = extension.__class__.__name__
         category = extension.category.value
         is_celery = _is_celery_extension(extension_name, category)
@@ -1497,12 +1498,20 @@ class ZnDraw(MutableSequence):
                     f"Available {namespace} extensions: {list(expected_dict.keys())}"
                 )
 
-        return self.api.run_extension(
+        response = self.api.run_extension(
             category=category,
             name=extension_name,
             data=extension.model_dump(),
             public=public,
         )
+
+        # Extract jobId from response and create Job object
+        job_id = response.get("jobId")
+        if not job_id:
+            raise RuntimeError(f"Server response missing jobId: {response}")
+
+        assert self.url is not None, "URL must be set after initialization"
+        return Job(job_id=job_id, url=self.url, room=self.room, api=self.api, socket=self.socket)
 
     def register_filesystem(
         self,

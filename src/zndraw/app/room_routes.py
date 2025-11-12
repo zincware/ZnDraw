@@ -139,7 +139,7 @@ def get_room(room_id):
 
     # Check if room exists
     room_exists = False
-    for key in redis_client.scan_iter(match=f"room:{room_id}:*", count=1):
+    for key in redis_client.scan_iter(match=keys.all_keys_pattern(), count=1):
         room_exists = True
         break
 
@@ -228,7 +228,7 @@ def join_room(room_id):
 
     # Store session mapping in Redis (sessionId → userId)
     # TTL: 24 hours (session expires if no activity)
-    session_key = f"session:{session_id}"
+    session_key = SessionKeys.session_data(session_id)
     session_data = json.dumps({
         "userId": user_name,
         "roomId": room_id,
@@ -375,7 +375,7 @@ def update_room(room_id):
 
     # Check if room exists
     room_exists = False
-    for key in redis_client.scan_iter(match=f"room:{room_id}:*", count=1):
+    for key in redis_client.scan_iter(match=keys.all_keys_pattern(), count=1):
         room_exists = True
         break
 
@@ -454,8 +454,9 @@ def set_default_room():
             emit_room_update(socketio, previous_default, isDefault=False)
     else:
         # Verify room exists
+        room_keys = RoomKeys(room_id)
         room_exists = False
-        for key in redis_client.scan_iter(match=f"room:{room_id}:*", count=1):
+        for key in redis_client.scan_iter(match=room_keys.all_keys_pattern(), count=1):
             room_exists = True
             break
 
@@ -1063,7 +1064,7 @@ def update_progress(room_id, progress_id):
         if progress is not None:
             update_payload["progress"] = progress
 
-        socketio.emit("progress:updated", update_payload, to=f"room:{room_id}")
+        socketio.emit(SocketEvents.PROGRESS_UPDATED, update_payload, to=f"room:{room_id}")
 
         return {"success": True}, 200
     except Exception as e:
@@ -1092,7 +1093,7 @@ def complete_progress(room_id, progress_id):
             return {"error": "Progress tracker not found"}, 404
 
         # Broadcast completion to room
-        socketio.emit("progress:completed", {"progressId": progress_id, "roomId": room_id}, to=f"room:{room_id}")
+        socketio.emit(SocketEvents.PROGRESS_COMPLETED, {"progressId": progress_id, "roomId": room_id}, to=f"room:{room_id}")
 
         return {"success": True}, 200
     except Exception as e:

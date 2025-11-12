@@ -42,8 +42,10 @@ def _submit_extension_impl(
     tuple[dict, int]
         JSON response and HTTP status code
     """
-    from .job_manager import JobManager
-    from .queue_manager import emit_queue_update
+    from datetime import datetime
+
+    from .job_dispatcher import assign_pending_jobs_for_extension
+    from .job_manager import JobManager, JobStatus
 
     # Get authenticated user
     user_name = get_current_user()
@@ -138,80 +140,91 @@ def _submit_extension_impl(
         )
         return jsonify({"status": "success", "message": "Settings updated"}), 200
 
-    # Create job
+    # Create job with PENDING status
     provider = "celery" if is_celery_extension else "client"
     job_id = JobManager.create_job(
-        redis_client, room_id, category, extension, data, user_name, provider, public
+        redis_client,
+        room_id,
+        category,
+        extension,
+        data,
+        user_name,
+        provider,
+        public,
+        initial_status=JobStatus.PENDING,
     )
 
-    queue_position = 0
-
-    if is_celery_extension:
-        # Celery extensions use global keys (shared across all rooms)
+    # Determine keys based on public/private
+    if public or is_celery_extension:
         keys = ExtensionKeys.for_global_extension(category, extension)
+        ext_room_id = None  # Global extension
+    else:
+        keys = ExtensionKeys.for_extension(room_id, category, extension)
+        ext_room_id = room_id  # Room-scoped extension
 
-        # Add to queue
-        redis_client.rpush(
-            keys.queue,
-            json.dumps({
-                "user_name": user_name,
-                "data": data,
-                "room": room_id,
-                "jobId": job_id,
-                "provider": "celery",
-                "public": public,  # Always True for Celery extensions
-            }),
-        )
+    # Add job to pending queue
+    timestamp = datetime.utcnow().timestamp()
+    redis_client.zadd(keys.pending_jobs, {job_id: timestamp})
+    log.info(f"Added job {job_id} to pending queue for {category}/{extension}")
+
+    # Check for idle workers and try to assign immediately
+    idle_workers = redis_client.smembers(keys.idle_workers)
+
+    if idle_workers:
+        # Idle worker available - trigger assignment
         log.info(
-            f"Queued Celery task for user {user_name}, category {category}, "
-            f"extension {extension}, room {room_id}, job {job_id}"
+            f"Idle workers available for {category}/{extension}, "
+            f"attempting immediate assignment"
         )
-        queue_position = redis_client.llen(keys.queue) - 1
 
-        # Trigger celery worker
+        assigned = assign_pending_jobs_for_extension(
+            redis_client,
+            socketio,
+            ext_room_id,
+            category,
+            extension,
+        )
+
+        if assigned > 0:
+            log.info(f"Job {job_id} assigned to worker immediately")
+            queue_position = 0  # Assigned, not in queue
+        else:
+            # Still in pending queue - position is number of jobs ahead of this one
+            queue_position = redis_client.zcard(keys.pending_jobs) - 1
+    else:
+        # No idle workers - job stays in pending queue
+        log.info(
+            f"No idle workers for {category}/{extension}, "
+            f"job {job_id} remains pending"
+        )
+        # Position is number of jobs ahead of this one
+        queue_position = redis_client.zcard(keys.pending_jobs) - 1
+
+    # For Celery extensions, trigger task
+    if is_celery_extension:
         from zndraw.app.tasks import celery_job_worker
 
         config = current_app.extensions["config"]
         server_url = config.server_url
-        _ = celery_job_worker.delay(room_id, server_url)
 
-        # Notify clients in room
-        emit_queue_update(redis_client, room_id, category, extension, socketio)
-    else:
-        # Client extensions: use public or room-scoped keys
-        if public:
-            keys = ExtensionKeys.for_global_extension(category, extension)
+        # Dispatch Celery task and get task ID
+        job_data = JobManager.get_job(redis_client, job_id)
+        celery_task = celery_job_worker.delay(job_data, server_url)
+
+        # Assign job to Celery worker (PENDING → ASSIGNED)
+        # Worker ID format: "celery:{task_id}"
+        worker_id = f"celery:{celery_task.id}"
+        success = JobManager.assign_job(redis_client, job_id, worker_id)
+
+        if success:
             log.info(
-                f"Queuing job for global extension {extension} in category {category}"
+                f"Assigned job {job_id} to Celery worker {worker_id} and triggered task"
             )
+            queue_position = 0  # Assigned, not in queue
         else:
-            keys = ExtensionKeys.for_extension(room_id, category, extension)
-
-        # Add to queue
-        redis_client.rpush(
-            keys.queue,
-            json.dumps({
-                "user_name": user_name,
-                "data": data,
-                "room": room_id,
-                "jobId": job_id,
-                "public": public,
-            }),
-        )
-        log.info(
-            f"Queued task for user {user_name}, category {category}, "
-            f"extension {extension}, room {room_id}, job {job_id}"
-        )
-        queue_position = redis_client.llen(keys.queue) - 1
-
-        # Notify clients (globally for public, room-scoped for private)
-        emit_queue_update(
-            redis_client,
-            None if public else room_id,
-            category,
-            extension,
-            socketio,
-        )
+            log.error(
+                f"Failed to assign job {job_id} to Celery worker {worker_id}"
+            )
 
     # Notify user
     log.info(
@@ -307,12 +320,12 @@ def get_extension_workers(room_id: str, category: str, extension: str):
 
     idle_workers = list(redis_client.smembers(keys.idle_workers))
     progressing_workers = list(redis_client.smembers(keys.progressing_workers))
-    queue_length = redis_client.llen(keys.queue)
+    pending_jobs_count = redis_client.zcard(keys.pending_jobs)
 
     return {
         "idleWorkers": idle_workers,
         "progressingWorkers": progressing_workers,
-        "queueLength": queue_length,
+        "queueLength": pending_jobs_count,
         "totalWorkers": len(idle_workers) + len(progressing_workers),
     }, 200
 
@@ -334,11 +347,14 @@ def get_worker_state(worker_id: str):
     current_job_id = None
     is_idle = True
 
+    from .job_manager import JobStatus
+
     for key in redis_client.scan_iter(match="job:*"):
         job_data = redis_client.hgetall(key)
         if (
             job_data.get("worker_id") == worker_id
-            and job_data.get("status") == "running"
+            and job_data.get("status")
+            in [JobStatus.ASSIGNED, JobStatus.PROCESSING]
         ):
             current_job_id = job_data.get("id")
             is_idle = False
