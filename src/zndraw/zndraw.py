@@ -1449,18 +1449,16 @@ class ZnDraw(MutableSequence):
             f"Extension '{name}' registered with {scope} (worker_id: {self._worker_id})."
         )
 
-    def run(self, extension: Extension, public: bool | None = None):
-        """Run an extension.
+    def run(self, extension: Extension, public: bool = False):
+        """Run an extension by submitting a job to the server.
 
         Parameters
         ----------
         extension : Extension
             The extension instance to run
-        public : bool | None
-            Which namespace to use:
-            - True: use public/global namespace
-            - False: use private/room-scoped namespace
-            - None: try public first, fall back to private
+        public : bool
+            Whether to use the public/global namespace (True) or room-scoped namespace (False).
+            Default is False (room-scoped).
 
         Returns
         -------
@@ -1471,32 +1469,6 @@ class ZnDraw(MutableSequence):
 
         extension_name = extension.__class__.__name__
         category = extension.category.value
-        is_celery = _is_celery_extension(extension_name, category)
-
-        # Determine which namespace to use
-        if public is None:
-            # Auto-detect from registration
-            if extension_name in self._public_extensions:
-                public = True
-            elif extension_name in self._private_extensions:
-                public = False
-            elif is_celery:
-                # Celery extensions are always public (global)
-                public = True
-            else:
-                raise ValueError(
-                    f"Extension '{extension_name}' not registered. "
-                    f"Call register_extension(extension_class, public=True/False) first."
-                )
-        else:
-            # Explicit public flag provided - validate it
-            expected_dict = self._public_extensions if public else self._private_extensions
-            if extension_name not in expected_dict and not is_celery:
-                namespace = "public" if public else "private"
-                raise ValueError(
-                    f"Extension '{extension_name}' not registered in {namespace} namespace. "
-                    f"Available {namespace} extensions: {list(expected_dict.keys())}"
-                )
 
         response = self.api.run_extension(
             category=category,

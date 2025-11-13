@@ -3017,7 +3017,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.19.2" },
     { name = "vesin", specifier = ">=0.3.8" },
     { name = "znh5md", specifier = ">=0.4.8" },
-    { name = "znsocket", specifier = ">=0.2.13a4" },
+    { name = "znsocket", editable = "../znsocket" },
 ]
 
 [package.metadata.requires-dev]
@@ -3058,7 +3058,7 @@ wheels = [
 [[package]]
 name = "znsocket"
 version = "0.2.13a4"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "../znsocket" }
 dependencies = [
     { name = "eventlet" },
     { name = "python-socketio", extra = ["client"] },
@@ -3067,7 +3067,33 @@ dependencies = [
     { name = "typer" },
     { name = "znjson" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a1/2e/1752ba400832ba8e501d8f3bc4abf0c0f728cd36cf629923c0466f1d784f/znsocket-0.2.13a4.tar.gz", hash = "sha256:0708223d65314357df3a183e59325987c989302e1e6183e41c091c8a1f3478bd", size = 249344, upload-time = "2025-11-04T19:11:33.531Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/d4/2757747f121f044acba29d6c1693662ba12ab9f070b3531c2a2d746e0db4/znsocket-0.2.13a4-py3-none-any.whl", hash = "sha256:de5227618e99be4f1332e68fe3ca165ec1dfa752e46a9bdccf2ef69db0baf6da", size = 45991, upload-time = "2025-11-04T19:11:32.015Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "eventlet", specifier = ">=0.39.0" },
+    { name = "python-socketio", extras = ["client"], specifier = ">=5.12.1" },
+    { name = "redis", specifier = ">=5.2.1" },
+    { name = "sortedcontainers", specifier = ">=2.4.0" },
+    { name = "typer", specifier = ">=0.13" },
+    { name = "znjson", specifier = ">=0.2.6" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "coverage", specifier = ">=7.6.10" },
+    { name = "ipykernel", specifier = ">=6.29.5" },
+    { name = "ipywidgets", specifier = ">=8.1.7" },
+    { name = "numpy", specifier = ">=2.2.2" },
+    { name = "pytest", specifier = ">=8.3.4" },
+    { name = "pytest-benchmark", specifier = ">=5.1.0" },
+    { name = "rdkit2ase", specifier = ">=0.1.4" },
+    { name = "zndraw", specifier = ">=0.5.10" },
+    { name = "znh5md", specifier = ">=0.4.4" },
+]
+docs = [
+    { name = "furo", specifier = ">=2024.8.6" },
+    { name = "nbsphinx", specifier = ">=0.9.7" },
+    { name = "sphinx", specifier = ">=8.1.3" },
+    { name = "sphinx-copybutton", specifier = ">=0.5.2" },
+    { name = "sphinx-js", specifier = ">=5.0.0" },
 ]

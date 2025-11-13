@@ -196,7 +196,16 @@ def register_worker():
             }, 409
 
         # Re-registration with same schema
-        r.sadd(keys.idle_workers, worker_id)
+        from datetime import datetime
+
+        # Add to extension registry with timestamp
+        r.hset(keys.workers, worker_id, datetime.utcnow().timestamp())
+
+        # Initialize worker capacity if not exists
+        capacity_key = ExtensionKeys.worker_capacity_key(worker_id)
+        if not r.exists(capacity_key):
+            r.set(capacity_key, 1)  # Default: can handle 1 job
+
         r.sadd(worker_extensions_key, name)
 
         log.info(
@@ -237,11 +246,19 @@ def register_worker():
         }, 200
     else:
         # Brand new extension
+        from datetime import datetime
+
         with r.pipeline() as pipe:
             pipe.hset(keys.schema, name, json.dumps(schema))
-            pipe.sadd(keys.idle_workers, worker_id)
+            # Add to extension registry with timestamp
+            pipe.hset(keys.workers, worker_id, datetime.utcnow().timestamp())
             pipe.sadd(worker_extensions_key, name)
             pipe.execute()
+
+        # Initialize worker capacity if not exists (outside pipeline to check existence)
+        capacity_key = ExtensionKeys.worker_capacity_key(worker_id)
+        if not r.exists(capacity_key):
+            r.set(capacity_key, 1)  # Default: can handle 1 job
 
         # Emit schema invalidation
         if public:

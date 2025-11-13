@@ -15,8 +15,7 @@ class ExtensionKeys:
     """
 
     schema: str
-    idle_workers: str
-    progressing_workers: str
+    workers: str
     pending_jobs: str
 
     @classmethod
@@ -36,8 +35,7 @@ class ExtensionKeys:
         base = f"room:{room_id}:extensions:{category}"
         return cls(
             schema=base,
-            idle_workers=f"{base}:{extension}:idle_workers",
-            progressing_workers=f"{base}:{extension}:progressing_workers",
+            workers=f"{base}:{extension}:workers",
             pending_jobs=f"{base}:{extension}:pending_jobs",
         )
 
@@ -87,8 +85,7 @@ class ExtensionKeys:
         base = f"global:extensions:{category}"
         return cls(
             schema=base,
-            idle_workers=f"{base}:{extension}:idle_workers",
-            progressing_workers=f"{base}:{extension}:progressing_workers",
+            workers=f"{base}:{extension}:workers",
             pending_jobs=f"{base}:{extension}:pending_jobs",
         )
 
@@ -123,29 +120,28 @@ class ExtensionKeys:
         return f"global:extensions:{category}:{sid}"
 
     @staticmethod
-    def worker_state_key(room_id: str | None, category: str, extension: str, worker_id: str) -> str:
-        """Get the worker state hash key for a specific worker and extension.
-
-        Stores worker state information including:
-        - state (idle, assigned, running)
-        - assigned_at (timestamp)
-        - job_id (current job being processed)
+    def worker_capacity_key(worker_id: str) -> str:
+        """Get the worker capacity key for tracking available job slots.
 
         Args:
-            room_id: The room identifier (None for global extensions)
-            category: The extension category
-            extension: The extension name
             worker_id: The worker identifier (socket sid or celery task id)
 
         Returns:
-            Redis key for the worker state hash
+            Redis key for the worker's available capacity (INTEGER)
         """
-        if room_id is None:
-            # Global extension
-            return f"global:extensions:{category}:{extension}:worker:{worker_id}:state"
-        else:
-            # Room-scoped extension
-            return f"room:{room_id}:extensions:{category}:{extension}:worker:{worker_id}:state"
+        return f"worker:{worker_id}:available_capacity"
+
+    @staticmethod
+    def worker_active_jobs_key(worker_id: str) -> str:
+        """Get the worker active jobs key for tracking currently assigned jobs.
+
+        Args:
+            worker_id: The worker identifier (socket sid or celery task id)
+
+        Returns:
+            Redis key for the worker's active jobs (SET)
+        """
+        return f"worker:{worker_id}:active_jobs"
 
 
 @dataclass

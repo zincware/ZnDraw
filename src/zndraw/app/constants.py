@@ -4,8 +4,6 @@
 class SocketEvents:
     """Socket.IO event names."""
 
-    TASK_RUN = "task:run"
-    TASK_FINISHED = "task:finished"
     JOB_ASSIGNED = "job:assigned"  # Server sends job to specific worker
     JOB_STATE_CHANGED = "job:state_changed"  # Job state updates to room
     INVALIDATE = "invalidate"

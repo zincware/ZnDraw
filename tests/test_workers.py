@@ -19,6 +19,14 @@ class ModifierExtension(Extension):
         if kwargs["info"].get("raise") is True:
             raise ValueError("Test error")
 
+class RaiseOnParameterExtension(Extension):
+    category = Category.MODIFIER
+
+    parameter: int
+
+    def run(self, vis: ZnDraw, **kwargs):
+        if self.parameter == 1:
+            raise ValueError("Parameter cannot be 1")
 
 class SelectionExtension(Extension):
     category = Category.SELECTION
@@ -794,3 +802,75 @@ def test_submit_task_via_vis_run(server):
     assert len(response_json) == 1
     assert response_json[0]["status"] == JobStatus.ASSIGNED
     assert response_json[0]["data"] == {"parameter": 123}
+
+@pytest.mark.parametrize("public", [True, False])
+def test_submit_task_twice_via_vis_run(server, public):
+    vis1 = ZnDraw(url=server, room="testroom", user="testuser", auto_pickup_jobs=True)
+    vis1.register_extension(RaiseOnParameterExtension, public=public)
+
+    vis2 = ZnDraw(url=server, room="testroom", user="testuser2")
+
+    job = vis2.run(RaiseOnParameterExtension(parameter=0), public=public)
+    job.wait(timeout=5)
+    assert job.status == JobStatus.COMPLETED
+    # submit again
+    job = vis2.run(RaiseOnParameterExtension(parameter=1), public=public)
+    job.wait(timeout=5)
+    assert job.status == JobStatus.FAILED
+    # # submit again
+    job1 = vis2.run(RaiseOnParameterExtension(parameter=0), public=public)
+    job2 = vis2.run(RaiseOnParameterExtension(parameter=0), public=public)
+    assert job1.status == JobStatus.ASSIGNED
+    assert job2.status == JobStatus.PENDING
+    job1.wait(timeout=5)
+    assert job1.status == JobStatus.COMPLETED
+    job2.wait(timeout=5)
+    assert job2.status == JobStatus.COMPLETED
+
+@pytest.mark.parametrize("public", [True, False])
+def test_submit_task_twice_via_vis_run_two_extensions(server, public):
+    w1 = ZnDraw(url=server, room="testroom", user="testuser", auto_pickup_jobs=True)
+    w2 = ZnDraw(url=server, room="testroom", user="testuser", auto_pickup_jobs=True)
+    w1.register_extension(RaiseOnParameterExtension, public=public)
+    w2.register_extension(RaiseOnParameterExtension, public=public)
+
+    vis = ZnDraw(url=server, room="testroom", user="testuser2")
+    job1 = vis.run(RaiseOnParameterExtension(parameter=0), public=public)
+    job2 = vis.run(RaiseOnParameterExtension(parameter=0), public=public)
+    assert job1.status == JobStatus.ASSIGNED
+    assert job2.status == JobStatus.ASSIGNED
+    job1.wait(timeout=5)
+    job2.wait(timeout=5)
+    assert job1.status == JobStatus.COMPLETED
+    assert job2.status == JobStatus.COMPLETED
+
+    # submit 3
+    job1 = vis.run(RaiseOnParameterExtension(parameter=0), public=public)
+    job2 = vis.run(RaiseOnParameterExtension(parameter=0), public=public)
+    job3 = vis.run(RaiseOnParameterExtension(parameter=0), public=public)
+    assert job1.status == JobStatus.ASSIGNED
+    assert job2.status == JobStatus.ASSIGNED
+    assert job3.status == JobStatus.PENDING 
+    job1.wait(timeout=5)
+    job2.wait(timeout=5)
+    job3.wait(timeout=5)
+    assert job1.status == JobStatus.COMPLETED
+    assert job2.status == JobStatus.COMPLETED
+    assert job3.status == JobStatus.COMPLETED
+
+
+def test_submit_task_twice_via_vis_register_twice_single_worker(server):
+    # Test that a single worker can register the same task public and per room, but only picks up one at a time
+    w1 = ZnDraw(url=server, room="testroom", user="testuser", auto_pickup_jobs=True)
+    w1.register_extension(RaiseOnParameterExtension, public=True)
+    w1.register_extension(RaiseOnParameterExtension, public=False)
+
+    vis = ZnDraw(url=server, room="testroom", user="testuser2")
+    job1 = vis.run(RaiseOnParameterExtension(parameter=0), public=True)
+    job2 = vis.run(RaiseOnParameterExtension(parameter=0), public=False)
+    assert job1.status == JobStatus.ASSIGNED
+    assert job2.status == JobStatus.PENDING
+    job1.wait(timeout=5)
+    assert job1.status == JobStatus.COMPLETED
+    job2.wait(timeout=5)
+    assert job2.status == JobStatus.COMPLETED

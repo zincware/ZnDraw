@@ -152,6 +152,7 @@ def _submit_extension_impl(
         provider,
         public,
         initial_status=JobStatus.PENDING,
+        socketio=socketio,  # Pass socketio for automatic event emission
     )
 
     # Determine keys based on public/private
@@ -167,13 +168,15 @@ def _submit_extension_impl(
     redis_client.zadd(keys.pending_jobs, {job_id: timestamp})
     log.info(f"Added job {job_id} to pending queue for {category}/{extension}")
 
-    # Check for idle workers and try to assign immediately
-    idle_workers = redis_client.smembers(keys.idle_workers)
+    # Check for available workers and try to assign immediately
+    from .job_dispatcher import get_available_workers
 
-    if idle_workers:
-        # Idle worker available - trigger assignment
+    available_workers = get_available_workers(redis_client, keys)
+
+    if available_workers:
+        # Available worker exists - trigger assignment
         log.info(
-            f"Idle workers available for {category}/{extension}, "
+            f"Available workers for {category}/{extension}, "
             f"attempting immediate assignment"
         )
 
@@ -192,9 +195,9 @@ def _submit_extension_impl(
             # Still in pending queue - position is number of jobs ahead of this one
             queue_position = redis_client.zcard(keys.pending_jobs) - 1
     else:
-        # No idle workers - job stays in pending queue
+        # No available workers - job stays in pending queue
         log.info(
-            f"No idle workers for {category}/{extension}, "
+            f"No available workers for {category}/{extension}, "
             f"job {job_id} remains pending"
         )
         # Position is number of jobs ahead of this one
@@ -214,7 +217,7 @@ def _submit_extension_impl(
         # Assign job to Celery worker (PENDING → ASSIGNED)
         # Worker ID format: "celery:{task_id}"
         worker_id = f"celery:{celery_task.id}"
-        success = JobManager.assign_job(redis_client, job_id, worker_id)
+        success = JobManager.assign_job(redis_client, job_id, worker_id, socketio=socketio)
 
         if success:
             log.info(
@@ -311,26 +314,47 @@ def get_extension_workers(room_id: str, category: str, extension: str):
         {
             "idleWorkers": ["worker_id_1", "worker_id_2"],
             "progressingWorkers": ["worker_id_3"],
-            "queueLength": 5
+            "queueLength": 5,
+            "totalWorkers": 3
         }
     """
 
     redis_client = current_app.extensions["redis"]
     keys = ExtensionKeys.for_extension(room_id, category, extension)
 
-    idle_workers = list(redis_client.smembers(keys.idle_workers))
-    progressing_workers = list(redis_client.smembers(keys.progressing_workers))
+    # Get all workers registered for this extension
+    all_workers = redis_client.hkeys(keys.workers)
+
+    # Separate idle vs busy workers by checking capacity
+    idle_workers = []
+    busy_workers = []
+
+    if all_workers:
+        pipe = redis_client.pipeline()
+        for worker_id in all_workers:
+            capacity_key = ExtensionKeys.worker_capacity_key(worker_id)
+            pipe.get(capacity_key)
+        capacities = pipe.execute()
+
+        for worker_id, capacity in zip(all_workers, capacities):
+            capacity_val = int(capacity) if capacity else 0
+            if capacity_val >= 1:
+                idle_workers.append(worker_id)
+            else:
+                busy_workers.append(worker_id)
+
     pending_jobs_count = redis_client.zcard(keys.pending_jobs)
 
     return {
         "idleWorkers": idle_workers,
-        "progressingWorkers": progressing_workers,
+        "progressingWorkers": busy_workers,
         "queueLength": pending_jobs_count,
-        "totalWorkers": len(idle_workers) + len(progressing_workers),
+        "totalWorkers": len(idle_workers) + len(busy_workers),
     }, 200
 
 
 @extensions.route("/api/workers/<string:worker_id>", methods=["GET"])
+@require_auth
 def get_worker_state(worker_id: str):
     """Get the current state of a worker.
 
@@ -342,22 +366,16 @@ def get_worker_state(worker_id: str):
     """
     redis_client = current_app.extensions["redis"]
 
-    # Check if there's any job assigned to this worker
-    # by looking for jobs where worker_id matches
+    # Check worker's active jobs using the reverse index
+    active_jobs_key = ExtensionKeys.worker_active_jobs_key(worker_id)
+    active_job_ids = redis_client.smembers(active_jobs_key)
+
+    # Worker is idle if they have no active jobs
+    is_idle = len(active_job_ids) == 0
     current_job_id = None
-    is_idle = True
 
-    from .job_manager import JobStatus
-
-    for key in redis_client.scan_iter(match="job:*"):
-        job_data = redis_client.hgetall(key)
-        if (
-            job_data.get("worker_id") == worker_id
-            and job_data.get("status")
-            in [JobStatus.ASSIGNED, JobStatus.PROCESSING]
-        ):
-            current_job_id = job_data.get("id")
-            is_idle = False
-            break
+    if active_job_ids:
+        # Return the first active job (there should typically be only one)
+        current_job_id = list(active_job_ids)[0]
 
     return {"idle": is_idle, "currentJob": current_job_id}, 200

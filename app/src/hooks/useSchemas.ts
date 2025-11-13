@@ -1,14 +1,17 @@
-import { getFrameKeys, getFrameMetadata, getSchemas, getExtensionData, submitExtension as submitExtensionApi, listJobs, getJob } from "../myapi/client";
+import { useState, useEffect, useCallback } from "react";
+import { getFrameKeys, getFrameMetadata, getSchemas, getExtensionData, submitExtension as submitExtensionApi, listJobs, getJob, type Job } from "../myapi/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "../store";
+import { type JobStatus, type ExtensionStats } from "../types/jobs";
+import { socket } from "../socket";
+
+export type { Job };
 
 export interface ExtensionMetadata {
   schema: any;
   provider: "celery" | number; // "celery" for server-side, or number of workers for client-side
   public: boolean; // Whether this is a global/public extension
-  queueLength: number;
-  idleWorkers: number;
-  progressingWorkers: number;
+  name: string;
 }
 
 export interface SchemasResponse {
@@ -133,44 +136,129 @@ export const useSubmitExtension = () => {
   });
 };
 
-// Job interfaces
-export interface Job {
-  id: string;
-  room: string;
-  category: string;
-  extension: string;
-  data: any;
-  userName: string;
-  status: "queued" | "running" | "completed" | "failed";
-  provider: string;
-  created_at: string;
-  started_at: string;
-  completed_at: string;
-  worker_id: string;
-  error: string;
-  result: any;
-}
-
 export const useJobs = (room: string) => {
-  return useQuery({
-    queryKey: ["jobs", room],
-    queryFn: async () => {
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true); // Start with true for initial load
+  const [hasLoaded, setHasLoaded] = useState(false); // Track if we've loaded once
+
+  const refetch = useCallback(async (showLoading = false) => {
+    if (!room) return;
+
+    // Only show loading skeleton on initial load
+    if (showLoading) {
+      setIsLoading(true);
+    }
+
+    console.log("[useJobs] Fetching jobs for room:", room);
+    try {
       const result = await listJobs(room);
-      return result.jobs;
-    },
-    enabled: !!room,
-    refetchInterval: 5000, // Refetch every 5 seconds
-  });
+      console.log("[useJobs] Got result:", result);
+      const jobsList = result.jobs || [];
+      setJobs(jobsList);
+      setHasLoaded(true);
+    } catch (error) {
+      console.error("[useJobs] Error fetching jobs:", error);
+      setJobs([]); // Set empty array on error
+    } finally {
+      if (showLoading) {
+        setIsLoading(false);
+      }
+    }
+  }, [room]);
+
+  // Fetch jobs on mount (show loading skeleton)
+  useEffect(() => {
+    if (room) {
+      refetch(true); // Show loading on initial mount
+    }
+  }, [room, refetch]);
+
+  // Register socket handler for job state changes
+  useEffect(() => {
+    if (!room) return;
+
+    const handleJobStateChanged = (data: any) => {
+      const { room: jobRoom, jobId, status, metadata } = data;
+
+      // Only update if this is for our room
+      if (jobRoom !== room) return;
+
+      console.log(`[useJobs] Job ${jobId} state changed to ${status}`);
+
+      // Optimistic update: immediately update the job status in local state
+      setJobs((prevJobs) => {
+        const jobIndex = prevJobs.findIndex((job) => job.id === jobId);
+        if (jobIndex !== -1) {
+          // Update existing job
+          const updatedJobs = [...prevJobs];
+          updatedJobs[jobIndex] = {
+            ...updatedJobs[jobIndex],
+            status,
+            ...metadata,
+          };
+          return updatedJobs;
+        }
+        // Job not found locally, will be fetched
+        return prevJobs;
+      });
+
+      // Refetch in background to sync with backend (no loading spinner)
+      refetch(false);
+    };
+
+    // Register socket listener
+    socket.on("job:state_changed", handleJobStateChanged);
+
+    // Cleanup on unmount
+    return () => {
+      socket.off("job:state_changed", handleJobStateChanged);
+    };
+  }, [room, refetch]);
+
+  return {
+    data: jobs,
+    isLoading: isLoading && !hasLoaded, // Only show loading if we haven't loaded yet
+    refetch: () => refetch(true), // Manual refetch shows loading
+  };
 };
 
 export const useJob = (room: string, jobId: string) => {
   return useQuery({
     queryKey: ["job", room, jobId],
     queryFn: async () => {
-      const result = await getJob(room, jobId);
-      return result.job;
+      console.log("[useJob] Fetching job:", { room, jobId });
+      try {
+        const job = await getJob(room, jobId);
+        console.log("[useJob] Got job:", job);
+        return job;
+      } catch (error) {
+        console.error("[useJob] Error fetching job:", error);
+        throw error; // Re-throw for individual job errors
+      }
     },
     enabled: !!room && !!jobId,
+  });
+};
+
+export const useExtensionStats = (
+  room: string,
+  scope: "user" | "global",
+  category: string,
+  extension: string
+) => {
+  return useQuery<ExtensionStats>({
+    queryKey: ["extensionStats", room, scope, category, extension],
+    queryFn: async () => {
+      // TODO: Implement getExtensionStats in client.ts
+      // For now, return default values
+      return {
+        idleWorkers: 0,
+        busyWorkers: 0,
+        pendingJobs: 0,
+      };
+    },
+    enabled: !!room && !!category && !!extension,
+    refetchInterval: 10000, // Slower polling for stats (10s)
   });
 };
 

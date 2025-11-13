@@ -3,20 +3,24 @@ import WorkIcon from "@mui/icons-material/Work";
 import QueueIcon from "@mui/icons-material/Queue";
 import CloudIcon from "@mui/icons-material/Cloud";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { type ExtensionMetadata } from "../hooks/useSchemas";
+import { type ExtensionStats } from "../types/jobs";
 
 interface ExtensionStatusChipsProps {
   metadata: ExtensionMetadata;
+  stats?: ExtensionStats;
 }
 
 /**
  * Displays status chips for an extension showing:
  * - Provider type (server-side vs client workers)
- * - Number of running tasks
- * - Number of queued tasks
+ * - Worker availability (idle/busy)
+ * - Number of pending tasks
  */
 export const ExtensionStatusChips = ({
   metadata,
+  stats,
 }: ExtensionStatusChipsProps) => {
   return (
     <Stack direction="row" spacing={1} sx={{ mb: 2 }} flexWrap="wrap" gap={1}>
@@ -35,18 +39,30 @@ export const ExtensionStatusChips = ({
           size="small"
         />
       )}
-      {metadata.progressingWorkers > 0 && (
+
+      {/* Show worker availability from stats */}
+      {stats && stats.idleWorkers > 0 && (
+        <Chip
+          icon={<CheckCircleIcon />}
+          label={`${stats.idleWorkers} idle`}
+          color="success"
+          size="small"
+        />
+      )}
+
+      {stats && stats.busyWorkers > 0 && (
         <Chip
           icon={<PlayArrowIcon />}
-          label={`${metadata.progressingWorkers} running`}
+          label={`${stats.busyWorkers} busy`}
           color="info"
           size="small"
         />
       )}
-      {metadata.queueLength > 0 && (
+
+      {stats && stats.pendingJobs > 0 && (
         <Chip
           icon={<QueueIcon />}
-          label={`${metadata.queueLength} queued`}
+          label={`${stats.pendingJobs} pending`}
           color="warning"
           size="small"
         />

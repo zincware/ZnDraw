@@ -123,16 +123,16 @@ class Job:
         status = self.status
         return f"Job(id={self.job_id}, status={status})"
 
-    def _repr_html_(self) -> str:
-        """Jupyter notebook representation using iframe.
+    # def _repr_html_(self) -> str:
+    #     """Jupyter notebook representation using iframe.
 
-        Displays live progress by embedding the server's job page.
-        """
-        try:
-            from IPython.display import IFrame
-        except ImportError:
-            raise ImportError(
-                "IPython is required for viewer display. Install with: uv add / pip install ipython"
-            )
-        iframe_url = f"{self.url}/job/{self.job_id}"
-        return IFrame(src=iframe_url, width="100%", height=600)._repr_html_()
+    #     Displays live progress by embedding the server's job page.
+    #     """
+    #     try:
+    #         from IPython.display import IFrame
+    #     except ImportError:
+    #         raise ImportError(
+    #             "IPython is required for viewer display. Install with: uv add / pip install ipython"
+    #         )
+    #     iframe_url = f"{self.url}/job/{self.job_id}"
+    #     return IFrame(src=iframe_url, width="100%", height=600)._repr_html_()

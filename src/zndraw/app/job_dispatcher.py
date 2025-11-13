@@ -7,13 +7,106 @@ and emitting job assignments via Socket.IO.
 import logging
 from datetime import datetime
 
-from flask_socketio import emit
-
 from .constants import SocketEvents
 from .job_manager import JobManager, JobStatus
 from .redis_keys import ExtensionKeys
 
 log = logging.getLogger(__name__)
+
+
+def get_available_workers(
+    redis_client, extension_keys: ExtensionKeys, min_capacity: int = 1
+) -> list[str]:
+    """Get workers with available capacity for this extension.
+
+    Parameters
+    ----------
+    redis_client
+        Redis client instance
+    extension_keys : ExtensionKeys
+        ExtensionKeys instance for this extension
+    min_capacity : int
+        Minimum capacity required (default: 1)
+
+    Returns
+    -------
+    list[str]
+        Worker IDs with available capacity
+    """
+    # Get all workers registered for this extension
+    all_workers = redis_client.hkeys(extension_keys.workers)
+
+    if not all_workers:
+        return []
+
+    # Build pipeline to check capacity for all workers
+    pipe = redis_client.pipeline()
+    for worker_id in all_workers:
+        capacity_key = ExtensionKeys.worker_capacity_key(worker_id)
+        pipe.get(capacity_key)
+
+    capacities = pipe.execute()
+
+    # Filter workers with sufficient capacity
+    available_workers = []
+    for worker_id, capacity in zip(all_workers, capacities):
+        capacity_val = int(capacity) if capacity else 0
+        if capacity_val >= min_capacity:
+            available_workers.append(worker_id)
+
+    return available_workers
+
+
+def assign_job_to_worker(redis_client, worker_id: str, job_id: str) -> bool:
+    """Assign a job to a worker, updating capacity.
+
+    Parameters
+    ----------
+    redis_client
+        Redis client instance
+    worker_id : str
+        Worker ID
+    job_id : str
+        Job ID
+
+    Returns
+    -------
+    bool
+        True if assignment successful, False if worker has no capacity
+    """
+    capacity_key = ExtensionKeys.worker_capacity_key(worker_id)
+    active_jobs_key = ExtensionKeys.worker_active_jobs_key(worker_id)
+
+    # Check capacity
+    capacity = int(redis_client.get(capacity_key) or 0)
+    if capacity < 1:
+        return False  # No capacity
+
+    # Decrement capacity and track active job
+    redis_client.decr(capacity_key)
+    redis_client.sadd(active_jobs_key, job_id)
+    return True
+
+
+def release_worker_capacity(redis_client, worker_id: str, job_id: str) -> None:
+    """Release worker capacity when job completes.
+
+    Parameters
+    ----------
+    redis_client
+        Redis client instance
+    worker_id : str
+        Worker ID
+    job_id : str
+        Job ID
+    """
+    capacity_key = ExtensionKeys.worker_capacity_key(worker_id)
+    active_jobs_key = ExtensionKeys.worker_active_jobs_key(worker_id)
+
+    pipe = redis_client.pipeline()
+    pipe.incr(capacity_key)
+    pipe.srem(active_jobs_key, job_id)
+    pipe.execute()
 
 
 def assign_pending_jobs_for_extension(
@@ -52,18 +145,21 @@ def assign_pending_jobs_for_extension(
     else:
         keys = ExtensionKeys.for_extension(room_id, category, extension)
 
-    # Get idle workers
+    # Get workers with available capacity
     if worker_id is not None:
-        # Check if specific worker is idle
-        is_idle = redis_client.sismember(keys.idle_workers, worker_id)
-        idle_workers = [worker_id] if is_idle else []
+        # Check if specific worker has capacity
+        capacity_key = ExtensionKeys.worker_capacity_key(worker_id)
+        capacity = int(redis_client.get(capacity_key) or 0)
+        # Also check if worker is registered for this extension
+        is_registered = redis_client.hexists(keys.workers, worker_id)
+        available_workers = [worker_id] if (is_registered and capacity >= 1) else []
     else:
-        # Get all idle workers
-        idle_workers = list(redis_client.smembers(keys.idle_workers))
+        # Get all workers with available capacity
+        available_workers = get_available_workers(redis_client, keys)
 
-    if not idle_workers:
+    if not available_workers:
         log.debug(
-            f"No idle workers for {category}/{extension} (room={room_id})"
+            f"No available workers for {category}/{extension} (room={room_id})"
         )
         return 0
 
@@ -78,13 +174,13 @@ def assign_pending_jobs_for_extension(
 
     assignments_made = 0
 
-    # Assign pending jobs to idle workers
+    # Assign pending jobs to available workers
     for idx, job_id in enumerate(pending_jobs):
-        if idx >= len(idle_workers):
-            # No more idle workers available
+        if idx >= len(available_workers):
+            # No more available workers
             break
 
-        current_worker_id = idle_workers[idx]
+        current_worker_id = available_workers[idx]
 
         # Remove job from pending queue
         removed = redis_client.zrem(keys.pending_jobs, job_id)
@@ -98,53 +194,31 @@ def assign_pending_jobs_for_extension(
             log.warning(f"Job {job_id} not found in Redis, skipping")
             continue
 
-        # Move worker from idle to assigned state
-        moved = redis_client.smove(
-            keys.idle_workers,
-            keys.progressing_workers,
-            current_worker_id,
-        )
+        # Assign job to worker (updates capacity and active jobs)
+        assigned = assign_job_to_worker(redis_client, current_worker_id, job_id)
 
-        if not moved:
-            # Worker was removed (disconnected), re-queue the job
+        if not assigned:
+            # Worker has no capacity (may have been assigned another job), re-queue the job
             timestamp = datetime.utcnow().timestamp()
             redis_client.zadd(keys.pending_jobs, {job_id: timestamp})
             log.warning(
-                f"Worker {current_worker_id} no longer idle, re-queued job {job_id}"
+                f"Worker {current_worker_id} has no capacity, re-queued job {job_id}"
             )
             continue
 
-        # Update job status to ASSIGNED
-        success = JobManager.assign_job(redis_client, job_id, current_worker_id)
+        # Update job status to ASSIGNED (automatically emits job:state_changed)
+        success = JobManager.assign_job(redis_client, job_id, current_worker_id, socketio=socketio)
         if not success:
-            # Job not in PENDING state, roll back worker state
-            redis_client.smove(
-                keys.progressing_workers,
-                keys.idle_workers,
-                current_worker_id,
-            )
+            # Job not in PENDING state, roll back worker capacity
+            release_worker_capacity(redis_client, current_worker_id, job_id)
             log.warning(
                 f"Failed to assign job {job_id} to worker {current_worker_id}, "
                 f"job not in PENDING state"
             )
             continue
 
-        # Store worker state
-        worker_state_key = ExtensionKeys.worker_state_key(
-            room_id, category, extension, current_worker_id
-        )
-        worker_state = {
-            "state": "assigned",
-            "assigned_at": datetime.utcnow().isoformat(),
-            "job_id": job_id,
-        }
-        redis_client.hset(worker_state_key, mapping=worker_state)
-
         # Emit job:assigned to specific worker (just the ID, worker will fetch details)
         _emit_job_assigned(socketio, current_worker_id, job_id)
-
-        # Emit job:state_changed to room
-        _emit_job_state_changed(socketio, job_data["room"], job_id, JobStatus.ASSIGNED)
 
         assignments_made += 1
         log.info(
@@ -174,7 +248,7 @@ def _emit_job_assigned(socketio, worker_id: str, job_id: str) -> None:
     }
 
     try:
-        emit(
+        socketio.emit(
             SocketEvents.JOB_ASSIGNED,
             payload,
             to=worker_id,
@@ -183,46 +257,3 @@ def _emit_job_assigned(socketio, worker_id: str, job_id: str) -> None:
         log.debug(f"Emitted job:assigned to worker {worker_id} for job {job_id}")
     except Exception as e:
         log.error(f"Failed to emit job:assigned to worker {worker_id}: {e}")
-
-
-def _emit_job_state_changed(
-    socketio,
-    room_id: str,
-    job_id: str,
-    status: str,
-    metadata: dict | None = None,
-) -> None:
-    """Emit job:state_changed event to all clients in a room.
-
-    Parameters
-    ----------
-    socketio
-        SocketIO instance
-    room_id : str
-        Room ID
-    job_id : str
-        Job ID
-    status : str
-        New job status
-    metadata : dict | None
-        Optional metadata (error message, result, etc.)
-    """
-    payload = {
-        "jobId": job_id,
-        "status": status,
-        "room": room_id,
-    }
-
-    if metadata:
-        payload["metadata"] = metadata
-
-    try:
-        emit(
-            SocketEvents.JOB_STATE_CHANGED,
-            payload,
-            to=room_id,
-            namespace="/",
-        )
-        log.debug(f"Emitted job:state_changed to room {room_id} for job {job_id}: {status}")
-    except Exception as e:
-        log.error(f"Failed to emit job:state_changed to room {room_id}: {e}")

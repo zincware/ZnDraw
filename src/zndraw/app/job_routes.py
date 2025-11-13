@@ -26,7 +26,7 @@ def _transition_worker_to_idle(
     room_id: str,
     success: bool = True,
 ) -> None:
-    """Transition worker from progressing to idle and dispatch next task.
+    """Release worker capacity and dispatch next task.
 
     Args:
         redis_client: Redis client
@@ -36,72 +36,71 @@ def _transition_worker_to_idle(
         room_id: Room identifier
         success: True if job completed, False if failed (affects log message)
     """
+    from .job_dispatcher import assign_pending_jobs_for_extension, release_worker_capacity
+
     category = job.get("category")
     extension = job.get("extension")
+    job_id = job.get("id")
 
     log.info(
-        f"_transition_worker_to_idle called: worker_id={worker_id}, category={category}, extension={extension}"
+        f"_transition_worker_to_idle called: worker_id={worker_id}, category={category}, extension={extension}, job_id={job_id}"
     )
 
-    if not category or not extension:
+    if not category or not extension or not job_id:
         log.warning(
-            f"Missing category or extension in job data: category={category}, extension={extension}"
+            f"Missing required field in job data: category={category}, extension={extension}, job_id={job_id}"
         )
         return
 
-    # Move worker from progressing back to idle for the extension they just completed
-    keys = ExtensionKeys.for_extension(room_id, category, extension)
-    moved = redis_client.smove(keys.progressing_workers, keys.idle_workers, worker_id)
+    # Release worker capacity for this job
+    release_worker_capacity(redis_client, worker_id, job_id)
+
+    status_msg = (
+        "finished and capacity restored" if success else "capacity restored after failure"
+    )
+    log.info(f"Worker {worker_id} {status_msg}")
+
+    # Get all extensions this worker is registered for in this category
+    # Try both room-scoped and global extensions
+    registered_extensions_room = []
+    registered_extensions_global = []
+
+    user_extensions_key_room = ExtensionKeys.user_extensions_key(room_id, category, worker_id)
+    registered_extensions_room = list(redis_client.smembers(user_extensions_key_room))
+
+    user_extensions_key_global = ExtensionKeys.global_user_extensions_key(category, worker_id)
+    registered_extensions_global = list(redis_client.smembers(user_extensions_key_global))
 
     log.info(
-        f"Worker transition: moved={moved}, progressing_key={keys.progressing_workers}, idle_key={keys.idle_workers}"
+        f"Worker {worker_id} registered extensions - room: {registered_extensions_room}, global: {registered_extensions_global}"
     )
 
-    if moved:
-        status_msg = (
-            "finished and is now idle" if success else "marked idle after failure"
+    # Try to assign pending jobs from ALL extensions this worker is registered for
+    total_assigned = 0
+
+    # Check room-scoped extensions
+    for ext_name in registered_extensions_room:
+        assigned = assign_pending_jobs_for_extension(
+            redis_client, socketio_instance, room_id, category, ext_name, worker_id
         )
-        log.info(f"Worker {worker_id} {status_msg}")
+        if assigned > 0:
+            log.info(f"Assigned {assigned} pending job(s) from room extension {ext_name} to worker {worker_id}")
+            total_assigned += assigned
+            break  # Worker now busy, stop trying to assign more
 
-        # Get all extensions this worker is registered for in this category
-        user_extensions_key = ExtensionKeys.user_extensions_key(
-            room_id, category, worker_id
-        )
-        registered_extensions = redis_client.smembers(user_extensions_key)
+    # If no job assigned from room extensions, try global extensions
+    if total_assigned == 0:
+        for ext_name in registered_extensions_global:
+            assigned = assign_pending_jobs_for_extension(
+                redis_client, socketio_instance, None, category, ext_name, worker_id
+            )
+            if assigned > 0:
+                log.info(f"Assigned {assigned} pending job(s) from global extension {ext_name} to worker {worker_id}")
+                total_assigned += assigned
+                break  # Worker now busy, stop trying to assign more
 
-        log.info(f"Worker {worker_id} registered extensions: {registered_extensions}")
-
-        # Add worker to idle set for ALL registered extensions (not just the one they completed)
-        # This ensures dispatch_next_task can find them for any extension
-        for ext_name in registered_extensions:
-            if ext_name != extension:  # Already moved above for completed extension
-                ext_keys = ExtensionKeys.for_extension(room_id, category, ext_name)
-                # Remove from progressing (if present) and add to idle
-                redis_client.srem(ext_keys.progressing_workers, worker_id)
-                redis_client.sadd(ext_keys.idle_workers, worker_id)
-                log.info(
-                    f"Added worker {worker_id} to idle set for extension {ext_name}"
-                )
-
-        # Assign pending jobs for this extension to the now-idle worker
-        from .job_dispatcher import assign_pending_jobs_for_extension
-
-        # Determine if this is a public (global) or room-scoped extension
-        public = job.get("public") == "true"
-        ext_room_id = None if public else room_id
-
-        assigned_count = assign_pending_jobs_for_extension(
-            redis_client, socketio_instance, ext_room_id, category, extension, worker_id
-        )
-
-        if assigned_count > 0:
-            log.info(f"Assigned {assigned_count} pending job(s) to worker {worker_id}")
-        else:
-            log.debug(f"No pending jobs to assign to worker {worker_id}")
-    else:
-        log.warning(
-            f"Failed to move worker {worker_id} from progressing to idle (may already be idle or not in progressing)"
-        )
+    if total_assigned == 0:
+        log.debug(f"No pending jobs to assign to worker {worker_id}")
 
 
 @jobs.route("/api/rooms/<string:room_id>/jobs", methods=["GET"])
@@ -136,47 +135,6 @@ def get_job(room_id: str, job_id: str):
     if not job:
         return {"error": "Job not found"}, 404
     return job, 200
-
-
-def _update_worker_state_to_running(
-    redis_client, worker_id: str, job: dict, room_id: str
-) -> None:
-    """Update worker state from 'assigned' to 'running'.
-
-    Parameters
-    ----------
-    redis_client
-        Redis client instance
-    worker_id : str
-        Worker ID
-    job : dict
-        Job data
-    room_id : str
-        Room ID
-    """
-    from datetime import datetime
-
-    category = job.get("category")
-    extension = job.get("extension")
-    public = job.get("public") == "true"
-    job_id = job.get("id")
-
-    # Determine if this is a global or room-scoped extension
-    ext_room_id = None if public else room_id
-
-    # Update worker state hash
-    worker_state_key = ExtensionKeys.worker_state_key(
-        ext_room_id, category, extension, worker_id
-    )
-
-    worker_state = {
-        "state": "running",
-        "started_at": datetime.utcnow().isoformat(),
-        "job_id": job_id,
-    }
-
-    redis_client.hset(worker_state_key, mapping=worker_state)
-    log.debug(f"Updated worker {worker_id} state to running for job {job_id}")
 
 
 @jobs.route("/api/jobs/<string:job_id>", methods=["GET"])
@@ -287,19 +245,12 @@ def update_job_status(room_id: str, job_id: str):
             )
             return {"error": "Worker ID does not match job's assigned worker"}, 400
 
-        # Update job status to processing
-        success = JobManager.start_processing(redis_client, job_id, worker_id)
+        # Update job status to processing (automatically emits job:state_changed)
+        success = JobManager.start_processing(redis_client, job_id, worker_id, socketio=socketio)
         if not success:
             return {"error": "Failed to start job processing"}, 400
 
         log.info(f"Job {job_id} transitioned to processing by worker {worker_id}")
-
-        # Update worker state to running
-        _update_worker_state_to_running(redis_client, worker_id, job, room_id)
-
-        # Emit job state change
-        from .job_dispatcher import _emit_job_state_changed
-        _emit_job_state_changed(socketio, room_id, job_id, JobStatus.PROCESSING)
 
         return {"status": "success"}, 200
 
@@ -321,11 +272,13 @@ def update_job_status(room_id: str, job_id: str):
             )
             return {"error": "Worker ID does not match job's worker"}, 400
 
-        success = JobManager.complete_job(redis_client, job_id)
+        # Mark job as completed (automatically emits job:state_changed)
+        success = JobManager.complete_job(redis_client, job_id, socketio=socketio)
         if not success:
             log.error(f"Failed to mark job {job_id} as completed")
             return {"error": "Failed to complete job"}, 400
         log.info(f"Job {job_id} completed in room {room_id}")
+
         worker_success = True
 
     else:  # status == "failed"
@@ -347,7 +300,8 @@ def update_job_status(room_id: str, job_id: str):
             return {"error": "Worker ID does not match job's worker"}, 400
 
         error = data.get("error", "Unknown error")
-        success = JobManager.fail_job(redis_client, job_id, error)
+        # Mark job as failed (automatically emits job:state_changed with error metadata)
+        success = JobManager.fail_job(redis_client, job_id, error, socketio=socketio)
         if not success:
             return {"error": "Failed to mark job as failed"}, 400
         log.error(f"Job {job_id} failed in room {room_id}: {error}")

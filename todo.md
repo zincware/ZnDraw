@@ -104,3 +104,4 @@ resolution on remote filesystem uploads.
 - [ ] move "filesystem:register" to REST
 - [ ] remove / unify `workerId` and `sessionId`
 - [ ] Store tokens in HttpOnly cookies / use package for managing JWT token!
+- [ ] add worker concurrency feature, currently set to 1!

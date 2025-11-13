@@ -283,20 +283,14 @@ def handle_disconnect(*args, **kwargs):
 
                 # Only fail jobs that are assigned or processing (not already completed/failed)
                 if current_status in [JobStatus.ASSIGNED, JobStatus.PROCESSING]:
-                    # Fail the job
+                    # Fail the job (automatically emits job:state_changed with error metadata)
                     JobManager.fail_job(
                         r,
                         job_id,
-                        f"Worker {worker_id} disconnected while processing job"
+                        f"Worker {worker_id} disconnected while processing job",
+                        socketio=socketio
                     )
                     log.info(f"Marked job {job_id} as failed due to worker disconnect")
-
-                    # Emit job state change
-                    socketio.emit(
-                        SocketEvents.JOB_STATE_CHANGED,
-                        {"jobId": job_id, "status": JobStatus.FAILED},
-                        to=f"room:{job_room}",
-                    )
                 else:
                     log.info(f"Job {job_id} has status {current_status}, not failing")
 
@@ -312,6 +306,11 @@ def handle_disconnect(*args, **kwargs):
         # Clean up worker's job set (should be empty after fail_job removes entries)
         r.delete(worker_keys.active_jobs())
         log.info(f"Cleaned up worker job set for {worker_id}")
+
+    # Clean up worker capacity key
+    capacity_key = ExtensionKeys.worker_capacity_key(worker_id)
+    r.delete(capacity_key)
+    log.info(f"Cleaned up worker capacity for {worker_id}")
 
     # Extension cleanup - workers are tracked by server's sid
     extension_categories = ["modifiers", "selections", "analysis"]
@@ -338,26 +337,20 @@ def handle_disconnect(*args, **kwargs):
         with r.pipeline() as pipe:
             for ext_name in worker_extensions:
                 keys = ExtensionKeys.for_extension(room_name, category, ext_name)
-                idle_key = keys.idle_workers
-                progressing_key = keys.progressing_workers
 
-                # Remove the worker_id from both possible state sets
-                pipe.srem(idle_key, worker_id)
-                pipe.srem(progressing_key, worker_id)
+                # Remove the worker_id from the workers registry
+                pipe.hdel(keys.workers, worker_id)
 
-                # Check the combined cardinality of both sets to see if the extension is orphaned
-                pipe.scard(idle_key)
-                pipe.scard(progressing_key)
+                # Check how many workers remain
+                pipe.hlen(keys.workers)
 
-            # Each extension now produces 4 results in the pipeline
+            # Each extension now produces 2 results in the pipeline
             results = pipe.execute()
 
         # Iterate through the results to decide which extensions to delete
         for i, ext_name in enumerate(worker_extensions):
-            # Get the scard results for this extension
-            remaining_idle = results[i * 4 + 2]
-            remaining_progressing = results[i * 4 + 3]
-            total_remaining = remaining_idle + remaining_progressing
+            # Get the hlen result for this extension
+            total_remaining = results[i * 2 + 1]
 
             log.info(
                 f"Extension '{ext_name}': {total_remaining} workers remaining after removing {worker_id}."
@@ -386,9 +379,8 @@ def handle_disconnect(*args, **kwargs):
             with r.pipeline() as pipe:
                 for ext_name in extensions_to_delete:
                     keys = ExtensionKeys.for_extension(room_name, category, ext_name)
-                    # Delete the state sets
-                    pipe.delete(keys.idle_workers)
-                    pipe.delete(keys.progressing_workers)
+                    # Delete the workers registry
+                    pipe.delete(keys.workers)
                     # Delete the schema from the main hash
                     pipe.hdel(keys.schema, ext_name)
                 pipe.execute()
@@ -431,25 +423,19 @@ def handle_disconnect(*args, **kwargs):
         with r.pipeline() as pipe:
             for ext_name in global_worker_extensions:
                 keys = ExtensionKeys.for_global_extension(category, ext_name)
-                idle_key = keys.idle_workers
-                progressing_key = keys.progressing_workers
 
-                # Remove the worker_id from both possible state sets
-                pipe.srem(idle_key, worker_id)
-                pipe.srem(progressing_key, worker_id)
+                # Remove the worker_id from the workers registry
+                pipe.hdel(keys.workers, worker_id)
 
-                # Check the combined cardinality to see if the extension is orphaned
-                pipe.scard(idle_key)
-                pipe.scard(progressing_key)
+                # Check how many workers remain
+                pipe.hlen(keys.workers)
 
-            # Each extension produces 4 results
+            # Each extension produces 2 results
             results = pipe.execute()
 
         # Iterate through results to decide which extensions to delete
         for i, ext_name in enumerate(global_worker_extensions):
-            remaining_idle = results[i * 4 + 2]
-            remaining_progressing = results[i * 4 + 3]
-            total_remaining = remaining_idle + remaining_progressing
+            total_remaining = results[i * 2 + 1]
 
             log.info(
                 f"Global extension '{ext_name}': {total_remaining} workers remaining after removing {worker_id}."
@@ -478,9 +464,8 @@ def handle_disconnect(*args, **kwargs):
             with r.pipeline() as pipe:
                 for ext_name in global_extensions_to_delete:
                     keys = ExtensionKeys.for_global_extension(category, ext_name)
-                    # Delete the state sets
-                    pipe.delete(keys.idle_workers)
-                    pipe.delete(keys.progressing_workers)
+                    # Delete the workers registry
+                    pipe.delete(keys.workers)
                     # Delete the schema from the main hash
                     pipe.hdel(keys.schema, ext_name)
                 pipe.execute()

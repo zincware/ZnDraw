@@ -1,6 +1,7 @@
 """Job tracking and management for ZnDraw extensions."""
 
 import json
+import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -10,6 +11,56 @@ from typing import Any, Optional
 from dateutil.parser import isoparse
 
 from .redis_keys import JobKeys, RoomKeys, WorkerKeys
+
+log = logging.getLogger(__name__)
+
+
+def _emit_job_state_changed(
+    socketio,
+    room_id: str,
+    job_id: str,
+    status: str,
+    metadata: dict | None = None,
+) -> None:
+    """Emit job:state_changed event to all clients in a room.
+
+    Parameters
+    ----------
+    socketio
+        SocketIO instance (can be None if not available)
+    room_id : str
+        Room ID
+    job_id : str
+        Job ID
+    status : str
+        New job status
+    metadata : dict | None
+        Optional metadata (error message, result, etc.)
+    """
+    if not socketio:
+        return  # Silently skip if socketio not available
+
+    from .constants import SocketEvents
+
+    payload = {
+        "jobId": job_id,
+        "status": status,
+        "room": room_id,
+    }
+
+    if metadata:
+        payload["metadata"] = metadata
+
+    try:
+        socketio.emit(
+            SocketEvents.JOB_STATE_CHANGED,
+            payload,
+            to=f"room:{room_id}",
+            namespace="/",
+        )
+        log.debug(f"Emitted job:state_changed to room {room_id} for job {job_id}: {status}")
+    except Exception as e:
+        log.error(f"Failed to emit job:state_changed to room {room_id}: {e}")
 
 
 @dataclass
@@ -90,6 +141,7 @@ class JobManager:
         public: bool = False,
         ttl: int = 86400,
         initial_status: str = JobStatus.PENDING,
+        socketio=None,
     ) -> str:
         """Create a new job and store in Redis.
 
@@ -104,6 +156,7 @@ class JobManager:
             public: Whether this is a public/global extension (default: False)
             ttl: Time-to-live in seconds (default: 86400 = 24 hours)
             initial_status: Initial job status (default: PENDING)
+            socketio: SocketIO instance for emitting events (optional)
 
         Returns:
             job_id: Unique job identifier
@@ -162,10 +215,13 @@ class JobManager:
             # Use 'room' as scope since jobs are room-scoped
             gauge.labels(scope='room').inc()
 
+        # Emit job state change event
+        _emit_job_state_changed(socketio, room, job_id, initial_status)
+
         return job_id
 
     @staticmethod
-    def assign_job(redis_client: Any, job_id: str, worker_id: str) -> bool:
+    def assign_job(redis_client: Any, job_id: str, worker_id: str, socketio=None) -> bool:
         """Mark job as assigned to a worker.
 
         Transition: PENDING -> ASSIGNED
@@ -174,6 +230,7 @@ class JobManager:
             redis_client: Redis client instance
             job_id: Job identifier
             worker_id: Worker identifier (SID or "celery:{task_id}")
+            socketio: SocketIO instance for emitting events (optional)
 
         Returns:
             True if successful, False if job not in PENDING state
@@ -212,10 +269,13 @@ class JobManager:
         worker_keys = WorkerKeys(worker_id)
         redis_client.sadd(worker_keys.active_jobs(), job_id)
 
+        # Emit job state change event
+        _emit_job_state_changed(socketio, room, job_id, JobStatus.ASSIGNED)
+
         return True
 
     @staticmethod
-    def start_processing(redis_client: Any, job_id: str, worker_id: str) -> bool:
+    def start_processing(redis_client: Any, job_id: str, worker_id: str, socketio=None) -> bool:
         """Mark job as processing (worker confirmed and started work).
 
         Transition: ASSIGNED -> PROCESSING
@@ -224,6 +284,7 @@ class JobManager:
             redis_client: Redis client instance
             job_id: Job identifier
             worker_id: Worker identifier (SID or "celery:{task_id}")
+            socketio: SocketIO instance for emitting events (optional)
 
         Returns:
             True if successful, False if job not in ASSIGNED state
@@ -243,6 +304,7 @@ class JobManager:
         # Update status
         now = datetime.utcnow().isoformat()
         created_at = redis_client.hget(job_keys.hash_key(), "created_at")
+        room = redis_client.hget(job_keys.hash_key(), "room")
 
         # Calculate wait time (from creation to processing start)
         wait_time_ms, _ = _calculate_durations(created_at, now, None)
@@ -256,15 +318,20 @@ class JobManager:
 
         redis_client.hset(job_keys.hash_key(), mapping=update_data)
 
+        # Emit job state change event
+        if room:
+            _emit_job_state_changed(socketio, room, job_id, JobStatus.PROCESSING)
+
         return True
 
     @staticmethod
-    def complete_job(redis_client: Any, job_id: str) -> bool:
+    def complete_job(redis_client: Any, job_id: str, socketio=None) -> bool:
         """Mark job as completed and calculate execution time.
 
         Args:
             redis_client: Redis client instance
             job_id: Job identifier
+            socketio: SocketIO instance for emitting events (optional)
 
         Returns:
             True if successful, False if job not found
@@ -304,16 +371,21 @@ class JobManager:
             worker_keys = WorkerKeys(worker_id)
             redis_client.srem(worker_keys.active_jobs(), job_id)
 
+        # Emit job state change event
+        if room:
+            _emit_job_state_changed(socketio, room, job_id, JobStatus.COMPLETED)
+
         return True
 
     @staticmethod
-    def fail_job(redis_client: Any, job_id: str, error: str) -> bool:
+    def fail_job(redis_client: Any, job_id: str, error: str, socketio=None) -> bool:
         """Mark job as failed and calculate execution time.
 
         Args:
             redis_client: Redis client instance
             job_id: Job identifier
             error: Error message
+            socketio: SocketIO instance for emitting events (optional)
 
         Returns:
             True if successful, False if job not found
@@ -353,6 +425,10 @@ class JobManager:
         if worker_id:
             worker_keys = WorkerKeys(worker_id)
             redis_client.srem(worker_keys.active_jobs(), job_id)
+
+        # Emit job state change event with error metadata
+        if room:
+            _emit_job_state_changed(socketio, room, job_id, JobStatus.FAILED, metadata={"error": error})
 
         return True
 

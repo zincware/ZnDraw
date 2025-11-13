@@ -21,9 +21,11 @@ import {
   useExtensionData,
   useSubmitExtension,
   useFrameKeys,
+  useExtensionStats,
 } from "../hooks/useSchemas";
 import { useAppStore } from "../store";
 import { ExtensionStatusChips } from "./ExtensionStatusChips";
+import { JobHistoryPanel } from "./JobHistoryPanel";
 import { debounce } from "lodash";
 import { customRenderers, injectDynamicEnums, schemaRequiresMetadata } from "../utils/jsonforms";
 import { PanelSkeleton, FormSkeleton } from "./shared/LoadingSkeletons";
@@ -90,6 +92,15 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
     isLoading: isLoadingData,
     isError: isDataError,
   } = useExtensionData(roomId, panelTitle, selectedExtensionName || "");
+
+  // Fetch extension stats for worker availability and job counts
+  const scope = selectedExtension?.public ? "global" : "user";
+  const { data: extensionStats } = useExtensionStats(
+    roomId,
+    scope,
+    panelTitle,
+    selectedExtensionName || ""
+  );
 
   useEffect(() => {
     if (!isLoadingData && serverData !== undefined) {
@@ -241,7 +252,10 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
             </FormControl>
 
             {selectedExtensionObject && (
-              <ExtensionStatusChips metadata={selectedExtensionObject} />
+              <ExtensionStatusChips
+                metadata={selectedExtensionObject}
+                stats={extensionStats}
+              />
             )}
 
             {selectedExtension && (
@@ -276,6 +290,16 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
                     </Box>
                   </Fade>
                 ) : null}
+
+                {/* Job History Panel - only show for non-settings panels */}
+                {panelTitle !== "settings" && selectedExtension && (
+                  <JobHistoryPanel
+                    roomId={roomId}
+                    category={panelTitle}
+                    extension={selectedExtensionName}
+                    isPublic={selectedExtension.public}
+                  />
+                )}
               </>
             )}
           </>

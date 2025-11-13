@@ -524,15 +524,18 @@ export interface Job {
   category: string;
   extension: string;
   data: any;
-  userName: string;
-  status: "queued" | "running" | "completed" | "failed";
+  user_name: string; // snake_case to match backend
+  status: "pending" | "assigned" | "processing" | "completed" | "failed";
   provider: string;
   created_at: string;
-  started_at: string;
-  completed_at: string;
-  worker_id: string;
-  error: string;
-  result: any;
+  assigned_at?: string;
+  started_at?: string;
+  completed_at?: string;
+  worker_id?: string;
+  error?: string;
+  result?: any;
+  queuePosition?: number;
+  public?: string; // backend returns this as string "true"/"false"
 }
 
 export interface JobsListResponse {
@@ -541,19 +544,18 @@ export interface JobsListResponse {
 
 export const listJobs = async (roomId: string): Promise<JobsListResponse> => {
   const { data } = await apiClient.get(`/api/rooms/${roomId}/jobs`);
-  return data;
-};
+  console.log("[listJobs] Backend response:", { roomId, data, type: typeof data, isArray: Array.isArray(data) });
 
-export interface JobResponse {
-  job: Job;
-}
+  // Backend returns array directly, wrap it in object
+  return { jobs: Array.isArray(data) ? data : [] };
+};
 
 export const getJob = async (
   roomId: string,
   jobId: string,
-): Promise<JobResponse> => {
+): Promise<Job> => {
   const { data } = await apiClient.get(`/api/rooms/${roomId}/jobs/${jobId}`);
-  return data;
+  return data; // API returns job dict directly, not wrapped in {job: ...}
 };
 
 export type TypedArray =

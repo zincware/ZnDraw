@@ -77,5 +77,8 @@ exclude = [
     ".claude",
 ]
 
+[tool.uv.sources]
+znsocket = { path = "../znsocket", editable = true }
+
 [project.scripts]
 zndraw = "zndraw_cli.cli:app"

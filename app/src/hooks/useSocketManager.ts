@@ -160,41 +160,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       );
     }
 
-    function onQueueUpdate(data: any) {
-      const {
-        roomId,
-        category,
-        extension,
-        queueLength,
-        idleWorkers,
-        progressingWorkers,
-      } = data;
-
-      // 1. Update the cached schema data with new queue length and worker counts
-      queryClient.setQueryData(
-        ["schemas", roomId, category],
-        (oldData: any) => {
-          if (!oldData || !oldData[extension]) return oldData;
-          return {
-            ...oldData,
-            [extension]: {
-              ...oldData[extension],
-              queueLength,
-              idleWorkers,
-              progressingWorkers,
-            },
-          };
-        },
-      );
-
-      // 2. Invalidate jobs list to refetch all jobs (covers created/started/completed/failed/deleted)
-      queryClient.invalidateQueries({ queryKey: ["jobs", roomId] });
-
-      console.log(
-        `Queue updated for ${category}/${extension}: ${queueLength} queued, ${idleWorkers} idle, ${progressingWorkers} progressing`,
-      );
-    }
-
     function onFrameSelectionUpdate(data: any) {
       console.log(data);
       setFrameSelection(data["indices"] || null);
@@ -647,7 +612,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     socket.on("frame_update", onFrameUpdate);
     socket.on("invalidate", onInvalidate);
     socket.on("invalidate:schema", onSchemaInvalidate);
-    socket.on("queue:update", onQueueUpdate);
     socket.on("frame_selection:update", onFrameSelectionUpdate);
     socket.on("bookmarks:invalidate", onBookmarksInvalidate);
     socket.on("frames:invalidate", onFramesInvalidate);
@@ -702,7 +666,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       socket.off("frame_update", onFrameUpdate);
       socket.off("invalidate", onInvalidate);
       socket.off("invalidate:schema", onSchemaInvalidate);
-      socket.off("queue:update", onQueueUpdate);
       socket.off("frame_selection:update", onFrameSelectionUpdate);
       socket.off("bookmarks:invalidate", onBookmarksInvalidate);
       socket.off("frames:invalidate", onFramesInvalidate);
