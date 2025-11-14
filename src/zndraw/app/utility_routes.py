@@ -430,6 +430,41 @@ def get_user_role():
         return {"error": "Failed to get user role", "type": "ServerError"}, 500
 
 
+@utility.route("/api/rooms/<string:room_id>/settings", methods=["GET"])
+@require_auth
+def get_user_room_settings(room_id: str):
+    """Get authenticated user's settings for a specific room.
+
+    Settings are per-user, this endpoint returns the current user's
+    settings scoped to the specified room.
+
+    Parameters
+    ----------
+    room_id : str
+        The room identifier
+
+    Returns
+    -------
+    dict
+        {
+            "settings": {
+                "category1": {...},
+                "category2": {...}
+            }
+        }
+    """
+    try:
+        user_name = get_current_user()  # From JWT
+        settings_service = current_app.extensions["settings_service"]
+        settings = settings_service.get_all(room_id, user_name)
+
+        return {"settings": settings}, 200
+
+    except Exception as e:
+        log.error(f"Error getting user settings for room {room_id}: {e}")
+        return {"error": "Failed to get user settings", "type": "ServerError"}, 500
+
+
 @utility.route("/api/admin/users", methods=["GET"])
 @require_admin
 def list_users():

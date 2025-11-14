@@ -8,43 +8,26 @@ from zndraw import ZnDraw
 from zndraw.server_manager import ServerInfo
 
 
-def test_auto_discovery_with_running_server():
+def test_auto_discovery_with_running_server(server):
     """Test that ZnDraw auto-discovers a running local server."""
-    # Mock a running server
-    mock_server_info = ServerInfo(pid=12345, port=5000, version="0.6.0a4")
+    # The server fixture is running, so auto-discovery should find it
+    # Note: This only works if the server writes its info to the expected location
+    vis = ZnDraw(url=None, room="test")
 
+    # Should have discovered the server URL
+    assert vis.url == server
+
+
+def test_explicit_url_bypasses_discovery(server):
+    """Test that providing explicit URL bypasses auto-discovery."""
     with patch("zndraw.zndraw.get_server_status") as mock_get_status:
-        mock_get_status.return_value = (True, mock_server_info, "Server is running")
+        # Create ZnDraw instance with explicit URL (using real server)
+        vis = ZnDraw(url=server, room="test")
 
-        with patch("zndraw.api_manager.APIManager.get_version") as mock_version:
-            mock_version.return_value = "0.6.0a4"
-
-            with patch("zndraw.api_manager.APIManager.login") as mock_login:
-                mock_login.return_value = {
-                    "status": "success",
-                    "token": "test-jwt-token",
-                    "userName": "test-user",
-                    "role": "guest",
-                }
-
-                with patch("zndraw.api_manager.APIManager.join_room") as mock_join:
-                    mock_join.return_value = {
-                        "userName": "test-user",
-                        "selection": None,
-                        "frame_selection": None,
-                        "bookmarks": {},
-                        "step": 0,
-                        "geometries": None,
-                        "frameCount": 0,
-                    }
-
-                    with patch("zndraw.socket_manager.SocketManager.connect"):
-                        # Create ZnDraw instance with url=None
-                        vis = ZnDraw(url=None, room="test")
-
-                        # Should auto-discover and set the URL
-                        assert vis.url == "http://localhost:5000"
-                        mock_get_status.assert_called_once()
+        # Should use the provided URL
+        assert vis.url == server
+        # Should NOT call get_server_status
+        mock_get_status.assert_not_called()
 
 
 def test_auto_discovery_no_server():
@@ -54,41 +37,6 @@ def test_auto_discovery_no_server():
 
         with pytest.raises(RuntimeError, match="No local ZnDraw server found"):
             ZnDraw(url=None, room="test")
-
-
-def test_explicit_url_bypasses_discovery():
-    """Test that providing explicit URL bypasses auto-discovery."""
-    with patch("zndraw.zndraw.get_server_status") as mock_get_status:
-        with patch("zndraw.api_manager.APIManager.get_version") as mock_version:
-            mock_version.return_value = "0.6.0a4"
-
-            with patch("zndraw.api_manager.APIManager.login") as mock_login:
-                mock_login.return_value = {
-                    "status": "success",
-                    "token": "test-jwt-token",
-                    "userName": "test-user",
-                    "role": "guest",
-                }
-
-                with patch("zndraw.api_manager.APIManager.join_room") as mock_join:
-                    mock_join.return_value = {
-                        "userName": "test-user",
-                        "selection": None,
-                        "frame_selection": None,
-                        "bookmarks": {},
-                        "step": 0,
-                        "geometries": None,
-                        "frameCount": 0,
-                    }
-
-                    with patch("zndraw.socket_manager.SocketManager.connect"):
-                        # Create ZnDraw instance with explicit URL
-                        vis = ZnDraw(url="http://example.com:8000", room="test")
-
-                        # Should use the provided URL
-                        assert vis.url == "http://example.com:8000"
-                        # Should NOT call get_server_status
-                        mock_get_status.assert_not_called()
 
 
 def test_auto_discovery_with_stale_server():

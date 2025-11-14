@@ -20,27 +20,8 @@ def test_rest_join_new_room(server):
     data = response.json()
     assert data["status"] == "ok"
     assert data["roomId"] == room
-    assert data["frameCount"] == 0
-    assert data["selections"] == {}
-    assert data["frame_selection"] is None
     assert data["created"] is True
-    assert data["presenter-lock"] is None
-    assert data["step"] == 0
-    assert data["bookmarks"] is None
-    # Verify default geometries are created
-    assert "geometries" in data
-    assert "particles" in data["geometries"]
-    assert "bonds" in data["geometries"]
-    assert data["geometries"]["particles"]["type"] == "Sphere"
-    assert data["geometries"]["bonds"]["type"] == "Bond"
-    # Verify default Sphere properties
-    assert data["geometries"]["particles"]["data"]["scale"] == 0.7
-    assert (
-        data["geometries"]["particles"]["data"]["material"]
-        == "MeshPhysicalMaterial_matt"
-    )
-    assert data["geometries"]["particles"]["data"]["position"] == "arrays.positions"
-    assert "settings" in data
+    assert "sessionId" in data
     assert "userName" in data
 
     # list all rooms again to see if the new room is there
@@ -78,11 +59,9 @@ def test_join_existing_room(server):
     data = response.json()
     assert data["status"] == "ok"
     assert data["roomId"] == room
-    assert data["frameCount"] == 0
-    assert data["selections"] == {}
-    assert data["frame_selection"] is None
     assert data["created"] is False
-    assert data["presenter-lock"] is None
+    assert "sessionId" in data
+    assert "userName" in data
 
 
 def test_join_room_with_copy_from(server, s22):

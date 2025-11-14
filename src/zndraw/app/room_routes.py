@@ -48,9 +48,10 @@ def list_rooms():
     """
     import re
 
-    from zndraw.app.metadata_manager import RoomMetadataManager
+    from zndraw.app.room_data_fetcher import BatchedRoomDataFetcher
 
     redis_client = current_app.extensions["redis"]
+    room_service = current_app.extensions["room_service"]
     search_pattern = request.args.get("search")
 
     # Scan for all room keys to find unique room IDs
@@ -64,37 +65,23 @@ def list_rooms():
     # Get default room
     default_room = redis_client.get("default_room")
 
-    # Build detailed room objects
-    room_service = current_app.extensions["room_service"]
+    # OPTIMIZATION: Batch fetch all room data to avoid N+1 queries
+    fetcher = BatchedRoomDataFetcher()
+    rooms_data = fetcher.fetch_rooms_data(redis_client, room_service, list(room_ids))
+
+    # Build detailed room objects using pre-fetched data
     rooms = []
     for room_id in sorted(room_ids):
-        keys = RoomKeys(room_id)
-
-        # Get frame count using service
-        frame_count = room_service.get_frame_count(room_id)
-
-        # Get metadata
-        description = redis_client.get(keys.description())
-        locked = redis_client.get(keys.locked()) == "1"
-        hidden = redis_client.get(keys.hidden()) == "1"
-        is_default = default_room == room_id
-
-        # Check if metadata lock is held (trajectory:meta is the target used by vis.lock)
-        metadata_lock_key = get_lock_key(room_id, "trajectory:meta")
-        metadata_locked = redis_client.get(metadata_lock_key) is not None
-
-        # Get file metadata
-        metadata_manager = RoomMetadataManager(redis_client, room_id)
-        file_metadata = metadata_manager.get_all()
+        data = rooms_data[room_id]
 
         # Filter by search pattern if provided
         if search_pattern:
             try:
                 pattern = re.compile(search_pattern, re.IGNORECASE)
                 # Search in metadata values and room ID
-                search_targets = list(file_metadata.values()) + [room_id]
-                if description:
-                    search_targets.append(description)
+                search_targets = list(data["metadata"].values()) + [room_id]
+                if data["description"]:
+                    search_targets.append(data["description"])
                 if not any(pattern.search(str(v)) for v in search_targets):
                     continue
             except re.error:
@@ -104,13 +91,13 @@ def list_rooms():
         rooms.append(
             {
                 "id": room_id,
-                "description": description if description else None,
-                "frameCount": frame_count,
-                "locked": locked,
-                "metadataLocked": metadata_locked,
-                "hidden": hidden,
-                "isDefault": is_default,
-                "metadata": file_metadata,
+                "description": data["description"] if data["description"] else None,
+                "frameCount": data["frameCount"],
+                "locked": data["locked"],
+                "metadataLocked": data["metadataLocked"],
+                "hidden": data["hidden"],
+                "isDefault": default_room == room_id,
+                "metadata": data["metadata"],
             }
         )
 
@@ -118,6 +105,7 @@ def list_rooms():
 
 
 @rooms.route("/api/rooms/<string:room_id>", methods=["GET"])
+@require_auth
 def get_room(room_id):
     """Get details for a specific room.
 
@@ -195,11 +183,13 @@ def join_room(room_id):
         "roomId": "room-name",
         "userName": "username",
         "sessionId": "unique-session-uuid",
-        "frameCount": 0,
-        "step": 0,
-        "created": true,
-        ...
+        "created": true
     }
+
+    Note
+    ----
+    Room data (frameCount, selections, geometries, bookmarks, settings, etc.)
+    should be fetched via separate REST endpoints after joining.
     """
     import datetime
     import uuid
@@ -256,17 +246,9 @@ def join_room(room_id):
         "status": "ok",
         "userName": user_name,
         "sessionId": session_id,  # Return session ID to client
-        "frameCount": 0,
         "roomId": room_id,
-        "selections": None,
-        "frame_selection": None,
-        "created": True,
-        "presenter-lock": False,
-        "step": None,
-        "geometries": None,
+        "created": not room_exists,
     }
-
-    response["created"] = not room_exists
 
     if not room_exists:
         # Create new room using RoomService
@@ -277,6 +259,9 @@ def join_room(room_id):
             frame_count = result["frameCount"]
         except ValueError as e:
             return {"error": str(e)}, 404
+
+        # Include frameCount in response when creating room (especially for copyFrom)
+        response["frameCount"] = frame_count
 
         # Initialize default settings for new user in room
         settings_service.initialize_defaults(room_id, user_name)
@@ -292,68 +277,6 @@ def join_room(room_id):
             hidden=False,
             isDefault=False,
         )
-
-    # Get frame count using service
-    response["frameCount"] = room_service.get_frame_count(room_id)
-
-    keys = RoomKeys(room_id)
-
-    selections_raw = r.hgetall(keys.selections())
-    selections = {k: json.loads(v) for k, v in selections_raw.items()}
-    response["selections"] = selections
-
-    frame_selection = r.get(keys.frame_selection())
-    response["frame_selection"] = (
-        json.loads(frame_selection) if frame_selection else None
-    )
-
-    presenter_lock = r.get(keys.presenter_lock())
-    response["presenter-lock"] = presenter_lock
-
-    # Get current frame using service (handles validation and error cases)
-    response["step"] = room_service.get_current_frame(room_id)
-
-    bookmarks_raw = r.hgetall(keys.bookmarks())
-
-    geometries = r.hgetall(keys.geometries())
-    response["geometries"] = {k: json.loads(v) for k, v in geometries.items()}
-
-    # Add geometry defaults from Pydantic models (single source of truth)
-    from zndraw.geometries import geometries as geometry_models
-
-    geometry_defaults = {}
-    for name, model in geometry_models.items():
-        try:
-            # Try to instantiate with no arguments to get defaults
-            geometry_defaults[name] = model().model_dump()
-        except Exception:
-            # Skip geometries that require arguments (e.g., Camera requires curve references)
-            # These geometries don't have meaningful defaults without context
-            pass
-    response["geometryDefaults"] = geometry_defaults
-
-    # Convert bookmark keys from strings (Redis) to integers
-    if bookmarks_raw:
-        response["bookmarks"] = {int(k): v for k, v in bookmarks_raw.items()}
-    else:
-        response["bookmarks"] = None
-
-    # Fetch all settings for the user using service
-    response["settings"] = settings_service.get_all(room_id, user_name)
-
-    # Fetch selection groups
-    groups_raw = r.hgetall(keys.selection_groups())
-    selection_groups = {}
-    for group_name, group_data in groups_raw.items():
-        selection_groups[group_name] = json.loads(group_data)
-    response["selectionGroups"] = selection_groups
-
-    # Fetch active selection group
-    active_group = r.get(keys.active_selection_group())
-    response["activeSelectionGroup"] = active_group if active_group else None
-
-    # Check if metadata lock is held
-    response["metadataLocked"] = get_metadata_lock_info(room_id)
 
     return response
 
@@ -844,10 +767,9 @@ def get_room_schema(room_id: str, category: str):
 
 
 @rooms.route("/api/rooms/<string:room_id>/step", methods=["GET"])
+@require_auth
 def get_step(room_id: str):
     """Get current step/frame for a room.
-
-    Convenience endpoint to read current frame without authentication.
 
     Parameters
     ----------
@@ -865,11 +787,26 @@ def get_step(room_id: str):
             "totalFrames": 100
         }
     """
+    redis_client = current_app.extensions["redis"]
     room_service = current_app.extensions["room_service"]
 
     # Get current frame and total count
     current_frame = room_service.get_current_frame(room_id)
     total_frames = room_service.get_frame_count(room_id)
+
+    # Clamp current_frame to valid range to prevent 404s when frames are deleted
+    # or not yet uploaded
+    if total_frames > 0 and current_frame is not None:
+        clamped_frame = max(0, min(current_frame, total_frames - 1))
+        if clamped_frame != current_frame:
+            # Update Redis to persist the clamped value
+            log.info(
+                f"Clamping frame {current_frame} to {clamped_frame} for room {room_id} "
+                f"(total frames: {total_frames})"
+            )
+            keys = RoomKeys(room_id)
+            redis_client.set(keys.current_frame(), clamped_frame)
+            current_frame = clamped_frame
 
     return {
         "step": current_frame,
@@ -929,6 +866,7 @@ def update_step(room_id: str, session_id: str, user_id: str):
     (excluding the session that made the update).
     """
     redis_client = current_app.extensions["redis"]
+    room_service = current_app.extensions["room_service"]
     data = request.get_json()
     step = data.get("step")
 
@@ -940,6 +878,13 @@ def update_step(room_id: str, session_id: str, user_id: str):
             return {"error": "Step must be non-negative"}, 400
     except (ValueError, TypeError):
         return {"error": "Invalid step value"}, 400
+
+    # Validate upper bound (only if room has frames)
+    frame_count = room_service.get_frame_count(room_id)
+    if frame_count > 0 and step >= frame_count:
+        return {
+            "error": f"Step {step} out of range. Room has {frame_count} frames (valid range: 0-{frame_count - 1})"
+        }, 400
 
     # Update Redis
     keys = RoomKeys(room_id)

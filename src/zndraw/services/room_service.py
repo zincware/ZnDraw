@@ -301,6 +301,38 @@ class RoomService:
         keys = RoomKeys(room_id)
         return self.r.zcard(keys.trajectory_indices())
 
+    def get_frame_counts_batch(self, room_ids: list[str]) -> dict[str, int]:
+        """Get frame counts for multiple rooms efficiently.
+
+        Parameters
+        ----------
+        room_ids : list[str]
+            List of room identifiers
+
+        Returns
+        -------
+        dict[str, int]
+            Mapping of room_id to frame count
+
+        Notes
+        -----
+        Uses Redis pipeline to batch ZCARD queries for better performance
+        when fetching counts for many rooms.
+        """
+        if not room_ids:
+            return {}
+
+        # Use pipeline to batch ZCARD queries
+        pipe = self.r.pipeline(transaction=False)
+        for room_id in room_ids:
+            keys = RoomKeys(room_id)
+            pipe.zcard(keys.trajectory_indices())
+
+        results = pipe.execute()
+
+        # Build mapping
+        return {room_id: count for room_id, count in zip(room_ids, results)}
+
     def get_current_frame(self, room_id: str) -> int:
         """Get current frame number, handling invalid values.
 

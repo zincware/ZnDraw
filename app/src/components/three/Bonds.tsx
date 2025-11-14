@@ -312,7 +312,9 @@ export default function Bonds({
       }
 
       if (atomCount === 0) {
-        if (instanceCount !== 0) dispatchBondState({ type: 'RESET' });
+        if (instanceCount !== 0) {
+          dispatchBondState({ type: 'RESET' });
+        }
         return;
       }
 
@@ -355,7 +357,9 @@ export default function Bonds({
       }
 
       if (newBondPairs.length === 0) {
-        if (instanceCount !== 0) dispatchBondState({ type: 'RESET' });
+        if (instanceCount !== 0) {
+          dispatchBondState({ type: 'RESET' });
+        }
         return;
       }
 
@@ -382,7 +386,10 @@ export default function Bonds({
       // Calculate hash for new bond pairs
       const newBondPairsHash = hashBondPairs(newBondPairs);
 
-      if (instanceCount !== finalCount) {
+      // Only dispatch if values differ from current state
+      // This prevents unnecessary updates while avoiding infinite loops
+      // (instanceCount and bondPairsHash are NOT in deps, so state updates don't re-trigger this effect)
+      if (finalCount !== instanceCount || newBondPairsHash !== bondPairsHash) {
         dispatchBondState({
           type: 'UPDATE_ALL',
           payload: {
@@ -392,18 +399,6 @@ export default function Bonds({
           },
         });
         return;
-      }
-
-      // Update bondPairs and mapping if connectivity changed (use hash comparison)
-      if (bondPairsHash !== newBondPairsHash) {
-        dispatchBondState({
-          type: 'UPDATE_ALL',
-          payload: {
-            instanceCount: finalCount,
-            bondPairs: newBondPairs,
-            instanceToBondMap: newInstanceToBondMap,
-          },
-        });
       }
 
       // --- Mesh Instance Update Step ---
@@ -509,7 +504,9 @@ export default function Bonds({
       mainMesh.computeBoundingSphere();
     } catch (error) {
       console.error("Error processing Bonds data:", error);
-      if (instanceCount !== 0) dispatchBondState({ type: 'RESET' });
+      if (instanceCount !== 0) {
+        dispatchBondState({ type: 'RESET' });
+      }
     }
   }, [
     isFetching,
@@ -523,14 +520,16 @@ export default function Bonds({
     colorProp,
     radiusProp,
     connectivityProp,
-    // State
-    instanceCount,
-    bondPairsHash, // Use hash instead of bondPairs array
     // Configuration
     bondScale,
     bond_order_mode,
     bond_order_offset,
     bond_order_radius_scale,
+    // Note: instanceCount and bondPairsHash are NOT in dependencies to prevent infinite loops.
+    // They are derived state - we compare calculated values against current state values
+    // and only dispatch if different. Since they're not in deps, state updates don't
+    // re-trigger this effect. This breaks the feedback loop while maintaining proper
+    // React data flow (no refs needed).
   ]);
 
   // Separate effect for selection mesh updates (doesn't reprocess main mesh data)

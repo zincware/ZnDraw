@@ -37,16 +37,18 @@ def room_with_step_lock(server):
 
 
 def test_get_step_without_auth(server):
-    """Test that GET /step works without authentication (convenience endpoint)."""
+    """Test that GET /step requires authentication."""
     room = "test-get-step"
+    auth_headers = get_jwt_auth_headers(server)
 
-    # Get step without authentication
-    response = requests.get(f"{server}/api/rooms/{room}/step")
+    # Get step with authentication
+    response = requests.get(f"{server}/api/rooms/{room}/step", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert "step" in data
     assert "totalFrames" in data
-    assert isinstance(data["step"], int)
+    # Step might be None for empty room
+    assert data["step"] is None or isinstance(data["step"], int)
     assert isinstance(data["totalFrames"], int)
 
 
@@ -91,7 +93,7 @@ def test_put_step_with_lock(room_with_step_lock):
     assert data["step"] == 42
 
     # Verify step was updated
-    response = requests.get(f"{server}/api/rooms/{room}/step")
+    response = requests.get(f"{server}/api/rooms/{room}/step", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["step"] == 42
@@ -178,7 +180,7 @@ def test_put_step_continuous_updates(room_with_step_lock):
         assert response.json()["step"] == step
 
     # Verify final step
-    response = requests.get(f"{server}/api/rooms/{room}/step")
+    response = requests.get(f"{server}/api/rooms/{room}/step", headers=auth_headers)
     assert response.status_code == 200
     assert response.json()["step"] == 40
 
@@ -326,7 +328,7 @@ def test_atomic_pattern_acquire_set_release(server):
     assert response.status_code == 200
 
     # Verify step was set
-    response = requests.get(f"{server}/api/rooms/{room}/step")
+    response = requests.get(f"{server}/api/rooms/{room}/step", headers=auth_headers)
     assert response.status_code == 200
     assert response.json()["step"] == 99
 
@@ -435,3 +437,110 @@ def test_step_update_emits_frame_update_event(server):
     assert event["frame"] == 99
 
     sio_client.disconnect()
+
+
+def test_put_step_out_of_bounds(server, s22_xyz):
+    """Test that PUT /step rejects step values beyond frame count."""
+    import ase
+    import ase.io
+    import zndraw
+
+    room = "test-step-out-of-bounds"
+    auth_headers = get_jwt_auth_headers(server, "test-user")
+
+    # Create room with known number of frames
+    vis = zndraw.ZnDraw(url=server, room=room, user="test-user")
+    structures = ase.io.read(s22_xyz, index=":")  # Read all structures (list of Atoms)
+    for atoms in structures:
+        if isinstance(atoms, ase.Atoms):  # Type guard for type checker
+            vis.append(atoms)  # s22 has 22 structures (indices 0-21)
+
+    # Join room
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
+    )
+    assert response.status_code == 200
+    session_id = response.json()["sessionId"]
+
+    # Acquire lock
+    response = requests.post(
+        f"{server}/api/rooms/{room}/locks/step/acquire",
+        json={"msg": "testing out of bounds"},
+        headers={**auth_headers, "X-Session-ID": session_id},
+    )
+    assert response.status_code == 200
+
+    # Test step at upper boundary (should succeed)
+    response = requests.put(
+        f"{server}/api/rooms/{room}/step",
+        json={"step": 21},  # Last valid index
+        headers={**auth_headers, "X-Session-ID": session_id},
+    )
+    assert response.status_code == 200
+    assert response.json()["step"] == 21
+
+    # Test step exactly at frame count (should fail)
+    response = requests.put(
+        f"{server}/api/rooms/{room}/step",
+        json={"step": 22},  # One beyond last index
+        headers={**auth_headers, "X-Session-ID": session_id},
+    )
+    assert response.status_code == 400
+    data = response.json()
+    assert "out of range" in data["error"]
+    assert "22" in data["error"]  # Should mention the invalid step
+    assert "0-21" in data["error"]  # Should mention valid range
+
+    # Test step way beyond frame count (should fail)
+    response = requests.put(
+        f"{server}/api/rooms/{room}/step",
+        json={"step": 999999999},
+        headers={**auth_headers, "X-Session-ID": session_id},
+    )
+    assert response.status_code == 400
+    data = response.json()
+    assert "out of range" in data["error"]
+
+
+def test_put_step_empty_room(server):
+    """Test that PUT /step in empty room (0 frames) allows any step value (no validation)."""
+    room = "test-step-empty-room"
+    auth_headers = get_jwt_auth_headers(server, "test-user")
+
+    # Join empty room
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
+    )
+    assert response.status_code == 200
+    session_id = response.json()["sessionId"]
+
+    # Verify room is empty
+    response = requests.get(f"{server}/api/rooms/{room}/step", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["totalFrames"] == 0
+
+    # Acquire lock
+    response = requests.post(
+        f"{server}/api/rooms/{room}/locks/step/acquire",
+        json={"msg": "testing empty room"},
+        headers={**auth_headers, "X-Session-ID": session_id},
+    )
+    assert response.status_code == 200
+
+    # Set step 0 in empty room (should succeed - no validation when empty)
+    response = requests.put(
+        f"{server}/api/rooms/{room}/step",
+        json={"step": 0},
+        headers={**auth_headers, "X-Session-ID": session_id},
+    )
+    assert response.status_code == 200
+    assert response.json()["step"] == 0
+
+    # Should also allow arbitrary steps in empty room
+    response = requests.put(
+        f"{server}/api/rooms/{room}/step",
+        json={"step": 999},
+        headers={**auth_headers, "X-Session-ID": session_id},
+    )
+    assert response.status_code == 200
+    assert response.json()["step"] == 999

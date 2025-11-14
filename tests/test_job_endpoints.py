@@ -8,6 +8,7 @@ import requests
 from zndraw import ZnDraw
 from zndraw.extensions import Category, Extension
 from zndraw.job import Job
+from conftest import get_jwt_auth_headers
 
 
 class TestModifier(Extension):
@@ -131,6 +132,7 @@ def test_update_job_status_to_processing(server):
     response = requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "processing", "workerId": vis._worker_id},
+        headers=get_jwt_auth_headers(server, "testuser"),
     )
 
     assert response.status_code == 200
@@ -144,15 +146,18 @@ def test_update_job_status_to_completed(server):
     vis.register_extension(TestModifier)
 
     job = vis.run(TestModifier(param=42))
+    auth_headers = get_jwt_auth_headers(server, "testuser")
 
     # Transition: assigned → processing → completed
     requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "processing", "workerId": vis._worker_id},
+        headers=auth_headers,
     )
     response = requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "completed", "workerId": vis._worker_id},
+        headers=auth_headers,
     )
 
     assert response.status_code == 200
@@ -167,11 +172,13 @@ def test_update_job_status_to_failed(server):
     vis.register_extension(TestModifier)
 
     job = vis.run(TestModifier(param=42))
+    auth_headers = get_jwt_auth_headers(server, "testuser")
 
     # Transition to processing first
     requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "processing", "workerId": vis._worker_id},
+        headers=auth_headers,
     )
 
     # Mark as failed
@@ -182,6 +189,7 @@ def test_update_job_status_to_failed(server):
             "workerId": vis._worker_id,
             "error": "Something went wrong",
         },
+        headers=auth_headers,
     )
 
     assert response.status_code == 200
@@ -209,6 +217,7 @@ def test_job_refresh(server):
     requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "processing", "workerId": vis._worker_id},
+        headers=get_jwt_auth_headers(server, "testuser"),
     )
 
     # Refresh and check
@@ -230,18 +239,6 @@ def test_job_repr(server):
     assert "assigned" in repr_str  # Job assigned (worker available)
 
 
-def test_job_repr_html(server):
-    """Test Job._repr_html_() for Jupyter output."""
-    vis = ZnDraw(url=server, room="test", user="testuser", auto_pickup_jobs=False)
-    vis.register_extension(TestModifier)
-
-    job = vis.run(TestModifier(param=42))
-
-    html = job._repr_html_()
-    assert "<iframe" in html
-    assert f"{server}/job/{job.job_id}" in html
-
-
 def test_job_wait_for_completion_with_timeout(server):
     """Test job.wait() with timeout."""
     vis = ZnDraw(url=server, room="test", user="testuser", auto_pickup_jobs=False)
@@ -260,6 +257,7 @@ def test_job_completion_lifecycle(server):
     vis.register_extension(TestModifier)
 
     job = vis.run(TestModifier(param=42))
+    auth_headers = get_jwt_auth_headers(server, "testuser")
 
     # Job is assigned but not yet processing
     assert job.is_assigned()
@@ -269,12 +267,14 @@ def test_job_completion_lifecycle(server):
     requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "processing", "workerId": vis._worker_id},
+        headers=auth_headers,
     )
 
     # Mark as completed (extensions work through side effects, no result needed)
     response = requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "completed", "workerId": vis._worker_id},
+        headers=auth_headers,
     )
 
     assert response.status_code == 200

@@ -257,7 +257,7 @@ def test_requires_lock_multiple_operations_same_lock(room_with_lock):
     assert response.status_code == 200
 
     # Verify both geometries exist
-    response = requests.get(f"{server}/api/rooms/{room}/geometries")
+    response = requests.get(f"{server}/api/rooms/{room}/geometries", headers=auth_headers)
     assert response.status_code == 200
     geom_list = response.json()["geometries"]
     assert "sphere1" in geom_list

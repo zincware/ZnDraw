@@ -25,16 +25,15 @@ const GeometryPanel = () => {
   } = useGeometriesList(roomId);
 
   const geometries = useMemo(() => {
-    if (!geometriesData?.geometries || !Array.isArray(geometriesData.geometries)) {
+    if (!geometriesData?.geometries || typeof geometriesData.geometries !== 'object') {
       return [];
     }
 
-    // Get geometries from the store (which has type info)
-    const geometriesObj = useAppStore.getState().geometries;
-
-    return geometriesData.geometries.map((key: string) => ({
+    // geometriesData.geometries is an object with geometry keys as properties
+    // Each property has {type: string, data: object} structure
+    return Object.keys(geometriesData.geometries).map((key: string) => ({
       key,
-      type: geometriesObj[key]?.type || "unknown",
+      type: geometriesData.geometries[key]?.type || "unknown",
     }));
   }, [geometriesData]);
 

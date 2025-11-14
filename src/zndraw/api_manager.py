@@ -512,7 +512,7 @@ class APIManager:
         )
         response.raise_for_status()
 
-    def run_extension(self, category: str, name: str, data: dict, public: bool = False) -> dict:
+    def run_extension(self, category: str, name: str, data: dict, public: bool = False, auto_retry: bool = False) -> dict:
         headers = self._get_headers()
 
         # Route to correct endpoint based on public flag
@@ -526,6 +526,23 @@ class APIManager:
             error_data = response.json()
             error_type = error_data.get("type", "")
             error_msg = error_data.get("error", response.text)
+            error_code = error_data.get("code", "")
+
+            # Auto-retry with public=True if this is a server-side extension
+            # Only retry if auto_retry=True (user didn't explicitly specify public parameter)
+            if error_code == "WRONG_ENDPOINT" and not public and auto_retry:
+                return self.run_extension(category, name, data, public=True, auto_retry=False)
+
+            # Convert EXTENSION_NOT_FOUND to ValueError with clearer message
+            if error_code == "EXTENSION_NOT_FOUND":
+                namespace = error_data.get("namespace", "unknown")
+                extension_name = error_data.get("extension", name)
+                # Use "public" and "private" in error messages to match test expectations
+                namespace_display = "public" if namespace == "global" else "private"
+                raise ValueError(
+                    f"Extension '{extension_name}' is not registered in {namespace_display} namespace. "
+                    f"Register it with vis.register_extension({extension_name}, public={public})"
+                )
 
             if error_type == "KeyError":
                 raise KeyError(error_msg)
@@ -609,11 +626,12 @@ class APIManager:
                     raise KeyError(error)
             response.raise_for_status()
 
-    def list_geometries(self) -> list[str]:
-        """List all geometry keys.
+    def list_geometries(self) -> dict:
+        """Get all geometries with their full data.
 
         Returns:
-            List of geometry keys
+            Dict mapping geometry keys to their data {key: {type, data}, ...}
+            Example: {"particles": {"type": "Sphere", "data": {...}}}
         """
         headers = self._get_headers()
         response = requests.get(
@@ -621,27 +639,18 @@ class APIManager:
             headers=headers,
         )
         response.raise_for_status()
-        return response.json().get("geometries", [])
+        return response.json().get("geometries", {})
 
     def get_geometries(self) -> dict | None:
-        """Get all geometries (DEPRECATED: use list_geometries and get_geometry).
+        """Get all geometries (DEPRECATED: use list_geometries).
 
-        This method fetches all geometry keys and then retrieves each geometry.
-        For better performance, use list_geometries() and get_geometry(key) as needed.
+        This is now just an alias for list_geometries() since the endpoint
+        was updated to return full geometry data in a single request.
 
         Returns:
             Dict mapping geometry keys to their data {key: {type, data}, ...}
         """
-        keys = self.list_geometries()
-        if not keys:
-            return {}
-
-        result = {}
-        for key in keys:
-            geometry = self.get_geometry(key)
-            if geometry:
-                result[key] = geometry
-        return result
+        return self.list_geometries()
 
     def add_figure(self, key: str, figure: dict) -> None:
         headers = self._get_headers()
@@ -1239,6 +1248,52 @@ class APIManager:
 
         response.raise_for_status()
         return response.json()
+
+    def get_room_info(self) -> dict:
+        """Get room information including frameCount.
+
+        Returns
+        -------
+        dict
+            {
+                "id": str,
+                "description": str | None,
+                "frameCount": int,
+                "locked": bool,
+                "hidden": bool,
+                "metadata": dict
+            }
+
+        Raises
+        ------
+        requests.HTTPError
+            If the request fails (e.g., room not found)
+        """
+        headers = self._get_headers()
+        url = f"{self.url}/api/rooms/{self.room}"
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        return response.json()
+
+    def get_frame_selection(self) -> list[int] | None:
+        """Get frame selection for the room.
+
+        Returns
+        -------
+        list[int] | None
+            List of selected frame indices, or None if no selection
+
+        Raises
+        ------
+        requests.HTTPError
+            If the request fails
+        """
+        headers = self._get_headers()
+        url = f"{self.url}/api/rooms/{self.room}/frame-selection"
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("frameSelection")
 
     def get_step(self) -> dict:
         """Get current step/frame for the room.

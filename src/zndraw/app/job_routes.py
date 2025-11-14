@@ -9,6 +9,7 @@ import logging
 from flask import Blueprint, current_app, jsonify, request
 
 from zndraw.server import socketio
+from zndraw.auth import require_auth
 
 from .job_manager import JobManager, JobStatus
 from .redis_keys import ExtensionKeys
@@ -111,30 +112,30 @@ def list_jobs(room_id: str):
     return jobs, 200
 
 
-@jobs.route(
-    "/api/rooms/<string:room_id>/jobs/<string:job_id>", methods=["GET", "DELETE"]
-)
+@jobs.route("/api/rooms/<string:room_id>/jobs/<string:job_id>", methods=["GET"])
 def get_job(room_id: str, job_id: str):
     """Get details for a specific job."""
     redis_client = current_app.extensions["redis"]
-    if request.method == "DELETE":
-        job = JobManager.get_job(redis_client, job_id)
-        if not job:
-            return {"error": "Job not found"}, 404
-        if job.get("status") in [JobStatus.ASSIGNED, JobStatus.PROCESSING]:
-            return {"error": "Cannot delete a job that is assigned or processing"}, 400
-
-        category = job.get("category")
-        extension = job.get("extension")
-
-        JobManager.delete_job(redis_client, job_id)
-
-        return {"status": "success"}, 200
-
     job = JobManager.get_job(redis_client, job_id)
     if not job:
         return {"error": "Job not found"}, 404
     return job, 200
+
+
+@jobs.route("/api/rooms/<string:room_id>/jobs/<string:job_id>", methods=["DELETE"])
+@require_auth
+def delete_job(room_id: str, job_id: str):
+    """Delete a specific job."""
+    redis_client = current_app.extensions["redis"]
+    job = JobManager.get_job(redis_client, job_id)
+    if not job:
+        return {"error": "Job not found"}, 404
+    if job.get("status") in [JobStatus.ASSIGNED, JobStatus.PROCESSING]:
+        return {"error": "Cannot delete a job that is assigned or processing"}, 400
+
+    JobManager.delete_job(redis_client, job_id)
+
+    return {"status": "success"}, 200
 
 
 @jobs.route("/api/jobs/<string:job_id>", methods=["GET"])
@@ -184,6 +185,7 @@ def get_job_details(job_id: str):
 
 
 @jobs.route("/api/rooms/<string:room_id>/jobs/<string:job_id>/status", methods=["PUT"])
+@require_auth
 def update_job_status(room_id: str, job_id: str):
     """Update a job's status (processing, completed, or failed).
 

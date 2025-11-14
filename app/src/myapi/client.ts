@@ -88,12 +88,14 @@ apiClient.interceptors.request.use((config) => {
     config.headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // Add session ID header if available
+  // Add session ID header if available (optional - only needed for specific endpoints)
+  // SessionId is required for:
+  // - Endpoints with @requires_lock (frame uploads, geometry operations)
+  // - Worker registration
+  // Most GET endpoints only need JWT auth
   const sessionId = useAppStore.getState().sessionId;
   if (sessionId) {
     config.headers['X-Session-ID'] = sessionId;
-  } else {
-    console.log(`[API] No sessionId available for ${config.url}`);
   }
 
   return config;
@@ -183,8 +185,13 @@ export interface GeometryResponse {
   geometry: GeometryData;
 }
 
+export interface GeometryData {
+  type: string;
+  data: any;
+}
+
 export interface GeometryListResponse {
-  geometries: string[];
+  geometries: Record<string, GeometryData>;
 }
 
 export const listGeometries = async (
@@ -399,21 +406,8 @@ export interface JoinRoomResponse {
   status: string;
   userName: string;
   sessionId: string; // Session ID for this browser tab
-  frameCount: number;
   roomId: string;
-  template: string;
-  selections: Record<string, number[]>;
-  selectionGroups: Record<string, Record<string, number[]>>;
-  activeSelectionGroup: string | null;
-  frame_selection: number[] | null;
   created: boolean;
-  "presenter-lock": boolean | string | null;
-  step: number | null;
-  geometries: Record<string, GeometryData> | null;
-  geometryDefaults: Record<string, any> | null;
-  bookmarks: Record<number, string> | null;
-  settings: Record<string, any>;
-  metadataLocked?: LockMetadata | null;
 }
 
 export const joinRoom = async (
@@ -440,6 +434,34 @@ export const getRoomInfo = async (
   signal?: AbortSignal,
 ): Promise<RoomInfo> => {
   const { data } = await apiClient.get(`/api/rooms/${roomId}`, { signal });
+  return data;
+};
+
+export const getFrameSelection = async (
+  roomId: string,
+  signal?: AbortSignal,
+): Promise<{ frameSelection: number[] | null }> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}/frame-selection`, {
+    signal,
+  });
+  return data;
+};
+
+export const getCurrentStep = async (
+  roomId: string,
+  signal?: AbortSignal,
+): Promise<{ step: number }> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}/step`, { signal });
+  return data;
+};
+
+export const getUserRoomSettings = async (
+  roomId: string,
+  signal?: AbortSignal,
+): Promise<{ settings: Record<string, any> }> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}/settings`, {
+    signal,
+  });
   return data;
 };
 

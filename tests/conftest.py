@@ -125,6 +125,10 @@ def server(tmp_path) -> t.Generator[str, None, None]:
             r = redis.Redis.from_url(redis_url, decode_responses=True)
             r.flushall()
 
+            # Clean up server info file
+            from zndraw.server_manager import remove_server_info
+            remove_server_info()
+
 
 @pytest.fixture
 def celery_worker():

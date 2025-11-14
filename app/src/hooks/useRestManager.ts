@@ -6,9 +6,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { joinRoom as joinRoomApi } from "../myapi/client";
 import { convertBookmarkKeys } from "../utils/bookmarks";
 import { ensureAuthenticated, getUsername, getUserRole } from "../utils/auth";
+import { useLazyRoomData } from "./useLazyRoomData";
 
 export const useRestJoinManager = () => {
   const {
+    roomId: storeRoomId,
+    userName: storeUserName,
     setRoomId,
     setUserName,
     setUserRole,
@@ -31,6 +34,24 @@ export const useRestJoinManager = () => {
   const queryClient = useQueryClient();
 
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Lazily load room data after join succeeds
+  // This hook fetches all room data in parallel when roomId is available
+  const {
+    isLoading: isLoadingRoomData,
+    isReady: isRoomDataReady,
+    hasErrors: roomDataHasErrors,
+  } = useLazyRoomData(
+    storeRoomId,
+    !!storeRoomId, // Enable when roomId is set
+  );
+
+  // Log when room data is ready
+  useEffect(() => {
+    if (isRoomDataReady) {
+      console.log("Room data loaded successfully for room:", storeRoomId);
+    }
+  }, [isRoomDataReady, storeRoomId]);
 
   const joinRoom = useCallback(async () => {
     if (!room) {
@@ -86,74 +107,13 @@ export const useRestJoinManager = () => {
         setSessionId(data.sessionId);
       }
 
-      // Update Zustand store with room data
-      // TODO: all of these should be fetched lazily instead of at join time
-      if (typeof data.frameCount === "number") {
-        setFrameCount(data.frameCount);
-      }
-      if (data.selections !== undefined) {
-        console.log("Setting selections from join:", data.selections);
-        setSelections(data.selections);
-      }
-      if (data.selectionGroups !== undefined) {
-        console.log("Setting selection groups from join:", data.selectionGroups);
-        setSelectionGroups(data.selectionGroups);
-      }
-      if (data.activeSelectionGroup !== undefined) {
-        console.log("Setting active selection group from join:", data.activeSelectionGroup);
-        setActiveSelectionGroup(data.activeSelectionGroup);
-      }
-      if (data.frame_selection !== undefined) {
-        setFrameSelection(data.frame_selection);
-      }
-      if (data.step !== undefined && data.step !== null) {
-        setCurrentFrame(data.step);
-      }
-      if (data.bookmarks !== undefined) {
-        setBookmarks(convertBookmarkKeys(data.bookmarks));
-      }
+      // Store essential fields only
       if (data.userName) {
         setUserName(data.userName);
       }
-      // IMPORTANT: Set defaults BEFORE geometries to avoid race condition
-      // Geometries need defaults to render properly
-      if (data.geometryDefaults) {
-        setGeometryDefaults(data.geometryDefaults);
-      }
-      if (data.geometries) {
-        setGeometries(data.geometries);
-      }
-      // Initialize lockMetadata if present in join response
-      if (data.metadataLocked !== undefined) {
-        if (data.metadataLocked) {
-          setLockMetadata({
-            locked: true,
-            holder: undefined,
-            userName: data.metadataLocked.userName,
-            msg: data.metadataLocked.msg,
-            timestamp: data.metadataLocked.timestamp,
-          });
-        } else {
-          setLockMetadata({ locked: false });
-        }
-      }
       setRoomId(room);
 
-      // Store settings in query cache for each category
-      if (data.settings) {
-        for (const [categoryName, categoryData] of Object.entries(
-          data.settings,
-        )) {
-          const queryKey = [
-            "extensionData",
-            room,
-            userName,
-            "settings",
-            categoryName,
-          ];
-          queryClient.setQueryData(queryKey, categoryData);
-        }
-      }
+      // Room data will be fetched lazily via useLazyRoomData hook (see above)
     } catch (error: any) {
       // 4. Check if the error was due to the request being aborted.
       if (error instanceof Error && error.name === "AbortError") {
@@ -223,5 +183,9 @@ export const useRestJoinManager = () => {
     };
   }, [room, throttledJoin]);
 
-  return {};
+  return {
+    isLoadingRoomData,
+    isRoomDataReady,
+    roomDataHasErrors,
+  };
 };

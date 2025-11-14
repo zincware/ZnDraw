@@ -10,6 +10,7 @@ from collections.abc import MutableSequence
 import ase
 import msgpack
 import numpy as np
+import requests
 from pydantic import BaseModel, Field
 
 from zndraw.api_manager import APIManager
@@ -413,7 +414,7 @@ class ZnDraw(MutableSequence):
             is_running, server_info, status_message = get_server_status()
 
             if is_running and server_info is not None:
-                self.url = f"http://localhost:{server_info.port}"
+                self.url = f"http://127.0.0.1:{server_info.port}"
                 log.info(f"Auto-discovered local ZnDraw server: {status_message}")
             else:
                 raise RuntimeError(
@@ -456,15 +457,76 @@ class ZnDraw(MutableSequence):
         self.socket = SocketManager(zndraw_instance=self)
         self.connect()
 
-        if response_data["frame_selection"] is not None:
-            self._frame_selection = frozenset(response_data["frame_selection"])
-        if response_data.get("bookmarks") is not None:
-            self._bookmarks = {int(k): v for k, v in response_data["bookmarks"].items()}
-        if response_data.get("step") is not None:
-            self._step = int(response_data["step"])
-        if response_data.get("geometries") is not None:
-            self._geometries = response_data["geometries"]
-        self._len = response_data["frameCount"]
+        # Fetch room data separately via REST endpoints
+        # (join response is now minimal - only returns status, sessionId, userName, roomId, created)
+
+        # Get frame count
+        try:
+            room_info = self.api.get_room_info()
+            self._len = room_info["frameCount"]
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                log.debug(f"Room {self.room} not found or has no frames")
+                self._len = 0
+            else:
+                log.error(f"Failed to fetch room info: {e}")
+                self._len = 0
+        except Exception as e:
+            log.error(f"Unexpected error loading room info: {e}")
+            self._len = 0
+
+        # Get frame selection
+        try:
+            frame_selection = self.api.get_frame_selection()
+            if frame_selection is not None:
+                self._frame_selection = frozenset(frame_selection)
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                log.debug("No frame selection for room")
+            else:
+                log.warning(f"Failed to fetch frame selection: {e}")
+        except Exception as e:
+            log.error(f"Unexpected error loading frame selection: {e}")
+
+        # Get bookmarks
+        try:
+            bookmarks = self.api.get_all_bookmarks()
+            if bookmarks:
+                self._bookmarks = bookmarks
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                log.debug("No bookmarks for room")
+            else:
+                log.warning(f"Failed to fetch bookmarks: {e}")
+        except Exception as e:
+            log.error(f"Unexpected error loading bookmarks: {e}")
+
+        # Get current step
+        try:
+            step_data = self.api.get_step()
+            if step_data.get("step") is not None:
+                self._step = int(step_data["step"])
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                log.debug("No current step set for room")
+            else:
+                log.warning(f"Failed to fetch current step: {e}")
+        except Exception as e:
+            log.error(f"Unexpected error loading current step: {e}")
+
+        # Get geometries (returns dict of {key: {type, data}})
+        try:
+            geometries_response = self.api.list_geometries()
+            # list_geometries now returns full geometry data as dict
+            if isinstance(geometries_response, dict):
+                self._geometries = geometries_response
+        except requests.HTTPError as e:
+            if e.response.status_code == 404:
+                log.debug("No geometries for room")
+            else:
+                log.warning(f"Failed to fetch geometries: {e}")
+        except Exception as e:
+            log.error(f"Unexpected error loading geometries: {e}")
 
     @classmethod
     def for_job_execution(
@@ -1449,16 +1511,17 @@ class ZnDraw(MutableSequence):
             f"Extension '{name}' registered with {scope} (worker_id: {self._worker_id})."
         )
 
-    def run(self, extension: Extension, public: bool = False):
+    def run(self, extension: Extension, public: bool | None = None):
         """Run an extension by submitting a job to the server.
 
         Parameters
         ----------
         extension : Extension
             The extension instance to run
-        public : bool
+        public : bool | None
             Whether to use the public/global namespace (True) or room-scoped namespace (False).
-            Default is False (room-scoped).
+            If None (default), tries room-scoped first, then auto-retries with public if the
+            extension is a server-side extension (Celery-based).
 
         Returns
         -------
@@ -1470,11 +1533,14 @@ class ZnDraw(MutableSequence):
         extension_name = extension.__class__.__name__
         category = extension.category.value
 
+        # If public is None, we'll try private first and let APIManager auto-retry
+        # If public is explicitly True/False, we pass that through
         response = self.api.run_extension(
             category=category,
             name=extension_name,
             data=extension.model_dump(),
-            public=public,
+            public=public if public is not None else False,
+            auto_retry=public is None,  # Only auto-retry if public wasn't explicitly set
         )
 
         # Extract jobId from response and create Job object

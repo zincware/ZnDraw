@@ -218,7 +218,7 @@ def test_run_client_extensions(server, category):
     assert response.json() == {"status": "success"}
 
     # get the worker state
-    response = requests.get(f"{server}/api/workers/{vis.sid}")
+    response = requests.get(f"{server}/api/workers/{vis.sid}", headers=get_jwt_auth_headers(server, user))
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
@@ -248,7 +248,7 @@ def test_run_client_extensions(server, category):
     assert response_json["status"] == JobStatus.COMPLETED
 
     # get the worker state again
-    response = requests.get(f"{server}/api/workers/{vis.sid}")
+    response = requests.get(f"{server}/api/workers/{vis.sid}", headers=get_jwt_auth_headers(server, user))
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
@@ -325,7 +325,7 @@ def test_run_client_extensions(server, category):
     response_json = response.json()
     assert response_json["status"] == JobStatus.PENDING
     # check worker state
-    response = requests.get(f"{server}/api/workers/{vis.sid}")
+    response = requests.get(f"{server}/api/workers/{vis.sid}", headers=get_jwt_auth_headers(server, user))
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
@@ -347,7 +347,7 @@ def test_run_client_extensions(server, category):
     response_json = response.json()
     assert response_json["status"] == JobStatus.COMPLETED
     # check worker state - jobId3 should have been auto-assigned after jobId2 completed
-    response = requests.get(f"{server}/api/workers/{vis.sid}")
+    response = requests.get(f"{server}/api/workers/{vis.sid}", headers=get_jwt_auth_headers(server, user))
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {

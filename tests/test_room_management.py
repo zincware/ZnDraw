@@ -10,6 +10,7 @@ This module tests the new room management architecture including:
 import pytest
 import redis
 import requests
+from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
 
@@ -187,7 +188,7 @@ def test_get_room_details(server, s22):
     r.set("room:test-room-3:locked", "0")
     r.set("room:test-room-3:hidden", "1")
 
-    response = requests.get(f"{server}/api/rooms/test-room-3")
+    response = requests.get(f"{server}/api/rooms/test-room-3", headers=get_jwt_auth_headers(server))
     assert response.status_code == 200
 
     room = response.json()
@@ -200,7 +201,7 @@ def test_get_room_details(server, s22):
 
 def test_get_nonexistent_room(server):
     """Test that getting a nonexistent room returns 404."""
-    response = requests.get(f"{server}/api/rooms/nonexistent-room")
+    response = requests.get(f"{server}/api/rooms/nonexistent-room", headers=get_jwt_auth_headers(server))
     assert response.status_code == 404
 
 

@@ -1,5 +1,6 @@
 import pytest
 import requests
+from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
 from zndraw.geometries import Bond, Camera, CameraType, Curve, Sphere
@@ -8,9 +9,10 @@ from zndraw.geometries import Bond, Camera, CameraType, Curve, Sphere
 def test_rest_get_geometries(joined_room):
     """Test listing geometry keys and getting individual geometries."""
     server, room = joined_room
+    headers = get_jwt_auth_headers(server)
 
     # Test listing geometry keys (default geometries include cell, floor, and constraints)
-    response = requests.get(f"{server}/api/rooms/{room}/geometries")
+    response = requests.get(f"{server}/api/rooms/{room}/geometries", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert "geometries" in data
@@ -121,6 +123,7 @@ def test_rest_add_unknown_geometry(joined_room):
 def test_rest_delete_geometry(joined_room):
     """Test deleting geometries."""
     server, room = joined_room
+    headers = get_jwt_auth_headers(server)
 
     # Use ZnDraw client which handles lock acquisition automatically
     vis = ZnDraw(url=server, room=room, user="test-geom-delete")
@@ -134,10 +137,10 @@ def test_rest_delete_geometry(joined_room):
     del vis.geometries["constraints-fixed-atoms"]
 
     # Verify no geometries remain
-    response = requests.get(f"{server}/api/rooms/{room}/geometries")
+    response = requests.get(f"{server}/api/rooms/{room}/geometries", headers=headers)
     assert response.status_code == 200
     data = response.json()
-    assert data == {"geometries": []}
+    assert data == {"geometries": {}}  # Empty dict when no geometries
 
 
 def test_rest_delete_unknown_geometry(joined_room):

@@ -9,6 +9,7 @@ import logging
 from flask import Blueprint, current_app, request
 
 from zndraw.server import socketio
+from zndraw.auth import require_auth
 
 from .constants import SocketEvents
 from .redis_keys import RoomKeys
@@ -161,16 +162,24 @@ def delete_geometry(room_id: str, key: str, session_id: str, user_id: str):
 
 
 @geometries.route("/api/rooms/<string:room_id>/geometries", methods=["GET"])
+@require_auth
 def list_geometries(room_id: str):
-    """List all geometry keys in the room.
+    """Get all geometries with their full data.
 
     Returns:
-        {"geometries": ["key1", "key2", ...]}
+        {
+            "geometries": {
+                "particles": {"type": "Sphere", "data": {...}},
+                "bonds": {"type": "Bond", "data": {...}},
+                ...
+            }
+        }
     """
     r = current_app.extensions["redis"]
     keys = RoomKeys(room_id)
-    all_keys = r.hkeys(keys.geometries())
-    return {"geometries": list(all_keys)}, 200
+    geometries_raw = r.hgetall(keys.geometries())
+    geometries = {k: json.loads(v) for k, v in geometries_raw.items()}
+    return {"geometries": geometries}, 200
 
 
 @geometries.route("/api/rooms/<string:room_id>/geometries/schemas", methods=["GET"])
@@ -262,6 +271,7 @@ def list_figures(room_id: str):
 
 
 @geometries.route("/api/rooms/<string:room_id>/selections", methods=["GET"])
+@require_auth
 def get_all_selections(room_id: str):
     """Get all current selections and groups.
 
@@ -290,6 +300,26 @@ def get_all_selections(room_id: str):
         "selections": selections,
         "groups": groups,
         "activeGroup": active_group,
+    }, 200
+
+
+@geometries.route("/api/rooms/<string:room_id>/frame-selection", methods=["GET"])
+@require_auth
+def get_frame_selection(room_id: str):
+    """Get frame selection for the room.
+
+    Returns:
+        {
+            "frameSelection": [0, 1, 5, 10] | null
+        }
+    """
+    r = current_app.extensions["redis"]
+    keys = RoomKeys(room_id)
+
+    frame_selection = r.get(keys.frame_selection())
+
+    return {
+        "frameSelection": json.loads(frame_selection) if frame_selection else None
     }, 200
 
 
