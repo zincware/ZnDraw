@@ -79,9 +79,7 @@ export function useDragAndDrop(): UseDragAndDropReturn {
         }
 
         try {
-          console.log(`Uploading file: ${file.name}`);
           const response = await uploadFile({ file });
-          console.log(`Upload response:`, response);
 
           // If a room was created, navigate to it
           if (response.room) {

@@ -135,7 +135,6 @@ export default function RoomManagementMenu() {
 
     // Listen for filesystem updates via Socket.IO
     const handleFilesystemsUpdate = () => {
-      console.log("Received filesystems:update event, refreshing...");
       checkRemoteFilesystems();
     };
 

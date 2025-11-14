@@ -216,8 +216,6 @@ export const createGeometry = async (
   geometryData: Record<string, any>,
   lockToken?: string,
 ): Promise<{ status: string }> => {
-  console.log(`[createGeometry] roomId: ${roomId}, key: ${key}, type: ${geometryType}, lockToken: ${lockToken ? 'provided (ignored)' : 'not needed'}`);
-
   const requestBody = {
     key,
     type: geometryType,
@@ -247,8 +245,6 @@ export const deleteGeometry = async (
   key: string,
   lockToken?: string,
 ): Promise<{ status: string }> => {
-  console.log(`[deleteGeometry] roomId: ${roomId}, key: ${key}, lockToken: ${lockToken ? 'provided (ignored)' : 'not needed'}`);
-
   // If lockToken is provided (from edit mode), client has lock so perform operation directly
   if (lockToken) {
     const { data } = await apiClient.delete(`/api/rooms/${roomId}/geometries/${key}`);
@@ -566,7 +562,6 @@ export interface JobsListResponse {
 
 export const listJobs = async (roomId: string): Promise<JobsListResponse> => {
   const { data } = await apiClient.get(`/api/rooms/${roomId}/jobs`);
-  console.log("[listJobs] Backend response:", { roomId, data, type: typeof data, isArray: Array.isArray(data) });
 
   // Backend returns array directly, wrap it in object
   return { jobs: Array.isArray(data) ? data : [] };

@@ -177,12 +177,6 @@ const BookmarkLayer: FC<BookmarkLayerProps> = ({
   onBookmarkDelete,
   onBookmarkEdit,
 }) => {
-  // Debugging useEffect remains useful
-  useEffect(() => {
-    console.log("Bookmarks updated:", bookmarks);
-    console.log("Bookmark container width:", containerWidth);
-  }, [bookmarks, containerWidth]);
-
   // Performance Optimization: Memoize the conversion of the bookmarks object
   // to an array. This calculation will only re-run when the `bookmarks`
   // prop itself changes, not on every render.

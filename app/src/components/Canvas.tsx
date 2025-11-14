@@ -86,7 +86,6 @@ function MyScene() {
     // Select preferred curve using helper function
     const defaultCurve = selectPreferredCurve(activeCurves);
 
-    console.log(`Auto-selecting default curve: ${defaultCurve}`);
     setActiveCurveForDrawing(defaultCurve);
   }, [geometries, activeCurveForDrawing, setActiveCurveForDrawing]);
 

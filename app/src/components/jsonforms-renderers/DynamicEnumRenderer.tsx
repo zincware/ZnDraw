@@ -58,22 +58,6 @@ const DynamicEnumRenderer = ({
   const isTransformValue = isTransform(data);
   const isStaticValue = Array.isArray(data) || typeof data === "number";
 
-  // Debug logging
-  console.log(`[DynamicEnumRenderer:${path}]`, {
-    label,
-    features,
-    hasTransform,
-    isTransformValue,
-    isStaticValue,
-    dataType: typeof data,
-    data,
-    schema: {
-      type: schema.type,
-      'x-features': (schema as any)["x-features"],
-      'x-custom-type': (schema as any)["x-custom-type"],
-    }
-  });
-
   // State for array editor dialog
   const [arrayEditorOpen, setArrayEditorOpen] = useState(false);
 

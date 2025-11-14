@@ -33,9 +33,6 @@ export const useSchemas = (room: string, category: string) => {
         performance.measure(metricName, `${metricName}-start`, `${metricName}-end`);
 
         const measure = performance.getEntriesByName(metricName)[0];
-        if (import.meta.env.DEV && measure) {
-          console.log(`[Performance] Schemas fetch (${category}) took ${Math.round(measure.duration)}ms`);
-        }
 
         // Clean up marks to avoid memory leaks
         performance.clearMarks(`${metricName}-start`);
@@ -83,9 +80,6 @@ export const useExtensionData = (
     queryKey: ["extensionData", room, userName, category, extension],
     queryFn: async () => {
       const result = await getExtensionData(room, category, extension);
-      if (import.meta.env.DEV) {
-        console.log(`Fetched extension ${category}/${extension} data:`, result);
-      }
       return result.data;
     },
     // Remove staleTime: Infinity if you expect this data to be updated externally
@@ -112,9 +106,6 @@ export const useSubmitExtension = () => {
     },
     // On success, MANUALLY update the query's cached data
     onSuccess: (serverData, variables) => {
-      if (import.meta.env.DEV) {
-        console.log("Extension submitted successfully:", serverData);
-      }
       const {
         roomId,
         category,
@@ -149,10 +140,8 @@ export const useJobs = (room: string) => {
       setIsLoading(true);
     }
 
-    console.log("[useJobs] Fetching jobs for room:", room);
     try {
       const result = await listJobs(room);
-      console.log("[useJobs] Got result:", result);
       const jobsList = result.jobs || [];
       setJobs(jobsList);
       setHasLoaded(true);
@@ -182,8 +171,6 @@ export const useJobs = (room: string) => {
 
       // Only update if this is for our room
       if (jobRoom !== room) return;
-
-      console.log(`[useJobs] Job ${jobId} state changed to ${status}`);
 
       // Optimistic update: immediately update the job status in local state
       setJobs((prevJobs) => {
@@ -226,10 +213,8 @@ export const useJob = (room: string, jobId: string) => {
   return useQuery({
     queryKey: ["job", room, jobId],
     queryFn: async () => {
-      console.log("[useJob] Fetching job:", { room, jobId });
       try {
         const job = await getJob(room, jobId);
-        console.log("[useJob] Got job:", job);
         return job;
       } catch (error) {
         console.error("[useJob] Error fetching job:", error);
@@ -297,9 +282,6 @@ export const useFrameMetadata = (
         performance.measure(metricName, `${metricName}-start`, `${metricName}-end`);
 
         const measure = performance.getEntriesByName(metricName)[0];
-        if (import.meta.env.DEV && measure) {
-          console.log(`[Performance] Metadata fetch took ${Math.round(measure.duration)}ms`);
-        }
 
         // Clean up marks to avoid memory leaks
         performance.clearMarks(`${metricName}-start`);

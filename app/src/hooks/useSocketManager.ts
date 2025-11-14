@@ -67,10 +67,8 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       return async (data: any) => {
         if (!roomId) return;
         try {
-          console.log(`Received ${eventName} event:`, data);
           const response = await fetchFn(roomId);
           updateStoreFn(response);
-          console.log(`Updated ${eventName} from server:`, response);
         } catch (error) {
           console.error(`Error fetching ${eventName}:`, error);
         }
@@ -78,24 +76,16 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     }
 
     async function onConnect() {
-      console.log("=== Socket connected ===");
-      console.log("  roomId:", roomId);
-      console.log("  userName:", userName);
-      console.log("  isOverview:", isOverview);
-
       try {
         // Fetch server version and global settings
         const { version: serverVersion } = await getServerVersion();
-        console.log("Server version:", serverVersion);
         setServerVersion(serverVersion);
 
         const globalSettings = await getGlobalSettings();
-        console.log("Global settings:", globalSettings);
         setGlobalSettings(globalSettings);
 
         // Check version compatibility
         const clientVersion = getClientVersion();
-        console.log("Client version:", clientVersion);
 
         const compatibility = checkVersionCompatibility(clientVersion, serverVersion);
 
@@ -112,15 +102,11 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
         // Join appropriate room based on page
         if (isOverview) {
-          console.log("  → Emitting join:overview");
           socket.emit("join:overview");
         } else if (roomId) {
-          console.log(`  → Emitting join:room with roomId: ${roomId}`);
           socket.emit("join:room", { roomId });
           // Reset chat unread count when entering a room
           useAppStore.getState().resetChatUnread();
-        } else {
-          console.log("  ⚠️  No roomId available, NOT joining any room!");
         }
 
         setConnected(true);
@@ -131,7 +117,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       }
     }
     function onDisconnect() {
-      console.log("Socket disconnected");
       setConnected(false);
     }
 
@@ -145,9 +130,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       queryClient.invalidateQueries({
         queryKey: ["extensionData", roomId, userName, category, extension],
       });
-      console.log(
-        `Invalidated extension data for user ${userName}, category ${category}, extension ${extension} in room ${roomId}`,
-      );
     }
 
     function onSchemaInvalidate(data: any) {
@@ -155,13 +137,9 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       queryClient.invalidateQueries({
         queryKey: ["schemas", appStoreRoomId, category],
       });
-      console.log(
-        `Invalidated schemas for category ${category} in room ${appStoreRoomId}`,
-      );
     }
 
     function onFrameSelectionUpdate(data: any) {
-      console.log(data);
       setFrameSelection(data["indices"] || null);
     }
 
@@ -177,13 +155,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
     function onFramesInvalidate(data: any) {
       const { roomId, operation, affectedIndex, affectedFrom, affectedKeys } = data;
-      console.log("Invalidating frame cache:", {
-        roomId,
-        operation,
-        affectedIndex,
-        affectedFrom,
-        affectedKeys,
-      });
 
       if (affectedKeys) {
         console.warn("Frame invalidation with affectedKeys is not yet implemented. Invalidating all frames.");
@@ -272,8 +243,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
             return;
           }
 
-          console.log(`Deleting geometry: ${key}`);
-
           // Remove from the store
           removeGeometry(key);
 
@@ -286,13 +255,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
           queryClient.invalidateQueries({
             queryKey: ["geometries", roomId, "list"],
           });
-
-          console.log(`Removed geometry ${key} from store and cache`);
         } else if (operation === "set") {
           // Handle geometry creation/update
           if (data && data.key) {
             const { key } = data;
-            console.log(`Updating specific geometry: ${key}`);
 
             // Invalidate the specific geometry detail query
             queryClient.invalidateQueries({
@@ -315,12 +281,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
               const response = await getGeometry(roomId, key);
               // Update only this specific geometry in the store
               updateGeometry(key, response.geometry);
-              console.log(`Updated geometry ${key}:`, response.geometry);
 
               // Auto-select newly created curves ONLY if no curve is currently selected
               const currentActiveCurve = useAppStore.getState().activeCurveForDrawing;
               if (!currentActiveCurve && response.geometry.type === "Curve" && response.geometry.data?.active !== false) {
-                console.log(`Auto-selecting newly created curve (no curve was selected): ${key}`);
                 setActiveCurveForDrawing(key);
               }
             } catch (error) {
@@ -328,7 +292,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
             }
           } else {
             // No specific key - refetch all geometries (fallback for backward compatibility)
-            console.log("No specific key provided, refetching all geometries");
 
             // Invalidate React Query cache for geometries
             queryClient.invalidateQueries({
@@ -338,7 +301,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
             // Fetch list of geometry keys first
             const listResponse = await listGeometries(roomId);
             const keys = listResponse.geometries || [];
-            console.log("Received geometry keys:", keys);
 
             // Fetch all geometries in parallel
             const geometryPromises = keys.map(async (key: string) => {
@@ -361,7 +323,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
               }
             });
 
-            console.log("Received updated geometries:", geometriesObj);
             setGeometries(geometriesObj);
           }
         }
@@ -374,9 +335,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
       key: string;
       operation?: "set" | "delete";
     }) {
-      console.log(
-        `Received invalidation for figure: ${data.key}, operation: ${data.operation}`,
-      );
       if (!data.key) return;
 
       const operation = data.operation || "set"; // default to 'set' for backward compatibility
@@ -396,9 +354,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
           .map(([windowId]) => windowId);
 
         windowsToClose.forEach((windowId) => {
-          console.log(
-            `Closing window ${windowId} for deleted figure: ${data.key}`,
-          );
           useWindowManagerStore.getState().closeWindow(windowId);
         });
 
@@ -429,19 +384,8 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
         if (!isWindowDisplayingFigure) {
           if (openWindowCount < MAX_AUTO_OPEN_WINDOWS) {
-            console.log(
-              `Popping up new window for figure: ${data.key} (${openWindowCount + 1}/${MAX_AUTO_OPEN_WINDOWS})`,
-            );
             openWindow(data.key);
-          } else {
-            console.log(
-              `Not opening window for figure: ${data.key} - maximum of ${MAX_AUTO_OPEN_WINDOWS} windows already open`,
-            );
           }
-        } else {
-          console.log(
-            `Window already open for figure: ${data.key}, not opening a new one`,
-          );
         }
       }
     }
@@ -466,7 +410,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     );
 
     function onRoomUpdate(data: any) {
-      console.log("Room update:", data);
       const { roomId: updateRoomId, created, ...updates } = data;
 
       // Handle frame count update
@@ -492,13 +435,11 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     }
 
     function onRoomDelete(data: any) {
-      console.log("Room deleted:", data);
       const { roomId: deletedRoomId } = data;
       useRoomsStore.getState().removeRoom(deletedRoomId);
     }
 
     function onLockUpdate(data: any) {
-      console.log("Lock update:", data);
       const { roomId: lockRoomId, target, action, holder, message, timestamp, sessionId } = data;
 
       // Handle trajectory:meta lock updates
@@ -525,7 +466,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     }
 
     function onProgressInitial(data: any) {
-      console.log("Progress initial:", data);
       const { progressTrackers } = data;
       if (progressTrackers) {
         setProgressTrackers(progressTrackers);
@@ -533,19 +473,16 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     }
 
     function onProgressStarted(data: any) {
-      console.log("Progress started:", data);
       const { progressId, roomId, description } = data;
       addProgressTracker(progressId, description, null, roomId);
     }
 
     function onProgressUpdate(data: any) {
-      console.log("Progress update:", data);
       const { progressId, description, progress } = data;
       updateProgressTracker(progressId, description, progress);
     }
 
     function onProgressComplete(data: any) {
-      console.log("Progress complete:", data);
       const { progressId } = data;
       removeProgressTracker(progressId);
     }
@@ -569,11 +506,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
         // Calculate exponential backoff delay: 1s, 2s, 4s
         const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryAttempt - 1);
 
-        console.log(
-          `Detected stale token (client not in Redis). ` +
-          `Retry attempt ${retryAttempt}/${MAX_AUTH_RETRIES} after ${delay}ms...`
-        );
-
         const { logout, login, getUsername } = await import("../utils/auth");
 
         // Clear stale authentication data
@@ -585,7 +517,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
         // Force a new login
         try {
           const loginData = await login();
-          console.log(`Re-login successful with new user: ${loginData.userName} and ${loginData.sessionId}`);
 
           // Update store with new username
           const newUsername = getUsername();
@@ -633,19 +564,15 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
     // This will auto-login with a server-generated username if no token exists
     ensureAuthenticated()
       .then(() => {
-        console.log("Authentication verified, userName:", userName, "roomId:", roomId);
         // Force disconnect/reconnect when userName changes to ensure clean state
         if (socket.connected) {
-          console.log("Socket already connected, disconnecting to refresh...");
           // Disconnect synchronously
           socket.disconnect();
           // Small delay to ensure disconnect completes
           setTimeout(() => {
-            console.log("Reconnecting socket with new userName:", userName);
             socket.connect();
           }, 100);
         } else {
-          console.log("Socket not connected, connecting...");
           socket.connect();
         }
       })

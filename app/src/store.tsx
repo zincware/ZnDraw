@@ -458,18 +458,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // If we already have the lock for this target, just update the message
     if (lock && lock.target === target) {
-      console.log(`[acquireLock] Already have lock for ${target}, updating message`);
       await get().updateLockMessage(target, msg);
       return true;
     }
 
     // Acquire new lock
     try {
-      console.log(`[acquireLock] Acquiring lock for ${target}: ${msg}`);
       const response = await acquireLock(roomId, target, msg);
 
       if (!response.success || !response.lockToken) {
-        console.log(`[acquireLock] Failed to acquire lock for ${target}`);
         return false;
       }
 
@@ -487,7 +484,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Start lock renewal
       get().startLockRenewal();
 
-      console.log(`[acquireLock] Lock acquired for ${target}`);
       return true;
     } catch (error) {
       console.error(`[acquireLock] Error acquiring lock for ${target}:`, error);
@@ -500,13 +496,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { roomId, lock } = state;
 
     if (!lock) {
-      console.log(`[releaseLock] No lock to release for ${target}`);
       return true;
     }
 
     // Check if we have the lock for this target
     if (lock.target !== target) {
-      console.log(`[releaseLock] Don't have lock for ${target} (have: ${lock.target})`);
       return false;
     }
 
@@ -516,14 +510,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     try {
-      console.log(`[releaseLock] Releasing lock for ${target}`);
       await releaseLock(roomId, target, lock.token);
 
       // Clear lock state
       set({ lock: null });
       get().stopLockRenewal();
 
-      console.log(`[releaseLock] Lock released for ${target}`);
       return true;
     } catch (error) {
       console.error(`[releaseLock] Error releasing lock for ${target}:`, error);
@@ -551,7 +543,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     try {
-      console.log(`[updateLockMessage] Updating message for ${target}: ${msg}`);
       const response = await refreshLock(roomId, target, lock.token, msg);
 
       if (response.success) {
@@ -791,8 +782,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         return;
       }
 
-      console.log("No curves found, creating default curve named 'curve'");
-
       // Optimistic update - add geometry to store immediately
       set((state) => ({
         geometries: {
@@ -812,12 +801,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         await createGeometry(roomId, "curve", "Curve", {
           position: [],
         }, lock?.token);
-        console.log("Default curve created successfully");
 
         // Fetch the validated geometry from backend to get defaults/transformations
         // (socket event won't reach us due to skip_sid)
         const response = await getGeometry(roomId, "curve");
-        console.log("Fetched validated curve data:", response.geometry);
 
         // Update with the backend-validated data
         set((state) => ({
@@ -890,12 +877,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
 
-    console.log(`Attaching to camera: ${cameraKey}`);
     set({ attachedCameraKey: cameraKey });
   },
 
   detachFromCamera: () => {
-    console.log("Detaching from camera");
     set({ attachedCameraKey: null });
   },
 

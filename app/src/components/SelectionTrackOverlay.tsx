@@ -41,15 +41,6 @@ const SelectionTrackOverlay: React.FC<SelectionTrackOverlayProps> = ({
   currentFrame,
   disabled = false,
 }) => {
-  useEffect(() => {
-    console.log("SelectionTrackOverlay:", {
-      selectedFrames,
-      enabled,
-      containerWidth,
-      currentFrame,
-    });
-  }, [selectedFrames, enabled, containerWidth, currentFrame]);
-
   const getPercentPosition = (frame: number): number => {
     if (frameCount <= 1) return 0;
     return (frame / (frameCount - 1)) * 100;

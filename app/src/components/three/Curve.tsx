@@ -246,7 +246,6 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   // Report fetching state to global store
   useEffect(() => {
-    console.log('[Curve Effect: Fetching State]', { geometryKey, isFetching });
     setGeometryFetching(geometryKey, isFetching);
   }, [geometryKey, isFetching, setGeometryFetching]);
 
@@ -260,16 +259,6 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   // Effect 1: Consolidated data processing and mesh update (following Box.tsx:265-390)
   useEffect(() => {
-    console.log('[Curve Effect 1] Data processing', {
-      isFetching,
-      hasQueryError,
-      markerCount,
-      isEditing,
-      hasStaticPosition,
-      positionIsString: typeof positionProp === 'string',
-      validSelectedIndicesCount: validSelectedIndices.length
-    });
-
     if (isFetching) {
       return; // Wait for all enabled queries to complete
     }
@@ -393,14 +382,6 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   // Effect 2: Hover mesh updates (following Box.tsx:392-417)
   useEffect(() => {
-    console.log('[Curve Effect 2] Hover update', {
-      hoverEnabled: marker.hovering?.enabled,
-      markerCount,
-      hoveredInstance: hoveredGeometryInstance?.instanceId,
-      isEditing,
-      hasStaticPosition
-    });
-
     if (!marker.hovering?.enabled || !hoverMeshRef.current || !mainMeshRef.current) return;
     if (markerCount === 0) return;
 
@@ -430,13 +411,6 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   // Effect 3: Curve calculation from marker positions
   useEffect(() => {
-    console.log('[Curve Effect 3] Curve calculation', {
-      markerPositionsCount: markerPositions.length,
-      isDrawing,
-      isActiveDrawingTarget,
-      hasDrawingPointer: !!drawingPointerPosition
-    });
-
     const allPoints: THREE.Vector3[] = [...markerPositions];
     if (!fullData) return;
     // Only add drawing pointer if this is the active drawing target
@@ -512,13 +486,6 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     if (!virtualMarkerMeshRef.current) return;
     if (virtualMarkerPositions.length === 0) return;
 
-    console.log('[Curve Effect 4] Virtual markers update', {
-      isEditing,
-      hasStaticPosition,
-      enabled: virtual_marker.enabled,
-      virtualMarkerCount: virtualMarkerPositions.length
-    });
-
     const virtualMesh = virtualMarkerMeshRef.current;
 
     for (let i = 0; i < virtualMarkerPositions.length; i++) {
@@ -537,15 +504,6 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   // Effect 5: Drawing marker position and visibility update
   useEffect(() => {
-    console.log('[Curve Effect 5] Drawing marker update', {
-      hasRef: !!drawingMarkerMeshRef.current,
-      isDrawing,
-      isActiveDrawingTarget,
-      hasPointer: !!drawingPointerPosition,
-      markerEnabled: marker.enabled,
-      geometryKey
-    });
-
     if (!drawingMarkerMeshRef.current) return;
 
     const drawingMesh = drawingMarkerMeshRef.current;
@@ -643,12 +601,6 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   // Watch position changes and persist - only if source is 'local'
   useEffect(() => {
-    console.log('[Curve Effect: Persist]', {
-      geometryKey,
-      hasGeometry: !!geometries[geometryKey],
-      updateSource: geometryUpdateSources[geometryKey]
-    });
-
     const currentGeometry = geometries[geometryKey];
     if (!currentGeometry) return;
 

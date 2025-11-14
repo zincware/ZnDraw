@@ -330,16 +330,6 @@ function findPointsWithValue(
 
   // Case 1: customdata exists - use it to find matching values
   if (track.customdata.length > 0) {
-    // Debug: Log first few entries to verify structure
-    if (track.customdata.length > 0 && track.customdata.length <= 70) {
-      console.log("findPointsWithValue - customdata structure:", {
-        length: track.customdata.length,
-        first3: track.customdata.slice(0, 3),
-        type: typeof track.customdata[0],
-        isArray: Array.isArray(track.customdata[0]),
-      });
-    }
-
     for (let i = 0; i < track.customdata.length; i++) {
       const customDataPoint = track.customdata[i];
 

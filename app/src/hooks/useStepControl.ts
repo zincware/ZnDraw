@@ -48,7 +48,6 @@ export const useStepControl = (): StepControlHook => {
 
     heartbeatIntervalRef.current = setInterval(async () => {
       if (lockTokenRef.current && roomId) {
-        console.log("Refreshing step lock...");
         try {
           const success = await refreshLock("step", lockTokenRef.current, "Updating");
           if (!success) {
@@ -128,15 +127,11 @@ export const useStepControl = (): StepControlHook => {
         return;
       }
 
-      console.log(`[setStep] Setting frame to ${frame}, have lock: ${!!lockTokenRef.current}`);
-
       // 1. Update local state immediately for responsive UI
       setCurrentFrame(frame);
 
       // 2. Acquire lock if we don't have it
       if (!lockTokenRef.current) {
-        console.log("[setStep] Acquiring lock...");
-
         try {
           const response = await acquireLock("step", "Updating");
 
@@ -145,7 +140,6 @@ export const useStepControl = (): StepControlHook => {
             return;
           }
 
-          console.log("[setStep] Lock acquired successfully, token:", response.lockToken);
           lockTokenRef.current = response.lockToken;
           startHeartbeat();
         } catch (error) {
@@ -176,27 +170,15 @@ export const useStepControl = (): StepControlHook => {
 
       const mySessionId = useAppStore.getState().sessionId;
 
-      console.log(
-        "Step lock update received:",
-        data,
-        "mySessionId:",
-        mySessionId,
-        "eventSessionId:",
-        data.sessionId
-      );
-
       // If this is OUR lock event, ignore it (we already have local state)
       if (data.sessionId && data.sessionId === mySessionId) {
-        console.log("Ignoring our own lock event");
         return;
       }
 
       // This is from another client - update remoteLocked state
       if (data.action === "released") {
-        console.log("Remote lock released, setting remoteLocked=false");
         setRemoteLocked(false);
       } else if (data.action === "acquired" || data.action === "refreshed") {
-        console.log("Remote lock acquired/refreshed, setting remoteLocked=true");
         setRemoteLocked(true);
       }
     };

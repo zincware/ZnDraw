@@ -68,8 +68,6 @@ export async function login(userName?: string, password?: string): Promise<Login
   localStorage.setItem(USERNAME_KEY, data.userName);
   localStorage.setItem(USER_ROLE_KEY, data.role);
 
-  console.log('Logged in successfully:', data.userName, 'role:', data.role);
-
   return data;
 }
 
@@ -105,7 +103,6 @@ export function logout(): void {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USERNAME_KEY);
   localStorage.removeItem(USER_ROLE_KEY);
-  console.log('Logged out');
 }
 
 /**

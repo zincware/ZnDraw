@@ -40,20 +40,12 @@ export default function HoverInfoBox() {
   });
 
   useEffect(() => {
-    console.log('[HoverInfoBox] Setting up mousemove listener');
-    let eventCount = 0;
-
     const handleMouseMove = (event: MouseEvent) => {
-      eventCount++;
-      if (eventCount % 60 === 0) { // Log every 60 events to avoid spam
-        console.log('[HoverInfoBox] Mouse move event count:', eventCount);
-      }
       setMousePosition({ x: event.clientX, y: event.clientY });
     };
 
     window.addEventListener("mousemove", handleMouseMove);
     return () => {
-      console.log('[HoverInfoBox] Cleaning up mousemove listener, total events:', eventCount);
       window.removeEventListener("mousemove", handleMouseMove);
     };
   }, []);

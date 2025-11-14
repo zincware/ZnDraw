@@ -49,7 +49,7 @@ export const useRestJoinManager = () => {
   // Log when room data is ready
   useEffect(() => {
     if (isRoomDataReady) {
-      console.log("Room data loaded successfully for room:", storeRoomId);
+      // Room data loaded successfully
     }
   }, [isRoomDataReady, storeRoomId]);
 
@@ -62,13 +62,11 @@ export const useRestJoinManager = () => {
     // This will auto-login if needed and ensure we have a username
     try {
       await ensureAuthenticated();
-      console.log("Authentication verified for REST API");
 
       // Initialize user role from localStorage
       const userRole = getUserRole();
       if (userRole) {
         setUserRole(userRole);
-        console.log("User role initialized:", userRole);
       }
     } catch (error) {
       console.error("Authentication failed:", error);
@@ -86,8 +84,6 @@ export const useRestJoinManager = () => {
     const controller = new AbortController();
     abortControllerRef.current = controller; // Store it in the ref
 
-    console.log("Joining room via REST:", room, "as user:", userName);
-
     // Get template from query parameters
     const template = searchParams.get("template");
 
@@ -99,11 +95,9 @@ export const useRestJoinManager = () => {
 
     try {
       const data = await joinRoomApi(room, requestBody, controller.signal);
-      console.log("Join response data:", data);
 
       // Store session ID for this browser tab
       if (data.sessionId) {
-        console.log("Setting sessionId from join:", data.sessionId);
         setSessionId(data.sessionId);
       }
 
@@ -117,17 +111,15 @@ export const useRestJoinManager = () => {
     } catch (error: any) {
       // 4. Check if the error was due to the request being aborted.
       if (error instanceof Error && error.name === "AbortError") {
-        console.log("Fetch aborted on unmount or re-run.");
+        // Fetch aborted on unmount or re-run
       } else if (error.response?.status === 401) {
         // Handle authentication error (stale token)
-        console.log("Authentication error, clearing stale token and retrying...");
         const { logout, login, getUsername } = await import("../utils/auth");
 
         logout();
 
         try {
           await login();
-          console.log("Re-login successful, retrying join room...");
 
           // Update store with new username
           const newUsername = getUsername();
