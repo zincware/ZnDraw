@@ -358,7 +358,17 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
       // Store positions for curve calculation
       // When preserving state, keep existing markerPositions; otherwise update with new positions
       if (!shouldPreserveState) {
-        setMarkerPositions(newMarkerPositions);
+        // Only update if positions actually changed to avoid infinite loops
+        const positionsChanged =
+          markerPositions.length !== newMarkerPositions.length ||
+          newMarkerPositions.some((pos, i) =>
+            !markerPositions[i] ||
+            !pos.equals(markerPositions[i])
+          );
+
+        if (positionsChanged) {
+          setMarkerPositions(newMarkerPositions);
+        }
       }
 
     } catch (error) {
