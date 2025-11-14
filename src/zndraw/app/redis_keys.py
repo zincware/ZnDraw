@@ -431,6 +431,23 @@ class RoomKeys:
         """
         return f"room:{self.room_id}:user:{username}:{category}"
 
+    def room_extension_data(self, category: str) -> str:
+        """Room-wide extension data hash (shared across all users).
+
+        Used for settings and other data that should be synchronized across users.
+
+        Parameters
+        ----------
+        category : str
+            Extension category
+
+        Returns
+        -------
+        str
+            Redis key for room extension data hash
+        """
+        return f"room:{self.room_id}:extension:{category}"
+
     def metadata(self) -> str:
         """Room metadata hash.
 

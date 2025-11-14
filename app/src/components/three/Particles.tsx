@@ -148,7 +148,11 @@ export default function Sphere({
   const allTransformKeys = useMemo(() => {
     const keys = new Set<string>();
     [...positionTransformSources, ...colorTransformSources, ...radiusTransformSources].forEach(k => keys.add(k));
-    return Array.from(keys);
+    const result = Array.from(keys);
+    if (import.meta.env.DEV && result.length > 0) {
+      console.log(`[Particles] Transform keys needed:`, result);
+    }
+    return result;
   }, [positionTransformSources, colorTransformSources, radiusTransformSources]);
 
   // Fetch each transform source key individually - enables perfect cross-component caching
@@ -169,14 +173,26 @@ export default function Sphere({
 
     const combined: Record<string, any> = {};
     allTransformKeys.forEach((key, index) => {
-      const queryData = transformQueries[index]?.data;
+      const query = transformQueries[index];
+      if (!query) {
+        console.warn(`[Particles] Missing query for transform key: ${key}`);
+        return;
+      }
+
+      const queryData = query.data;
       if (queryData && queryData[key]) {
         combined[key] = queryData[key];
+      } else if (import.meta.env.DEV) {
+        console.log(`[Particles] Transform key "${key}" - hasData: ${!!queryData}, dataKeys: ${queryData ? Object.keys(queryData).join(',') : 'none'}, isFetching: ${query.isFetching}, isError: ${query.isError}`);
       }
     });
 
+    if (import.meta.env.DEV && Object.keys(combined).length > 0) {
+      console.log(`[Particles] Combined transform data keys:`, Object.keys(combined));
+    }
+
     return Object.keys(combined).length > 0 ? combined : null;
-  }, [allTransformKeys, transformQueries]);
+  }, [allTransformKeys, ...transformQueries.map(q => q.data)]);
 
   // Check if any transform query is fetching
   const isTransformFetching = useMemo(

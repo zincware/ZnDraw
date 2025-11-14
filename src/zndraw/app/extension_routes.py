@@ -114,7 +114,7 @@ def _submit_extension_impl(
                 "namespace": fs_type,
             }), 404
 
-    # Store the extension data
+    # Store the extension data (per-user)
     room_keys = RoomKeys(room_id)
     redis_client.hset(
         room_keys.user_extension_data(user_name, category),

@@ -1308,8 +1308,9 @@ class APIManager:
         RuntimeError
             If the GET request fails
         """
+        headers = self._get_headers()
         url = f"{self.url}/api/rooms/{self.room}/step"
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         return response.json()
 
