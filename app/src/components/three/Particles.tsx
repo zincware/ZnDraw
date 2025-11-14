@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, useQueries, keepPreviousData } from "@tanstack/react-query";
 import { getFrames, createGeometry } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
@@ -151,15 +151,44 @@ export default function Sphere({
     return Array.from(keys);
   }, [positionTransformSources, colorTransformSources, radiusTransformSources]);
 
-  // Fetch all transform source data in a single query
-  const { data: transformData, isFetching: isTransformFetching, isError: isTransformError } = useQuery({
-    queryKey: ["frame", roomId, currentFrame, ...allTransformKeys],
-    queryFn: ({ signal }: { signal: AbortSignal }) =>
-      getFrames(roomId!, currentFrame, allTransformKeys, signal),
-    enabled: !!roomId && !!userName && frameCount > 0 && allTransformKeys.length > 0,
-    placeholderData: keepPreviousData,
-    retry: false,
+  // Fetch each transform source key individually - enables perfect cross-component caching
+  const transformQueries = useQueries({
+    queries: allTransformKeys.map((key) => ({
+      queryKey: ["frame", roomId, currentFrame, key],
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        getFrames(roomId!, currentFrame, [key], signal),
+      enabled: !!roomId && !!userName && frameCount > 0,
+      placeholderData: keepPreviousData,
+      retry: false,
+    })),
   });
+
+  // Combine individual query results into a single transformData object
+  const transformData = useMemo(() => {
+    if (allTransformKeys.length === 0) return null;
+
+    const combined: Record<string, any> = {};
+    allTransformKeys.forEach((key, index) => {
+      const queryData = transformQueries[index]?.data;
+      if (queryData && queryData[key]) {
+        combined[key] = queryData[key];
+      }
+    });
+
+    return Object.keys(combined).length > 0 ? combined : null;
+  }, [allTransformKeys, transformQueries]);
+
+  // Check if any transform query is fetching
+  const isTransformFetching = useMemo(
+    () => transformQueries.some((query) => query.isFetching),
+    [transformQueries]
+  );
+
+  // Check if any transform query has errored
+  const isTransformError = useMemo(
+    () => transformQueries.some((query) => query.isError),
+    [transformQueries]
+  );
 
   // Individual queries for each attribute - enables perfect cross-component caching
   const { data: positionData, isFetching: isPositionFetching, isError: isPositionError } = useQuery({

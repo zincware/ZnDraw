@@ -56,7 +56,7 @@ class BatchedRoomDataFetcher:
         frame_counts = room_service.get_frame_counts_batch(room_ids)
 
         # Step 2: Build pipeline for all Redis queries
-        pipe = redis_client.pipeline(transaction=False)
+        pipe = redis_client.pipeline()
 
         # Batch simple keys using MGET (3 queries total instead of n*3)
         desc_keys = [RoomKeys(rid).description() for rid in room_ids]

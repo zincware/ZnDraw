@@ -323,7 +323,7 @@ class RoomService:
             return {}
 
         # Use pipeline to batch ZCARD queries
-        pipe = self.r.pipeline(transaction=False)
+        pipe = self.r.pipeline()
         for room_id in room_ids:
             keys = RoomKeys(room_id)
             pipe.zcard(keys.trajectory_indices())
