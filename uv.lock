@@ -2946,7 +2946,7 @@ wheels = [
 
 [[package]]
 name = "zndraw"
-version = "0.6.0a12"
+version = "0.6.0a13"
 source = { editable = "." }
 dependencies = [
     { name = "ase" },
@@ -3017,7 +3017,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.19.2" },
     { name = "vesin", specifier = ">=0.3.8" },
     { name = "znh5md", specifier = ">=0.4.8" },
-    { name = "znsocket", editable = "../znsocket" },
+    { name = "znsocket", specifier = ">=0.2.13a5" },
 ]
 
 [package.metadata.requires-dev]
@@ -3057,8 +3057,8 @@ wheels = [
 
 [[package]]
 name = "znsocket"
-version = "0.2.13a4"
-source = { editable = "../znsocket" }
+version = "0.2.13a5"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "eventlet" },
     { name = "python-socketio", extra = ["client"] },
@@ -3067,33 +3067,7 @@ dependencies = [
     { name = "typer" },
     { name = "znjson" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "eventlet", specifier = ">=0.39.0" },
-    { name = "python-socketio", extras = ["client"], specifier = ">=5.12.1" },
-    { name = "redis", specifier = ">=5.2.1" },
-    { name = "sortedcontainers", specifier = ">=2.4.0" },
-    { name = "typer", specifier = ">=0.13" },
-    { name = "znjson", specifier = ">=0.2.6" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "coverage", specifier = ">=7.6.10" },
-    { name = "ipykernel", specifier = ">=6.29.5" },
-    { name = "ipywidgets", specifier = ">=8.1.7" },
-    { name = "numpy", specifier = ">=2.2.2" },
-    { name = "pytest", specifier = ">=8.3.4" },
-    { name = "pytest-benchmark", specifier = ">=5.1.0" },
-    { name = "rdkit2ase", specifier = ">=0.1.4" },
-    { name = "zndraw", specifier = ">=0.5.10" },
-    { name = "znh5md", specifier = ">=0.4.4" },
-]
-docs = [
-    { name = "furo", specifier = ">=2024.8.6" },
-    { name = "nbsphinx", specifier = ">=0.9.7" },
-    { name = "sphinx", specifier = ">=8.1.3" },
-    { name = "sphinx-copybutton", specifier = ">=0.5.2" },
-    { name = "sphinx-js", specifier = ">=5.0.0" },
+sdist = { url = "https://files.pythonhosted.org/packages/5d/99/27d475f9f22035dfaca4ca308f034c92868474bcf1f6a55861b646336284/znsocket-0.2.13a5.tar.gz", hash = "sha256:b9fea31377c1847e11ca1d1d1d67b43da7d4b6b05e0b6661e7bde0e0a720bec7", size = 251262, upload-time = "2025-11-14T15:52:24.359Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/14/46/e34fe941b7e03db6f2ec87ec4443f1765b403fa292ac37c61842c6e3a11e/znsocket-0.2.13a5-py3-none-any.whl", hash = "sha256:a0034746b8067105645639745d716593b76c62ceb9b76ea0e6a3d59e58f82e81", size = 46754, upload-time = "2025-11-14T15:52:23.13Z" },
 ]

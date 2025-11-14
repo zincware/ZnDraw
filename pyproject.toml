@@ -31,7 +31,7 @@ dependencies = [
     "typer>=0.19.2",
     "vesin>=0.3.8",
     "znh5md>=0.4.8",
-    "znsocket>=0.2.13a4",
+    "znsocket>=0.2.13a5",
     "prometheus-client>=0.23.1",
 ]
 
@@ -76,9 +76,6 @@ exclude = [
     ".vscode",
     ".claude",
 ]
-
-[tool.uv.sources]
-znsocket = { path = "../znsocket", editable = true }
 
 [project.scripts]
 zndraw = "zndraw_cli.cli:app"
