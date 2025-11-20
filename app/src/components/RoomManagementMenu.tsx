@@ -55,7 +55,7 @@ interface DuplicateFormState {
 /**
  * RoomManagementMenu provides room management actions in the AppBar:
  * - Lock/Unlock room
- * - Set as default
+ * - Set as template
  * - Duplicate room
  * - Go to room list
  */
@@ -185,13 +185,13 @@ export default function RoomManagementMenu() {
 
   const handleToggleDefault = async () => {
     if (!roomId) return;
-    
+
     try {
       await setDefaultRoom(isDefault ? null : roomId);
       setIsDefault(!isDefault);
-      showSnackbar(isDefault ? "Default room cleared" : "Set as default room", "success");
+      showSnackbar(isDefault ? "Template cleared" : "Set as template", "success");
     } catch (err) {
-      showSnackbar("Failed to update default room", "error");
+      showSnackbar("Failed to update template", "error");
     }
     handleCloseMenu();
   };
@@ -391,11 +391,11 @@ export default function RoomManagementMenu() {
         />
       )}
       
-      {/* Default room indicator - always visible */}
+      {/* Template room indicator - always visible */}
       {isDefault && (
         <Chip
           icon={<StarIcon />}
-          label="Default"
+          label="Template"
           color="primary"
           size="small"
           sx={{ mr: 1 }}
@@ -441,7 +441,7 @@ export default function RoomManagementMenu() {
             {isDefault ? <StarBorderIcon /> : <StarIcon />}
           </ListItemIcon>
           <ListItemText>
-            {isDefault ? "Remove as Default" : "Set as Default"}
+            {isDefault ? "Remove as Template" : "Set as Template"}
           </ListItemText>
         </MenuItem>
 

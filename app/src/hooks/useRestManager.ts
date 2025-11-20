@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { joinRoom as joinRoomApi } from "../myapi/client";
 import { convertBookmarkKeys } from "../utils/bookmarks";
 import { ensureAuthenticated, getUsername, getUserRole } from "../utils/auth";
+import { setLastVisitedRoom } from "../utils/roomTracking";
 import { useLazyRoomData } from "./useLazyRoomData";
 
 export const useRestJoinManager = () => {
@@ -106,6 +107,9 @@ export const useRestJoinManager = () => {
         setUserName(data.userName);
       }
       setRoomId(room);
+
+      // Track room visit for localStorage persistence
+      setLastVisitedRoom(room);
 
       // Room data will be fetched lazily via useLazyRoomData hook (see above)
     } catch (error: any) {

@@ -173,9 +173,9 @@ export default function RoomListPage() {
     try {
       await setDefaultRoom(isCurrentlyDefault ? null : roomId);
       // Socket event will update Zustand store automatically
-      showSnackbar(isCurrentlyDefault ? "Default room cleared" : "Default room set", "success");
+      showSnackbar(isCurrentlyDefault ? "Template cleared" : "Template set", "success");
     } catch (err) {
-      showSnackbar("Failed to update default room", "error");
+      showSnackbar("Failed to update template", "error");
     }
   };
 
@@ -255,7 +255,7 @@ export default function RoomListPage() {
       width: 50,
       sortable: true,
       renderCell: (params: GridRenderCellParams) => (
-        <Tooltip title={params.value ? "Default room" : "Set as default"}>
+        <Tooltip title={params.value ? "Template room" : "Set as template"}>
           <IconButton
             size="small"
             onClick={() => handleToggleDefault(params.row.id, params.value)}
@@ -442,7 +442,7 @@ export default function RoomListPage() {
           Room Management
         </Typography>
         <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-          Manage your rooms: lock, hide, set default, or duplicate
+          Manage your rooms: lock, hide, set as template, or duplicate
         </Typography>
 
         {/* Search Bar */}

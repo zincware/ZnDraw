@@ -106,3 +106,6 @@ resolution on remote filesystem uploads.
 - [ ] Store tokens in HttpOnly cookies / use package for managing JWT token!
 - [ ] add worker concurrency feature, currently set to 1!
 - [ ] user a logs out and user b logs in, data might not be deleted properly!
+- [x] show "default" structures to connect
+- [ ] show help for zndraw !
+- [ ] properties, compute mean / max / ... for e.g. forces uncertaints

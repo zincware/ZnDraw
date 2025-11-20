@@ -69,6 +69,14 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     virtual_marker,
   } = fullData;
 
+  // Check if this curve has static positions (can be edited)
+  // Use positionProp directly to avoid race conditions with store updates
+  const hasStaticPosition = useMemo(() => {
+    return Array.isArray(positionProp) &&
+           positionProp.length > 0 &&
+           Array.isArray(positionProp[0]);
+  }, [positionProp]);
+
   const theme = useTheme();
 
   // Refs following Box.tsx pattern
@@ -177,13 +185,6 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
   const onPointerLeaveHandler = useCallback(() => {
     setHoveredGeometryInstance(null, null);
   }, [setHoveredGeometryInstance]);
-
-  // Check if this curve has static positions (can be edited)
-  const hasStaticPosition = useMemo(() => {
-    const currentGeometry = geometries[geometryKey];
-    const position = currentGeometry?.data?.position;
-    return Array.isArray(position) && position.length > 0 && Array.isArray(position[0]);
-  }, [geometries, geometryKey]);
 
   const handleVirtualMarkerClick = useCallback((event: any) => {
     if (event.instanceId === undefined) return;
