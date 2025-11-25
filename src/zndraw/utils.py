@@ -1,9 +1,38 @@
 import functools
+import re
+import uuid
 
 import ase
 import numpy as np
 from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
+
+
+def sanitize_room_name(name: str) -> str:
+    """Convert a string to a valid room name by replacing non-alphanumeric characters."""
+    return re.sub(r"[^a-zA-Z0-9\-]", "_", name)
+
+
+def path_to_room(path: str, unique: bool = True) -> str:
+    """Convert a file path to a valid room name.
+
+    Parameters
+    ----------
+    path : str
+        The file path to convert.
+    unique : bool
+        If True, append a random UUID suffix to ensure uniqueness.
+        If False, return the sanitized path directly (for append mode).
+
+    Returns
+    -------
+    str
+        A valid room name, optionally with UUID suffix.
+    """
+    room = sanitize_room_name(path)
+    if unique:
+        room = f"{room}_{uuid.uuid4().hex[:4]}"
+    return room
 
 
 @functools.lru_cache(maxsize=128)

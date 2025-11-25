@@ -1,5 +1,4 @@
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -9,6 +8,7 @@ import typer
 
 from zndraw import __version__
 from zndraw.app.tasks import read_file
+from zndraw.utils import path_to_room, sanitize_room_name
 from zndraw.server import create_app, socketio
 from zndraw.server_manager import (
     ServerInfo,
@@ -69,12 +69,6 @@ def daemonize(log_file: str = "zndraw.log") -> None:
     os.close(devnull)
 
 
-def path_to_room(path: str) -> str:
-    """Convert a file path to a valid room name by replacing non-alphanumeric characters."""
-    room = re.sub(r"[^a-zA-Z0-9\-]", "_", path)
-    return room
-
-
 @app.command()
 def main(
     path: list[str] | None = typer.Argument(
@@ -88,6 +82,17 @@ def main(
     ),
     step: int | None = typer.Option(
         None, help="Step frame (optional, only for certain file types)."
+    ),
+    append: bool = typer.Option(
+        False,
+        "--append",
+        help="Append to existing room derived from file path (e.g., tmp/s22.xyz -> tmp_s22_xyz). "
+        "Without this flag, a unique room name is generated each time.",
+    ),
+    room: str | None = typer.Option(
+        None,
+        "--room",
+        help="Explicitly specify the room name. All files will be loaded into this room.",
     ),
     port: int = 5000,
     debug: bool = False,
@@ -169,6 +174,19 @@ def main(
             err=True,
         )
         raise typer.Exit(1)
+    if append and room:
+        typer.echo(
+            "Error: --append and --room cannot be used together. "
+            "Use --append for file-derived room names or --room for explicit naming.",
+            err=True,
+        )
+        raise typer.Exit(1)
+    if (append or room) and not path:
+        typer.echo(
+            "Error: --append and --room require file path(s) to be specified.",
+            err=True,
+        )
+        raise typer.Exit(1)
     if verbose:
         import logging
 
@@ -217,6 +235,19 @@ def main(
         else:
             typer.echo("✗ Failed to shut down server")
             raise typer.Exit(1)
+    # Helper to compute room names based on flags
+    def get_room_names(paths: list[str]) -> list[str]:
+        """Compute room names for given paths based on --room and --append flags."""
+        if room:
+            # All files go to the same explicitly named room
+            return [sanitize_room_name(room)] * len(paths)
+        elif append:
+            # Each file goes to a deterministic room derived from its path
+            return [path_to_room(p, unique=False) for p in paths]
+        else:
+            # Default: each file gets a unique room name
+            return [path_to_room(p, unique=True) for p in paths]
+
     # Handle remote connection
     if connect:
         typer.echo(f"Connecting to remote server: {connect}")
@@ -230,7 +261,8 @@ def main(
 
             typer.echo("Uploading files to remote server...")
             make_default = True
-            first_room = path_to_room(path[0])
+            room_names = get_room_names(path)
+            first_room = room_names[0]
 
             # Open browser before uploading so user can watch progress
             if browser:
@@ -238,12 +270,11 @@ def main(
                 typer.echo(f"Opening browser at {browser_url}")
                 webbrowser.open(browser_url)
 
-            for p in path:
-                room = path_to_room(p)
-                typer.echo(f"  Uploading file {p} to room {room}")
+            for p, room_name in zip(path, room_names):
+                typer.echo(f"  Uploading file {p} to room {room_name}")
                 read_file(
                     file=p,
-                    room=room,
+                    room=room_name,
                     server_url=connect,
                     start=start,
                     stop=stop,
@@ -293,7 +324,8 @@ def main(
                 typer.echo("Uploading files to existing server...")
                 make_default = True
                 server_url = f"http://localhost:{server_info.port}"
-                first_room = path_to_room(path[0])
+                room_names = get_room_names(path)
+                first_room = room_names[0]
 
                 # Open browser before uploading so user can watch progress
                 if browser:
@@ -301,12 +333,11 @@ def main(
                     typer.echo(f"Opening browser at {browser_url}")
                     webbrowser.open(browser_url)
 
-                for p in path:
-                    room = path_to_room(p)
-                    typer.echo(f"  Uploading file {p} to room {room}")
+                for p, room_name in zip(path, room_names):
+                    typer.echo(f"  Uploading file {p} to room {room_name}")
                     read_file(
                         file=p,
-                        room=room,
+                        room=room_name,
                         server_url=server_url,
                         start=start,
                         stop=stop,
@@ -344,10 +375,10 @@ def main(
     else:
         typer.echo("No existing server found. Starting a new server...")
 
-    # if one file, promote to template and default
-    # if multiple files, print a list of rooms.
+    # Compute room names upfront (if files provided)
+    room_names = get_room_names(path) if path else []
     typer.echo(
-        f"Rooms: {[path_to_room(p) for p in path]}"
+        f"Rooms: {room_names}"
         if path
         else "No files loaded on startup."
     )
@@ -387,9 +418,7 @@ def main(
     flask_app = create_app(config=config)
 
     # Track the first room for browser opening
-    first_room = None
-    if path is not None:
-        first_room = path_to_room(path[0])
+    first_room = room_names[0] if room_names else None
 
     # Daemonize if requested (must happen before starting workers and writing PID file)
     if detached:
@@ -412,12 +441,11 @@ def main(
     # Queue file loading tasks after worker is started
     if path is not None:
         make_default = True
-        for idx, p in enumerate(path):
-            room = path_to_room(p)
-            typer.echo(f"Loading file {p} into room {room}.")
+        for p, room_name in zip(path, room_names):
+            typer.echo(f"Loading file {p} into room {room_name}.")
             read_file.delay(
                 file=p,
-                room=room,
+                room=room_name,
                 server_url=config.server_url,
                 start=start,
                 stop=stop,
