@@ -81,17 +81,22 @@ class _ExtensionStore(t.TypedDict):
 
 
 class Selections:
-    """Accessor for per-geometry selections."""
+    """Accessor for per-geometry selections.
+
+    Provides dict-like access to selections for different geometry types.
+    Keys are geometry names (e.g., "particles", "forces").
+    """
 
     def __init__(self, zndraw_instance: "ZnDraw") -> None:
         self.vis = zndraw_instance
 
     def __getitem__(self, geometry: str) -> tuple[int]:
+        """Get selection indices for a geometry."""
         response = self.vis.api.get_selection(geometry)
         return tuple(response.get("selection", []))
 
     def __setitem__(self, geometry: str, indices: t.Iterable[int]) -> None:
-        # Validate indices
+        """Set selection indices for a geometry."""
         if not hasattr(indices, "__iter__") or isinstance(indices, (str, bytes)):
             raise ValueError("Selection must be an iterable of integers.")
 
@@ -113,48 +118,62 @@ class Selections:
         self.vis.api.update_selection(geometry, indices_list)
 
     def __delitem__(self, geometry: str) -> None:
+        """Clear selection for a geometry."""
         self.vis.api.update_selection(geometry, [])
 
     def __iter__(self):
+        """Iterate over geometry names with selections."""
         data = self.vis.api.get_all_selections()
         return iter(data["selections"].keys())
 
     def __len__(self) -> int:
+        """Return number of geometries with selections."""
         data = self.vis.api.get_all_selections()
         return len(data["selections"])
 
 
 class SelectionGroups:
-    """Accessor for named selection groups."""
+    """Accessor for named selection groups.
+
+    Provides dict-like access to selection groups. Each group maps
+    geometry names to lists of selected indices.
+    """
 
     def __init__(self, zndraw_instance: "ZnDraw") -> None:
         self.vis = zndraw_instance
 
     def __getitem__(self, group_name: str) -> dict[str, list[int]]:
+        """Get a selection group by name."""
         response = self.vis.api.get_selection_group(group_name)
         return response["group"]
 
     def __setitem__(
         self, group_name: str, group_data: dict[str, t.Iterable[int]]
     ) -> None:
-        # Convert iterables to lists
+        """Create or update a selection group."""
         data = {k: list(v) for k, v in group_data.items()}
         self.vis.api.create_update_selection_group(group_name, data)
 
     def __delitem__(self, group_name: str) -> None:
+        """Delete a selection group."""
         self.vis.api.delete_selection_group(group_name)
 
     def __iter__(self):
+        """Iterate over group names."""
         data = self.vis.api.get_all_selections()
         return iter(data["groups"].keys())
 
     def __len__(self) -> int:
+        """Return number of selection groups."""
         data = self.vis.api.get_all_selections()
         return len(data["groups"])
 
 
 class Screenshots:
-    """Accessor for room screenshots."""
+    """Accessor for room screenshots.
+
+    Provides methods to list, get, and delete screenshots for the room.
+    """
 
     def __init__(self, zndraw_instance: "ZnDraw") -> None:
         self.vis = zndraw_instance
@@ -719,10 +738,12 @@ class ZnDraw(MutableSequence):
 
     @property
     def step(self) -> int:
+        """Current frame index in the trajectory."""
         return self._step
 
     @step.setter
     def step(self, value: int):
+        """Set the current frame index."""
         if not isinstance(value, int) or value < 0:
             raise ValueError("Step must be a non-negative integer.")
         if value >= self._len:
@@ -737,7 +758,7 @@ class ZnDraw(MutableSequence):
 
     @property
     def points(self) -> np.ndarray:
-        """Get the current frame as an `ase.Atoms` object."""
+        """Get curve geometry points as an array of shape (N, 3)."""
         from zndraw.geometries import Curve
 
         curve: Curve | None = self.geometries.get("curve")
@@ -765,7 +786,7 @@ class ZnDraw(MutableSequence):
 
         Returns
         -------
-        frozenset[int]
+        tuple[int]
             The current selection indices for particles.
         """
         return self.selections["particles"]
@@ -785,10 +806,12 @@ class ZnDraw(MutableSequence):
 
     @property
     def frame_selection(self) -> tuple[int, ...]:
+        """Selected frame indices in the trajectory."""
         return tuple(sorted(self._frame_selection))
 
     @frame_selection.setter
     def frame_selection(self, value: t.Iterable[int] | None):
+        """Set selected frame indices."""
         indices = [] if value is None else list(value)
         if not all(isinstance(idx, int) and 0 <= idx < len(self) for idx in indices):
             raise ValueError("Selection must be an iterable of valid frame indices.")
@@ -854,9 +877,11 @@ class ZnDraw(MutableSequence):
         return self._screenshots_accessor
 
     def connect(self):
+        """Connect to the ZnDraw server via WebSocket."""
         self.socket.connect()
 
     def disconnect(self):
+        """Disconnect from the ZnDraw server."""
         self.socket.disconnect()
 
     def _upload_frames(self, action: str, data, **kwargs):
@@ -886,6 +911,7 @@ class ZnDraw(MutableSequence):
         self._upload_frames("insert", data, insert_position=index)
 
     def __len__(self) -> int:
+        """Return number of frames in the trajectory."""
         return self._len
 
     @t.overload
@@ -1123,6 +1149,7 @@ class ZnDraw(MutableSequence):
         self, index: np.ndarray, atoms: list[ase.Atoms] | ase.Atoms
     ) -> None: ...
     def __setitem__(self, index, atoms):
+        """Set frame(s) at given index from ase.Atoms object(s)."""
         if isinstance(atoms, list):
             if not all(isinstance(a, ase.Atoms) for a in atoms):
                 raise TypeError("All elements must be ase.Atoms objects")
@@ -1138,6 +1165,7 @@ class ZnDraw(MutableSequence):
             raise TypeError("Only ase.Atoms or list of ase.Atoms are supported.")
 
     def set_frames(self, index, value):
+        """Set frame(s) at given index from raw encoded data."""
         if not self.socket.sio.connected:
             raise RuntimeError("Client is not connected.")
         if isinstance(index, np.ndarray):
@@ -1184,6 +1212,7 @@ class ZnDraw(MutableSequence):
             )
 
     def __delitem__(self, index: int | slice | list[int] | np.ndarray):
+        """Delete frame(s) at given index."""
         if isinstance(index, np.ndarray):
             index = index.tolist() if index.ndim > 0 else int(index.item())
 
@@ -1224,6 +1253,7 @@ class ZnDraw(MutableSequence):
         update_colors_and_radii(atoms)
 
     def insert(self, index: int, atoms: ase.Atoms):
+        """Insert a frame at the given index."""
         if not isinstance(atoms, ase.Atoms):
             raise TypeError("Only ase.Atoms objects are supported")
         self._prepare_atoms(atoms)
@@ -1237,10 +1267,10 @@ class ZnDraw(MutableSequence):
             self._insert_frame(index, value)
 
     def append(self, atoms: ase.Atoms):
+        """Append a frame to the end of the trajectory."""
         if not isinstance(atoms, ase.Atoms):
             raise TypeError("Only ase.Atoms objects are supported")
         self._prepare_atoms(atoms)
-        # Public API - acquire lock
         with self.get_lock(msg="Appending frame"):
             self._append_frame(encode(atoms))
 
@@ -1444,6 +1474,7 @@ class ZnDraw(MutableSequence):
 
     @property
     def settings(self) -> RoomConfig:
+        """Access room-level settings configuration."""
         def callback_fn(data, extension: str):
             self.api.submit_extension_settings(extension, data)
 
@@ -1463,6 +1494,17 @@ class ZnDraw(MutableSequence):
         public: bool = False,
         run_kwargs: dict | None = None,
     ):
+        """Register an extension for use in the room.
+
+        Parameters
+        ----------
+        extension : type[Extension]
+            The extension class to register.
+        public : bool
+            If True, register as a global extension (requires admin).
+        run_kwargs : dict | None
+            Optional keyword arguments passed to the extension's run method.
+        """
         name = extension.__name__
 
         # Select the appropriate dictionary based on public flag
@@ -1631,6 +1673,7 @@ class ZnDraw(MutableSequence):
         )
 
     def log(self, message: str) -> dict | None:
+        """Send a chat message to the room."""
         if not self.socket.sio.connected:
             raise RuntimeError("Client is not connected.")
         return self.socket.sio.call(
@@ -1638,6 +1681,7 @@ class ZnDraw(MutableSequence):
         )
 
     def edit_message(self, message_id: str, new_content: str) -> dict | None:
+        """Edit an existing chat message."""
         if not self.socket.sio.connected:
             raise RuntimeError("Client is not connected.")
         return self.socket.sio.call(
@@ -1649,6 +1693,7 @@ class ZnDraw(MutableSequence):
     def get_messages(
         self, limit: int = 30, before: int | None = None, after: int | None = None
     ) -> dict:
+        """Get chat messages from the room."""
         return self.api.get_messages(limit=limit, before=before, after=after)
 
     def progress_tracker(self, description: str) -> ProgressTracker:
