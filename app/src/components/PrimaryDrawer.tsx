@@ -79,7 +79,7 @@ const PrimaryDrawer = ({
         justifyContent: "center",
         alignItems: "center",
         p: 2,
-        borderTop: "1px solid rgba(0, 0, 0, 0.12)"
+        borderTop: (theme) => `1px solid ${theme.palette.divider}`
       }}>
         <Tooltip title="View on GitHub" placement="right">
           <IconButton

@@ -78,7 +78,7 @@ const SideBar = () => {
             width: panelWidth,
             height: getContentHeight(),
             zIndex: (theme) => theme.zIndex.drawer,
-            borderRight: "1px solid rgba(0, 0, 0, 0.12)",
+            borderRight: (theme) => `1px solid ${theme.palette.divider}`,
             bgcolor: "background.paper",
             boxShadow: 2,
           }}

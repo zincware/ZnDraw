@@ -16,3 +16,4 @@ tmp/
 data/
 .DS_Store
 zndraw-data/
+.playwright-mcp/
