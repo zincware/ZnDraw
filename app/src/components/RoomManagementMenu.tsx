@@ -69,6 +69,7 @@ export default function RoomManagementMenu() {
   const lockMetadata = useAppStore((state) => state.lockMetadata);
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [lockAnchorEl, setLockAnchorEl] = useState<null | HTMLElement>(null);
   const [roomDetail, setRoomDetail] = useState<RoomDetail | null>(null);
   const [isDefault, setIsDefault] = useState(false);
   const [fileBrowserEnabled, setFileBrowserEnabled] = useState(false);
@@ -147,10 +148,16 @@ export default function RoomManagementMenu() {
   }, [roomId]);
 
   const menuOpen = Boolean(anchorEl);
+  const lockMenuOpen = Boolean(lockAnchorEl);
+
+  // Determine if any lock is active
+  const isRoomLocked = roomDetail?.locked ?? false;
+  const isMetadataLocked = lockMetadata?.locked ?? false;
+  const isAnyLockActive = isRoomLocked || isMetadataLocked;
 
   const handleOpenMenu = async (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
-    
+
     // Fetch room details when opening menu
     if (roomId) {
       try {
@@ -170,17 +177,53 @@ export default function RoomManagementMenu() {
     setAnchorEl(null);
   };
 
+  const handleLockIconClick = async (event: React.MouseEvent<HTMLElement>) => {
+    // If any lock is active, try to unlock
+    if (isAnyLockActive) {
+      if (isRoomLocked) {
+        // Unlock the room
+        await handleToggleLock();
+      } else if (isMetadataLocked) {
+        // Can't unlock metadata lock from here - it belongs to another user/session
+        showSnackbar(`Locked by ${lockMetadata?.userName || 'another user'}: ${lockMetadata?.msg || 'in use'}`, "info");
+      }
+    } else {
+      // No lock active - show dropdown to select what to lock
+      setLockAnchorEl(event.currentTarget);
+    }
+  };
+
+  const handleCloseLockMenu = () => {
+    setLockAnchorEl(null);
+  };
+
+  const handleLockRoomFromMenu = async () => {
+    handleCloseLockMenu();
+    await handleToggleLock();
+  };
+
   const handleToggleLock = async () => {
-    if (!roomId || !roomDetail) return;
-    
+    if (!roomId) return;
+
+    // Fetch latest room detail if not available
+    let currentRoomDetail = roomDetail;
+    if (!currentRoomDetail) {
+      try {
+        currentRoomDetail = await getRoom(roomId);
+        setRoomDetail(currentRoomDetail);
+      } catch (err) {
+        showSnackbar("Failed to fetch room details", "error");
+        return;
+      }
+    }
+
     try {
-      await updateRoom(roomId, { locked: !roomDetail.locked });
-      setRoomDetail({ ...roomDetail, locked: !roomDetail.locked });
-      showSnackbar(roomDetail.locked ? "Room unlocked" : "Room locked", "success");
+      await updateRoom(roomId, { locked: !currentRoomDetail.locked });
+      setRoomDetail({ ...currentRoomDetail, locked: !currentRoomDetail.locked });
+      showSnackbar(currentRoomDetail.locked ? "Room unlocked" : "Room locked", "success");
     } catch (err) {
       showSnackbar("Failed to update lock status", "error");
     }
-    handleCloseMenu();
   };
 
   const handleToggleDefault = async () => {
@@ -358,39 +401,61 @@ export default function RoomManagementMenu() {
     return null;
   }
 
+  // Build tooltip text for lock icon
+  const getLockTooltip = () => {
+    if (isRoomLocked) {
+      return "Room is locked - click to unlock";
+    }
+    if (isMetadataLocked) {
+      const user = lockMetadata?.userName || "Someone";
+      const action = lockMetadata?.msg || "using this room";
+      return `${user}: ${action} - cannot unlock`;
+    }
+    return "Room is unlocked - click to lock";
+  };
+
   return (
     <>
-      {/* Metadata lock indicator (yellow) - vis.lock for uploads */}
-      {lockMetadata?.locked && !roomDetail?.locked && (
-        <Tooltip
-          title={
-            lockMetadata.userName
-              ? `Locked by ${lockMetadata.userName}${lockMetadata.timestamp ? ` (${Math.floor((Date.now() - lockMetadata.timestamp * 1000) / 1000)}s ago)` : ''}`
-              : "Room is locked"
-          }
-          arrow
-        >
-          <Chip
-            icon={<LockIcon />}
-            label={lockMetadata.msg || "Uploading"}
-            color="warning"
-            size="small"
-            sx={{ mr: 1 }}
-          />
-        </Tooltip>
-      )}
-      
-      {/* Room lock indicator (red) - permanent lock */}
-      {roomDetail?.locked && (
-        <Chip
-          icon={<LockIcon />}
-          label="Locked"
-          color="error"
+      {/* Single lock icon - always visible */}
+      <Tooltip title={getLockTooltip()} arrow>
+        <IconButton
           size="small"
-          sx={{ mr: 1 }}
-        />
-      )}
-      
+          onClick={handleLockIconClick}
+          sx={{
+            color: isAnyLockActive
+              ? isRoomLocked
+                ? "error.main"
+                : "warning.main"
+              : "action.disabled",
+            mr: 0.5,
+          }}
+        >
+          {isAnyLockActive ? <LockIcon /> : <LockOpenIcon />}
+        </IconButton>
+      </Tooltip>
+
+      {/* Lock menu - shown when clicking unlocked icon */}
+      <Menu
+        anchorEl={lockAnchorEl}
+        open={lockMenuOpen}
+        onClose={handleCloseLockMenu}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "right",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "right",
+        }}
+      >
+        <MenuItem onClick={handleLockRoomFromMenu}>
+          <ListItemIcon>
+            <LockIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Lock Room</ListItemText>
+        </MenuItem>
+      </Menu>
+
       {/* Template room indicator - always visible */}
       {isDefault && (
         <Chip
@@ -427,15 +492,6 @@ export default function RoomManagementMenu() {
           horizontal: "right",
         }}
       >
-        <MenuItem onClick={handleToggleLock}>
-          <ListItemIcon>
-            {roomDetail?.locked ? <LockOpenIcon /> : <LockIcon />}
-          </ListItemIcon>
-          <ListItemText>
-            {roomDetail?.locked ? "Unlock Room" : "Lock Room"}
-          </ListItemText>
-        </MenuItem>
-
         <MenuItem onClick={handleToggleDefault}>
           <ListItemIcon>
             {isDefault ? <StarBorderIcon /> : <StarIcon />}
