@@ -158,6 +158,11 @@ def main(
         envvar="ZNDRAW_SIMGEN_ENABLED",
         help="Enable SiMGen molecular generation features.",
     ),
+    remove_storage: bool = typer.Option(
+        False,
+        "--remove-storage",
+        help="Remove existing storage directory on startup.",
+    )
 ):
     """
     Start or connect to a ZnDraw server.
@@ -407,13 +412,17 @@ def main(
     # Check for stale LMDB data on startup when using in-memory mode
     # This can happen if the server was killed without clean shutdown
     if config.redis_url is None and os.path.exists(config.storage_path):
-        typer.echo(f"⚠️  Warning: Found existing LMDB data at {config.storage_path}")
-        typer.echo("   This data may be stale when using in-memory storage (no Redis).")
-        if typer.confirm("   Delete and start fresh?", default=True):
+        if remove_storage:
             shutil.rmtree(config.storage_path)
-            typer.echo(f"✓ Cleaned storage directory: {config.storage_path}")
+            typer.echo(f"✓ Removed existing storage directory: {config.storage_path}")
         else:
-            typer.echo("⚠️  Continuing with existing data (may cause state inconsistencies)")
+            typer.echo(f"⚠️  Warning: Found existing LMDB data at {config.storage_path}")
+            typer.echo("   This data may be stale when using in-memory storage (no Redis).")
+            if typer.confirm("   Delete and start fresh?", default=True):
+                shutil.rmtree(config.storage_path)
+                typer.echo(f"✓ Cleaned storage directory: {config.storage_path}")
+            else:
+                typer.echo("⚠️  Continuing with existing data (may cause state inconsistencies)")
 
     flask_app = create_app(config=config)
 
