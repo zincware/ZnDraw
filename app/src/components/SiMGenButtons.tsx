@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
 import Button from '@mui/material/Button';
-import SchoolIcon from '@mui/icons-material/School';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import LinkIcon from '@mui/icons-material/Link';
 import ScienceIcon from '@mui/icons-material/Science';
 import ArticleIcon from '@mui/icons-material/Article';
@@ -60,60 +60,29 @@ export default function SiMGenButtons({ onTutorialClick }: SiMGenButtonsProps) {
 
   return (
     <Box
-      component="fieldset"
       sx={{
         display: 'flex',
-        gap: 0.5,
-        px: 2,
-        py: 0,
+        alignItems: 'center',
+        gap: 1.5,
         m: 0,
-        borderRadius: 2,
-        bgcolor: (theme) => theme.palette.mode === 'light'
-          ? 'rgba(255, 191, 0, 0)'
-          : 'rgba(255, 193, 7, 0.0)',
-        border: (theme) => `1px solid ${
-          theme.palette.mode === 'light'
-            ? 'rgba(255, 193, 7, 0.3)'
-            : 'rgba(255, 193, 7, 0.2)'
-        }`,
-        animation: showAnimation ? 'simgenPulse 1s ease-in-out 3' : 'none',
-        '@keyframes simgenPulse': {
-          '0%, 100%': {
-            boxShadow: '0 0 0 0 rgba(255, 193, 7, 0)',
-          },
-          '50%': {
-            boxShadow: '0 0 20px 4px rgba(255, 193, 7, 0.4)',
-          },
-        },
       }}
     >
-      <Box
-        component="legend"
-        sx={{
-          px: 1,
-          m: 0,
-          fontSize: '0.75rem',
-          lineHeight: 1.2,
-        }}
-      >
-        SiMGen
-      </Box>
-      <Tooltip title="SiMGen Tutorial">
-        <Button
-          color="inherit"
-          startIcon={<SchoolIcon />}
-          onClick={onTutorialClick}
-          size="small"
-        >
-          Tutorial
-        </Button>
-      </Tooltip>
       <Tooltip title="Connect selected atoms">
         <Button
           color="inherit"
           startIcon={<LinkIcon />}
           onClick={() => handleExtensionSubmit('Connect')}
-          size="small"
+          size="medium"
+          sx={{
+            textTransform: 'none',
+            fontWeight: 500,
+            '&:hover': {
+              bgcolor: (theme) =>
+                theme.palette.mode === 'light'
+                  ? 'rgba(25, 118, 210, 0.08)'
+                  : 'rgba(144, 202, 249, 0.12)',
+            },
+          }}
         >
           Connect
         </Button>
@@ -123,9 +92,19 @@ export default function SiMGenButtons({ onTutorialClick }: SiMGenButtonsProps) {
           color="inherit"
           startIcon={<ScienceIcon />}
           onClick={() => handleExtensionSubmit('SiMGenDemo')}
-          size="small"
+          size="medium"
+          sx={{
+            textTransform: 'none',
+            fontWeight: 500,
+            '&:hover': {
+              bgcolor: (theme) =>
+                theme.palette.mode === 'light'
+                  ? 'rgba(25, 118, 210, 0.08)'
+                  : 'rgba(144, 202, 249, 0.12)',
+            },
+          }}
         >
-          SiMGen
+          Generate
         </Button>
       </Tooltip>
       <Tooltip title="Replace scene with empty canvas">
@@ -133,9 +112,48 @@ export default function SiMGenButtons({ onTutorialClick }: SiMGenButtonsProps) {
           color="inherit"
           startIcon={<ArticleIcon />}
           onClick={() => handleExtensionSubmit('NewCanvas')}
-          size="small"
+          size="medium"
+          sx={{
+            textTransform: 'none',
+            fontWeight: 500,
+            '&:hover': {
+              bgcolor: (theme) =>
+                theme.palette.mode === 'light'
+                  ? 'rgba(25, 118, 210, 0.08)'
+                  : 'rgba(144, 202, 249, 0.12)',
+            },
+          }}
         >
           New Canvas
+        </Button>
+      </Tooltip>
+      <Box
+        sx={{
+          width: '1px',
+          height: '24px',
+          bgcolor: 'divider',
+          mx: 0.5,
+        }}
+      />
+      <Tooltip title="SiMGen Tutorial">
+        <Button
+          color="inherit"
+          onClick={onTutorialClick}
+          size="medium"
+          sx={{
+            minWidth: 'auto',
+            px: 1,
+            textTransform: 'none',
+            fontWeight: 500,
+            '&:hover': {
+              bgcolor: (theme) =>
+                theme.palette.mode === 'light'
+                  ? 'rgba(25, 118, 210, 0.08)'
+                  : 'rgba(144, 202, 249, 0.12)',
+            },
+          }}
+        >
+          <HelpOutlineIcon fontSize="small" />
         </Button>
       </Tooltip>
     </Box>
