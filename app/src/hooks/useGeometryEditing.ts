@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import * as THREE from "three";
 import { useAppStore } from "../store";
 import {
@@ -59,15 +59,19 @@ export function useGeometryEditing(
   // Store the last combined centroid we used to detect when it changes
   const lastCombinedCentroidRef = useRef<string | null>(null);
 
-  // Initialize centroid and relative positions when entering edit mode OR when combined centroid changes
-  // IMPORTANT: Recalculates when combined centroid changes (selection changes) but NOT when positions change
+  // COMBINED effect: Initialize AND subscribe in one effect
+  // This ensures subscription happens immediately after initialization
+  // Previously these were separate effects, causing a bug where:
+  // - Initialization effect ran (set refs)
+  // - Subscription effect didn't re-run (no dependency changed)
+  // - Result: refs set but no subscription!
   useEffect(() => {
     // Skip entirely if not static
     if (!isStatic) {
       return;
     }
 
-    // Clear state when exiting edit mode
+    // Clear state when not in valid editing state
     if (!isEditing || !hasSelection || !editingCombinedCentroid) {
       initialCentroidRef.current = null;
       relativePositionsRef.current = new Map();
@@ -77,47 +81,37 @@ export function useGeometryEditing(
 
     // Check if combined centroid has changed
     const centroidKey = editingCombinedCentroid.join(',');
-    if (lastCombinedCentroidRef.current === centroidKey) {
-      // Same centroid, don't recalculate (prevents drift from position updates)
-      return;
+    const centroidChanged = lastCombinedCentroidRef.current !== centroidKey;
+
+    // Initialize or re-initialize if centroid changed
+    if (centroidChanged) {
+      // Access geometries directly from store to get current positions
+      const currentGeometry = geometries[geometryKey];
+      const currentPositions = currentGeometry?.data?.position;
+
+      // Use current positions from store if available (may have been transformed)
+      // Otherwise fall back to original positionData
+      const positionsToUse = (currentPositions && isPositionStatic(currentPositions))
+        ? currentPositions
+        : positionData;
+
+      if (!positionsToUse) {
+        return;
+      }
+
+      const centroid = editingCombinedCentroid;
+      initialCentroidRef.current = centroid;
+
+      // Calculate relative positions using the combined centroid
+      const relative = getRelativePositions(positionsToUse, stableSelectedIndices, centroid);
+      relativePositionsRef.current = relative;
+
+      // Store this centroid to detect future changes
+      lastCombinedCentroidRef.current = centroidKey;
     }
 
-    // Combined centroid changed - recalculate using CURRENT positions from store
-    // This handles selection changes while in edit mode
-    // Access geometries directly from store to avoid dependency issues
-    const currentGeometry = geometries[geometryKey];
-    const currentPositions = currentGeometry?.data?.position;
-
-    // Use current positions from store if available (may have been transformed)
-    // Otherwise fall back to original positionData
-    const positionsToUse = (currentPositions && isPositionStatic(currentPositions))
-      ? currentPositions
-      : positionData;
-
-    if (!positionsToUse) {
-      return;
-    }
-
-    const centroid = editingCombinedCentroid;
-
-    initialCentroidRef.current = centroid;
-
-    // Calculate relative positions using the combined centroid from current positions
-    const relative = getRelativePositions(positionsToUse, stableSelectedIndices, centroid);
-    relativePositionsRef.current = relative;
-
-    // Store this centroid to detect future changes
-    lastCombinedCentroidRef.current = centroidKey;
-  }, [isEditing, hasSelection, stableSelectedIndices, isStatic, editingCombinedCentroid, positionData, geometryKey]);
-
-  // Subscribe to transform changes
-  useEffect(() => {
-    // Skip entirely if not static
-    if (!isStatic) {
-      return;
-    }
-
-    if (!isEditing || !hasSelection || !initialCentroidRef.current || relativePositionsRef.current.size === 0) {
+    // Now subscribe (refs are guaranteed to be set at this point)
+    if (!initialCentroidRef.current || relativePositionsRef.current.size === 0) {
       return;
     }
 
@@ -169,5 +163,7 @@ export function useGeometryEditing(
     geometryType,
     fullGeometryData,
     isStatic,
+    editingCombinedCentroid, // KEY: This ensures effect re-runs when centroid is set!
+    geometries,
   ]);
 }

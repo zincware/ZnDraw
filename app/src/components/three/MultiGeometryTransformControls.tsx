@@ -45,6 +45,22 @@ export default function MultiGeometryTransformControls() {
   // Track geometries that have been validated to prevent repeated deselection
   const validatedGeometriesRef = useRef<Set<string>>(new Set());
 
+  // Track if we're currently dragging to prevent snap-back
+  const isDraggingRef = useRef(false);
+
+  // Track the last selection key to detect when selection changes (not just positions)
+  const lastSelectionKeyRef = useRef<string | null>(null);
+
+  // Generate a stable key from selections (ignores position changes)
+  const selectionKey = useMemo(() => {
+    const entries = Object.entries(selections)
+      .filter(([_, indices]) => indices && indices.length > 0)
+      .map(([key, indices]) => `${key}:${indices.sort().join(',')}`)
+      .sort()
+      .join('|');
+    return entries;
+  }, [selections]);
+
   // Validate selections ONCE when entering edit mode - deselect invalid ones
   useEffect(() => {
     if (mode !== 'editing') {
@@ -81,12 +97,28 @@ export default function MultiGeometryTransformControls() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, geometries, selections]);
 
-  // Calculate centroid separately (doesn't trigger selection updates)
+  // Calculate centroid and position virtual object
+  // IMPORTANT: Only reposition when entering edit mode or selection changes, NOT during drag
   useEffect(() => {
     if (mode !== 'editing') {
       setCentroid(null);
       setHasValidSelections(false);
-      setEditingCombinedCentroid(null); // Clear combined centroid when exiting edit mode
+      setEditingCombinedCentroid(null);
+      lastSelectionKeyRef.current = null;
+      return;
+    }
+
+    // Skip repositioning if we're actively dragging (prevents snap-back)
+    if (isDraggingRef.current) {
+      return;
+    }
+
+    // Check if selection actually changed (not just positions)
+    const selectionChanged = lastSelectionKeyRef.current !== selectionKey;
+    const isFirstInit = lastSelectionKeyRef.current === null;
+
+    // Only reposition on selection change or first initialization
+    if (!selectionChanged && !isFirstInit) {
       return;
     }
 
@@ -107,7 +139,8 @@ export default function MultiGeometryTransformControls() {
 
     setCentroid(newCentroid);
     setHasValidSelections(true);
-    setEditingCombinedCentroid(newCentroid); // Store in global state for geometries to use
+    setEditingCombinedCentroid(newCentroid);
+    lastSelectionKeyRef.current = selectionKey;
 
     // Position virtual object at centroid
     if (virtualObjectRef.current) {
@@ -115,7 +148,7 @@ export default function MultiGeometryTransformControls() {
       virtualObjectRef.current.rotation.set(0, 0, 0);
       virtualObjectRef.current.scale.set(1, 1, 1);
     }
-  }, [mode, geometries, selections, setEditingCombinedCentroid]);
+  }, [mode, geometries, selections, selectionKey, setEditingCombinedCentroid]);
 
   // Throttle the notification to geometry components
   // This limits how often geometries update their Zustand state
@@ -157,6 +190,16 @@ export default function MultiGeometryTransformControls() {
     throttledNotify(matrix);
   }, [throttledNotify]);
 
+  // Handle drag start - prevent snap-back during drag
+  const handleDragStart = useCallback(() => {
+    isDraggingRef.current = true;
+  }, []);
+
+  // Handle drag end - allow repositioning again
+  const handleDragEnd = useCallback(() => {
+    isDraggingRef.current = false;
+  }, []);
+
   // Don't render if not editing or no valid selections
   if (mode !== 'editing' || !centroid || !hasValidSelections) {
     return null;
@@ -173,6 +216,8 @@ export default function MultiGeometryTransformControls() {
           object={virtualObjectRef.current}
           mode="translate"
           onChange={handleTransformChange}
+          onMouseDown={handleDragStart}
+          onMouseUp={handleDragEnd}
         />
       )}
     </>

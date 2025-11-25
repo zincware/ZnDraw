@@ -632,12 +632,10 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     debouncedPersist();
   }, [geometries[geometryKey]?.data?.position, geometryUpdateSources[geometryKey], debouncedPersist, geometryKey]);
 
-  // Get current position data for useGeometryEditing - simply convert markerPositions
-  // markerPositions is already derived from store, so this is just a format conversion
-  const finalPositionData = useMemo(() => {
-    if (markerPositions.length === 0) return [];
-    return markerPositions.map(point => [point.x, point.y, point.z]);
-  }, [markerPositions]);
+  // Get position data for useGeometryEditing - use same direct pattern as Box/Sphere
+  // This ensures immediate sync with store updates, avoiding the two-phase update lag
+  // that caused editing issues when using markerPositions state
+  const finalPositionData = typeof positionProp === "string" ? positionData?.[positionProp as string] : positionProp;
 
   // Use the geometry editing hook for transform controls
   useGeometryEditing(
