@@ -1,0 +1,227 @@
+# Docker Compose Development Configuration for ZnDraw
+# This configuration enables hot reloading for both frontend and backend development
+#
+# Key Features:
+# - Frontend hot reload via Vite dev server
+# - Backend Python code mounted (restart to apply changes)
+# - Admin mode enabled
+# - Template file pre-loaded
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yaml up -d
+#   docker compose -f docker-compose.dev.yaml logs -f  # Watch logs
+#   docker compose -f docker-compose.dev.yaml restart zndraw  # After Python changes
+#
+# Architecture: Frontend Dev Server (Vite:5173) + ZnDraw Backend × 1 + Redis + Celery × 1
+
+services:
+  # Redis service for state management and Celery broker
+  redis:
+    image: redis:7-alpine
+    container_name: zndraw-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6380:6379"  # Exposed on host for debugging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zndraw-network
+
+  # Frontend development server with hot reload (Vite)
+  frontend-dev:
+    build:
+      context: ..  # Repository root
+      dockerfile: docker/zndraw/Dockerfile
+      target: frontend-builder  # Use only the frontend build stage
+    container_name: zndraw-frontend-dev
+    restart: unless-stopped
+    command: ["bun", "run", "dev", "--host", "0.0.0.0", "--port", "5173"]
+    working_dir: /build
+    ports:
+      - "5173:5173"  # Vite dev server
+    volumes:
+      # Mount frontend source for hot reload
+      - ../app:/build:rw
+      # Preserve node_modules from the image
+      - /build/node_modules
+    environment:
+      - NODE_ENV=development
+    networks:
+      - zndraw-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  # ZnDraw backend application (single replica for development)
+  zndraw:
+    build:
+      context: ..  # Repository root
+      dockerfile: docker/zndraw/Dockerfile
+    container_name: zndraw-backend-dev
+    restart: unless-stopped
+    # Override CMD to load template file
+    command: ["uv", "run", "zndraw", "/app/templates/s22.xyz", "--no-browser"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "5001:5000"  # Backend exposed directly for debugging
+    environment:
+      # Redis configuration
+      - ZNDRAW_REDIS_URL=redis://redis:6379
+
+      # Logging configuration
+      - ZNDRAW_LOG_LEVEL=DEBUG  # More verbose logging for dev
+
+      # Server configuration
+      - ZNDRAW_SERVER_PORT=5000
+      - ZNDRAW_SERVER_HOST=0.0.0.0
+
+      # Flask secret key
+      - FLASK_SECRET_KEY=dev-secret-key-change-in-production
+
+      # Upload configuration
+      - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
+      - ZNDRAW_MAX_UPLOAD_MB=500
+
+      # Storage path
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
+
+      # Server URL (for Celery to connect back)
+      - ZNDRAW_SERVER_URL=http://zndraw:5000
+
+      # Celery configuration
+      - ZNDRAW_CELERY_ENABLED=true
+
+      # Admin mode configuration (DEPLOYMENT MODE - admins only)
+      - ZNDRAW_ADMIN_USERNAME=admin
+      - ZNDRAW_ADMIN_PASSWORD=admin123
+
+      # Development flags
+      - FLASK_DEBUG=1  # Enable Flask debug mode
+      - PYTHONUNBUFFERED=1  # Immediate log output
+
+      # Fix for Apple Silicon hosts
+      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    volumes:
+      # Mount Python source code for development
+      - ../src:/app/src:ro
+
+      # Mount pyproject.toml to see dependency changes
+      - ../pyproject.toml:/app/pyproject.toml:ro
+
+      # Persistent data storage
+      - zndraw-data:/app/data
+
+      # Upload temporary storage
+      - upload-temp:/tmp/zndraw_uploads
+
+      # Template files
+      - ./template-files:/app/templates:ro
+    networks:
+      - zndraw-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  # Celery worker for background tasks (single replica for development)
+  celery-worker:
+    build:
+      context: ..  # Repository root
+      dockerfile: docker/zndraw/Dockerfile
+    container_name: zndraw-celery-dev
+    restart: unless-stopped
+    user: appuser
+    working_dir: /app
+    command: ["sh", "-c", "celery -A zndraw_cli.celery worker --loglevel=debug --pool=eventlet"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      # Redis configuration
+      - ZNDRAW_REDIS_URL=redis://redis:6379
+
+      # Logging configuration
+      - ZNDRAW_LOG_LEVEL=DEBUG
+
+      # Storage path
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
+
+      # Upload configuration
+      - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
+
+      # Server URL
+      - ZNDRAW_SERVER_URL=http://zndraw:5000
+
+      # Celery configuration
+      - ZNDRAW_CELERY_ENABLED=true
+
+      # Admin mode configuration (DEPLOYMENT MODE - admins only)
+      - ZNDRAW_ADMIN_USERNAME=admin
+      - ZNDRAW_ADMIN_PASSWORD=admin123
+
+      # Fix for Apple Silicon hosts
+      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    volumes:
+      # Mount Python source code for development
+      - ../src:/app/src:ro
+
+      # Share data with main app
+      - zndraw-data:/app/data
+
+      # Share upload storage
+      - upload-temp:/tmp/zndraw_uploads
+
+      # Template files
+      - ./template-files:/app/templates:ro
+    networks:
+      - zndraw-network
+    healthcheck:
+      test: ["CMD", "sh", "-c", "celery -A zndraw.app.make_celery inspect ping"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+
+  # Nginx reverse proxy for development
+  # Proxies frontend requests to Vite dev server, API requests to backend
+  nginx-dev:
+    image: nginx:1.25-alpine
+    container_name: zndraw-nginx-dev
+    restart: unless-stopped
+    ports:
+      - "5000:80"  # Main application port
+    depends_on:
+      - zndraw
+      - frontend-dev
+    volumes:
+      # Mount development nginx config
+      - ./nginx/nginx-dev.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - zndraw-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+networks:
+  zndraw-network:
+    driver: bridge
+
+volumes:
+  zndraw-data:
+    driver: local
+  upload-temp:
+    driver: local

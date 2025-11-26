@@ -1,0 +1,184 @@
+# Docker Compose configuration for ZnDraw with Template Files
+# This configuration automatically loads s22.xyz on startup
+#
+# Usage:
+#   docker compose -f docker-compose.with-templates.yaml up -d
+#
+# Architecture: Nginx (reverse proxy + static files) → ZnDraw app × 3 → Redis → Celery workers × 2
+
+services:
+  # Redis service for state management and Celery broker
+  redis:
+    image: redis:7-alpine
+    container_name: zndraw-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6380:6379"  # Exposed on host for debugging/monitoring
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zndraw-network
+
+  # Nginx reverse proxy and static file server
+  nginx:
+    build:
+      context: ..  # Repository root (one level up from docker/)
+      dockerfile: docker/nginx/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5000:80"
+    depends_on:
+      - zndraw
+    volumes:
+      # Mount custom nginx.conf with correct container names
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - zndraw-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+  # Main ZnDraw application (scaled across multiple replicas)
+  zndraw:
+    build:
+      context: ..  # Repository root (one level up from docker/)
+      dockerfile: docker/zndraw/Dockerfile
+    restart: unless-stopped
+    # Note: No container_name - required for scaling with replicas
+    # Note: No exposed ports - traffic goes through nginx
+    depends_on:
+      redis:
+        condition: service_healthy
+    # Override CMD to load template file on startup
+    command: ["uv", "run", "zndraw", "/app/templates/s22.xyz", "--no-browser"]
+    environment:
+      # Redis configuration (enables multi-worker coordination)
+      - ZNDRAW_REDIS_URL=redis://redis:6379
+
+      # Logging configuration
+      - ZNDRAW_LOG_LEVEL=INFO
+
+      # Server configuration
+      - ZNDRAW_SERVER_PORT=5000
+      - ZNDRAW_SERVER_HOST=0.0.0.0
+
+      # Flask secret key (CHANGE THIS IN PRODUCTION!)
+      - FLASK_SECRET_KEY=change-this-to-a-random-secret-key-in-production
+
+      # Upload configuration
+      - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
+      - ZNDRAW_MAX_UPLOAD_MB=500
+
+      # Storage path (no .zarr extension for LMDB backend)
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
+
+      # Server URL (used by Celery tasks and extension workers to connect back)
+      # IMPORTANT: Use nginx for sticky session support (required for WebSocket)
+      - ZNDRAW_SERVER_URL=http://nginx
+
+      # Celery configuration
+      - ZNDRAW_CELERY_ENABLED=true
+
+      # Admin mode configuration
+      - ZNDRAW_ADMIN_USERNAME=admin
+      - ZNDRAW_ADMIN_PASSWORD=admin123
+
+      # Fix for Apple Silicon hosts
+      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    volumes:
+      # Persistent data storage (shared across all replicas)
+      - zndraw-data:/app/data
+      # Upload temporary storage (shared across all replicas)
+      - upload-temp:/tmp/zndraw_uploads
+      # Template files directory (read-only mount)
+      - ./template-files:/app/templates:ro
+    networks:
+      - zndraw-network
+    deploy:
+      # Scale to 3 replicas for production workload
+      replicas: 3
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s  # Increased for Gunicorn startup
+      retries: 3
+
+  # Celery worker for background tasks (scaled for parallel processing)
+  celery-worker:
+    build:
+      context: ..  # Repository root (one level up from docker/)
+      dockerfile: docker/zndraw/Dockerfile
+    restart: unless-stopped
+    # Note: No container_name - required for scaling with replicas
+    user: appuser
+    working_dir: /app
+    # Use shell form to ensure PATH is correctly set
+    # Use zndraw_cli.celery module which applies eventlet monkey patch first
+    command: ["sh", "-c", "celery -A zndraw_cli.celery worker --loglevel=info --pool=eventlet"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      # Redis configuration
+      - ZNDRAW_REDIS_URL=redis://redis:6379
+
+      # Logging configuration
+      - ZNDRAW_LOG_LEVEL=INFO
+
+      # Storage path (must match main app - shared volume, no .zarr extension)
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
+
+      # Upload configuration (must match main app - shared volume)
+      - ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads
+
+      # Server URL (for Celery tasks to connect back to main app via nginx)
+      # IMPORTANT: Use nginx for sticky session support (required for WebSocket)
+      - ZNDRAW_SERVER_URL=http://nginx
+
+      # Celery configuration
+      - ZNDRAW_CELERY_ENABLED=true
+
+      # Admin mode configuration
+      - ZNDRAW_ADMIN_USERNAME=admin
+      - ZNDRAW_ADMIN_PASSWORD=admin123
+
+      # Fix for Apple Silicon hosts
+      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    volumes:
+      # Share data with main app (shared across all workers and app replicas)
+      - zndraw-data:/app/data
+      # Share upload storage with main app (shared across all workers and app replicas)
+      - upload-temp:/tmp/zndraw_uploads
+      # Template files directory (read-only mount) - needed for file loading tasks
+      - ./template-files:/app/templates:ro
+    networks:
+      - zndraw-network
+    deploy:
+      # Scale to 2 replicas for parallel task processing
+      replicas: 2
+    healthcheck:
+      test: ["CMD", "sh", "-c", "celery -A zndraw.app.make_celery inspect ping"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+
+networks:
+  zndraw-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
+  zndraw-data:
+    driver: local
+  upload-temp:
+    driver: local
