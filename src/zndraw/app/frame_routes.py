@@ -409,22 +409,10 @@ def delete_frames_batch(room_id: str, session_id: str, user_id: str):
             # Generate frame indices from slice
             frame_indices = list(range(start, stop, step))
 
-        # Check for template frames before deleting
-        for frame_id in frame_indices:
-            mapping_entry = frame_mapping[frame_id]
-            if isinstance(mapping_entry, bytes):
-                mapping_entry = mapping_entry.decode()
-
-            # Check if this frame belongs to a different room (e.g., a template)
-            if ":" in mapping_entry:
-                source_room_id = mapping_entry.split(":", 1)[0]
-                if source_room_id != room_id:
-                    return {
-                        "error": f"Cannot delete template frame at index {frame_id}. This frame belongs to '{source_room_id}'",
-                        "type": "PermissionError",
-                    }, 403
-
         # Delete frames using gap method - no need to rebuild the entire sorted set
+        # Note: This removes the index mapping reference, not the physical frame data.
+        # Frames from other rooms (e.g., templates via copyFrom) can be safely removed
+        # from this room's index - the source room's data remains intact.
         members_to_delete = [frame_mapping[idx] for idx in frame_indices]
 
         if members_to_delete:
