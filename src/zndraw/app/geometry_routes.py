@@ -21,11 +21,12 @@ geometries = Blueprint("geometries", __name__)
 
 
 @geometries.route("/api/rooms/<string:room_id>/geometries", methods=["POST"])
-@requires_lock(target="trajectory:meta")
+@requires_lock(forbid=["room:locked"])
 def create_geometry(room_id: str, session_id: str, user_id: str):
     """Create or update a geometry in the room.
 
-    Requires trajectory:meta lock (enforced by @requires_lock decorator).
+    Checks that room is not locked (enforced by @requires_lock decorator).
+    No coordination lock required - this is an atomic operation.
 
     Headers:
         X-Session-ID: Session ID from /join
@@ -130,11 +131,12 @@ def get_geometry(room_id: str, key: str):
 @geometries.route(
     "/api/rooms/<string:room_id>/geometries/<string:key>", methods=["DELETE"]
 )
-@requires_lock(target="trajectory:meta")
+@requires_lock(forbid=["room:locked"])
 def delete_geometry(room_id: str, key: str, session_id: str, user_id: str):
     """Delete a geometry from the room.
 
-    Requires trajectory:meta lock (enforced by @requires_lock decorator).
+    Checks that room is not locked (enforced by @requires_lock decorator).
+    No coordination lock required - this is an atomic operation.
 
     Headers:
         X-Session-ID: Session ID from /join
@@ -197,7 +199,8 @@ def list_geometry_schemas(room_id: str):
 
 
 @geometries.route("/api/rooms/<string:room_id>/figures", methods=["POST"])
-def create_figure(room_id: str):
+@requires_lock(forbid=["room:locked"])
+def create_figure(room_id: str, session_id: str, user_id: str):
     data = request.get_json() or {}
     key = data.get("key")
     figure = data.get("figure")
@@ -237,7 +240,8 @@ def get_figure(room_id: str, key: str):
 @geometries.route(
     "/api/rooms/<string:room_id>/figures/<string:key>", methods=["DELETE"]
 )
-def delete_figure(room_id: str, key: str):
+@requires_lock(forbid=["room:locked"])
+def delete_figure(room_id: str, key: str, session_id: str, user_id: str):
     r = current_app.extensions["redis"]
     keys = RoomKeys(room_id)
     response = r.hdel(keys.figures(), key)

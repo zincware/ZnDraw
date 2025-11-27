@@ -1,6 +1,6 @@
 [project]
 name = "zndraw"
-version = "0.6.0a14"
+version = "0.6.0a15"
 description = "ZnDraw"
 license = { file = "LICENSE" }
 readme = "README.md"
@@ -33,6 +33,7 @@ dependencies = [
     "znh5md>=0.4.8",
     "znsocket>=0.2.13a5",
     "prometheus-client>=0.23.1",
+    "molify>=0.2.1",
 ]
 
 [dependency-groups]
@@ -44,6 +45,7 @@ dev = [
     "pandas>=2.3.3",
     "playwright>=1.55.0",
     "pytest>=8.4.2",
+    "molify>=0.2.1",
 ]
 
 [build-system]

@@ -31,8 +31,6 @@ import {
   updateRoom,
   duplicateRoom,
   setDefaultRoom,
-  getDefaultRoom,
-  listRooms,
   RoomDetail,
   getFileBrowserConfig,
   shutdownServer,
@@ -64,6 +62,7 @@ export default function RoomManagementMenu() {
   const navigate = useNavigate();
   // Use individual selectors to prevent unnecessary re-renders
   const userName = useAppStore((state) => state.userName);
+  const userRole = useAppStore((state) => state.userRole);
   const currentFrame = useAppStore((state) => state.currentFrame);
   const showSnackbar = useAppStore((state) => state.showSnackbar);
   const lockMetadata = useAppStore((state) => state.lockMetadata);
@@ -71,7 +70,6 @@ export default function RoomManagementMenu() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [lockAnchorEl, setLockAnchorEl] = useState<null | HTMLElement>(null);
   const [roomDetail, setRoomDetail] = useState<RoomDetail | null>(null);
-  const [isDefault, setIsDefault] = useState(false);
   const [fileBrowserEnabled, setFileBrowserEnabled] = useState(false);
   const [remoteFilesystemsAvailable, setRemoteFilesystemsAvailable] = useState(false);
   const [duplicateDialog, setDuplicateDialog] = useState(false);
@@ -109,6 +107,9 @@ export default function RoomManagementMenu() {
       setRoomDetail(currentRoomFromStore);
     }
   }, [currentRoomFromStore]);
+
+  // Derive isDefault from room data (either from store or local state)
+  const isDefault = roomDetail?.isDefault ?? currentRoomFromStore?.isDefault ?? false;
 
   // Check if file browser is enabled
   useEffect(() => {
@@ -161,12 +162,8 @@ export default function RoomManagementMenu() {
     // Fetch room details when opening menu
     if (roomId) {
       try {
-        const [detail, defaultRoom] = await Promise.all([
-          getRoom(roomId),
-          getDefaultRoom(),
-        ]);
+        const detail = await getRoom(roomId);
         setRoomDetail(detail);
-        setIsDefault(defaultRoom.roomId === roomId);
       } catch (err) {
         console.error("Failed to fetch room details:", err);
       }
@@ -231,10 +228,15 @@ export default function RoomManagementMenu() {
 
     try {
       await setDefaultRoom(isDefault ? null : roomId);
-      setIsDefault(!isDefault);
+
+      // Update the room in the store immediately for instant UI feedback
+      useRoomsStore.getState().updateRoom(roomId, { isDefault: !isDefault });
+
       showSnackbar(isDefault ? "Template cleared" : "Set as template", "success");
     } catch (err) {
       showSnackbar("Failed to update template", "error");
+      // Revert the optimistic update on error
+      useRoomsStore.getState().updateRoom(roomId, { isDefault: isDefault });
     }
     handleCloseMenu();
   };
@@ -416,45 +418,49 @@ export default function RoomManagementMenu() {
 
   return (
     <>
-      {/* Single lock icon - always visible */}
-      <Tooltip title={getLockTooltip()} arrow>
-        <IconButton
-          size="small"
-          onClick={handleLockIconClick}
-          sx={{
-            color: isAnyLockActive
-              ? isRoomLocked
-                ? "error.main"
-                : "warning.main"
-              : "action.disabled",
-            mr: 0.5,
-          }}
-        >
-          {isAnyLockActive ? <LockIcon /> : <LockOpenIcon />}
-        </IconButton>
-      </Tooltip>
+      {/* Lock controls - only visible for admins */}
+      {userRole === 'admin' && (
+        <>
+          <Tooltip title={getLockTooltip()} arrow>
+            <IconButton
+              size="small"
+              onClick={handleLockIconClick}
+              sx={{
+                color: isAnyLockActive
+                  ? isRoomLocked
+                    ? "error.main"
+                    : "warning.main"
+                  : "action.disabled",
+                mr: 0.5,
+              }}
+            >
+              {isAnyLockActive ? <LockIcon /> : <LockOpenIcon />}
+            </IconButton>
+          </Tooltip>
 
-      {/* Lock menu - shown when clicking unlocked icon */}
-      <Menu
-        anchorEl={lockAnchorEl}
-        open={lockMenuOpen}
-        onClose={handleCloseLockMenu}
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "right",
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "right",
-        }}
-      >
-        <MenuItem onClick={handleLockRoomFromMenu}>
-          <ListItemIcon>
-            <LockIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Lock Room</ListItemText>
-        </MenuItem>
-      </Menu>
+          {/* Lock menu - shown when clicking unlocked icon */}
+          <Menu
+            anchorEl={lockAnchorEl}
+            open={lockMenuOpen}
+            onClose={handleCloseLockMenu}
+            anchorOrigin={{
+              vertical: "bottom",
+              horizontal: "right",
+            }}
+            transformOrigin={{
+              vertical: "top",
+              horizontal: "right",
+            }}
+          >
+            <MenuItem onClick={handleLockRoomFromMenu}>
+              <ListItemIcon>
+                <LockIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Lock Room</ListItemText>
+            </MenuItem>
+          </Menu>
+        </>
+      )}
 
       {/* Template room indicator - always visible */}
       {isDefault && (
@@ -492,14 +498,16 @@ export default function RoomManagementMenu() {
           horizontal: "right",
         }}
       >
-        <MenuItem onClick={handleToggleDefault}>
-          <ListItemIcon>
-            {isDefault ? <StarBorderIcon /> : <StarIcon />}
-          </ListItemIcon>
-          <ListItemText>
-            {isDefault ? "Remove as Template" : "Set as Template"}
-          </ListItemText>
-        </MenuItem>
+        {userRole === 'admin' && (
+          <MenuItem onClick={handleToggleDefault}>
+            <ListItemIcon>
+              {isDefault ? <StarBorderIcon /> : <StarIcon />}
+            </ListItemIcon>
+            <ListItemText>
+              {isDefault ? "Remove as Template" : "Set as Template"}
+            </ListItemText>
+          </MenuItem>
+        )}
 
         <MenuItem onClick={handleOpenDuplicateDialog}>
           <ListItemIcon>
@@ -554,12 +562,14 @@ export default function RoomManagementMenu() {
           </MenuItem>
         )}
 
-        <MenuItem onClick={handleOpenShutdownDialog}>
-          <ListItemIcon>
-            <PowerSettingsNewIcon />
-          </ListItemIcon>
-          <ListItemText>Close ZnDraw</ListItemText>
-        </MenuItem>
+        {userRole === 'admin' && (
+          <MenuItem onClick={handleOpenShutdownDialog}>
+            <ListItemIcon>
+              <PowerSettingsNewIcon />
+            </ListItemIcon>
+            <ListItemText>Close ZnDraw</ListItemText>
+          </MenuItem>
+        )}
       </Menu>
 
       {/* Shutdown Confirmation Dialog */}

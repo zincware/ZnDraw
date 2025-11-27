@@ -9,25 +9,35 @@ from zndraw.config import ZnDrawConfig, get_config, reload_config
 
 @pytest.fixture
 def clean_env():
-    """Save and restore environment variables after test."""
+    """Save and restore environment variables after test.
+
+    Clears ALL ZNDRAW_* and FLASK_SECRET_KEY env vars at the START of each test
+    to ensure a clean environment, then restores the original state after.
+    """
     original_env = os.environ.copy()
+
+    # Clear ZNDRAW_* env vars at START of test
+    for key in list(os.environ.keys()):
+        if key.startswith("ZNDRAW_") or key == "FLASK_SECRET_KEY":
+            del os.environ[key]
+
+    # Reset config singleton before test
+    from zndraw import config as config_module
+
+    config_module._config = None
+
     yield
+
     # Restore original environment
     os.environ.clear()
     os.environ.update(original_env)
     # Force config reload after each test
-    from zndraw import config as config_module
-
     config_module._config = None
 
 
 def test_config_defaults(clean_env):
     """Test that config loads with default values when no env vars set."""
-    # Clear all ZNDRAW_* env vars
-    for key in list(os.environ.keys()):
-        if key.startswith("ZNDRAW_") or key == "FLASK_SECRET_KEY":
-            del os.environ[key]
-
+    # clean_env fixture already clears all ZNDRAW_* env vars
     config = ZnDrawConfig()
 
     assert config.redis_url is None

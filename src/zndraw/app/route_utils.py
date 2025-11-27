@@ -73,35 +73,56 @@ def get_storage(room_id: str) -> StorageBackend:
     return STORAGE[room_id]
 
 
-def requires_lock(target: str):
-    """Decorator to validate that the session holds a lock for protected operations.
+def requires_lock(target: str | None = None, forbid: list[str] | None = None):
+    """Decorator to validate locks for protected operations.
 
-    Validates that the request has:
-    1. Valid JWT token (user authentication)
-    2. Valid session ID (client instance identification)
-    3. Session holds the lock for the specified target
+    This decorator enforces BOTH temporary coordination locks AND permanent
+    authorization locks in a single, unified check.
 
     Parameters
     ----------
-    target : str
-        Lock target (e.g., "trajectory:meta")
+    target : str | None, optional
+        Temporary lock target that the caller must hold.
+        Examples: "trajectory:meta", "step"
+        These are session-based locks with TTL for coordinating concurrent clients.
+        If None, no lock verification is performed (only auth + forbid checks).
+        Default: None
 
-    Injects into wrapped function:
-    ----------------------------------
-    - session_id: str - Validated session ID
-    - user_id: str - User ID from JWT
+    forbid : list[str] | None, optional
+        List of permanent lock states that must NOT be active.
+        Examples: ["room:locked"]
+        These are persistent admin locks with no TTL.
+        Default: None (no forbidden states checked)
+
+    Execution Order
+    ---------------
+    1. Check forbidden permanent states (e.g., room:locked) → 403 if violated
+    2. Authenticate user via JWT → 401 if invalid
+    3. Validate session ID → 400 if missing, 401 if invalid
+    4. Verify temporary lock is held (if target specified) → 423 if not held
+    5. Execute route handler
 
     Returns
     -------
     function
-        Decorated function that validates lock before execution
+        Decorated function that validates all locks before execution
 
-    Example
-    -------
-    @requires_lock(target="trajectory:meta")
-    def create_geometry(room_id: str, session_id: str, user_id: str):
-        # session_id and user_id are injected by decorator
-        pass
+    Examples
+    --------
+    >>> # Requires trajectory lock AND room must not be locked
+    >>> @requires_lock(target="trajectory:meta", forbid=["room:locked"])
+    >>> def delete_frames(room_id: str, session_id: str, user_id: str):
+    ...     pass
+
+    >>> # Only checks room lock, no coordination lock needed (atomic operation)
+    >>> @requires_lock(forbid=["room:locked"])
+    >>> def set_bookmark(room_id: str, index: int, session_id: str, user_id: str):
+    ...     pass
+
+    >>> # Requires step lock, room CAN be locked (just navigation)
+    >>> @requires_lock(target="step")
+    >>> def update_step(room_id: str, session_id: str, user_id: str):
+    ...     pass
     """
     def decorator(f):
         @functools.wraps(f)
@@ -111,22 +132,40 @@ def requires_lock(target: str):
             if not room_id:
                 return jsonify({"error": "room_id required"}), 400
 
-            log.info(f"@requires_lock({target}) - room: {room_id}, user: {request.headers.get('Authorization', 'NO_AUTH')[:50]}, session: {request.headers.get('X-Session-ID', 'MISSING')}")
+            log.info(f"@requires_lock({target}, forbid={forbid}) - room: {room_id}")
 
-            # 1. Authenticate user via JWT
+            r = current_app.extensions["redis"]
+            keys = RoomKeys(room_id)
+
+            # ===== 1. CHECK FORBIDDEN PERMANENT STATES FIRST =====
+            if forbid:
+                for forbidden_state in forbid:
+                    if forbidden_state == "room:locked":
+                        locked = r.get(keys.locked())
+                        if locked == "1":
+                            locked_by = r.get(keys.locked_by())
+                            error_msg = "Room is locked and cannot be modified"
+                            if locked_by:
+                                error_msg = f"Room is locked by admin '{locked_by}' and cannot be modified"
+                            log.warning(f"Forbidden state violated: {forbidden_state} in room {room_id}")
+                            return jsonify({"error": error_msg}), 403
+                    # Future: Add other forbidden states here
+                    # elif forbidden_state == "room:archived":
+                    #     ...
+
+            # ===== 2. AUTHENTICATE USER VIA JWT (existing logic) =====
             try:
                 user_id = get_current_user()
             except AuthError as e:
                 log.warning(f"JWT auth failed: {e.message}")
                 return jsonify({"error": e.message}), e.status_code
 
-            # 2. Extract and validate session ID
+            # ===== 3. VALIDATE SESSION ID (existing logic) =====
             session_id = request.headers.get("X-Session-ID")
             if not session_id:
                 log.warning(f"X-Session-ID header missing for {target} in room {room_id}")
                 return jsonify({"error": "X-Session-ID header required"}), 400
 
-            r = current_app.extensions["redis"]
             session_key = SessionKeys.session_data(session_id)
             session_data_str = r.get(session_key)
 
@@ -143,27 +182,28 @@ def requires_lock(target: str):
             if session_user != user_id:
                 return jsonify({"error": "Session/user mismatch"}), 403
 
-            # 3. Verify session holds the lock for this target
-            lock_key = get_lock_key(room_id, target)
-            lock_data_str = r.get(lock_key)
+            # ===== 4. VERIFY TEMPORARY LOCK IS HELD (if target specified) =====
+            if target is not None:
+                lock_key = get_lock_key(room_id, target)
+                lock_data_str = r.get(lock_key)
 
-            if not lock_data_str:
-                return jsonify({"error": f"Lock not held for {target}"}), 423
+                if not lock_data_str:
+                    return jsonify({"error": f"Lock not held for {target}"}), 423
 
-            try:
-                lock_data = json.loads(lock_data_str)
-            except json.JSONDecodeError:
-                return jsonify({"error": "Invalid lock data"}), 500
+                try:
+                    lock_data = json.loads(lock_data_str)
+                except json.JSONDecodeError:
+                    return jsonify({"error": "Invalid lock data"}), 500
 
-            # Verify session holds the lock (only check sessionId, not token)
-            if lock_data.get("sessionId") != session_id:
-                log.warning(
-                    f"Lock validation failed: {target} in room {room_id} "
-                    f"- session {session_id} does not hold lock (held by {lock_data.get('sessionId')})"
-                )
-                return jsonify({"error": "Session does not hold the lock"}), 403
+                # Verify session holds the lock (only check sessionId, not token)
+                if lock_data.get("sessionId") != session_id:
+                    log.warning(
+                        f"Lock validation failed: {target} in room {room_id} "
+                        f"- session {session_id} does not hold lock (held by {lock_data.get('sessionId')})"
+                    )
+                    return jsonify({"error": "Session does not hold the lock"}), 403
 
-            # Inject validated parameters into route handler
+            # ===== 5. INJECT VALIDATED PARAMETERS =====
             kwargs["session_id"] = session_id
             kwargs["user_id"] = user_id
 

@@ -441,8 +441,20 @@ def main(
     if celery:
         worker = run_celery_worker(config)
 
+    # Generate secure shutdown token for CLI-based shutdown
+    import secrets
+    shutdown_token = secrets.token_urlsafe(32)
+
+    # Store shutdown token in Flask app config for validation
+    flask_app.config["SHUTDOWN_TOKEN"] = shutdown_token
+
     # Write server info to PID file
-    server_info = ServerInfo(pid=os.getpid(), port=port, version=__version__)
+    server_info = ServerInfo(
+        pid=os.getpid(),
+        port=port,
+        version=__version__,
+        shutdown_token=shutdown_token,
+    )
     write_server_info(server_info)
     typer.echo(f"✓ Server started (PID: {server_info.pid}, Port: {port})")
     typer.echo(f"  Server URL: {config.server_url}")

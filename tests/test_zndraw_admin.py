@@ -1,83 +1,129 @@
-"""Tests for ZnDraw admin functionality."""
+"""Tests for ZnDraw admin functionality.
+
+These tests use subprocess-based servers to avoid eventlet monkey-patching issues
+that occur when running the full test suite.
+"""
 
 import os
-import threading
-import time
+import shutil
+import signal
+import subprocess
 
 import pytest
+import redis
 
 from zndraw import ZnDraw
-from zndraw.server import create_app, socketio
+from zndraw.server_manager import remove_server_info
 
 
 @pytest.fixture
-def clear_admin_env_vars():
-    """Clear admin environment variables before and after test."""
-    # Save original values
-    original_username = os.environ.get("ZNDRAW_ADMIN_USERNAME")
-    original_password = os.environ.get("ZNDRAW_ADMIN_PASSWORD")
+def local_server(tmp_path, get_free_port, wait_for_server):
+    """Start a zndraw server in local mode (no admin credentials) via subprocess."""
+    from zndraw import config as config_module
 
-    # Clear before test
-    if "ZNDRAW_ADMIN_USERNAME" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_USERNAME"]
-    if "ZNDRAW_ADMIN_PASSWORD" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_PASSWORD"]
+    # Reset config singleton
+    config_module._config = None
 
-    yield
+    port = get_free_port()
+    storage_path = tmp_path / "zndraw-local"
+    redis_url = "redis://localhost:6379"
 
-    # Restore after test
-    if original_username is not None:
-        os.environ["ZNDRAW_ADMIN_USERNAME"] = original_username
-    elif "ZNDRAW_ADMIN_USERNAME" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_USERNAME"]
+    # Create clean environment without admin credentials (local mode)
+    env = os.environ.copy()
+    env.pop("ZNDRAW_ADMIN_USERNAME", None)
+    env.pop("ZNDRAW_ADMIN_PASSWORD", None)
 
-    if original_password is not None:
-        os.environ["ZNDRAW_ADMIN_PASSWORD"] = original_password
-    elif "ZNDRAW_ADMIN_PASSWORD" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_PASSWORD"]
-
-
-@pytest.fixture
-def local_server(clear_admin_env_vars):
-    """Start a local Flask-SocketIO server in local mode."""
-    app = create_app(redis_url=None)
-    app.config["TESTING"] = True
-    app.config["SERVER_URL"] = "http://localhost:5555"
-
-    # Run server in a background thread
-    server_thread = threading.Thread(
-        target=lambda: socketio.run(app, host="127.0.0.1", port=5555, debug=False),
-        daemon=True,
+    # Start server via subprocess
+    proc = subprocess.Popen(
+        [
+            "zndraw",
+            "--port", str(port),
+            "--no-celery",
+            "--storage-path", str(storage_path),
+            "--redis-url", redis_url,
+            "--no-browser",
+            "--force-new-server",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
     )
-    server_thread.start()
-    time.sleep(1)  # Give server time to start
 
-    yield "http://localhost:5555"
+    # Wait for server to be ready
+    if not wait_for_server(port):
+        proc.kill()
+        raise TimeoutError(f"Local server did not start on port {port}")
 
-    # Server will be stopped when test ends (daemon thread)
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        proc.send_signal(signal.SIGTERM)
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+
+        # Clean up
+        shutil.rmtree(storage_path, ignore_errors=True)
+        r = redis.Redis.from_url(redis_url, decode_responses=True)
+        r.flushall()
+        remove_server_info()
+        config_module._config = None
 
 
 @pytest.fixture
-def deployment_server(clear_admin_env_vars):
-    """Start a local Flask-SocketIO server in deployment mode."""
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
+def deployment_server(tmp_path, get_free_port, wait_for_server):
+    """Start a zndraw server in deployment mode (with admin credentials) via subprocess."""
+    from zndraw import config as config_module
 
-    app = create_app(redis_url=None)
-    app.config["TESTING"] = True
-    app.config["SERVER_URL"] = "http://localhost:5556"
+    # Reset config singleton
+    config_module._config = None
 
-    # Run server in a background thread
-    server_thread = threading.Thread(
-        target=lambda: socketio.run(app, host="127.0.0.1", port=5556, debug=False),
-        daemon=True,
+    port = get_free_port()
+    storage_path = tmp_path / "zndraw-deployment"
+    redis_url = "redis://localhost:6379"
+
+    # Create environment with admin credentials (deployment mode)
+    env = os.environ.copy()
+    env["ZNDRAW_ADMIN_USERNAME"] = "admin"
+    env["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
+
+    # Start server via subprocess
+    proc = subprocess.Popen(
+        [
+            "zndraw",
+            "--port", str(port),
+            "--no-celery",
+            "--storage-path", str(storage_path),
+            "--redis-url", redis_url,
+            "--no-browser",
+            "--force-new-server",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
     )
-    server_thread.start()
-    time.sleep(1)  # Give server time to start
 
-    yield "http://localhost:5556"
+    # Wait for server to be ready
+    if not wait_for_server(port):
+        proc.kill()
+        raise TimeoutError(f"Deployment server did not start on port {port}")
 
-    # Server will be stopped when test ends (daemon thread)
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        proc.send_signal(signal.SIGTERM)
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+
+        # Clean up
+        shutil.rmtree(storage_path, ignore_errors=True)
+        r = redis.Redis.from_url(redis_url, decode_responses=True)
+        r.flushall()
+        remove_server_info()
+        config_module._config = None
 
 
 def test_zndraw_local_mode_without_password(local_server):

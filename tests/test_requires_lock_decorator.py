@@ -70,8 +70,13 @@ def test_requires_lock_invalid_session_id(server):
     assert "Invalid or expired session" in data["error"]
 
 
-def test_requires_lock_missing_lock_token(server):
-    """Test that decorator rejects requests when lock is not held."""
+def test_requires_lock_missing_lock_token(server, s22):
+    """Test that decorator rejects requests when lock is not held.
+
+    Uses /api/rooms/<room_id>/frames POST which requires target="trajectory:meta".
+    """
+    import ase.io
+
     room = "test-missing-lock"
     auth_headers = get_jwt_auth_headers(server, "test-user")
 
@@ -82,10 +87,13 @@ def test_requires_lock_missing_lock_token(server):
     assert response.status_code == 200
     session_id = response.json()["sessionId"]
 
-    # Try to create geometry without acquiring lock first
+    # Prepare frame data
+    frame_bytes = ase.io.write("-", s22[0], format="extxyz")
+
+    # Try to append frames without acquiring lock first
     response = requests.post(
-        f"{server}/api/rooms/{room}/geometries",
-        json={"key": "test", "type": "Sphere", "data": {"position": [[0, 0, 0]]}},
+        f"{server}/api/rooms/{room}/frames",
+        files={"frames": ("frames.xyz", frame_bytes)},
         headers={**auth_headers, "X-Session-ID": session_id},
     )
 
@@ -150,8 +158,13 @@ def test_requires_lock_valid_session_and_token(room_with_lock):
     assert geom_data["geometry"]["data"]["position"] == [[1.0, 2.0, 3.0]]
 
 
-def test_requires_lock_different_session_same_user(server):
-    """Test that decorator rejects when a different session (same user) tries to use the lock."""
+def test_requires_lock_different_session_same_user(server, s22):
+    """Test that decorator rejects when a different session (same user) tries to use the lock.
+
+    Uses /api/rooms/<room_id>/frames POST which requires target="trajectory:meta".
+    """
+    import ase.io
+
     room = "test-different-session"
     auth_headers = get_jwt_auth_headers(server, "test-user")
 
@@ -177,10 +190,13 @@ def test_requires_lock_different_session_same_user(server):
     assert response2.status_code == 200
     session2_id = response2.json()["sessionId"]
 
-    # Session 2 tries to create geometry (should fail - session doesn't hold lock)
+    # Prepare frame data
+    frame_bytes = ase.io.write("-", s22[0], format="extxyz")
+
+    # Session 2 tries to append frames (should fail - session doesn't hold lock)
     response = requests.post(
-        f"{server}/api/rooms/{room}/geometries",
-        json={"key": "test", "type": "Sphere", "data": {"position": [[0, 0, 0]]}},
+        f"{server}/api/rooms/{room}/frames",
+        files={"frames": ("frames.xyz", frame_bytes)},
         headers={**auth_headers, "X-Session-ID": session2_id},
     )
 
@@ -189,8 +205,12 @@ def test_requires_lock_different_session_same_user(server):
     assert "Session does not hold the lock" in data["error"]
 
 
-def test_requires_lock_after_lock_expiry(server):
-    """Test that decorator rejects after lock expires."""
+def test_requires_lock_after_lock_expiry(server, s22):
+    """Test that decorator rejects after lock expires.
+
+    Uses /api/rooms/<room_id>/frames POST which requires target="trajectory:meta".
+    """
+    import ase.io
 
     room = "test-lock-expiry"
     auth_headers = get_jwt_auth_headers(server, "test-user")
@@ -209,17 +229,20 @@ def test_requires_lock_after_lock_expiry(server):
         headers={**auth_headers, "X-Session-ID": session_id},
     )
     assert response.status_code == 200
-    lock_token = response.json()["lockToken"]
+    response.json()["lockToken"]
 
     # Manually expire the lock in Redis (simulate TTL expiry)
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
     lock_key = f"room:{room}:lock:trajectory:meta"
     r.delete(lock_key)
 
-    # Try to create geometry after lock expired
+    # Prepare frame data
+    frame_bytes = ase.io.write("-", s22[0], format="extxyz")
+
+    # Try to append frames after lock expired
     response = requests.post(
-        f"{server}/api/rooms/{room}/geometries",
-        json={"key": "test", "type": "Sphere", "data": {"position": [[0, 0, 0]]}},
+        f"{server}/api/rooms/{room}/frames",
+        files={"frames": ("frames.xyz", frame_bytes)},
         headers={**auth_headers, "X-Session-ID": session_id},
     )
 

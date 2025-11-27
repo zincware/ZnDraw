@@ -22,12 +22,15 @@ class ServerInfo:
         Port number the server is running on.
     version
         Version of ZnDraw the server is running.
+    shutdown_token
+        Random token for secure shutdown from CLI (optional for backward compatibility).
 
     """
 
     pid: int
     port: int
     version: str
+    shutdown_token: str | None = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -188,8 +191,15 @@ def shutdown_server(server_info: ServerInfo) -> bool:
     if not is_process_running(server_info.pid):
         return False
     try:
+        # Send shutdown token for authentication (if available)
+        headers = {}
+        if server_info.shutdown_token:
+            headers["X-Shutdown-Token"] = server_info.shutdown_token
+
         response = requests.post(
-            f"http://localhost:{server_info.port}/api/shutdown", timeout=5.0
+            f"http://localhost:{server_info.port}/api/shutdown",
+            headers=headers,
+            timeout=5.0,
         )
         return response.status_code == 200
     except (requests.RequestException, requests.ConnectionError):

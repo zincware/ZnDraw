@@ -254,6 +254,10 @@ class RoomKeys:
         """Room locked status (0 or 1)."""
         return f"room:{self.room_id}:locked"
 
+    def locked_by(self) -> str:
+        """Username of admin who locked the room (or None for non-admin locks)."""
+        return f"room:{self.room_id}:locked_by"
+
     def hidden(self) -> str:
         """Room hidden status (0 or 1)."""
         return f"room:{self.room_id}:hidden"

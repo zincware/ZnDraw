@@ -18,31 +18,35 @@ FIGURE_2 = {"type": "circle", "center": [5, 5], "radius": 10, "color": "#0000FF"
 # --- Tests for POST /api/rooms/<room_id>/figures ---
 
 
-def test_create_figure_success(server):
+def test_create_figure_success(server, join_room_and_get_headers):
     """
     Tests successful creation of a new figure.
     """
     room_id = "room-create-success"
     figure_key = "line-01"
+    headers = join_room_and_get_headers(server, room_id)
 
     response = requests.post(
         f"{server}/api/rooms/{room_id}/figures",
         json={"key": figure_key, "figure": FIGURE_1},
+        headers=headers,
     )
 
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
 
 
-def test_create_figure_missing_key(server):
+def test_create_figure_missing_key(server, join_room_and_get_headers):
     """
     Tests API response when 'key' is missing from the POST body.
     """
     room_id = "room-create-no-key"
+    headers = join_room_and_get_headers(server, room_id)
 
     response = requests.post(
         f"{server}/api/rooms/{room_id}/figures",
         json={"figure": FIGURE_1},  # 'key' is missing
+        headers=headers,
     )
 
     assert response.status_code == 400
@@ -51,16 +55,18 @@ def test_create_figure_missing_key(server):
     assert "Both 'key' and 'figure' are required" in data["error"]
 
 
-def test_create_figure_missing_figure_data(server):
+def test_create_figure_missing_figure_data(server, join_room_and_get_headers):
     """
     Tests API response when 'figure' data is missing from the POST body.
     """
     room_id = "room-create-no-figure"
     figure_key = "line-01"
+    headers = join_room_and_get_headers(server, room_id)
 
     response = requests.post(
         f"{server}/api/rooms/{room_id}/figures",
         json={"key": figure_key},  # 'figure' is missing
+        headers=headers,
     )
 
     assert response.status_code == 400
@@ -69,23 +75,26 @@ def test_create_figure_missing_figure_data(server):
     assert "Both 'key' and 'figure' are required" in data["error"]
 
 
-def test_overwrite_existing_figure(server):
+def test_overwrite_existing_figure(server, join_room_and_get_headers):
     """
     Tests that creating a figure with an existing key overwrites the old data.
     """
     room_id = "room-overwrite"
     figure_key = "shape-to-overwrite"
+    headers = join_room_and_get_headers(server, room_id)
 
     # Create initial figure
     requests.post(
         f"{server}/api/rooms/{room_id}/figures",
         json={"key": figure_key, "figure": FIGURE_1},
+        headers=headers,
     )
 
     # Overwrite with new data
     response = requests.post(
         f"{server}/api/rooms/{room_id}/figures",
         json={"key": figure_key, "figure": FIGURE_2},
+        headers=headers,
     )
     assert response.status_code == 200
 
@@ -98,20 +107,22 @@ def test_overwrite_existing_figure(server):
 # --- Tests for GET /api/rooms/<room_id>/figures/<key> ---
 
 
-def test_get_figure_success(server):
+def test_get_figure_success(server, join_room_and_get_headers):
     """
     Tests successful retrieval of a single, existing figure.
     """
     room_id = "room-get-success"
     figure_key = "circle-01"
+    headers = join_room_and_get_headers(server, room_id)
 
     # Setup: Create the figure first
     requests.post(
         f"{server}/api/rooms/{room_id}/figures",
         json={"key": figure_key, "figure": FIGURE_2},
+        headers=headers,
     )
 
-    # Test: Retrieve the figure
+    # Test: Retrieve the figure (no auth needed for GET)
     response = requests.get(f"{server}/api/rooms/{room_id}/figures/{figure_key}")
 
     assert response.status_code == 200
@@ -136,21 +147,25 @@ def test_get_figure_not_found(server):
 # --- Tests for DELETE /api/rooms/<room_id>/figures/<key> ---
 
 
-def test_delete_figure_success(server):
+def test_delete_figure_success(server, join_room_and_get_headers):
     """
     Tests successful deletion of an existing figure.
     """
     room_id = "room-delete-success"
     figure_key = "figure-to-delete"
+    headers = join_room_and_get_headers(server, room_id)
 
     # Setup: Create the figure
     requests.post(
         f"{server}/api/rooms/{room_id}/figures",
         json={"key": figure_key, "figure": FIGURE_1},
+        headers=headers,
     )
 
     # Test: Delete the figure
-    response = requests.delete(f"{server}/api/rooms/{room_id}/figures/{figure_key}")
+    response = requests.delete(
+        f"{server}/api/rooms/{room_id}/figures/{figure_key}", headers=headers
+    )
     assert response.status_code == 200
     assert response.json() == {"status": "success"}
 
@@ -159,15 +174,16 @@ def test_delete_figure_success(server):
     assert verify_response.status_code == 404
 
 
-def test_delete_figure_not_found(server):
+def test_delete_figure_not_found(server, join_room_and_get_headers):
     """
     Tests API response when attempting to delete a non-existent figure.
     """
     room_id = "room-delete-not-found"
     non_existent_key = "does-not-exist"
+    headers = join_room_and_get_headers(server, room_id)
 
     response = requests.delete(
-        f"{server}/api/rooms/{room_id}/figures/{non_existent_key}"
+        f"{server}/api/rooms/{room_id}/figures/{non_existent_key}", headers=headers
     )
 
     assert response.status_code == 404
@@ -179,21 +195,23 @@ def test_delete_figure_not_found(server):
 # --- Tests for GET /api/rooms/<room_id>/figures ---
 
 
-def test_list_figures_success(server):
+def test_list_figures_success(server, join_room_and_get_headers):
     """
     Tests listing all figure keys in a room with multiple figures.
     """
     room_id = "room-list-success"
     keys_to_create = {"line-1", "circle-5", "line-8"}
+    headers = join_room_and_get_headers(server, room_id)
 
     # Setup: Create multiple figures
     for key in keys_to_create:
         requests.post(
             f"{server}/api/rooms/{room_id}/figures",
             json={"key": key, "figure": FIGURE_1},
+            headers=headers,
         )
 
-    # Test: Get the list of all figure keys
+    # Test: Get the list of all figure keys (no auth needed for GET)
     response = requests.get(f"{server}/api/rooms/{room_id}/figures")
 
     assert response.status_code == 200

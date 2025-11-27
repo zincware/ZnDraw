@@ -10,7 +10,6 @@ This module tests the new room management architecture including:
 import pytest
 import redis
 import requests
-from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
 
@@ -178,7 +177,7 @@ def test_metadata_lock_ttl_validation(server, s22):
         assert lock._refresh_interval == 30  # Server-provided refresh interval
 
 
-def test_get_room_details(server, s22):
+def test_get_room_details(server, s22, get_jwt_auth_headers):
     """Test that GET /api/rooms/{room_id} returns detailed metadata."""
     vis = ZnDraw(url=server, room="test-room-3", user="user1")
     vis.extend(s22[:3])
@@ -199,7 +198,7 @@ def test_get_room_details(server, s22):
     assert room["hidden"] is True
 
 
-def test_get_nonexistent_room(server):
+def test_get_nonexistent_room(server, get_jwt_auth_headers):
     """Test that getting a nonexistent room returns 404."""
     response = requests.get(f"{server}/api/rooms/nonexistent-room", headers=get_jwt_auth_headers(server))
     assert response.status_code == 404
@@ -312,21 +311,24 @@ def test_get_default_room_when_none_set(server):
     assert data["roomId"] is None
 
 
-def test_set_default_room(server, s22):
+def test_set_default_room(server, s22, get_jwt_auth_headers):
     """Test setting the default room."""
     vis = ZnDraw(url=server, room="new-default-room", user="user1")
     vis.append(s22[0])
 
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
+    # In local mode, all users are admin, but still need auth headers
     response = requests.put(
-        f"{server}/api/rooms/default", json={"roomId": "new-default-room"}
+        f"{server}/api/rooms/default",
+        json={"roomId": "new-default-room"},
+        headers=get_jwt_auth_headers(server, "user1"),
     )
     assert response.status_code == 200
     assert r.get("default_room") == "new-default-room"
 
 
-def test_unset_default_room(server, s22):
+def test_unset_default_room(server, s22, get_jwt_auth_headers):
     """Test unsetting the default room."""
     vis = ZnDraw(url=server, room="some-room", user="user1")
     vis.append(s22[0])
@@ -334,15 +336,23 @@ def test_unset_default_room(server, s22):
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
     r.set("default_room", "some-room")
 
-    response = requests.put(f"{server}/api/rooms/default", json={"roomId": None})
+    # In local mode, all users are admin, but still need auth headers
+    response = requests.put(
+        f"{server}/api/rooms/default",
+        json={"roomId": None},
+        headers=get_jwt_auth_headers(server, "user1"),
+    )
     assert response.status_code == 200
     assert r.get("default_room") is None
 
 
-def test_set_nonexistent_default_room_fails(server):
+def test_set_nonexistent_default_room_fails(server, get_jwt_auth_headers):
     """Test that setting a nonexistent room as default fails."""
+    # In local mode, all users are admin, but still need auth headers
     response = requests.put(
-        f"{server}/api/rooms/default", json={"roomId": "nonexistent-room"}
+        f"{server}/api/rooms/default",
+        json={"roomId": "nonexistent-room"},
+        headers=get_jwt_auth_headers(server, "user1"),
     )
     assert response.status_code == 404
 

@@ -13,7 +13,7 @@ from pathlib import Path
 from flask import Blueprint, Response, current_app, request, send_from_directory
 from flask_socketio import disconnect
 
-from zndraw.auth import get_current_user, require_admin, require_auth
+from zndraw.auth import AuthError, get_current_user, require_admin, require_auth
 from zndraw.server import socketio
 
 from .redis_keys import SessionKeys, UserKeys
@@ -418,11 +418,18 @@ def get_user_role():
         user_name = get_current_user()
 
         user_service = current_app.extensions["user_service"]
+        admin_service = current_app.extensions["admin_service"]
+
+        # Check if user is admin (in LOCAL mode, all users are admin)
+        is_admin = admin_service.is_admin(user_name)
         role = user_service.get_user_role(user_name)
+
+        # In local mode, all users are admin; in deployment mode, check is_admin flag
+        final_role = "admin" if is_admin else role.value
 
         return {
             "userName": user_name,
-            "role": role.value,
+            "role": final_role,
         }
 
     except Exception as e:
@@ -675,8 +682,53 @@ def internal_emit():
 
 
 @utility.route("/api/shutdown", methods=["POST"])
-@require_admin
 def exit_app():
-    """Endpoint to gracefully shut down the server. Secured via a shared secret."""
-    socketio.stop()
-    return {"success": True}  # this might never be seen
+    """Endpoint to gracefully shut down the server.
+
+    Requires either:
+    1. Shutdown token from PID file (for CLI shutdown from same user)
+    2. Admin authentication (for admin users via UI)
+
+    Security
+    --------
+    - Shutdown token is generated at server start and stored in PID file
+    - Only the user who started the server has access to the PID file
+    - Token is sent in X-Shutdown-Token header
+    - Fallback to admin authentication for UI-based shutdown
+    """
+    # Check for shutdown token (from CLI)
+    shutdown_token = request.headers.get("X-Shutdown-Token")
+    expected_token = current_app.config.get("SHUTDOWN_TOKEN")
+
+    if shutdown_token and expected_token and shutdown_token == expected_token:
+        # Valid shutdown token from CLI
+        log.info("Server shutdown via CLI with valid token")
+        socketio.stop()
+        return {"success": True}
+
+    # Fallback to admin authentication check
+    try:
+        user_name = get_current_user()
+        admin_service = current_app.extensions["admin_service"]
+
+        if admin_service.is_admin(user_name):
+            log.info(f"Server shutdown by admin user: {user_name}")
+            socketio.stop()
+            return {"success": True}
+        else:
+            # User is authenticated but not an admin
+            log.warning(f"Non-admin user '{user_name}' attempted shutdown")
+            return {
+                "error": "Admin access required for shutdown",
+                "type": "AdminAccessError",
+            }, 403
+    except AuthError as e:
+        # Not authenticated
+        log.warning("Unauthorized shutdown attempt - no valid token")
+        return {"error": e.message, "type": "AuthError"}, 401
+
+    log.warning("Unauthorized shutdown attempt")
+    return {
+        "error": "Unauthorized - admin access or valid shutdown token required",
+        "type": "AuthError",
+    }, 401

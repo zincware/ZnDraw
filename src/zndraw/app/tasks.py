@@ -343,13 +343,36 @@ def read_file(
     # Set as default room if requested
     if make_default:
         try:
+            # Use authentication headers from the ZnDraw API manager
+            headers = vis.api._get_headers()
             requests.put(
-                f"{server_url}/api/rooms/default", json={"roomId": room}
+                f"{server_url}/api/rooms/default",
+                json={"roomId": room},
+                headers=headers,
             ).raise_for_status()
             log.info(f"Set room {room} as default")
         except requests.RequestException as e:
             log.error(f"Failed to set default room {room}: {e}")
             vis.log("Failed to set room as default.")
+
+    # Lock template room if configured
+    from zndraw.config import get_config
+
+    config = get_config()
+    if config.lock_template_room:
+        try:
+            # Use authentication headers from the ZnDraw API manager
+            headers = vis.api._get_headers()
+            requests.patch(
+                f"{server_url}/api/rooms/{room}",
+                json={"locked": True},
+                headers=headers,
+            ).raise_for_status()
+            log.info(f"Locked template room {room} (admin-locked)")
+            vis.log(f"✓ Room locked by admin (template room)")
+        except requests.RequestException as e:
+            log.error(f"Failed to lock template room {room}: {e}")
+            vis.log("Failed to lock template room.")
 
     vis.disconnect()
 

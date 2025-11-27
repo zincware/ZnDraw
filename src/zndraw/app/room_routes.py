@@ -10,7 +10,7 @@ from flask import Blueprint, current_app, request
 
 from zndraw.server import socketio
 from zndraw.app.constants import SocketEvents
-from zndraw.auth import require_auth
+from zndraw.auth import require_auth, require_admin
 
 from .frame_index_manager import FrameIndexManager
 from .redis_keys import RoomKeys, SessionKeys
@@ -291,10 +291,28 @@ def update_room(room_id):
             "locked": true,                          // Optional
             "hidden": false                          // Optional
         }
+
+    Security:
+    - In admin mode, only admins can lock/unlock rooms
+    - Non-admins cannot unlock admin-locked rooms
+    - Admin locks are tracked via locked_by field
     """
+    from zndraw.auth import get_current_user
+
     redis_client = current_app.extensions["redis"]
+    admin_service = current_app.extensions["admin_service"]
+    config = current_app.extensions["config"]
     data = request.get_json() or {}
     keys = RoomKeys(room_id)
+
+    # Get current user (if authenticated)
+    try:
+        current_user = get_current_user()
+        is_admin = admin_service.is_admin(current_user)
+    except Exception:
+        # Not authenticated - treat as non-admin
+        current_user = None
+        is_admin = False
 
     # Check if room exists
     room_exists = False
@@ -317,10 +335,31 @@ def update_room(room_id):
             redis_client.set(keys.description(), data["description"])
             changes["description"] = data["description"]
 
-    # Update locked status
+    # Update locked status with admin enforcement
     if "locked" in data:
-        redis_client.set(keys.locked(), "1" if data["locked"] else "0")
-        changes["locked"] = bool(data["locked"])
+        is_locking = bool(data["locked"])
+        current_locked_by = redis_client.get(keys.locked_by())
+
+        # In admin mode, only admins can lock/unlock
+        if config.admin_username and not is_admin:
+            return {"error": "Only admins can lock/unlock rooms in admin mode"}, 403
+
+        # Prevent non-admins from unlocking admin-locked rooms
+        if not is_locking and current_locked_by and not is_admin:
+            return {
+                "error": f"This room was locked by admin '{current_locked_by}' and cannot be unlocked by non-admins"
+            }, 403
+
+        # Update lock status
+        redis_client.set(keys.locked(), "1" if is_locking else "0")
+        changes["locked"] = is_locking
+
+        # Track who locked it (only for admin locks)
+        if is_locking and is_admin:
+            redis_client.set(keys.locked_by(), current_user)
+        elif not is_locking:
+            # Remove locked_by when unlocking
+            redis_client.delete(keys.locked_by())
 
     # Update hidden status
     if "hidden" in data:
@@ -351,8 +390,9 @@ def get_default_room():
 
 
 @rooms.route("/api/rooms/default", methods=["PUT"])
+@require_admin
 def set_default_room():
-    """Set the default room.
+    """Set the default room (admin only).
 
     Request body:
         {"roomId": "room1"}  // or null to unset
@@ -623,11 +663,19 @@ def duplicate_room(room_id):
 
 
 @rooms.route("/api/rooms/<string:room_id>/renormalize", methods=["POST"])
-def renormalize_frame_indices(room_id):
+@requires_lock(target="trajectory:meta", forbid=["room:locked"])
+def renormalize_frame_indices(room_id: str, session_id: str, user_id: str):
     """Renormalize frame indices to contiguous integers starting from 0.
 
     This is an O(N) operation that should be called infrequently when
     precision drift becomes an issue (e.g., scores too close together).
+
+    Requires trajectory:meta lock (enforced by @requires_lock decorator).
+
+    Headers
+    -------
+    X-Session-ID : str
+        Session ID from /join
 
     Returns
     -------

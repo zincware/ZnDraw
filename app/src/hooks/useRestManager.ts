@@ -5,7 +5,7 @@ import { set, throttle } from "lodash";
 import { useQueryClient } from "@tanstack/react-query";
 import { joinRoom as joinRoomApi } from "../myapi/client";
 import { convertBookmarkKeys } from "../utils/bookmarks";
-import { ensureAuthenticated, getUsername, getUserRole } from "../utils/auth";
+import { ensureAuthenticated, fetchUserRole, getUsername } from "../utils/auth";
 import { setLastVisitedRoom } from "../utils/roomTracking";
 import { useLazyRoomData } from "./useLazyRoomData";
 
@@ -64,11 +64,9 @@ export const useRestJoinManager = () => {
     try {
       await ensureAuthenticated();
 
-      // Initialize user role from localStorage
-      const userRole = getUserRole();
-      if (userRole) {
-        setUserRole(userRole);
-      }
+      // Fetch fresh user role from backend API
+      const { role: userRole } = await fetchUserRole();
+      setUserRole(userRole);
     } catch (error) {
       console.error("Authentication failed:", error);
       return;
