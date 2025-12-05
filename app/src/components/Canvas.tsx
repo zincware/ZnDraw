@@ -17,6 +17,7 @@ import Bonds from "./three/Bonds";
 import Box from "./three/Box";
 import Plane from "./three/Plane";
 import Curve from "./three/Curve";
+import Shape from "./three/Shape";
 import Camera from "./three/Camera";
 import VirtualCanvas from "./three/VirtualCanvas";
 import Crosshair from "./three/crosshair";
@@ -233,6 +234,16 @@ function MyScene() {
                 return (
                   <GeometryErrorBoundary key={name} geometryKey={name}>
                     <Plane
+                      geometryKey={name}
+                      data={config.data}
+                      pathtracingEnabled={pathtracingEnabled}
+                    />
+                  </GeometryErrorBoundary>
+                );
+              } else if (config.type === "Shape") {
+                return (
+                  <GeometryErrorBoundary key={name} geometryKey={name}>
+                    <Shape
                       geometryKey={name}
                       data={config.data}
                       pathtracingEnabled={pathtracingEnabled}

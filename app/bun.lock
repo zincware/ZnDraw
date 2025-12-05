@@ -10,32 +10,34 @@
         "@jsonforms/material-renderers": "^3.6.0",
         "@jsonforms/react": "^3.6.0",
         "@msgpack/msgpack": "^3.1.2",
-        "@mui/icons-material": "^7.3.2",
-        "@mui/material": "^7.3.2",
-        "@mui/x-data-grid": "^8.13.1",
-        "@mui/x-tree-view": "^8.13.1",
+        "@mui/icons-material": "^7.3.5",
+        "@mui/material": "^7.3.5",
+        "@mui/x-data-grid": "^8.17.0",
+        "@mui/x-tree-view": "^8.17.0",
         "@react-three/drei": "^10.7.6",
-        "@react-three/fiber": "^9.3.0",
+        "@react-three/fiber": "^9.4.0",
         "@react-three/gpu-pathtracer": "^0.3.2",
-        "@tanstack/react-query": "^5.90.2",
+        "@tanstack/react-query": "^5.90.7",
         "@types/lodash": "^4.17.20",
-        "@types/plotly.js": "^3.0.7",
+        "@types/plotly.js": "^3.0.8",
         "@types/plotly.js-dist-min": "^2.3.4",
         "@types/three": "^0.180.0",
-        "axios": "^1.12.2",
+        "axios": "^1.13.2",
         "date-fns": "^4.1.0",
-        "immer": "^10.1.3",
+        "immer": "^10.2.0",
         "ketcher-core": "3.9.0-rc.3",
         "ketcher-react": "3.9.0-rc.3",
         "ketcher-standalone": "3.9.0-rc.3",
+        "konva": "^10.0.12",
         "lodash": "^4.17.21",
-        "plotly.js": "^3.1.2",
-        "plotly.js-dist-min": "^3.1.2",
-        "react": "^19",
-        "react-dom": "^19",
+        "plotly.js": "^3.2.0",
+        "plotly.js-dist-min": "^3.2.0",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "react-konva": "^19.2.1",
         "react-markdown": "^10.1.0",
         "react-rnd": "^10.5.2",
-        "react-router-dom": "^7.9.2",
+        "react-router-dom": "^7.9.5",
         "react-syntax-highlighter": "^15.6.6",
         "react-textarea-autosize": "^8.5.9",
         "recharts": "^3.3.0",
@@ -49,13 +51,13 @@
       },
       "devDependencies": {
         "@types/bun": "latest",
-        "@types/react": "^19",
-        "@types/react-dom": "^19",
-        "@vitejs/plugin-react": "^5.0.3",
-        "@vitejs/plugin-react-swc": "^4.1.0",
+        "@types/react": "^19.2.2",
+        "@types/react-dom": "^19.2.2",
+        "@vitejs/plugin-react": "^5.1.0",
+        "@vitejs/plugin-react-swc": "^4.2.1",
         "prettier": "3.6.2",
-        "typescript": "^5.9.2",
-        "vite": "^7.1.7",
+        "typescript": "^5.9.3",
+        "vite": "^7.2.2",
       },
     },
   },
@@ -1101,6 +1103,8 @@
 
     "kind-of": ["kind-of@6.0.3", "", {}, "sha512-dcS1ul+9tmeD95T+x28/ehLgd9mENa3LsvDTtzm3vyBEO7RPptvAD+t44WVXaUjTBRcrpFeFlC8WCruUR456hw=="],
 
+    "konva": ["konva@10.0.12", "", {}, "sha512-DHmkeG5FbW6tLCkbMQTi1ihWycfzljrn0V7umUUuewxx7aoINcI71ksgBX9fTPNXhlsK4/JoMgKwI/iCde+BRw=="],
+
     "lie": ["lie@3.3.0", "", { "dependencies": { "immediate": "~3.0.5" } }, "sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ=="],
 
     "lines-and-columns": ["lines-and-columns@1.2.4", "", {}, "sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg=="],
@@ -1380,6 +1384,8 @@
     "react-intersection-observer": ["react-intersection-observer@9.16.0", "", { "peerDependencies": { "react": "^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^17.0.0 || ^18.0.0 || ^19.0.0" }, "optionalPeers": ["react-dom"] }, "sha512-w9nJSEp+DrW9KmQmeWHQyfaP6b03v+TdXynaoA964Wxt7mdR3An11z4NNCQgL4gKSK7y1ver2Fq+JKH6CWEzUA=="],
 
     "react-is": ["react-is@19.2.0", "", {}, "sha512-x3Ax3kNSMIIkyVYhWPyO09bu0uttcAIoecO/um/rKGQ4EltYWVYtyiGkS/3xMynrbVQdS69Jhlv8FXUEZehlzA=="],
+
+    "react-konva": ["react-konva@19.2.1", "", { "dependencies": { "@types/react-reconciler": "^0.32.3", "its-fine": "^2.0.0", "react-reconciler": "0.33.0", "scheduler": "0.27.0" }, "peerDependencies": { "konva": "^8.0.1 || ^7.2.5 || ^9.0.0 || ^10.0.0", "react": "^19.2.0", "react-dom": "^19.2.0" } }, "sha512-sqZWCzQGpdMrU5aeunR0oxUY8UeCPbU8gnAYxMtAn6BT4coeSpiATKOctsoxRu6F56TAcF+s0c6Lul9ansNqQA=="],
 
     "react-lifecycles-compat": ["react-lifecycles-compat@3.0.4", "", {}, "sha512-fBASbA6LnOU9dOU2eW7aQ8xmYBSXUIWr+UmF9b1efZBazGNO+rcXT/icdKnYm2pTwcRylVUYwW7H1PHfLekVzA=="],
 
@@ -1888,6 +1894,12 @@
     "react-dom/scheduler": ["scheduler@0.27.0", "", {}, "sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q=="],
 
     "react-draggable/clsx": ["clsx@1.2.1", "", {}, "sha512-EcR6r5a8bj6pu3ycsa/E/cKVGuTgZJZdsyUYHOksG/UHIiKfjxzRxYJpyVBwYaQeOvghal9fcc4PidlgzugAQg=="],
+
+    "react-konva/@types/react-reconciler": ["@types/react-reconciler@0.32.3", "", { "peerDependencies": { "@types/react": "*" } }, "sha512-cMi5ZrLG7UtbL7LTK6hq9w/EZIRk4Mf1Z5qHoI+qBh7/WkYkFXQ7gOto2yfUvPzF5ERMAhaXS5eTQ2SAnHjLzA=="],
+
+    "react-konva/react-reconciler": ["react-reconciler@0.33.0", "", { "dependencies": { "scheduler": "^0.27.0" }, "peerDependencies": { "react": "^19.2.0" } }, "sha512-KetWRytFv1epdpJc3J4G75I4WrplZE5jOL7Yq0p34+OVOKF4Se7WrdIdVC45XsSSmUTlht2FM/fM1FZb1mfQeA=="],
+
+    "react-konva/scheduler": ["scheduler@0.27.0", "", {}, "sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q=="],
 
     "react-markdown/remark-parse": ["remark-parse@11.0.0", "", { "dependencies": { "@types/mdast": "^4.0.0", "mdast-util-from-markdown": "^2.0.0", "micromark-util-types": "^2.0.0", "unified": "^11.0.0" } }, "sha512-FCxlKLNGknS5ba/1lmpYijMUzX2esxW5xQqjWxw2eHFfS2MSdaHVINFmhjo+qN1WhZhNimq0dZATN9pH0IDrpA=="],
 

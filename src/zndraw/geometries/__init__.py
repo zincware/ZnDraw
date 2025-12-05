@@ -13,6 +13,7 @@ from zndraw.geometries.cell import Cell
 from zndraw.geometries.curve import Curve, CurveMarker
 from zndraw.geometries.floor import Floor
 from zndraw.geometries.plane import Plane
+from zndraw.geometries.shape import Shape
 from zndraw.geometries.sphere import Sphere
 
 # Rebuild Pydantic models after Transform is fully defined
@@ -28,6 +29,7 @@ try:
     Curve.model_rebuild()
     Floor.model_rebuild()
     Plane.model_rebuild()
+    Shape.model_rebuild()
 except ImportError:
     # Transform not available yet during initial imports
     pass
@@ -42,6 +44,7 @@ geometries = {
     "Camera": Camera,
     "Box": Box,
     "Plane": Plane,
+    "Shape": Shape,
 }
 
 __all__ = [
@@ -58,6 +61,7 @@ __all__ = [
     "CameraType",
     "Box",
     "Plane",
+    "Shape",
     "PositionProp",
     "ColorProp",
     "SizeProp",

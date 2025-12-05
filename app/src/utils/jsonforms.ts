@@ -23,6 +23,9 @@ import CustomSmilesPackEditor, {
 import MaterialEditor, {
   materialEditorTester,
 } from "../components/jsonforms-renderers/MaterialEditor";
+import Vertices2DRenderer, {
+  vertices2DRendererTester,
+} from "../components/jsonforms-renderers/Vertices2DRenderer";
 import { FrameMetadata, FrameKeysResponse } from "../myapi/client";
 
 /**
@@ -31,6 +34,7 @@ import { FrameMetadata, FrameKeysResponse } from "../myapi/client";
  */
 export const customRenderers = [
   ...materialRenderers,
+  { tester: vertices2DRendererTester, renderer: Vertices2DRenderer }, // Priority 10 - 2D vertices editor for Shape
   { tester: materialEditorTester, renderer: MaterialEditor }, // Priority 10 - Material editor with preset/object support
   { tester: dynamicEnumTester, renderer: DynamicEnumRenderer }, // Priority 10 - New unified renderer with transform support
   { tester: propertyInspectorTester, renderer: PropertyInspectorRenderer }, // Priority 10 - Property Inspector

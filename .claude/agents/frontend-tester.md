@@ -93,7 +93,7 @@ After testing, provide a structured report:
 ```
 
 ## Important Notes
-- Clean up server processes after testing is complete
+- Clean up server processes after testing is complete. Use `zndraw --shutdown` to stop the backend server.
 - Do not create unnecessary files! Only save logs/screenshots if required!
 
 ## Error Handling
@@ -102,3 +102,11 @@ After testing, provide a structured report:
 - If Playwright tests fail, capture screenshots and detailed error messages
 - If performance is degraded, identify potential bottlenecks
 - Ask for clarification if the test scope is unclear
+
+## Python Manipulation
+- You can modify the frontend from python, using the ZnDraw Python API. Use this only if to setup specific geometries / states which you MUST test in the frontend.
+```python
+from zndraw import ZnDraw
+
+vis = ZnDraw(url="<user-id>", room="<room_id>")
+```
