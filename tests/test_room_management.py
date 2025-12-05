@@ -1,10 +1,11 @@
 """Tests for room management API endpoints.
 
 This module tests the new room management architecture including:
-- Room metadata (description, locked, hidden)
+- Room metadata (description, locked)
 - Default room management
 - Room duplication
 - Lock enforcement
+- Room visibility based on user role (admin vs. regular users)
 """
 
 import pytest
@@ -14,7 +15,7 @@ import requests
 from zndraw import ZnDraw
 
 
-def test_list_rooms_includes_metadata(server, s22):
+def test_list_rooms_includes_metadata(server, s22, get_jwt_auth_headers):
     """Test that GET /api/rooms returns all metadata fields."""
     # Create room with data and set metadata
     vis = ZnDraw(url=server, room="test-room-1", user="user1")
@@ -23,10 +24,11 @@ def test_list_rooms_includes_metadata(server, s22):
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
     r.set("room:test-room-1:description", "Test room description")
     r.set("room:test-room-1:locked", "1")
-    r.set("room:test-room-1:hidden", "0")
     r.set("default_room", "test-room-1")
 
-    response = requests.get(f"{server}/api/rooms")
+    # Use the same user to list rooms (user1 has visited test-room-1)
+    headers = get_jwt_auth_headers(server, "user1")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     assert response.status_code == 200
 
     rooms = response.json()
@@ -35,16 +37,17 @@ def test_list_rooms_includes_metadata(server, s22):
     assert test_room["description"] == "Test room description"
     assert test_room["frameCount"] == 1
     assert test_room["locked"] is True
-    assert test_room["hidden"] is False
     assert test_room["isDefault"] is True
 
 
-def test_list_rooms_without_description(server, s22):
+def test_list_rooms_without_description(server, s22, get_jwt_auth_headers):
     """Test that rooms without description return null."""
     vis = ZnDraw(url=server, room="test-room-2", user="user1")
     vis.append(s22[0])
 
-    response = requests.get(f"{server}/api/rooms")
+    # Use the same user to list rooms (user1 has visited test-room-2)
+    headers = get_jwt_auth_headers(server, "user1")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     assert response.status_code == 200
 
     rooms = response.json()
@@ -52,17 +55,19 @@ def test_list_rooms_without_description(server, s22):
 
     assert test_room["description"] is None
     assert test_room["locked"] is False  # Default
-    assert test_room["hidden"] is False  # Default
     assert test_room["isDefault"] is False
 
 
-def test_list_rooms_metadata_locked(server, s22):
+def test_list_rooms_metadata_locked(server, s22, get_jwt_auth_headers):
     """Test that GET /api/rooms returns metadataLocked when lock is held."""
     vis = ZnDraw(url=server, room="test-room-metalock", user="user1")
     vis.append(s22[0])
 
+    # Use the same user to list rooms
+    headers = get_jwt_auth_headers(server, "user1")
+
     # Initially, metadata lock should be False
-    response = requests.get(f"{server}/api/rooms")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     assert response.status_code == 200
     rooms = response.json()
     test_room = [room for room in rooms if room["id"] == "test-room-metalock"][0]
@@ -73,7 +78,7 @@ def test_list_rooms_metadata_locked(server, s22):
     lock.acquire()
     try:
         # Now metadataLocked should be True
-        response = requests.get(f"{server}/api/rooms")
+        response = requests.get(f"{server}/api/rooms", headers=headers)
         assert response.status_code == 200
         rooms = response.json()
         test_room = [room for room in rooms if room["id"] == "test-room-metalock"][0]
@@ -83,20 +88,23 @@ def test_list_rooms_metadata_locked(server, s22):
         lock.release()
 
     # metadataLocked should be False again
-    response = requests.get(f"{server}/api/rooms")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     assert response.status_code == 200
     rooms = response.json()
     test_room = [room for room in rooms if room["id"] == "test-room-metalock"][0]
     assert test_room["metadataLocked"] is False
 
 
-def test_list_rooms_metadata_locked_context_manager(server, s22):
+def test_list_rooms_metadata_locked_context_manager(server, s22, get_jwt_auth_headers):
     """Test that GET /api/rooms returns metadataLocked when using with vis.lock."""
     vis = ZnDraw(url=server, room="test-room-metalock-ctx", user="user1")
     vis.append(s22[0])
 
+    # Use the same user to list rooms
+    headers = get_jwt_auth_headers(server, "user1")
+
     # Initially, metadata lock should be False
-    response = requests.get(f"{server}/api/rooms")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     assert response.status_code == 200
     rooms = response.json()
     test_room = [room for room in rooms if room["id"] == "test-room-metalock-ctx"][0]
@@ -105,7 +113,7 @@ def test_list_rooms_metadata_locked_context_manager(server, s22):
     # Acquire metadata lock using context manager
     with vis.get_lock():
         # Now metadataLocked should be True
-        response = requests.get(f"{server}/api/rooms")
+        response = requests.get(f"{server}/api/rooms", headers=headers)
         assert response.status_code == 200
         rooms = response.json()
         test_room = [room for room in rooms if room["id"] == "test-room-metalock-ctx"][
@@ -114,19 +122,22 @@ def test_list_rooms_metadata_locked_context_manager(server, s22):
         assert test_room["metadataLocked"] is True
 
     # metadataLocked should be False again after context exit
-    response = requests.get(f"{server}/api/rooms")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     assert response.status_code == 200
     rooms = response.json()
     test_room = [room for room in rooms if room["id"] == "test-room-metalock-ctx"][0]
     assert test_room["metadataLocked"] is False
 
 
-def test_metadata_lock_refresh_long_operation(server, s22):
+def test_metadata_lock_refresh_long_operation(server, s22, get_jwt_auth_headers):
     """Test that lock refresh keeps the lock active during long operations."""
     import time
 
     vis = ZnDraw(url=server, room="test-room-metalock-long", user="user1")
     vis.append(s22[0])
+
+    # Use the same user to list rooms
+    headers = get_jwt_auth_headers(server, "user1")
 
     # Use the default server-controlled TTL (60s with refresh every 30s)
     lock = vis.get_lock(msg="Long running operation")
@@ -135,7 +146,7 @@ def test_metadata_lock_refresh_long_operation(server, s22):
     lock.acquire()
     try:
         # Verify lock is held
-        response = requests.get(f"{server}/api/rooms")
+        response = requests.get(f"{server}/api/rooms", headers=headers)
         rooms = response.json()
         test_room = [room for room in rooms if room["id"] == "test-room-metalock-long"][
             0
@@ -146,7 +157,7 @@ def test_metadata_lock_refresh_long_operation(server, s22):
         time.sleep(3)
 
         # Lock should still be held (background refresh thread keeps it alive)
-        response = requests.get(f"{server}/api/rooms")
+        response = requests.get(f"{server}/api/rooms", headers=headers)
         rooms = response.json()
         test_room = [room for room in rooms if room["id"] == "test-room-metalock-long"][
             0
@@ -156,7 +167,7 @@ def test_metadata_lock_refresh_long_operation(server, s22):
         lock.release()
 
     # After release, lock should be gone
-    response = requests.get(f"{server}/api/rooms")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     rooms = response.json()
     test_room = [room for room in rooms if room["id"] == "test-room-metalock-long"][0]
     assert test_room["metadataLocked"] is False
@@ -185,7 +196,6 @@ def test_get_room_details(server, s22, get_jwt_auth_headers):
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
     r.set("room:test-room-3:description", "Detailed room")
     r.set("room:test-room-3:locked", "0")
-    r.set("room:test-room-3:hidden", "1")
 
     response = requests.get(f"{server}/api/rooms/test-room-3", headers=get_jwt_auth_headers(server))
     assert response.status_code == 200
@@ -195,7 +205,6 @@ def test_get_room_details(server, s22, get_jwt_auth_headers):
     assert room["description"] == "Detailed room"
     assert room["frameCount"] == 3
     assert room["locked"] is False
-    assert room["hidden"] is True
 
 
 def test_get_nonexistent_room(server, get_jwt_auth_headers):
@@ -244,24 +253,6 @@ def test_update_room_locked_flag(server, s22):
     assert r.get("room:test-room-5:locked") == "0"
 
 
-def test_update_room_hidden_flag(server, s22):
-    """Test updating room hidden flag."""
-    vis = ZnDraw(url=server, room="test-room-6", user="user1")
-    vis.append(s22[0])
-
-    r = redis.Redis(host="localhost", port=6379, decode_responses=True)
-
-    # Hide room
-    response = requests.patch(f"{server}/api/rooms/test-room-6", json={"hidden": True})
-    assert response.status_code == 200
-    assert r.get("room:test-room-6:hidden") == "1"
-
-    # Unhide room
-    response = requests.patch(f"{server}/api/rooms/test-room-6", json={"hidden": False})
-    assert response.status_code == 200
-    assert r.get("room:test-room-6:hidden") == "0"
-
-
 def test_update_multiple_fields(server, s22):
     """Test updating multiple room fields at once."""
     vis = ZnDraw(url=server, room="test-room-7", user="user1")
@@ -271,12 +262,11 @@ def test_update_multiple_fields(server, s22):
 
     response = requests.patch(
         f"{server}/api/rooms/test-room-7",
-        json={"description": "Multi-field update", "locked": True, "hidden": False},
+        json={"description": "Multi-field update", "locked": True},
     )
     assert response.status_code == 200
     assert r.get("room:test-room-7:description") == "Multi-field update"
     assert r.get("room:test-room-7:locked") == "1"
-    assert r.get("room:test-room-7:hidden") == "0"
 
 
 def test_update_nonexistent_room_fails(server):
@@ -453,16 +443,14 @@ def test_duplicate_room_initializes_flags(server, s22):
 
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
     r.set("room:source-room-6:locked", "1")
-    r.set("room:source-room-6:hidden", "1")
 
     response = requests.post(f"{server}/api/rooms/source-room-6/duplicate", json={})
     assert response.status_code == 200
 
     new_room_id = response.json()["roomId"]
 
-    # New room should be unlocked and visible
+    # New room should be unlocked
     assert r.get(f"room:{new_room_id}:locked") == "0"
-    assert r.get(f"room:{new_room_id}:hidden") == "0"
     assert r.get(f"room:{new_room_id}:current_frame") == "0"
 
 
@@ -649,3 +637,189 @@ def test_lock_status_unlocked_target(server):
     assert lock_status["target"] == "trajectory:meta"
     assert "holder" not in lock_status
     assert "metadata" not in lock_status
+
+
+# =============================================================================
+# Room Visibility Tests - Local Mode (all users are admin)
+# =============================================================================
+
+
+def test_local_mode_all_users_see_all_rooms(server, s22, get_jwt_auth_headers):
+    """Test that in local mode, all users see all rooms (everyone is admin)."""
+    # User1 creates room1
+    vis1 = ZnDraw(url=server, room="local-room1", user="user1")
+    vis1.append(s22[0])
+
+    # User2 creates room2
+    vis2 = ZnDraw(url=server, room="local-room2", user="user2")
+    vis2.append(s22[0])
+
+    # User1 should see both rooms (admin in local mode)
+    headers1 = get_jwt_auth_headers(server, "user1")
+    response = requests.get(f"{server}/api/rooms", headers=headers1)
+    assert response.status_code == 200
+    rooms = response.json()
+    room_ids = [r["id"] for r in rooms]
+    assert "local-room1" in room_ids
+    assert "local-room2" in room_ids
+
+    # User2 should also see both rooms (admin in local mode)
+    headers2 = get_jwt_auth_headers(server, "user2")
+    response = requests.get(f"{server}/api/rooms", headers=headers2)
+    assert response.status_code == 200
+    rooms = response.json()
+    room_ids = [r["id"] for r in rooms]
+    assert "local-room1" in room_ids
+    assert "local-room2" in room_ids
+
+
+def test_local_mode_unauthenticated_sees_no_rooms(server, s22):
+    """Test that unauthenticated users see no rooms even in local mode."""
+    # Create a room
+    vis = ZnDraw(url=server, room="local-unauth-room", user="user1")
+    vis.append(s22[0])
+
+    # Request without auth should see no rooms
+    response = requests.get(f"{server}/api/rooms")
+    assert response.status_code == 200
+    rooms = response.json()
+    assert len(rooms) == 0
+
+
+# =============================================================================
+# Room Visibility Tests - Admin Mode (only granted users are admin)
+# =============================================================================
+
+
+def test_admin_mode_nonadmin_sees_only_visited_rooms(
+    server_admin_mode, s22, get_jwt_auth_headers
+):
+    """Test that non-admin users only see rooms they have visited."""
+    server = server_admin_mode
+
+    # User1 creates and visits room1
+    vis1 = ZnDraw(url=server, room="admin-mode-room1", user="user1")
+    vis1.append(s22[0])
+
+    # User2 creates and visits room2
+    vis2 = ZnDraw(url=server, room="admin-mode-room2", user="user2")
+    vis2.append(s22[0])
+
+    # User1 (non-admin) should only see room1 (which they visited)
+    headers1 = get_jwt_auth_headers(server, "user1")
+    response = requests.get(f"{server}/api/rooms", headers=headers1)
+    assert response.status_code == 200
+    rooms = response.json()
+    room_ids = [r["id"] for r in rooms]
+    assert "admin-mode-room1" in room_ids
+    assert "admin-mode-room2" not in room_ids  # Not visited by user1
+
+    # User2 (non-admin) should only see room2 (which they visited)
+    headers2 = get_jwt_auth_headers(server, "user2")
+    response = requests.get(f"{server}/api/rooms", headers=headers2)
+    assert response.status_code == 200
+    rooms = response.json()
+    room_ids = [r["id"] for r in rooms]
+    assert "admin-mode-room2" in room_ids
+    assert "admin-mode-room1" not in room_ids  # Not visited by user2
+
+
+def test_admin_mode_user_sees_room_after_visiting(
+    server_admin_mode, s22, get_jwt_auth_headers
+):
+    """Test that users can see rooms after visiting them in admin mode."""
+    server = server_admin_mode
+
+    # User1 creates a room
+    vis1 = ZnDraw(url=server, room="visit-test-room", user="user1")
+    vis1.append(s22[0])
+
+    # User2 should NOT see the room initially (not visited)
+    headers2 = get_jwt_auth_headers(server, "user2")
+    response = requests.get(f"{server}/api/rooms", headers=headers2)
+    assert response.status_code == 200
+    rooms = response.json()
+    room_ids = [r["id"] for r in rooms]
+    assert "visit-test-room" not in room_ids
+
+    # User2 visits the room
+    vis2 = ZnDraw(url=server, room="visit-test-room", user="user2")
+
+    # Now user2 should see the room
+    response = requests.get(f"{server}/api/rooms", headers=headers2)
+    assert response.status_code == 200
+    rooms = response.json()
+    room_ids = [r["id"] for r in rooms]
+    assert "visit-test-room" in room_ids
+
+
+def test_admin_mode_admin_user_sees_all_rooms(
+    server_admin_mode, s22, get_jwt_auth_headers
+):
+    """Test that admin users see all rooms regardless of visits."""
+    # Admin username from conftest.py
+    admin_username = "test-admin"
+
+    server = server_admin_mode
+
+    # Regular user creates a room
+    vis1 = ZnDraw(url=server, room="admin-sees-all-room", user="regular-user")
+    vis1.append(s22[0])
+
+    # Admin user (test-admin) should see the room even without visiting
+    # First, login as admin to grant admin privileges
+    admin_headers = get_jwt_auth_headers(server, admin_username)
+
+    # Grant admin to self (this happens via admin login flow)
+    r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+    r.set(f"admin:user:{admin_username}", "1")
+
+    # Now admin should see all rooms
+    response = requests.get(f"{server}/api/rooms", headers=admin_headers)
+    assert response.status_code == 200
+    rooms = response.json()
+    room_ids = [room["id"] for room in rooms]
+    assert "admin-sees-all-room" in room_ids
+
+
+def test_admin_mode_unauthenticated_sees_no_rooms(server_admin_mode, s22):
+    """Test that unauthenticated users see no rooms in admin mode."""
+    server = server_admin_mode
+
+    # Create a room
+    vis = ZnDraw(url=server, room="admin-mode-unauth-room", user="user1")
+    vis.append(s22[0])
+
+    # Request without auth should see no rooms
+    response = requests.get(f"{server}/api/rooms")
+    assert response.status_code == 200
+    rooms = response.json()
+    assert len(rooms) == 0
+
+
+def test_admin_mode_multiple_visited_rooms(server_admin_mode, s22, get_jwt_auth_headers):
+    """Test that users see all rooms they have visited in admin mode."""
+    server = server_admin_mode
+
+    # Create three rooms with different users
+    vis1 = ZnDraw(url=server, room="multi-room-a", user="user1")
+    vis1.append(s22[0])
+
+    vis2 = ZnDraw(url=server, room="multi-room-b", user="user2")
+    vis2.append(s22[0])
+
+    vis3 = ZnDraw(url=server, room="multi-room-c", user="user3")
+    vis3.append(s22[0])
+
+    # User1 visits room-b (in addition to room-a they created)
+    ZnDraw(url=server, room="multi-room-b", user="user1")
+
+    # User1 should see room-a and room-b (both visited), but not room-c
+    headers1 = get_jwt_auth_headers(server, "user1")
+    response = requests.get(f"{server}/api/rooms", headers=headers1)
+    assert response.status_code == 200
+    rooms = response.json()
+    room_ids = [r["id"] for r in rooms]
+    assert "multi-room-a" in room_ids
+    assert "multi-room-b" in room_ids
+    assert "multi-room-c" not in room_ids

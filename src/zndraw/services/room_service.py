@@ -145,7 +145,6 @@ class RoomService:
         # Initialize metadata
         pipe.set(keys.current_frame(), 0)
         pipe.set(keys.locked(), 0)
-        pipe.set(keys.hidden(), 0)
 
         # Create default geometries
         self._initialize_default_geometries_pipeline(room_id, pipe)
@@ -215,7 +214,6 @@ class RoomService:
         # Initialize metadata
         pipe.set(new_keys.current_frame(), 0)
         pipe.set(new_keys.locked(), 0)
-        pipe.set(new_keys.hidden(), 0)
 
         # Execute all operations atomically
         pipe.execute()

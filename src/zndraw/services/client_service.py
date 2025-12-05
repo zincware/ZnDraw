@@ -81,7 +81,7 @@ class ClientService:
         return {m.decode() if isinstance(m, bytes) else m for m in members}
 
     def update_user_and_room_membership(self, user_name: str, room_id: str) -> None:
-        """Update user room and add to room membership atomically.
+        """Update user room, add to room membership, and track visit atomically.
 
         Uses Redis pipeline for atomic operations.
 
@@ -95,5 +95,22 @@ class ClientService:
         pipe = self.r.pipeline()
         pipe.hset(f"user:{user_name}", "currentRoom", room_id)
         pipe.sadd(f"room:{room_id}:users", user_name)
+        pipe.sadd(f"user:{user_name}:visited_rooms", room_id)
         pipe.execute()
         log.info(f"User {user_name} joined room {room_id}")
+
+    def get_visited_rooms(self, user_name: str) -> set[str]:
+        """Get all room IDs that a user has visited.
+
+        Parameters
+        ----------
+        user_name : str
+            User name
+
+        Returns
+        -------
+        set[str]
+            Set of room IDs the user has visited
+        """
+        members = self.r.smembers(f"user:{user_name}:visited_rooms")
+        return {m.decode() if isinstance(m, bytes) else m for m in members}

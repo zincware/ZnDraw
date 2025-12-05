@@ -258,10 +258,6 @@ class RoomKeys:
         """Username of admin who locked the room (or None for non-admin locks)."""
         return f"room:{self.room_id}:locked_by"
 
-    def hidden(self) -> str:
-        """Room hidden status (0 or 1)."""
-        return f"room:{self.room_id}:hidden"
-
     def current_frame(self) -> str:
         """Current frame index."""
         return f"room:{self.room_id}:current_frame"
@@ -496,6 +492,10 @@ class UserKeys:
     def admin_key(self) -> str:
         """Admin status key for this user."""
         return f"admin:user:{self.username}"
+
+    def visited_rooms(self) -> str:
+        """Set of room IDs this user has visited."""
+        return f"user:{self.username}:visited_rooms"
 
 
 @dataclass(frozen=True)

@@ -34,7 +34,6 @@ def get_room_metadata(redis_client: t.Any, room_id: str) -> RoomMetadata:
     # Get basic fields
     description = redis_client.get(room_keys.description())
     locked = redis_client.get(room_keys.locked()) == "1"
-    hidden = redis_client.get(room_keys.hidden()) == "1"
 
     # Get frame count
     frame_count = redis_client.zcard(room_keys.trajectory_indices())
@@ -51,7 +50,6 @@ def get_room_metadata(redis_client: t.Any, room_id: str) -> RoomMetadata:
         description=description,
         frameCount=frame_count,
         locked=locked,
-        hidden=hidden,
         isDefault=is_default,
         presenterSid=presenter_sid,
     )

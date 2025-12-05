@@ -37,8 +37,6 @@ class RoomMetadata(BaseModel):
         Number of trajectory frames
     locked : bool
         Permanent lock (immutable)
-    hidden : bool
-        Hidden from room list
     isDefault : bool
         Set as default room
     presenterSid : str | None
@@ -49,6 +47,5 @@ class RoomMetadata(BaseModel):
     description: str | None = Field(None, description="Human-readable description")
     frameCount: int = Field(0, description="Number of trajectory frames")
     locked: bool = Field(False, description="Permanent lock (immutable)")
-    hidden: bool = Field(False, description="Hidden from room list")
     isDefault: bool = Field(False, description="Set as default room")
     presenterSid: str | None = Field(None, description="Socket ID of current presenter")

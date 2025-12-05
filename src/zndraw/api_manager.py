@@ -1260,7 +1260,6 @@ class APIManager:
                 "description": str | None,
                 "frameCount": int,
                 "locked": bool,
-                "hidden": bool,
                 "metadata": dict
             }
 

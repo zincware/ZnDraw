@@ -158,8 +158,29 @@ def redis_client():
     client.flushall()
 
 
-@pytest.fixture
-def server(tmp_path) -> t.Generator[str, None, None]:
+# Test admin credentials (used in admin mode)
+TEST_ADMIN_USERNAME = "test-admin"
+TEST_ADMIN_PASSWORD = "test-admin-password"
+
+
+def _create_server_process(
+    tmp_path, admin_mode: bool = False
+) -> t.Generator[str, None, None]:
+    """Create and manage a zndraw server subprocess.
+
+    Parameters
+    ----------
+    tmp_path
+        Temporary directory for server data and logs.
+    admin_mode
+        If True, start server with admin credentials configured.
+        If False, start in local mode (all users are admin).
+
+    Yields
+    ------
+    str
+        Server URL (e.g., "http://127.0.0.1:5000")
+    """
     import os
 
     port = _get_free_port()
@@ -170,11 +191,17 @@ def server(tmp_path) -> t.Generator[str, None, None]:
     server_log = tmp_path / "server.log"
     server_err = tmp_path / "server_err.log"
 
-    # Create clean environment for subprocess (local mode - no admin credentials)
-    # This ensures tests run in a predictable environment
+    # Create environment for subprocess
     env = os.environ.copy()
-    env.pop("ZNDRAW_ADMIN_USERNAME", None)
-    env.pop("ZNDRAW_ADMIN_PASSWORD", None)
+
+    if admin_mode:
+        # Admin mode: set admin credentials
+        env["ZNDRAW_ADMIN_USERNAME"] = TEST_ADMIN_USERNAME
+        env["ZNDRAW_ADMIN_PASSWORD"] = TEST_ADMIN_PASSWORD
+    else:
+        # Local mode: remove any admin credentials
+        env.pop("ZNDRAW_ADMIN_USERNAME", None)
+        env.pop("ZNDRAW_ADMIN_PASSWORD", None)
 
     # Start zndraw-server subprocess
     with open(server_log, "w") as stdout_f, open(server_err, "w") as stderr_f:
@@ -226,7 +253,33 @@ def server(tmp_path) -> t.Generator[str, None, None]:
 
             # Clean up server info file
             from zndraw.server_manager import remove_server_info
+
             remove_server_info()
+
+
+@pytest.fixture
+def server(tmp_path) -> t.Generator[str, None, None]:
+    """Server in LOCAL mode (all users are admin).
+
+    Use this fixture for tests that don't need to differentiate
+    between admin and non-admin users.
+    """
+    yield from _create_server_process(tmp_path, admin_mode=False)
+
+
+@pytest.fixture
+def server_admin_mode(tmp_path) -> t.Generator[str, None, None]:
+    """Server in ADMIN mode (only granted users are admin).
+
+    Use this fixture for tests that need to verify admin vs non-admin behavior.
+    Admin credentials: TEST_ADMIN_USERNAME / TEST_ADMIN_PASSWORD
+
+    In admin mode:
+    - Regular users are NOT admins by default
+    - Only the configured admin user has admin privileges
+    - Users can be granted admin via AdminService.grant_admin()
+    """
+    yield from _create_server_process(tmp_path, admin_mode=True)
 
 
 @pytest.fixture

@@ -29,7 +29,10 @@ rooms = Blueprint("rooms", __name__)
 
 @rooms.route("/api/rooms", methods=["GET"])
 def list_rooms():
-    """List all active rooms with metadata.
+    """List rooms with metadata based on user role.
+
+    For admins, returns all rooms.
+    For non-admins (guests and users), returns only rooms they've visited.
 
     Query Parameters:
         search: Optional regex pattern to search in metadata values
@@ -41,7 +44,6 @@ def list_rooms():
             "frameCount": 42,
             "locked": false,
             "metadataLocked": false,
-            "hidden": false,
             "isDefault": false,
             "metadata": {"relative_file_path": "...", ...}
         }]
@@ -49,18 +51,47 @@ def list_rooms():
     import re
 
     from zndraw.app.room_data_fetcher import BatchedRoomDataFetcher
+    from zndraw.auth import extract_token_from_request, decode_jwt_token, AuthError
 
     redis_client = current_app.extensions["redis"]
     room_service = current_app.extensions["room_service"]
+    admin_service = current_app.extensions["admin_service"]
+    client_service = current_app.extensions["client_service"]
     search_pattern = request.args.get("search")
 
+    # Get current user and role (if authenticated)
+    is_admin = False
+    user_name = None
+    try:
+        token = extract_token_from_request()
+        if token:
+            payload = decode_jwt_token(token)
+            user_name = payload.get("sub")
+            if user_name:
+                is_admin = admin_service.is_admin(user_name)
+    except AuthError:
+        # Not authenticated - treat as non-admin
+        pass
+
     # Scan for all room keys to find unique room IDs
-    room_ids = set()
+    all_room_ids = set()
     for key in redis_client.scan_iter(match="room:*"):
         # Extract room ID from keys like "room:{room_id}:..."
         parts = key.split(":")
         if len(parts) >= 2:
-            room_ids.add(parts[1])
+            all_room_ids.add(parts[1])
+
+    # Filter room IDs based on user role
+    if is_admin:
+        # Admins see all rooms
+        room_ids = all_room_ids
+    elif user_name:
+        # Non-admin users see only rooms they've visited
+        visited_rooms = client_service.get_visited_rooms(user_name)
+        room_ids = all_room_ids & visited_rooms
+    else:
+        # Unauthenticated users see no rooms
+        room_ids = set()
 
     # Get default room
     default_room = redis_client.get("default_room")
@@ -95,7 +126,6 @@ def list_rooms():
                 "frameCount": data["frameCount"],
                 "locked": data["locked"],
                 "metadataLocked": data["metadataLocked"],
-                "hidden": data["hidden"],
                 "isDefault": default_room == room_id,
                 "metadata": data["metadata"],
             }
@@ -115,7 +145,6 @@ def get_room(room_id):
             "description": "My room",
             "frameCount": 42,
             "locked": false,
-            "hidden": false,
             "metadata": {"relative_file_path": "...", ...}
         }
     """
@@ -140,7 +169,6 @@ def get_room(room_id):
     # Get metadata
     description = redis_client.get(keys.description())
     locked = redis_client.get(keys.locked()) == "1"
-    hidden = redis_client.get(keys.hidden()) == "1"
 
     # Get file metadata
     metadata_manager = RoomMetadataManager(redis_client, room_id)
@@ -151,7 +179,6 @@ def get_room(room_id):
         "description": description if description else None,
         "frameCount": frame_count,
         "locked": locked,
-        "hidden": hidden,
         "metadata": file_metadata,
     }, 200
 
@@ -274,7 +301,6 @@ def join_room(room_id):
             description=description,
             frameCount=frame_count,
             locked=False,
-            hidden=False,
             isDefault=False,
         )
 
@@ -283,13 +309,12 @@ def join_room(room_id):
 
 @rooms.route("/api/rooms/<string:room_id>", methods=["PATCH"])
 def update_room(room_id):
-    """Update room metadata (description, locked, hidden).
+    """Update room metadata (description, locked).
 
     Request body:
         {
             "description": "My custom description",  // Optional
-            "locked": true,                          // Optional
-            "hidden": false                          // Optional
+            "locked": true                           // Optional
         }
 
     Security:
@@ -360,11 +385,6 @@ def update_room(room_id):
         elif not is_locking:
             # Remove locked_by when unlocking
             redis_client.delete(keys.locked_by())
-
-    # Update hidden status
-    if "hidden" in data:
-        redis_client.set(keys.hidden(), "1" if data["hidden"] else "0")
-        changes["hidden"] = bool(data["hidden"])
 
     # Emit socket event for real-time updates
     if changes:
@@ -651,7 +671,6 @@ def duplicate_room(room_id):
         description=description,
         frameCount=result["frameCount"],
         locked=False,
-        hidden=False,
         isDefault=False,
     )
 

@@ -772,7 +772,6 @@ def create_room_from_existing_file():
     if description:
         redis_client.set(new_room_keys.description(), description)
     redis_client.set(new_room_keys.locked(), "0")
-    redis_client.set(new_room_keys.hidden(), "0")
 
     log.info(
         f"Created room '{new_room}' from '{source_room}' with {frame_count_int} frames"

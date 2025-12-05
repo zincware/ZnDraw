@@ -54,7 +54,6 @@ def test_create_empty_room_initializes_metadata(redis_client):
 
     assert redis_client.get("room:test:current_frame") == "0"
     assert redis_client.get("room:test:locked") == "0"
-    assert redis_client.get("room:test:hidden") == "0"
 
 
 def test_create_empty_room_creates_default_geometries(redis_client):
@@ -163,7 +162,6 @@ def test_create_room_from_copy_initializes_metadata(redis_client):
     # Verify new room has its own metadata
     assert redis_client.get("room:copy:current_frame") == "0"
     assert redis_client.get("room:copy:locked") == "0"
-    assert redis_client.get("room:copy:hidden") == "0"
 
 
 def test_create_room_from_nonexistent_source_raises_error(redis_client):

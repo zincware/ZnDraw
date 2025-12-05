@@ -678,7 +678,6 @@ export interface Room {
   frameCount: number;
   locked: boolean;
   metadataLocked?: LockMetadata | null;
-  hidden: boolean;
   isDefault?: boolean;
   presenterSid?: string | null;
   metadata?: Record<string, string>;
@@ -690,7 +689,6 @@ export interface RoomDetail {
   frameCount: number;
   locked: boolean;
   metadataLocked?: LockMetadata | null;
-  hidden: boolean;
   isDefault?: boolean;
   presenterSid?: string | null;
 }
@@ -698,7 +696,6 @@ export interface RoomDetail {
 export interface RoomUpdateRequest {
   description?: string | null;
   locked?: boolean;
-  hidden?: boolean;
 }
 
 export interface DuplicateRoomRequest {

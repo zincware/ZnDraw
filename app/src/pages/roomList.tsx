@@ -22,8 +22,6 @@ import {
 } from "@mui/x-data-grid";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -156,16 +154,6 @@ export default function RoomListPage() {
       showSnackbar(currentLocked ? "Room unlocked" : "Room locked", "success");
     } catch (err) {
       showSnackbar("Failed to update lock status", "error");
-    }
-  };
-
-  const handleToggleHidden = async (roomId: string, currentHidden: boolean) => {
-    try {
-      await updateRoom(roomId, { hidden: !currentHidden });
-      // Socket event will update Zustand store automatically
-      showSnackbar(currentHidden ? "Room shown" : "Room hidden", "success");
-    } catch (err) {
-      showSnackbar("Failed to update visibility", "error");
     }
   };
 
@@ -346,25 +334,6 @@ export default function RoomListPage() {
           );
         }
       },
-    },
-    {
-      field: "hidden",
-      headerName: "Visible",
-      width: 80,
-      renderCell: (params: GridRenderCellParams) => (
-        <Tooltip title={params.value ? "Hidden" : "Visible"}>
-          <IconButton
-            size="small"
-            onClick={() => handleToggleHidden(params.row.id, params.value)}
-          >
-            {params.value ? (
-              <VisibilityOffIcon color="disabled" />
-            ) : (
-              <VisibilityIcon color="action" />
-            )}
-          </IconButton>
-        </Tooltip>
-      ),
     },
     {
       field: "actions",

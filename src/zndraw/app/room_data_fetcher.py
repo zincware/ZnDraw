@@ -38,7 +38,6 @@ class BatchedRoomDataFetcher:
             - frameCount: int
             - description: str | None
             - locked: bool
-            - hidden: bool
             - metadataLocked: bool
             - metadata: dict[str, str]
 
@@ -58,14 +57,12 @@ class BatchedRoomDataFetcher:
         # Step 2: Build pipeline for all Redis queries
         pipe = redis_client.pipeline()
 
-        # Batch simple keys using MGET (3 queries total instead of n*3)
+        # Batch simple keys using MGET (2 queries total instead of n*2)
         desc_keys = [RoomKeys(rid).description() for rid in room_ids]
         lock_keys = [RoomKeys(rid).locked() for rid in room_ids]
-        hide_keys = [RoomKeys(rid).hidden() for rid in room_ids]
 
         pipe.mget(desc_keys)
         pipe.mget(lock_keys)
-        pipe.mget(hide_keys)
 
         # Batch metadata locks (n queries but in single pipeline)
         for room_id in room_ids:
@@ -83,32 +80,24 @@ class BatchedRoomDataFetcher:
         # Parse results
         descriptions = results[0]
         lockeds = results[1]
-        hiddens = results[2]
-        metadata_locks = results[3 : 3 + len(room_ids)]
-        metadatas = results[3 + len(room_ids) :]
+        metadata_locks = results[2 : 2 + len(room_ids)]
+        metadatas = results[2 + len(room_ids) :]
 
         # Build structured response
         rooms_data = {}
         for i, room_id in enumerate(room_ids):
             # Handle both bytes and string responses from Redis
             locked_val = lockeds[i]
-            hidden_val = hiddens[i]
 
             if isinstance(locked_val, bytes):
                 locked = locked_val == b"1"
             else:
                 locked = locked_val == "1"
 
-            if isinstance(hidden_val, bytes):
-                hidden = hidden_val == b"1"
-            else:
-                hidden = hidden_val == "1"
-
             rooms_data[room_id] = {
                 "frameCount": frame_counts.get(room_id, 0),
                 "description": descriptions[i],
                 "locked": locked,
-                "hidden": hidden,
                 "metadataLocked": metadata_locks[i] is not None,
                 "metadata": metadatas[i] if metadatas[i] else {},
             }
