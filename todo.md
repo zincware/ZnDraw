@@ -109,3 +109,8 @@ resolution on remote filesystem uploads.
 - [x] show "default" structures to connect
 - [ ] show help for zndraw !
 - [ ] properties, compute mean / max / ... for e.g. forces uncertaints
+- [x] DEFAULT SCALE VALUES MUST BE 1 for ALL GEOMETRIES!
+- [x] compute bond new at every step for reactive systems ? Remove connectivity in ASEMD / hillclimber?
+- [ ] check upload file browser start / stop / step works!!
+- [ ] wrap dynamic, use progress bar
+- [x] support https://threejs.org/docs/#ShapeGeometry
