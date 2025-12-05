@@ -54,7 +54,7 @@ class Sphere(BaseGeometry):
     )
 
     scale: float = Field(
-        default=0.7,
+        default=1.0,
         ge=0.0,
         description="Uniform scale factor applied to sphere radius.",
     )
