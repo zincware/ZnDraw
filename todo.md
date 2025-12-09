@@ -58,15 +58,15 @@
 - [x] selection no longer in sync (only on page refresh) also true for menus
 - [x] new messages info should clear when leaving the room
 - [x] include presenter lock into room metadata and lock:* endpoints, like metadata-lock.
-- [ ] make the overview per user, remove "hidden" rooms but allow to restrain rooms for specific users. Remove user from url, but allow ?user=... to login. Have a anonymous user that only sees "public" rooms.
+- [x] make the overview per user, remove "hidden" rooms but allow to restrain rooms for specific users. Remove user from url, but allow ?user=... to login. Have a anonymous user that only sees "public" rooms.
 - [x] check adding geometries via python appear without reload (also in the geometries sidebar)
 - [x] drag/drop not allowed when --file-browser not active
-- [ ] make get_jwt_auth_headers a pytest fixture
+- [x] make get_jwt_auth_headers a pytest fixture
 - [x] split up routes.py -> search for all `@main.` decorator, make a list and organize into multiple files?
 - [x] loading sidebar menus takes for ever!
 - [x] can not change settings!
 - [x] fix `vis.geometries` to only show keys and not full data
-- [ ] being at frame 1 and then removing the first one might not update the frame to shift to 0. Check!
+- [x] being at frame 1 and then removing the first one might not update the frame to shift to 0. Check!
 - [ ] instead of `apply_schema_feature` use `Field(json_schema_extra={"x-custom-type":"smiles-pack-array"})`
 - [ ] path tracer does not accept changes to materials ( might only be with presets)
 - [ ] drag and drop: ask for append, insert at cursor position (using virtual canvas, or so), or create a new room or even replace?
@@ -114,3 +114,9 @@ resolution on remote filesystem uploads.
 - [ ] check upload file browser start / stop / step works!!
 - [ ] wrap dynamic, use progress bar
 - [x] support https://threejs.org/docs/#ShapeGeometry
+- [ ] check, when adding a new geometry in frontend, if the name is already taken!
+- [x] check, when adding the new geometry, that default values are set and don't stay empty until reload!
+- [ ] contious callbacks, e.g. move and have forces optimizing, etc..
+- [ ] dynamic molecule building, e.g. show for each atom where things can go, set charges, etc like smiles but 3D?
+- [x] settings don't work
+- [ ] move camera settings to camera / create a camera per user?
