@@ -101,15 +101,26 @@ const GeometryForm = () => {
     }
   }, [mode, geometryData, setFormData, setSelectedType]);
 
+  // Check if a geometry key already exists
+  const isKeyTaken = useCallback((key: string): boolean => {
+    if (!geometries) return false;
+    return Object.keys(geometries).includes(key.trim());
+  }, [geometries]);
+
   // Apply defaults and lock fields when both key and type are present in create mode
   const lockAndCreateGeometry = useCallback(() => {
     if (mode === "create" && keyInput.trim() && selectedType && geometryDefaults && !isLocked) {
+      // Check if the key is already taken
+      if (isKeyTaken(keyInput)) {
+        setError(`A geometry with the name "${keyInput.trim()}" already exists. Please choose a different name.`);
+        return;
+      }
       const defaultData = getGeometryWithDefaults({}, selectedType, geometryDefaults);
       setFormData(defaultData);
       setIsLocked(true);
       isInitializedRef.current = true;
     }
-  }, [mode, keyInput, selectedType, geometryDefaults, isLocked, setFormData]);
+  }, [mode, keyInput, selectedType, geometryDefaults, isLocked, setFormData, isKeyTaken]);
 
   // Handler for when key or type field is blurred
   const handleFieldBlur = useCallback(() => {
@@ -277,7 +288,14 @@ const GeometryForm = () => {
           disabled={isLocked}
           sx={{ mb: 2 }}
           required
-          helperText={!isLocked && mode === "create" ? "Enter a unique name for this geometry" : ""}
+          error={!isLocked && mode === "create" && keyInput.trim() !== "" && isKeyTaken(keyInput)}
+          helperText={
+            !isLocked && mode === "create"
+              ? (keyInput.trim() !== "" && isKeyTaken(keyInput)
+                ? `Name "${keyInput.trim()}" is already taken`
+                : "Enter a unique name for this geometry")
+              : ""
+          }
         />
 
         <FormControl fullWidth sx={{ mb: 2 }} required>
