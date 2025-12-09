@@ -1,11 +1,10 @@
 import pytest
 import requests
-from conftest import get_jwt_auth_headers
 
 from zndraw.zndraw import ZnDraw
 
 
-def test_rest_join_new_room(server):
+def test_rest_join_new_room(server, get_jwt_auth_headers):
     response = requests.get(f"{server}/api/rooms")
     assert response.status_code == 200
     rooms = response.json()
@@ -43,7 +42,7 @@ def test_rest_join_new_room(server):
         assert data["error"] == f"No frames found in room '{room}'"
 
 
-def test_join_existing_room(server):
+def test_join_existing_room(server, get_jwt_auth_headers):
     # create a room first
     room = "test-room-1"
     response = requests.post(
@@ -64,7 +63,7 @@ def test_join_existing_room(server):
     assert "userName" in data
 
 
-def test_join_room_with_copy_from(server, s22):
+def test_join_room_with_copy_from(server, s22, get_jwt_auth_headers):
     # create a source room with some frames
     source_room = "source-room"
     vis = ZnDraw(url=server, room=source_room, user="user1")
@@ -97,7 +96,7 @@ def test_join_room_with_copy_from(server, s22):
     assert data["frameCount"] == 0  # Empty room
 
 
-def test_join_room_invalid_name(server):
+def test_join_room_invalid_name(server, get_jwt_auth_headers):
     room = "invalid:room"
     response = requests.post(
         f"{server}/api/rooms/{room}/join", json={}, headers=get_jwt_auth_headers(server)

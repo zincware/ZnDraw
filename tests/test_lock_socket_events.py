@@ -1,13 +1,9 @@
 """Tests for lock socket events (lock:update)."""
-import json
 import time
 
 import pytest
-import redis
 import requests
 import socketio
-
-from conftest import get_jwt_auth_headers
 
 
 @pytest.fixture
@@ -20,7 +16,7 @@ def socketio_client():
 
 
 @pytest.fixture
-def authenticated_session(server):
+def authenticated_session(server, get_jwt_auth_headers):
     """Join a room and return server, room, session_id, auth_headers, socketio_client."""
     room = "test-lock-socket"
     user_name = "test-user"
@@ -279,7 +275,7 @@ def test_lock_events_for_different_targets(authenticated_session):
     sio_client.disconnect()
 
 
-def test_multiple_clients_receive_lock_events(server):
+def test_multiple_clients_receive_lock_events(server, get_jwt_auth_headers):
     """Test that multiple clients in the same room receive lock:update events."""
     room = "test-multi-client"
     user1_name = "user1"

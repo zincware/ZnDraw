@@ -1,6 +1,5 @@
 import pytest
 import requests
-from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
 from zndraw.app.job_manager import JobStatus
@@ -150,7 +149,7 @@ def test_register_extensions(server, category):
 
 
 @pytest.mark.parametrize("category", ["modifiers", "selections"])
-def test_run_client_extensions(server, category):
+def test_run_client_extensions(server, category, get_jwt_auth_headers):
     room = "testroom"
     user = "testuser"
     if category == "modifiers":
@@ -398,7 +397,7 @@ def test_run_client_extensions(server, category):
         assert job["status"] == JobStatus.COMPLETED
 
 
-def test_worker_finish_nonstarted_job(server):
+def test_worker_finish_nonstarted_job(server, get_jwt_auth_headers):
     room = "testroom"
     user = "testuser"
     mod = ModifierExtension
@@ -461,7 +460,7 @@ def test_worker_finish_nonstarted_job(server):
     assert response_json["worker_id"] == vis.sid
 
 
-def test_worker_fail_job(server):
+def test_worker_fail_job(server, get_jwt_auth_headers):
     room = "testroom"
     user = "testuser"
     mod = ModifierExtension
@@ -549,7 +548,7 @@ def test_worker_fail_job(server):
     assert response_json[0]["id"] == jobId
 
 
-def test_delete_job(server):
+def test_delete_job(server, get_jwt_auth_headers):
     room = "testroom"
     user = "testuser"
     mod = ModifierExtension
@@ -611,7 +610,7 @@ def test_delete_job(server):
 
 
 @pytest.mark.parametrize("category", ["modifiers", "selections"])
-def test_register_extensions_reconnect_with_queue(server, category):
+def test_register_extensions_reconnect_with_queue(server, category, get_jwt_auth_headers):
     room = "testroom"
     user = "testuser"
     if category == "modifiers":
@@ -745,7 +744,7 @@ def test_register_extensions_reconnect_with_queue(server, category):
 
 
 @pytest.mark.parametrize("category", ["modifiers", "selections"])
-def test_register_extensions_reconnect_without_queue(server, category):
+def test_register_extensions_reconnect_without_queue(server, category, get_jwt_auth_headers):
     room = "testroom"
     user = "testuser"
     if category == "modifiers":

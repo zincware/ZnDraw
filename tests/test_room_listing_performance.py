@@ -8,8 +8,6 @@ import pytest
 import redis
 import requests
 
-from conftest import get_jwt_auth_headers
-
 
 def test_batched_room_listing_response_structure(server, s22):
     """Verify batched implementation returns same structure as original."""
@@ -119,7 +117,7 @@ def test_batched_listing_with_many_rooms(server, s22):
     assert len(rooms_with_metadata) == 4  # 0, 5, 10, 15
 
 
-def test_empty_room_list(server):
+def test_empty_room_list(server, get_jwt_auth_headers):
     """Test batched fetcher handles empty room list gracefully."""
     auth_headers = get_jwt_auth_headers(server, "test-user")
 

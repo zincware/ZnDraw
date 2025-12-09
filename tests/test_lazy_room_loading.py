@@ -7,15 +7,14 @@ maintains data consistency and handles edge cases properly.
 
 import pytest
 import requests
-from conftest import _get_jwt_auth_headers
 
 from zndraw.zndraw import ZnDraw
 
 
-def test_lazy_loading_empty_room(server):
+def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     """Test lazy loading endpoints with an empty room."""
     room = "test-lazy-empty"
-    headers = _get_jwt_auth_headers(server)
+    headers = get_jwt_auth_headers(server)
 
     # Step 1: Join room (minimal response)
     response = requests.post(f"{server}/api/rooms/{room}/join", json={}, headers=headers)
@@ -80,10 +79,10 @@ def test_lazy_loading_empty_room(server):
     assert isinstance(settings_data["data"], dict)
 
 
-def test_lazy_loading_with_data(server, s22):
+def test_lazy_loading_with_data(server, s22, get_jwt_auth_headers):
     """Test lazy loading endpoints with a room that has data."""
     room = "test-lazy-with-data"
-    headers = _get_jwt_auth_headers(server)
+    headers = get_jwt_auth_headers(server)
 
     # Setup: Create room with frames
     vis = ZnDraw(url=server, room=room, user="user1")
@@ -131,10 +130,10 @@ def test_lazy_loading_with_data(server, s22):
     assert isinstance(geometries_data["geometries"], dict)
 
 
-def test_lazy_loading_auth_required(server):
+def test_lazy_loading_auth_required(server, get_jwt_auth_headers):
     """Test that all lazy loading endpoints require authentication."""
     room = "test-lazy-auth"
-    headers = _get_jwt_auth_headers(server)
+    headers = get_jwt_auth_headers(server)
 
     # Create room first
     response = requests.post(f"{server}/api/rooms/{room}/join", json={}, headers=headers)
@@ -155,10 +154,10 @@ def test_lazy_loading_auth_required(server):
         assert response.status_code == 401, f"Endpoint {endpoint} should require auth"
 
 
-def test_lazy_loading_nonexistent_room(server):
+def test_lazy_loading_nonexistent_room(server, get_jwt_auth_headers):
     """Test lazy loading endpoints with a room that doesn't exist."""
     room = "nonexistent-room"
-    headers = _get_jwt_auth_headers(server)
+    headers = get_jwt_auth_headers(server)
 
     # Room info should return 404
     response = requests.get(f"{server}/api/rooms/{room}", headers=headers)
@@ -179,10 +178,10 @@ def test_lazy_loading_nonexistent_room(server):
         assert response.status_code in [200, 404], f"Endpoint {endpoint} returned {response.status_code}"
 
 
-def test_step_clamping_with_deleted_frames(server, s22):
+def test_step_clamping_with_deleted_frames(server, s22, get_jwt_auth_headers):
     """Test that step clamping updates Redis when frames are deleted."""
     room = "test-step-clamping"
-    headers = _get_jwt_auth_headers(server)
+    headers = get_jwt_auth_headers(server)
 
     # Setup: Create room with 10 frames
     vis = ZnDraw(url=server, room=room, user="user1")
@@ -218,12 +217,12 @@ def test_step_clamping_with_deleted_frames(server, s22):
     assert data["totalFrames"] == 5
 
 
-def test_parallel_lazy_loading(server, s22):
+def test_parallel_lazy_loading(server, s22, get_jwt_auth_headers):
     """Test that all lazy loading endpoints can be called in parallel."""
     import concurrent.futures
 
     room = "test-parallel-loading"
-    headers = _get_jwt_auth_headers(server)
+    headers = get_jwt_auth_headers(server)
 
     # Setup: Create room with data
     vis = ZnDraw(url=server, room=room, user="user1")

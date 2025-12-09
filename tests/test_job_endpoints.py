@@ -8,7 +8,6 @@ import requests
 from zndraw import ZnDraw
 from zndraw.extensions import Category, Extension
 from zndraw.job import Job
-from conftest import get_jwt_auth_headers
 
 
 class TestModifier(Extension):
@@ -121,7 +120,7 @@ def test_get_job_details_contains_all_fields(server):
 # =============================================================================
 
 
-def test_update_job_status_to_processing(server):
+def test_update_job_status_to_processing(server, get_jwt_auth_headers):
     """Test updating job status from assigned to processing."""
     vis = ZnDraw(url=server, room="test", user="testuser", auto_pickup_jobs=False)
     vis.register_extension(TestModifier)
@@ -140,7 +139,7 @@ def test_update_job_status_to_processing(server):
     assert job.is_processing()
 
 
-def test_update_job_status_to_completed(server):
+def test_update_job_status_to_completed(server, get_jwt_auth_headers):
     """Test updating job status to completed."""
     vis = ZnDraw(url=server, room="test", user="testuser", auto_pickup_jobs=False)
     vis.register_extension(TestModifier)
@@ -166,7 +165,7 @@ def test_update_job_status_to_completed(server):
     assert job.is_done()
 
 
-def test_update_job_status_to_failed(server):
+def test_update_job_status_to_failed(server, get_jwt_auth_headers):
     """Test updating job status to failed with error message."""
     vis = ZnDraw(url=server, room="test", user="testuser", auto_pickup_jobs=False)
     vis.register_extension(TestModifier)
@@ -203,7 +202,7 @@ def test_update_job_status_to_failed(server):
 # =============================================================================
 
 
-def test_job_refresh(server):
+def test_job_refresh(server, get_jwt_auth_headers):
     """Test that job.refresh() updates status from server."""
     vis = ZnDraw(url=server, room="test", user="testuser", auto_pickup_jobs=False)
     vis.register_extension(TestModifier)
@@ -251,7 +250,7 @@ def test_job_wait_for_completion_with_timeout(server):
         job.wait(timeout=0.5, poll_interval=0.1)
 
 
-def test_job_completion_lifecycle(server):
+def test_job_completion_lifecycle(server, get_jwt_auth_headers):
     """Test complete job lifecycle from submission to completion."""
     vis = ZnDraw(url=server, room="test", user="testuser", auto_pickup_jobs=False)
     vis.register_extension(TestModifier)

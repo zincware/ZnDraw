@@ -3,11 +3,9 @@ import pytest
 import redis
 import requests
 
-from conftest import get_jwt_auth_headers
-
 
 @pytest.fixture
-def room_with_step_lock(server):
+def room_with_step_lock(server, get_jwt_auth_headers):
     """Join a room, acquire step lock, and return server, room, session_id, auth_headers, lock_token."""
     room = "test-step-lock-room"
 
@@ -36,7 +34,7 @@ def room_with_step_lock(server):
     return server, room, session_id, auth_headers, lock_token
 
 
-def test_get_step_without_auth(server):
+def test_get_step_without_auth(server, get_jwt_auth_headers):
     """Test that GET /step requires authentication."""
     room = "test-get-step"
     auth_headers = get_jwt_auth_headers(server)
@@ -52,7 +50,7 @@ def test_get_step_without_auth(server):
     assert isinstance(data["totalFrames"], int)
 
 
-def test_put_step_without_lock(server):
+def test_put_step_without_lock(server, get_jwt_auth_headers):
     """Test that PUT /step fails when lock is not held."""
     room = "test-put-step-no-lock"
     auth_headers = get_jwt_auth_headers(server, "test-user")
@@ -131,7 +129,7 @@ def test_put_step_invalid_type(room_with_step_lock):
     assert "Invalid step value" in data["error"]
 
 
-def test_put_step_missing_session_id(server):
+def test_put_step_missing_session_id(server, get_jwt_auth_headers):
     """Test that PUT /step rejects requests without X-Session-ID header."""
     room = "test-missing-session"
     auth_headers = get_jwt_auth_headers(server, "test-user")
@@ -148,7 +146,7 @@ def test_put_step_missing_session_id(server):
     assert "X-Session-ID" in data["error"]
 
 
-def test_put_step_invalid_session_id(server):
+def test_put_step_invalid_session_id(server, get_jwt_auth_headers):
     """Test that PUT /step rejects requests with invalid session ID."""
     room = "test-invalid-session"
     auth_headers = get_jwt_auth_headers(server, "test-user")
@@ -185,7 +183,7 @@ def test_put_step_continuous_updates(room_with_step_lock):
     assert response.json()["step"] == 40
 
 
-def test_put_step_after_lock_expiry(server):
+def test_put_step_after_lock_expiry(server, get_jwt_auth_headers):
     """Test that PUT /step fails after lock expires."""
     room = "test-lock-expiry"
     auth_headers = get_jwt_auth_headers(server, "test-user")
@@ -223,7 +221,7 @@ def test_put_step_after_lock_expiry(server):
     assert "Lock not held" in data["error"]
 
 
-def test_put_step_session_user_mismatch(server):
+def test_put_step_session_user_mismatch(server, get_jwt_auth_headers):
     """Test that PUT /step rejects requests where session doesn't match JWT user."""
     room = "test-session-mismatch"
 
@@ -250,7 +248,7 @@ def test_put_step_session_user_mismatch(server):
     assert "Session/user mismatch" in data["error"]
 
 
-def test_put_step_different_session_same_user(server):
+def test_put_step_different_session_same_user(server, get_jwt_auth_headers):
     """Test that different session from same user can't use another session's lock."""
     room = "test-different-session"
     auth_headers = get_jwt_auth_headers(server, "test-user")
@@ -289,7 +287,7 @@ def test_put_step_different_session_same_user(server):
     assert "Session does not hold the lock" in data["error"]
 
 
-def test_atomic_pattern_acquire_set_release(server):
+def test_atomic_pattern_acquire_set_release(server, get_jwt_auth_headers):
     """Test atomic update pattern: acquire lock → set step → release lock."""
     room = "test-atomic-pattern"
     auth_headers = get_jwt_auth_headers(server, "test-user")
@@ -333,7 +331,7 @@ def test_atomic_pattern_acquire_set_release(server):
     assert response.json()["step"] == 99
 
 
-def test_step_lock_independence_from_trajectory_lock(server):
+def test_step_lock_independence_from_trajectory_lock(server, get_jwt_auth_headers):
     """Test that step lock is independent from trajectory:meta lock."""
     room = "test-lock-independence"
     auth_headers = get_jwt_auth_headers(server, "test-user")
@@ -380,7 +378,7 @@ def test_step_lock_independence_from_trajectory_lock(server):
     assert response.json()["step"] == 50
 
 
-def test_step_update_emits_frame_update_event(server):
+def test_step_update_emits_frame_update_event(server, get_jwt_auth_headers):
     """Test that updating step emits frame_update socket event to other clients."""
     import socketio
     import time
@@ -439,7 +437,7 @@ def test_step_update_emits_frame_update_event(server):
     sio_client.disconnect()
 
 
-def test_put_step_out_of_bounds(server, s22_xyz):
+def test_put_step_out_of_bounds(server, s22_xyz, get_jwt_auth_headers):
     """Test that PUT /step rejects step values beyond frame count."""
     import ase
     import ase.io
@@ -502,7 +500,7 @@ def test_put_step_out_of_bounds(server, s22_xyz):
     assert "out of range" in data["error"]
 
 
-def test_put_step_empty_room(server):
+def test_put_step_empty_room(server, get_jwt_auth_headers):
     """Test that PUT /step in empty room (0 frames) allows any step value (no validation)."""
     room = "test-step-empty-room"
     auth_headers = get_jwt_auth_headers(server, "test-user")

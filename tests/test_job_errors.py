@@ -5,7 +5,6 @@ since the system now uses Socket.IO push-based job assignment.
 """
 
 import requests
-from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
 from zndraw.extensions import Extension, Category
@@ -19,7 +18,7 @@ class TestExtension(Extension):
         pass
 
 
-def test_extension_execution_with_auto_pickup(server):
+def test_extension_execution_with_auto_pickup(server, get_jwt_auth_headers):
     """Test that extensions execute correctly with auto_pickup_jobs=True."""
     room = "testroom"
     user = "testuser"

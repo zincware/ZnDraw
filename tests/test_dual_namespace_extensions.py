@@ -42,7 +42,7 @@ def test_register_same_extension_in_both_namespaces(server):
     assert "DualExtension" in extension_names
 
 
-def test_vis_run_with_public_parameter_explicit(server):
+def test_vis_run_with_public_parameter_explicit(server, get_jwt_auth_headers):
     """Test that vis.run() respects explicit public parameter."""
     vis = ZnDraw(url=server, room="test_room", user="admin", auto_pickup_jobs=False)
 
@@ -62,7 +62,6 @@ def test_vis_run_with_public_parameter_explicit(server):
     # Complete the public job to free worker capacity
     # Manually transition job to processing then completed
     import requests
-    from conftest import get_jwt_auth_headers
 
     response = requests.put(
         f"{server}/api/rooms/test_room/jobs/{job_public.job_id}/status",

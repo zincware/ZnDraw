@@ -2,7 +2,6 @@
 
 import pytest
 import requests
-from conftest import get_jwt_auth_headers
 from socketio.exceptions import ConnectionError as SocketIOConnectionError
 
 from zndraw import ZnDraw
@@ -53,7 +52,7 @@ def test_login_with_empty_username_creates_anonymous_guest(server):
     assert data["role"] == "admin"
 
 
-def test_join_room_with_jwt_succeeds(server):
+def test_join_room_with_jwt_succeeds(server, get_jwt_auth_headers):
     """Test joining a room with valid JWT token."""
     # Login to get JWT
     headers = get_jwt_auth_headers(server, "test-user")
@@ -212,7 +211,7 @@ def test_user_session_persists_in_redis(server, redis_client):
     assert "lastLogin" in user_data
 
 
-def test_join_room_updates_redis_room_users(server, redis_client):
+def test_join_room_updates_redis_room_users(server, redis_client, get_jwt_auth_headers):
     """Test that joining a room adds user to room's user set in Redis."""
     # Login and get headers
     headers = get_jwt_auth_headers(server, "room-joiner")

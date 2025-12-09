@@ -1,12 +1,11 @@
 import pytest
 import requests
-from conftest import get_jwt_auth_headers
 
 from zndraw import ZnDraw
 from zndraw.geometries import Bond, Camera, CameraType, Curve, Sphere
 
 
-def test_rest_get_geometries(joined_room):
+def test_rest_get_geometries(joined_room, get_jwt_auth_headers):
     """Test listing geometry keys and getting individual geometries."""
     server, room = joined_room
     headers = get_jwt_auth_headers(server)
@@ -120,7 +119,7 @@ def test_rest_add_unknown_geometry(joined_room):
         vis.geometries["unknown"] = UnknownGeometry()
 
 
-def test_rest_delete_geometry(joined_room):
+def test_rest_delete_geometry(joined_room, get_jwt_auth_headers):
     """Test deleting geometries."""
     server, room = joined_room
     headers = get_jwt_auth_headers(server)

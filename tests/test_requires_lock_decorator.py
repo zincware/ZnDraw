@@ -3,11 +3,10 @@ import pytest
 import redis
 import requests
 
-from conftest import get_jwt_auth_headers
 
 
 @pytest.fixture
-def room_with_lock(server):
+def room_with_lock(server, get_jwt_auth_headers):
     """Join a room, acquire a lock, and return server, room, session_id, auth_headers, lock_token."""
     room = "test-lock-room"
 
@@ -36,7 +35,7 @@ def room_with_lock(server):
     return server, room, session_id, auth_headers, lock_token
 
 
-def test_requires_lock_missing_session_id(server):
+def test_requires_lock_missing_session_id(server, get_jwt_auth_headers):
     """Test that decorator rejects requests without X-Session-ID header."""
     room = "test-missing-session"
     auth_headers = get_jwt_auth_headers(server, "test-user")
@@ -53,7 +52,7 @@ def test_requires_lock_missing_session_id(server):
     assert "X-Session-ID" in data["error"]
 
 
-def test_requires_lock_invalid_session_id(server):
+def test_requires_lock_invalid_session_id(server, get_jwt_auth_headers):
     """Test that decorator rejects requests with invalid session ID."""
     room = "test-invalid-session"
     auth_headers = get_jwt_auth_headers(server, "test-user")
@@ -70,7 +69,7 @@ def test_requires_lock_invalid_session_id(server):
     assert "Invalid or expired session" in data["error"]
 
 
-def test_requires_lock_missing_lock_token(server, s22):
+def test_requires_lock_missing_lock_token(server, s22, get_jwt_auth_headers):
     """Test that decorator rejects requests when lock is not held.
 
     Uses /api/rooms/<room_id>/frames POST which requires target="trajectory:meta".
@@ -102,7 +101,7 @@ def test_requires_lock_missing_lock_token(server, s22):
     assert "Lock not held" in data["error"]
 
 
-def test_requires_lock_session_user_mismatch(server):
+def test_requires_lock_session_user_mismatch(server, get_jwt_auth_headers):
     """Test that decorator rejects requests where session doesn't match JWT user."""
 
     room = "test-session-mismatch"
@@ -132,7 +131,7 @@ def test_requires_lock_session_user_mismatch(server):
 
 def test_requires_lock_valid_session_and_token(room_with_lock):
     """Test that decorator allows requests with valid session and lock token."""
-    server, room, session_id, auth_headers, lock_token = room_with_lock
+    server, room, session_id, auth_headers, _ = room_with_lock
 
     # Create geometry with valid session and lock
     response = requests.post(
@@ -158,7 +157,7 @@ def test_requires_lock_valid_session_and_token(room_with_lock):
     assert geom_data["geometry"]["data"]["position"] == [[1.0, 2.0, 3.0]]
 
 
-def test_requires_lock_different_session_same_user(server, s22):
+def test_requires_lock_different_session_same_user(server, s22, get_jwt_auth_headers):
     """Test that decorator rejects when a different session (same user) tries to use the lock.
 
     Uses /api/rooms/<room_id>/frames POST which requires target="trajectory:meta".
@@ -205,7 +204,7 @@ def test_requires_lock_different_session_same_user(server, s22):
     assert "Session does not hold the lock" in data["error"]
 
 
-def test_requires_lock_after_lock_expiry(server, s22):
+def test_requires_lock_after_lock_expiry(server, s22, get_jwt_auth_headers):
     """Test that decorator rejects after lock expires.
 
     Uses /api/rooms/<room_id>/frames POST which requires target="trajectory:meta".
@@ -253,7 +252,7 @@ def test_requires_lock_after_lock_expiry(server, s22):
 
 def test_requires_lock_multiple_operations_same_lock(room_with_lock):
     """Test that multiple operations can be performed with the same lock."""
-    server, room, session_id, auth_headers, lock_token = room_with_lock
+    server, room, session_id, auth_headers, _ = room_with_lock
 
     # Create first geometry
     response = requests.post(
