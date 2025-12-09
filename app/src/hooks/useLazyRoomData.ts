@@ -1,12 +1,11 @@
 import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   getRoomInfo,
   getAllSelections,
   getFrameSelection,
   getCurrentStep,
   getAllBookmarks,
-  getUserRoomSettings,
   listGeometries,
 } from "../myapi/client";
 import { useGeometrySchemas } from "./useGeometries";
@@ -18,7 +17,6 @@ const SELECTIONS_STALE_TIME = 10000;     // 10 seconds - selections change moder
 const FRAME_SELECTION_STALE_TIME = 10000; // 10 seconds - frame selection changes moderately
 const STEP_STALE_TIME = 5000;            // 5 seconds - current step/frame changes frequently
 const BOOKMARKS_STALE_TIME = 30000;      // 30 seconds - bookmarks change infrequently
-const SETTINGS_STALE_TIME = 60000;       // 60 seconds (1 minute) - user settings rarely change
 const GEOMETRIES_STALE_TIME = 30000;     // 30 seconds - geometries change infrequently
 
 /**
@@ -115,18 +113,8 @@ export const useLazyRoomData = (
     retry: 2,
   });
 
-  // Fetch user settings (JWT auth handles user identity)
-  const {
-    data: settingsData,
-    isLoading: isLoadingSettings,
-    error: settingsError,
-  } = useQuery({
-    queryKey: ["userSettings", roomId],
-    queryFn: () => getUserRoomSettings(roomId!),
-    enabled: enabled && !!roomId,
-    staleTime: SETTINGS_STALE_TIME,
-    retry: 2,
-  });
+  // Note: Settings are fetched on-demand per category by useSettingData hook
+  // from the dedicated /api/rooms/{roomId}/settings/{category} endpoint
 
   // Fetch geometries with full data
   const {
@@ -206,33 +194,14 @@ export const useLazyRoomData = (
     }
   }, [geometrySchemasData, setGeometryDefaults]);
 
-  // Settings are handled differently - they're stored in query cache per category
-  // The useExtensionData hook will read from the cache when needed
-  useEffect(() => {
-    if (settingsData?.settings && roomId) {
-      // Store settings in query cache for each category
-      for (const [categoryName, categoryData] of Object.entries(
-        settingsData.settings,
-      )) {
-        const queryKey = [
-          "extensionData",
-          roomId,
-          "settings",
-          categoryName,
-        ];
-        queryClient.setQueryData(queryKey, categoryData);
-      }
-    }
-  }, [settingsData, roomId, queryClient]);
-
   // Aggregate loading state
+  // Note: Settings are fetched on-demand per category by useSettingData hook
   const isLoading =
     isLoadingRoomInfo ||
     isLoadingSelections ||
     isLoadingFrameSelection ||
     isLoadingStep ||
     isLoadingBookmarks ||
-    isLoadingSettings ||
     isLoadingGeometries ||
     isLoadingSchemas;
 
@@ -243,7 +212,6 @@ export const useLazyRoomData = (
     frameSelectionError ||
     stepError ||
     bookmarksError ||
-    settingsError ||
     geometriesError
   );
 
@@ -266,9 +234,6 @@ export const useLazyRoomData = (
     if (bookmarksError) {
       console.error("[useLazyRoomData] Failed to load bookmarks:", bookmarksError);
     }
-    if (settingsError) {
-      console.error("[useLazyRoomData] Failed to load settings:", settingsError);
-    }
     if (geometriesError) {
       console.error("[useLazyRoomData] Failed to load geometries:", geometriesError);
     }
@@ -279,7 +244,6 @@ export const useLazyRoomData = (
     frameSelectionError,
     stepError,
     bookmarksError,
-    settingsError,
     geometriesError,
   ]);
 

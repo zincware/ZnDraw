@@ -9,7 +9,7 @@
  */
 
 import { useMemo } from "react";
-import { useExtensionData } from "./useSchemas";
+import { useSettingData } from "./useSettings";
 import { usePropertyValues, useAvailableProperties } from "./usePropertyInspector";
 import { useAppStore } from "../store";
 
@@ -35,15 +35,12 @@ export const usePropertyInspectorSettings = (
   const { category = "all", enabled = true } = options;
   // Use individual selectors to prevent unnecessary re-renders
   const roomId = useAppStore((state) => state.roomId);
-  const userName = useAppStore((state) => state.userName);
   const currentFrame = useAppStore((state) => state.currentFrame);
   const particleCount = useAppStore((state) => state.particleCount);
 
   // Fetch property_inspector settings from backend
-  const { data: settingsData } = useExtensionData(
+  const { data: settingsData } = useSettingData(
     roomId || "",
-    userName || "",
-    "settings",
     "property_inspector"
   );
 

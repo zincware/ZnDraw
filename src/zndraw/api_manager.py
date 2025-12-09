@@ -490,24 +490,43 @@ class APIManager:
 
         response.raise_for_status()
 
-    def get_extension_settings(self, extension_name: str) -> dict:
+    def get_extension_settings(self, category: str) -> dict:
+        """Get settings for a specific category.
+
+        Parameters
+        ----------
+        category : str
+            Settings category (camera, studio_lighting, pathtracing, property_inspector)
+
+        Returns
+        -------
+        dict
+            Settings data with "data" key
+        """
         headers = self._get_headers()
 
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/extensions/settings/{extension_name}/data",
+            f"{self.url}/api/rooms/{self.room}/settings/{category}",
             headers=headers,
         )
         response.raise_for_status()
         return response.json()
 
-    def submit_extension_settings(self, extension_name: str, data: dict) -> None:
+    def submit_extension_settings(self, category: str, data: dict) -> None:
+        """Update settings for a specific category.
+
+        Parameters
+        ----------
+        category : str
+            Settings category (camera, studio_lighting, pathtracing, property_inspector)
+        data : dict
+            Settings data to store
+        """
         headers = self._get_headers()
 
-        # Settings extensions are always server-side (Celery) extensions,
-        # so they use the public endpoint
-        response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/extensions/public/settings/{extension_name}/submit",
-            json=data,
+        response = requests.put(
+            f"{self.url}/api/rooms/{self.room}/settings/{category}",
+            json={"data": data},
             headers=headers,
         )
         response.raise_for_status()

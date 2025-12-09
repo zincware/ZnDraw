@@ -241,7 +241,6 @@ def join_room(room_id):
     r = current_app.extensions["redis"]
     room_service = current_app.extensions["room_service"]
     client_service = current_app.extensions["client_service"]
-    settings_service = current_app.extensions["settings_service"]
 
     # Store session mapping in Redis (sessionId → userId)
     # TTL: 24 hours (session expires if no activity)
@@ -289,9 +288,6 @@ def join_room(room_id):
 
         # Include frameCount in response when creating room (especially for copyFrom)
         response["frameCount"] = frame_count
-
-        # Initialize default settings for new user in room
-        settings_service.initialize_defaults(room_id, user_name)
 
         # Broadcast room creation to all connected clients
         emit_room_update(
@@ -736,13 +732,12 @@ def get_room_schema(room_id: str, category: str):
     from zndraw.extensions.analysis import analysis
     from zndraw.extensions.modifiers import modifiers
     from zndraw.extensions.selections import selections
-    from zndraw.settings import settings
 
     # Map category strings to the corresponding imported objects
+    # Note: "settings" category is now handled by dedicated /settings/ endpoints
     category_map = {
         "selections": selections,
         "modifiers": modifiers,
-        "settings": settings,
         "analysis": analysis,
     }
 

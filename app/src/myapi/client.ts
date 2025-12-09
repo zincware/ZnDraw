@@ -451,16 +451,6 @@ export const getCurrentStep = async (
   return data;
 };
 
-export const getUserRoomSettings = async (
-  roomId: string,
-  signal?: AbortSignal,
-): Promise<{ settings: Record<string, any> }> => {
-  const { data } = await apiClient.get(`/api/rooms/${roomId}/settings`, {
-    signal,
-  });
-  return data;
-};
-
 // ==================== Templates API ====================
 
 export interface Template {
@@ -529,6 +519,45 @@ export const submitExtension = async (
     `/api/rooms/${roomId}/extensions/${scope}/${category}/${extension}/submit`,
     {
       data: extensionData,
+    },
+  );
+  return data;
+};
+
+// ==================== Settings API ====================
+
+export interface SettingsSchema {
+  name: string;
+  schema: any;
+  provider: "settings";
+}
+
+export const getSettingsSchemas = async (
+  roomId: string,
+): Promise<SettingsSchema[]> => {
+  const { data } = await apiClient.get(`/api/rooms/${roomId}/settings/schema`);
+  return data;
+};
+
+export const getSetting = async (
+  roomId: string,
+  category: string,
+): Promise<{ data: any }> => {
+  const { data } = await apiClient.get(
+    `/api/rooms/${roomId}/settings/${category}`,
+  );
+  return data;
+};
+
+export const updateSetting = async (
+  roomId: string,
+  category: string,
+  settingData: any,
+): Promise<{ status: string; message: string }> => {
+  const { data } = await apiClient.put(
+    `/api/rooms/${roomId}/settings/${category}`,
+    {
+      data: settingData,
     },
   );
   return data;

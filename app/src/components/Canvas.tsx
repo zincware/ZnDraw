@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useAppStore, getActiveCurves, selectPreferredCurve } from "../store";
-import { useExtensionData } from "../hooks/useSchemas";
+import { useSettingData } from "../hooks/useSettings";
 import { useTheme } from "@mui/material/styles";
 import { Snackbar, Alert, Box as MuiBox, CircularProgress } from "@mui/material";
 import { useCameraControls } from "../hooks/useCameraControls";
@@ -53,21 +53,18 @@ function MyScene() {
   // Get camera control states based on attached camera
   const cameraControls = useCameraControls(attachedCameraKey, geometries);
 
-  const { data: studioLightingSettings } = useExtensionData(
+  const { data: studioLightingSettings } = useSettingData(
     roomId || "",
-    "settings",
     "studio_lighting",
   );
 
-  const { data: cameraSettings } = useExtensionData(
+  const { data: cameraSettings } = useSettingData(
     roomId || "",
-    "settings",
     "camera",
   );
 
-  const { data: pathtracingSettings } = useExtensionData(
+  const { data: pathtracingSettings } = useSettingData(
     roomId || "",
-    "settings",
     "pathtracing",
   );
 

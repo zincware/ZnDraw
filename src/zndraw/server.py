@@ -132,6 +132,7 @@ def create_app(
         locks,
         media,
         rooms,
+        settings_bp,
         tasks,  # noqa: F401
         utility,
         workers,
@@ -150,6 +151,7 @@ def create_app(
     app.register_blueprint(filesystem_bp)
     app.register_blueprint(locks)
     app.register_blueprint(workers)
+    app.register_blueprint(settings_bp)
 
     # Configure Celery based on Redis availability
     if config.redis_url is None:

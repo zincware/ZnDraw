@@ -127,9 +127,16 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
     function onInvalidate(data: any) {
       const { roomId, userName, category, extension } = data;
+      // Invalidate extension data queries (for modifiers, analysis, selections)
       queryClient.invalidateQueries({
         queryKey: ["extensionData", roomId, userName, category, extension],
       });
+      // Also invalidate settings queries (settings use dedicated endpoints)
+      if (category === "settings") {
+        queryClient.invalidateQueries({
+          queryKey: ["settingData", roomId, userName, extension],
+        });
+      }
     }
 
     function onSchemaInvalidate(data: any) {

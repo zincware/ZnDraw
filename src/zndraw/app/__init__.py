@@ -8,6 +8,7 @@ from .job_routes import jobs
 from .lock_routes import locks
 from .room_routes import rooms
 from .screenshot_chat_routes import media
+from .settings_routes import settings_bp
 from .utility_routes import utility
 from .worker_routes import workers
 
@@ -24,4 +25,5 @@ __all__ = [
     "filesystem_bp",
     "locks",
     "workers",
+    "settings_bp",
 ]

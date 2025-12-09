@@ -68,16 +68,15 @@ def _submit_extension_impl(
     redis_client = current_app.extensions["redis"]
 
     # Check if this is a server-side (Celery) extension
+    # Note: "settings" category is now handled by dedicated /settings/ endpoints
     from zndraw.extensions.analysis import analysis
     from zndraw.extensions.modifiers import modifiers
     from zndraw.extensions.selections import selections
-    from zndraw.settings import settings
 
     category_map = {
         "selections": selections,
         "modifiers": modifiers,
         "analysis": analysis,
-        "settings": settings,
     }
 
     is_celery_extension = (
@@ -121,24 +120,6 @@ def _submit_extension_impl(
         extension,
         json.dumps(data),
     )
-
-    # Handle settings differently - no job queue, just update and notify
-    if category == "settings":
-        socketio.emit(
-            SocketEvents.INVALIDATE,
-            {
-                "userName": user_name,
-                "category": category,
-                "extension": extension,
-                "roomId": room_id,
-            },
-            to=f"room:{room_id}",
-        )
-        log.info(
-            f"Updated settings for room {room_id}, user {user_name}: "
-            f"{extension} = {json.dumps(data)}"
-        )
-        return jsonify({"status": "success", "message": "Settings updated"}), 200
 
     # Create job with PENDING status
     provider = "celery" if is_celery_extension else "client"

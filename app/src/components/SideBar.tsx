@@ -4,6 +4,7 @@ import PrimaryDrawer from "./PrimaryDrawer";
 import SecondaryPanel from "./SecondaryPanel";
 import GeometryPanel from "./geometry/GeometryPanel";
 import SelectionsPanel from "./SelectionsPanel";
+import SettingsPanel from "./SettingsPanel";
 import { useFormStore } from "../formStore";
 import SettingsIcon from "@mui/icons-material/Settings";
 import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
@@ -87,6 +88,8 @@ const SideBar = () => {
             <GeometryPanel />
           ) : selectedCategory === "selections" ? (
             <SelectionsPanel />
+          ) : selectedCategory === "settings" ? (
+            <SettingsPanel />
           ) : (
             <SecondaryPanel
               key={selectedCategory}

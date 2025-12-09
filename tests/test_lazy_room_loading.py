@@ -7,7 +7,7 @@ maintains data consistency and handles edge cases properly.
 
 import pytest
 import requests
-from conftest import get_jwt_auth_headers
+from conftest import _get_jwt_auth_headers
 
 from zndraw.zndraw import ZnDraw
 
@@ -15,7 +15,7 @@ from zndraw.zndraw import ZnDraw
 def test_lazy_loading_empty_room(server):
     """Test lazy loading endpoints with an empty room."""
     room = "test-lazy-empty"
-    headers = get_jwt_auth_headers(server)
+    headers = _get_jwt_auth_headers(server)
 
     # Step 1: Join room (minimal response)
     response = requests.post(f"{server}/api/rooms/{room}/join", json={}, headers=headers)
@@ -69,19 +69,21 @@ def test_lazy_loading_empty_room(server):
     # Geometries might contain default schemas even for empty room
     assert isinstance(geometries_data["geometries"], dict)
 
-    # Step 8: Fetch user settings
-    response = requests.get(f"{server}/api/rooms/{room}/settings", headers=headers)
+    # Step 8: Fetch user settings (per-category endpoint)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/settings/camera", headers=headers
+    )
     assert response.status_code == 200
     settings_data = response.json()
-    assert "settings" in settings_data
-    # Settings might be empty dict or have default categories
-    assert isinstance(settings_data["settings"], dict)
+    assert "data" in settings_data
+    # Settings always return valid data (defaults if not stored)
+    assert isinstance(settings_data["data"], dict)
 
 
 def test_lazy_loading_with_data(server, s22):
     """Test lazy loading endpoints with a room that has data."""
     room = "test-lazy-with-data"
-    headers = get_jwt_auth_headers(server)
+    headers = _get_jwt_auth_headers(server)
 
     # Setup: Create room with frames
     vis = ZnDraw(url=server, room=room, user="user1")
@@ -132,7 +134,7 @@ def test_lazy_loading_with_data(server, s22):
 def test_lazy_loading_auth_required(server):
     """Test that all lazy loading endpoints require authentication."""
     room = "test-lazy-auth"
-    headers = get_jwt_auth_headers(server)
+    headers = _get_jwt_auth_headers(server)
 
     # Create room first
     response = requests.post(f"{server}/api/rooms/{room}/join", json={}, headers=headers)
@@ -145,7 +147,7 @@ def test_lazy_loading_auth_required(server):
         f"/api/rooms/{room}/frame-selection",
         f"/api/rooms/{room}/step",
         f"/api/rooms/{room}/geometries",
-        f"/api/rooms/{room}/settings",
+        f"/api/rooms/{room}/settings/camera",
     ]
 
     for endpoint in endpoints:
@@ -156,7 +158,7 @@ def test_lazy_loading_auth_required(server):
 def test_lazy_loading_nonexistent_room(server):
     """Test lazy loading endpoints with a room that doesn't exist."""
     room = "nonexistent-room"
-    headers = get_jwt_auth_headers(server)
+    headers = _get_jwt_auth_headers(server)
 
     # Room info should return 404
     response = requests.get(f"{server}/api/rooms/{room}", headers=headers)
@@ -180,7 +182,7 @@ def test_lazy_loading_nonexistent_room(server):
 def test_step_clamping_with_deleted_frames(server, s22):
     """Test that step clamping updates Redis when frames are deleted."""
     room = "test-step-clamping"
-    headers = get_jwt_auth_headers(server)
+    headers = _get_jwt_auth_headers(server)
 
     # Setup: Create room with 10 frames
     vis = ZnDraw(url=server, room=room, user="user1")
@@ -221,7 +223,7 @@ def test_parallel_lazy_loading(server, s22):
     import concurrent.futures
 
     room = "test-parallel-loading"
-    headers = get_jwt_auth_headers(server)
+    headers = _get_jwt_auth_headers(server)
 
     # Setup: Create room with data
     vis = ZnDraw(url=server, room=room, user="user1")
@@ -240,7 +242,7 @@ def test_parallel_lazy_loading(server, s22):
         f"{server}/api/rooms/{room}/step",
         f"{server}/api/rooms/{room}/bookmarks",
         f"{server}/api/rooms/{room}/geometries",
-        f"{server}/api/rooms/{room}/settings",
+        f"{server}/api/rooms/{room}/settings/camera",
     ]
 
     # Fetch all endpoints in parallel
