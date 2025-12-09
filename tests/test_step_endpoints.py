@@ -1,4 +1,5 @@
 """Tests for step/frame REST endpoints with lock-based access control."""
+
 import pytest
 import redis
 import requests
@@ -202,7 +203,7 @@ def test_put_step_after_lock_expiry(server, get_jwt_auth_headers):
         headers={**auth_headers, "X-Session-ID": session_id},
     )
     assert response.status_code == 200
-    lock_token = response.json()["lockToken"]
+    response.json()["lockToken"]  # Verify token is returned
 
     # Manually expire the lock in Redis (simulate TTL expiry)
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
@@ -387,14 +388,17 @@ def test_step_update_emits_frame_update_event(server, get_jwt_auth_headers):
 
     # Setup user 1
     user1_headers = get_jwt_auth_headers(server, "user1")
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={}, headers=user1_headers)
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=user1_headers
+    )
     assert response.status_code == 200
     user1_session = response.json()["sessionId"]
-    user1_token = user1_headers["Authorization"].split(" ")[1]
 
     # Setup user 2 (observer)
     user2_headers = get_jwt_auth_headers(server, "user2")
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={}, headers=user2_headers)
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=user2_headers
+    )
     assert response.status_code == 200
     user2_token = user2_headers["Authorization"].split(" ")[1]
 

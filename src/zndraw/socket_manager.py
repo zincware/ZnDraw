@@ -1,10 +1,6 @@
-import dataclasses
 import logging
-import threading
-import time
 import traceback
 import typing as t
-import warnings
 
 import socketio
 
@@ -12,7 +8,6 @@ if t.TYPE_CHECKING:
     from zndraw.zndraw import ZnDraw
 
 log = logging.getLogger(__name__)
-
 
 
 class SocketManager:
@@ -63,7 +58,7 @@ class SocketManager:
 
     def _on_connect(self):
         """Handle connection to server."""
-        log.debug(f"Connected to server")
+        log.debug("Connected to server")
 
         # Re-register any extensions that were registered before connection
         # Process public extensions
@@ -130,7 +125,7 @@ class SocketManager:
         self.zndraw._bookmarks = bookmarks
 
     def _on_geometry_invalidate(self, data):
-        if key := data.get("key"):
+        if data.get("key"):
             # Refresh geometries from server to get updated state
             response = self.zndraw.api.get_geometries()
             if response is not None:
@@ -192,7 +187,14 @@ class SocketManager:
             log.error(f"Error executing assigned job {job_id}: {e}", exc_info=True)
             # Error handling is done inside execute_job_for_worker
 
-    def _on_task_run(self, data: dict, extension: str, category: str, room: str, public: str = "false"):
+    def _on_task_run(
+        self,
+        data: dict,
+        extension: str,
+        category: str,
+        room: str,
+        public: str = "false",
+    ):
         """Execute an extension job with proper room context.
 
         Creates a temporary ZnDraw instance connected to the job's target room,
@@ -226,7 +228,11 @@ class SocketManager:
             public_bool = public == "true"
 
             # Find the extension in the correct namespace
-            extensions_dict = self.zndraw._public_extensions if public_bool else self.zndraw._private_extensions
+            extensions_dict = (
+                self.zndraw._public_extensions
+                if public_bool
+                else self.zndraw._private_extensions
+            )
             ext_data = extensions_dict.get(extension)
 
             if ext_data is None:
@@ -238,9 +244,7 @@ class SocketManager:
 
             ext = ext_data["extension"]
             instance = ext(**(data))
-            instance.run(
-                temp_vis, **(ext_data["run_kwargs"] or {})
-            )
+            instance.run(temp_vis, **(ext_data["run_kwargs"] or {}))
         finally:
             # Cleanup: disconnect temporary instance
             if hasattr(temp_vis, "socket") and temp_vis.socket:
@@ -298,7 +302,9 @@ class SocketManager:
 
         try:
             # Get the filesystem instance using composite key
-            fs_key = f"global:{fs_name}" if public else f"room:{self.zndraw.room}:{fs_name}"
+            fs_key = (
+                f"global:{fs_name}" if public else f"room:{self.zndraw.room}:{fs_name}"
+            )
             if fs_key not in self.zndraw._filesystems:
                 available_keys = list(self.zndraw._filesystems.keys())
                 raise ValueError(
@@ -409,7 +415,9 @@ class SocketManager:
         temp_vis = None
         try:
             # Get the filesystem instance using composite key
-            fs_key = f"global:{fs_name}" if public else f"room:{self.zndraw.room}:{fs_name}"
+            fs_key = (
+                f"global:{fs_name}" if public else f"room:{self.zndraw.room}:{fs_name}"
+            )
             if fs_key not in self.zndraw._filesystems:
                 available_keys = list(self.zndraw._filesystems.keys())
                 raise ValueError(
@@ -463,24 +471,30 @@ class SocketManager:
                     if backend_name == "ZnH5MD":
                         # Use ZnH5MD for H5/H5MD files
                         if step is not None and step <= 0:
-                            raise ValueError("Step must be a positive integer for H5MD files.")
+                            raise ValueError(
+                                "Step must be a positive integer for H5MD files."
+                            )
 
                         # Wrap fsspec file object with h5py.File for znh5md compatibility
                         h5_file = h5py.File(f, "r")
                         io = znh5md.IO(file_handle=h5_file)
                         n_frames = len(io)
-                        total_expected_frames = (_stop - _start) // _step if step else n_frames
 
                         if start is not None and start >= n_frames:
                             raise ValueError(f"Start frame {start} exceeds file length")
 
                         s = slice(start, stop, step)
                         _start, _stop, _step = s.indices(n_frames)
+                        total_expected_frames = (
+                            (_stop - _start) // _step if step else n_frames
+                        )
                         frame_iterator = itertools.islice(io, _start, _stop, _step)
 
                     elif backend_name == "ASE-DB":
                         # ASE database - note: this may not work with file objects
-                        temp_vis.log("⚠️ Warning: ASE database format may not support remote filesystems")
+                        temp_vis.log(
+                            "⚠️ Warning: ASE database format may not support remote filesystems"
+                        )
                         # Try anyway in case fsspec filesystem supports it
                         db = ase.db.connect(f)
                         n_rows = db.count()
@@ -490,14 +504,18 @@ class SocketManager:
                             raise ValueError("Database is empty")
 
                         if step is not None and step <= 0:
-                            raise ValueError("Step must be a positive integer for database files.")
+                            raise ValueError(
+                                "Step must be a positive integer for database files."
+                            )
 
                         _start = start if start is not None else 0
                         _stop = stop if stop is not None else n_rows
                         _step = step if step is not None else 1
 
                         if _start >= n_rows:
-                            raise ValueError(f"Start row {_start} exceeds database size")
+                            raise ValueError(
+                                f"Start row {_start} exceeds database size"
+                            )
 
                         if _stop > n_rows:
                             _stop = n_rows
@@ -525,7 +543,9 @@ class SocketManager:
                         step_str = str(step) if step is not None else ""
                         index_str = f"{start_str}:{stop_str}:{step_str}"
 
-                        frame_iterator = ase.io.iread(f, index=index_str, format=ext or None)
+                        frame_iterator = ase.io.iread(
+                            f, index=index_str, format=ext or None
+                        )
 
                     # Process frames in batches
                     if frame_iterator:
@@ -539,10 +559,16 @@ class SocketManager:
 
                             # Update task progress if we know total frames
                             if total_expected_frames and total_expected_frames > 0:
-                                progress = (loaded_frame_count / total_expected_frames) * 100
-                                task.update(progress=min(progress, 99))  # Cap at 99 until complete
+                                progress = (
+                                    loaded_frame_count / total_expected_frames
+                                ) * 100
+                                task.update(
+                                    progress=min(progress, 99)
+                                )  # Cap at 99 until complete
 
-                temp_vis.log(f"✓ Successfully loaded {loaded_frame_count} frames from {path}")
+                temp_vis.log(
+                    f"✓ Successfully loaded {loaded_frame_count} frames from {path}"
+                )
 
                 # Apply adaptive resolution if needed
                 if loaded_frame_count > 0 and max_particles > 0:
@@ -598,7 +624,9 @@ class SocketManager:
 
         try:
             # Get the filesystem instance using composite key
-            fs_key = f"global:{fs_name}" if public else f"room:{self.zndraw.room}:{fs_name}"
+            fs_key = (
+                f"global:{fs_name}" if public else f"room:{self.zndraw.room}:{fs_name}"
+            )
             if fs_key not in self.zndraw._filesystems:
                 available_keys = list(self.zndraw._filesystems.keys())
                 raise ValueError(

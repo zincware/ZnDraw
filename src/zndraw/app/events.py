@@ -1,9 +1,7 @@
 import datetime
 import json
 import logging
-import time
 import typing as t
-import uuid
 
 from flask import current_app, request
 from flask_socketio import emit
@@ -12,9 +10,7 @@ from zndraw.analytics import connected_users
 from zndraw.server import socketio
 
 from .constants import SocketEvents
-from .models import LockMetadata
 from .redis_keys import ExtensionKeys, FilesystemKeys, RoomKeys, SessionKeys, UserKeys
-from .room_manager import emit_room_update
 
 log = logging.getLogger(__name__)
 
@@ -227,7 +223,9 @@ def handle_disconnect(*args, **kwargs):
                 )
                 r.delete(key)
                 # Also delete associated metadata if it exists
-                metadata_key = f"{key}:metadata" if isinstance(key, str) else key + b":metadata"
+                metadata_key = (
+                    f"{key}:metadata" if isinstance(key, str) else key + b":metadata"
+                )
                 r.delete(metadata_key)
         except (json.JSONDecodeError, TypeError, AttributeError):
             # If lock data is not JSON (old format), skip it
@@ -246,13 +244,14 @@ def handle_disconnect(*args, **kwargs):
     # --- Job Cleanup Logic ---
     # Handle jobs assigned to or being processed by this worker
     if not sid:
-        log.error(f"No sid during disconnect cleanup")
+        log.error("No sid during disconnect cleanup")
         return
 
     worker_id = sid  # Workers are tracked by server's socket sid
 
     # Get all jobs assigned to this worker using the reverse mapping
     from .redis_keys import WorkerKeys
+
     worker_keys = WorkerKeys(worker_id)
     worker_job_ids = list(r.smembers(worker_keys.active_jobs()))
 
@@ -288,7 +287,7 @@ def handle_disconnect(*args, **kwargs):
                         r,
                         job_id,
                         f"Worker {worker_id} disconnected while processing job",
-                        socketio=socketio
+                        socketio=socketio,
                     )
                     log.info(f"Marked job {job_id} as failed due to worker disconnect")
                 else:
@@ -297,9 +296,7 @@ def handle_disconnect(*args, **kwargs):
                 # Job will be removed from worker set by fail_job()
 
             except Exception as e:
-                log.error(
-                    f"Failed to fail job {job_id} after worker disconnect: {e}"
-                )
+                log.error(f"Failed to fail job {job_id} after worker disconnect: {e}")
                 # Clean up manually if fail_job errored
                 r.srem(worker_keys.active_jobs(), job_id)
 
@@ -488,7 +485,9 @@ def handle_disconnect(*args, **kwargs):
 
     # Filesystem cleanup - similar to extensions
     if room_name:
-        worker_filesystems_key = FilesystemKeys.user_filesystems_key(room_name, worker_id)
+        worker_filesystems_key = FilesystemKeys.user_filesystems_key(
+            room_name, worker_id
+        )
         worker_filesystems = list(r.smembers(worker_filesystems_key))
 
         if worker_filesystems:
@@ -500,11 +499,15 @@ def handle_disconnect(*args, **kwargs):
                 # Delete filesystem metadata and worker reference
                 r.delete(keys.metadata)
                 r.delete(keys.worker)
-                log.info(f"Deleted room-scoped filesystem '{fs_name}' for worker {worker_id}")
+                log.info(
+                    f"Deleted room-scoped filesystem '{fs_name}' for worker {worker_id}"
+                )
 
             # Clean up worker-specific filesystem list
             r.delete(worker_filesystems_key)
-            log.info(f"Cleaned up worker-specific filesystem list: {worker_filesystems_key}")
+            log.info(
+                f"Cleaned up worker-specific filesystem list: {worker_filesystems_key}"
+            )
 
             # Notify clients in the room that filesystems changed
             socketio.emit(
@@ -514,7 +517,9 @@ def handle_disconnect(*args, **kwargs):
             )
 
     # Clean up global (public) filesystems
-    global_worker_filesystems_key = FilesystemKeys.global_user_filesystems_key(worker_id)
+    global_worker_filesystems_key = FilesystemKeys.global_user_filesystems_key(
+        worker_id
+    )
     global_worker_filesystems = list(r.smembers(global_worker_filesystems_key))
 
     if global_worker_filesystems:
@@ -530,7 +535,9 @@ def handle_disconnect(*args, **kwargs):
 
         # Clean up worker-specific filesystem list
         r.delete(global_worker_filesystems_key)
-        log.info(f"Cleaned up global worker-specific filesystem list: {global_worker_filesystems_key}")
+        log.info(
+            f"Cleaned up global worker-specific filesystem list: {global_worker_filesystems_key}"
+        )
 
         # Notify all clients that global filesystems changed
         socketio.emit(SocketEvents.FILESYSTEMS_UPDATE, {"scope": "global"})
@@ -689,7 +696,9 @@ def handle_chat_message_create(data):
         message = create_message(r, room, user_name, content)
 
         # Emit to room (excluding sender)
-        emit(SocketEvents.CHAT_MESSAGE_NEW, message, to=f"room:{room}", include_self=True)
+        emit(
+            SocketEvents.CHAT_MESSAGE_NEW, message, to=f"room:{room}", include_self=True
+        )
 
         return {"success": True, "message": message}
     except Exception as e:
@@ -750,4 +759,3 @@ def handle_chat_message_edit(data):
     except Exception as e:
         log.error(f"Failed to edit chat message: {e}")
         return {"success": False, "error": str(e)}
-

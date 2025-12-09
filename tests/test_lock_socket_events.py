@@ -1,4 +1,5 @@
 """Tests for lock socket events (lock:update)."""
+
 import time
 
 import pytest
@@ -40,7 +41,9 @@ def authenticated_session(server, get_jwt_auth_headers):
 
 def test_lock_acquire_emits_lock_update(authenticated_session):
     """Test that acquiring a lock emits lock:update event with action=acquired."""
-    server, room, session_id, auth_headers, sio_client, user_name = authenticated_session
+    server, room, session_id, auth_headers, sio_client, user_name = (
+        authenticated_session
+    )
 
     # Track received events
     received_events = []
@@ -51,7 +54,9 @@ def test_lock_acquire_emits_lock_update(authenticated_session):
     sio_client.on("lock:update", on_lock_update)
 
     # Connect to socket
-    sio_client.connect(server, auth={"token": auth_headers["Authorization"].split(" ")[1]})
+    sio_client.connect(
+        server, auth={"token": auth_headers["Authorization"].split(" ")[1]}
+    )
     sio_client.emit("join:room", {"roomId": room})
 
     # Give socket time to connect and join room
@@ -85,7 +90,9 @@ def test_lock_acquire_emits_lock_update(authenticated_session):
 
 def test_lock_refresh_emits_lock_update(authenticated_session):
     """Test that refreshing a lock emits lock:update event with action=refreshed."""
-    server, room, session_id, auth_headers, sio_client, user_name = authenticated_session
+    server, room, session_id, auth_headers, sio_client, user_name = (
+        authenticated_session
+    )
 
     # Acquire lock first
     response = requests.post(
@@ -105,7 +112,9 @@ def test_lock_refresh_emits_lock_update(authenticated_session):
     sio_client.on("lock:update", on_lock_update)
 
     # Connect to socket
-    sio_client.connect(server, auth={"token": auth_headers["Authorization"].split(" ")[1]})
+    sio_client.connect(
+        server, auth={"token": auth_headers["Authorization"].split(" ")[1]}
+    )
     sio_client.emit("join:room", {"roomId": room})
 
     # Give socket time to connect
@@ -139,7 +148,9 @@ def test_lock_refresh_emits_lock_update(authenticated_session):
 
 def test_lock_release_emits_lock_update(authenticated_session):
     """Test that releasing a lock emits lock:update event with action=released."""
-    server, room, session_id, auth_headers, sio_client, user_name = authenticated_session
+    server, room, session_id, auth_headers, sio_client, user_name = (
+        authenticated_session
+    )
 
     # Acquire lock first
     response = requests.post(
@@ -159,7 +170,9 @@ def test_lock_release_emits_lock_update(authenticated_session):
     sio_client.on("lock:update", on_lock_update)
 
     # Connect to socket
-    sio_client.connect(server, auth={"token": auth_headers["Authorization"].split(" ")[1]})
+    sio_client.connect(
+        server, auth={"token": auth_headers["Authorization"].split(" ")[1]}
+    )
     sio_client.emit("join:room", {"roomId": room})
 
     # Give socket time to connect
@@ -193,7 +206,9 @@ def test_lock_release_emits_lock_update(authenticated_session):
 
 def test_lock_acquire_without_message(authenticated_session):
     """Test that acquiring a lock without a message still emits lock:update."""
-    server, room, session_id, auth_headers, sio_client, user_name = authenticated_session
+    server, room, session_id, auth_headers, sio_client, user_name = (
+        authenticated_session
+    )
 
     # Track received events
     received_events = []
@@ -204,7 +219,9 @@ def test_lock_acquire_without_message(authenticated_session):
     sio_client.on("lock:update", on_lock_update)
 
     # Connect to socket
-    sio_client.connect(server, auth={"token": auth_headers["Authorization"].split(" ")[1]})
+    sio_client.connect(
+        server, auth={"token": auth_headers["Authorization"].split(" ")[1]}
+    )
     sio_client.emit("join:room", {"roomId": room})
 
     # Give socket time to connect
@@ -237,7 +254,9 @@ def test_lock_acquire_without_message(authenticated_session):
 
 def test_lock_events_for_different_targets(authenticated_session):
     """Test that lock events work for different lock targets."""
-    server, room, session_id, auth_headers, sio_client, user_name = authenticated_session
+    server, room, session_id, auth_headers, sio_client, user_name = (
+        authenticated_session
+    )
 
     # Track received events
     received_events = []
@@ -248,7 +267,9 @@ def test_lock_events_for_different_targets(authenticated_session):
     sio_client.on("lock:update", on_lock_update)
 
     # Connect to socket
-    sio_client.connect(server, auth={"token": auth_headers["Authorization"].split(" ")[1]})
+    sio_client.connect(
+        server, auth={"token": auth_headers["Authorization"].split(" ")[1]}
+    )
     sio_client.emit("join:room", {"roomId": room})
 
     # Give socket time to connect
@@ -300,7 +321,9 @@ def test_multiple_clients_receive_lock_events(server, get_jwt_auth_headers):
 
     sio_client = socketio.Client()
     sio_client.on("lock:update", on_lock_update)
-    sio_client.connect(server, auth={"token": user2_headers["Authorization"].split(" ")[1]})
+    sio_client.connect(
+        server, auth={"token": user2_headers["Authorization"].split(" ")[1]}
+    )
     sio_client.emit("join:room", {"roomId": room})
 
     # Give socket time to connect
@@ -329,7 +352,9 @@ def test_multiple_clients_receive_lock_events(server, get_jwt_auth_headers):
 
 def test_lock_event_includes_session_id_for_filtering(authenticated_session):
     """Test that lock:update events include sessionId so clients can filter their own events."""
-    server, room, session_id, auth_headers, sio_client, user_name = authenticated_session
+    server, room, session_id, auth_headers, sio_client, user_name = (
+        authenticated_session
+    )
 
     # Track all received events
     received_events = []
@@ -340,7 +365,9 @@ def test_lock_event_includes_session_id_for_filtering(authenticated_session):
     sio_client.on("lock:update", on_lock_update)
 
     # Connect to socket
-    sio_client.connect(server, auth={"token": auth_headers["Authorization"].split(" ")[1]})
+    sio_client.connect(
+        server, auth={"token": auth_headers["Authorization"].split(" ")[1]}
+    )
     sio_client.emit("join:room", {"roomId": room})
     time.sleep(0.5)
 

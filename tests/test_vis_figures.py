@@ -1,7 +1,6 @@
 import json
 
 import ase
-import numpy as np
 import plotly.graph_objs as go
 import pytest
 import requests

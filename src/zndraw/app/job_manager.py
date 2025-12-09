@@ -58,7 +58,9 @@ def _emit_job_state_changed(
             to=f"room:{room_id}",
             namespace="/",
         )
-        log.debug(f"Emitted job:state_changed to room {room_id} for job {job_id}: {status}")
+        log.debug(
+            f"Emitted job:state_changed to room {room_id} for job {job_id}: {status}"
+        )
     except Exception as e:
         log.error(f"Failed to emit job:state_changed to room {room_id}: {e}")
 
@@ -173,7 +175,9 @@ class JobManager:
             "user_name": user_name,
             "status": initial_status,
             "provider": provider,
-            "public": str(public).lower(),  # Store as "true" or "false" string for Redis
+            "public": str(
+                public
+            ).lower(),  # Store as "true" or "false" string for Redis
             "created_at": now,
             "started_at": "",
             "completed_at": "",
@@ -206,14 +210,14 @@ class JobManager:
         )
 
         gauge_map = {
-            'modifiers': running_modifiers,
-            'selections': running_selections,
-            'analysis': running_analysis,
+            "modifiers": running_modifiers,
+            "selections": running_selections,
+            "analysis": running_analysis,
         }
         gauge = gauge_map.get(category)
         if gauge:
             # Use 'room' as scope since jobs are room-scoped
-            gauge.labels(scope='room').inc()
+            gauge.labels(scope="room").inc()
 
         # Emit job state change event
         _emit_job_state_changed(socketio, room, job_id, initial_status)
@@ -221,7 +225,9 @@ class JobManager:
         return job_id
 
     @staticmethod
-    def assign_job(redis_client: Any, job_id: str, worker_id: str, socketio=None) -> bool:
+    def assign_job(
+        redis_client: Any, job_id: str, worker_id: str, socketio=None
+    ) -> bool:
         """Mark job as assigned to a worker.
 
         Transition: PENDING -> ASSIGNED
@@ -252,6 +258,7 @@ class JobManager:
 
         # Remove job from extension's pending_jobs sorted set
         from .redis_keys import ExtensionKeys
+
         category = job_data.get("category")
         extension = job_data.get("extension")
         room = job_data.get("room")
@@ -275,7 +282,9 @@ class JobManager:
         return True
 
     @staticmethod
-    def start_processing(redis_client: Any, job_id: str, worker_id: str, socketio=None) -> bool:
+    def start_processing(
+        redis_client: Any, job_id: str, worker_id: str, socketio=None
+    ) -> bool:
         """Mark job as processing (worker confirmed and started work).
 
         Transition: ASSIGNED -> PROCESSING
@@ -428,7 +437,9 @@ class JobManager:
 
         # Emit job state change event with error metadata
         if room:
-            _emit_job_state_changed(socketio, room, job_id, JobStatus.FAILED, metadata={"error": error})
+            _emit_job_state_changed(
+                socketio, room, job_id, JobStatus.FAILED, metadata={"error": error}
+            )
 
         return True
 

@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from zndraw.screenshot_manager import Screenshot, ScreenshotManager
+from zndraw.screenshot_manager import ScreenshotManager
 
 
 @pytest.fixture

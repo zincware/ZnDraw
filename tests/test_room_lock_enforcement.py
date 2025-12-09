@@ -52,7 +52,7 @@ def session_headers(redis_client, test_user):
     session_data = {
         "userId": test_user["userName"],
         "roomId": "test-room",
-        "createdAt": "2025-11-27T00:00:00Z"
+        "createdAt": "2025-11-27T00:00:00Z",
     }
     redis_client.set(session_key, json.dumps(session_data), ex=3600)
 
@@ -62,6 +62,7 @@ def session_headers(redis_client, test_user):
 @pytest.fixture
 def acquire_lock(redis_client, test_user):
     """Fixture to acquire a lock for testing."""
+
     def _acquire(room_id: str, target: str, session_headers_dict: dict) -> str:
         from zndraw.app.redis_keys import RoomKeys
 
@@ -75,7 +76,7 @@ def acquire_lock(redis_client, test_user):
         lock_data = {
             "sessionId": session_id,
             "userId": test_user["userName"],
-            "token": lock_token
+            "token": lock_token,
         }
         redis_client.set(lock_key, json.dumps(lock_data), ex=60)
 
@@ -84,7 +85,9 @@ def acquire_lock(redis_client, test_user):
     return _acquire
 
 
-def test_locked_room_prevents_frame_deletion(client, redis_client, auth_headers, session_headers):
+def test_locked_room_prevents_frame_deletion(
+    client, redis_client, auth_headers, session_headers
+):
     """Test that deleting frames is blocked when room is locked."""
     from zndraw.app.redis_keys import RoomKeys
 
@@ -97,14 +100,16 @@ def test_locked_room_prevents_frame_deletion(client, redis_client, auth_headers,
     # Try to delete frames - should fail with 403
     response = client.delete(
         f"/api/rooms/{room_id}/frames?frame_id=0",
-        headers={**auth_headers, **session_headers}
+        headers={**auth_headers, **session_headers},
     )
 
     assert response.status_code == 403
     assert "locked" in response.json["error"].lower()
 
 
-def test_unlocked_room_allows_frame_deletion(client, redis_client, auth_headers, session_headers, acquire_lock):
+def test_unlocked_room_allows_frame_deletion(
+    client, redis_client, auth_headers, session_headers, acquire_lock
+):
     """Test that deleting frames works when room is unlocked."""
     from zndraw.app.redis_keys import RoomKeys
 
@@ -115,23 +120,28 @@ def test_unlocked_room_allows_frame_deletion(client, redis_client, auth_headers,
     redis_client.set(keys.locked(), "0")
 
     # Acquire trajectory lock
-    lock_token = acquire_lock(room_id, "trajectory:meta", session_headers)
+    acquire_lock(room_id, "trajectory:meta", session_headers)
 
     # Delete should succeed (will fail with 404 if no frames, but not 403)
     response = client.delete(
         f"/api/rooms/{room_id}/frames?frame_id=0",
-        headers={**auth_headers, **session_headers}
+        headers={**auth_headers, **session_headers},
     )
 
     assert response.status_code != 403
 
 
-@pytest.mark.parametrize("endpoint,method,data", [
-    ("/api/rooms/{room_id}/frames?frame_id=0", "DELETE", None),
-    ("/api/rooms/{room_id}/frames?action=append", "POST", b"msgpack_data"),
-    ("/api/rooms/{room_id}/frames/bulk?start=0&stop=1", "PATCH", b"msgpack_data"),
-])
-def test_locked_room_blocks_frame_operations(client, redis_client, auth_headers, session_headers, endpoint, method, data):
+@pytest.mark.parametrize(
+    "endpoint,method,data",
+    [
+        ("/api/rooms/{room_id}/frames?frame_id=0", "DELETE", None),
+        ("/api/rooms/{room_id}/frames?action=append", "POST", b"msgpack_data"),
+        ("/api/rooms/{room_id}/frames/bulk?start=0&stop=1", "PATCH", b"msgpack_data"),
+    ],
+)
+def test_locked_room_blocks_frame_operations(
+    client, redis_client, auth_headers, session_headers, endpoint, method, data
+):
     """Test that all frame modification operations are blocked when room is locked."""
     from zndraw.app.redis_keys import RoomKeys
 
@@ -144,21 +154,34 @@ def test_locked_room_blocks_frame_operations(client, redis_client, auth_headers,
     if method == "DELETE":
         response = client.delete(url, headers={**auth_headers, **session_headers})
     elif method == "POST":
-        response = client.post(url, data=data, headers={**auth_headers, **session_headers})
+        response = client.post(
+            url, data=data, headers={**auth_headers, **session_headers}
+        )
     elif method == "PATCH":
-        response = client.patch(url, data=data, headers={**auth_headers, **session_headers})
+        response = client.patch(
+            url, data=data, headers={**auth_headers, **session_headers}
+        )
 
     assert response.status_code == 403
     assert "locked" in response.json["error"].lower()
 
 
-@pytest.mark.parametrize("endpoint,method,data", [
-    ("/api/rooms/{room_id}/geometries", "POST", {"key": "test", "type": "Sphere", "data": {}}),
-    ("/api/rooms/{room_id}/geometries/test", "DELETE", None),
-    ("/api/rooms/{room_id}/figures", "POST", {"key": "test", "figure": {}}),
-    ("/api/rooms/{room_id}/figures/test", "DELETE", None),
-])
-def test_locked_room_blocks_geometry_operations(client, redis_client, auth_headers, session_headers, endpoint, method, data):
+@pytest.mark.parametrize(
+    "endpoint,method,data",
+    [
+        (
+            "/api/rooms/{room_id}/geometries",
+            "POST",
+            {"key": "test", "type": "Sphere", "data": {}},
+        ),
+        ("/api/rooms/{room_id}/geometries/test", "DELETE", None),
+        ("/api/rooms/{room_id}/figures", "POST", {"key": "test", "figure": {}}),
+        ("/api/rooms/{room_id}/figures/test", "DELETE", None),
+    ],
+)
+def test_locked_room_blocks_geometry_operations(
+    client, redis_client, auth_headers, session_headers, endpoint, method, data
+):
     """Test that geometry and figure operations are blocked when room is locked."""
     from zndraw.app.redis_keys import RoomKeys
 
@@ -178,13 +201,29 @@ def test_locked_room_blocks_geometry_operations(client, redis_client, auth_heade
     assert "locked" in response.json["error"].lower()
 
 
-@pytest.mark.parametrize("endpoint,method,data", [
-    ("/api/rooms/{room_id}/geometries", "POST", {"key": "test", "type": "Sphere", "data": {}}),
-    ("/api/rooms/{room_id}/geometries/test", "DELETE", None),
-    ("/api/rooms/{room_id}/figures", "POST", {"key": "test", "figure": {}}),
-    ("/api/rooms/{room_id}/figures/test", "DELETE", None),
-])
-def test_unlocked_room_allows_geometry_operations(client, redis_client, auth_headers, session_headers, acquire_lock, endpoint, method, data):
+@pytest.mark.parametrize(
+    "endpoint,method,data",
+    [
+        (
+            "/api/rooms/{room_id}/geometries",
+            "POST",
+            {"key": "test", "type": "Sphere", "data": {}},
+        ),
+        ("/api/rooms/{room_id}/geometries/test", "DELETE", None),
+        ("/api/rooms/{room_id}/figures", "POST", {"key": "test", "figure": {}}),
+        ("/api/rooms/{room_id}/figures/test", "DELETE", None),
+    ],
+)
+def test_unlocked_room_allows_geometry_operations(
+    client,
+    redis_client,
+    auth_headers,
+    session_headers,
+    acquire_lock,
+    endpoint,
+    method,
+    data,
+):
     """Test that geometry and figure operations work when room is unlocked."""
     from zndraw.app.redis_keys import RoomKeys
 
@@ -195,7 +234,7 @@ def test_unlocked_room_allows_geometry_operations(client, redis_client, auth_hea
     redis_client.set(keys.locked(), "0")
 
     # Acquire trajectory lock
-    lock_token = acquire_lock(room_id, "trajectory:meta", session_headers)
+    acquire_lock(room_id, "trajectory:meta", session_headers)
 
     url = endpoint.format(room_id=room_id)
     headers = {**auth_headers, **session_headers}
@@ -210,11 +249,16 @@ def test_unlocked_room_allows_geometry_operations(client, redis_client, auth_hea
     assert response.status_code != 403
 
 
-@pytest.mark.parametrize("endpoint,method,data", [
-    ("/api/rooms/{room_id}/bookmarks/0", "PUT", {"label": "Test Bookmark"}),
-    ("/api/rooms/{room_id}/bookmarks/0", "DELETE", None),
-])
-def test_locked_room_blocks_bookmark_operations(client, redis_client, auth_headers, session_headers, endpoint, method, data):
+@pytest.mark.parametrize(
+    "endpoint,method,data",
+    [
+        ("/api/rooms/{room_id}/bookmarks/0", "PUT", {"label": "Test Bookmark"}),
+        ("/api/rooms/{room_id}/bookmarks/0", "DELETE", None),
+    ],
+)
+def test_locked_room_blocks_bookmark_operations(
+    client, redis_client, auth_headers, session_headers, endpoint, method, data
+):
     """Test that bookmark operations are blocked when room is locked."""
     from zndraw.app.redis_keys import RoomKeys
 
@@ -234,11 +278,23 @@ def test_locked_room_blocks_bookmark_operations(client, redis_client, auth_heade
     assert "locked" in response.json["error"].lower()
 
 
-@pytest.mark.parametrize("endpoint,method,data", [
-    ("/api/rooms/{room_id}/bookmarks/0", "PUT", {"label": "Test Bookmark"}),
-    ("/api/rooms/{room_id}/bookmarks/0", "DELETE", None),
-])
-def test_unlocked_room_allows_bookmark_operations(client, redis_client, auth_headers, session_headers, acquire_lock, endpoint, method, data):
+@pytest.mark.parametrize(
+    "endpoint,method,data",
+    [
+        ("/api/rooms/{room_id}/bookmarks/0", "PUT", {"label": "Test Bookmark"}),
+        ("/api/rooms/{room_id}/bookmarks/0", "DELETE", None),
+    ],
+)
+def test_unlocked_room_allows_bookmark_operations(
+    client,
+    redis_client,
+    auth_headers,
+    session_headers,
+    acquire_lock,
+    endpoint,
+    method,
+    data,
+):
     """Test that bookmark operations work when room is unlocked."""
     from zndraw.app.redis_keys import RoomKeys
 
@@ -249,7 +305,7 @@ def test_unlocked_room_allows_bookmark_operations(client, redis_client, auth_hea
     redis_client.set(keys.locked(), "0")
 
     # Acquire trajectory lock
-    lock_token = acquire_lock(room_id, "trajectory:meta", session_headers)
+    acquire_lock(room_id, "trajectory:meta", session_headers)
 
     url = endpoint.format(room_id=room_id)
     headers = {**auth_headers, **session_headers}
@@ -264,7 +320,9 @@ def test_unlocked_room_allows_bookmark_operations(client, redis_client, auth_hea
     assert response.status_code != 403
 
 
-def test_locked_room_blocks_renormalize(client, redis_client, auth_headers, session_headers):
+def test_locked_room_blocks_renormalize(
+    client, redis_client, auth_headers, session_headers
+):
     """Test that renormalize operation is blocked when room is locked."""
     from zndraw.app.redis_keys import RoomKeys
 
@@ -273,15 +331,16 @@ def test_locked_room_blocks_renormalize(client, redis_client, auth_headers, sess
     redis_client.set(keys.locked(), "1")
 
     response = client.post(
-        f"/api/rooms/{room_id}/renormalize",
-        headers={**auth_headers, **session_headers}
+        f"/api/rooms/{room_id}/renormalize", headers={**auth_headers, **session_headers}
     )
 
     assert response.status_code == 403
     assert "locked" in response.json["error"].lower()
 
 
-def test_unlocked_room_allows_renormalize(client, redis_client, auth_headers, session_headers, acquire_lock):
+def test_unlocked_room_allows_renormalize(
+    client, redis_client, auth_headers, session_headers, acquire_lock
+):
     """Test that renormalize operation works when room is unlocked."""
     from zndraw.app.redis_keys import RoomKeys
 
@@ -292,11 +351,10 @@ def test_unlocked_room_allows_renormalize(client, redis_client, auth_headers, se
     redis_client.set(keys.locked(), "0")
 
     # Acquire trajectory lock
-    lock_token = acquire_lock(room_id, "trajectory:meta", session_headers)
+    acquire_lock(room_id, "trajectory:meta", session_headers)
 
     response = client.post(
-        f"/api/rooms/{room_id}/renormalize",
-        headers={**auth_headers, **session_headers}
+        f"/api/rooms/{room_id}/renormalize", headers={**auth_headers, **session_headers}
     )
 
     # Should NOT return 403 (room locked error)

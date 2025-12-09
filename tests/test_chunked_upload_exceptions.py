@@ -1,4 +1,5 @@
 """Tests for exception handling in chunked upload functionality."""
+
 import ase
 import numpy as np
 import pytest
@@ -21,6 +22,7 @@ def test_keyboard_interrupt_not_caught():
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
     from asebytes import encode
     from zndraw.utils import update_colors_and_radii
+
     update_colors_and_radii(atoms)
     dicts = [encode(atoms) for _ in range(5)]
 
@@ -42,7 +44,7 @@ def test_keyboard_interrupt_not_caught():
                 except KeyboardInterrupt:
                     # Should re-raise immediately, not retry
                     raise
-                except Exception as e:
+                except Exception:
                     if attempt == vis.local.max_retries:
                         raise
 
@@ -58,11 +60,13 @@ def test_connection_error_triggers_retry():
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
     from asebytes import encode
     from zndraw.utils import update_colors_and_radii
+
     update_colors_and_radii(atoms)
     dicts = [encode(atoms) for _ in range(2)]
 
     # Mock extend_frames to fail twice, then succeed
     call_count = 0
+
     def mock_extend_frames(chunk):
         nonlocal call_count
         call_count += 1
@@ -77,13 +81,14 @@ def test_connection_error_triggers_retry():
 
     # Upload should succeed after retries
     import time
-    with patch('time.sleep') as mock_sleep:  # Mock sleep to speed up test
+
+    with patch("time.sleep") as mock_sleep:  # Mock sleep to speed up test
         for chunk_idx, (chunk, chunk_size) in enumerate(zip(chunks, chunk_sizes)):
             for attempt in range(vis.local.max_retries + 1):
                 try:
                     vis.extend_frames(chunk)
                     break
-                except (ConnectionError, IOError, TimeoutError) as e:
+                except (ConnectionError, IOError, TimeoutError):
                     if attempt == vis.local.max_retries:
                         raise
                     else:
@@ -105,6 +110,7 @@ def test_max_retries_exceeded_raises_error():
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
     from asebytes import encode
     from zndraw.utils import update_colors_and_radii
+
     update_colors_and_radii(atoms)
     dicts = [encode(atoms) for _ in range(2)]
 
@@ -114,19 +120,20 @@ def test_max_retries_exceeded_raises_error():
     chunks, chunk_sizes = ZnDraw._calculate_chunk_boundaries(vis, dicts)
 
     # Should raise ConnectionError after exhausting retries
-    with patch('time.sleep'):  # Mock sleep to speed up test
+    with patch("time.sleep"):  # Mock sleep to speed up test
         with pytest.raises(ConnectionError, match="Always fails"):
             for chunk_idx, (chunk, chunk_size) in enumerate(zip(chunks, chunk_sizes)):
                 for attempt in range(vis.local.max_retries + 1):
                     try:
                         vis.extend_frames(chunk)
                         break
-                    except (ConnectionError, IOError, TimeoutError) as e:
+                    except (ConnectionError, IOError, TimeoutError):
                         if attempt == vis.local.max_retries:
                             raise
                         else:
                             delay = vis.local.retry_delay * (2**attempt)
                             import time
+
                             time.sleep(delay)
 
     # Should have been called max_retries + 1 times
@@ -141,6 +148,7 @@ def test_specific_exceptions_only():
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
     from asebytes import encode
     from zndraw.utils import update_colors_and_radii
+
     update_colors_and_radii(atoms)
     dicts = [encode(atoms) for _ in range(2)]
 
@@ -156,12 +164,13 @@ def test_specific_exceptions_only():
                 try:
                     vis.extend_frames(chunk)
                     break
-                except (ConnectionError, IOError, TimeoutError) as e:
+                except (ConnectionError, IOError, TimeoutError):
                     if attempt == vis.local.max_retries:
                         raise
                     else:
                         delay = vis.local.retry_delay * (2**attempt)
                         import time
+
                         time.sleep(delay)
 
     # Should have been called only ONCE (no retries for ValueError)
@@ -176,11 +185,13 @@ def test_exponential_backoff_timing():
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
     from asebytes import encode
     from zndraw.utils import update_colors_and_radii
+
     update_colors_and_radii(atoms)
     dicts = [encode(atoms) for _ in range(2)]
 
     # Mock extend_frames to fail 3 times, then succeed
     call_count = 0
+
     def mock_extend_frames(chunk):
         nonlocal call_count
         call_count += 1
@@ -194,21 +205,23 @@ def test_exponential_backoff_timing():
 
     # Track sleep delays
     sleep_delays = []
+
     def track_sleep(delay):
         sleep_delays.append(delay)
 
-    with patch('time.sleep', side_effect=track_sleep):
+    with patch("time.sleep", side_effect=track_sleep):
         for chunk_idx, (chunk, chunk_size) in enumerate(zip(chunks, chunk_sizes)):
             for attempt in range(vis.local.max_retries + 1):
                 try:
                     vis.extend_frames(chunk)
                     break
-                except (ConnectionError, IOError, TimeoutError) as e:
+                except (ConnectionError, IOError, TimeoutError):
                     if attempt == vis.local.max_retries:
                         raise
                     else:
                         delay = vis.local.retry_delay * (2**attempt)
                         import time
+
                         time.sleep(delay)
 
     # Verify exponential backoff: 1.0, 2.0, 4.0

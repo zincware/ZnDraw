@@ -33,10 +33,12 @@ def test_msgpack_encoding(server, s22):
     unpacked_data = msgpack.unpackb(raw_data, raw=True)
     assert isinstance(unpacked_data, list)
     assert len(unpacked_data) == 2
-    
+
     ## Key 0 ##
-    assert unpacked_data[0].keys() == {b'arrays.positions', b'arrays.numbers'}
-    positions = msgpack.unpackb(unpacked_data[0][b'arrays.positions'], object_hook=m.decode)
+    assert unpacked_data[0].keys() == {b"arrays.positions", b"arrays.numbers"}
+    positions = msgpack.unpackb(
+        unpacked_data[0][b"arrays.positions"], object_hook=m.decode
+    )
     assert isinstance(positions, np.ndarray)
     assert positions.shape == (8, 3)
     # compare ASE Atoms objects
@@ -44,8 +46,10 @@ def test_msgpack_encoding(server, s22):
     assert atoms == s22[0]
 
     ## Key 1 ##
-    assert unpacked_data[1].keys() == {b'arrays.positions', b'arrays.numbers'}
-    positions = msgpack.unpackb(unpacked_data[1][b'arrays.positions'], object_hook=m.decode)
+    assert unpacked_data[1].keys() == {b"arrays.positions", b"arrays.numbers"}
+    positions = msgpack.unpackb(
+        unpacked_data[1][b"arrays.positions"], object_hook=m.decode
+    )
     assert isinstance(positions, np.ndarray)
     assert positions.shape == (6, 3)
     # compare ASE Atoms objects

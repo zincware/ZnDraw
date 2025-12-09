@@ -194,7 +194,9 @@ class RoomService:
             pipe.set(new_keys.description(), description)
 
         # Copy trajectory indices (shares frame data)
-        source_indices = self.r.zrange(source_keys.trajectory_indices(), 0, -1, withscores=True)
+        source_indices = self.r.zrange(
+            source_keys.trajectory_indices(), 0, -1, withscores=True
+        )
         if source_indices:
             pipe.zadd(
                 new_keys.trajectory_indices(),
@@ -253,7 +255,11 @@ class RoomService:
             ),
             "bonds": (
                 Bond,
-                {"position": "arrays.positions", "color": "arrays.colors", "scale": 0.15},
+                {
+                    "position": "arrays.positions",
+                    "color": "arrays.colors",
+                    "scale": 0.15,
+                },
             ),
             "curve": (Curve, {}),
             "cell": (Cell, {}),

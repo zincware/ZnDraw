@@ -8,38 +8,38 @@
  * ZnDraw room configuration combining all settings sections.
  */
 export interface RoomConfig {
-    camera?:             Camera;
-    pathtracing?:        PathTracing;
-    property_inspector?: PropertyInspector;
-    studio_lighting?:    StudioLighting;
-    [property: string]: any;
+	camera?: Camera;
+	pathtracing?: PathTracing;
+	property_inspector?: PropertyInspector;
+	studio_lighting?: StudioLighting;
+	[property: string]: any;
 }
 
 /**
  * Defines the camera projection and user interaction controls.
  */
 export interface Camera {
-    /**
-     * Camera projection type
-     */
-    camera?: CameraEnum;
-    /**
-     * Camera far rendering plane
-     */
-    far_plane?: number;
-    /**
-     * Camera near rendering plane
-     */
-    near_plane?: number;
-    /**
-     * Enable screenshot capture (WARNING: reduces rendering performance)
-     */
-    preserve_drawing_buffer?: boolean;
-    /**
-     * Show a crosshair at the camera's focal point
-     */
-    show_crosshair?: boolean;
-    [property: string]: any;
+	/**
+	 * Camera projection type
+	 */
+	camera?: CameraEnum;
+	/**
+	 * Camera far rendering plane
+	 */
+	far_plane?: number;
+	/**
+	 * Camera near rendering plane
+	 */
+	near_plane?: number;
+	/**
+	 * Enable screenshot capture (WARNING: reduces rendering performance)
+	 */
+	preserve_drawing_buffer?: boolean;
+	/**
+	 * Show a crosshair at the camera's focal point
+	 */
+	show_crosshair?: boolean;
+	[property: string]: any;
 }
 
 /**
@@ -51,92 +51,103 @@ export type CameraEnum = "PerspectiveCamera" | "OrthographicCamera";
  * GPU Path Tracing settings for high-quality physically-based rendering.
  */
 export interface PathTracing {
-    /**
-     * Number of light bounces for global illumination
-     */
-    bounces?: number;
-    /**
-     * Enable GPU path tracing renderer
-     */
-    enabled?: boolean;
-    /**
-     * Show environment as visible background
-     */
-    environment_background?: boolean;
-    /**
-     * Environment background blur amount
-     */
-    environment_blur?: number;
-    /**
-     * Environment map brightness multiplier
-     */
-    environment_intensity?: number;
-    /**
-     * HDRI environment preset for scene lighting
-     */
-    environment_preset?: EnvironmentPreset;
-    /**
-     * Minimum samples before displaying result
-     */
-    min_samples?: number;
-    /**
-     * Maximum samples to render
-     */
-    samples?: number;
-    /**
-     * Rendering tile count (higher = less memory, slower)
-     */
-    tiles?: number;
-    [property: string]: any;
+	/**
+	 * Number of light bounces for global illumination
+	 */
+	bounces?: number;
+	/**
+	 * Enable GPU path tracing renderer
+	 */
+	enabled?: boolean;
+	/**
+	 * Show environment as visible background
+	 */
+	environment_background?: boolean;
+	/**
+	 * Environment background blur amount
+	 */
+	environment_blur?: number;
+	/**
+	 * Environment map brightness multiplier
+	 */
+	environment_intensity?: number;
+	/**
+	 * HDRI environment preset for scene lighting
+	 */
+	environment_preset?: EnvironmentPreset;
+	/**
+	 * Minimum samples before displaying result
+	 */
+	min_samples?: number;
+	/**
+	 * Maximum samples to render
+	 */
+	samples?: number;
+	/**
+	 * Rendering tile count (higher = less memory, slower)
+	 */
+	tiles?: number;
+	[property: string]: any;
 }
 
 /**
  * HDRI environment preset for scene lighting
  */
-export type EnvironmentPreset = "none" | "apartment" | "city" | "dawn" | "forest" | "lobby" | "night" | "park" | "studio" | "sunset" | "warehouse";
+export type EnvironmentPreset =
+	| "none"
+	| "apartment"
+	| "city"
+	| "dawn"
+	| "forest"
+	| "lobby"
+	| "night"
+	| "park"
+	| "studio"
+	| "sunset"
+	| "warehouse";
 
 /**
  * Property Inspector settings for per-particle and global property display.
  */
 export interface PropertyInspector {
-    /**
-     * Selected property keys to display in the inspector table
-     */
-    enabled_properties?: string[];
-    [property: string]: any;
+	/**
+	 * Selected property keys to display in the inspector table
+	 */
+	enabled_properties?: string[];
+	[property: string]: any;
 }
 
 /**
  * Controls for the neutral studio lighting setup.
  */
 export interface StudioLighting {
-    /**
-     * Intensity of the ambient light that fills the scene
-     */
-    ambient_light?: number;
-    /**
-     * Neutral background color of the scene
-     */
-    background_color?: string;
-    /**
-     * Show contact shadow below the model
-     */
-    contact_shadow?: boolean;
-    /**
-     * Intensity of the soft global light that lifts shadows
-     */
-    fill_light?: number;
-    /**
-     * Intensity of the ambient light from above
-     */
-    hemisphere_light?: number;
-    /**
-     * Intensity of the main light attached to the camera
-     */
-    key_light?: number;
-    /**
-     * Intensity of the back light that creates highlights
-     */
-    rim_light?: number;
-    [property: string]: any;
+	/**
+	 * Intensity of the ambient light that fills the scene
+	 */
+	ambient_light?: number;
+	/**
+	 * Neutral background color of the scene
+	 */
+	background_color?: string;
+	/**
+	 * Show contact shadow below the model
+	 */
+	contact_shadow?: boolean;
+	/**
+	 * Intensity of the soft global light that lifts shadows
+	 */
+	fill_light?: number;
+	/**
+	 * Intensity of the ambient light from above
+	 */
+	hemisphere_light?: number;
+	/**
+	 * Intensity of the main light attached to the camera
+	 */
+	key_light?: number;
+	/**
+	 * Intensity of the back light that creates highlights
+	 */
+	rim_light?: number;
+	[property: string]: any;
 }

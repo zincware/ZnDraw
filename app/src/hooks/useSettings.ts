@@ -7,10 +7,10 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  getSettingsSchemas,
-  getSetting,
-  updateSetting,
-  type SettingsSchema,
+	getSettingsSchemas,
+	getSetting,
+	updateSetting,
+	type SettingsSchema,
 } from "../myapi/client";
 import { useAppStore } from "../store";
 
@@ -21,13 +21,13 @@ export type { SettingsSchema };
  * Returns the JSON schemas for all settings categories.
  */
 export const useSettingsSchemas = (roomId: string) => {
-  return useQuery({
-    queryKey: ["settingsSchemas", roomId],
-    queryFn: async () => {
-      return await getSettingsSchemas(roomId);
-    },
-    enabled: !!roomId,
-  });
+	return useQuery({
+		queryKey: ["settingsSchemas", roomId],
+		queryFn: async () => {
+			return await getSettingsSchemas(roomId);
+		},
+		enabled: !!roomId,
+	});
 };
 
 /**
@@ -41,17 +41,17 @@ export const useSettingsSchemas = (roomId: string) => {
  * @param category - Settings category (camera, studio_lighting, etc.)
  */
 export const useSettingData = (roomId: string, category: string) => {
-  const userName = useAppStore((state) => state.userName);
+	const userName = useAppStore((state) => state.userName);
 
-  return useQuery({
-    queryKey: ["settingData", roomId, userName, category],
-    queryFn: async () => {
-      const result = await getSetting(roomId, category);
-      return result.data;
-    },
-    staleTime: Infinity, // Settings don't change often, rely on socket invalidation
-    enabled: !!roomId && !!userName && !!category,
-  });
+	return useQuery({
+		queryKey: ["settingData", roomId, userName, category],
+		queryFn: async () => {
+			const result = await getSetting(roomId, category);
+			return result.data;
+		},
+		staleTime: Infinity, // Settings don't change often, rely on socket invalidation
+		enabled: !!roomId && !!userName && !!category,
+	});
 };
 
 /**
@@ -60,27 +60,27 @@ export const useSettingData = (roomId: string, category: string) => {
  * Automatically updates the query cache on success.
  */
 export const useUpdateSetting = () => {
-  const queryClient = useQueryClient();
-  const userName = useAppStore((state) => state.userName);
+	const queryClient = useQueryClient();
+	const userName = useAppStore((state) => state.userName);
 
-  return useMutation({
-    mutationFn: async (variables: {
-      roomId: string;
-      category: string;
-      data: any;
-    }) => {
-      const { roomId, category, data } = variables;
-      return await updateSetting(roomId, category, data);
-    },
-    onSuccess: (_, variables) => {
-      const { roomId, category, data: submittedData } = variables;
+	return useMutation({
+		mutationFn: async (variables: {
+			roomId: string;
+			category: string;
+			data: any;
+		}) => {
+			const { roomId, category, data } = variables;
+			return await updateSetting(roomId, category, data);
+		},
+		onSuccess: (_, variables) => {
+			const { roomId, category, data: submittedData } = variables;
 
-      // Optimistically update the cache with the submitted data
-      const queryKey = ["settingData", roomId, userName, category];
-      queryClient.setQueryData(queryKey, submittedData);
-    },
-    onError: (error) => {
-      console.error("Error updating setting:", error);
-    },
-  });
+			// Optimistically update the cache with the submitted data
+			const queryKey = ["settingData", roomId, userName, category];
+			queryClient.setQueryData(queryKey, submittedData);
+		},
+		onError: (error) => {
+			console.error("Error updating setting:", error);
+		},
+	});
 };

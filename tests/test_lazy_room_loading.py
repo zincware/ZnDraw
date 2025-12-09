@@ -17,7 +17,9 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     headers = get_jwt_auth_headers(server)
 
     # Step 1: Join room (minimal response)
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={}, headers=headers)
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=headers
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
@@ -43,7 +45,9 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     assert selections_data["activeGroup"] is None
 
     # Step 4: Fetch frame selection
-    response = requests.get(f"{server}/api/rooms/{room}/frame-selection", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/frame-selection", headers=headers
+    )
     assert response.status_code == 200
     frame_selection_data = response.json()
     assert frame_selection_data["frameSelection"] is None
@@ -92,7 +96,9 @@ def test_lazy_loading_with_data(server, s22, get_jwt_auth_headers):
     vis.bookmarks[2] = "Frame 2"
 
     # Step 1: Join room as different user
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={}, headers=headers)
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=headers
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["created"] is False  # Room already exists
@@ -136,7 +142,9 @@ def test_lazy_loading_auth_required(server, get_jwt_auth_headers):
     headers = get_jwt_auth_headers(server)
 
     # Create room first
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={}, headers=headers)
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=headers
+    )
     assert response.status_code == 200
 
     # Try to access endpoints without auth - should fail with 401
@@ -175,7 +183,9 @@ def test_lazy_loading_nonexistent_room(server, get_jwt_auth_headers):
     for endpoint in endpoints:
         response = requests.get(f"{server}{endpoint}", headers=headers)
         # Should return either 200 with empty data or 404, but not 500
-        assert response.status_code in [200, 404], f"Endpoint {endpoint} returned {response.status_code}"
+        assert response.status_code in [200, 404], (
+            f"Endpoint {endpoint} returned {response.status_code}"
+        )
 
 
 def test_step_clamping_with_deleted_frames(server, s22, get_jwt_auth_headers):
@@ -230,7 +240,9 @@ def test_parallel_lazy_loading(server, s22, get_jwt_auth_headers):
     vis.bookmarks[1] = "Parallel test"
 
     # Join room
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={}, headers=headers)
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=headers
+    )
     assert response.status_code == 200
 
     # Define all endpoints to fetch
@@ -246,7 +258,10 @@ def test_parallel_lazy_loading(server, s22, get_jwt_auth_headers):
 
     # Fetch all endpoints in parallel
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(endpoints)) as executor:
-        futures = {executor.submit(requests.get, url, headers=headers): url for url in endpoints}
+        futures = {
+            executor.submit(requests.get, url, headers=headers): url
+            for url in endpoints
+        }
         results = {}
         for future in concurrent.futures.as_completed(futures):
             url = futures[future]
@@ -258,7 +273,9 @@ def test_parallel_lazy_loading(server, s22, get_jwt_auth_headers):
 
     # Verify all requests succeeded
     for url, response in results.items():
-        assert response.status_code == 200, f"Failed to fetch {url}: {response.status_code}"
+        assert response.status_code == 200, (
+            f"Failed to fetch {url}: {response.status_code}"
+        )
         data = response.json()
         assert data is not None, f"Empty response from {url}"
 

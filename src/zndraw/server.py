@@ -109,8 +109,7 @@ def create_app(
     # Configure logging from config
     log_level = getattr(logging, config.log_level.upper(), logging.WARNING)
     logging.basicConfig(
-        level=log_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=log_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
     log.info(f"Logging configured at level: {config.log_level}")
 
@@ -199,9 +198,7 @@ def create_app(
         log.info("Configuring SocketIO without message queue (single worker mode)")
         socketio.init_app(app, cors_allowed_origins="*")
 
-    app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
-        '/metrics': make_wsgi_app()
-    })
+    app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {"/metrics": make_wsgi_app()})
     log.info("Prometheus metrics endpoint enabled at /metrics")
 
     return app

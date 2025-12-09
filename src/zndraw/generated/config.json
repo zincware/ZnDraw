@@ -1,261 +1,258 @@
 {
-  "$defs": {
-    "Camera": {
-      "description": "Defines the camera projection and user interaction controls.",
-      "properties": {
-        "camera": {
-          "$ref": "#/$defs/CameraEnum",
-          "default": "PerspectiveCamera",
-          "description": "Camera projection type"
-        },
-        "near_plane": {
-          "default": 0.1,
-          "description": "Camera near rendering plane",
-          "maximum": 100,
-          "minimum": 0,
-          "title": "Near Plane",
-          "type": "number"
-        },
-        "far_plane": {
-          "default": 300,
-          "description": "Camera far rendering plane",
-          "maximum": 1000,
-          "minimum": 1,
-          "title": "Far Plane",
-          "type": "number"
-        },
-        "show_crosshair": {
-          "default": false,
-          "description": "Show a crosshair at the camera's focal point",
-          "title": "Show Crosshair",
-          "type": "boolean"
-        },
-        "preserve_drawing_buffer": {
-          "default": false,
-          "description": "Enable screenshot capture (WARNING: reduces rendering performance)",
-          "title": "Preserve Drawing Buffer",
-          "type": "boolean"
-        }
-      },
-      "title": "Camera",
-      "type": "object"
-    },
-    "CameraEnum": {
-      "enum": [
-        "PerspectiveCamera",
-        "OrthographicCamera"
-      ],
-      "title": "CameraEnum",
-      "type": "string"
-    },
-    "EnvironmentPreset": {
-      "enum": [
-        "none",
-        "apartment",
-        "city",
-        "dawn",
-        "forest",
-        "lobby",
-        "night",
-        "park",
-        "studio",
-        "sunset",
-        "warehouse"
-      ],
-      "title": "EnvironmentPreset",
-      "type": "string"
-    },
-    "PathTracing": {
-      "description": "GPU Path Tracing settings for high-quality physically-based rendering.",
-      "properties": {
-        "enabled": {
-          "default": false,
-          "description": "Enable GPU path tracing renderer",
-          "title": "Enabled",
-          "type": "boolean"
-        },
-        "min_samples": {
-          "default": 1,
-          "description": "Minimum samples before displaying result",
-          "minimum": 1,
-          "title": "Min Samples",
-          "type": "integer"
-        },
-        "samples": {
-          "default": 256,
-          "description": "Maximum samples to render",
-          "maximum": 10000,
-          "minimum": 1,
-          "title": "Samples",
-          "type": "integer"
-        },
-        "bounces": {
-          "default": 3,
-          "description": "Number of light bounces for global illumination",
-          "maximum": 32,
-          "minimum": 1,
-          "title": "Bounces",
-          "type": "integer"
-        },
-        "tiles": {
-          "default": 1,
-          "description": "Rendering tile count (higher = less memory, slower)",
-          "maximum": 8,
-          "minimum": 1,
-          "title": "Tiles",
-          "type": "integer"
-        },
-        "environment_preset": {
-          "$ref": "#/$defs/EnvironmentPreset",
-          "default": "studio",
-          "description": "HDRI environment preset for scene lighting"
-        },
-        "environment_intensity": {
-          "default": 1.0,
-          "description": "Environment map brightness multiplier",
-          "maximum": 10.0,
-          "minimum": 0.0,
-          "title": "Environment Intensity",
-          "type": "number"
-        },
-        "environment_blur": {
-          "default": 0.0,
-          "description": "Environment background blur amount",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Environment Blur",
-          "type": "number"
-        },
-        "environment_background": {
-          "default": false,
-          "description": "Show environment as visible background",
-          "title": "Environment Background",
-          "type": "boolean"
-        }
-      },
-      "title": "PathTracing",
-      "type": "object"
-    },
-    "PropertyInspector": {
-      "description": "Property Inspector settings for per-particle and global property display.",
-      "properties": {
-        "enabled_properties": {
-          "description": "Selected property keys to display in the inspector table",
-          "items": {
-            "type": "string"
-          },
-          "title": "Enabled Properties",
-          "type": "array"
-        }
-      },
-      "title": "PropertyInspector",
-      "type": "object"
-    },
-    "StudioLighting": {
-      "description": "Controls for the neutral studio lighting setup.",
-      "properties": {
-        "background_color": {
-          "default": "default",
-          "description": "Neutral background color of the scene",
-          "title": "Background Color",
-          "type": "string"
-        },
-        "key_light": {
-          "default": 0.7,
-          "description": "Intensity of the main light attached to the camera",
-          "maximum": 3.0,
-          "minimum": 0.0,
-          "title": "Key Light",
-          "type": "number"
-        },
-        "fill_light": {
-          "default": 0.4,
-          "description": "Intensity of the soft global light that lifts shadows",
-          "maximum": 3.0,
-          "minimum": 0.0,
-          "title": "Fill Light",
-          "type": "number"
-        },
-        "rim_light": {
-          "default": 0.5,
-          "description": "Intensity of the back light that creates highlights",
-          "maximum": 5.0,
-          "minimum": 0.0,
-          "title": "Rim Light",
-          "type": "number"
-        },
-        "hemisphere_light": {
-          "default": 0.3,
-          "description": "Intensity of the ambient light from above",
-          "maximum": 3.0,
-          "minimum": 0.0,
-          "title": "Hemisphere Light",
-          "type": "number"
-        },
-        "ambient_light": {
-          "default": 0.35,
-          "description": "Intensity of the ambient light that fills the scene",
-          "maximum": 3.0,
-          "minimum": 0.0,
-          "title": "Ambient Light",
-          "type": "number"
-        },
-        "contact_shadow": {
-          "default": false,
-          "description": "Show contact shadow below the model",
-          "title": "Contact Shadow",
-          "type": "boolean"
-        }
-      },
-      "title": "StudioLighting",
-      "type": "object"
-    }
-  },
-  "description": "ZnDraw room configuration combining all settings sections.",
-  "properties": {
-    "camera": {
-      "$ref": "#/$defs/Camera",
-      "default": {
-        "camera": "PerspectiveCamera",
-        "near_plane": 0.1,
-        "far_plane": 300.0,
-        "show_crosshair": false,
-        "preserve_drawing_buffer": false
-      }
-    },
-    "studio_lighting": {
-      "$ref": "#/$defs/StudioLighting",
-      "default": {
-        "background_color": "default",
-        "key_light": 0.7,
-        "fill_light": 0.4,
-        "rim_light": 0.5,
-        "hemisphere_light": 0.3,
-        "ambient_light": 0.35,
-        "contact_shadow": false
-      }
-    },
-    "property_inspector": {
-      "$ref": "#/$defs/PropertyInspector",
-      "default": {
-        "enabled_properties": []
-      }
-    },
-    "pathtracing": {
-      "$ref": "#/$defs/PathTracing",
-      "default": {
-        "enabled": false,
-        "min_samples": 1,
-        "samples": 256,
-        "bounces": 3,
-        "tiles": 1,
-        "environment_preset": "studio",
-        "environment_intensity": 1.0,
-        "environment_blur": 0.0,
-        "environment_background": false
-      }
-    }
-  },
-  "title": "RoomConfig",
-  "type": "object"
+	"$defs": {
+		"Camera": {
+			"description": "Defines the camera projection and user interaction controls.",
+			"properties": {
+				"camera": {
+					"$ref": "#/$defs/CameraEnum",
+					"default": "PerspectiveCamera",
+					"description": "Camera projection type"
+				},
+				"near_plane": {
+					"default": 0.1,
+					"description": "Camera near rendering plane",
+					"maximum": 100,
+					"minimum": 0,
+					"title": "Near Plane",
+					"type": "number"
+				},
+				"far_plane": {
+					"default": 300,
+					"description": "Camera far rendering plane",
+					"maximum": 1000,
+					"minimum": 1,
+					"title": "Far Plane",
+					"type": "number"
+				},
+				"show_crosshair": {
+					"default": false,
+					"description": "Show a crosshair at the camera's focal point",
+					"title": "Show Crosshair",
+					"type": "boolean"
+				},
+				"preserve_drawing_buffer": {
+					"default": false,
+					"description": "Enable screenshot capture (WARNING: reduces rendering performance)",
+					"title": "Preserve Drawing Buffer",
+					"type": "boolean"
+				}
+			},
+			"title": "Camera",
+			"type": "object"
+		},
+		"CameraEnum": {
+			"enum": ["PerspectiveCamera", "OrthographicCamera"],
+			"title": "CameraEnum",
+			"type": "string"
+		},
+		"EnvironmentPreset": {
+			"enum": [
+				"none",
+				"apartment",
+				"city",
+				"dawn",
+				"forest",
+				"lobby",
+				"night",
+				"park",
+				"studio",
+				"sunset",
+				"warehouse"
+			],
+			"title": "EnvironmentPreset",
+			"type": "string"
+		},
+		"PathTracing": {
+			"description": "GPU Path Tracing settings for high-quality physically-based rendering.",
+			"properties": {
+				"enabled": {
+					"default": false,
+					"description": "Enable GPU path tracing renderer",
+					"title": "Enabled",
+					"type": "boolean"
+				},
+				"min_samples": {
+					"default": 1,
+					"description": "Minimum samples before displaying result",
+					"minimum": 1,
+					"title": "Min Samples",
+					"type": "integer"
+				},
+				"samples": {
+					"default": 256,
+					"description": "Maximum samples to render",
+					"maximum": 10000,
+					"minimum": 1,
+					"title": "Samples",
+					"type": "integer"
+				},
+				"bounces": {
+					"default": 3,
+					"description": "Number of light bounces for global illumination",
+					"maximum": 32,
+					"minimum": 1,
+					"title": "Bounces",
+					"type": "integer"
+				},
+				"tiles": {
+					"default": 1,
+					"description": "Rendering tile count (higher = less memory, slower)",
+					"maximum": 8,
+					"minimum": 1,
+					"title": "Tiles",
+					"type": "integer"
+				},
+				"environment_preset": {
+					"$ref": "#/$defs/EnvironmentPreset",
+					"default": "studio",
+					"description": "HDRI environment preset for scene lighting"
+				},
+				"environment_intensity": {
+					"default": 1.0,
+					"description": "Environment map brightness multiplier",
+					"maximum": 10.0,
+					"minimum": 0.0,
+					"title": "Environment Intensity",
+					"type": "number"
+				},
+				"environment_blur": {
+					"default": 0.0,
+					"description": "Environment background blur amount",
+					"maximum": 1.0,
+					"minimum": 0.0,
+					"title": "Environment Blur",
+					"type": "number"
+				},
+				"environment_background": {
+					"default": false,
+					"description": "Show environment as visible background",
+					"title": "Environment Background",
+					"type": "boolean"
+				}
+			},
+			"title": "PathTracing",
+			"type": "object"
+		},
+		"PropertyInspector": {
+			"description": "Property Inspector settings for per-particle and global property display.",
+			"properties": {
+				"enabled_properties": {
+					"description": "Selected property keys to display in the inspector table",
+					"items": {
+						"type": "string"
+					},
+					"title": "Enabled Properties",
+					"type": "array"
+				}
+			},
+			"title": "PropertyInspector",
+			"type": "object"
+		},
+		"StudioLighting": {
+			"description": "Controls for the neutral studio lighting setup.",
+			"properties": {
+				"background_color": {
+					"default": "default",
+					"description": "Neutral background color of the scene",
+					"title": "Background Color",
+					"type": "string"
+				},
+				"key_light": {
+					"default": 0.7,
+					"description": "Intensity of the main light attached to the camera",
+					"maximum": 3.0,
+					"minimum": 0.0,
+					"title": "Key Light",
+					"type": "number"
+				},
+				"fill_light": {
+					"default": 0.4,
+					"description": "Intensity of the soft global light that lifts shadows",
+					"maximum": 3.0,
+					"minimum": 0.0,
+					"title": "Fill Light",
+					"type": "number"
+				},
+				"rim_light": {
+					"default": 0.5,
+					"description": "Intensity of the back light that creates highlights",
+					"maximum": 5.0,
+					"minimum": 0.0,
+					"title": "Rim Light",
+					"type": "number"
+				},
+				"hemisphere_light": {
+					"default": 0.3,
+					"description": "Intensity of the ambient light from above",
+					"maximum": 3.0,
+					"minimum": 0.0,
+					"title": "Hemisphere Light",
+					"type": "number"
+				},
+				"ambient_light": {
+					"default": 0.35,
+					"description": "Intensity of the ambient light that fills the scene",
+					"maximum": 3.0,
+					"minimum": 0.0,
+					"title": "Ambient Light",
+					"type": "number"
+				},
+				"contact_shadow": {
+					"default": false,
+					"description": "Show contact shadow below the model",
+					"title": "Contact Shadow",
+					"type": "boolean"
+				}
+			},
+			"title": "StudioLighting",
+			"type": "object"
+		}
+	},
+	"description": "ZnDraw room configuration combining all settings sections.",
+	"properties": {
+		"camera": {
+			"$ref": "#/$defs/Camera",
+			"default": {
+				"camera": "PerspectiveCamera",
+				"near_plane": 0.1,
+				"far_plane": 300.0,
+				"show_crosshair": false,
+				"preserve_drawing_buffer": false
+			}
+		},
+		"studio_lighting": {
+			"$ref": "#/$defs/StudioLighting",
+			"default": {
+				"background_color": "default",
+				"key_light": 0.7,
+				"fill_light": 0.4,
+				"rim_light": 0.5,
+				"hemisphere_light": 0.3,
+				"ambient_light": 0.35,
+				"contact_shadow": false
+			}
+		},
+		"property_inspector": {
+			"$ref": "#/$defs/PropertyInspector",
+			"default": {
+				"enabled_properties": []
+			}
+		},
+		"pathtracing": {
+			"$ref": "#/$defs/PathTracing",
+			"default": {
+				"enabled": false,
+				"min_samples": 1,
+				"samples": 256,
+				"bounces": 3,
+				"tiles": 1,
+				"environment_preset": "studio",
+				"environment_intensity": 1.0,
+				"environment_blur": 0.0,
+				"environment_background": false
+			}
+		}
+	},
+	"title": "RoomConfig",
+	"type": "object"
 }

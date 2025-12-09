@@ -162,7 +162,7 @@ def main(
         False,
         "--remove-storage",
         help="Remove existing storage directory on startup.",
-    )
+    ),
 ):
     """
     Start or connect to a ZnDraw server.
@@ -240,6 +240,7 @@ def main(
         else:
             typer.echo("✗ Failed to shut down server")
             raise typer.Exit(1)
+
     # Helper to compute room names based on flags
     def get_room_names(paths: list[str]) -> list[str]:
         """Compute room names for given paths based on --room and --append flags."""
@@ -334,7 +335,9 @@ def main(
 
                 # Open browser before uploading so user can watch progress
                 if browser:
-                    browser_url = f"http://localhost:{server_info.port}/rooms/{first_room}"
+                    browser_url = (
+                        f"http://localhost:{server_info.port}/rooms/{first_room}"
+                    )
                     typer.echo(f"Opening browser at {browser_url}")
                     webbrowser.open(browser_url)
 
@@ -382,14 +385,11 @@ def main(
 
     # Compute room names upfront (if files provided)
     room_names = get_room_names(path) if path else []
-    typer.echo(
-        f"Rooms: {room_names}"
-        if path
-        else "No files loaded on startup."
-    )
+    typer.echo(f"Rooms: {room_names}" if path else "No files loaded on startup.")
 
     # Load configuration from environment and apply CLI overrides
     from zndraw.config import get_config
+
     config = get_config()
 
     # Override config with CLI arguments
@@ -417,12 +417,16 @@ def main(
             typer.echo(f"✓ Removed existing storage directory: {config.storage_path}")
         else:
             typer.echo(f"⚠️  Warning: Found existing LMDB data at {config.storage_path}")
-            typer.echo("   This data may be stale when using in-memory storage (no Redis).")
+            typer.echo(
+                "   This data may be stale when using in-memory storage (no Redis)."
+            )
             if typer.confirm("   Delete and start fresh?", default=True):
                 shutil.rmtree(config.storage_path)
                 typer.echo(f"✓ Cleaned storage directory: {config.storage_path}")
             else:
-                typer.echo("⚠️  Continuing with existing data (may cause state inconsistencies)")
+                typer.echo(
+                    "⚠️  Continuing with existing data (may cause state inconsistencies)"
+                )
 
     flask_app = create_app(config=config)
 
@@ -443,6 +447,7 @@ def main(
 
     # Generate secure shutdown token for CLI-based shutdown
     import secrets
+
     shutdown_token = secrets.token_urlsafe(32)
 
     # Store shutdown token in Flask app config for validation
@@ -478,9 +483,7 @@ def main(
     # Open browser if requested
     if browser:
         if first_room:
-            browser_url = (
-                f"http://localhost:{port}/rooms/{first_room}"
-            )
+            browser_url = f"http://localhost:{port}/rooms/{first_room}"
             typer.echo(f"Opening browser at {browser_url}")
         else:
             browser_url = f"http://localhost:{port}"

@@ -1,6 +1,6 @@
 """Tests for version compatibility checking between client and server."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 

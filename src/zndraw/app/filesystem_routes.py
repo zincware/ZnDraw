@@ -3,6 +3,7 @@
 These endpoints use Socket.IO RPC to communicate with client workers
 that have registered filesystems.
 """
+
 import logging
 import uuid
 
@@ -64,12 +65,14 @@ def _list_filesystems_impl(room_id: str | None):
 
             metadata = r.hgetall(key)
             if metadata:
-                filesystems.append({
-                    "name": metadata.get("name"),
-                    "fsType": metadata.get("fsType"),
-                    "public": metadata.get("public") == "true",
-                    "sessionId": metadata.get("sessionId"),
-                })
+                filesystems.append(
+                    {
+                        "name": metadata.get("name"),
+                        "fsType": metadata.get("fsType"),
+                        "public": metadata.get("public") == "true",
+                        "sessionId": metadata.get("sessionId"),
+                    }
+                )
 
     # Get global filesystems
     pattern = "global:filesystems:*"
@@ -81,12 +84,14 @@ def _list_filesystems_impl(room_id: str | None):
 
         metadata = r.hgetall(key)
         if metadata:
-            filesystems.append({
-                "name": metadata.get("name"),
-                "fsType": metadata.get("fsType"),
-                "public": metadata.get("public") == "true",
-                "sessionId": metadata.get("sessionId"),
-            })
+            filesystems.append(
+                {
+                    "name": metadata.get("name"),
+                    "fsType": metadata.get("fsType"),
+                    "public": metadata.get("public") == "true",
+                    "sessionId": metadata.get("sessionId"),
+                }
+            )
 
     return filesystems
 
@@ -126,7 +131,9 @@ def _list_files_impl(fs_name: str, public: bool, room_id: str | None = None):
 
     worker_id = r.get(keys.worker)
     if not worker_id:
-        return jsonify({"error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found"}), 404
+        return jsonify(
+            {"error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found"}
+        ), 404
 
     # Generate request ID
     request_id = str(uuid.uuid4())
@@ -170,7 +177,12 @@ def _list_files_impl(fs_name: str, public: bool, room_id: str | None = None):
         return jsonify({"error": str(e)}), 500
 
 
-def _load_file_impl(fs_name: str, public: bool, room_id: str | None = None, require_target_room: bool = False):
+def _load_file_impl(
+    fs_name: str,
+    public: bool,
+    room_id: str | None = None,
+    require_target_room: bool = False,
+):
     """Shared implementation for loading files from a filesystem.
 
     Parameters
@@ -227,7 +239,9 @@ def _load_file_impl(fs_name: str, public: bool, room_id: str | None = None, requ
 
     worker_id = r.get(keys.worker)
     if not worker_id:
-        return jsonify({"error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found"}), 404
+        return jsonify(
+            {"error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found"}
+        ), 404
 
     # Generate request ID
     request_id = str(uuid.uuid4())
@@ -257,10 +271,12 @@ def _load_file_impl(fs_name: str, public: bool, room_id: str | None = None, requ
         if not response.get("success"):
             return jsonify({"error": response.get("error", "Unknown error")}), 500
 
-        return jsonify({
-            "success": True,
-            "frameCount": response.get("frameCount", 0),
-        })
+        return jsonify(
+            {
+                "success": True,
+                "frameCount": response.get("frameCount", 0),
+            }
+        )
 
     except Exception as e:
         log.error(f"Error loading file from filesystem '{fs_name}': {e}")
@@ -373,7 +389,9 @@ def _get_file_metadata_impl(fs_name: str, public: bool, room_id: str | None = No
 
     worker_id = r.get(keys.worker)
     if not worker_id:
-        return jsonify({"error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found"}), 404
+        return jsonify(
+            {"error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found"}
+        ), 404
 
     # Generate request ID
     request_id = str(uuid.uuid4())
@@ -382,7 +400,12 @@ def _get_file_metadata_impl(fs_name: str, public: bool, room_id: str | None = No
     try:
         response = socketio.call(
             "filesystem:metadata",
-            {"requestId": request_id, "fsName": fs_name, "public": public, "path": path},
+            {
+                "requestId": request_id,
+                "fsName": fs_name,
+                "public": public,
+                "path": path,
+            },
             to=worker_id,
             timeout=SOCKET_IO_TIMEOUT,
         )
@@ -434,7 +457,9 @@ def get_file_metadata(room_id: str, fs_name: str):
     return _get_file_metadata_impl(fs_name=fs_name, public=False, room_id=room_id)
 
 
-@filesystem_bp.route("/api/rooms/<room_id>/filesystems/<fs_name>/load", methods=["POST"])
+@filesystem_bp.route(
+    "/api/rooms/<room_id>/filesystems/<fs_name>/load", methods=["POST"]
+)
 def load_file(room_id: str, fs_name: str):
     """Load a file from a room-scoped filesystem and upload to the target room.
 
@@ -463,7 +488,9 @@ def load_file(room_id: str, fs_name: str):
     except AuthError as e:
         return jsonify({"error": e.message}), e.status_code
 
-    return _load_file_impl(fs_name=fs_name, public=False, room_id=room_id, require_target_room=False)
+    return _load_file_impl(
+        fs_name=fs_name, public=False, room_id=room_id, require_target_room=False
+    )
 
 
 # Global filesystem endpoints (no room_id required)

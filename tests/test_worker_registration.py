@@ -28,14 +28,15 @@ class TestExtension(Extension):
         """Dummy run method."""
         pass
 
+
 class RemoveAtoms(Extension):
     """Extension with different schema for testing."""
 
     category = Category.MODIFIER
     parameter: str = "does-not-exist-on-global-extension"
 
-    def run(self, atoms: Atoms, indices: list[int], **kwargs):
-        ...
+    def run(self, atoms: Atoms, indices: list[int], **kwargs): ...
+
 
 # We can't easily create two extension classes with the same __name__ in Python
 # So we'll dynamically create a class with a different schema for testing
@@ -44,6 +45,7 @@ def create_test_extension_with_different_schema():
 
     class TestExtension(Extension):
         """A test extension with different schema (has param field)."""
+
         category = Category.MODIFIER
         param: int = 42  # This field makes schema different
 
@@ -146,7 +148,7 @@ def test_global_extension_duplicate_schema_error(server):
 def test_reserved_name_protection_per_room(server):
     """Test that extensions cannot override server-side extension names."""
     vis = ZnDraw(url=server, room="test_room", user="test_user")
-    vis.register_extension(RemoveAtoms, public=False) # non-global is allowed
+    vis.register_extension(RemoveAtoms, public=False)  # non-global is allowed
 
     response = requests.get(f"{server}/api/rooms/test_room/schema/modifiers")
     assert response.status_code == 200
@@ -155,11 +157,12 @@ def test_reserved_name_protection_per_room(server):
     extension_names = [ext["name"] for ext in schemas]
     assert "RemoveAtoms" in extension_names
 
+
 def test_reserved_name_protection_global(server):
     """Test that extensions cannot override server-side extension names globally."""
     vis = ZnDraw(url=server, room="any_room", user="admin_user")
 
-    # Attempt to register RemoveAtoms as global extension should fail, because 
+    # Attempt to register RemoveAtoms as global extension should fail, because
     # it is a server side extension
     with pytest.raises(RuntimeError, match="reserved"):
         vis.register_extension(RemoveAtoms, public=True)

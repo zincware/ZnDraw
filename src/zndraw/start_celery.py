@@ -3,10 +3,17 @@
 import os
 import platform
 import subprocess
+import typing as t
+
+
+if t.TYPE_CHECKING:
+    from zndraw.config import ZnDrawConfig
 
 
 # We use this for running tests for now
-def run_celery_worker(config: "ZnDrawConfig | None" = None, redis_url: str | None = None) -> subprocess.Popen:
+def run_celery_worker(
+    config: "ZnDrawConfig | None" = None, redis_url: str | None = None
+) -> subprocess.Popen:
     """Run a celery worker with proper configuration.
 
     Parameters
@@ -51,7 +58,9 @@ def run_celery_worker(config: "ZnDrawConfig | None" = None, redis_url: str | Non
 
         # Optional features
         my_env["ZNDRAW_SIMGEN_ENABLED"] = "true" if config.simgen_enabled else "false"
-        my_env["ZNDRAW_FILE_BROWSER_ENABLED"] = "true" if config.file_browser_enabled else "false"
+        my_env["ZNDRAW_FILE_BROWSER_ENABLED"] = (
+            "true" if config.file_browser_enabled else "false"
+        )
         my_env["ZNDRAW_FILE_BROWSER_ROOT"] = config.file_browser_root
         my_env["ZNDRAW_CELERY_ENABLED"] = "true" if config.celery_enabled else "false"
 
@@ -70,7 +79,6 @@ def run_celery_worker(config: "ZnDrawConfig | None" = None, redis_url: str | Non
             "worker",
             "--loglevel=info",
             "--pool=eventlet",
-
         ],
         env=my_env,
     )

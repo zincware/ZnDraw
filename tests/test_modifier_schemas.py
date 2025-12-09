@@ -19,25 +19,29 @@ def test_modifier_curve_field_schema(modifier_class):
     schema = modifier_class.model_json_schema()
 
     # Verify curve field exists
-    assert "curve" in schema["properties"], f"{modifier_class.__name__} missing 'curve' field"
+    assert "curve" in schema["properties"], (
+        f"{modifier_class.__name__} missing 'curve' field"
+    )
 
     curve_schema = schema["properties"]["curve"]
 
     # Verify x-custom-type is set to dynamic-enum
-    assert (
-        curve_schema.get("x-custom-type") == "dynamic-enum"
-    ), f"{modifier_class.__name__} curve field missing x-custom-type: dynamic-enum"
+    assert curve_schema.get("x-custom-type") == "dynamic-enum", (
+        f"{modifier_class.__name__} curve field missing x-custom-type: dynamic-enum"
+    )
 
     # Verify x-features contains dynamic-geometries
-    assert "x-features" in curve_schema, f"{modifier_class.__name__} curve field missing x-features"
-    assert (
-        "dynamic-geometries" in curve_schema["x-features"]
-    ), f"{modifier_class.__name__} curve field x-features missing 'dynamic-geometries'"
+    assert "x-features" in curve_schema, (
+        f"{modifier_class.__name__} curve field missing x-features"
+    )
+    assert "dynamic-geometries" in curve_schema["x-features"], (
+        f"{modifier_class.__name__} curve field x-features missing 'dynamic-geometries'"
+    )
 
     # Verify x-geometry-filter is set to Curve
-    assert (
-        curve_schema.get("x-geometry-filter") == "Curve"
-    ), f"{modifier_class.__name__} curve field missing x-geometry-filter: Curve"
+    assert curve_schema.get("x-geometry-filter") == "Curve", (
+        f"{modifier_class.__name__} curve field missing x-geometry-filter: Curve"
+    )
 
 
 def test_connect_schema():
@@ -47,7 +51,10 @@ def test_connect_schema():
     assert "properties" in schema
     assert "curve" in schema["properties"]
     assert schema["properties"]["curve"]["type"] == "string"
-    assert schema["properties"]["curve"]["description"] == "Name of the curve geometry to use"
+    assert (
+        schema["properties"]["curve"]["description"]
+        == "Name of the curve geometry to use"
+    )
 
 
 def test_rotate_schema():

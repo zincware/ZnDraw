@@ -94,7 +94,7 @@ def test_worker_read_file_db_empty(server, tmp_path):
 
     # Create empty database
     db_path = tmp_path / "empty.db"
-    db = ase.db.connect(str(db_path))
+    ase.db.connect(str(db_path))  # Creates the database file
     # Don't write any structures
 
     # Should not raise an error, just return early

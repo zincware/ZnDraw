@@ -107,7 +107,10 @@ def test_global_endpoint_rejects_room_filesystem(server):
 
 def test_same_name_both_namespaces_list_correctly(server, s22):
     """Filesystems with same name in different namespaces list files correctly."""
-    with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
+    with (
+        tempfile.TemporaryDirectory() as tmpdir1,
+        tempfile.TemporaryDirectory() as tmpdir2,
+    ):
         # Create distinct files in each directory
         room_file = Path(tmpdir1) / "room_file.xyz"
         global_file = Path(tmpdir2) / "global_file.xyz"
@@ -299,7 +302,10 @@ def test_global_endpoint_rejects_room_filesystem_load(server, s22):
 
 def test_same_name_both_namespaces_load_correctly(server, s22):
     """Load endpoints work correctly with same filesystem name in different namespaces."""
-    with tempfile.TemporaryDirectory() as tmpdir1, tempfile.TemporaryDirectory() as tmpdir2:
+    with (
+        tempfile.TemporaryDirectory() as tmpdir1,
+        tempfile.TemporaryDirectory() as tmpdir2,
+    ):
         room_file = Path(tmpdir1) / "room.xyz"
         global_file = Path(tmpdir2) / "global.xyz"
         ase.io.write(room_file, s22[:4])

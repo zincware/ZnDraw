@@ -9,6 +9,10 @@ from ase.data import chemical_symbols
 from pydantic import Field
 
 from zndraw.extensions.abc import Extension, Category
+from zndraw.utils import get_scaled_radii
+
+if t.TYPE_CHECKING:
+    from zndraw import ZnDraw
 
 log = logging.getLogger("zndraw")
 
@@ -98,9 +102,7 @@ class Rotate(UpdateScene):
         angle = self.angle if self.direction == "left" else -self.angle
         angle = angle / self.steps
 
-        atoms_selected, atoms_remaining = self.apply_selection(
-            list(atom_ids), atoms
-        )
+        atoms_selected, atoms_remaining = self.apply_selection(list(atom_ids), atoms)
         # create a vector from the two points
         vector = points[1] - points[0]
         frames = []

@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 
 from .constants import SocketEvents
-from .job_manager import JobManager, JobStatus
+from .job_manager import JobManager
 from .redis_keys import ExtensionKeys
 
 log = logging.getLogger(__name__)
@@ -158,18 +158,14 @@ def assign_pending_jobs_for_extension(
         available_workers = get_available_workers(redis_client, keys)
 
     if not available_workers:
-        log.debug(
-            f"No available workers for {category}/{extension} (room={room_id})"
-        )
+        log.debug(f"No available workers for {category}/{extension} (room={room_id})")
         return 0
 
     # Get pending jobs (sorted by timestamp, oldest first)
     pending_jobs = redis_client.zrange(keys.pending_jobs, 0, -1, withscores=False)
 
     if not pending_jobs:
-        log.debug(
-            f"No pending jobs for {category}/{extension} (room={room_id})"
-        )
+        log.debug(f"No pending jobs for {category}/{extension} (room={room_id})")
         return 0
 
     assignments_made = 0
@@ -207,7 +203,9 @@ def assign_pending_jobs_for_extension(
             continue
 
         # Update job status to ASSIGNED (automatically emits job:state_changed)
-        success = JobManager.assign_job(redis_client, job_id, current_worker_id, socketio=socketio)
+        success = JobManager.assign_job(
+            redis_client, job_id, current_worker_id, socketio=socketio
+        )
         if not success:
             # Job not in PENDING state, roll back worker capacity
             release_worker_capacity(redis_client, current_worker_id, job_id)

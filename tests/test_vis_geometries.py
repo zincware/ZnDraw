@@ -155,14 +155,16 @@ def test_rest_delete_unknown_geometry(joined_room):
 def test_vis_list_geometries(server):
     from zndraw.geometries import Cell, Curve, Floor
     from zndraw.materials import MeshBasicMaterial
-    from zndraw.transformations import InArrayTransform
 
     vis = ZnDraw(url=server, room="test-room-vis-list-geom", user="tester")
     assert len(vis.geometries) == 6
 
     # Check default geometries match what's created in room_service.py
     assert vis.geometries["particles"] == Sphere(
-        position="arrays.positions", color="arrays.colors", radius="arrays.radii", scale=0.7
+        position="arrays.positions",
+        color="arrays.colors",
+        radius="arrays.radii",
+        scale=0.7,
     )
     assert vis.geometries["bonds"] == Bond(
         position="arrays.positions", color="arrays.colors", scale=0.15
@@ -336,7 +338,7 @@ def test_vis_camera_validation(server):
 
     # Test invalid FOV (must be between 0 and 180)
     with pytest.raises(Exception):  # Pydantic validation error
-        camera = Camera(
+        Camera(
             position_curve_key="pos",
             target_curve_key="target",
             fov=200.0,  # Invalid: > 180
@@ -344,7 +346,7 @@ def test_vis_camera_validation(server):
 
     # Test invalid far plane (must be > near)
     with pytest.raises(Exception):  # Pydantic validation error
-        camera = Camera(
+        Camera(
             position_curve_key="pos",
             target_curve_key="target",
             near=10.0,
@@ -353,7 +355,7 @@ def test_vis_camera_validation(server):
 
     # Test invalid up vector (cannot be zero)
     with pytest.raises(Exception):  # Pydantic validation error
-        camera = Camera(
+        Camera(
             position_curve_key="pos",
             target_curve_key="target",
             up=(0.0, 0.0, 0.0),  # Invalid: zero vector

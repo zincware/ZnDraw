@@ -1,7 +1,6 @@
 """ASE bytes-based storage backend using LMDB."""
 
 import logging
-import typing as t
 
 import numpy as np
 from asebytes import BytesIO
@@ -40,7 +39,9 @@ class ASEBytesStorageBackend(StorageBackend):
         self.db_path = db_path
         # No prefix needed since we use one database per room
         self.io = BytesIO(db_path, prefix=b"", map_size=map_size)
-        log.info(f"Initialized ASEBytesStorageBackend at '{db_path}' (map_size={map_size / 1024**3:.2f} GB)")
+        log.info(
+            f"Initialized ASEBytesStorageBackend at '{db_path}' (map_size={map_size / 1024**3:.2f} GB)"
+        )
 
     def get(
         self,

@@ -18,6 +18,7 @@ class ModifierExtension(Extension):
         if kwargs["info"].get("raise") is True:
             raise ValueError("Test error")
 
+
 class RaiseOnParameterExtension(Extension):
     category = Category.MODIFIER
 
@@ -26,6 +27,7 @@ class RaiseOnParameterExtension(Extension):
     def run(self, vis: ZnDraw, **kwargs):
         if self.parameter == 1:
             raise ValueError("Parameter cannot be 1")
+
 
 class SelectionExtension(Extension):
     category = Category.SELECTION
@@ -98,6 +100,7 @@ def test_register_extensions(server, category):
 
     # Wait for async cleanup to complete
     import time
+
     time.sleep(0.5)
 
     response = requests.get(f"{server}/api/rooms/{room}/schema/{category}")
@@ -154,10 +157,8 @@ def test_run_client_extensions(server, category, get_jwt_auth_headers):
     user = "testuser"
     if category == "modifiers":
         mod = ModifierExtension
-        default_keys = set(modifiers.keys())
     elif category == "selections":
         mod = SelectionExtension
-        default_keys = set(selections.keys())
     else:
         raise ValueError("Unknown category")
     vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
@@ -183,7 +184,9 @@ def test_run_client_extensions(server, category, get_jwt_auth_headers):
     response_json = response.json()
     assert response_json["category"] == category
     assert response_json["extension"] == mod.__name__
-    assert response_json["status"] == JobStatus.ASSIGNED  # Job assigned to idle worker immediately
+    assert (
+        response_json["status"] == JobStatus.ASSIGNED
+    )  # Job assigned to idle worker immediately
     assert response_json["data"] == {"parameter": 42}
 
     # check all jobs
@@ -217,7 +220,9 @@ def test_run_client_extensions(server, category, get_jwt_auth_headers):
     assert response.json() == {"status": "success"}
 
     # get the worker state
-    response = requests.get(f"{server}/api/workers/{vis.sid}", headers=get_jwt_auth_headers(server, user))
+    response = requests.get(
+        f"{server}/api/workers/{vis.sid}", headers=get_jwt_auth_headers(server, user)
+    )
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
@@ -247,7 +252,9 @@ def test_run_client_extensions(server, category, get_jwt_auth_headers):
     assert response_json["status"] == JobStatus.COMPLETED
 
     # get the worker state again
-    response = requests.get(f"{server}/api/workers/{vis.sid}", headers=get_jwt_auth_headers(server, user))
+    response = requests.get(
+        f"{server}/api/workers/{vis.sid}", headers=get_jwt_auth_headers(server, user)
+    )
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
@@ -324,7 +331,9 @@ def test_run_client_extensions(server, category, get_jwt_auth_headers):
     response_json = response.json()
     assert response_json["status"] == JobStatus.PENDING
     # check worker state
-    response = requests.get(f"{server}/api/workers/{vis.sid}", headers=get_jwt_auth_headers(server, user))
+    response = requests.get(
+        f"{server}/api/workers/{vis.sid}", headers=get_jwt_auth_headers(server, user)
+    )
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
@@ -346,7 +355,9 @@ def test_run_client_extensions(server, category, get_jwt_auth_headers):
     response_json = response.json()
     assert response_json["status"] == JobStatus.COMPLETED
     # check worker state - jobId3 should have been auto-assigned after jobId2 completed
-    response = requests.get(f"{server}/api/workers/{vis.sid}", headers=get_jwt_auth_headers(server, user))
+    response = requests.get(
+        f"{server}/api/workers/{vis.sid}", headers=get_jwt_auth_headers(server, user)
+    )
     assert response.status_code == 200
     response_json = response.json()
     assert response_json == {
@@ -424,7 +435,9 @@ def test_worker_finish_nonstarted_job(server, get_jwt_auth_headers):
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 400
-    assert response.json() == {"error": f"Job must be in 'processing' state to complete (current: {JobStatus.ASSIGNED.value})"}
+    assert response.json() == {
+        "error": f"Job must be in 'processing' state to complete (current: {JobStatus.ASSIGNED.value})"
+    }
 
     # Start processing the job first
     response = requests.put(
@@ -492,7 +505,9 @@ def test_worker_fail_job(server, get_jwt_auth_headers):
         headers=get_jwt_auth_headers(server, user),
     )
     assert response.status_code == 400
-    assert response.json() == {"error": f"Job must be in 'processing' state to fail (current: {JobStatus.ASSIGNED.value})"}
+    assert response.json() == {
+        "error": f"Job must be in 'processing' state to fail (current: {JobStatus.ASSIGNED.value})"
+    }
 
     # Start processing the job first
     response = requests.put(
@@ -610,7 +625,9 @@ def test_delete_job(server, get_jwt_auth_headers):
 
 
 @pytest.mark.parametrize("category", ["modifiers", "selections"])
-def test_register_extensions_reconnect_with_queue(server, category, get_jwt_auth_headers):
+def test_register_extensions_reconnect_with_queue(
+    server, category, get_jwt_auth_headers
+):
     room = "testroom"
     user = "testuser"
     if category == "modifiers":
@@ -699,7 +716,7 @@ def test_register_extensions_reconnect_with_queue(server, category, get_jwt_auth
     )
     assert response.status_code == 200
     response_json = response.json()
-    jobId3 = response_json.pop("jobId")
+    response_json.pop("jobId")  # Remove jobId for comparison
     assert response_json == {
         "queuePosition": 1,  # jobId2 is at position 0
         "status": "success",
@@ -744,7 +761,9 @@ def test_register_extensions_reconnect_with_queue(server, category, get_jwt_auth
 
 
 @pytest.mark.parametrize("category", ["modifiers", "selections"])
-def test_register_extensions_reconnect_without_queue(server, category, get_jwt_auth_headers):
+def test_register_extensions_reconnect_without_queue(
+    server, category, get_jwt_auth_headers
+):
     room = "testroom"
     user = "testuser"
     if category == "modifiers":
@@ -802,6 +821,7 @@ def test_submit_task_via_vis_run(server):
     assert response_json[0]["status"] == JobStatus.ASSIGNED
     assert response_json[0]["data"] == {"parameter": 123}
 
+
 @pytest.mark.parametrize("public", [True, False])
 def test_submit_task_twice_via_vis_run(server, public):
     vis1 = ZnDraw(url=server, room="testroom", user="testuser", auto_pickup_jobs=True)
@@ -826,6 +846,7 @@ def test_submit_task_twice_via_vis_run(server, public):
     job2.wait(timeout=5)
     assert job2.status == JobStatus.COMPLETED
 
+
 @pytest.mark.parametrize("public", [True, False])
 def test_submit_task_twice_via_vis_run_two_extensions(server, public):
     w1 = ZnDraw(url=server, room="testroom", user="testuser", auto_pickup_jobs=True)
@@ -849,7 +870,7 @@ def test_submit_task_twice_via_vis_run_two_extensions(server, public):
     job3 = vis.run(RaiseOnParameterExtension(parameter=0), public=public)
     assert job1.status == JobStatus.ASSIGNED
     assert job2.status == JobStatus.ASSIGNED
-    assert job3.status == JobStatus.PENDING 
+    assert job3.status == JobStatus.PENDING
     job1.wait(timeout=5)
     job2.wait(timeout=5)
     job3.wait(timeout=5)

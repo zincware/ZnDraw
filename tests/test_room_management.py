@@ -197,7 +197,9 @@ def test_get_room_details(server, s22, get_jwt_auth_headers):
     r.set("room:test-room-3:description", "Detailed room")
     r.set("room:test-room-3:locked", "0")
 
-    response = requests.get(f"{server}/api/rooms/test-room-3", headers=get_jwt_auth_headers(server))
+    response = requests.get(
+        f"{server}/api/rooms/test-room-3", headers=get_jwt_auth_headers(server)
+    )
     assert response.status_code == 200
 
     room = response.json()
@@ -209,7 +211,9 @@ def test_get_room_details(server, s22, get_jwt_auth_headers):
 
 def test_get_nonexistent_room(server, get_jwt_auth_headers):
     """Test that getting a nonexistent room returns 404."""
-    response = requests.get(f"{server}/api/rooms/nonexistent-room", headers=get_jwt_auth_headers(server))
+    response = requests.get(
+        f"{server}/api/rooms/nonexistent-room", headers=get_jwt_auth_headers(server)
+    )
     assert response.status_code == 404
 
 
@@ -743,7 +747,7 @@ def test_admin_mode_user_sees_room_after_visiting(
     assert "visit-test-room" not in room_ids
 
     # User2 visits the room
-    vis2 = ZnDraw(url=server, room="visit-test-room", user="user2")
+    ZnDraw(url=server, room="visit-test-room", user="user2")
 
     # Now user2 should see the room
     response = requests.get(f"{server}/api/rooms", headers=headers2)
@@ -797,7 +801,9 @@ def test_admin_mode_unauthenticated_sees_no_rooms(server_admin_mode, s22):
     assert len(rooms) == 0
 
 
-def test_admin_mode_multiple_visited_rooms(server_admin_mode, s22, get_jwt_auth_headers):
+def test_admin_mode_multiple_visited_rooms(
+    server_admin_mode, s22, get_jwt_auth_headers
+):
     """Test that users see all rooms they have visited in admin mode."""
     server = server_admin_mode
 

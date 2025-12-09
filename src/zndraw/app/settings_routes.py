@@ -40,11 +40,13 @@ def get_settings_schema(room_id: str):
     schema_list = []
 
     for name, cls in settings_registry.items():
-        schema_list.append({
-            "name": name,
-            "schema": cls.model_json_schema(),
-            "provider": "settings",
-        })
+        schema_list.append(
+            {
+                "name": name,
+                "schema": cls.model_json_schema(),
+                "provider": "settings",
+            }
+        )
 
     return schema_list
 

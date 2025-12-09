@@ -10,8 +10,6 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .base import BaseGeometry
-
 
 class CameraType(str, Enum):
     """Camera projection types."""

@@ -2,7 +2,6 @@
 
 import json
 import os
-import signal
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path

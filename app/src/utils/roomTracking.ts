@@ -15,7 +15,7 @@ const LAST_ROOM_KEY = "zndraw_last_room";
  *     The room ID or null if not set.
  */
 export function getLastVisitedRoom(): string | null {
-  return localStorage.getItem(LAST_ROOM_KEY);
+	return localStorage.getItem(LAST_ROOM_KEY);
 }
 
 /**
@@ -27,5 +27,5 @@ export function getLastVisitedRoom(): string | null {
  *     The room ID to store.
  */
 export function setLastVisitedRoom(roomId: string): void {
-  localStorage.setItem(LAST_ROOM_KEY, roomId);
+	localStorage.setItem(LAST_ROOM_KEY, roomId);
 }

@@ -126,8 +126,6 @@ def test_upload_sets_drag_drop_description(server, s22):
     """Test that drag/drop uploads include source information in room description."""
     import time
 
-    from zndraw import ZnDraw
-
     # Create a simple XYZ file with a molecule
     xyz_content = """2
 Test molecule

@@ -13,8 +13,7 @@ from zndraw.auth import get_current_user, require_auth
 from zndraw.server import socketio
 
 from .constants import SocketEvents
-from .redis_keys import ExtensionKeys, JobKeys, RoomKeys
-from .worker_stats import WorkerStats
+from .redis_keys import ExtensionKeys, RoomKeys
 
 log = logging.getLogger(__name__)
 
@@ -86,12 +85,14 @@ def _submit_extension_impl(
     # Celery extensions must use public endpoint
     if is_celery_extension:
         if not public:
-            return jsonify({
-                "error": f"Server-side extension '{extension}' must use public endpoint",
-                "code": "WRONG_ENDPOINT",
-                "extension": extension,
-                "expectedEndpoint": "public",
-            }), 400
+            return jsonify(
+                {
+                    "error": f"Server-side extension '{extension}' must use public endpoint",
+                    "code": "WRONG_ENDPOINT",
+                    "extension": extension,
+                    "expectedEndpoint": "public",
+                }
+            ), 400
         # Celery extensions are inherently global
     else:
         # Validate client extension exists in correct namespace
@@ -106,12 +107,14 @@ def _submit_extension_impl(
 
         extension_schema = redis_client.hget(schema_key, extension)
         if extension_schema is None:
-            return jsonify({
-                "error": f"{fs_type.capitalize()} extension '{extension}' not found",
-                "code": "EXTENSION_NOT_FOUND",
-                "extension": extension,
-                "namespace": fs_type,
-            }), 404
+            return jsonify(
+                {
+                    "error": f"{fs_type.capitalize()} extension '{extension}' not found",
+                    "code": "EXTENSION_NOT_FOUND",
+                    "extension": extension,
+                    "namespace": fs_type,
+                }
+            ), 404
 
     # Store the extension data (per-user)
     room_keys = RoomKeys(room_id)
@@ -198,7 +201,9 @@ def _submit_extension_impl(
         # Assign job to Celery worker (PENDING → ASSIGNED)
         # Worker ID format: "celery:{task_id}"
         worker_id = f"celery:{celery_task.id}"
-        success = JobManager.assign_job(redis_client, job_id, worker_id, socketio=socketio)
+        success = JobManager.assign_job(
+            redis_client, job_id, worker_id, socketio=socketio
+        )
 
         if success:
             log.info(
@@ -206,9 +211,7 @@ def _submit_extension_impl(
             )
             queue_position = 0  # Assigned, not in queue
         else:
-            log.error(
-                f"Failed to assign job {job_id} to Celery worker {worker_id}"
-            )
+            log.error(f"Failed to assign job {job_id} to Celery worker {worker_id}")
 
     # Notify user
     log.info(
@@ -225,7 +228,9 @@ def _submit_extension_impl(
         },
         to=f"user:{user_name}",
     )
-    return jsonify({"status": "success", "queuePosition": queue_position, "jobId": job_id}), 200
+    return jsonify(
+        {"status": "success", "queuePosition": queue_position, "jobId": job_id}
+    ), 200
 
 
 @extensions.route(

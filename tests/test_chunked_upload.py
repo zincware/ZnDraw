@@ -1,4 +1,5 @@
 """Tests for chunked upload functionality."""
+
 import ase
 import numpy as np
 import pytest
@@ -180,6 +181,7 @@ def test_single_frame_exceeds_chunk_size():
 
     from asebytes import encode
     from zndraw.utils import update_colors_and_radii
+
     update_colors_and_radii(atoms)
 
     # Create just one frame
@@ -233,8 +235,8 @@ def test_chunk_size_realistic():
         # Allow first frame to exceed target (no prior chunk to put it in)
         assert size <= vis.local.target_chunk_size_bytes * 2
 
-    print(f"\nRealistic test results:")
-    print(f"  Total frames: 1000")
+    print("\nRealistic test results:")
+    print("  Total frames: 1000")
     print(f"  Number of chunks: {len(chunks)}")
-    print(f"  Chunk sizes: {[f'{s/1024:.1f}KB' for s in chunk_sizes]}")
+    print(f"  Chunk sizes: {[f'{s / 1024:.1f}KB' for s in chunk_sizes]}")
     print(f"  Frames per chunk: {[len(c) for c in chunks]}")

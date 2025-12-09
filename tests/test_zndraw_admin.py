@@ -37,10 +37,13 @@ def local_server(tmp_path, get_free_port, wait_for_server):
     proc = subprocess.Popen(
         [
             "zndraw",
-            "--port", str(port),
+            "--port",
+            str(port),
             "--no-celery",
-            "--storage-path", str(storage_path),
-            "--redis-url", redis_url,
+            "--storage-path",
+            str(storage_path),
+            "--redis-url",
+            redis_url,
             "--no-browser",
             "--force-new-server",
         ],
@@ -92,10 +95,13 @@ def deployment_server(tmp_path, get_free_port, wait_for_server):
     proc = subprocess.Popen(
         [
             "zndraw",
-            "--port", str(port),
+            "--port",
+            str(port),
             "--no-celery",
-            "--storage-path", str(storage_path),
-            "--redis-url", redis_url,
+            "--storage-path",
+            str(storage_path),
+            "--redis-url",
+            redis_url,
             "--no-browser",
             "--force-new-server",
         ],

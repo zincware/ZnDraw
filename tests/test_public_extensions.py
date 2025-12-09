@@ -2,7 +2,6 @@
 
 import time
 import requests
-import pytest
 from ase import Atoms
 from zndraw import ZnDraw
 from zndraw.extensions import Extension, Category
@@ -83,8 +82,12 @@ def test_public_extension_visible_across_rooms(server):
 
     # Step 4: Verify the schema is the same across rooms
     # Find the extension object by name
-    schema_room2 = next(ext for ext in schemas_room2 if ext["name"] == "GlobalTestExtension")
-    schema_room3 = next(ext for ext in schemas_room3 if ext["name"] == "GlobalTestExtension")
+    schema_room2 = next(
+        ext for ext in schemas_room2 if ext["name"] == "GlobalTestExtension"
+    )
+    schema_room3 = next(
+        ext for ext in schemas_room3 if ext["name"] == "GlobalTestExtension"
+    )
     assert schema_room2 == schema_room3, "Schema should be identical across rooms"
 
 
@@ -100,10 +103,14 @@ def test_global_extension_modifies_correct_room(server):
     """
     # Setup: Create atoms in both rooms
     atoms_room1 = Atoms("H2O", positions=[(0, 0, 0), (1, 0, 0), (0, 1, 0)])
-    atoms_room2 = Atoms("CH4", positions=[(0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0)])
+    atoms_room2 = Atoms(
+        "CH4", positions=[(0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0)]
+    )
 
     # Connect to room1 and add atoms
-    vis_room1 = ZnDraw(url=server, room="room1", user="worker_user", auto_pickup_jobs=True)
+    vis_room1 = ZnDraw(
+        url=server, room="room1", user="worker_user", auto_pickup_jobs=True
+    )
     vis_room1.extend([atoms_room1])
     assert len(vis_room1) == 1
     assert len(vis_room1[0]) == 3  # H2O has 3 atoms

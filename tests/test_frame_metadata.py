@@ -80,48 +80,48 @@ def test_metadata_s22(server, s22):
 
     # Check metadata details
     expected_metadata = {
-            "cell": {
-                "dtype": "float64",
-                "shape": [
-                    3,
-                    3,
-                ],
-                "type": "array",
-            },
-            "arrays.colors": {
-                "dtype": "json",
-                "type": "json",
-            },
-            "arrays.numbers": {
-                "dtype": "int64",
-                "shape": [
-                    8,
-                ],
-                "type": "array",
-            },
-            "pbc": {
-                "dtype": "bool",
-                "shape": [
-                    3,
-                ],
-                "type": "array",
-            },
-            "arrays.positions": {
-                "dtype": "float64",
-                "shape": [
-                    8,
-                    3,
-                ],
-                "type": "array",
-            },
-            "arrays.radii": {
-                "dtype": "float32",
-                "shape": [
-                    8,
-                ],
-                "type": "array",
-            },
-        }
+        "cell": {
+            "dtype": "float64",
+            "shape": [
+                3,
+                3,
+            ],
+            "type": "array",
+        },
+        "arrays.colors": {
+            "dtype": "json",
+            "type": "json",
+        },
+        "arrays.numbers": {
+            "dtype": "int64",
+            "shape": [
+                8,
+            ],
+            "type": "array",
+        },
+        "pbc": {
+            "dtype": "bool",
+            "shape": [
+                3,
+            ],
+            "type": "array",
+        },
+        "arrays.positions": {
+            "dtype": "float64",
+            "shape": [
+                8,
+                3,
+            ],
+            "type": "array",
+        },
+        "arrays.radii": {
+            "dtype": "float32",
+            "shape": [
+                8,
+            ],
+            "type": "array",
+        },
+    }
 
     # info.connectivity is added automatically, check it exists and has correct type
     assert "info.connectivity" in metadata["metadata"]
@@ -152,48 +152,48 @@ def test_metadata_s22(server, s22):
     }
 
     expected_metadata_frame21 = {
-            "cell": {
-                "dtype": "float64",
-                "shape": [
-                    3,
-                    3,
-                ],
-                "type": "array",
-            },
-            "arrays.colors": {
-                "dtype": "json",
-                "type": "json",
-            },
-            "arrays.numbers": {
-                "dtype": "int64",
-                "shape": [
-                    26,
-                ],
-                "type": "array",
-            },
-            "pbc": {
-                "dtype": "bool",
-                "shape": [
-                    3,
-                ],
-                "type": "array",
-            },
-            "arrays.positions": {
-                "dtype": "float64",
-                "shape": [
-                    26,
-                    3,
-                ],
-                "type": "array",
-            },
-            "arrays.radii": {
-                "dtype": "float32",
-                "shape": [
-                    26,
-                ],
-                "type": "array",
-            },
-        }
+        "cell": {
+            "dtype": "float64",
+            "shape": [
+                3,
+                3,
+            ],
+            "type": "array",
+        },
+        "arrays.colors": {
+            "dtype": "json",
+            "type": "json",
+        },
+        "arrays.numbers": {
+            "dtype": "int64",
+            "shape": [
+                26,
+            ],
+            "type": "array",
+        },
+        "pbc": {
+            "dtype": "bool",
+            "shape": [
+                3,
+            ],
+            "type": "array",
+        },
+        "arrays.positions": {
+            "dtype": "float64",
+            "shape": [
+                26,
+                3,
+            ],
+            "type": "array",
+        },
+        "arrays.radii": {
+            "dtype": "float32",
+            "shape": [
+                26,
+            ],
+            "type": "array",
+        },
+    }
 
     # info.connectivity is added automatically, check it exists and has correct type
     assert "info.connectivity" in metadata["metadata"]

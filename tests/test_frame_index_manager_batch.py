@@ -1,7 +1,7 @@
 """Test batch append performance improvements for FrameIndexManager."""
+
 import time
 
-import pytest
 from znsocket import MemoryStorage
 
 from zndraw.app.frame_index_manager import FrameIndexManager

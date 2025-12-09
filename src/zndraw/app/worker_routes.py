@@ -274,7 +274,9 @@ def register_worker():
                 to=f"room:{room_id}",
             )
 
-        log.info(f"Successfully registered new extension '{name}' for worker {worker_id}")
+        log.info(
+            f"Successfully registered new extension '{name}' for worker {worker_id}"
+        )
 
         # Assign any pending jobs to this newly idle worker
         from .job_dispatcher import assign_pending_jobs_for_extension

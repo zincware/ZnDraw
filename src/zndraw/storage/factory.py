@@ -41,13 +41,17 @@ def create_storage(
         If base_path is None or map_size is None
     """
     if base_path is None:
-        raise ValueError("ASEBytes backend requires a base_path (in-memory storage not supported)")
+        raise ValueError(
+            "ASEBytes backend requires a base_path (in-memory storage not supported)"
+        )
     if map_size is None:
         raise ValueError("map_size must be provided from config")
 
     # One LMDB file per room
     db_path = f"{base_path}/{room_id}.lmdb"
-    os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else ".", exist_ok=True)
+    os.makedirs(
+        os.path.dirname(db_path) if os.path.dirname(db_path) else ".", exist_ok=True
+    )
 
     log.info(f"Created ASEBytes storage at '{db_path}' for room '{room_id}'")
     return ASEBytesStorageBackend(db_path, map_size=map_size)

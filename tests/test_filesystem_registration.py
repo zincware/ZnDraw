@@ -88,6 +88,7 @@ def test_room_and_global_fs_same_name(server):
     publics = [fs["public"] for fs in response_json if fs["name"] == "SharedFS"]
     assert sorted(publics) == [False, True]
 
+
 @pytest.mark.parametrize(
     "register_global",
     [True, False],

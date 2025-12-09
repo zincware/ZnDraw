@@ -18,7 +18,6 @@ from .room_manager import emit_room_update
 from .route_utils import (
     emit_bookmarks_invalidate,
     get_lock_key,
-    get_metadata_lock_info,
     requires_lock,
 )
 
@@ -245,12 +244,14 @@ def join_room(room_id):
     # Store session mapping in Redis (sessionId → userId)
     # TTL: 24 hours (session expires if no activity)
     session_key = SessionKeys.session_data(session_id)
-    session_data = json.dumps({
-        "userId": user_name,
-        "roomId": room_id,
-        "connectedAt": datetime.datetime.utcnow().isoformat(),
-        "lastActivity": datetime.datetime.utcnow().isoformat()
-    })
+    session_data = json.dumps(
+        {
+            "userId": user_name,
+            "roomId": room_id,
+            "connectedAt": datetime.datetime.utcnow().isoformat(),
+            "lastActivity": datetime.datetime.utcnow().isoformat(),
+        }
+    )
     r.set(session_key, session_data, ex=86400)  # 24 hour TTL
 
     log.info(f"User {user_name} joined room {room_id} with session {session_id}")
@@ -750,15 +751,17 @@ def get_room_schema(room_id: str, category: str):
 
     # Add server-provided extensions (Celery-based - always public)
     for name, cls in category_map[category].items():
-        schema_list.append({
-            "name": name,
-            "schema": cls.model_json_schema(),
-            "provider": "celery",
-            "public": True,  # Celery extensions are always public
-            "queueLength": 0,
-            "idleWorkers": 0,
-            "progressingWorkers": 0,
-        })
+        schema_list.append(
+            {
+                "name": name,
+                "schema": cls.model_json_schema(),
+                "provider": "celery",
+                "public": True,  # Celery extensions are always public
+                "queueLength": 0,
+                "idleWorkers": 0,
+                "progressingWorkers": 0,
+            }
+        )
 
     # Add client-provided extensions from Redis (room-scoped)
     from .redis_keys import ExtensionKeys
@@ -776,8 +779,7 @@ def get_room_schema(room_id: str, category: str):
 
         # Check if this exact combination (name + public=False) already exists
         existing = any(
-            ext["name"] == name and ext["public"] is False
-            for ext in schema_list
+            ext["name"] == name and ext["public"] is False for ext in schema_list
         )
 
         if existing:
@@ -786,13 +788,15 @@ def get_room_schema(room_id: str, category: str):
                 "is already registered."
             )
         else:
-            schema_list.append({
-                "name": name,
-                "schema": sch,
-                "provider": stats.total_workers,  # Number of workers for client extensions
-                "public": False,  # Room-scoped extensions
-                **stats.to_dict(),
-            })
+            schema_list.append(
+                {
+                    "name": name,
+                    "schema": sch,
+                    "provider": stats.total_workers,  # Number of workers for client extensions
+                    "public": False,  # Room-scoped extensions
+                    **stats.to_dict(),
+                }
+            )
 
     # Add global (public) extensions from Redis
     global_schema_key = ExtensionKeys.global_schema_key(category)
@@ -807,8 +811,7 @@ def get_room_schema(room_id: str, category: str):
 
         # Check if this exact combination (name + public=True) already exists
         existing = any(
-            ext["name"] == name and ext["public"] is True
-            for ext in schema_list
+            ext["name"] == name and ext["public"] is True for ext in schema_list
         )
 
         if existing:
@@ -817,13 +820,15 @@ def get_room_schema(room_id: str, category: str):
                 "is already registered."
             )
         else:
-            schema_list.append({
-                "name": name,
-                "schema": sch,
-                "provider": stats.total_workers,  # Number of workers for global extensions
-                "public": True,  # Global extensions
-                **stats.to_dict(),
-            })
+            schema_list.append(
+                {
+                    "name": name,
+                    "schema": sch,
+                    "provider": stats.total_workers,  # Number of workers for global extensions
+                    "public": True,  # Global extensions
+                    **stats.to_dict(),
+                }
+            )
 
     return schema_list
 
@@ -1002,7 +1007,9 @@ def create_progress(room_id):
     try:
         # Store progress in Redis
         room_keys = RoomKeys(room_id)
-        progress_data = json.dumps({"roomId": room_id, "description": description, "progress": None})
+        progress_data = json.dumps(
+            {"roomId": room_id, "description": description, "progress": None}
+        )
         r.hset(room_keys.progress(), progress_id, progress_data)
 
         # Broadcast to room
@@ -1018,7 +1025,9 @@ def create_progress(room_id):
         return {"error": f"Failed to start progress tracking: {str(e)}"}, 500
 
 
-@rooms.route("/api/rooms/<string:room_id>/progress/<string:progress_id>", methods=["PUT"])
+@rooms.route(
+    "/api/rooms/<string:room_id>/progress/<string:progress_id>", methods=["PUT"]
+)
 @require_auth
 def update_progress(room_id, progress_id):
     """Update progress tracking for an ongoing operation.
@@ -1071,7 +1080,9 @@ def update_progress(room_id, progress_id):
         if progress is not None:
             update_payload["progress"] = progress
 
-        socketio.emit(SocketEvents.PROGRESS_UPDATED, update_payload, to=f"room:{room_id}")
+        socketio.emit(
+            SocketEvents.PROGRESS_UPDATED, update_payload, to=f"room:{room_id}"
+        )
 
         return {"success": True}, 200
     except Exception as e:
@@ -1079,7 +1090,9 @@ def update_progress(room_id, progress_id):
         return {"error": f"Failed to update progress: {str(e)}"}, 500
 
 
-@rooms.route("/api/rooms/<string:room_id>/progress/<string:progress_id>", methods=["DELETE"])
+@rooms.route(
+    "/api/rooms/<string:room_id>/progress/<string:progress_id>", methods=["DELETE"]
+)
 @require_auth
 def complete_progress(room_id, progress_id):
     """Complete and remove progress tracking for an operation.
@@ -1100,7 +1113,11 @@ def complete_progress(room_id, progress_id):
             return {"error": "Progress tracker not found"}, 404
 
         # Broadcast completion to room
-        socketio.emit(SocketEvents.PROGRESS_COMPLETED, {"progressId": progress_id, "roomId": room_id}, to=f"room:{room_id}")
+        socketio.emit(
+            SocketEvents.PROGRESS_COMPLETED,
+            {"progressId": progress_id, "roomId": room_id},
+            to=f"room:{room_id}",
+        )
 
         return {"success": True}, 200
     except Exception as e:

@@ -79,5 +79,9 @@ exclude = [
     ".claude",
 ]
 
+[tool.codespell]
+skip = "*.lock,bun.lock,todo.md"
+ignore-words-list = "nwo,nd,smove"
+
 [project.scripts]
 zndraw = "zndraw_cli.cli:app"

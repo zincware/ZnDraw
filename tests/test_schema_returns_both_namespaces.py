@@ -7,7 +7,6 @@ The fix requires the backend to use composite keys like "name:public" or return 
 structure that can hold multiple variants of the same name.
 """
 
-import pytest
 import requests
 from zndraw import ZnDraw
 from zndraw.extensions import Extension, Category
@@ -43,12 +42,7 @@ def test_schema_returns_both_public_and_private_versions(server):
     room = "test_dual_schema_room"
 
     # Connect and register BOTH versions
-    vis = ZnDraw(
-        url=server,
-        room=room,
-        user="test_user",
-        auto_pickup_jobs=False
-    )
+    vis = ZnDraw(url=server, room=room, user="test_user", auto_pickup_jobs=False)
 
     # Register private version first
     vis.register_extension(DuplicateNameExtension, public=False)
@@ -59,7 +53,7 @@ def test_schema_returns_both_public_and_private_versions(server):
     # Fetch schema from backend
     response = requests.get(
         f"{server}/api/rooms/{room}/schema/modifiers",
-        headers={"Authorization": f"Bearer {vis.api.jwt_token}"}
+        headers={"Authorization": f"Bearer {vis.api.jwt_token}"},
     )
 
     assert response.status_code == 200, f"Schema fetch failed: {response.text}"
@@ -76,8 +70,7 @@ def test_schema_returns_both_public_and_private_versions(server):
 
     # Find all DuplicateNameExtension entries
     duplicate_extensions = [
-        ext for ext in schemas
-        if ext.get("name") == "DuplicateNameExtension"
+        ext for ext in schemas if ext.get("name") == "DuplicateNameExtension"
     ]
 
     # Should have exactly 2 entries: one public, one private
@@ -100,4 +93,3 @@ def test_schema_returns_both_public_and_private_versions(server):
     # Verify both have schemas
     assert "schema" in public_versions[0], "Public version should have schema"
     assert "schema" in private_versions[0], "Private version should have schema"
-

@@ -54,7 +54,9 @@ class ZnDrawLock:
                         f"Lock refreshed for target '{self.target}' with TTL {self._ttl}s"
                     )
                 else:
-                    log.error(f"Cannot refresh lock for target '{self.target}': no lock token")
+                    log.error(
+                        f"Cannot refresh lock for target '{self.target}': no lock token"
+                    )
                     break
             except Exception as e:
                 log.error(f"Error refreshing lock for target '{self.target}': {e}")
@@ -126,7 +128,9 @@ class ZnDrawLock:
             True if successfully refreshed
         """
         if not self._lock_token:
-            log.warning(f"Cannot refresh lock for target '{self.target}': no lock token")
+            log.warning(
+                f"Cannot refresh lock for target '{self.target}': no lock token"
+            )
             return False
 
         try:
@@ -176,7 +180,9 @@ class ZnDrawLock:
             if self._lock_token:
                 response = self.api.lock_release(self.target, self._lock_token)
             else:
-                log.warning(f"Cannot release lock for target '{self.target}': no lock token")
+                log.warning(
+                    f"Cannot release lock for target '{self.target}': no lock token"
+                )
                 self._is_held = False
                 return False
 
@@ -197,4 +203,3 @@ class ZnDrawLock:
             warnings.warn(
                 f"Failed to release lock for target '{self.target}'. It may have expired."
             )
-

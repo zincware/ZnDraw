@@ -19,7 +19,7 @@ from zndraw.geometries.sphere import Sphere
 # Rebuild Pydantic models after Transform is fully defined
 # This resolves forward references to Transform in type hints
 try:
-    from zndraw.transformations import Transform
+    from zndraw.transformations import Transform  # noqa: F401
 
     Sphere.model_rebuild()
     Arrow.model_rebuild()

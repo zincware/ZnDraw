@@ -5,45 +5,40 @@ import { useColorScheme, useTheme } from "@mui/material/styles";
 import * as THREE from "three";
 
 export default function Crosshair() {
-    const groupRef = useRef<THREE.Object3D>(null);
-    const shortDimension = 0.05;
-    const longDimension = 0.5;
-    const { mode } = useColorScheme();
-    const theme = useTheme();
-    
-    const color = mode === "dark" ? theme.palette.primary.light : theme.palette.primary.dark;
+	const groupRef = useRef<THREE.Object3D>(null);
+	const shortDimension = 0.05;
+	const longDimension = 0.5;
+	const { mode } = useColorScheme();
+	const theme = useTheme();
 
-    useFrame(({ controls }) => {
-        if (groupRef.current) {
-            if (controls && 'target' in controls) {
-                // @ts-ignore - Drei controls add the target property dynamically
-                groupRef.current.position.copy(controls.target);
-            } 
-        }
-    });
+	const color =
+		mode === "dark" ? theme.palette.primary.light : theme.palette.primary.dark;
 
-    return (
-        <group ref={groupRef}>
-            {/* X axis box */}
-            <Box args={[longDimension, shortDimension, shortDimension]}>
-                <meshStandardMaterial
-                    color={color}
-                />
-            </Box>
+	useFrame(({ controls }) => {
+		if (groupRef.current) {
+			if (controls && "target" in controls) {
+				// @ts-ignore - Drei controls add the target property dynamically
+				groupRef.current.position.copy(controls.target);
+			}
+		}
+	});
 
-            {/* Y axis box */}
-            <Box args={[shortDimension, longDimension, shortDimension]}>
-                <meshStandardMaterial
-                    color={color}
-                />
-            </Box>
+	return (
+		<group ref={groupRef}>
+			{/* X axis box */}
+			<Box args={[longDimension, shortDimension, shortDimension]}>
+				<meshStandardMaterial color={color} />
+			</Box>
 
-            {/* Z axis box */}
-            <Box args={[shortDimension, shortDimension, longDimension]}>
-                <meshStandardMaterial
-                    color={color}
-                />
-            </Box>
-        </group>
-    );
+			{/* Y axis box */}
+			<Box args={[shortDimension, longDimension, shortDimension]}>
+				<meshStandardMaterial color={color} />
+			</Box>
+
+			{/* Z axis box */}
+			<Box args={[shortDimension, shortDimension, longDimension]}>
+				<meshStandardMaterial color={color} />
+			</Box>
+		</group>
+	);
 }

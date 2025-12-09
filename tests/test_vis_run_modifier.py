@@ -304,7 +304,9 @@ def test_duplicate_modifier(server, celery_worker):
 
     # Call .run() directly to bypass API serialization
     offset = np.array([1.0, 0.0, 0.0])
-    modifier = modifiers.Duplicate(x=offset[0], y=offset[1], z=offset[2], symbol=modifiers.Symbols.C)
+    modifier = modifiers.Duplicate(
+        x=offset[0], y=offset[1], z=offset[2], symbol=modifiers.Symbols.C
+    )
     modifier.run(vis)
 
     # Should create new frame with duplicated atoms
@@ -349,7 +351,9 @@ def test_center_modifier(server, atoms_with_cell, celery_worker):
 
     vis.selection = [0]
 
-    vis.run(modifiers.Center(recompute_bonds=False, wrap=False, dynamic=False, all=False))
+    vis.run(
+        modifiers.Center(recompute_bonds=False, wrap=False, dynamic=False, all=False)
+    )
     vis.socket.sio.sleep(CELERY_TIMEOUT)
 
     # Selected atom should be near cell center

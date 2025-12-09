@@ -27,9 +27,11 @@ def _decode_msgpack_dict(obj):
             # Decode value if it's bytes (msgpack-encoded)
             if isinstance(v, bytes):
                 try:
-                    value = msgpack.unpackb(v, object_hook=m.decode, strict_map_key=False)
+                    value = msgpack.unpackb(
+                        v, object_hook=m.decode, strict_map_key=False
+                    )
                     value = _decode_msgpack_dict(value)
-                except:
+                except Exception:
                     value = v
             else:
                 value = _decode_msgpack_dict(v)
@@ -189,8 +191,6 @@ def test_sphere_deserialization_with_transform():
 
 def test_transform_with_fixatoms_constraint():
     """Integration test: Create atoms with FixAtoms constraint and verify transform path."""
-    import msgpack
-    import msgpack_numpy as m
 
     atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
     constraint = ase.constraints.FixAtoms(indices=[0, 2])
@@ -221,8 +221,6 @@ def test_transform_with_fixatoms_constraint():
 
 def test_transform_with_multiple_constraints():
     """Test transform path with multiple constraints."""
-    import msgpack
-    import msgpack_numpy as m
 
     atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
     constraints = [
@@ -237,7 +235,7 @@ def test_transform_with_multiple_constraints():
     frame_data = _decode_msgpack_dict(frame_bytes)
 
     # First constraint (FixAtoms)
-    transform_0 = InArrayTransform(
+    InArrayTransform(
         source="constraints", path="0.kwargs.indices", filter="arrays.positions"
     )
     assert frame_data["constraints"][0]["kwargs"]["indices"] == [0]

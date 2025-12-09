@@ -17,7 +17,7 @@
 - [x] sync mode default should be on
 - [x] make the snackbar pop ups, e.g. `room locked` appear higher to not interfere with the progress bar.
 - [ ] close zndraw button via "settings" menu upper right and different icons, must be distinguishable, also via name
-- [ ] move to rest with invalidate and update invalidate to contain the data that changed, if small 
+- [ ] move to rest with invalidate and update invalidate to contain the data that changed, if small
     - [x] bookmarks
     - [x] selections
     - [ ] frame selection
@@ -88,7 +88,7 @@
 - [ ] refactor workerId to use sessionId!
 - [x] remove check_room_locked and other code duplication beyond the lock decorator!
 - [ ] remove `f"room:{self.room_id}:locked"` has been replaced by fine-grained locks!
-- [ ] check how to assign the SessionID to the flask socket connection! And clean alternative identifiers!! We have 
+- [ ] check how to assign the SessionID to the flask socket connection! And clean alternative identifiers!! We have
 ```py
 join_room(f"room:{current_room}")
 join_room(f"user:{user_name}")

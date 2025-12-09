@@ -1,7 +1,6 @@
 """Base geometry class for all ZnDraw geometries."""
 
-from enum import Enum
-from typing import TYPE_CHECKING, Any, Literal, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 

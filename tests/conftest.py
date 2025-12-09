@@ -370,7 +370,9 @@ def joined_room(server, request):
 
     # Join the room with JWT authentication
     response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=_get_jwt_auth_headers(server)
+        f"{server}/api/rooms/{room}/join",
+        json={},
+        headers=_get_jwt_auth_headers(server),
     )
     assert response.status_code == 200, f"Failed to join room {room}"
 

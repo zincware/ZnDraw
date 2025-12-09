@@ -4,7 +4,6 @@ This module provides utilities to fetch data for multiple rooms efficiently
 using Redis pipelining to avoid N+1 query patterns.
 """
 
-from zndraw.app.metadata_manager import RoomMetadataManager
 from zndraw.app.redis_keys import RoomKeys
 from zndraw.app.route_utils import get_lock_key
 

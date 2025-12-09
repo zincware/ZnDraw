@@ -85,11 +85,9 @@ def acquire_lock(room_id, target):
     lock_token = str(uuid.uuid4())
 
     # Store lock data (sessionId + userId + token)
-    lock_data = json.dumps({
-        "sessionId": session_id,
-        "userId": user_name,
-        "token": lock_token
-    })
+    lock_data = json.dumps(
+        {"sessionId": session_id, "userId": user_name, "token": lock_token}
+    )
 
     # Acquire lock (nx=True means only set if not exists)
     if r.set(lock_key, lock_data, nx=True, ex=int(ttl)):
@@ -113,7 +111,7 @@ def acquire_lock(room_id, target):
             user_name=user_name,
             message=msg,
             timestamp=timestamp,
-            session_id=session_id
+            session_id=session_id,
         )
 
         log.debug(
@@ -132,7 +130,9 @@ def acquire_lock(room_id, target):
         lock_data_str = r.get(lock_key)
         try:
             lock_data = json.loads(lock_data_str) if lock_data_str else {}
-            lock_holder = lock_data.get("userId", "unknown")  # Changed from userName to userId
+            lock_holder = lock_data.get(
+                "userId", "unknown"
+            )  # Changed from userName to userId
         except (json.JSONDecodeError, AttributeError):
             lock_holder = "unknown"
 
@@ -140,9 +140,7 @@ def acquire_lock(room_id, target):
             f"Lock for '{target}' in room '{room_id}' already held by {lock_holder}, denied for {user_name}"
         )
         return (
-            jsonify(
-                {"success": False, "error": f"Lock already held by {lock_holder}"}
-            ),
+            jsonify({"success": False, "error": f"Lock already held by {lock_holder}"}),
             423,
         )  # Locked
 
@@ -214,7 +212,9 @@ def refresh_lock(room_id, target):
             f"Failed refresh: Lock for '{target}' in room '{room_id}' - session or token mismatch"
         )
         return (
-            jsonify({"success": False, "error": "Lock not held by caller or invalid token"}),
+            jsonify(
+                {"success": False, "error": "Lock not held by caller or invalid token"}
+            ),
             403,
         )
 
@@ -248,9 +248,7 @@ def refresh_lock(room_id, target):
                 msg = existing_metadata.get("msg")
                 timestamp = existing_metadata.get("timestamp")
 
-        log.debug(
-            f"Lock refreshed for '{target}' in room '{room_id}' by {user_name}"
-        )
+        log.debug(f"Lock refreshed for '{target}' in room '{room_id}' by {user_name}")
 
     # Broadcast lock refresh event
     emit_lock_update(
@@ -260,7 +258,7 @@ def refresh_lock(room_id, target):
         user_name=user_name,
         message=msg,
         timestamp=timestamp,
-        session_id=session_id
+        session_id=session_id,
     )
 
     return jsonify({"success": True})
@@ -328,7 +326,9 @@ def release_lock(room_id, target):
             f"Failed release: Lock for '{target}' in room '{room_id}' - session or token mismatch"
         )
         return (
-            jsonify({"success": False, "error": "Lock not held by caller or invalid token"}),
+            jsonify(
+                {"success": False, "error": "Lock not held by caller or invalid token"}
+            ),
             403,
         )
 
@@ -344,11 +344,9 @@ def release_lock(room_id, target):
         user_name=None,
         message=None,
         timestamp=None,
-        session_id=session_id
+        session_id=session_id,
     )
 
-    log.debug(
-        f"Lock released for '{target}' in room '{room_id}' by user {user_name}"
-    )
+    log.debug(f"Lock released for '{target}' in room '{room_id}' by user {user_name}")
 
     return jsonify({"success": True})

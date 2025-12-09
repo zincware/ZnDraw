@@ -203,7 +203,7 @@ def test_negative_position_insert(redis_client):
         manager.append(f"room:{i}")
 
     # Insert at position -1 (before last)
-    score = manager.insert(-1, "room:new")
+    manager.insert(-1, "room:new")
 
     # Verify order
     frames = manager.get_all()

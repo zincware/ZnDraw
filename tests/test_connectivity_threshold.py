@@ -169,7 +169,9 @@ def test_connectivity_threshold_zero_disables_auto_connectivity(server):
 
 def test_connectivity_mixed_sizes_in_extend(server):
     """Test that connectivity is selectively added based on size in extend."""
-    vis = ZnDraw(url=server, room="testroom", user="testuser", connectivity_threshold=10)
+    vis = ZnDraw(
+        url=server, room="testroom", user="testuser", connectivity_threshold=10
+    )
 
     # Mix of small and large structures
     small_atoms = ase.build.molecule("H2O")  # 3 atoms

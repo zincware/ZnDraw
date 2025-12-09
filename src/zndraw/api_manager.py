@@ -1,5 +1,4 @@
 import dataclasses
-import typing as t
 
 import msgpack
 import msgpack_numpy as m
@@ -218,7 +217,12 @@ class APIManager:
         response.raise_for_status()
 
     def register_extension(
-        self, name: str, category: str, schema: dict, socket_manager, public: bool = False
+        self,
+        name: str,
+        category: str,
+        schema: dict,
+        socket_manager,
+        public: bool = False,
     ) -> None:
         """Register extension via REST endpoint.
 
@@ -266,7 +270,9 @@ class APIManager:
 
         data = response.json()
         if not data.get("success"):
-            raise RuntimeError(f"Extension registration failed: {data.get('error', 'Unknown error')}")
+            raise RuntimeError(
+                f"Extension registration failed: {data.get('error', 'Unknown error')}"
+            )
 
         # Return the worker_id assigned by server so caller can store it
         return data.get("workerId")
@@ -328,7 +334,9 @@ class APIManager:
         # Return the worker_id assigned by server so caller can store it
         return data.get("workerId")
 
-    def get_frames(self, indices_or_slice, keys: list[str] | None = None) -> list[dict[bytes, bytes]]:
+    def get_frames(
+        self, indices_or_slice, keys: list[str] | None = None
+    ) -> list[dict[bytes, bytes]]:
         """Get frames as raw dict[bytes, bytes] format.
 
         Returns frames in their serialized form - decoding to ase.Atoms
@@ -374,14 +382,14 @@ class APIManager:
         # Deserialize msgpack response - returns list[dict[bytes, bytes]]
         # The server sends msgpack-encoded list of frames, where each frame
         # is dict[bytes, bytes] with msgpack-encoded values
-        serialized_frames = msgpack.unpackb(
-            response.content, strict_map_key=False
-        )
+        serialized_frames = msgpack.unpackb(response.content, strict_map_key=False)
 
         # Return raw dict[bytes, bytes] format - no decoding
         return serialized_frames
 
-    def upload_frames(self, action: str, data, lock_token: str | None = None, **kwargs) -> dict:
+    def upload_frames(
+        self, action: str, data, lock_token: str | None = None, **kwargs
+    ) -> dict:
         try:
             # Serialize data with msgpack-numpy support for numpy arrays
             # This handles both dict[bytes, bytes] from encode() and raw dicts with numpy arrays
@@ -440,7 +448,9 @@ class APIManager:
             params["userName"] = self.user_name
 
         headers = self._get_headers()
-        response = requests.delete(delete_url, params=params, headers=headers, timeout=30)
+        response = requests.delete(
+            delete_url, params=params, headers=headers, timeout=30
+        )
 
         if response.status_code == 404:
             try:
@@ -475,7 +485,9 @@ class APIManager:
             raise ValueError("Either start/stop or indices must be provided.")
 
         headers = self._get_headers()
-        response = requests.patch(bulk_url, data=packed_data, params=params, headers=headers, timeout=30)
+        response = requests.patch(
+            bulk_url, data=packed_data, params=params, headers=headers, timeout=30
+        )
 
         if response.status_code == 404:
             try:
@@ -531,7 +543,14 @@ class APIManager:
         )
         response.raise_for_status()
 
-    def run_extension(self, category: str, name: str, data: dict, public: bool = False, auto_retry: bool = False) -> dict:
+    def run_extension(
+        self,
+        category: str,
+        name: str,
+        data: dict,
+        public: bool = False,
+        auto_retry: bool = False,
+    ) -> dict:
         headers = self._get_headers()
 
         # Route to correct endpoint based on public flag
@@ -550,7 +569,9 @@ class APIManager:
             # Auto-retry with public=True if this is a server-side extension
             # Only retry if auto_retry=True (user didn't explicitly specify public parameter)
             if error_code == "WRONG_ENDPOINT" and not public and auto_retry:
-                return self.run_extension(category, name, data, public=True, auto_retry=False)
+                return self.run_extension(
+                    category, name, data, public=True, auto_retry=False
+                )
 
             # Convert EXTENSION_NOT_FOUND to ValueError with clearer message
             if error_code == "EXTENSION_NOT_FOUND":
@@ -583,7 +604,9 @@ class APIManager:
 
         headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/chat/messages", params=params, headers=headers
+            f"{self.url}/api/rooms/{self.room}/chat/messages",
+            params=params,
+            headers=headers,
         )
         response.raise_for_status()
         return response.json()
@@ -596,7 +619,7 @@ class APIManager:
             key: The geometry key/name
             geometry_type: The type of geometry (Sphere, Arrow, Bond, Curve)
         """
-        with ZnDrawLock(api=self, target="trajectory:meta", msg=None) as lock:
+        with ZnDrawLock(api=self, target="trajectory:meta", msg=None):
             headers = self._get_headers()
 
             response = requests.post(
@@ -631,7 +654,7 @@ class APIManager:
         Args:
             key: The geometry key/name
         """
-        with ZnDrawLock(api=self, target="trajectory:meta", msg=None) as lock:
+        with ZnDrawLock(api=self, target="trajectory:meta", msg=None):
             headers = self._get_headers()
 
             response = requests.delete(
@@ -724,7 +747,9 @@ class APIManager:
             Dictionary of metadata fields.
         """
         headers = self._get_headers()
-        response = requests.get(f"{self.url}/api/rooms/{self.room}/metadata", headers=headers)
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/metadata", headers=headers
+        )
         response.raise_for_status()
         return response.json().get("metadata", {})
 
@@ -761,7 +786,9 @@ class APIManager:
             If the request fails (e.g., room is locked).
         """
         headers = self._get_headers()
-        response = requests.delete(f"{self.url}/api/rooms/{self.room}/metadata/{field}", headers=headers)
+        response = requests.delete(
+            f"{self.url}/api/rooms/{self.room}/metadata/{field}", headers=headers
+        )
         response.raise_for_status()
 
     # ========================================================================
@@ -781,7 +808,9 @@ class APIManager:
             }
         """
         headers = self._get_headers()
-        response = requests.get(f"{self.url}/api/rooms/{self.room}/selections", headers=headers)
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/selections", headers=headers
+        )
         response.raise_for_status()
         return response.json()
 
@@ -936,7 +965,9 @@ class APIManager:
             Dictionary mapping frame indices to bookmark labels.
         """
         headers = self._get_headers()
-        response = requests.get(f"{self.url}/api/rooms/{self.room}/bookmarks", headers=headers)
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/bookmarks", headers=headers
+        )
         response.raise_for_status()
         bookmarks = response.json().get("bookmarks", {})
         # Convert string keys from JSON back to integers
@@ -963,7 +994,9 @@ class APIManager:
             If index is out of range
         """
         headers = self._get_headers()
-        response = requests.get(f"{self.url}/api/rooms/{self.room}/bookmarks/{index}", headers=headers)
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/bookmarks/{index}", headers=headers
+        )
         if response.status_code == 404:
             self._raise_for_error_type(response)
 
@@ -1191,7 +1224,9 @@ class APIManager:
         response.raise_for_status()
         return response.json()
 
-    def lock_refresh(self, target: str, lock_token: str, msg: str | None = None) -> dict:
+    def lock_refresh(
+        self, target: str, lock_token: str, msg: str | None = None
+    ) -> dict:
         """Refresh lock TTL and optionally update message.
 
         Parameters
@@ -1372,8 +1407,11 @@ class APIManager:
             raise PermissionError(f"Access denied: {error_data.get('error')}")
         elif response.status_code == 423:
             from zndraw.exceptions import LockError
+
             error_data = response.json()
-            raise LockError(f"Lock not held for target='step': {error_data.get('error')}")
+            raise LockError(
+                f"Lock not held for target='step': {error_data.get('error')}"
+            )
 
         response.raise_for_status()
         return response.json()
@@ -1403,7 +1441,10 @@ class APIManager:
         return response.json()
 
     def progress_update(
-        self, progress_id: str, description: str | None = None, progress: float | None = None
+        self,
+        progress_id: str,
+        description: str | None = None,
+        progress: float | None = None,
     ):
         """Update progress tracking for an ongoing operation via REST API.
 

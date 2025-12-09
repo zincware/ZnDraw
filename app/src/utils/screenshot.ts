@@ -11,17 +11,14 @@
  * @returns Promise resolving to a PNG Blob
  */
 export function captureCanvasScreenshot(
-  canvas: HTMLCanvasElement
+	canvas: HTMLCanvasElement,
 ): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("Failed to create blob from canvas"));
-      },
-      "image/png"
-    );
-  });
+	return new Promise((resolve, reject) => {
+		canvas.toBlob((blob) => {
+			if (blob) resolve(blob);
+			else reject(new Error("Failed to create blob from canvas"));
+		}, "image/png");
+	});
 }
 
 /**
@@ -34,34 +31,36 @@ export function captureCanvasScreenshot(
  * @returns Promise resolving to upload response
  */
 export async function uploadScreenshot(
-  roomId: string,
-  blob: Blob,
-  width: number,
-  height: number
+	roomId: string,
+	blob: Blob,
+	width: number,
+	height: number,
 ): Promise<{
-  id: string;
-  timestamp: string;
-  format: string;
-  size: number;
-  url: string;
+	id: string;
+	timestamp: string;
+	format: string;
+	size: number;
+	url: string;
 }> {
-  const formData = new FormData();
-  formData.append("file", blob, `screenshot_${Date.now()}.png`);
-  formData.append("format", "png");
-  formData.append("width", width.toString());
-  formData.append("height", height.toString());
+	const formData = new FormData();
+	formData.append("file", blob, `screenshot_${Date.now()}.png`);
+	formData.append("format", "png");
+	formData.append("width", width.toString());
+	formData.append("height", height.toString());
 
-  const response = await fetch(`/api/rooms/${roomId}/screenshots/upload`, {
-    method: "POST",
-    body: formData,
-  });
+	const response = await fetch(`/api/rooms/${roomId}/screenshots/upload`, {
+		method: "POST",
+		body: formData,
+	});
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Upload failed" }));
-    throw new Error(error.error || `Upload failed: ${response.statusText}`);
-  }
+	if (!response.ok) {
+		const error = await response
+			.json()
+			.catch(() => ({ error: "Upload failed" }));
+		throw new Error(error.error || `Upload failed: ${response.statusText}`);
+	}
 
-  return response.json();
+	return response.json();
 }
 
 /**
@@ -72,18 +71,18 @@ export async function uploadScreenshot(
  * @returns Promise resolving to upload response
  */
 export async function takeAndUploadScreenshot(
-  canvas: HTMLCanvasElement,
-  roomId: string
+	canvas: HTMLCanvasElement,
+	roomId: string,
 ): Promise<{
-  id: string;
-  timestamp: string;
-  format: string;
-  size: number;
-  url: string;
+	id: string;
+	timestamp: string;
+	format: string;
+	size: number;
+	url: string;
 }> {
-  // Capture screenshot
-  const blob = await captureCanvasScreenshot(canvas);
+	// Capture screenshot
+	const blob = await captureCanvasScreenshot(canvas);
 
-  // Upload to server
-  return uploadScreenshot(roomId, blob, canvas.width, canvas.height);
+	// Upload to server
+	return uploadScreenshot(roomId, blob, canvas.width, canvas.height);
 }

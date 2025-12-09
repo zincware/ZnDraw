@@ -4,13 +4,11 @@ Handles health checks, versioning, authentication, tools, and static asset servi
 """
 
 import base64
-import datetime
 import io
 import logging
-import uuid
 from pathlib import Path
 
-from flask import Blueprint, Response, current_app, request, send_from_directory
+from flask import Blueprint, current_app, request, send_from_directory
 from flask_socketio import disconnect
 
 from zndraw.auth import AuthError, get_current_user, require_admin, require_auth

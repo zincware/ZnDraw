@@ -15,7 +15,6 @@ from pydantic import BaseModel, Field
 
 from zndraw.api_manager import APIManager
 from zndraw.bookmarks_manager import Bookmarks
-from zndraw.exceptions import LockError
 from zndraw.extensions import Extension, Category
 from zndraw.figures_manager import Figures
 from zndraw.frame_cache import FrameCache
@@ -357,7 +356,10 @@ class ProgressTracker:
         except Exception as e:
             # Log but don't raise - progress completion is best-effort
             import logging
-            logging.getLogger(__name__).warning(f"Failed to complete progress {self.progress_id}: {e}")
+
+            logging.getLogger(__name__).warning(
+                f"Failed to complete progress {self.progress_id}: {e}"
+            )
         return False
 
 
@@ -411,9 +413,7 @@ class ZnDraw(MutableSequence):
     _private_extensions: dict[str, _ExtensionStore] = dataclasses.field(
         default_factory=dict, init=False
     )
-    _filesystems: dict[str, dict] = dataclasses.field(
-        default_factory=dict, init=False
-    )
+    _filesystems: dict[str, dict] = dataclasses.field(default_factory=dict, init=False)
     role: str = dataclasses.field(default="guest", init=False)
     _worker_id: str | None = dataclasses.field(
         default=None, init=False
@@ -467,7 +467,7 @@ class ZnDraw(MutableSequence):
         log.info(f"Logged in as {self.user} (role: {self.role})")
 
         # Step 2: Join room (authenticated with JWT)
-        response_data = self.api.join_room(
+        self.api.join_room(
             description=self.description,
             copy_from=self.copy_from,
         )
@@ -585,7 +585,9 @@ class ZnDraw(MutableSequence):
             auto_pickup_jobs=False,
         )
 
-    def get_lock(self, msg: str | None = None, target: str = "trajectory:meta") -> ZnDrawLock:
+    def get_lock(
+        self, msg: str | None = None, target: str = "trajectory:meta"
+    ) -> ZnDrawLock:
         """Get a SocketIOLock instance for distributed locking.
 
         Parameters
@@ -613,7 +615,9 @@ class ZnDraw(MutableSequence):
         ...     vis.extend(more_frames)
         """
         if not self.socket.sio.connected:
-            raise RuntimeError("Lock requires an active connection. Ensure client is connected.")
+            raise RuntimeError(
+                "Lock requires an active connection. Ensure client is connected."
+            )
         return ZnDrawLock(self.api, target=target, msg=msg)
 
     @property
@@ -917,9 +921,13 @@ class ZnDraw(MutableSequence):
     @t.overload
     def get(self, index: int, keys: list[str] | None = None) -> dict[str, t.Any]: ...
     @t.overload
-    def get(self, index: list[int], keys: list[str] | None = None) -> list[dict[str, t.Any]]: ...
+    def get(
+        self, index: list[int], keys: list[str] | None = None
+    ) -> list[dict[str, t.Any]]: ...
     @t.overload
-    def get(self, index: slice, keys: list[str] | None = None) -> list[dict[str, t.Any]]: ...
+    def get(
+        self, index: slice, keys: list[str] | None = None
+    ) -> list[dict[str, t.Any]]: ...
     def _decode_frame_dict(self, frame_data: dict[bytes, bytes]) -> dict[str, t.Any]:
         """Decode dict[bytes, bytes] to user-friendly dict[str, Any] format.
 
@@ -936,8 +944,10 @@ class ZnDraw(MutableSequence):
             # Unpack value from msgpack bytes
             if isinstance(v, bytes):
                 try:
-                    value = msgpack.unpackb(v, object_hook=m.decode, strict_map_key=False)
-                except:
+                    value = msgpack.unpackb(
+                        v, object_hook=m.decode, strict_map_key=False
+                    )
+                except Exception:
                     value = v
             else:
                 value = v
@@ -1248,7 +1258,10 @@ class ZnDraw(MutableSequence):
             The atoms object to prepare.
 
         """
-        if len(atoms) < self.connectivity_threshold and "connectivity" not in atoms.info:
+        if (
+            len(atoms) < self.connectivity_threshold
+            and "connectivity" not in atoms.info
+        ):
             add_connectivity(atoms)
         update_colors_and_radii(atoms)
 
@@ -1326,9 +1339,7 @@ class ZnDraw(MutableSequence):
         return chunks, chunk_sizes
 
     @contextlib.contextmanager
-    def _progress_bar(
-        self, total_bytes: int, total_frames: int, num_chunks: int
-    ):
+    def _progress_bar(self, total_bytes: int, total_frames: int, num_chunks: int):
         """Create progress bar for chunked upload.
 
         Yields
@@ -1347,7 +1358,9 @@ class ZnDraw(MutableSequence):
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
-            TextColumn("{task.fields[mb_completed]:.2f}/{task.fields[mb_total]:.2f} MB"),
+            TextColumn(
+                "{task.fields[mb_completed]:.2f}/{task.fields[mb_total]:.2f} MB"
+            ),
             TextColumn("({task.percentage:>3.0f}%)"),
             TextColumn("|"),
             TextColumn("{task.fields[frames_done]}/{task.fields[frames_total]} frames"),
@@ -1432,11 +1445,15 @@ class ZnDraw(MutableSequence):
 
         # Upload chunks with progress bar - acquire lock once for entire extend
         with self.get_lock(msg="Uploading frames"):
-            with self._progress_bar(total_bytes, total_frames, num_chunks) as update_progress:
+            with self._progress_bar(
+                total_bytes, total_frames, num_chunks
+            ) as update_progress:
                 bytes_uploaded = 0
                 frames_uploaded = 0
 
-                for chunk_idx, (chunk, chunk_size) in enumerate(zip(chunks, chunk_sizes)):
+                for chunk_idx, (chunk, chunk_size) in enumerate(
+                    zip(chunks, chunk_sizes)
+                ):
                     # Upload this chunk with retry logic
                     for attempt in range(self.local.max_retries + 1):
                         try:
@@ -1475,6 +1492,7 @@ class ZnDraw(MutableSequence):
     @property
     def settings(self) -> RoomConfig:
         """Access room-level settings configuration."""
+
         def callback_fn(data, extension: str):
             self.api.submit_extension_settings(extension, data)
 
@@ -1508,7 +1526,9 @@ class ZnDraw(MutableSequence):
         name = extension.__name__
 
         # Select the appropriate dictionary based on public flag
-        extensions_dict = self._public_extensions if public else self._private_extensions
+        extensions_dict = (
+            self._public_extensions if public else self._private_extensions
+        )
 
         # Check if this specific extension is already registered in this namespace
         if name in extensions_dict:
@@ -1537,7 +1557,9 @@ class ZnDraw(MutableSequence):
         print(f"Registered extension '{name}' of category '{extension.category}'.")
 
         scope = "global" if public else self.room
-        print(f"Registering {'global' if public else 'room-scoped'} extension '{name}'...")
+        print(
+            f"Registering {'global' if public else 'room-scoped'} extension '{name}'..."
+        )
 
         worker_id = self.api.register_extension(
             name=name,
@@ -1582,7 +1604,8 @@ class ZnDraw(MutableSequence):
             name=extension_name,
             data=extension.model_dump(),
             public=public if public is not None else False,
-            auto_retry=public is None,  # Only auto-retry if public wasn't explicitly set
+            auto_retry=public
+            is None,  # Only auto-retry if public wasn't explicitly set
         )
 
         # Extract jobId from response and create Job object
@@ -1591,7 +1614,13 @@ class ZnDraw(MutableSequence):
             raise RuntimeError(f"Server response missing jobId: {response}")
 
         assert self.url is not None, "URL must be set after initialization"
-        return Job(job_id=job_id, url=self.url, room=self.room, api=self.api, socket=self.socket)
+        return Job(
+            job_id=job_id,
+            url=self.url,
+            room=self.room,
+            api=self.api,
+            socket=self.socket,
+        )
 
     def register_filesystem(
         self,
@@ -1654,7 +1683,9 @@ class ZnDraw(MutableSequence):
         print(f"Registered filesystem '{name}' (type: {fs.__class__.__name__}).")
 
         scope = "global" if public else self.room
-        print(f"Registering {'global' if public else 'room-scoped'} filesystem '{name}'...")
+        print(
+            f"Registering {'global' if public else 'room-scoped'} filesystem '{name}'..."
+        )
 
         # Register with server via Socket.IO
         worker_id = self.api.register_filesystem(

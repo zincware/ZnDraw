@@ -137,9 +137,7 @@ def test_shutdown_local_mode_any_user(app_local_mode):
     # Try to shutdown with valid token
     # socketio.stop() raises SystemExit in test mode, which is expected
     with pytest.raises(SystemExit):
-        response = client.post(
-            "/api/shutdown", headers={"Authorization": f"Bearer {token}"}
-        )
+        client.post("/api/shutdown", headers={"Authorization": f"Bearer {token}"})
 
 
 def test_shutdown_deployment_mode_admin_only(app_deployment_mode):
@@ -155,9 +153,7 @@ def test_shutdown_deployment_mode_admin_only(app_deployment_mode):
     # Admin can shutdown
     # socketio.stop() raises SystemExit in test mode, which is expected
     with pytest.raises(SystemExit):
-        response = client.post(
-            "/api/shutdown", headers={"Authorization": f"Bearer {admin_token}"}
-        )
+        client.post("/api/shutdown", headers={"Authorization": f"Bearer {admin_token}"})
 
 
 def test_shutdown_deployment_mode_non_admin_forbidden(app_deployment_mode):

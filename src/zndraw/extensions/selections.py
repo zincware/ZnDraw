@@ -2,7 +2,6 @@ import random
 import typing as t
 
 import networkx as nx
-import numpy as np
 from pydantic import Field
 
 from zndraw.extensions.abc import Extension, Category

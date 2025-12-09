@@ -13,13 +13,13 @@
  * convertBookmarkKeys({"1": "First", "5": "Middle"}) // {1: "First", 5: "Middle"}
  */
 export function convertBookmarkKeys(
-  bookmarks: Record<string, string> | null | undefined
+	bookmarks: Record<string, string> | null | undefined,
 ): Record<number, string> | null {
-  if (!bookmarks) return null;
+	if (!bookmarks) return null;
 
-  const result: Record<number, string> = {};
-  for (const [key, value] of Object.entries(bookmarks)) {
-    result[parseInt(key, 10)] = value;
-  }
-  return result;
+	const result: Record<number, string> = {};
+	for (const [key, value] of Object.entries(bookmarks)) {
+		result[parseInt(key, 10)] = value;
+	}
+	return result;
 }

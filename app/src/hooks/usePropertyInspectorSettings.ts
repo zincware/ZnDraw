@@ -10,16 +10,19 @@
 
 import { useMemo } from "react";
 import { useSettingData } from "./useSettings";
-import { usePropertyValues, useAvailableProperties } from "./usePropertyInspector";
+import {
+	usePropertyValues,
+	useAvailableProperties,
+} from "./usePropertyInspector";
 import { useAppStore } from "../store";
 
 type PropertyCategory = "per-particle" | "global" | "all";
 
 interface UsePropertyInspectorSettingsOptions {
-  /** Category filter to only fetch relevant properties */
-  category?: PropertyCategory;
-  /** Whether to enable property fetching (e.g., based on showInfoBoxes) */
-  enabled?: boolean;
+	/** Category filter to only fetch relevant properties */
+	category?: PropertyCategory;
+	/** Whether to enable property fetching (e.g., based on showInfoBoxes) */
+	enabled?: boolean;
 }
 
 /**
@@ -30,62 +33,63 @@ interface UsePropertyInspectorSettingsOptions {
  * @returns Enabled properties, their values, and metadata
  */
 export const usePropertyInspectorSettings = (
-  options: UsePropertyInspectorSettingsOptions = {}
+	options: UsePropertyInspectorSettingsOptions = {},
 ) => {
-  const { category = "all", enabled = true } = options;
-  // Use individual selectors to prevent unnecessary re-renders
-  const roomId = useAppStore((state) => state.roomId);
-  const currentFrame = useAppStore((state) => state.currentFrame);
-  const particleCount = useAppStore((state) => state.particleCount);
+	const { category = "all", enabled = true } = options;
+	// Use individual selectors to prevent unnecessary re-renders
+	const roomId = useAppStore((state) => state.roomId);
+	const currentFrame = useAppStore((state) => state.currentFrame);
+	const particleCount = useAppStore((state) => state.particleCount);
 
-  // Fetch property_inspector settings from backend
-  const { data: settingsData } = useSettingData(
-    roomId || "",
-    "property_inspector"
-  );
+	// Fetch property_inspector settings from backend
+	const { data: settingsData } = useSettingData(
+		roomId || "",
+		"property_inspector",
+	);
 
-  // Extract enabled_properties array from settings
-  const enabledProperties: string[] = settingsData?.enabled_properties || [];
+	// Extract enabled_properties array from settings
+	const enabledProperties: string[] = settingsData?.enabled_properties || [];
 
-  // Fetch property categorization metadata (only if enabled and we need filtering)
-  const shouldFetchMetadata = enabled && category !== "all" && enabledProperties.length > 0;
+	// Fetch property categorization metadata (only if enabled and we need filtering)
+	const shouldFetchMetadata =
+		enabled && category !== "all" && enabledProperties.length > 0;
 
-  const { data: categories } = useAvailableProperties(
-    roomId || undefined,
-    currentFrame,
-    particleCount,
-    shouldFetchMetadata
-  );
+	const { data: categories } = useAvailableProperties(
+		roomId || undefined,
+		currentFrame,
+		particleCount,
+		shouldFetchMetadata,
+	);
 
-  // Memoize filtered properties based on category
-  const filteredProperties = useMemo(() => {
-    if (category === "all" || !categories) {
-      return enabledProperties;
-    }
+	// Memoize filtered properties based on category
+	const filteredProperties = useMemo(() => {
+		if (category === "all" || !categories) {
+			return enabledProperties;
+		}
 
-    // Create lookup sets for efficient filtering
-    const perParticleKeys = new Set(categories.perParticle.map(p => p.key));
-    const globalKeys = new Set(categories.global.map(p => p.key));
+		// Create lookup sets for efficient filtering
+		const perParticleKeys = new Set(categories.perParticle.map((p) => p.key));
+		const globalKeys = new Set(categories.global.map((p) => p.key));
 
-    return enabledProperties.filter(key => {
-      if (category === "per-particle") return perParticleKeys.has(key);
-      if (category === "global") return globalKeys.has(key);
-      return true;
-    });
-  }, [enabledProperties, categories, category]);
+		return enabledProperties.filter((key) => {
+			if (category === "per-particle") return perParticleKeys.has(key);
+			if (category === "global") return globalKeys.has(key);
+			return true;
+		});
+	}, [enabledProperties, categories, category]);
 
-  // Fetch values for filtered properties (only if enabled)
-  const propertyValues = usePropertyValues(
-    roomId || undefined,
-    currentFrame,
-    filteredProperties,
-    enabled && filteredProperties.length > 0
-  );
+	// Fetch values for filtered properties (only if enabled)
+	const propertyValues = usePropertyValues(
+		roomId || undefined,
+		currentFrame,
+		filteredProperties,
+		enabled && filteredProperties.length > 0,
+	);
 
-  return {
-    enabledProperties: filteredProperties,
-    propertyValues,
-    isEnabled: filteredProperties.length > 0,
-    categories,
-  };
+	return {
+		enabledProperties: filteredProperties,
+		propertyValues,
+		isEnabled: filteredProperties.length > 0,
+		categories,
+	};
 };

@@ -108,9 +108,7 @@ def test_batched_listing_with_many_rooms(server, s22, get_jwt_auth_headers):
     assert len(rooms_with_atoms) == num_rooms // 3 + 1  # Every 3rd room + room 0
 
     # Verify metadata
-    rooms_with_metadata = [
-        r for r in our_rooms if "batch" in r["metadata"]
-    ]
+    rooms_with_metadata = [r for r in our_rooms if "batch" in r["metadata"]]
     assert len(rooms_with_metadata) == 4  # 0, 5, 10, 15
 
 
@@ -151,9 +149,7 @@ def test_batched_listing_search_filter(server, s22, get_jwt_auth_headers):
     assert response.status_code == 200
 
     rooms = response.json()
-    matched_rooms = [
-        r for r in rooms if r["id"].startswith("search-test-")
-    ]
+    matched_rooms = [r for r in rooms if r["id"].startswith("search-test-")]
 
     # Should match alpha and beta (both have "protein" in metadata)
     assert len(matched_rooms) == 2

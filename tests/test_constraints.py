@@ -8,9 +8,7 @@ and dict2constraint() methods.
 
 import ase
 import ase.constraints
-import numpy as np
 import numpy.testing as npt
-import pytest
 
 from asebytes import encode, decode
 from zndraw.storage import ASEBytesStorageBackend

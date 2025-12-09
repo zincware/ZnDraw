@@ -1,6 +1,5 @@
 """Tests for file browser functionality."""
 
-import tempfile
 from pathlib import Path
 
 import pytest

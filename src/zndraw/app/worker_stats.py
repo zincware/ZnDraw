@@ -32,7 +32,6 @@ class WorkerStats:
         """
         # Get all workers registered for this extension
         all_workers = redis_client.hkeys(keys.workers)
-        total_workers = len(all_workers)
 
         # Count idle vs busy workers by checking capacity
         idle_count = 0

@@ -3,7 +3,6 @@
 Handles job listing, status updates, and worker job polling.
 """
 
-import json
 import logging
 
 from flask import Blueprint, current_app, jsonify, request
@@ -37,7 +36,10 @@ def _transition_worker_to_idle(
         room_id: Room identifier
         success: True if job completed, False if failed (affects log message)
     """
-    from .job_dispatcher import assign_pending_jobs_for_extension, release_worker_capacity
+    from .job_dispatcher import (
+        assign_pending_jobs_for_extension,
+        release_worker_capacity,
+    )
 
     category = job.get("category")
     extension = job.get("extension")
@@ -57,7 +59,9 @@ def _transition_worker_to_idle(
     release_worker_capacity(redis_client, worker_id, job_id)
 
     status_msg = (
-        "finished and capacity restored" if success else "capacity restored after failure"
+        "finished and capacity restored"
+        if success
+        else "capacity restored after failure"
     )
     log.info(f"Worker {worker_id} {status_msg}")
 
@@ -66,11 +70,17 @@ def _transition_worker_to_idle(
     registered_extensions_room = []
     registered_extensions_global = []
 
-    user_extensions_key_room = ExtensionKeys.user_extensions_key(room_id, category, worker_id)
+    user_extensions_key_room = ExtensionKeys.user_extensions_key(
+        room_id, category, worker_id
+    )
     registered_extensions_room = list(redis_client.smembers(user_extensions_key_room))
 
-    user_extensions_key_global = ExtensionKeys.global_user_extensions_key(category, worker_id)
-    registered_extensions_global = list(redis_client.smembers(user_extensions_key_global))
+    user_extensions_key_global = ExtensionKeys.global_user_extensions_key(
+        category, worker_id
+    )
+    registered_extensions_global = list(
+        redis_client.smembers(user_extensions_key_global)
+    )
 
     log.info(
         f"Worker {worker_id} registered extensions - room: {registered_extensions_room}, global: {registered_extensions_global}"
@@ -85,7 +95,9 @@ def _transition_worker_to_idle(
             redis_client, socketio_instance, room_id, category, ext_name, worker_id
         )
         if assigned > 0:
-            log.info(f"Assigned {assigned} pending job(s) from room extension {ext_name} to worker {worker_id}")
+            log.info(
+                f"Assigned {assigned} pending job(s) from room extension {ext_name} to worker {worker_id}"
+            )
             total_assigned += assigned
             break  # Worker now busy, stop trying to assign more
 
@@ -96,7 +108,9 @@ def _transition_worker_to_idle(
                 redis_client, socketio_instance, None, category, ext_name, worker_id
             )
             if assigned > 0:
-                log.info(f"Assigned {assigned} pending job(s) from global extension {ext_name} to worker {worker_id}")
+                log.info(
+                    f"Assigned {assigned} pending job(s) from global extension {ext_name} to worker {worker_id}"
+                )
                 total_assigned += assigned
                 break  # Worker now busy, stop trying to assign more
 
@@ -248,7 +262,9 @@ def update_job_status(room_id: str, job_id: str):
             return {"error": "Worker ID does not match job's assigned worker"}, 400
 
         # Update job status to processing (automatically emits job:state_changed)
-        success = JobManager.start_processing(redis_client, job_id, worker_id, socketio=socketio)
+        success = JobManager.start_processing(
+            redis_client, job_id, worker_id, socketio=socketio
+        )
         if not success:
             return {"error": "Failed to start job processing"}, 400
 
@@ -320,5 +336,3 @@ def update_job_status(room_id: str, job_id: str):
         log.info(f"Skipping worker transition (worker_id={worker_id})")
 
     return {"status": "success"}, 200
-
-

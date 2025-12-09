@@ -1,7 +1,5 @@
 """Unit tests for job endpoints and Job object."""
 
-import time
-
 import pytest
 import requests
 
@@ -55,7 +53,9 @@ def test_submit_job_creates_assigned_status(server):
 
 def test_submit_job_without_workers_stays_pending(server):
     """Test that second job stays pending when first job occupies the only worker."""
-    vis = ZnDraw(url=server, room="test-pending", user="testuser", auto_pickup_jobs=False)
+    vis = ZnDraw(
+        url=server, room="test-pending", user="testuser", auto_pickup_jobs=False
+    )
     vis.register_extension(TestModifier)
 
     # Submit two jobs - only one worker available
@@ -87,7 +87,9 @@ def test_get_job_details_success(server):
     assert response.status_code == 200
     details = response.json()
     assert details["jobId"] == job.job_id
-    assert details["status"] == "assigned"  # Job assigned but not processed (auto_pickup=False)
+    assert (
+        details["status"] == "assigned"
+    )  # Job assigned but not processed (auto_pickup=False)
     assert details["category"] == "modifiers"
     assert details["extension"] == "TestModifier"
     assert details["data"]["param"] == 42
@@ -110,7 +112,15 @@ def test_get_job_details_contains_all_fields(server):
     details = job.refresh()
 
     # Verify all expected fields are present
-    required_fields = ["jobId", "room", "category", "extension", "data", "public", "status"]
+    required_fields = [
+        "jobId",
+        "room",
+        "category",
+        "extension",
+        "data",
+        "public",
+        "status",
+    ]
     for field in required_fields:
         assert field in details, f"Missing required field: {field}"
 
@@ -299,8 +309,8 @@ def test_multiple_jobs_queue_correctly(server):
 
     # First job is assigned, others are pending (only one worker)
     assert job1.is_assigned()  # Worker picks up first job
-    assert job2.is_pending()   # Second job waits in queue
-    assert job3.is_pending()   # Third job waits in queue
+    assert job2.is_pending()  # Second job waits in queue
+    assert job3.is_pending()  # Third job waits in queue
 
     # All should have different IDs
     assert job1.job_id != job2.job_id

@@ -1,8 +1,5 @@
 """Tests for room metadata functionality."""
 
-from datetime import datetime, timezone
-from pathlib import Path
-
 import pytest
 import requests
 
@@ -100,7 +97,7 @@ def test_metadata_rest_get(server):
 
 def test_post_room_metadata(server):
     """Test creating/updating metadata."""
-    vis = zndraw.ZnDraw(url=server, room="test_room", user="tester")
+    zndraw.ZnDraw(url=server, room="test_room", user="tester")  # Creates room
 
     # Post metadata
     metadata = {"file_path": "test.xyz", "file_size": "1234"}
@@ -120,10 +117,10 @@ def test_post_room_metadata(server):
 
 def test_metadata_respects_lock(server, redis_client):
     """Test that metadata writes check permanent room lock (not trajectory lock)."""
-    vis = zndraw.ZnDraw(url=server, room="test_room", user="tester")
+    zndraw.ZnDraw(url=server, room="test_room", user="tester")  # Creates room
 
     # Set permanent room lock
-    redis_client.set(f"room:test_room:locked", "1")
+    redis_client.set("room:test_room:locked", "1")
 
     try:
         # Try to update metadata - should be rejected
@@ -133,7 +130,7 @@ def test_metadata_respects_lock(server, redis_client):
         assert response.status_code == 403  # Forbidden due to permanent lock
     finally:
         # Clean up lock
-        redis_client.delete(f"room:test_room:locked")
+        redis_client.delete("room:test_room:locked")
 
     # Now without lock, should work
     response = requests.post(
@@ -144,7 +141,7 @@ def test_metadata_respects_lock(server, redis_client):
 
 def test_delete_metadata_field(server):
     """Test deleting specific field."""
-    vis = zndraw.ZnDraw(url=server, room="test_room", user="tester")
+    zndraw.ZnDraw(url=server, room="test_room", user="tester")  # Creates room
 
     # Set metadata
     requests.post(

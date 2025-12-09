@@ -1,6 +1,5 @@
 import itertools
 import logging
-import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -130,7 +129,7 @@ def read_file(
     max_particles = 0  # Track maximum particle count across all frames
 
     # with vis.lock(msg="Uploading ..."):
-    # TODO: vis._extend() which does extend without aquire/release 
+    # TODO: vis._extend() which does extend without acquire/release
     # so we can do it here?
     try:
         # Create progress tracker with slice info
@@ -369,7 +368,7 @@ def read_file(
                 headers=headers,
             ).raise_for_status()
             log.info(f"Locked template room {room} (admin-locked)")
-            vis.log(f"✓ Room locked by admin (template room)")
+            vis.log("✓ Room locked by admin (template room)")
         except requests.RequestException as e:
             log.error(f"Failed to lock template room {room}: {e}")
             vis.log("Failed to lock template room.")

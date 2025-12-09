@@ -61,12 +61,12 @@ def get_storage(room_id: str) -> StorageBackend:
         # Extract base path (remove extensions if present)
         base_path = None
         if storage_path:
-            base_path = storage_path.rstrip("/").removesuffix(".zarr").removesuffix(".lmdb")
+            base_path = (
+                storage_path.rstrip("/").removesuffix(".zarr").removesuffix(".lmdb")
+            )
 
         STORAGE[room_id] = create_storage(
-            room_id=room_id,
-            base_path=base_path,
-            map_size=config.lmdb_map_size
+            room_id=room_id, base_path=base_path, map_size=config.lmdb_map_size
         )
         log.info(f"Created ASEBytes storage for room '{room_id}'")
 
@@ -124,6 +124,7 @@ def requires_lock(target: str | None = None, forbid: list[str] | None = None):
     >>> def update_step(room_id: str, session_id: str, user_id: str):
     ...     pass
     """
+
     def decorator(f):
         @functools.wraps(f)
         def wrapped(*args, **kwargs):
@@ -147,7 +148,9 @@ def requires_lock(target: str | None = None, forbid: list[str] | None = None):
                             error_msg = "Room is locked and cannot be modified"
                             if locked_by:
                                 error_msg = f"Room is locked by admin '{locked_by}' and cannot be modified"
-                            log.warning(f"Forbidden state violated: {forbidden_state} in room {room_id}")
+                            log.warning(
+                                f"Forbidden state violated: {forbidden_state} in room {room_id}"
+                            )
                             return jsonify({"error": error_msg}), 403
                     # Future: Add other forbidden states here
                     # elif forbidden_state == "room:archived":
@@ -163,7 +166,9 @@ def requires_lock(target: str | None = None, forbid: list[str] | None = None):
             # ===== 3. VALIDATE SESSION ID (existing logic) =====
             session_id = request.headers.get("X-Session-ID")
             if not session_id:
-                log.warning(f"X-Session-ID header missing for {target} in room {room_id}")
+                log.warning(
+                    f"X-Session-ID header missing for {target} in room {room_id}"
+                )
                 return jsonify({"error": "X-Session-ID header required"}), 400
 
             session_key = SessionKeys.session_data(session_id)
@@ -210,6 +215,7 @@ def requires_lock(target: str | None = None, forbid: list[str] | None = None):
             return f(*args, **kwargs)
 
         return wrapped
+
     return decorator
 
 
@@ -379,7 +385,7 @@ def emit_lock_update(
     user_name: str | None = None,
     message: str | None = None,
     timestamp: str | None = None,
-    session_id: str | None = None
+    session_id: str | None = None,
 ):
     """Emit lock status update to all clients in room.
 
@@ -408,14 +414,14 @@ def emit_lock_update(
         "holder": user_name,
         "message": message,
         "timestamp": timestamp,
-        "sessionId": session_id
+        "sessionId": session_id,
     }
 
     socketio.emit(
         "lock:update",
         payload,
         to=f"room:{room_id}",
-        skip_sid=None  # Send to all clients; they filter by sessionId
+        skip_sid=None,  # Send to all clients; they filter by sessionId
     )
 
     log.debug(f"Emitted lock:update for room '{room_id}': {payload}")
@@ -538,7 +544,9 @@ def emit_step_update_on_insert(room_id: str, insert_position: int):
     )
 
 
-def parse_frame_mapping(mapping_entry: str | bytes, default_room: str) -> tuple[str, int]:
+def parse_frame_mapping(
+    mapping_entry: str | bytes, default_room: str
+) -> tuple[str, int]:
     """Parse a frame mapping entry to extract source room and physical index.
 
     Parameters

@@ -85,9 +85,7 @@ class ZnDrawConfig:
     """
 
     # Core server configuration
-    redis_url: str | None = field(
-        default_factory=lambda: os.getenv("ZNDRAW_REDIS_URL")
-    )
+    redis_url: str | None = field(default_factory=lambda: os.getenv("ZNDRAW_REDIS_URL"))
     storage_path: str = field(
         default_factory=lambda: os.getenv("ZNDRAW_STORAGE_PATH", "./zndraw-data")
     )
@@ -132,9 +130,7 @@ class ZnDrawConfig:
 
     # Optional features
     simgen_enabled: bool = field(
-        default_factory=lambda: _parse_bool(
-            os.getenv("ZNDRAW_SIMGEN_ENABLED", "false")
-        )
+        default_factory=lambda: _parse_bool(os.getenv("ZNDRAW_SIMGEN_ENABLED", "false"))
     )
     file_browser_enabled: bool = field(
         default_factory=lambda: _parse_bool(
@@ -213,9 +209,7 @@ class ZnDrawConfig:
         log.info(f"  LMDB Map Size: {self.lmdb_map_size / 1024**3:.2f} GB per room")
         log.info(f"  Server: {self.server_url}")
         log.info(f"  Log Level: {self.log_level}")
-        log.info(
-            f"  Admin Mode: {'Enabled' if self.admin_username else 'Disabled'}"
-        )
+        log.info(f"  Admin Mode: {'Enabled' if self.admin_username else 'Disabled'}")
         log.info(f"  Max Upload: {self.max_upload_mb}MB")
         log.info(f"  SiMGen: {'Enabled' if self.simgen_enabled else 'Disabled'}")
         log.info(

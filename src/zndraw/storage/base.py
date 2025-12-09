@@ -2,7 +2,6 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import MutableSequence
-import typing as t
 
 import numpy as np
 

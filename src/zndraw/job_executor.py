@@ -39,7 +39,9 @@ def _fetch_job_details(server_url: str, job_id: str) -> dict:
     response.raise_for_status()
 
     job_data = response.json()
-    log.debug(f"Fetched job {job_id} details: {job_data['category']}/{job_data['extension']}")
+    log.debug(
+        f"Fetched job {job_id} details: {job_data['category']}/{job_data['extension']}"
+    )
 
     return job_data
 
@@ -127,9 +129,7 @@ def execute_job_for_worker(
             worker_id=worker_id,
         )
 
-        log.info(
-            f"Worker {worker_id} starting job {job_id}: {category}/{extension}"
-        )
+        log.info(f"Worker {worker_id} starting job {job_id}: {category}/{extension}")
 
         # Step 5: Execute extension
         try:
@@ -161,7 +161,9 @@ def execute_job_for_worker(
     except Exception as e:
         # Handle errors during setup (vis creation, extension validation, etc.)
         error_msg = f"Error setting up job {job_id}: {e}\n{traceback.format_exc()}"
-        log.error(f"Worker {worker_id} setup error for job {job_id}: {e}", exc_info=True)
+        log.error(
+            f"Worker {worker_id} setup error for job {job_id}: {e}", exc_info=True
+        )
 
         # Try to log error to vis if available
         if vis is not None:

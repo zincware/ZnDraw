@@ -118,7 +118,6 @@ def test_download_with_selection(server, s22):
     # Setup: Create room with a frame
     vis = ZnDraw(url=server, room="test-download-selection", user="user1")
     atoms = s22[0]  # Get first structure
-    original_len = len(atoms)
     vis.append(atoms)
 
     # Download with selection of first 3 particles
@@ -178,7 +177,7 @@ def test_download_preserves_metadata(server, s22):
 def test_download_empty_room(server):
     """Test downloading from an empty room returns error."""
     # Setup: Create empty room
-    vis = ZnDraw(url=server, room="test-download-empty", user="user1")
+    ZnDraw(url=server, room="test-download-empty", user="user1")
 
     # Download from empty room
     response = requests.get(f"{server}/api/rooms/test-download-empty/download")

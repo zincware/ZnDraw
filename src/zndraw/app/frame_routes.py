@@ -10,7 +10,7 @@ import time
 import traceback
 
 import msgpack
-from flask import Blueprint, Response, current_app, request, send_file
+from flask import Blueprint, Response, current_app, request
 
 from .frame_index_manager import FrameIndexManager
 from .redis_keys import RoomKeys
@@ -49,9 +49,14 @@ def get_frames(room_id):
 
         if frame_count == 0:
             return Response(
-                json.dumps({"error": f"No frames found in room '{room_id}'", "type": "IndexError"}),
+                json.dumps(
+                    {
+                        "error": f"No frames found in room '{room_id}'",
+                        "type": "IndexError",
+                    }
+                ),
                 status=404,
-                content_type="application/json"
+                content_type="application/json",
             )
 
         max_frame_idx = frame_count - 1
@@ -66,9 +71,11 @@ def get_frames(room_id):
                     frame_indices = [int(idx.strip()) for idx in indices_str.split(",")]
                 except ValueError:
                     return Response(
-                        json.dumps({"error": "Indices must be comma-separated integers"}),
+                        json.dumps(
+                            {"error": "Indices must be comma-separated integers"}
+                        ),
                         status=400,
-                        content_type="application/json"
+                        content_type="application/json",
                     )
 
             for frame_id in frame_indices:
@@ -100,7 +107,7 @@ def get_frames(room_id):
                 return Response(
                     json.dumps({"error": "step cannot be zero"}),
                     status=400,
-                    content_type="application/json"
+                    content_type="application/json",
                 )
 
             slice_obj = slice(start, stop, step)
@@ -470,9 +477,7 @@ def append_frame(room_id: str, session_id: str, user_id: str):
         # The client sends either:
         # 1. dict[bytes, bytes] from encode() - keys and values are bytes
         # 2. dict[str, Any] from raw dicts - keys are strings, values may not be bytes
-        unpacked_data = msgpack.unpackb(
-            request.data, strict_map_key=False
-        )
+        unpacked_data = msgpack.unpackb(request.data, strict_map_key=False)
 
         # Normalize to dict[bytes, bytes] format for storage
         def ensure_bytes_dict(obj):
@@ -487,6 +492,7 @@ def append_frame(room_id: str, session_id: str, user_id: str):
                     else:
                         # Value is not bytes, need to encode it
                         import msgpack_numpy as m
+
                         value = msgpack.packb(v, default=m.encode)
                     result[key] = value
                 return result
@@ -600,8 +606,10 @@ def append_frame(room_id: str, session_id: str, user_id: str):
             extend_total_time = time.perf_counter() - extend_start_time
 
             # Calculate frames per second, avoiding division by zero
-            decode_fps = f"{num_frames/decode_time:.0f}" if decode_time > 0 else "N/A"
-            storage_fps = f"{num_frames/storage_time:.0f}" if storage_time > 0 else "N/A"
+            decode_fps = f"{num_frames / decode_time:.0f}" if decode_time > 0 else "N/A"
+            storage_fps = (
+                f"{num_frames / storage_time:.0f}" if storage_time > 0 else "N/A"
+            )
 
             log.info(
                 f"PERFORMANCE: Extended trajectory with {num_frames} frames to room '{room_id}' | "
@@ -711,9 +719,7 @@ def bulk_replace_frames(room_id: str, session_id: str, user_id: str):
 
     try:
         # Unpack the msgpack data WITHOUT object_hook to keep values as bytes
-        unpacked_data = msgpack.unpackb(
-            request.data, strict_map_key=False
-        )
+        unpacked_data = msgpack.unpackb(request.data, strict_map_key=False)
 
         if not isinstance(unpacked_data, list):
             return {"error": "Body must contain a list of frame dictionaries"}, 400
@@ -731,6 +737,7 @@ def bulk_replace_frames(room_id: str, session_id: str, user_id: str):
                     else:
                         # Value is not bytes, need to encode it
                         import msgpack_numpy as m
+
                         value = msgpack.packb(v, default=m.encode)
                     result[key] = value
                 return result

@@ -57,7 +57,9 @@ def test_vis_run_with_public_parameter_explicit(server, get_jwt_auth_headers):
     # vis.run() now returns a Job object
     job_public = vis.run(ext, public=True)
     assert job_public.job_id is not None
-    assert job_public.is_assigned()  # Job assigned but not processed (auto_pickup=False)
+    assert (
+        job_public.is_assigned()
+    )  # Job assigned but not processed (auto_pickup=False)
 
     # Complete the public job to free worker capacity
     # Manually transition job to processing then completed
@@ -134,9 +136,11 @@ def test_vis_run_explicit_public_fails_if_only_private_registered(server):
 
     # Explicitly request public - should fail
     try:
-        result = vis.run(ext, public=True)
+        vis.run(ext, public=True)
         # If we get here, the test should fail
-        assert False, "Should have failed when requesting public for private-only extension"
+        assert False, (
+            "Should have failed when requesting public for private-only extension"
+        )
     except ValueError as e:
         assert "not registered in public namespace" in str(e)
 
@@ -153,9 +157,11 @@ def test_vis_run_explicit_private_fails_if_only_public_registered(server):
 
     # Explicitly request private - should fail
     try:
-        result = vis.run(ext, public=False)
+        vis.run(ext, public=False)
         # If we get here, the test should fail
-        assert False, "Should have failed when requesting private for public-only extension"
+        assert False, (
+            "Should have failed when requesting private for public-only extension"
+        )
     except ValueError as e:
         assert "not registered in private namespace" in str(e)
 

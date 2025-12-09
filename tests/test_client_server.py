@@ -84,7 +84,9 @@ def test_extend_frames(server):
     # Start with a few frames
     for i in range(3):
         with client.get_lock():
-            client._append_frame({"index": np.array([i]), "points": np.random.rand(5, 3)})
+            client._append_frame(
+                {"index": np.array([i]), "points": np.random.rand(5, 3)}
+            )
     assert len(client) == 3
 
     # Extend with multiple frames at once
@@ -459,7 +461,7 @@ def test_slice_assignment_error_conditions(server):
 
     # Set up initial data
     initial_frames = [{"index": np.array([i])} for i in range(1, 6)]  # [1, 2, 3, 4, 5]
-    
+
     with client.get_lock():
         for frame in initial_frames:
             client._append_frame(frame)
@@ -609,7 +611,7 @@ def test_nested_dict_handling(server):
             "details": {"version": 1.0, "tags": ["test", "nested"]},
         },
     }
-    
+
     with client.get_lock():
         client._append_frame(nested_data)
     assert len(client) == 1
