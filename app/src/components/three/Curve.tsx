@@ -94,6 +94,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   // Use individual selectors to prevent unnecessary re-renders
   const currentFrame = useAppStore((state) => state.currentFrame);
+  const frameCount = useAppStore((state) => state.frameCount);
   const roomId = useAppStore((state) => state.roomId);
   const lock = useAppStore((state) => state.lock);
   const mode = useAppStore((state) => state.mode);
@@ -260,6 +261,12 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
 
   // Effect 1: Consolidated data processing and mesh update (following Box.tsx:265-390)
   useEffect(() => {
+    // When frameCount is 0, explicitly clear curve markers (e.g., after del vis[:])
+    if (frameCount === 0) {
+      if (markerCount !== 0) setMarkerCount(0);
+      return;
+    }
+
     if (isFetching) {
       return; // Wait for all enabled queries to complete
     }
@@ -378,6 +385,7 @@ export default function Curve({ data, geometryKey }: { data: CurveData; geometry
     }
   }, [
     data, // Add data to dependencies to ensure updates trigger
+    frameCount, // Watch frameCount to clear curve markers when it becomes 0
     isFetching,
     hasQueryError,
     positionData,

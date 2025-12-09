@@ -332,6 +332,12 @@ export default function Sphere({
 
   // Consolidated data processing and mesh update
   useEffect(() => {
+    // When frameCount is 0, explicitly clear particles (e.g., after del vis[:])
+    if (frameCount === 0) {
+      if (instanceCount !== 0) setInstanceCount(0);
+      return;
+    }
+
     if (isFetching) {
       return; // Wait for all enabled queries to complete
     }
@@ -475,6 +481,7 @@ export default function Sphere({
     }
   }, [
     data, // Add data to dependencies to ensure updates trigger
+    frameCount, // Watch frameCount to clear particles when it becomes 0
     isFetching,
     hasQueryError,
     positionData,

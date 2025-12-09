@@ -19,6 +19,7 @@ export const Cell = ({ data }: {data: CellData}) => {
   const theme = useTheme();
   // Use individual selectors to prevent unnecessary re-renders
   const currentFrame = useAppStore((state) => state.currentFrame);
+  const frameCount = useAppStore((state) => state.frameCount);
   const roomId = useAppStore((state) => state.roomId);
   const userName = useAppStore((state) => state.userName);
   const geometryDefaults = useAppStore((state) => state.geometryDefaults);
@@ -40,6 +41,12 @@ export const Cell = ({ data }: {data: CellData}) => {
   });
 
   useEffect(() => {
+    // When frameCount is 0, explicitly clear cell (e.g., after del vis[:])
+    if (frameCount === 0) {
+      if (displayedVertices !== null) setDisplayedVertices(null);
+      return;
+    }
+
     if (isFetching) {
       return; // Wait for data, keepPreviousData ensures old view remains
     }
@@ -91,7 +98,7 @@ export const Cell = ({ data }: {data: CellData}) => {
       [v[3], v[7]],
     ];
     setDisplayedVertices(calculatedVertices);
-  }, [cellData, isFetching, fullData.position]);
+  }, [cellData, frameCount, isFetching, fullData.position]);
 
   const lineColor = fullData.color === "default" ? (mode === "light" ? theme.palette.primary.dark : theme.palette.primary.light) : fullData.color;
 

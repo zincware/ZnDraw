@@ -291,6 +291,14 @@ export default function Bonds({
 
   // Consolidated data processing and mesh update
   useEffect(() => {
+    // When frameCount is 0, explicitly clear bonds (e.g., after del vis[:])
+    if (frameCount === 0) {
+      if (instanceCount !== 0) {
+        dispatchBondState({ type: 'RESET' });
+      }
+      return;
+    }
+
     if (isFetching) {
       return; // Wait for all enabled queries to complete
     }
@@ -509,6 +517,7 @@ export default function Bonds({
       }
     }
   }, [
+    frameCount, // Watch frameCount to clear bonds when it becomes 0
     isFetching,
     // Data dependencies - these change when frame changes
     positionData,

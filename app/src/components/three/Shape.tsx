@@ -308,6 +308,12 @@ export default function Shape({
 
   // Consolidated data processing and mesh update
   useEffect(() => {
+    // When frameCount is 0, explicitly clear shapes (e.g., after del vis[:])
+    if (frameCount === 0) {
+      if (instanceCount !== 0) setInstanceCount(0);
+      return;
+    }
+
     if (isFetching) {
       return;
     }
@@ -428,6 +434,7 @@ export default function Shape({
     }
   }, [
     data,
+    frameCount, // Watch frameCount to clear shapes when it becomes 0
     isFetching,
     positionData,
     colorData,

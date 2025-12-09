@@ -290,6 +290,12 @@ export default function Arrow({
 
 
   useEffect(() => {
+    // When frameCount is 0, explicitly clear arrows (e.g., after del vis[:])
+    if (frameCount === 0) {
+      if (instanceCount !== 0) setInstanceCount(0);
+      return;
+    }
+
     if (isFetching) {
       return; // Wait for all enabled queries to complete
     }
@@ -426,6 +432,7 @@ export default function Arrow({
     }
   }, [
     data, // Add data to dependencies to ensure updates trigger
+    frameCount, // Watch frameCount to clear arrows when it becomes 0
     isFetching,
     positionData,
     directionData,
