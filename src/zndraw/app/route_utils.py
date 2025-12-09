@@ -438,6 +438,106 @@ def emit_len_frames_update(room_id: str):
     emit_room_update(socketio, room_id, frameCount=frame_count)
 
 
+def emit_step_update_on_delete(room_id: str, deleted_indices: list[int]):
+    """Adjust and broadcast step after frames are deleted.
+
+    When frames are deleted before the current step, the step needs to be
+    decremented to point to the same logical frame data.
+
+    Parameters
+    ----------
+    room_id : str
+        The room ID
+    deleted_indices : list[int]
+        List of deleted frame indices (not necessarily sorted)
+    """
+    if not deleted_indices:
+        return
+
+    r = current_app.extensions["redis"]
+    room_keys = RoomKeys(room_id)
+
+    # Get current step
+    current_step_raw = r.get(room_keys.current_frame())
+    if current_step_raw is None:
+        return
+
+    current_step = int(current_step_raw)
+
+    # Calculate how many frames before current step were deleted
+    shift = sum(1 for idx in deleted_indices if idx < current_step)
+
+    if shift == 0:
+        return
+
+    # Calculate new step
+    new_step = current_step - shift
+
+    # Ensure step is non-negative
+    new_step = max(0, new_step)
+
+    # Update Redis
+    r.set(room_keys.current_frame(), new_step)
+
+    # Emit frame update to all clients
+    socketio.emit(
+        SocketEvents.FRAME_UPDATE,
+        {"frame": new_step},
+        to=f"room:{room_id}",
+    )
+
+    log.info(
+        f"Step adjusted after delete: {current_step} -> {new_step} "
+        f"(shift: -{shift}) in room '{room_id}'"
+    )
+
+
+def emit_step_update_on_insert(room_id: str, insert_position: int):
+    """Adjust and broadcast step after a frame is inserted.
+
+    When a frame is inserted at or before the current step, the step needs
+    to be incremented to point to the same logical frame data.
+
+    Parameters
+    ----------
+    room_id : str
+        The room ID
+    insert_position : int
+        The index where the frame was inserted
+    """
+    r = current_app.extensions["redis"]
+    room_keys = RoomKeys(room_id)
+
+    # Get current step
+    current_step_raw = r.get(room_keys.current_frame())
+    if current_step_raw is None:
+        return
+
+    current_step = int(current_step_raw)
+
+    # Only shift if frame was inserted at or before current step
+    if insert_position > current_step:
+        return
+
+    # Calculate new step
+    new_step = current_step + 1
+
+    # Update Redis
+    r.set(room_keys.current_frame(), new_step)
+
+    # Emit frame update to all clients
+    socketio.emit(
+        SocketEvents.FRAME_UPDATE,
+        {"frame": new_step},
+        to=f"room:{room_id}",
+    )
+
+    log.info(
+        f"Step adjusted after insert: {current_step} -> {new_step} "
+        f"(insert at {insert_position}) in room '{room_id}'"
+    )
+
+
 def parse_frame_mapping(mapping_entry: str | bytes, default_room: str) -> tuple[str, int]:
     """Parse a frame mapping entry to extract source room and physical index.
 

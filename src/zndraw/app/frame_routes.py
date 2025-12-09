@@ -18,6 +18,8 @@ from .route_utils import (
     emit_bookmarks_invalidate,
     emit_frames_invalidate,
     emit_len_frames_update,
+    emit_step_update_on_delete,
+    emit_step_update_on_insert,
     get_storage,
     parse_frame_mapping,
     remove_bookmark_at_index,
@@ -434,6 +436,8 @@ def delete_frames_batch(room_id: str, session_id: str, user_id: str):
             )
         # Emit len_frames update to notify clients of frame count change
         emit_len_frames_update(room_id)
+        # Adjust step if frames before current position were deleted
+        emit_step_update_on_delete(room_id, frame_indices)
 
         return {"success": True, "deleted_count": len(frame_indices)}
     except Exception as e:
@@ -650,6 +654,8 @@ def append_frame(room_id: str, session_id: str, user_id: str):
             )
             # Emit len_frames update to notify clients of frame count change
             emit_len_frames_update(room_id)
+            # Adjust step if frame was inserted at or before current position
+            emit_step_update_on_insert(room_id, insert_position)
 
             log.info(
                 f"Inserted frame at position {insert_position} (physical: {new_physical_index}) in room '{room_id}'"
