@@ -1,6 +1,8 @@
 /**
  * JWT Authentication utilities for browser client.
  *
+ * Uses jose library for secure JWT decoding and validation.
+ *
  * Simplified Architecture:
  * - userName is the primary identifier (unique, immutable after registration)
  * - Guests get auto-generated usernames (user-xyz)
@@ -8,12 +10,20 @@
  * - No client_id concept
  */
 
+import { decodeJwt, type JWTPayload } from 'jose';
+
 const TOKEN_KEY = 'zndraw_jwt_token';
 const USERNAME_KEY = 'zndraw_username';
-const IS_ADMIN_KEY = 'zndraw_is_admin';
 const USER_ROLE_KEY = 'zndraw_user_role';
 
 export type UserRole = 'guest' | 'user' | 'admin';
+
+/** JWT payload structure from server */
+interface ZnDrawJWTPayload extends JWTPayload {
+  sub: string;  // userName
+  role: UserRole;
+  jti: string;  // JWT ID
+}
 
 export interface LoginResponse {
   status: string;
@@ -72,13 +82,12 @@ export async function login(userName?: string, password?: string): Promise<Login
 }
 
 /**
- * Ensure user is authenticated. Auto-login if needed.
+ * Ensure user is authenticated with a valid token. Auto-login if needed.
  * Call this before making authenticated requests.
  */
 export async function ensureAuthenticated(): Promise<void> {
-  const token = getToken();
-  if (!token) {
-    await login(); // Auto-login with server-generated guest username
+  if (!isTokenValid()) {
+    await login();  // Auto-login with server-generated guest username
   }
 }
 
@@ -106,10 +115,78 @@ export function logout(): void {
 }
 
 /**
- * Check if user is authenticated (has token).
+ * Check if user is authenticated (has valid token).
  */
 export function isAuthenticated(): boolean {
-  return getToken() !== null;
+  return isTokenValid();
+}
+
+/**
+ * Decode JWT token and extract payload using jose library.
+ *
+ * @param token - JWT token string
+ * @returns Decoded payload or null if invalid
+ */
+export function decodeToken(token: string): ZnDrawJWTPayload | null {
+  try {
+    return decodeJwt(token) as ZnDrawJWTPayload;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if stored token is valid (exists and can be decoded).
+ * If token has expiry, also checks if not expired.
+ */
+export function isTokenValid(): boolean {
+  const token = getToken();
+  if (!token) {
+    return false;
+  }
+
+  const payload = decodeToken(token);
+  if (!payload) {
+    logout();  // Clear invalid token
+    return false;
+  }
+
+  // Check expiry if present (currently tokens don't expire, but future-proof)
+  if (payload.exp && Date.now() >= payload.exp * 1000) {
+    logout();  // Clear expired token
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Get claims from stored token without server request.
+ *
+ * @returns Token claims or null if no valid token
+ */
+export function getTokenClaims(): ZnDrawJWTPayload | null {
+  const token = getToken();
+  if (!token) {
+    return null;
+  }
+  return decodeToken(token);
+}
+
+/**
+ * Get username from token claims (preferred over localStorage).
+ */
+export function getUsernameFromToken(): string | null {
+  const claims = getTokenClaims();
+  return claims?.sub ?? null;
+}
+
+/**
+ * Get role from token claims (preferred over localStorage).
+ */
+export function getRoleFromToken(): UserRole | null {
+  const claims = getTokenClaims();
+  return claims?.role ?? null;
 }
 
 /**
