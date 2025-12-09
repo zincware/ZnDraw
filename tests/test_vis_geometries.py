@@ -162,10 +162,10 @@ def test_vis_list_geometries(server):
 
     # Check default geometries match what's created in room_service.py
     assert vis.geometries["particles"] == Sphere(
-        position="arrays.positions", color="arrays.colors", radius="arrays.radii"
+        position="arrays.positions", color="arrays.colors", radius="arrays.radii", scale=0.7
     )
     assert vis.geometries["bonds"] == Bond(
-        position="arrays.positions", color="arrays.colors"
+        position="arrays.positions", color="arrays.colors", scale=0.15
     )
     assert vis.geometries["curve"] == Curve()
     assert vis.geometries["cell"] == Cell()

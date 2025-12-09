@@ -9,7 +9,7 @@ import redis
 import requests
 
 
-def test_batched_room_listing_response_structure(server, s22):
+def test_batched_room_listing_response_structure(server, s22, get_jwt_auth_headers):
     """Verify batched implementation returns same structure as original."""
     import zndraw
 
@@ -30,8 +30,9 @@ def test_batched_room_listing_response_structure(server, s22):
     r.set("room:perf-test-room-2:hidden", "1")
     r.hset("room:perf-test-room-3:metadata", "file", "test.xyz")
 
-    # Fetch room list
-    response = requests.get(f"{server}/api/rooms")
+    # Fetch room list - authenticate as admin to see all rooms
+    headers = get_jwt_auth_headers(server, "admin")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     assert response.status_code == 200
 
     rooms = response.json()
@@ -47,14 +48,12 @@ def test_batched_room_listing_response_structure(server, s22):
         assert "frameCount" in room
         assert "locked" in room
         assert "metadataLocked" in room
-        assert "hidden" in room
         assert "isDefault" in room
         assert "metadata" in room
 
         # Verify types
         assert isinstance(room["frameCount"], int)
         assert isinstance(room["locked"], bool)
-        assert isinstance(room["hidden"], bool)
         assert isinstance(room["metadataLocked"], bool)
         assert isinstance(room["isDefault"], bool)
         assert isinstance(room["metadata"], dict)
@@ -67,14 +66,11 @@ def test_batched_room_listing_response_structure(server, s22):
     room_1 = [r for r in our_rooms if r["id"] == "perf-test-room-1"][0]
     assert room_1["locked"] is True
 
-    room_2 = [r for r in our_rooms if r["id"] == "perf-test-room-2"][0]
-    assert room_2["hidden"] is True
-
     room_3 = [r for r in our_rooms if r["id"] == "perf-test-room-3"][0]
     assert room_3["metadata"].get("file") == "test.xyz"
 
 
-def test_batched_listing_with_many_rooms(server, s22):
+def test_batched_listing_with_many_rooms(server, s22, get_jwt_auth_headers):
     """Test batched fetching with larger number of rooms."""
     import zndraw
 
@@ -96,8 +92,9 @@ def test_batched_listing_with_many_rooms(server, s22):
         r.hset(f"room:{room_id}:metadata", "batch", f"room-{i}")
         r.set(f"room:{room_id}:description", f"Description {i}")
 
-    # Fetch all rooms
-    response = requests.get(f"{server}/api/rooms")
+    # Fetch all rooms - authenticate as admin to see all rooms
+    headers = get_jwt_auth_headers(server, "admin")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     assert response.status_code == 200
 
     rooms = response.json()
@@ -128,7 +125,7 @@ def test_empty_room_list(server, get_jwt_auth_headers):
     assert isinstance(response.json(), list)
 
 
-def test_batched_listing_search_filter(server, s22):
+def test_batched_listing_search_filter(server, s22, get_jwt_auth_headers):
     """Test search filtering works with batched implementation."""
     import zndraw
 
@@ -148,8 +145,9 @@ def test_batched_listing_search_filter(server, s22):
     r.hset("room:search-test-beta:metadata", "experiment", "protein-binding")
     r.hset("room:search-test-gamma:metadata", "experiment", "dna-sequencing")
 
-    # Search for "protein"
-    response = requests.get(f"{server}/api/rooms?search=protein")
+    # Search for "protein" - authenticate as admin to see all rooms
+    headers = get_jwt_auth_headers(server, "admin")
+    response = requests.get(f"{server}/api/rooms?search=protein", headers=headers)
     assert response.status_code == 200
 
     rooms = response.json()
@@ -165,7 +163,7 @@ def test_batched_listing_search_filter(server, s22):
     assert "search-test-gamma" not in matched_ids
 
 
-def test_batched_listing_handles_missing_data(server, s22):
+def test_batched_listing_handles_missing_data(server, s22, get_jwt_auth_headers):
     """Test batched fetcher handles rooms with missing/null data."""
     import zndraw
 
@@ -173,7 +171,9 @@ def test_batched_listing_handles_missing_data(server, s22):
     vis = zndraw.ZnDraw(url=server, room="minimal-room", user="user1")
     vis.append(s22[0])
 
-    response = requests.get(f"{server}/api/rooms")
+    # Authenticate as admin to see all rooms
+    headers = get_jwt_auth_headers(server, "admin")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     assert response.status_code == 200
 
     rooms = response.json()
@@ -182,14 +182,13 @@ def test_batched_listing_handles_missing_data(server, s22):
     # Verify defaults are correct
     assert minimal_room["description"] is None
     assert minimal_room["locked"] is False
-    assert minimal_room["hidden"] is False
     assert minimal_room["metadataLocked"] is False
     assert minimal_room["metadata"] == {}
     assert minimal_room["frameCount"] == 1
 
 
 @pytest.mark.parametrize("num_rooms", [10, 50])
-def test_batched_listing_scaling(server, s22, num_rooms):
+def test_batched_listing_scaling(server, s22, num_rooms, get_jwt_auth_headers):
     """Test that batched listing scales well with increasing room count.
 
     This test creates many rooms and verifies the endpoint remains responsive.
@@ -206,9 +205,10 @@ def test_batched_listing_scaling(server, s22, num_rooms):
         if i % 5 == 0:
             vis.append(s22[0])
 
-    # Measure response time
+    # Measure response time - authenticate as admin to see all rooms
+    headers = get_jwt_auth_headers(server, "admin")
     start = time.time()
-    response = requests.get(f"{server}/api/rooms")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     elapsed = time.time() - start
 
     assert response.status_code == 200

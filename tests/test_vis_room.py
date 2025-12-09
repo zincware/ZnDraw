@@ -5,7 +5,9 @@ from zndraw.zndraw import ZnDraw
 
 
 def test_rest_join_new_room(server, get_jwt_auth_headers):
-    response = requests.get(f"{server}/api/rooms")
+    # Authenticate as admin to see all rooms
+    headers = get_jwt_auth_headers(server, "admin")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     assert response.status_code == 200
     rooms = response.json()
     assert isinstance(rooms, list)
@@ -24,7 +26,7 @@ def test_rest_join_new_room(server, get_jwt_auth_headers):
     assert "userName" in data
 
     # list all rooms again to see if the new room is there
-    response = requests.get(f"{server}/api/rooms")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     assert response.status_code == 200
     rooms = response.json()
     assert isinstance(rooms, list)

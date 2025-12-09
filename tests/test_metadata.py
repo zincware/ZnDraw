@@ -206,12 +206,14 @@ def test_client_metadata_lazy_load(server):
     assert vis.metadata["key"] == "updated"
 
 
-def test_room_list_includes_metadata(server):
+def test_room_list_includes_metadata(server, get_jwt_auth_headers):
     """Test that room list includes metadata."""
     vis = zndraw.ZnDraw(url=server, room="test_room", user="tester")
     vis.metadata["file"] = "test.xyz"
 
-    response = requests.get(f"{server}/api/rooms")
+    # Authenticate as admin to see all rooms
+    headers = get_jwt_auth_headers(server, "admin")
+    response = requests.get(f"{server}/api/rooms", headers=headers)
     assert response.status_code == 200
 
     rooms = response.json()
@@ -221,7 +223,7 @@ def test_room_list_includes_metadata(server):
     assert test_room["metadata"]["file"] == "test.xyz"
 
 
-def test_search_rooms_by_metadata(server):
+def test_search_rooms_by_metadata(server, get_jwt_auth_headers):
     """Test searching rooms by metadata values."""
     # Create rooms with different metadata
     vis1 = zndraw.ZnDraw(url=server, room="room1", user="tester")
@@ -233,8 +235,9 @@ def test_search_rooms_by_metadata(server):
     vis3 = zndraw.ZnDraw(url=server, room="room3", user="tester")
     vis3.metadata["file"] = "control.xyz"
 
-    # Search for "experiment"
-    response = requests.get(f"{server}/api/rooms?search=experiment")
+    # Search for "experiment" - authenticate as admin to see all rooms
+    headers = get_jwt_auth_headers(server, "admin")
+    response = requests.get(f"{server}/api/rooms?search=experiment", headers=headers)
     assert response.status_code == 200
 
     rooms = response.json()
