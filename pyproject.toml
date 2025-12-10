@@ -1,6 +1,6 @@
 [project]
 name = "zndraw"
-version = "0.6.0a16"
+version = "0.6.0a17"
 description = "ZnDraw"
 license = { file = "LICENSE" }
 readme = "README.md"
@@ -46,6 +46,13 @@ dev = [
     "playwright>=1.55.0",
     "pytest>=8.4.2",
     "molify>=0.2.1",
+]
+docs = [
+    "furo>=2025.9.25",
+    "nbsphinx>=0.9.8",
+    "sphinx>=8.2.3",
+    "sphinx-copybutton>=0.5.2",
+    "sphinxcontrib-mermaid>=1.2.3",
 ]
 
 [build-system]
