@@ -82,6 +82,14 @@ def read_file(
     description: str | None = None,
 ) -> None:
     from zndraw import ZnDraw
+    from zndraw.server_manager import wait_for_server_ready
+
+    # Wait for server to be ready before connecting
+    # This handles race conditions during server startup when Celery task
+    # is dispatched before the HTTP server is fully listening
+    if not wait_for_server_ready(server_url, timeout=30.0):
+        log.error(f"Server at {server_url} not ready after 30 seconds")
+        raise RuntimeError(f"Server at {server_url} not ready after 30 seconds")
 
     file_path = Path(file)
     # Use custom description if provided, otherwise default to file path

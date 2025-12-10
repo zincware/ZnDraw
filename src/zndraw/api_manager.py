@@ -1,10 +1,14 @@
 import dataclasses
+import logging
+import time
 
 import msgpack
 import msgpack_numpy as m
 import requests
 
 from zndraw.lock import ZnDrawLock
+
+log = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -15,8 +19,16 @@ class APIManager:
     jwt_token: str | None = None
     session_id: str | None = None  # Session ID from /join response
 
-    def login(self, user_name: str | None, password: str | None = None) -> dict:
-        """Authenticate and get JWT token.
+    def login(
+        self,
+        user_name: str | None,
+        password: str | None = None,
+        max_retries: int = 10,
+        initial_delay: float = 0.2,
+    ) -> dict:
+        """Authenticate and get JWT token with retry logic.
+
+        Uses exponential backoff to handle server startup race conditions.
 
         Parameters
         ----------
@@ -24,6 +36,10 @@ class APIManager:
             Username for authentication. If None, server assigns a guest username.
         password : str | None
             Optional password for admin authentication (deployment mode only)
+        max_retries : int
+            Maximum number of connection retry attempts. Default: 10
+        initial_delay : float
+            Initial delay between retries in seconds. Default: 0.2
 
         Returns
         -------
@@ -33,22 +49,54 @@ class APIManager:
         Raises
         ------
         RuntimeError
-            If login fails
+            If login fails after all retries
+        requests.ConnectionError
+            If server is unreachable after all retries
         """
         payload = {"userName": user_name}
         if password is not None:
             payload["password"] = password
 
-        response = requests.post(f"{self.url}/api/login", json=payload)
+        delay = initial_delay
+        max_delay = 2.0
+        last_exception = None
 
-        if response.status_code != 200:
-            raise RuntimeError(f"Login failed: {response.text}")
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = requests.post(
+                    f"{self.url}/api/login", json=payload, timeout=5.0
+                )
 
-        data = response.json()
-        # Update internal state
-        self.jwt_token = data["token"]
-        self.user_name = data["userName"]
-        return data
+                if response.status_code == 200:
+                    data = response.json()
+                    self.jwt_token = data["token"]
+                    self.user_name = data["userName"]
+                    if attempt > 1:
+                        log.info(f"Login succeeded on attempt {attempt}")
+                    return data
+                else:
+                    # Server responded but with an error - don't retry
+                    raise RuntimeError(f"Login failed: {response.text}")
+
+            except requests.ConnectionError as e:
+                last_exception = e
+                if attempt < max_retries:
+                    log.debug(
+                        f"Connection attempt {attempt}/{max_retries} failed, "
+                        f"retrying in {delay:.2f}s..."
+                    )
+                    time.sleep(delay)
+                    # Exponential backoff with cap
+                    delay = min(delay * 2, max_delay)
+                else:
+                    log.error(
+                        f"Failed to connect to server after {max_retries} attempts"
+                    )
+
+        # All retries exhausted
+        raise requests.ConnectionError(
+            f"Could not connect to server at {self.url} after {max_retries} attempts"
+        ) from last_exception
 
     def _get_headers(self) -> dict:
         """Build headers for API requests.

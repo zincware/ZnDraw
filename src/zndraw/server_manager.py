@@ -5,8 +5,11 @@ import os
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
+import logging
 
 import requests
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -140,6 +143,53 @@ def is_server_responsive(port: int, timeout: float = 2.0) -> bool:
         return response.status_code == 200
     except (requests.RequestException, requests.ConnectionError):
         return False
+
+
+def wait_for_server_ready(
+    url: str, timeout: float = 30.0, poll_interval: float = 0.2
+) -> bool:
+    """Wait for a server to become ready by polling the health endpoint.
+
+    Uses exponential backoff starting from poll_interval, capped at 2 seconds.
+    This is useful for handling race conditions during server startup.
+
+    Parameters
+    ----------
+    url
+        Base URL of the server (e.g., 'http://localhost:5000').
+    timeout
+        Maximum time to wait in seconds.
+    poll_interval
+        Initial interval between health checks in seconds.
+
+    Returns
+    -------
+    bool
+        True if the server became ready within the timeout, False otherwise.
+
+    """
+    start_time = time.time()
+    current_interval = poll_interval
+    max_interval = 2.0
+    attempt = 0
+
+    while time.time() - start_time < timeout:
+        attempt += 1
+        try:
+            response = requests.get(f"{url}/health", timeout=2.0)
+            if response.status_code == 200:
+                elapsed = time.time() - start_time
+                log.info(f"Server ready after {elapsed:.2f}s ({attempt} attempts)")
+                return True
+        except requests.RequestException:
+            pass
+
+        # Exponential backoff with cap
+        time.sleep(current_interval)
+        current_interval = min(current_interval * 1.5, max_interval)
+
+    log.warning(f"Server not ready after {timeout}s ({attempt} attempts)")
+    return False
 
 
 def get_server_status() -> tuple[bool, ServerInfo | None, str]:
