@@ -673,22 +673,30 @@ export const getFrames = async (
 		params.append("keys", keys.join(","));
 	}
 
-	const { data } = await apiClient.get(
-		`/api/rooms/${roomId}/frames?${params.toString()}`,
-		{
-			signal,
-			responseType: "arraybuffer",
-		},
-	);
+	try {
+		const { data } = await apiClient.get(
+			`/api/rooms/${roomId}/frames?${params.toString()}`,
+			{
+				signal,
+				responseType: "arraybuffer",
+			},
+		);
 
-	const result: Record<string, any> = {};
-	for (const key of keys) {
-		const decoded = decodeTypedData(data, key);
-		if (decoded !== undefined) {
-			result[key] = decoded;
+		const result: Record<string, any> = {};
+		for (const key of keys) {
+			const decoded = decodeTypedData(data, key);
+			if (decoded !== undefined) {
+				result[key] = decoded;
+			}
 		}
+		return Object.keys(result).length > 0 ? (result as FrameResponse) : null;
+	} catch (error: any) {
+		// Handle 404 errors gracefully - key doesn't exist in frame data
+		if (error?.response?.status === 404) {
+			return null;
+		}
+		throw error;
 	}
-	return Object.keys(result).length > 0 ? (result as FrameResponse) : null;
 };
 
 // ==================== Chat API ====================

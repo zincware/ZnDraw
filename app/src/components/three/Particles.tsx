@@ -200,11 +200,7 @@ export default function Sphere({
 			...colorTransformSources,
 			...radiusTransformSources,
 		].forEach((k) => keys.add(k));
-		const result = Array.from(keys);
-		if (import.meta.env.DEV && result.length > 0) {
-			console.log(`[Particles] Transform keys needed:`, result);
-		}
-		return result;
+		return Array.from(keys);
 	}, [positionTransformSources, colorTransformSources, radiusTransformSources]);
 
 	// Fetch each transform source key individually - enables perfect cross-component caching
@@ -219,37 +215,23 @@ export default function Sphere({
 		})),
 	});
 
+	// Extract query data for stable dependency tracking
+	const transformQueryData = transformQueries.map((q) => q.data);
+
 	// Combine individual query results into a single transformData object
 	const transformData = useMemo(() => {
 		if (allTransformKeys.length === 0) return null;
 
 		const combined: Record<string, any> = {};
 		allTransformKeys.forEach((key, index) => {
-			const query = transformQueries[index];
-			if (!query) {
-				console.warn(`[Particles] Missing query for transform key: ${key}`);
-				return;
-			}
-
-			const queryData = query.data;
+			const queryData = transformQueryData[index];
 			if (queryData && queryData[key]) {
 				combined[key] = queryData[key];
-			} else if (import.meta.env.DEV) {
-				console.log(
-					`[Particles] Transform key "${key}" - hasData: ${!!queryData}, dataKeys: ${queryData ? Object.keys(queryData).join(",") : "none"}, isFetching: ${query.isFetching}, isError: ${query.isError}`,
-				);
 			}
 		});
 
-		if (import.meta.env.DEV && Object.keys(combined).length > 0) {
-			console.log(
-				`[Particles] Combined transform data keys:`,
-				Object.keys(combined),
-			);
-		}
-
 		return Object.keys(combined).length > 0 ? combined : null;
-	}, [allTransformKeys, ...transformQueries.map((q) => q.data)]);
+	}, [allTransformKeys, transformQueryData]);
 
 	// Check if any transform query is fetching
 	const isTransformFetching = useMemo(
@@ -516,10 +498,6 @@ export default function Sphere({
 			// Evaluate color transform if needed
 			let fetchedColor: any;
 			if (colorIsTransform && transformData) {
-				const colorFloats = evaluateTransform(
-					colorProp as Transform,
-					transformData,
-				);
 				// Transform returns Float32Array of filtered values, but colors in zndraw are hex strings
 				// For now, transforms on colors are not supported - fall back to static
 				fetchedColor = undefined;
