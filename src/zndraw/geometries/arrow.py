@@ -65,6 +65,13 @@ class Arrow(BaseGeometry):
         description="Length scale multiplier applied to direction vector length. String for dynamic data key, float for static value.",
     )
 
+    resolution: int = Field(
+        default=16,
+        ge=4,
+        le=64,
+        description="Arrow geometry resolution (number of segments). Higher values = smoother arrow.",
+    )
+
     opacity: float = Field(
         default=1.0,
         ge=0.0,

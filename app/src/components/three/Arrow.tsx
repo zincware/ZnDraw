@@ -47,6 +47,7 @@ interface ArrowData {
 	color: string | string[]; // Dynamic ref or list of hex strings
 	radius: SizeProp;
 	scale: SizeProp;
+	resolution: number;
 	material: string;
 	opacity: number;
 	selecting: InteractionSettings;
@@ -61,7 +62,7 @@ const _arrowUp = new THREE.Vector3(0, 1, 0);
  * Creates a standard arrow geometry with a total height of 1,
  * with its base at the origin, pointing along the positive Y-axis.
  */
-function createArrowMesh() {
+function createArrowMesh(resolution: number) {
 	const cylinderRadius = 0.04;
 	const cylinderHeight = 0.6;
 	const coneRadius = 0.1;
@@ -71,9 +72,9 @@ function createArrowMesh() {
 		cylinderRadius,
 		cylinderRadius,
 		cylinderHeight,
-		32,
+		resolution,
 	);
-	const coneGeometry = new THREE.ConeGeometry(coneRadius, coneHeight, 32);
+	const coneGeometry = new THREE.ConeGeometry(coneRadius, coneHeight, resolution);
 
 	// Position geometries so the base is at (0,0,0) and it extends up to a total height of 1.0
 	cylinderGeometry.translate(0, cylinderHeight / 2, 0);
@@ -109,6 +110,7 @@ export default function Arrow({
 		color,
 		radius,
 		scale,
+		resolution,
 		material,
 		opacity,
 		selecting,
@@ -637,8 +639,8 @@ export default function Arrow({
 		requestPathtracingUpdate,
 	]);
 
-	// Create the base geometry only once
-	const geometry = useMemo(createArrowMesh, []);
+	// Create the base geometry, recreate when resolution changes
+	const geometry = useMemo(() => createArrowMesh(resolution), [resolution]);
 
 	const onClickHandler = useCallback(
 		(event: any) => {
