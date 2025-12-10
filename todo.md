@@ -120,3 +120,5 @@ resolution on remote filesystem uploads.
 - [ ] dynamic molecule building, e.g. show for each atom where things can go, set charges, etc like smiles but 3D?
 - [x] settings don't work
 - [ ] move camera settings to camera / create a camera per user?
+- [x] resolution for Arrows is missing as setting!
+- [x] make "c" work with selection centroid, not just particles!

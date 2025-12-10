@@ -1,8 +1,13 @@
 [project]
 name = "zndraw"
-version = "0.6.0a17"
+version = "0.6.0a18"
 description = "ZnDraw"
 license = { file = "LICENSE" }
+authors = [
+    { name = "Fabian Zills", email = "fzills@icp.uni-stuttgart.de" },
+    { name = "Rokas Elijošius", email = "re344@cam.ac.uk" },
+    { name = "Paul Hohenberger"},
+]
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -58,6 +63,12 @@ docs = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[project.urls]
+Repository = "https://github.com/zincware/ZnDraw"
+Releases = "https://github.com/zincware/ZnDraw/releases"
+Discord = "https://discord.gg/7ncfwhsnm4"
+Documentation = "https://zndraw.readthedocs.io/"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/zndraw", "src/zndraw_cli"]
