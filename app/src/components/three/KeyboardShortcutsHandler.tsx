@@ -5,23 +5,11 @@ import { useAppStore } from "../../store";
 import * as THREE from "three";
 import { TypedArray } from "../../myapi/client";
 import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import { isPositionStatic } from "../../utils/geometryEditing";
 
-// for now, we fix the key for positions
-const positionsKey = `arrays.positions`;
-
-const computeCentroid = (positions: TypedArray) => {
-	const centroid = new THREE.Vector3(0, 0, 0);
-	const count = positions.length / 3; // Assuming 3 components per vertex
-
-	for (let i = 0; i < positions.length; i += 3) {
-		centroid.x += positions[i];
-		centroid.y += positions[i + 1];
-		centroid.z += positions[i + 2];
-	}
-
-	centroid.divideScalar(count);
-	return centroid;
-};
+// Keys for dynamic data references
+const positionsKey = "arrays.positions";
+const connectivityKey = "info.connectivity";
 
 /**
  * Component that handles 3D-related keyboard shortcuts.
@@ -34,6 +22,7 @@ export const KeyboardShortcutsHandler = () => {
 	const {
 		currentFrame,
 		selections,
+		geometries,
 		updateSelectionForGeometry,
 		toggleInfoBoxes,
 		mode,
@@ -85,59 +74,194 @@ export const KeyboardShortcutsHandler = () => {
 			// Handle c for center camera
 			if (event.key === "c" || event.key === "C") {
 				event.preventDefault();
-				let positionsData = queryClient.getQueryData<
-					TypedArray | { [positionsKey]: TypedArray }
-				>(["frame", roomId, currentFrame, positionsKey]);
-				let positions: TypedArray | undefined;
-				if (
-					positionsData &&
-					typeof positionsData === "object" &&
-					positionsKey in positionsData
-				) {
-					positions = (positionsData as { [positionsKey]: TypedArray })[
-						positionsKey
-					];
-				} else if (positionsData) {
-					positions = positionsData as TypedArray;
-				}
-				// filter positions by selection, if len(selection) > 0
-				if (
-					positions &&
-					selections["particles"] &&
-					selections["particles"].length > 0
-				) {
-					const filtered = new (positions.constructor as any)(
-						selections["particles"].length * 3,
-					);
-					selections["particles"].forEach((idx, i) => {
-						if (positions) {
-							filtered[i * 3] = positions[idx * 3];
-							filtered[i * 3 + 1] = positions[idx * 3 + 1];
-							filtered[i * 3 + 2] = positions[idx * 3 + 2];
-						}
-					});
-					positions = filtered;
-				}
-				if (positions && positions.length >= 3) {
-					const centroid = computeCentroid(positions);
-					if (controls) {
-						const camera = controls.object;
-						const target = controls.target;
 
-						// Move camera to look at centroid from a distance
-						const direction = new THREE.Vector3();
-						camera.getWorldDirection(direction);
-						const distance = camera.position.distanceTo(target);
-						const newPosition = centroid
-							.clone()
-							.add(direction.multiplyScalar(-distance));
+				// Check if there are any selections across all geometries
+				const hasAnySelection = Object.values(selections).some(
+					(indices) => indices && indices.length > 0,
+				);
 
-						camera.position.copy(newPosition);
-						controls.target.copy(centroid);
-						controls.update();
-					} else {
-						console.warn("Camera controls not available");
+				let centroid: THREE.Vector3 | null = null;
+
+				if (hasAnySelection) {
+					// Calculate centroid of ALL selected elements across all geometries
+					let sumX = 0,
+						sumY = 0,
+						sumZ = 0,
+						totalCount = 0;
+
+					// Get dynamic positions from query cache (used by geometries with position="arrays.positions")
+					let dynamicPositions: TypedArray | undefined;
+					const positionsData = queryClient.getQueryData<
+						TypedArray | { [positionsKey]: TypedArray }
+					>(["frame", roomId, currentFrame, positionsKey]);
+					if (
+						positionsData &&
+						typeof positionsData === "object" &&
+						positionsKey in positionsData
+					) {
+						dynamicPositions = (
+							positionsData as { [positionsKey]: TypedArray }
+						)[positionsKey];
+					} else if (positionsData) {
+						dynamicPositions = positionsData as TypedArray;
 					}
+
+					// Get connectivity data for bonds (format: [atomA, atomB, bondOrder, ...])
+					let connectivityData: TypedArray | undefined;
+					const connData = queryClient.getQueryData<
+						TypedArray | { [connectivityKey]: TypedArray }
+					>(["frame", roomId, currentFrame, connectivityKey]);
+					if (
+						connData &&
+						typeof connData === "object" &&
+						connectivityKey in connData
+					) {
+						connectivityData = (
+							connData as { [connectivityKey]: TypedArray }
+						)[connectivityKey];
+					} else if (connData) {
+						connectivityData = connData as TypedArray;
+					}
+
+					// Iterate over all geometry selections
+					for (const [geometryKey, selectedIndices] of Object.entries(
+						selections,
+					)) {
+						if (!selectedIndices || selectedIndices.length === 0) continue;
+
+						const geometry = geometries[geometryKey];
+						const positions = geometry?.data?.position;
+						const connectivity = geometry?.data?.connectivity;
+
+						// Check if this is a bond-like geometry (has connectivity)
+						const hasDynamicConnectivity =
+							typeof connectivity === "string" &&
+							connectivity === connectivityKey &&
+							connectivityData &&
+							dynamicPositions;
+
+						if (
+							hasDynamicConnectivity &&
+							connectivityData &&
+							dynamicPositions
+						) {
+							// Bonds: add both atom positions for each selected bond
+							for (const bondIdx of selectedIndices) {
+								const connBaseIdx = bondIdx * 3; // [atomA, atomB, bondOrder]
+								if (connBaseIdx + 1 < connectivityData.length) {
+									const atomA = Number(connectivityData[connBaseIdx]);
+									const atomB = Number(connectivityData[connBaseIdx + 1]);
+
+									// Add atomA position
+									const posA = atomA * 3;
+									if (posA + 2 < dynamicPositions.length) {
+										sumX += Number(dynamicPositions[posA]);
+										sumY += Number(dynamicPositions[posA + 1]);
+										sumZ += Number(dynamicPositions[posA + 2]);
+										totalCount++;
+									}
+
+									// Add atomB position
+									const posB = atomB * 3;
+									if (posB + 2 < dynamicPositions.length) {
+										sumX += Number(dynamicPositions[posB]);
+										sumY += Number(dynamicPositions[posB + 1]);
+										sumZ += Number(dynamicPositions[posB + 2]);
+										totalCount++;
+									}
+								}
+							}
+						} else if (isPositionStatic(positions)) {
+							// Static positions: number[][] format
+							for (const idx of selectedIndices) {
+								if (idx >= 0 && idx < positions.length) {
+									const [x, y, z] = positions[idx];
+									sumX += x;
+									sumY += y;
+									sumZ += z;
+									totalCount++;
+								}
+							}
+						} else if (
+							typeof positions === "string" &&
+							positions === positionsKey &&
+							dynamicPositions
+						) {
+							// Dynamic positions: geometry references "arrays.positions" TypedArray
+							for (const idx of selectedIndices) {
+								const baseIdx = idx * 3;
+								if (baseIdx + 2 < dynamicPositions.length) {
+									sumX += Number(dynamicPositions[baseIdx]);
+									sumY += Number(dynamicPositions[baseIdx + 1]);
+									sumZ += Number(dynamicPositions[baseIdx + 2]);
+									totalCount++;
+								}
+							}
+						}
+					}
+
+					if (totalCount > 0) {
+						centroid = new THREE.Vector3(
+							sumX / totalCount,
+							sumY / totalCount,
+							sumZ / totalCount,
+						);
+					}
+				}
+
+				// Fallback: use all particles centroid if no selection
+				if (!centroid) {
+					let positionsData = queryClient.getQueryData<
+						TypedArray | { [positionsKey]: TypedArray }
+					>(["frame", roomId, currentFrame, positionsKey]);
+					let positions: TypedArray | undefined;
+					if (
+						positionsData &&
+						typeof positionsData === "object" &&
+						positionsKey in positionsData
+					) {
+						positions = (positionsData as { [positionsKey]: TypedArray })[
+							positionsKey
+						];
+					} else if (positionsData) {
+						positions = positionsData as TypedArray;
+					}
+
+					if (positions && positions.length >= 3) {
+						const count = positions.length / 3;
+						let sumX = 0,
+							sumY = 0,
+							sumZ = 0;
+						for (let i = 0; i < positions.length; i += 3) {
+							sumX += Number(positions[i]);
+							sumY += Number(positions[i + 1]);
+							sumZ += Number(positions[i + 2]);
+						}
+						centroid = new THREE.Vector3(
+							sumX / count,
+							sumY / count,
+							sumZ / count,
+						);
+					}
+				}
+
+				if (centroid && controls) {
+					const camera = controls.object;
+					const target = controls.target;
+
+					// Move camera to look at centroid from a distance
+					const direction = new THREE.Vector3();
+					camera.getWorldDirection(direction);
+					const distance = camera.position.distanceTo(target);
+					const newPosition = centroid
+						.clone()
+						.add(direction.multiplyScalar(-distance));
+
+					camera.position.copy(newPosition);
+					controls.target.copy(centroid);
+					controls.update();
+				} else if (!controls) {
+					console.warn("Camera controls not available");
 				}
 				return;
 			}
@@ -220,6 +344,7 @@ export const KeyboardShortcutsHandler = () => {
 	}, [
 		controls,
 		selections,
+		geometries,
 		updateSelectionForGeometry,
 		queryClient,
 		currentFrame,
