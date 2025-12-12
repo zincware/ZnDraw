@@ -889,6 +889,19 @@ class ZnDraw(MutableSequence):
         """Disconnect from the ZnDraw server."""
         self.socket.disconnect()
 
+    def wait(self):
+        """Block until the socket connection is closed.
+
+        Use this to keep extension scripts running while waiting for
+        user interactions via the UI.
+
+        Examples
+        --------
+        >>> vis.register(MyExtension, public=True)
+        >>> vis.wait()  # Keep running until disconnected
+        """
+        self.socket.sio.wait()
+
     def _upload_frames(self, action: str, data, **kwargs):
         """Internal upload method - does NOT acquire lock.
 
