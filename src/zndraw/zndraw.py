@@ -900,14 +900,18 @@ class ZnDraw(MutableSequence):
 
     def _append_frame(self, data: dict):
         """Internal append - does NOT acquire lock."""
-        self._upload_frames("append", data)
-        self._len = None  # Invalidate cache
+        result = self._upload_frames("append", data)
+        # Use server response to set exact frame count (avoids race condition)
+        self._len = result["new_index"] + 1
 
     def _extend_frames(self, data: list[dict]):
         """Internal extend - does NOT acquire lock."""
         result = self._upload_frames("extend", data)
-        self._len = None  # Invalidate cache
-        return result.get("new_indices", [])
+        new_indices = result.get("new_indices", [])
+        # Use server response to set exact frame count (avoids race condition)
+        if new_indices:
+            self._len = new_indices[-1] + 1
+        return new_indices
 
     def _replace_frame(self, frame_id: int, data: dict):
         """Internal replace - does NOT acquire lock."""
@@ -916,7 +920,11 @@ class ZnDraw(MutableSequence):
     def _insert_frame(self, index: int, data: dict):
         """Internal insert - does NOT acquire lock."""
         self._upload_frames("insert", data, insert_position=index)
-        self._len = None  # Invalidate cache
+        # Increment frame count (avoids race condition with socket events)
+        if self._len is not None:
+            self._len += 1
+        else:
+            self._len = None  # Still need to fetch if we don't know current count
 
     def __len__(self) -> int:
         """Return number of frames in the trajectory.

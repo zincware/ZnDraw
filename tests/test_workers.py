@@ -572,10 +572,16 @@ def test_delete_job(server, get_jwt_auth_headers):
     vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=False)
     vis.register_extension(mod)
 
-    # Disconnect the worker so jobs stay in PENDING state (not ASSIGNED)
-    vis.socket.disconnect()
+    # Submit first job - will be ASSIGNED since there's an idle worker
+    response = requests.post(
+        f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod.__name__}/submit",
+        json={"data": {"parameter": 1}, "userId": user},
+        headers=get_jwt_auth_headers(server, user),
+    )
+    assert response.status_code == 200
+    job_id_assigned = response.json()["jobId"]
 
-    # Submit a job (will be PENDING since no idle workers)
+    # Submit second job - will be PENDING since worker is busy with first job
     response = requests.post(
         f"{server}/api/rooms/{room}/extensions/private/modifiers/{mod.__name__}/submit",
         json={"data": {"parameter": 42}, "userId": user},
@@ -584,13 +590,16 @@ def test_delete_job(server, get_jwt_auth_headers):
     assert response.status_code == 200
     response_json = response.json()
     jobId = response_json.pop("jobId")
-    # Job is pending (not assigned yet since worker disconnected)
+    # Job is pending (worker is busy with first job)
     assert response_json == {
         "queuePosition": 0,
         "status": "success",
     }
 
-    # delete the job (should succeed since job is PENDING, not ASSIGNED/PROCESSING)
+    # Disconnect the worker - assigned job becomes FAILED, pending job stays PENDING
+    vis.socket.disconnect()
+
+    # delete the pending job (should succeed since job is PENDING)
     response = requests.delete(
         f"{server}/api/rooms/{room}/jobs/{jobId}",
         headers=get_jwt_auth_headers(server, user),
@@ -603,12 +612,14 @@ def test_delete_job(server, get_jwt_auth_headers):
     assert response.status_code == 404
     assert response.json() == {"error": "Job not found"}
 
-    # get all jobs
+    # get all jobs - should only have the failed job from the assigned one
     response = requests.get(f"{server}/api/rooms/{room}/jobs")
     assert response.status_code == 200
     response_json = response.json()
     assert isinstance(response_json, list)
-    assert len(response_json) == 0
+    assert len(response_json) == 1
+    assert response_json[0]["id"] == job_id_assigned
+    assert response_json[0]["status"] == JobStatus.FAILED
 
     # delete a job that does not exist
     response = requests.delete(
