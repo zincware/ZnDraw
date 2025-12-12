@@ -45,7 +45,7 @@ def get_frames(room_id):
         room_keys = RoomKeys(room_id)
         manager = FrameIndexManager(r, room_keys.trajectory_indices())
 
-        frame_count = manager.get_count()
+        frame_count = len(manager)
 
         if frame_count == 0:
             return Response(
@@ -188,7 +188,7 @@ def get_frame_keys(room_id: str, frame_id: int):
         manager = FrameIndexManager(r, room_keys.trajectory_indices())
 
         # Validate frame_id
-        frame_count = manager.get_count()
+        frame_count = len(manager)
         if frame_count == 0:
             return {
                 "error": f"No frames found in room '{room_id}'",
@@ -244,7 +244,7 @@ def get_frame_metadata(room_id: str, frame_id: int):
         manager = FrameIndexManager(r, room_keys.trajectory_indices())
 
         # Validate frame_id
-        frame_count = manager.get_count()
+        frame_count = len(manager)
         if frame_count == 0:
             return {
                 "error": f"No frames found in room '{room_id}'",
@@ -446,7 +446,14 @@ def delete_frames_batch(room_id: str, session_id: str, user_id: str):
         # Adjust step if frames before current position were deleted
         emit_step_update_on_delete(room_id, frame_indices)
 
-        return {"success": True, "deleted_count": len(frame_indices)}
+        # Get frame count after delete
+        length = len(index_manager)
+
+        return {
+            "success": True,
+            "deleted_count": len(frame_indices),
+            "length": length,
+        }
     except Exception as e:
         error_data = {
             "error": f"Server error: {e}",
@@ -574,7 +581,7 @@ def append_frame(room_id: str, session_id: str, user_id: str):
 
             # 1. Determine starting logical and physical positions
             positions_start = time.perf_counter()
-            start_logical_pos = index_manager.get_count()
+            start_logical_pos = len(index_manager)
             start_physical_pos = len(storage)
             num_frames = len(serialized_data)
             positions_time = time.perf_counter() - positions_start
@@ -611,6 +618,9 @@ def append_frame(room_id: str, session_id: str, user_id: str):
                 f"{num_frames / storage_time:.0f}" if storage_time > 0 else "N/A"
             )
 
+            # Get frame count after extend
+            length = len(index_manager)
+
             log.info(
                 f"PERFORMANCE: Extended trajectory with {num_frames} frames to room '{room_id}' | "
                 f"Total: {extend_total_time:.4f}s | "
@@ -620,7 +630,7 @@ def append_frame(room_id: str, session_id: str, user_id: str):
                 f"Redis: {redis_time:.4f}s | "
                 f"Response: {response_time:.4f}s"
             )
-            return {"success": True, "new_indices": new_indices}
+            return {"success": True, "new_indices": new_indices, "length": length}
 
         elif action == "insert":
             # Get insert_position from query parameters
@@ -635,7 +645,7 @@ def append_frame(room_id: str, session_id: str, user_id: str):
             except ValueError:
                 return {"error": "insert_position must be an integer"}, 400
 
-            current_length = index_manager.get_count()
+            current_length = len(index_manager)
 
             if not (0 <= insert_position <= current_length):
                 return {
@@ -665,15 +675,22 @@ def append_frame(room_id: str, session_id: str, user_id: str):
             # Adjust step if frame was inserted at or before current position
             emit_step_update_on_insert(room_id, insert_position)
 
+            # Get frame count after insert
+            length = len(index_manager)
+
             log.info(
                 f"Inserted frame at position {insert_position} (physical: {new_physical_index}) in room '{room_id}'"
             )
-            return {"success": True, "inserted_position": insert_position}
+            return {
+                "success": True,
+                "inserted_position": insert_position,
+                "length": length,
+            }
 
         elif action == "append":
             # Append operation: add a new frame to the end of the logical sequence
             # 1. Determine logical and physical positions
-            logical_position = index_manager.get_count()
+            logical_position = len(index_manager)
             new_physical_index = len(storage)
 
             # 2. Append the new frame data
@@ -686,10 +703,13 @@ def append_frame(room_id: str, session_id: str, user_id: str):
             # Emit len_frames update to notify clients of frame count change
             emit_len_frames_update(room_id)
 
+            # Get frame count after append (logical_position is 0-indexed, so +1)
+            length = logical_position + 1
+
             log.debug(
                 f"Appended frame {logical_position} (physical: {room_id}:{new_physical_index}) to room '{room_id}'"
             )
-            return {"success": True, "new_index": logical_position}
+            return {"success": True, "new_index": logical_position, "length": length}
 
         else:
             # Default case for any unknown actions
@@ -806,8 +826,13 @@ def bulk_replace_frames(room_id: str, session_id: str, user_id: str):
                 room_id, operation="replace", affected_from=min(target_indices)
             )
 
+            length = len(index_manager)
             log.info(f"Bulk replaced {len(target_indices)} frames in room '{room_id}'")
-            return {"success": True, "replaced_count": len(target_indices)}
+            return {
+                "success": True,
+                "replaced_count": len(target_indices),
+                "length": length,
+            }
 
         else:
             # Slice operation
@@ -871,7 +896,7 @@ def bulk_replace_frames(room_id: str, session_id: str, user_id: str):
                 "replaced_range": [start, stop],
                 "old_count": old_count,
                 "new_count": new_count,
-                "new_length": len(new_mapping_list),
+                "length": len(new_mapping_list),
             }
 
     except Exception as e:

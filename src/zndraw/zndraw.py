@@ -902,16 +902,14 @@ class ZnDraw(MutableSequence):
         """Internal append - does NOT acquire lock."""
         result = self._upload_frames("append", data)
         # Use server response to set exact frame count (avoids race condition)
-        self._len = result["new_index"] + 1
+        self._len = result["length"]
 
     def _extend_frames(self, data: list[dict]):
         """Internal extend - does NOT acquire lock."""
         result = self._upload_frames("extend", data)
-        new_indices = result.get("new_indices", [])
         # Use server response to set exact frame count (avoids race condition)
-        if new_indices:
-            self._len = new_indices[-1] + 1
-        return new_indices
+        self._len = result["length"]
+        return result.get("new_indices", [])
 
     def _replace_frame(self, frame_id: int, data: dict):
         """Internal replace - does NOT acquire lock."""
@@ -919,12 +917,9 @@ class ZnDraw(MutableSequence):
 
     def _insert_frame(self, index: int, data: dict):
         """Internal insert - does NOT acquire lock."""
-        self._upload_frames("insert", data, insert_position=index)
-        # Increment frame count (avoids race condition with socket events)
-        if self._len is not None:
-            self._len += 1
-        else:
-            self._len = None  # Still need to fetch if we don't know current count
+        result = self._upload_frames("insert", data, insert_position=index)
+        # Use server response to set exact frame count (avoids race condition)
+        self._len = result["length"]
 
     def __len__(self) -> int:
         """Return number of frames in the trajectory.
@@ -1213,14 +1208,16 @@ class ZnDraw(MutableSequence):
                 if isinstance(index, slice):
                     start, stop, step = index.indices(length)
                     if step == 1:
-                        self.api.bulk_patch_frames(value, start=start, stop=stop)
+                        result = self.api.bulk_patch_frames(
+                            value, start=start, stop=stop
+                        )
                     else:
                         indices = list(range(start, stop, step))
                         if len(value) != len(indices):
                             raise ValueError(
                                 f"attempt to assign sequence of size {len(value)} to extended slice of size {len(indices)}"
                             )
-                        self.api.bulk_patch_frames(value, indices=indices)
+                        result = self.api.bulk_patch_frames(value, indices=indices)
                 else:  # list
                     if len(value) != len(index):
                         raise ValueError("Attempt to assign sequence of wrong size.")
@@ -1234,8 +1231,11 @@ class ZnDraw(MutableSequence):
                     normalized_indices = [
                         idx if idx >= 0 else length + idx for idx in index
                     ]
-                    self.api.bulk_patch_frames(value, indices=normalized_indices)
-                self._len = None  # Invalidate cache (bulk replace may change count)
+                    result = self.api.bulk_patch_frames(
+                        value, indices=normalized_indices
+                    )
+                # Use server response to set exact frame count (avoids race condition)
+                self._len = result["length"]
         else:
             raise TypeError(
                 f"Index must be int, slice, or list, not {type(index).__name__}"
@@ -1267,8 +1267,9 @@ class ZnDraw(MutableSequence):
             index = [idx if idx >= 0 else length + idx for idx in index]
 
         with self.get_lock(msg="Deleting frames"):
-            self.api.delete_frames(index)
-            self._len = None  # Invalidate cache
+            result = self.api.delete_frames(index)
+            # Use server response to set exact frame count (avoids race condition)
+            self._len = result["length"]
 
     def _prepare_atoms(self, atoms: ase.Atoms) -> None:
         """Prepare atoms for upload: add connectivity if needed, update colors and radii.

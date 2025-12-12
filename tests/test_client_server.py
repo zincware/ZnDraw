@@ -812,3 +812,306 @@ def test_partial_key_retrieval(server):
 
 #     client.disconnect()
 #     assert not client.sio.connected
+
+
+def test_rest_endpoint_append_returns_length(server, join_room_and_get_headers):
+    """Test that the append endpoint returns the correct length."""
+    import requests
+
+    room = "test-rest-append"
+    headers = join_room_and_get_headers(server, room)
+
+    # Acquire lock for trajectory:meta
+    lock_response = requests.post(
+        f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
+        headers=headers,
+        json={},
+    )
+    assert lock_response.status_code == 200
+    lock_token = lock_response.json()["lockToken"]
+    headers_with_lock = {**headers, "X-Lock-Token": lock_token}
+
+    try:
+        # Append first frame
+        response = requests.post(
+            f"{server}/api/rooms/{room}/frames?action=append",
+            headers=headers_with_lock,
+            data=b"\x81\xa5index\x91\x00",  # msgpack: {"index": [0]}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["length"] == 1
+
+        # Append second frame
+        response = requests.post(
+            f"{server}/api/rooms/{room}/frames?action=append",
+            headers=headers_with_lock,
+            data=b"\x81\xa5index\x91\x01",  # msgpack: {"index": [1]}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["length"] == 2
+    finally:
+        # Release lock
+        requests.post(
+            f"{server}/api/rooms/{room}/locks/trajectory:meta/release",
+            headers=headers_with_lock,
+            json={},
+        )
+
+
+def test_rest_endpoint_extend_returns_length(server, join_room_and_get_headers):
+    """Test that the extend endpoint returns the correct length."""
+    import msgpack
+    import requests
+
+    room = "test-rest-extend"
+    headers = join_room_and_get_headers(server, room)
+
+    # Acquire lock for trajectory:meta
+    lock_response = requests.post(
+        f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
+        headers=headers,
+        json={},
+    )
+    assert lock_response.status_code == 200
+    lock_token = lock_response.json()["lockToken"]
+    headers_with_lock = {**headers, "X-Lock-Token": lock_token}
+
+    try:
+        # Extend with 3 frames at once
+        frames = [{"index": [i]} for i in range(3)]
+        response = requests.post(
+            f"{server}/api/rooms/{room}/frames?action=extend",
+            headers=headers_with_lock,
+            data=msgpack.packb(frames),
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["length"] == 3
+        assert data["new_indices"] == [0, 1, 2]
+
+        # Extend with 2 more frames
+        frames = [{"index": [i]} for i in range(3, 5)]
+        response = requests.post(
+            f"{server}/api/rooms/{room}/frames?action=extend",
+            headers=headers_with_lock,
+            data=msgpack.packb(frames),
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["length"] == 5
+        assert data["new_indices"] == [3, 4]
+    finally:
+        # Release lock
+        requests.post(
+            f"{server}/api/rooms/{room}/locks/trajectory:meta/release",
+            headers=headers_with_lock,
+            json={},
+        )
+
+
+def test_rest_endpoint_insert_returns_length(server, join_room_and_get_headers):
+    """Test that the insert endpoint returns the correct length."""
+    import msgpack
+    import requests
+
+    room = "test-rest-insert"
+    headers = join_room_and_get_headers(server, room)
+
+    # Acquire lock for trajectory:meta
+    lock_response = requests.post(
+        f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
+        headers=headers,
+        json={},
+    )
+    assert lock_response.status_code == 200
+    lock_token = lock_response.json()["lockToken"]
+    headers_with_lock = {**headers, "X-Lock-Token": lock_token}
+
+    try:
+        # First extend to have some frames
+        frames = [{"index": [i]} for i in range(3)]
+        response = requests.post(
+            f"{server}/api/rooms/{room}/frames?action=extend",
+            headers=headers_with_lock,
+            data=msgpack.packb(frames),
+        )
+        assert response.status_code == 200
+        assert response.json()["length"] == 3
+
+        # Insert at position 1
+        response = requests.post(
+            f"{server}/api/rooms/{room}/frames?action=insert&insert_position=1",
+            headers=headers_with_lock,
+            data=b"\x81\xa5index\x91\x63",  # msgpack: {"index": [99]}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["length"] == 4
+        assert data["inserted_position"] == 1
+    finally:
+        # Release lock
+        requests.post(
+            f"{server}/api/rooms/{room}/locks/trajectory:meta/release",
+            headers=headers_with_lock,
+            json={},
+        )
+
+
+def test_rest_endpoint_delete_returns_length(server, join_room_and_get_headers):
+    """Test that the delete endpoint returns the correct length."""
+    import msgpack
+    import requests
+
+    room = "test-rest-delete"
+    headers = join_room_and_get_headers(server, room)
+
+    # Acquire lock for trajectory:meta
+    lock_response = requests.post(
+        f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
+        headers=headers,
+        json={},
+    )
+    assert lock_response.status_code == 200
+    lock_token = lock_response.json()["lockToken"]
+    headers_with_lock = {**headers, "X-Lock-Token": lock_token}
+
+    try:
+        # First extend to have some frames
+        frames = [{"index": [i]} for i in range(5)]
+        response = requests.post(
+            f"{server}/api/rooms/{room}/frames?action=extend",
+            headers=headers_with_lock,
+            data=msgpack.packb(frames),
+        )
+        assert response.status_code == 200
+        assert response.json()["length"] == 5
+
+        # Delete frame at index 2
+        response = requests.delete(
+            f"{server}/api/rooms/{room}/frames?indices=2",
+            headers=headers_with_lock,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["length"] == 4
+        assert data["deleted_count"] == 1
+    finally:
+        # Release lock
+        requests.post(
+            f"{server}/api/rooms/{room}/locks/trajectory:meta/release",
+            headers=headers_with_lock,
+            json={},
+        )
+
+
+def test_rest_endpoint_bulk_replace_indices_returns_length(
+    server, join_room_and_get_headers
+):
+    """Test that bulk replace with indices returns the correct length."""
+    import msgpack
+    import requests
+
+    room = "test-rest-bulk-replace-indices"
+    headers = join_room_and_get_headers(server, room)
+
+    # Acquire lock for trajectory:meta
+    lock_response = requests.post(
+        f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
+        headers=headers,
+        json={},
+    )
+    assert lock_response.status_code == 200
+    lock_token = lock_response.json()["lockToken"]
+    headers_with_lock = {**headers, "X-Lock-Token": lock_token}
+
+    try:
+        # First extend to have some frames
+        frames = [{"index": [i]} for i in range(5)]
+        response = requests.post(
+            f"{server}/api/rooms/{room}/frames?action=extend",
+            headers=headers_with_lock,
+            data=msgpack.packb(frames),
+        )
+        assert response.status_code == 200
+        assert response.json()["length"] == 5
+
+        # Bulk replace frames at indices [1, 3] - length should stay 5
+        replacement_frames = [{"index": [100]}, {"index": [300]}]
+        response = requests.patch(
+            f"{server}/api/rooms/{room}/frames/bulk?indices=1,3",
+            headers=headers_with_lock,
+            data=msgpack.packb(replacement_frames),
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["length"] == 5
+        assert data["replaced_count"] == 2
+    finally:
+        # Release lock
+        requests.post(
+            f"{server}/api/rooms/{room}/locks/trajectory:meta/release",
+            headers=headers_with_lock,
+            json={},
+        )
+
+
+def test_rest_endpoint_bulk_replace_slice_returns_length(
+    server, join_room_and_get_headers
+):
+    """Test that bulk replace with slice returns the correct length."""
+    import msgpack
+    import requests
+
+    room = "test-rest-bulk-replace-slice"
+    headers = join_room_and_get_headers(server, room)
+
+    # Acquire lock for trajectory:meta
+    lock_response = requests.post(
+        f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
+        headers=headers,
+        json={},
+    )
+    assert lock_response.status_code == 200
+    lock_token = lock_response.json()["lockToken"]
+    headers_with_lock = {**headers, "X-Lock-Token": lock_token}
+
+    try:
+        # First extend to have some frames
+        frames = [{"index": [i]} for i in range(5)]
+        response = requests.post(
+            f"{server}/api/rooms/{room}/frames?action=extend",
+            headers=headers_with_lock,
+            data=msgpack.packb(frames),
+        )
+        assert response.status_code == 200
+        assert response.json()["length"] == 5
+
+        # Bulk replace slice [1:3] with 4 frames - length should change to 7
+        replacement_frames = [{"index": [i * 100]} for i in range(4)]
+        response = requests.patch(
+            f"{server}/api/rooms/{room}/frames/bulk?start=1&stop=3",
+            headers=headers_with_lock,
+            data=msgpack.packb(replacement_frames),
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["length"] == 7  # 5 - 2 + 4 = 7
+        assert data["old_count"] == 2
+        assert data["new_count"] == 4
+    finally:
+        # Release lock
+        requests.post(
+            f"{server}/api/rooms/{room}/locks/trajectory:meta/release",
+            headers=headers_with_lock,
+            json={},
+        )

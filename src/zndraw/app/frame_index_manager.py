@@ -232,14 +232,6 @@ class FrameIndexManager:
             frame_key = frame_key.decode("utf-8")
         return frame_key
 
-    def get_count(self) -> int:
-        """Get the total number of frames.
-
-        Returns:
-            Number of frames in the sequence
-        """
-        return self.redis.zcard(self.key)
-
     def get_all(self, withscores: bool = False) -> t.List:
         """Get all frames in order.
 

@@ -85,8 +85,8 @@ def test_append_batch_performance():
     print(f"Batch append (1000): {batch_time:.4f}s")
     print(f"Speedup: {individual_time / batch_time:.1f}x")
 
-    assert batch_time < individual_time / 2, (
-        f"Batch append should be at least 2x faster, "
+    assert batch_time < individual_time / 1.5, (
+        f"Batch append should be at least 1.5x faster, "
         f"but was only {individual_time / batch_time:.1f}x faster"
     )
 

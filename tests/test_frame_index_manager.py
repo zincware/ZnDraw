@@ -23,7 +23,7 @@ def test_append_first_frame(redis_client):
 
     score = manager.append("room:0")
     assert score == 1.0
-    assert manager.get_count() == 1
+    assert len(manager) == 1
 
 
 def test_append_multiple_frames(redis_client):
@@ -36,7 +36,7 @@ def test_append_multiple_frames(redis_client):
         score = manager.append(f"room:{i}")
         scores.append(score)
 
-    assert manager.get_count() == 5
+    assert len(manager) == 5
     assert scores == [1.0, 2.0, 3.0, 4.0, 5.0]
 
 
@@ -190,7 +190,7 @@ def test_insert_into_empty(redis_client):
 
     score = manager.insert(0, "room:0")
     assert score == 1.0
-    assert manager.get_count() == 1
+    assert len(manager) == 1
 
 
 def test_negative_position_insert(redis_client):

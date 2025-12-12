@@ -549,6 +549,7 @@ class APIManager:
                 pass
 
         response.raise_for_status()
+        return response.json()
 
     def get_extension_settings(self, category: str) -> dict:
         """Get settings for a specific category.
