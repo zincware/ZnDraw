@@ -10,7 +10,8 @@ log = logging.getLogger(__name__)
 def parse_version(version: str) -> tuple[int, int, int] | None:
     """Parse a semantic version string into its components.
 
-    Handles pre-release versions like "0.6.0a4"
+    Handles pre-release versions like "0.6.0a4" and dev versions like
+    "0.1.dev385+g080be5bee.d20251212"
 
     Parameters
     ----------
@@ -22,6 +23,11 @@ def parse_version(version: str) -> tuple[int, int, int] | None:
     tuple[int, int, int] | None
         (major, minor, patch) or None if parsing fails
     """
+    # Handle dev versions: "0.1.dev385+g..." -> treat as X.Y.0
+    dev_match = re.match(r"^(\d+)\.(\d+)\.dev", version)
+    if dev_match:
+        return (int(dev_match.group(1)), int(dev_match.group(2)), 0)
+
     # Strip any pre-release suffix (e.g., "a4", "b1", "rc2")
     clean_version = re.sub(r"[a-zA-Z].*", "", version)
     parts = clean_version.split(".")
