@@ -51,6 +51,16 @@ export function calculateJobDurations(job: Job): JobStateDuration {
 		durations.total = now - createdAt;
 	}
 
+	// Compute convenience aliases
+	// waiting = pending + assigned (time before work started)
+	if (durations.pending !== undefined || durations.assigned !== undefined) {
+		durations.waiting = (durations.pending ?? 0) + (durations.assigned ?? 0);
+	}
+	// running = processing (actual execution time)
+	if (durations.processing !== undefined) {
+		durations.running = durations.processing;
+	}
+
 	return durations;
 }
 

@@ -328,7 +328,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 						// Fetch list of geometry keys first
 						const listResponse = await listGeometries(roomId);
-						const keys = listResponse.geometries || [];
+						const keys = Object.keys(listResponse.geometries || {});
 
 						// Fetch all geometries in parallel
 						const geometryPromises = keys.map(async (key: string) => {
@@ -345,11 +345,13 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 						// Build geometries object from results
 						const geometriesObj: Record<string, any> = {};
-						geometries.forEach((item) => {
-							if (item && item.geometry) {
-								geometriesObj[item.key] = item.geometry;
-							}
-						});
+						geometries.forEach(
+							(item: { key: string; geometry: any } | null) => {
+								if (item && item.geometry) {
+									geometriesObj[item.key] = item.geometry;
+								}
+							},
+						);
 
 						setGeometries(geometriesObj);
 					}

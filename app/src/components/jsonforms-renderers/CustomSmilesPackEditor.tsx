@@ -262,13 +262,15 @@ const CustomSmilesPackEditor = ({
 					getCellClassName={(params) => {
 						// Highlight invalid SMILES cells
 						if (params.field === "smiles") {
-							if (!params.value || params.value.trim() === "") {
+							const value = params.value as string | undefined;
+							if (!value || value.trim() === "") {
 								return "invalid-cell";
 							}
 						}
 						// Highlight invalid count cells
 						if (params.field === "count") {
-							if (params.value < 1) {
+							const value = params.value as number | undefined;
+							if (value === undefined || value < 1) {
 								return "invalid-cell";
 							}
 						}

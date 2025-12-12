@@ -19,13 +19,14 @@ export type { Job };
 export interface ExtensionMetadata {
 	schema: any;
 	provider: "celery" | number; // "celery" for server-side, or number of workers for client-side
+	queueLength: number;
+	idleWorkers: number;
+	progressingWorkers: number;
 	public: boolean; // Whether this is a global/public extension
 	name: string;
 }
 
-export interface SchemasResponse {
-	[extensionName: string]: ExtensionMetadata;
-}
+export type SchemasResponse = ExtensionMetadata[];
 
 export const useSchemas = (room: string, category: string) => {
 	return useQuery({

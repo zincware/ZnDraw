@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import { Editor } from "ketcher-react";
 import { StructServiceProvider } from "ketcher-core";
+// @ts-expect-error - ketcher-standalone has type resolution issues with its package.json exports
 import { StandaloneStructServiceProvider } from "ketcher-standalone";
 import "ketcher-react/dist/index.css";
 

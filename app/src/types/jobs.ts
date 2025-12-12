@@ -32,6 +32,10 @@ export interface JobStateDuration {
 	assigned?: number;
 	processing?: number;
 	total?: number;
+	/** Combined pending + assigned time (waiting for work to start) */
+	waiting?: number;
+	/** Alias for processing time (actual execution) */
+	running?: number;
 }
 
 /**

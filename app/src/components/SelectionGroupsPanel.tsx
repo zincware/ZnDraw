@@ -430,11 +430,7 @@ export default function SelectionGroupsPanel() {
 				selectionGroups[editNameValue.trim()] &&
 				editNameValue.trim() !== oldName
 			) {
-				setSnackbar({
-					open: true,
-					message: `Group "${editNameValue.trim()}" already exists`,
-					severity: "error",
-				});
+				showSnackbar(`Group "${editNameValue.trim()}" already exists`, "error");
 				setEditingGroupName(null);
 				return;
 			}

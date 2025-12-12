@@ -287,7 +287,7 @@ function unpackNumpy(value: any): any {
 				if (isAligned && checkedData.byteOffset !== undefined) {
 					// Can create a view directly (aligned offset)
 					typedArray = new TypedArrayCtor(
-						checkedData.buffer,
+						checkedData.buffer as ArrayBuffer,
 						checkedData.byteOffset,
 						checkedData.byteLength / bytesPerElement,
 					);

@@ -405,7 +405,7 @@ class ZnDraw(MutableSequence):
     connectivity_threshold: int = 1000
 
     _step: int = 0
-    _len: int = 0
+    _len: int | None = 0  # None means cache invalidated, fetch from server
     _settings: dict = dataclasses.field(default_factory=dict, init=False)
     _public_extensions: dict[str, _ExtensionStore] = dataclasses.field(
         default_factory=dict, init=False
@@ -750,9 +750,10 @@ class ZnDraw(MutableSequence):
         """Set the current frame index."""
         if not isinstance(value, int) or value < 0:
             raise ValueError("Step must be a non-negative integer.")
-        if value >= self._len:
+        length = len(self)  # Use len() to ensure cache is populated
+        if value >= length:
             raise ValueError(
-                f"Step {value} is out of bounds. Current number of frames: {self._len}."
+                f"Step {value} is out of bounds. Current number of frames: {length}."
             )
         self._step = value
 
@@ -900,10 +901,12 @@ class ZnDraw(MutableSequence):
     def _append_frame(self, data: dict):
         """Internal append - does NOT acquire lock."""
         self._upload_frames("append", data)
+        self._len = None  # Invalidate cache
 
     def _extend_frames(self, data: list[dict]):
         """Internal extend - does NOT acquire lock."""
         result = self._upload_frames("extend", data)
+        self._len = None  # Invalidate cache
         return result.get("new_indices", [])
 
     def _replace_frame(self, frame_id: int, data: dict):
@@ -913,9 +916,17 @@ class ZnDraw(MutableSequence):
     def _insert_frame(self, index: int, data: dict):
         """Internal insert - does NOT acquire lock."""
         self._upload_frames("insert", data, insert_position=index)
+        self._len = None  # Invalidate cache
 
     def __len__(self) -> int:
-        """Return number of frames in the trajectory."""
+        """Return number of frames in the trajectory.
+
+        Uses cached value if available, otherwise fetches from server.
+        Cache is invalidated after frame mutations to ensure correctness.
+        """
+        if self._len is None:
+            room_info = self.api.get_room_info()
+            self._len = room_info["frameCount"]
         return self._len
 
     @t.overload
@@ -1216,6 +1227,7 @@ class ZnDraw(MutableSequence):
                         idx if idx >= 0 else length + idx for idx in index
                     ]
                     self.api.bulk_patch_frames(value, indices=normalized_indices)
+                self._len = None  # Invalidate cache (bulk replace may change count)
         else:
             raise TypeError(
                 f"Index must be int, slice, or list, not {type(index).__name__}"
@@ -1248,6 +1260,7 @@ class ZnDraw(MutableSequence):
 
         with self.get_lock(msg="Deleting frames"):
             self.api.delete_frames(index)
+            self._len = None  # Invalidate cache
 
     def _prepare_atoms(self, atoms: ase.Atoms) -> None:
         """Prepare atoms for upload: add connectivity if needed, update colors and radii.

@@ -18,7 +18,7 @@ export default function StaticInfoBox() {
 	const {
 		showInfoBoxes,
 		particleCount,
-		selection,
+		selections,
 		playing,
 		fps,
 		frameLoadTime,
@@ -33,7 +33,7 @@ export default function StaticInfoBox() {
 
 	if (!showInfoBoxes) return null;
 
-	const selectionCount = selection?.length || 0;
+	const selectionCount = selections?.particles?.length || 0;
 
 	return (
 		<Rnd

@@ -8,6 +8,7 @@ import React, {
 import { Rnd, Position } from "react-rnd";
 import Plotly from "plotly.js-dist-min";
 import type * as PlotlyJS from "plotly.js-dist-min";
+// @ts-expect-error - plotly.js internal module lacks type declarations
 import { decodeTypedArraySpec } from "plotly.js/src/lib/array.js";
 
 // Extend Plotly types to include custom meta property for step interactions

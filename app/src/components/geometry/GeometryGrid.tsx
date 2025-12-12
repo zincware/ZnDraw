@@ -83,7 +83,6 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 		// Update the geometry with the new active state
 		updateGeometry({
 			roomId,
-			userName: null,
 			key,
 			geometryType: geometry.type,
 			geometryData: {

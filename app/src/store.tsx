@@ -240,8 +240,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	frameCount: 0,
 	isLoading: false,
 	skipFrames: 1,
-	selection: null,
-	selections: {}, // New: per-geometry selections
+	selections: {}, // per-geometry selections
 	selectionGroups: {}, // New: named selection groups
 	activeSelectionGroup: null, // New: currently active group
 	frame_selection: null,
@@ -329,7 +328,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 			};
 			return {
 				selections: newSelections,
-				selection: geometry === "particles" ? indices : state.selection,
 			};
 		});
 

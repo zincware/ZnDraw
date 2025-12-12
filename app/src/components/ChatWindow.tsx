@@ -401,34 +401,44 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 											<MemoizedMarkdown
 												remarkPlugins={markdownPlugins}
 												rehypePlugins={htmlPlugins}
-												components={{
-													code({ node, className, children, ...props }) {
-														const match = /language-(\w+)/.exec(
-															className || "",
-														);
-														return match ? (
-															<SyntaxHighlighter
-																style={mode === "dark" ? oneDark : oneLight}
-																language={match[1]}
-																PreTag="div"
-																{...props}
-															>
-																{String(children).replace(/\n$/, "")}
-															</SyntaxHighlighter>
-														) : (
-															<code className={className} {...props}>
-																{children}
-															</code>
-														);
-													},
+												components={
+													{
+														code({ node, className, children, ...props }) {
+															const match = /language-(\w+)/.exec(
+																className || "",
+															);
+															return match ? (
+																<SyntaxHighlighter
+																	style={
+																		mode === "dark"
+																			? (oneDark as {
+																					[key: string]: React.CSSProperties;
+																				})
+																			: (oneLight as {
+																					[key: string]: React.CSSProperties;
+																				})
+																	}
+																	language={match[1]}
+																	PreTag="div"
+																	{...props}
+																>
+																	{String(children).replace(/\n$/, "")}
+																</SyntaxHighlighter>
+															) : (
+																<code className={className} {...props}>
+																	{children}
+																</code>
+															);
+														},
 
-													frameLink({ frame }) {
-														if (typeof frame === "number") {
-															return <FrameReference frame={frame} />;
-														}
-														return null;
-													},
-												}}
+														frameLink: ({ frame }: { frame: number }) => {
+															if (typeof frame === "number") {
+																return <FrameReference frame={frame} />;
+															}
+															return null;
+														},
+													} as Record<string, React.ComponentType<any>>
+												}
 											>
 												{message.content}
 											</MemoizedMarkdown>
@@ -656,46 +666,56 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 											<MemoizedMarkdown
 												remarkPlugins={markdownPlugins}
 												rehypePlugins={htmlPlugins}
-												components={{
-													code({ node, className, children, ...props }) {
-														const match = /language-(\w+)/.exec(
-															className || "",
-														);
-														return match ? (
-															<SyntaxHighlighter
-																style={mode === "dark" ? oneDark : oneLight}
-																language={match[1]}
-																PreTag="div"
-																{...props}
-															>
-																{String(children).replace(/\n$/, "")}
-															</SyntaxHighlighter>
-														) : (
-															<code className={className} {...props}>
-																{children}
-															</code>
-														);
-													},
+												components={
+													{
+														code({ node, className, children, ...props }) {
+															const match = /language-(\w+)/.exec(
+																className || "",
+															);
+															return match ? (
+																<SyntaxHighlighter
+																	style={
+																		mode === "dark"
+																			? (oneDark as {
+																					[key: string]: React.CSSProperties;
+																				})
+																			: (oneLight as {
+																					[key: string]: React.CSSProperties;
+																				})
+																	}
+																	language={match[1]}
+																	PreTag="div"
+																	{...props}
+																>
+																	{String(children).replace(/\n$/, "")}
+																</SyntaxHighlighter>
+															) : (
+																<code className={className} {...props}>
+																	{children}
+																</code>
+															);
+														},
 
-													// 👇 map frameLink directly
-													frameLink({ frame }) {
-														// Destructure 'frame' directly from props
-														if (typeof frame === "number") {
-															return <FrameReference frame={frame} />;
-														}
-														// Optional: return a fallback if frame is missing for some reason
-														return null;
-													},
+														// 👇 map frameLink directly
+														frameLink: ({ frame }: { frame: number }) => {
+															// Destructure 'frame' directly from props
+															if (typeof frame === "number") {
+																return <FrameReference frame={frame} />;
+															}
+															// Optional: return a fallback if frame is missing for some reason
+															return null;
+														},
 
-													// fallback for real links
-													// a({ node, children, ...props }) {
-													//   return (
-													//     <a {...props} style={{ color: "#1976d2" }}>
-													//       {children}
-													//     </a>
-													//   );
-													// },
-												}}
+														// fallback for real links
+														// a({ node, children, ...props }) {
+														//   return (
+														//     <a {...props} style={{ color: "#1976d2" }}>
+														//       {children}
+														//     </a>
+														//   );
+														// },
+													} as Record<string, React.ComponentType<any>>
+												}
 											>
 												{message.content}
 											</MemoizedMarkdown>

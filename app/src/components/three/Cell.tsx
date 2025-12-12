@@ -70,9 +70,9 @@ export const Cell = ({ data }: { data: CellData }) => {
 		}
 
 		const cellVectors = [
-			new THREE.Vector3(cell[0], cell[1], cell[2]),
-			new THREE.Vector3(cell[3], cell[4], cell[5]),
-			new THREE.Vector3(cell[6], cell[7], cell[8]),
+			new THREE.Vector3(Number(cell[0]), Number(cell[1]), Number(cell[2])),
+			new THREE.Vector3(Number(cell[3]), Number(cell[4]), Number(cell[5])),
+			new THREE.Vector3(Number(cell[6]), Number(cell[7]), Number(cell[8])),
 		];
 
 		const origin = new THREE.Vector3(0, 0, 0);

@@ -24,7 +24,7 @@ const CustomRangeSlider = ({
 	const value = Number(data ?? schema.default ?? schema.minimum ?? 0);
 
 	// The step property is correctly read from the schema.
-	const step = schema.step || 0.1;
+	const step = ((schema as Record<string, unknown>).step as number) || 0.1;
 
 	return (
 		<Box sx={{ marginBottom: 2 }}>

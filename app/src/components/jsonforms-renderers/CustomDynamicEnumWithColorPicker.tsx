@@ -72,7 +72,10 @@ export const customDynamicEnumWithColorPickerTester = rankWith(
 	10, // Higher priority than standard renderers
 	and(
 		schemaMatches((schema) => schema?.hasOwnProperty("x-dynamic-enum")),
-		schemaMatches((schema) => schema?.["x-color-picker"] === true),
+		schemaMatches(
+			(schema) =>
+				(schema as Record<string, unknown>)?.["x-color-picker"] === true,
+		),
 	),
 );
 

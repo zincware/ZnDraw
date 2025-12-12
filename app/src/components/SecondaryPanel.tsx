@@ -132,7 +132,6 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
 					return;
 				submit({
 					roomId,
-					userName,
 					category: panelTitle,
 					extension: selectedExtensionName,
 					data: data,
@@ -143,7 +142,6 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
 			selectedExtensionName,
 			selectedExtension,
 			roomId,
-			userName,
 			panelTitle,
 			submit,
 			schemas,

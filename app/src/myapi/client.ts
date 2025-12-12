@@ -199,11 +199,6 @@ export interface GeometryResponse {
 	geometry: GeometryData;
 }
 
-export interface GeometryData {
-	type: string;
-	data: any;
-}
-
 export interface GeometryListResponse {
 	geometries: Record<string, GeometryData>;
 }
@@ -510,11 +505,11 @@ export interface ExtensionMetadata {
 	queueLength: number;
 	idleWorkers: number;
 	progressingWorkers: number;
+	public: boolean;
+	name: string;
 }
 
-export interface SchemasResponse {
-	[extensionName: string]: ExtensionMetadata;
-}
+export type SchemasResponse = ExtensionMetadata[];
 
 export const getSchemas = async (
 	roomId: string,

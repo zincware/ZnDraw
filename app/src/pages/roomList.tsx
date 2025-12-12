@@ -393,9 +393,7 @@ export default function RoomListPage() {
 		return (
 			<Container maxWidth="lg">
 				<Box sx={{ mt: 4 }}>
-					<Alert severity="error">
-						{error instanceof Error ? error.message : "Unknown error"}
-					</Alert>
+					<Alert severity="error">{error || "Unknown error"}</Alert>
 				</Box>
 			</Container>
 		);
