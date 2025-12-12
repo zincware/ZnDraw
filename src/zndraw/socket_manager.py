@@ -106,9 +106,15 @@ class SocketManager:
             self.zndraw._step = data["frame"]
 
     def _on_room_update(self, data):
-        """Handle room:update events (consolidated room metadata updates)."""
+        """Handle room:update events (consolidated room metadata updates).
+
+        Note: We invalidate the cache instead of setting _len directly to avoid
+        race conditions. Socket events are asynchronous and can arrive after
+        a more recent HTTP response has already set the correct _len value.
+        Invalidating forces the next len() call to fetch fresh data.
+        """
         if "frameCount" in data:
-            self.zndraw._len = data["frameCount"]
+            self.zndraw._len = None
 
     def _on_selection_update(self, data):
         if "indices" in data:
