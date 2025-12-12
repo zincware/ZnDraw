@@ -1,6 +1,6 @@
 [project]
 name = "zndraw"
-version = "0.6.0a18"
+dynamic = ["version"]
 description = "ZnDraw"
 license = { file = "LICENSE" }
 authors = [
@@ -61,7 +61,7 @@ docs = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project.urls]
@@ -69,6 +69,12 @@ Repository = "https://github.com/zincware/ZnDraw"
 Releases = "https://github.com/zincware/ZnDraw/releases"
 Discord = "https://discord.gg/7ncfwhsnm4"
 Documentation = "https://zndraw.readthedocs.io/"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/zndraw/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/zndraw", "src/zndraw_cli"]
