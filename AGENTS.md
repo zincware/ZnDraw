@@ -21,6 +21,9 @@ To run tests use
 To run python code use
 - `uv run python ...`
 
+To format / lint code use exactly
+- `uvx prek run --all-files`
+
 Tests can run for up to 15 minutes - be patient!
 
 When designing new tests, read the old tests first to understand the existing patterns.

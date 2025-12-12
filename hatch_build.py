@@ -38,7 +38,9 @@ class FrontendBuildHook(BuildHookInterface):
         else:
             raise RuntimeError("Neither bun nor npm found. Cannot build frontend.")
 
-        self.app.display_info(f"Building frontend with {pkg_manager} (version={version})...")
+        self.app.display_info(
+            f"Building frontend with {pkg_manager} (version={version})..."
+        )
 
         # Install dependencies
         subprocess.run(install_cmd, cwd=app_dir, check=True)

@@ -74,7 +74,11 @@ function createArrowMesh(resolution: number) {
 		cylinderHeight,
 		resolution,
 	);
-	const coneGeometry = new THREE.ConeGeometry(coneRadius, coneHeight, resolution);
+	const coneGeometry = new THREE.ConeGeometry(
+		coneRadius,
+		coneHeight,
+		resolution,
+	);
 
 	// Position geometries so the base is at (0,0,0) and it extends up to a total height of 1.0
 	cylinderGeometry.translate(0, cylinderHeight / 2, 0);

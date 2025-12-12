@@ -116,9 +116,9 @@ export const KeyboardShortcutsHandler = () => {
 						typeof connData === "object" &&
 						connectivityKey in connData
 					) {
-						connectivityData = (
-							connData as { [connectivityKey]: TypedArray }
-						)[connectivityKey];
+						connectivityData = (connData as { [connectivityKey]: TypedArray })[
+							connectivityKey
+						];
 					} else if (connData) {
 						connectivityData = connData as TypedArray;
 					}
