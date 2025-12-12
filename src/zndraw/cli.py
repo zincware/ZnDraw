@@ -497,7 +497,13 @@ def main(
         # In-memory mode has ephemeral Redis state, so LMDB data becomes stale
         if config.redis_url is None and os.path.exists(config.storage_path):
             typer.echo(f"🧹 Cleaning LMDB storage: {config.storage_path}")
-            shutil.rmtree(config.storage_path)
+            try:
+                shutil.rmtree(config.storage_path)
+            except OSError as e:
+                typer.echo(
+                    f"Could not fully clean storage directory: {e}. "
+                    "You may need to manually remove it."
+                )
 
         flask_app.extensions["redis"].flushall()
         if celery:
