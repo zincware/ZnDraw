@@ -19,6 +19,11 @@ from zndraw.version_utils import (
         ("1.2.3", (1, 2, 3)),
         ("2.0.0b1", (2, 0, 0)),
         ("0.10.15rc2", (0, 10, 15)),
+        # Dev versions from setuptools_scm
+        ("0.1.dev387+g4eef98fcc.d20251212", (0, 1, 0)),
+        ("0.1.dev1+g123abc", (0, 1, 0)),
+        ("1.0.dev10+gabcdef.d20250101", (1, 0, 0)),
+        # Invalid versions
         ("invalid", None),
         ("1.2", None),
         ("1.a.3", None),
@@ -49,6 +54,12 @@ def test_parse_version(version, expected):
         ("0.6.0a4", "0.6.0a4", True, "info"),
         ("0.6.0a4", "0.7.0a1", False, "error"),
         ("0.6.1a1", "0.6.0", True, "warning"),  # Different patch versions
+        # Dev versions from setuptools_scm (all parse to X.Y.0)
+        ("0.1.dev387+g4eef98fcc.d20251212", "0.1.dev1+g123abc", True, "info"),
+        ("0.1.dev387+g4eef98fcc.d20251212", "0.1.0", True, "info"),
+        ("0.1.0", "0.1.dev387+g4eef98fcc.d20251212", True, "info"),
+        ("0.1.dev387+g4eef98fcc.d20251212", "0.2.dev1", False, "error"),
+        ("1.0.dev10+gabcdef", "2.0.dev10+gabcdef", False, "error"),
     ],
 )
 def test_check_version_compatibility(

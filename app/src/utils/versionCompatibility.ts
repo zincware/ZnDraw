@@ -99,7 +99,7 @@ export function checkVersionCompatibility(
  * This is injected at build time from the Python package version.
  */
 export function getClientVersion(): string {
-	// This environment variable should be set during the build process
-	// from the Python package's __version__
-	return import.meta.env.VITE_APP_VERSION || "0.6.0a4";
+	// This environment variable is set during the build process from the Python package's __version__
+	// In dev mode, vite.config.ts automatically fetches it from the installed package
+	return import.meta.env.VITE_APP_VERSION || "0.0.0-unknown";
 }

@@ -1,5 +1,24 @@
 import react from "@vitejs/plugin-react-swc";
 import { defineConfig } from "vite";
+import { execSync } from "node:child_process";
+
+/**
+ * Gets the Python package version from the installed zndraw package.
+ * Falls back to "0.0.0-dev" if unable to retrieve.
+ */
+function getPythonPackageVersion(): string {
+	try {
+		// Try to get version from installed package
+		const version = execSync(
+			'uv run python -c "from zndraw import __version__; print(__version__)"',
+			{ encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] },
+		).trim();
+		return version;
+	} catch {
+		// Fallback if unable to get version
+		return "0.0.0-dev";
+	}
+}
 
 export default defineConfig({
 	plugins: [react()],
@@ -30,6 +49,10 @@ export default defineConfig({
 			process.env.NODE_ENV || "production",
 		),
 		global: "globalThis",
+		// Inject version in dev mode if not already set
+		"import.meta.env.VITE_APP_VERSION": JSON.stringify(
+			process.env.VITE_APP_VERSION || getPythonPackageVersion(),
+		),
 	},
 	server: {
 		proxy: {
