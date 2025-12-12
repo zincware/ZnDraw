@@ -36,7 +36,7 @@ dependencies = [
     "typer>=0.19.2",
     "vesin>=0.3.8",
     "znh5md>=0.4.8",
-    "znsocket>=0.2.13a5",
+    "znsocket>=0.3.0",
     "prometheus-client>=0.23.1",
     "molify>=0.2.1",
 ]
@@ -52,6 +52,8 @@ dev = [
     "pytest>=8.4.2",
     "molify>=0.2.1",
     "pytest-cov>=7.0.0",
+    "hatchling>=1.28.0",
+    "hatch-vcs>=0.5.0",
 ]
 docs = [
     "furo>=2025.9.25",
@@ -76,6 +78,8 @@ source = "vcs"
 
 [tool.hatch.build.hooks.vcs]
 version-file = "src/zndraw/_version.py"
+
+[tool.hatch.build.hooks.custom]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/zndraw", "src/zndraw_cli"]

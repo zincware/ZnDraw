@@ -1,15 +1,25 @@
 /**
  * Parses a semantic version string into its components.
- * Handles pre-release versions like "0.6.0a4"
+ * Handles pre-release versions like "0.6.0a4" and dev versions like "0.1.dev383+g..."
  */
 export function parseVersion(
 	version: string,
 ): { major: number; minor: number; patch: number } | null {
+	// Handle dev versions: "0.1.dev383+g..." -> treat as X.Y.0
+	const devMatch = version.match(/^(\d+)\.(\d+)\.dev/);
+	if (devMatch) {
+		return {
+			major: Number.parseInt(devMatch[1]),
+			minor: Number.parseInt(devMatch[2]),
+			patch: 0,
+		};
+	}
+
 	// Strip any pre-release suffix (e.g., "a4", "b1", "rc2")
 	const cleanVersion = version.replace(/[a-zA-Z].*/g, "");
 	const parts = cleanVersion.split(".").map(Number);
 
-	if (parts.length < 3 || parts.some(isNaN)) {
+	if (parts.length < 3 || parts.some(Number.isNaN)) {
 		return null;
 	}
 
