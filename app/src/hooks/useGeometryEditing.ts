@@ -75,6 +75,7 @@ export function useGeometryEditing(
 		transformMode,
 		subscribeToEditing,
 		updateGeometry,
+		updateSelectionForGeometry,
 		editingCombinedCentroid,
 		geometries,
 	} = useAppStore();
@@ -85,9 +86,6 @@ export function useGeometryEditing(
 	const isPositionStaticVal = positionData && isPositionStatic(positionData);
 	const isRotationStaticVal = rotationData && isRotationStatic(rotationData);
 	const isScaleStaticVal = scaleData !== undefined && isScaleStatic(scaleData);
-
-	// For editing mode, position must be static
-	const canEdit = isPositionStaticVal;
 
 	// Memoize selectedIndices to prevent infinite loops from array reference changes
 	const stableSelectedIndices = useMemo(
@@ -108,8 +106,33 @@ export function useGeometryEditing(
 	// COMBINED effect: Initialize AND subscribe in one effect
 	// This ensures subscription happens immediately after initialization
 	useEffect(() => {
-		// Skip entirely if not editable
-		if (!canEdit) {
+		// 1. Validation Logic: Deselect if dynamic attributes are targeted by transform mode
+		// "As soon as a transform controls action is applied... If any of these are dynamic, they should be deselected"
+		if (isEditing && hasSelection) {
+			let shouldDeselect = false;
+
+			// Position must always be static for any editing
+			if (!isPositionStaticVal) {
+				shouldDeselect = true;
+			}
+			// If rotating, rotation must be static
+			else if (transformMode === "rotate" && !isRotationStaticVal) {
+				shouldDeselect = true;
+			}
+			// If scaling, scale must be static
+			else if (transformMode === "scale" && !isScaleStaticVal) {
+				shouldDeselect = true;
+			}
+
+			if (shouldDeselect) {
+				// Clear selection for this geometry
+				updateSelectionForGeometry(geometryKey, []);
+				return;
+			}
+		}
+
+		// Skip if not editable (this covers the general static position check)
+		if (!isPositionStaticVal) {
 			return;
 		}
 
@@ -157,11 +180,18 @@ export function useGeometryEditing(
 			relativePositionsRef.current = relative;
 
 			// Initialize rotations if available and static
-			const rotationsToUse =
+			let rotationsToUse =
 				currentRotations && isRotationStatic(currentRotations)
 					? currentRotations
 					: rotationData;
+
 			if (rotationsToUse && isRotationStatic(rotationsToUse)) {
+				// Handle broadcasted rotation (single value for multiple instances)
+				// We must expand it before getting initial rotations for specific indices
+				if (rotationsToUse.length === 1 && instanceCount > 1) {
+					rotationsToUse = Array(instanceCount).fill(rotationsToUse[0]);
+				}
+
 				initialRotationsRef.current = getInitialRotations(
 					rotationsToUse,
 					stableSelectedIndices,
@@ -253,8 +283,14 @@ export function useGeometryEditing(
 							rotationData &&
 							currentInitialRotations.size > 0
 						) {
+							// Handle broadcasted rotation: expand if needed
+							let rotationDataToUse = rotationData;
+							if (rotationData.length === 1 && instanceCount > 1) {
+								rotationDataToUse = Array(instanceCount).fill(rotationData[0]);
+							}
+
 							const newRotations = applyTransformToRotations(
-								rotationData,
+								rotationDataToUse,
 								stableSelectedIndices,
 								quaternion,
 								currentInitialRotations,
@@ -306,14 +342,16 @@ export function useGeometryEditing(
 		stableSelectedIndices,
 		subscribeToEditing,
 		updateGeometry,
+		updateSelectionForGeometry,
 		geometryKey,
 		geometryType,
 		fullGeometryData,
-		canEdit,
+		isPositionStaticVal,
 		isRotationStaticVal,
 		isScaleStaticVal,
 		instanceCount,
 		editingCombinedCentroid,
 		geometries,
+		transformMode,
 	]);
 }

@@ -389,6 +389,15 @@ export function normalizeScaleToArray(
 
 	// Check if first element is array (anisotropic) or number (uniform per-instance)
 	if (typeof scale[0] === "number") {
+		// Handle broadcasted uniform scale: [s] -> [[s,s,s], [s,s,s], ...]
+		if (scale.length === 1 && instanceCount > 1) {
+			const s = scale[0] as number;
+			return Array.from(
+				{ length: instanceCount },
+				() => [s, s, s] as [number, number, number],
+			);
+		}
+
 		// Per-instance uniform: [s1, s2, s3, ...] -> [[s1,s1,s1], [s2,s2,s2], ...]
 		return (scale as number[]).map(
 			(s) => [s, s, s] as [number, number, number],
@@ -397,6 +406,12 @@ export function normalizeScaleToArray(
 
 	// Per-instance anisotropic: already [[sx,sy,sz], ...]
 	if (Array.isArray(scale[0]) && scale[0].length === 3) {
+		// Handle broadcasted anisotropic scale: [[sx,sy,sz]] -> [[sx,sy,sz], [sx,sy,sz], ...]
+		if (scale.length === 1 && instanceCount > 1) {
+			const s = scale[0] as [number, number, number];
+			// Clone to avoid shared references
+			return Array.from({ length: instanceCount }, () => [...s]);
+		}
 		return scale as [number, number, number][];
 	}
 
