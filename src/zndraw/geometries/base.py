@@ -129,6 +129,50 @@ def validate_rotation_value(value: float) -> float:
     return value
 
 
+def normalize_scale(v: Any, validate: bool = True) -> ScaleProp:
+    """Normalize and optionally validate scale to appropriate format.
+
+    This shared function handles all scale normalization across geometry types.
+
+    Parameters
+    ----------
+    v
+        The raw scale value to normalize
+    validate
+        If True, validates scale values are within bounds [SCALE_MIN, SCALE_MAX]
+
+    Returns
+    -------
+    ScaleProp
+        Normalized scale value
+    """
+    if v is None:
+        return 1.0
+    if isinstance(v, str):  # Dynamic reference
+        return v
+    if isinstance(v, (int, float)):  # Single scalar
+        val = float(v)
+        return validate_scale_value(val) if validate else val
+    if isinstance(v, tuple):  # Single anisotropic tuple -> validate and wrap in list
+        if validate:
+            validated_tuple = tuple(validate_scale_value(float(x)) for x in v)
+        else:
+            validated_tuple = tuple(float(x) for x in v)
+        return [validated_tuple]
+    if isinstance(v, list):  # List of values or tuples
+        if len(v) == 0:
+            return v
+        if isinstance(v[0], (int, float)):  # List of scalars
+            if validate:
+                return [validate_scale_value(float(x)) for x in v]
+            return [float(x) for x in v]
+        if isinstance(v[0], (tuple, list)):  # List of tuples
+            if validate:
+                return [tuple(validate_scale_value(float(x)) for x in t) for t in v]
+            return [tuple(float(x) for x in t) for t in v]
+    return v  # Fallback
+
+
 class InteractionSettings(BaseModel):
     model_config = ConfigDict(frozen=True)
 

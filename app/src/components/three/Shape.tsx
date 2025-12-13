@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { getFrames, createGeometry } from "../../myapi/client";
+import { getFrames } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
-import { debounce } from "lodash";
 import { useGeometryEditing } from "../../hooks/useGeometryEditing";
+import { useGeometryPersistence } from "../../hooks/useGeometryPersistence";
 import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
@@ -122,7 +122,6 @@ export default function Shape({
 	const frameCount = useAppStore((state) => state.frameCount);
 	const roomId = useAppStore((state) => state.roomId);
 	const userName = useAppStore((state) => state.userName);
-	const lock = useAppStore((state) => state.lock);
 	const selections = useAppStore((state) => state.selections);
 	const updateSelections = useAppStore((state) => state.updateSelections);
 	const hoveredGeometryInstance = useAppStore(
@@ -134,10 +133,6 @@ export default function Shape({
 	const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
 	const removeGeometryFetching = useAppStore(
 		(state) => state.removeGeometryFetching,
-	);
-	const geometries = useAppStore((state) => state.geometries);
-	const geometryUpdateSources = useAppStore(
-		(state) => state.geometryUpdateSources,
 	);
 
 	// Fetch frame keys to check if required data is available
@@ -262,8 +257,7 @@ export default function Shape({
 		typeof rotationProp === "string"
 			? rotationData?.[rotationProp]
 			: rotationProp;
-	const finalScaleData =
-		typeof scale === "string" ? scaleData?.[scale] : scale;
+	const finalScaleData = typeof scale === "string" ? scaleData?.[scale] : scale;
 	const scaleValue = finalScaleData || 1.0;
 
 	useGeometryEditing(
@@ -277,56 +271,8 @@ export default function Shape({
 		instanceCount,
 	);
 
-	// Persist geometry changes to server (debounced)
-	const persistGeometryData = useCallback(async () => {
-		if (!roomId) return;
-
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry || !currentGeometry.data) return;
-
-		try {
-			await createGeometry(
-				roomId,
-				geometryKey,
-				"Shape",
-				currentGeometry.data,
-				lock?.token,
-			);
-		} catch (error: any) {
-			console.error(`[Shape] Failed to persist ${geometryKey}:`, error);
-		}
-	}, [roomId, geometryKey, geometries, lock]);
-
-	const debouncedPersist = useMemo(
-		() => debounce(persistGeometryData, 500),
-		[persistGeometryData],
-	);
-
-	useEffect(() => {
-		return () => {
-			debouncedPersist.cancel();
-		};
-	}, [debouncedPersist]);
-
-	// Watch geometry data changes and persist - only if source is 'local'
-	useEffect(() => {
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry) return;
-
-		const updateSource = geometryUpdateSources[geometryKey];
-		if (updateSource !== "local") {
-			return;
-		}
-
-		debouncedPersist();
-	}, [
-		geometries[geometryKey]?.data?.position,
-		geometries[geometryKey]?.data?.rotation,
-		geometries[geometryKey]?.data?.scale,
-		geometryUpdateSources[geometryKey],
-		debouncedPersist,
-		geometryKey,
-	]);
+	// Handle persistence of local geometry changes to server
+	useGeometryPersistence(geometryKey, "Shape");
 
 	// Consolidated data processing and mesh update
 	useEffect(() => {
@@ -434,11 +380,7 @@ export default function Shape({
 					finalRotations[i3 + 2],
 				);
 				_quat.setFromEuler(_euler);
-				_vec3_2.set(
-					finalScales[i3],
-					finalScales[i3 + 1],
-					finalScales[i3 + 2],
-				);
+				_vec3_2.set(finalScales[i3], finalScales[i3 + 1], finalScales[i3 + 2]);
 				_matrix.compose(_vec3, _quat, _vec3_2);
 				mainMesh.setMatrixAt(i, _matrix);
 

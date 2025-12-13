@@ -2,11 +2,11 @@ import * as THREE from "three";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useEffect, useState, useCallback } from "react";
 import { useGeometryEditing } from "../../hooks/useGeometryEditing";
+import { useGeometryPersistence } from "../../hooks/useGeometryPersistence";
 import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
 import { renderMaterial } from "./materials";
-import { getFrames, createGeometry } from "../../myapi/client";
+import { getFrames } from "../../myapi/client";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { debounce } from "lodash";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
 	type SizeProp,
@@ -59,6 +59,9 @@ interface ArrowData {
 
 // Arrow-specific reusable THREE objects
 const _arrowUp = new THREE.Vector3(0, 1, 0);
+
+// Small value for division-by-zero prevention in anisotropic scale calculations
+const EPSILON = 1e-10;
 
 /**
  * Creates a standard arrow geometry with a total height of 1,
@@ -134,7 +137,6 @@ export default function Arrow({
 	const frameCount = useAppStore((state) => state.frameCount);
 	const roomId = useAppStore((state) => state.roomId);
 	const userName = useAppStore((state) => state.userName);
-	const lock = useAppStore((state) => state.lock);
 	const selections = useAppStore((state) => state.selections);
 	const updateSelections = useAppStore((state) => state.updateSelections);
 	const hoveredGeometryInstance = useAppStore(
@@ -154,11 +156,6 @@ export default function Arrow({
 	);
 	const requestPathtracingUpdate = useAppStore(
 		(state) => state.requestPathtracingUpdate,
-	);
-	const showSnackbar = useAppStore((state) => state.showSnackbar);
-	const geometries = useAppStore((state) => state.geometries);
-	const geometryUpdateSources = useAppStore(
-		(state) => state.geometryUpdateSources,
 	);
 
 	// Fetch frame keys to check if required data is available
@@ -298,58 +295,8 @@ export default function Arrow({
 		instanceCount,
 	);
 
-	// Persistence callback - persists geometry changes to server
-	const persistGeometryData = useCallback(async () => {
-		if (!roomId) return;
-
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry || !currentGeometry.data) return;
-
-		try {
-			await createGeometry(
-				roomId,
-				geometryKey,
-				"Arrow",
-				currentGeometry.data,
-				lock?.token,
-			);
-		} catch (error: any) {
-			console.error(`[Arrow] Failed to persist ${geometryKey}:`, error);
-		}
-	}, [roomId, geometryKey, geometries, lock]);
-
-	// Memoize debounced persist function to avoid recreation on every render
-	const debouncedPersist = useMemo(
-		() => debounce(persistGeometryData, 500),
-		[persistGeometryData],
-	);
-
-	// Cleanup debounce on unmount
-	useEffect(() => {
-		return () => {
-			debouncedPersist.cancel();
-		};
-	}, [debouncedPersist]);
-
-	// Watch geometry data changes and persist - only if source is 'local'
-	useEffect(() => {
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry) return;
-
-		// Only persist if update source is 'local' (not from server)
-		const updateSource = geometryUpdateSources[geometryKey];
-		if (updateSource !== "local") {
-			return;
-		}
-
-		debouncedPersist();
-	}, [
-		geometries[geometryKey]?.data?.position,
-		geometries[geometryKey]?.data?.scale,
-		geometryUpdateSources[geometryKey],
-		debouncedPersist,
-		geometryKey,
-	]);
+	// Handle persistence of local geometry changes to server
+	useGeometryPersistence(geometryKey, "Arrow");
 
 	useEffect(() => {
 		// When frameCount is 0, explicitly clear arrows (e.g., after del vis[:])
@@ -470,7 +417,6 @@ export default function Arrow({
 				const arrowRadius = finalRadii[i] * finalScales[i3]; // x-scale for radius (could use z too)
 
 				// Compute z-radius with epsilon check to prevent division by zero
-				const EPSILON = 1e-10;
 				const xScale = finalScales[i3];
 				const zScale = finalScales[i3 + 2];
 				const zRadius =
@@ -523,10 +469,10 @@ export default function Arrow({
 
 					const dirLength = _vec3_2.length();
 					const arrowLength = dirLength * finalScales[i3 + 1];
-					const arrowRadius = finalRadii[id] * finalScales[i3] * SELECTION_SCALE;
+					const arrowRadius =
+						finalRadii[id] * finalScales[i3] * SELECTION_SCALE;
 
 					// Compute z-radius with epsilon check to prevent division by zero
-					const EPSILON = 1e-10;
 					const xScale = finalScales[i3];
 					const zScale = finalScales[i3 + 2];
 					const zRadius =

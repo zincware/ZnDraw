@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { getFrames, createGeometry } from "../../myapi/client";
+import { getFrames } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
-import { debounce } from "lodash";
 import { useGeometryEditing } from "../../hooks/useGeometryEditing";
+import { useGeometryPersistence } from "../../hooks/useGeometryPersistence";
 import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
@@ -98,7 +98,6 @@ export default function Box({
 	const frameCount = useAppStore((state) => state.frameCount);
 	const roomId = useAppStore((state) => state.roomId);
 	const userName = useAppStore((state) => state.userName);
-	const lock = useAppStore((state) => state.lock);
 	const selections = useAppStore((state) => state.selections);
 	const updateSelections = useAppStore((state) => state.updateSelections);
 	const hoveredGeometryInstance = useAppStore(
@@ -119,11 +118,6 @@ export default function Box({
 	const requestPathtracingUpdate = useAppStore(
 		(state) => state.requestPathtracingUpdate,
 	);
-	const geometries = useAppStore((state) => state.geometries);
-	const geometryUpdateSources = useAppStore(
-		(state) => state.geometryUpdateSources,
-	);
-	const showSnackbar = useAppStore((state) => state.showSnackbar);
 
 	// Fetch frame keys to check if required data is available
 	const { data: frameKeysData, isLoading: isLoadingKeys } = useFrameKeys(
@@ -297,8 +291,7 @@ export default function Box({
 		typeof rotationProp === "string"
 			? rotationData?.[rotationProp]
 			: rotationProp;
-	const finalScaleData =
-		typeof scale === "string" ? scaleData?.[scale] : scale;
+	const finalScaleData = typeof scale === "string" ? scaleData?.[scale] : scale;
 	const scaleValue = finalScaleData || 1.0;
 
 	useGeometryEditing(
@@ -312,61 +305,8 @@ export default function Box({
 		instanceCount,
 	);
 
-	// Persist geometry changes to server (debounced)
-	// Watch the geometry's data in Zustand store and persist when it changes locally
-	const persistGeometryData = useCallback(async () => {
-		if (!roomId) return;
-
-		// Get current geometry from Zustand store
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry || !currentGeometry.data) return;
-
-		try {
-			await createGeometry(
-				roomId,
-				geometryKey,
-				"Box",
-				currentGeometry.data,
-				lock?.token,
-			);
-		} catch (error: any) {
-			console.error(`[Box] Failed to persist ${geometryKey}:`, error);
-		}
-	}, [roomId, geometryKey, geometries, lock]);
-
-	// Memoize debounced persist function to avoid recreation on every render
-	const debouncedPersist = useMemo(
-		() => debounce(persistGeometryData, 500),
-		[persistGeometryData],
-	);
-
-	// Cleanup debounce on unmount
-	useEffect(() => {
-		return () => {
-			debouncedPersist.cancel();
-		};
-	}, [debouncedPersist]);
-
-	// Watch geometry data changes and persist - only if source is 'local'
-	useEffect(() => {
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry) return;
-
-		// Only persist if update source is 'local' (not from server)
-		const updateSource = geometryUpdateSources[geometryKey];
-		if (updateSource !== "local") {
-			return;
-		}
-
-		debouncedPersist();
-	}, [
-		geometries[geometryKey]?.data?.position,
-		geometries[geometryKey]?.data?.rotation,
-		geometries[geometryKey]?.data?.scale,
-		geometryUpdateSources[geometryKey],
-		debouncedPersist,
-		geometryKey,
-	]);
+	// Handle persistence of local geometry changes to server
+	useGeometryPersistence(geometryKey, "Box");
 
 	// Consolidated data processing and mesh update
 	useEffect(() => {

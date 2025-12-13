@@ -13,8 +13,8 @@ from .base import (
     ScaleProp,
     Size3DProp,
     apply_schema_feature,
+    normalize_scale as _normalize_scale,
     validate_rotation_value,
-    validate_scale_value,
 )
 
 
@@ -112,9 +112,7 @@ class Box(BaseGeometry):
             if len(v) == 0:
                 return v
             if isinstance(v[0], (tuple, list)):
-                return [
-                    tuple(validate_rotation_value(float(x)) for x in t) for t in v
-                ]
+                return [tuple(validate_rotation_value(float(x)) for x in t) for t in v]
         return v  # Already a list
 
     @field_validator("size", mode="before")
@@ -132,23 +130,5 @@ class Box(BaseGeometry):
     @field_validator("scale", mode="before")
     @classmethod
     def normalize_scale(cls, v):
-        """Normalize and validate scale to appropriate format."""
-        if v is None:
-            return 1.0
-        if isinstance(v, str):  # Dynamic reference
-            return v
-        if isinstance(v, (int, float)):  # Single scalar - validate and keep as-is
-            return validate_scale_value(float(v))
-        if isinstance(v, tuple):  # Single anisotropic tuple -> validate and wrap in list
-            validated_tuple = tuple(validate_scale_value(float(x)) for x in v)
-            return [validated_tuple]
-        if isinstance(v, list):  # List of values or tuples
-            if len(v) == 0:
-                return v
-            if isinstance(v[0], (int, float)):  # List of scalars
-                return [validate_scale_value(float(x)) for x in v]
-            if isinstance(v[0], (tuple, list)):  # List of tuples
-                return [
-                    tuple(validate_scale_value(float(x)) for x in t) for t in v
-                ]
-        return v  # Fallback
+        """Normalize and validate scale using shared function."""
+        return _normalize_scale(v, validate=True)

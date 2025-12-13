@@ -11,13 +11,11 @@ import { createGeometry } from "../myapi/client";
  *
  * @param geometryKey - Unique key for this geometry
  * @param geometryType - Type of geometry (e.g., "Arrow", "Box", "Sphere")
- * @param watchedProperties - Array of property paths to watch for changes (e.g., ["position", "scale"])
  * @param debounceMs - Debounce delay in milliseconds (default: 500)
  */
 export function useGeometryPersistence(
 	geometryKey: string,
 	geometryType: string,
-	watchedProperties: string[] = [],
 	debounceMs: number = 500,
 ) {
 	const roomId = useAppStore((state) => state.roomId);
@@ -29,7 +27,6 @@ export function useGeometryPersistence(
 
 	// Ref to track if persistence is needed (dirty flag)
 	const isDirtyRef = useRef(false);
-	const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// Persistence callback - persists geometry changes to server
 	const persistGeometryData = useCallback(async () => {
@@ -51,8 +48,11 @@ export function useGeometryPersistence(
 			);
 			// Clear dirty flag after successful persistence
 			isDirtyRef.current = false;
-		} catch (error: any) {
-			console.error(`[${geometryType}] Failed to persist ${geometryKey}:`, error);
+		} catch (error: unknown) {
+			console.error(
+				`[${geometryType}] Failed to persist ${geometryKey}:`,
+				error,
+			);
 			// Keep dirty flag set on error so we can retry
 		}
 	}, [roomId, geometryKey, geometryType, geometries, lock]);
@@ -96,10 +96,4 @@ export function useGeometryPersistence(
 		debouncedPersist,
 		geometryKey,
 	]);
-
-	// Return the persist function in case manual persistence is needed
-	return {
-		persistGeometryData,
-		debouncedPersist,
-	};
 }

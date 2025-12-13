@@ -25,6 +25,14 @@ type ScaleData =
 	| null
 	| undefined;
 
+// Type for the geometry data object passed to updateGeometry
+interface GeometryUpdateData {
+	position?: number[][];
+	rotation?: number[][];
+	scale?: number | [number, number, number][];
+	[key: string]: unknown; // Allow other properties from fullGeometryData
+}
+
 /**
  * Hook for geometry components to handle editing mode with transform controls
  *
@@ -206,7 +214,9 @@ export function useGeometryEditing(
 				matrix.decompose(position, quaternion, scale);
 
 				// Build updated data based on current transform mode
-				const updatedData: any = { ...fullGeometryData };
+				const updatedData: GeometryUpdateData = {
+					...fullGeometryData,
+				};
 
 				// Get current mode from store (need fresh value in callback)
 				const currentTransformMode = useAppStore.getState().transformMode;
@@ -262,7 +272,8 @@ export function useGeometryEditing(
 							const isUniformTransform =
 								Math.abs(scale.x - scale.y) < 1e-6 &&
 								Math.abs(scale.x - scale.z) < 1e-6;
-							const allSelected = stableSelectedIndices.length === instanceCount;
+							const allSelected =
+								stableSelectedIndices.length === instanceCount;
 
 							if (
 								typeof scaleData === "number" &&

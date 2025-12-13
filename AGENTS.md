@@ -6,6 +6,7 @@ When refactoring, you can break backwards compatibility.
 Always consider a better design approach compared to the existing one.
 Consider multiple approaches, review them against the principles above, the existing methods and the overall architecture - and choose the best one.
 When in doubt, ask for a review of your design approach before implementing it.
+You MUST NEVER run `git add` / `git commit` / `git push`!
 
 # Redis
 You can not use LUA scripts!

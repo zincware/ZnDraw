@@ -38,6 +38,9 @@ export default function MultiGeometryTransformControls() {
 	// Virtual object at centroid for transform controls
 	const virtualObjectRef = useRef<THREE.Object3D>(null);
 
+	// Track when the virtual object has mounted (needed for TransformControls)
+	const [virtualObjectMounted, setVirtualObjectMounted] = useState(false);
+
 	// Current centroid position
 	const [centroid, setCentroid] = useState<[number, number, number] | null>(
 		null,
@@ -107,6 +110,7 @@ export default function MultiGeometryTransformControls() {
 		if (mode !== "editing") {
 			setCentroid(null);
 			setHasValidSelections(false);
+			setVirtualObjectMounted(false);
 			setEditingCombinedCentroid(null);
 			lastSelectionKeyRef.current = null;
 			return;
@@ -206,6 +210,15 @@ export default function MultiGeometryTransformControls() {
 		isDraggingRef.current = false;
 	}, []);
 
+	// Callback ref to track when object3D mounts/unmounts
+	const handleVirtualObjectRef = useCallback(
+		(object: THREE.Object3D | null) => {
+			virtualObjectRef.current = object;
+			setVirtualObjectMounted(!!object);
+		},
+		[],
+	);
+
 	// Don't render if not editing or no valid selections
 	if (mode !== "editing" || !centroid || !hasValidSelections) {
 		return null;
@@ -214,10 +227,10 @@ export default function MultiGeometryTransformControls() {
 	return (
 		<>
 			{/* Virtual object at centroid */}
-			<object3D ref={virtualObjectRef} position={centroid} />
+			<object3D ref={handleVirtualObjectRef} position={centroid} />
 
 			{/* Transform controls attached to virtual object */}
-			{virtualObjectRef.current && (
+			{virtualObjectMounted && virtualObjectRef.current && (
 				<TransformControls
 					object={virtualObjectRef.current}
 					mode={transformMode}

@@ -373,20 +373,18 @@ export function normalizeScaleToArray(
 ): [number, number, number][] {
 	if (typeof scale === "number") {
 		// Uniform for all: create new arrays to avoid shared references
-		return Array.from({ length: instanceCount }, () => [
-			scale,
-			scale,
-			scale,
-		] as [number, number, number]);
+		return Array.from(
+			{ length: instanceCount },
+			() => [scale, scale, scale] as [number, number, number],
+		);
 	}
 
 	if (!Array.isArray(scale) || scale.length === 0) {
 		// Default to 1: create new arrays to avoid shared references
-		return Array.from({ length: instanceCount }, () => [1, 1, 1] as [
-			number,
-			number,
-			number,
-		]);
+		return Array.from(
+			{ length: instanceCount },
+			() => [1, 1, 1] as [number, number, number],
+		);
 	}
 
 	// Check if first element is array (anisotropic) or number (uniform per-instance)
@@ -403,11 +401,10 @@ export function normalizeScaleToArray(
 	}
 
 	// Fallback: create new arrays to avoid shared references
-	return Array.from({ length: instanceCount }, () => [1, 1, 1] as [
-		number,
-		number,
-		number,
-	]);
+	return Array.from(
+		{ length: instanceCount },
+		() => [1, 1, 1] as [number, number, number],
+	);
 }
 
 /**

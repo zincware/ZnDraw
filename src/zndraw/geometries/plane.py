@@ -13,6 +13,7 @@ from .base import (
     ScaleProp,
     Size2DProp,
     apply_schema_feature,
+    normalize_scale as _normalize_scale,
 )
 
 
@@ -131,13 +132,5 @@ class Plane(BaseGeometry):
     @field_validator("scale", mode="before")
     @classmethod
     def normalize_scale(cls, v):
-        """Normalize scale to appropriate format."""
-        if v is None:
-            return 1.0
-        if isinstance(v, str):  # Dynamic reference
-            return v
-        if isinstance(v, (int, float)):  # Single scalar - keep as-is
-            return float(v)
-        if isinstance(v, tuple):  # Single anisotropic tuple -> wrap in list
-            return [v]
-        return v  # Already a list
+        """Normalize and validate scale using shared function."""
+        return _normalize_scale(v, validate=True)
