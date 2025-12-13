@@ -5,7 +5,6 @@ without having to send the entire frame data.
 """
 
 import msgpack
-import msgpack_numpy as m
 import numpy as np
 import pytest
 import requests
@@ -69,6 +68,7 @@ def _encode_numpy_for_msgpack(data: dict) -> bytes:
     The frontend sends string keys like 'nd', 'type', etc. which the
     backend's decode_with_string_keys hook converts to byte keys.
     """
+
     def encode_value(obj):
         if isinstance(obj, np.ndarray):
             # Use msgpack-numpy format with string keys (as frontend sends)
@@ -191,10 +191,12 @@ def test_partial_update_multiple_keys(room_with_frames_and_lock):
     custom_array = np.ones(num_atoms, dtype=np.float64) * 3.14
 
     # Encode multiple updates
-    update_data = _encode_numpy_for_msgpack({
-        "arrays.positions": new_positions,
-        "arrays.custom_data": custom_array,
-    })
+    update_data = _encode_numpy_for_msgpack(
+        {
+            "arrays.positions": new_positions,
+            "arrays.custom_data": custom_array,
+        }
+    )
 
     # Send partial update
     response = requests.patch(
