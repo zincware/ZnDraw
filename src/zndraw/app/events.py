@@ -217,9 +217,9 @@ def handle_disconnect(*args, **kwargs):
             lock_session_id = lock_data.get("sessionId")
 
             # If this lock is held by the disconnecting session, clean it up
-            if lock_session_id == sid:
+            if lock_session_id == session_id:
                 log.warning(
-                    f"Cleaning up orphaned lock '{key}' held by disconnected session {sid}"
+                    f"Cleaning up orphaned lock '{key}' held by disconnected session {session_id}"
                 )
                 r.delete(key)
                 # Also delete associated metadata if it exists
