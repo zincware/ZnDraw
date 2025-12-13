@@ -12,7 +12,6 @@
 import {
 	decode as msgpackDecode,
 	encode as msgpackEncode,
-	ExtensionCodec,
 } from "@msgpack/msgpack";
 
 // Detect system endianness
@@ -376,19 +375,6 @@ export function unpackBinary(data: Uint8Array | ArrayBuffer): any {
 
 	return unpackNumpy(decoded);
 }
-
-// TypedArray constructor type for the dtype mapping
-type TypedArrayConstructor =
-	| typeof Float32Array
-	| typeof Float64Array
-	| typeof Int8Array
-	| typeof Int16Array
-	| typeof Int32Array
-	| typeof Uint8Array
-	| typeof Uint16Array
-	| typeof Uint32Array
-	| typeof BigInt64Array
-	| typeof BigUint64Array;
 
 // Reverse mapping: TypedArray constructor to numpy dtype string
 const constructorToDtype = new Map<TypedArrayConstructor, string>([

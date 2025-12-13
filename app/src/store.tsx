@@ -107,7 +107,8 @@ interface AppState {
 		frameId: number;
 		keys: Record<string, any>; // e.g., { "arrays.positions": Float32Array }
 	} | null;
-	isEditingFrameData: boolean; // Whether we're editing frame data (vs geometry data)
+	// Reference count for frame editing consumers (multiple hooks can be editing simultaneously)
+	editingFrameDataCount: number;
 	// Loaded dynamic positions registered by geometry components
 	// Used by MultiGeometryTransformControls to calculate centroid for dynamic positions
 	loadedDynamicPositions: Map<
@@ -238,7 +239,8 @@ interface AppState {
 	setPendingFrameEdit: (frameId: number, key: string, data: any) => void;
 	clearPendingFrameEdits: () => void;
 	saveFrameEdits: () => Promise<void>;
-	setIsEditingFrameData: (isEditing: boolean) => void;
+	incrementEditingFrameDataCount: () => void;
+	decrementEditingFrameDataCount: () => void;
 	registerLoadedDynamicPositions: (
 		geometryKey: string,
 		positionKey: string,
@@ -313,7 +315,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	// Frame editing state
 	pendingFrameEdits: null,
-	isEditingFrameData: false,
+	editingFrameDataCount: 0,
 	loadedDynamicPositions: new Map(),
 
 	/**
@@ -858,7 +860,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			mode: "view",
 			transformMode: "translate",
 			editingSelectedAxis: null,
-			isEditingFrameData: false, // Reset frame editing flag
+			editingFrameDataCount: 0, // Reset frame editing count
 		}); // Reset when exiting
 		if (released) {
 			state.showSnackbar("Exited editing mode", "info");
@@ -1196,7 +1198,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 		}
 	},
 
-	setIsEditingFrameData: (isEditing) => set({ isEditingFrameData: isEditing }),
+	incrementEditingFrameDataCount: () =>
+		set((state) => ({
+			editingFrameDataCount: state.editingFrameDataCount + 1,
+		})),
+
+	decrementEditingFrameDataCount: () =>
+		set((state) => ({
+			editingFrameDataCount: Math.max(0, state.editingFrameDataCount - 1),
+		})),
 
 	registerLoadedDynamicPositions: (geometryKey, positionKey, positions) => {
 		const newMap = new Map(get().loadedDynamicPositions);

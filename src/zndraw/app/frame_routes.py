@@ -956,25 +956,37 @@ def partial_update_frame(room_id: str, frame_id: int, session_id: str, user_id: 
         log.debug(f"[partial_update] Received {len(request.data)} bytes")
         log.debug(f"[partial_update] First 100 bytes hex: {request.data[:100].hex()}")
 
-        def decode_with_string_keys(obj):
-            """Decode hook that handles both byte and string keys for numpy arrays.
+        try:
+            raw_unpacked = msgpack.unpackb(request.data, strict_map_key=False)
+        except (msgpack.UnpackException, msgpack.ExtraData, ValueError) as e:
+            log.warning(f"Failed to decode msgpack data: {e}")
+            return {"error": f"Invalid msgpack data: {e}"}, 400
+
+        def decode_numpy_recursively(obj):
+            """Recursively decode numpy arrays from msgpack-numpy format.
 
             JavaScript msgpack sends string keys ('nd', 'type', etc.) while Python
             msgpack-numpy expects byte keys (b'nd', b'type', etc.).
             """
-            # Check for numpy array marker with string key (from JavaScript)
-            if isinstance(obj, dict) and "nd" in obj and obj.get("nd") is True:
-                # Convert string keys to byte keys for msgpack-numpy
-                byte_key_obj = {
-                    k.encode() if isinstance(k, str) else k: v for k, v in obj.items()
-                }
-                return m.decode(byte_key_obj)
-            # Fall through to default msgpack-numpy decode for byte keys
-            return m.decode(obj)
+            if isinstance(obj, dict):
+                # Check for numpy array marker with string key (from JavaScript)
+                if "nd" in obj and obj.get("nd") is True:
+                    # Convert string keys to byte keys for msgpack-numpy
+                    byte_key_obj = {
+                        k.encode() if isinstance(k, str) else k: v
+                        for k, v in obj.items()
+                    }
+                    return m.decode(byte_key_obj)
+                # Check for numpy array marker with byte key (from Python)
+                if b"nd" in obj and obj.get(b"nd") is True:
+                    return m.decode(obj)
+                # Regular dict - recurse into values
+                return {k: decode_numpy_recursively(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [decode_numpy_recursively(item) for item in obj]
+            return obj
 
-        unpacked_data = msgpack.unpackb(
-            request.data, object_hook=decode_with_string_keys, strict_map_key=False
-        )
+        unpacked_data = decode_numpy_recursively(raw_unpacked)
 
         if not isinstance(unpacked_data, dict):
             return {"error": "Body must be a dictionary of keys to update"}, 400

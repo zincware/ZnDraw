@@ -492,3 +492,25 @@ def test_partial_update_empty_room(server, get_jwt_auth_headers):
     assert response.status_code == 404
     result = response.json()
     assert "No frames found" in result["error"]
+
+
+def test_partial_update_malformed_msgpack(room_with_frames_and_lock):
+    """Test that partial update returns 400 for malformed msgpack data."""
+    server, room, session_id, auth_headers, _ = room_with_frames_and_lock
+
+    # Send invalid msgpack bytes (random garbage data)
+    malformed_data = b"\x91\x92\x93\xff\xfe\xfd\xfc"
+
+    response = requests.patch(
+        f"{server}/api/rooms/{room}/frames/0/partial",
+        data=malformed_data,
+        headers={
+            **auth_headers,
+            "X-Session-ID": session_id,
+            "Content-Type": "application/msgpack",
+        },
+    )
+
+    assert response.status_code == 400
+    result = response.json()
+    assert "error" in result

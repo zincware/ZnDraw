@@ -54,7 +54,8 @@ export function useFrameEditing(
 		subscribeToEditing,
 		editingCombinedCentroid,
 		setPendingFrameEdit,
-		setIsEditingFrameData,
+		incrementEditingFrameDataCount,
+		decrementEditingFrameDataCount,
 	} = useAppStore();
 
 	const isEditing = mode === "editing";
@@ -97,8 +98,8 @@ export function useFrameEditing(
 			return;
 		}
 
-		// Mark that we're editing frame data
-		setIsEditingFrameData(true);
+		// Increment frame editing count (for reference counting with multiple hooks)
+		incrementEditingFrameDataCount();
 
 		// Check if combined centroid has changed
 		const centroidKey = editingCombinedCentroid.join(",");
@@ -215,8 +216,8 @@ export function useFrameEditing(
 
 		return () => {
 			unsubscribe();
-			// Reset flag when this geometry stops editing frame data
-			setIsEditingFrameData(false);
+			// Decrement frame editing count when this hook stops editing
+			decrementEditingFrameDataCount();
 		};
 	}, [
 		isEditing,
@@ -231,7 +232,8 @@ export function useFrameEditing(
 		roomId,
 		currentFrame,
 		setPendingFrameEdit,
-		setIsEditingFrameData,
+		incrementEditingFrameDataCount,
+		decrementEditingFrameDataCount,
 		transformMode,
 	]);
 

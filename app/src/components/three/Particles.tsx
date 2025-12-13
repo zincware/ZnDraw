@@ -405,19 +405,21 @@ export default function Sphere({
 		}
 
 		if (dynamicPositionData) {
-			// Unregister old key if it changed
-			if (
-				registeredGeometryKeyRef.current &&
-				registeredGeometryKeyRef.current !== geometryKey
-			) {
-				unregisterLoadedDynamicPositions(registeredGeometryKeyRef.current);
-			}
+			const oldKey = registeredGeometryKeyRef.current;
+			const keyChanged = oldKey && oldKey !== geometryKey;
+
+			// Register new key first (before unregistering old) to avoid brief gaps
 			registerLoadedDynamicPositions(
 				geometryKey,
 				positionProp,
 				dynamicPositionData,
 			);
 			registeredGeometryKeyRef.current = geometryKey;
+
+			// Then unregister old key if it changed
+			if (keyChanged) {
+				unregisterLoadedDynamicPositions(oldKey);
+			}
 		}
 	}, [
 		geometryKey,
@@ -450,9 +452,10 @@ export default function Sphere({
 	);
 
 	// Use frame editing for dynamic positions (string references)
+	// Note: positionIsDynamic guarantees positionProp is string, cast for TypeScript
 	useFrameEditing(
 		geometryKey,
-		positionIsDynamic && typeof positionProp === "string" ? positionProp : "",
+		positionIsDynamic ? (positionProp as string) : "",
 		dynamicPositionData,
 		selectedIndices,
 		instanceCount,
