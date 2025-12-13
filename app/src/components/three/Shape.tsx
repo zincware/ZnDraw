@@ -1,21 +1,23 @@
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { getFrames, createGeometry } from "../../myapi/client";
+import { getFrames } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
-import { debounce } from "lodash";
 import { useGeometryEditing } from "../../hooks/useGeometryEditing";
+import { useGeometryPersistence } from "../../hooks/useGeometryPersistence";
 import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
 	processPositionAttribute,
 	processRotationAttribute,
 	processColorData,
+	processScaleAttribute,
 	getInstanceCount,
 	validateArrayLengths,
 	expandSharedColor,
 	SELECTION_SCALE,
 	HOVER_SCALE,
+	type ScaleProp,
 } from "../../utils/geometryData";
 import {
 	_vec3,
@@ -42,7 +44,7 @@ interface ShapeData {
 	rotation: string | number[][];
 	color: string | string[];
 	material: string;
-	scale: number;
+	scale: ScaleProp;
 	opacity: number;
 	selecting: InteractionSettings;
 	hovering: InteractionSettings;
@@ -120,7 +122,6 @@ export default function Shape({
 	const frameCount = useAppStore((state) => state.frameCount);
 	const roomId = useAppStore((state) => state.roomId);
 	const userName = useAppStore((state) => state.userName);
-	const lock = useAppStore((state) => state.lock);
 	const selections = useAppStore((state) => state.selections);
 	const updateSelections = useAppStore((state) => state.updateSelections);
 	const hoveredGeometryInstance = useAppStore(
@@ -132,10 +133,6 @@ export default function Shape({
 	const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
 	const removeGeometryFetching = useAppStore(
 		(state) => state.removeGeometryFetching,
-	);
-	const geometries = useAppStore((state) => state.geometries);
-	const geometryUpdateSources = useAppStore(
-		(state) => state.geometryUpdateSources,
 	);
 
 	// Fetch frame keys to check if required data is available
@@ -169,8 +166,6 @@ export default function Shape({
 		() => selectedIndices.filter((id) => id < instanceCount),
 		[selectedIndices, instanceCount],
 	);
-
-	const shapeScale = scale || 1.0;
 
 	// Build THREE.Shape geometry from vertices
 	const shapeGeometry = useMemo(() => {
@@ -222,13 +217,24 @@ export default function Shape({
 		retry: false,
 	});
 
+	const { data: scaleData, isFetching: isScaleFetching } = useQuery({
+		queryKey: ["frame", roomId, currentFrame, scale],
+		queryFn: ({ signal }: { signal: AbortSignal }) =>
+			getFrames(roomId!, currentFrame, [scale as string], signal),
+		enabled:
+			!!roomId && !!userName && frameCount > 0 && typeof scale === "string",
+		placeholderData: keepPreviousData,
+		retry: false,
+	});
+
 	// Check if any enabled query is still fetching
 	const isFetching =
 		(typeof positionProp === "string" && isPositionFetching) ||
 		(typeof colorProp === "string" &&
 			shouldFetchAsFrameData(colorProp as string) &&
 			isColorFetching) ||
-		(typeof rotationProp === "string" && isRotationFetching);
+		(typeof rotationProp === "string" && isRotationFetching) ||
+		(typeof scale === "string" && isScaleFetching);
 
 	// Report fetching state to global store
 	useEffect(() => {
@@ -247,84 +253,26 @@ export default function Shape({
 		typeof positionProp === "string"
 			? positionData?.[positionProp]
 			: positionProp;
+	const finalRotationData =
+		typeof rotationProp === "string"
+			? rotationData?.[rotationProp]
+			: rotationProp;
+	const finalScaleData = typeof scale === "string" ? scaleData?.[scale] : scale;
+	const scaleValue = finalScaleData || 1.0;
+
 	useGeometryEditing(
 		geometryKey,
 		finalPositionData,
+		finalRotationData,
+		scaleValue,
 		selectedIndices,
 		"Shape",
 		fullData,
+		instanceCount,
 	);
 
-	// Persist position changes to server (debounced)
-	const persistPositions = useCallback(async () => {
-		if (!roomId) return;
-
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry || !currentGeometry.data) return;
-
-		const currentPosition = currentGeometry.data.position;
-
-		// Only persist if position is static
-		if (
-			!Array.isArray(currentPosition) ||
-			currentPosition.length === 0 ||
-			!Array.isArray(currentPosition[0])
-		) {
-			return;
-		}
-
-		try {
-			await createGeometry(
-				roomId,
-				geometryKey,
-				"Shape",
-				currentGeometry.data,
-				lock?.token,
-			);
-		} catch (error: any) {
-			console.error(`[Shape] Failed to persist ${geometryKey}:`, error);
-		}
-	}, [roomId, geometryKey, geometries, lock]);
-
-	const debouncedPersist = useMemo(
-		() => debounce(persistPositions, 500),
-		[persistPositions],
-	);
-
-	useEffect(() => {
-		return () => {
-			debouncedPersist.cancel();
-		};
-	}, [debouncedPersist]);
-
-	// Watch position changes and persist - only if source is 'local'
-	useEffect(() => {
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry) return;
-
-		const currentPosition = currentGeometry.data?.position;
-		if (!currentPosition) return;
-
-		if (
-			!Array.isArray(currentPosition) ||
-			currentPosition.length === 0 ||
-			!Array.isArray(currentPosition[0])
-		) {
-			return;
-		}
-
-		const updateSource = geometryUpdateSources[geometryKey];
-		if (updateSource !== "local") {
-			return;
-		}
-
-		debouncedPersist();
-	}, [
-		geometries[geometryKey]?.data?.position,
-		geometryUpdateSources[geometryKey],
-		debouncedPersist,
-		geometryKey,
-	]);
+	// Handle persistence of local geometry changes to server
+	useGeometryPersistence(geometryKey, "Shape");
 
 	// Consolidated data processing and mesh update
 	useEffect(() => {
@@ -377,14 +325,30 @@ export default function Shape({
 				finalCount,
 			);
 
+			const fetchedScale =
+				typeof scale === "string" ? scaleData?.[scale] : undefined;
+			const { values: finalScales } = processScaleAttribute(
+				scale,
+				fetchedScale,
+				finalCount,
+			);
+
 			// Handle shared color
 			const finalColorHex = expandSharedColor(colorHexArray, finalCount);
 
 			// --- Validation Step ---
 			const isDataValid =
 				validateArrayLengths(
-					{ positions: finalPositions, rotations: finalRotations },
-					{ positions: finalCount * 3, rotations: finalCount * 3 },
+					{
+						positions: finalPositions,
+						rotations: finalRotations,
+						scales: finalScales,
+					},
+					{
+						positions: finalCount * 3,
+						rotations: finalCount * 3,
+						scales: finalCount * 3,
+					},
 				) && finalColorHex.length === finalCount;
 
 			if (!isDataValid) {
@@ -416,7 +380,7 @@ export default function Shape({
 					finalRotations[i3 + 2],
 				);
 				_quat.setFromEuler(_euler);
-				_vec3_2.set(shapeScale, shapeScale, shapeScale);
+				_vec3_2.set(finalScales[i3], finalScales[i3 + 1], finalScales[i3 + 2]);
 				_matrix.compose(_vec3, _quat, _vec3_2);
 				mainMesh.setMatrixAt(i, _matrix);
 
@@ -448,8 +412,11 @@ export default function Shape({
 						finalRotations[i3 + 2],
 					);
 					_quat.setFromEuler(_euler);
-					const selScale = shapeScale * SELECTION_SCALE;
-					_vec3_2.set(selScale, selScale, selScale);
+					_vec3_2.set(
+						finalScales[i3] * SELECTION_SCALE,
+						finalScales[i3 + 1] * SELECTION_SCALE,
+						finalScales[i3 + 2] * SELECTION_SCALE,
+					);
 					_matrix.compose(_vec3, _quat, _vec3_2);
 					selectionMesh.setMatrixAt(index, _matrix);
 				});
@@ -468,11 +435,12 @@ export default function Shape({
 		positionData,
 		colorData,
 		rotationData,
+		scaleData, // Add scaleData
 		positionProp,
 		colorProp,
 		rotationProp,
+		scale, // Add scale
 		instanceCount,
-		shapeScale,
 		validSelectedIndices,
 		selecting,
 		geometryKey,

@@ -829,12 +829,16 @@ export default function Curve({
 			: positionProp;
 
 	// Use the geometry editing hook for transform controls
+	// Curve doesn't have rotation or scale fields
 	useGeometryEditing(
 		geometryKey,
 		finalPositionData,
+		null, // Curve doesn't have rotation (orbital rotation only affects positions)
+		undefined, // Curve doesn't support scale transforms
 		selectedIndices,
 		"Curve",
 		fullData,
+		markerCount,
 	);
 
 	// Shared geometry for all markers (following Box.tsx pattern)

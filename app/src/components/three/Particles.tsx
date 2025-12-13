@@ -1,20 +1,22 @@
 import * as THREE from "three";
 import { useQuery, useQueries, keepPreviousData } from "@tanstack/react-query";
-import { getFrames, createGeometry } from "../../myapi/client";
+import { getFrames } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { useGeometryEditing } from "../../hooks/useGeometryEditing";
+import { useGeometryPersistence } from "../../hooks/useGeometryPersistence";
 import { renderMaterial } from "./materials";
-import { debounce } from "lodash";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
 	processNumericAttribute,
 	processColorData,
+	processScaleAttribute,
 	getInstanceCount,
 	validateArrayLengths,
 	expandSharedColor,
 	SELECTION_SCALE,
 	HOVER_SCALE,
+	type ScaleProp,
 } from "../../utils/geometryData";
 import {
 	_vec3,
@@ -49,7 +51,7 @@ interface SphereData {
 	radius: string | number[] | number | Transform;
 	material: string;
 	resolution: number;
-	scale: number;
+	scale: ScaleProp;
 	opacity: number;
 	selecting: InteractionSettings;
 	hovering: InteractionSettings;
@@ -73,7 +75,6 @@ export default function Sphere({
 	const frameCount = useAppStore((state) => state.frameCount);
 	const roomId = useAppStore((state) => state.roomId);
 	const userName = useAppStore((state) => state.userName);
-	const lock = useAppStore((state) => state.lock);
 	const selections = useAppStore((state) => state.selections);
 	const updateSelections = useAppStore((state) => state.updateSelections);
 	const setDrawingPointerPosition = useAppStore(
@@ -96,11 +97,6 @@ export default function Sphere({
 		(state) => state.requestPathtracingUpdate,
 	);
 	const updateGeometry = useAppStore((state) => state.updateGeometry);
-	const showSnackbar = useAppStore((state) => state.showSnackbar);
-	const geometries = useAppStore((state) => state.geometries);
-	const geometryUpdateSources = useAppStore(
-		(state) => state.geometryUpdateSources,
-	);
 
 	// Merge with defaults from Pydantic (single source of truth)
 	const fullData = getGeometryWithDefaults<SphereData>(
@@ -301,6 +297,20 @@ export default function Sphere({
 		retry: false,
 	});
 
+	const {
+		data: scaleData,
+		isFetching: isScaleFetching,
+		isError: isScaleError,
+	} = useQuery({
+		queryKey: ["frame", roomId, currentFrame, scale],
+		queryFn: ({ signal }: { signal: AbortSignal }) =>
+			getFrames(roomId!, currentFrame, [scale as string], signal),
+		enabled:
+			!!roomId && !!userName && frameCount > 0 && typeof scale === "string",
+		placeholderData: keepPreviousData,
+		retry: false,
+	});
+
 	// Check if any enabled query is still fetching
 	const isFetching =
 		(allTransformKeys.length > 0 && isTransformFetching) ||
@@ -311,7 +321,10 @@ export default function Sphere({
 			!colorIsTransform &&
 			shouldFetchAsFrameData(colorProp as string) &&
 			isColorFetching) ||
-		(typeof radiusProp === "string" && !radiusIsTransform && isRadiusFetching);
+		(typeof radiusProp === "string" &&
+			!radiusIsTransform &&
+			isRadiusFetching) ||
+		(typeof scale === "string" && isScaleFetching);
 
 	// Check if any query has errored - treat as data unavailable
 	const hasQueryError = useMemo(
@@ -324,7 +337,8 @@ export default function Sphere({
 				!colorIsTransform &&
 				shouldFetchAsFrameData(colorProp as string) &&
 				isColorError) ||
-			(typeof radiusProp === "string" && !radiusIsTransform && isRadiusError),
+			(typeof radiusProp === "string" && !radiusIsTransform && isRadiusError) ||
+			(typeof scale === "string" && isScaleError),
 		[
 			allTransformKeys.length,
 			isTransformError,
@@ -337,6 +351,8 @@ export default function Sphere({
 			radiusProp,
 			radiusIsTransform,
 			isRadiusError,
+			scale,
+			isScaleError,
 		],
 	);
 
@@ -357,89 +373,22 @@ export default function Sphere({
 		typeof positionProp === "string"
 			? positionData?.[positionProp]
 			: positionProp;
+	const finalScaleData = typeof scale === "string" ? scaleData?.[scale] : scale;
+	const scaleValue = finalScaleData || 1.0;
+
 	useGeometryEditing(
 		geometryKey,
 		finalPositionData,
+		null, // Particles don't have static rotation
+		scaleValue,
 		selectedIndices,
 		"Sphere",
 		fullData,
+		instanceCount,
 	);
 
-	// Persistence callback - persists position changes to server
-	const persistPositions = useCallback(async () => {
-		if (!roomId) return;
-
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry || !currentGeometry.data) return;
-
-		const currentPosition = currentGeometry.data.position;
-
-		// Only persist if position is static (number[][])
-		if (
-			!Array.isArray(currentPosition) ||
-			currentPosition.length === 0 ||
-			!Array.isArray(currentPosition[0])
-		) {
-			return;
-		}
-
-		try {
-			await createGeometry(
-				roomId,
-				geometryKey,
-				"Sphere",
-				currentGeometry.data,
-				lock?.token,
-			);
-		} catch (error: any) {
-			console.error(`[Particles] Failed to persist ${geometryKey}:`, error);
-			// Snackbar is shown automatically by withAutoLock for lock failures
-		}
-	}, [roomId, geometryKey, geometries, lock, showSnackbar]);
-
-	// Memoize debounced persist function to avoid recreation on every render
-	const debouncedPersist = useMemo(
-		() => debounce(persistPositions, 500),
-		[persistPositions],
-	);
-
-	// Cleanup debounce on unmount
-	useEffect(() => {
-		return () => {
-			debouncedPersist.cancel();
-		};
-	}, [debouncedPersist]);
-
-	// Watch position changes and persist - only if source is 'local'
-	useEffect(() => {
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry) return;
-
-		const currentPosition = currentGeometry.data?.position;
-		if (!currentPosition) return;
-
-		// Only persist if position is static
-		if (
-			!Array.isArray(currentPosition) ||
-			currentPosition.length === 0 ||
-			!Array.isArray(currentPosition[0])
-		) {
-			return;
-		}
-
-		// Only persist if update source is 'local' (not from server)
-		const updateSource = geometryUpdateSources[geometryKey];
-		if (updateSource !== "local") {
-			return;
-		}
-
-		debouncedPersist();
-	}, [
-		geometries[geometryKey]?.data?.position,
-		geometryUpdateSources[geometryKey],
-		debouncedPersist,
-		geometryKey,
-	]);
+	// Handle persistence of local geometry changes to server
+	useGeometryPersistence(geometryKey, "Sphere");
 
 	// Consolidated data processing and mesh update
 	useEffect(() => {
@@ -545,14 +494,30 @@ export default function Sphere({
 				finalCount,
 			);
 
+			const fetchedScale =
+				typeof scale === "string" ? scaleData?.[scale as string] : undefined;
+			const { values: finalScales } = processScaleAttribute(
+				scale,
+				fetchedScale,
+				finalCount,
+			);
+
 			// Handle shared color (single color for all instances)
 			const finalColorHex = expandSharedColor(colorHexArray, finalCount);
 
 			// --- Validation Step ---
 			const isDataValid =
 				validateArrayLengths(
-					{ positions: finalPositions, radii: finalRadii },
-					{ positions: finalCount * 3, radii: finalCount },
+					{
+						positions: finalPositions,
+						radii: finalRadii,
+						scales: finalScales,
+					},
+					{
+						positions: finalCount * 3,
+						radii: finalCount,
+						scales: finalCount * 3,
+					},
 				) && finalColorHex.length === finalCount;
 
 			if (!isDataValid) {
@@ -580,11 +545,17 @@ export default function Sphere({
 					finalPositions[i3 + 1],
 					finalPositions[i3 + 2],
 				);
-				const r = finalRadii[i] * particleScale;
+				const r = finalRadii[i];
 				_matrix
 					.identity()
 					.setPosition(_vec3)
-					.scale(_vec3.set(r, r, r));
+					.scale(
+						_vec3.set(
+							r * finalScales[i3],
+							r * finalScales[i3 + 1],
+							r * finalScales[i3 + 2],
+						),
+					);
 				mainMesh.setMatrixAt(i, _matrix);
 
 				// Set color directly from hex string (THREE.Color.set() accepts hex)
@@ -611,11 +582,17 @@ export default function Sphere({
 						finalPositions[i3 + 1],
 						finalPositions[i3 + 2],
 					);
-					const r = finalRadii[id] * particleScale * SELECTION_SCALE;
+					const r = finalRadii[id] * SELECTION_SCALE;
 					_matrix
 						.identity()
 						.setPosition(_vec3)
-						.scale(_vec3.set(r, r, r));
+						.scale(
+							_vec3.set(
+								r * finalScales[i3],
+								r * finalScales[i3 + 1],
+								r * finalScales[i3 + 2],
+							),
+						);
 					selectionMesh.setMatrixAt(index, _matrix);
 				});
 				selectionMesh.instanceMatrix.needsUpdate = true;
@@ -636,15 +613,16 @@ export default function Sphere({
 		positionData,
 		colorData,
 		radiusData,
+		scaleData, // Add scaleData
 		transformData,
 		positionProp,
 		colorProp,
 		radiusProp,
+		scale, // Add scale
 		positionIsTransform,
 		radiusIsTransform,
 		colorIsTransform,
 		instanceCount,
-		particleScale,
 		validSelectedIndices,
 		selecting,
 	]);

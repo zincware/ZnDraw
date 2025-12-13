@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { getFrames, createGeometry } from "../../myapi/client";
+import { getFrames } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
-import { debounce } from "lodash";
 import { useGeometryEditing } from "../../hooks/useGeometryEditing";
+import { useGeometryPersistence } from "../../hooks/useGeometryPersistence";
 import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
@@ -12,11 +12,13 @@ import {
 	processSize2D,
 	processRotationAttribute,
 	processColorData,
+	processScaleAttribute,
 	getInstanceCount,
 	validateArrayLengths,
 	expandSharedColor,
 	SELECTION_SCALE,
 	HOVER_SCALE,
+	type ScaleProp,
 } from "../../utils/geometryData";
 import {
 	_vec3,
@@ -48,7 +50,7 @@ interface PlaneData {
 	color: string | string[]; // Dynamic ref or list of hex strings
 	rotation: string | number[][];
 	material: string;
-	scale: number;
+	scale: ScaleProp;
 	opacity: number;
 	double_sided: boolean;
 	selecting: InteractionSettings;
@@ -99,7 +101,6 @@ export default function Plane({
 	const frameCount = useAppStore((state) => state.frameCount);
 	const roomId = useAppStore((state) => state.roomId);
 	const userName = useAppStore((state) => state.userName);
-	const lock = useAppStore((state) => state.lock);
 	const selections = useAppStore((state) => state.selections);
 	const updateSelections = useAppStore((state) => state.updateSelections);
 	const hoveredGeometryInstance = useAppStore(
@@ -119,11 +120,6 @@ export default function Plane({
 	);
 	const requestPathtracingUpdate = useAppStore(
 		(state) => state.requestPathtracingUpdate,
-	);
-	const showSnackbar = useAppStore((state) => state.showSnackbar);
-	const geometries = useAppStore((state) => state.geometries);
-	const geometryUpdateSources = useAppStore(
-		(state) => state.geometryUpdateSources,
 	);
 
 	// Fetch frame keys to check if required data is available
@@ -161,8 +157,6 @@ export default function Plane({
 		() => selectedIndices.filter((id) => id < instanceCount),
 		[selectedIndices, instanceCount],
 	);
-
-	const planeScale = scale || 1.0;
 
 	// Individual queries for each attribute
 	const {
@@ -231,6 +225,20 @@ export default function Plane({
 		retry: false,
 	});
 
+	const {
+		data: scaleData,
+		isFetching: isScaleFetching,
+		isError: isScaleError,
+	} = useQuery({
+		queryKey: ["frame", roomId, currentFrame, scale],
+		queryFn: ({ signal }: { signal: AbortSignal }) =>
+			getFrames(roomId!, currentFrame, [scale as string], signal),
+		enabled:
+			!!roomId && !!userName && frameCount > 0 && typeof scale === "string",
+		placeholderData: keepPreviousData,
+		retry: false,
+	});
+
 	// Check if any enabled query is still fetching
 	const isFetching =
 		(typeof positionProp === "string" && isPositionFetching) ||
@@ -238,7 +246,8 @@ export default function Plane({
 		(typeof colorProp === "string" &&
 			shouldFetchAsFrameData(colorProp as string) &&
 			isColorFetching) ||
-		(typeof rotationProp === "string" && isRotationFetching);
+		(typeof rotationProp === "string" && isRotationFetching) ||
+		(typeof scale === "string" && isScaleFetching);
 
 	// Check if any query has errored - treat as data unavailable
 	const hasQueryError = useMemo(
@@ -248,7 +257,8 @@ export default function Plane({
 			(typeof colorProp === "string" &&
 				shouldFetchAsFrameData(colorProp as string) &&
 				isColorError) ||
-			(typeof rotationProp === "string" && isRotationError),
+			(typeof rotationProp === "string" && isRotationError) ||
+			(typeof scale === "string" && isScaleError),
 		[
 			positionProp,
 			isPositionError,
@@ -258,6 +268,8 @@ export default function Plane({
 			isColorError,
 			rotationProp,
 			isRotationError,
+			scale,
+			isScaleError,
 		],
 	);
 
@@ -278,91 +290,26 @@ export default function Plane({
 		typeof positionProp === "string"
 			? positionData?.[positionProp]
 			: positionProp;
+	const finalRotationData =
+		typeof rotationProp === "string"
+			? rotationData?.[rotationProp]
+			: rotationProp;
+	const finalScaleData = typeof scale === "string" ? scaleData?.[scale] : scale;
+	const scaleValue = finalScaleData || 1.0;
+
 	useGeometryEditing(
 		geometryKey,
 		finalPositionData,
+		finalRotationData,
+		scaleValue,
 		selectedIndices,
 		"Plane",
 		fullData,
+		instanceCount,
 	);
 
-	// Persist position changes to server (debounced)
-	// Watch the geometry's position in Zustand store and persist when it changes locally
-	const persistPositions = useCallback(async () => {
-		if (!roomId) return;
-
-		// Get current geometry from Zustand store
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry || !currentGeometry.data) return;
-
-		const currentPosition = currentGeometry.data.position;
-
-		// Only persist if position is static (number[][])
-		if (
-			!Array.isArray(currentPosition) ||
-			currentPosition.length === 0 ||
-			!Array.isArray(currentPosition[0])
-		) {
-			return;
-		}
-
-		try {
-			await createGeometry(
-				roomId,
-				geometryKey,
-				"Plane",
-				currentGeometry.data,
-				lock?.token,
-			);
-		} catch (error: any) {
-			console.error(`[Plane] Failed to persist ${geometryKey}:`, error);
-			// Snackbar is shown automatically by withAutoLock for lock failures
-		}
-	}, [roomId, geometryKey, geometries, lock, showSnackbar]);
-
-	// Memoize debounced persist function to avoid recreation on every render
-	const debouncedPersist = useMemo(
-		() => debounce(persistPositions, 500),
-		[persistPositions],
-	);
-
-	// Cleanup debounce on unmount
-	useEffect(() => {
-		return () => {
-			debouncedPersist.cancel();
-		};
-	}, [debouncedPersist]);
-
-	// Watch position changes and persist - only if source is 'local'
-	useEffect(() => {
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry) return;
-
-		const currentPosition = currentGeometry.data?.position;
-		if (!currentPosition) return;
-
-		// Only persist if position is static
-		if (
-			!Array.isArray(currentPosition) ||
-			currentPosition.length === 0 ||
-			!Array.isArray(currentPosition[0])
-		) {
-			return;
-		}
-
-		// Only persist if update source is 'local' (not from server)
-		const updateSource = geometryUpdateSources[geometryKey];
-		if (updateSource !== "local") {
-			return;
-		}
-
-		debouncedPersist();
-	}, [
-		geometries[geometryKey]?.data?.position,
-		geometryUpdateSources[geometryKey],
-		debouncedPersist,
-		geometryKey,
-	]);
+	// Handle persistence of local geometry changes to server
+	useGeometryPersistence(geometryKey, "Plane");
 
 	// Consolidated data processing and mesh update
 	useEffect(() => {
@@ -424,6 +371,14 @@ export default function Plane({
 				finalCount,
 			);
 
+			const fetchedScale =
+				typeof scale === "string" ? scaleData?.[scale] : undefined;
+			const { values: finalScales } = processScaleAttribute(
+				scale,
+				fetchedScale,
+				finalCount,
+			);
+
 			// Handle shared color (single color for all instances)
 			const finalColorHex = expandSharedColor(colorHexArray, finalCount);
 
@@ -434,11 +389,13 @@ export default function Plane({
 						positions: finalPositions,
 						sizes: finalSizes,
 						rotations: finalRotations,
+						scales: finalScales,
 					},
 					{
 						positions: finalCount * 3,
 						sizes: finalCount * 2,
 						rotations: finalCount * 3,
+						scales: finalCount * 3,
 					},
 				) && finalColorHex.length === finalCount;
 
@@ -471,10 +428,10 @@ export default function Plane({
 					finalRotations[i3 + 1],
 					finalRotations[i3 + 2],
 				);
-				const width = finalSizes[i2] * planeScale;
-				const height = finalSizes[i2 + 1] * planeScale;
+				const width = finalSizes[i2] * finalScales[i3];
+				const height = finalSizes[i2 + 1] * finalScales[i3 + 1];
 				_quat.setFromEuler(_euler);
-				_vec3_2.set(width, height, 1);
+				_vec3_2.set(width, height, finalScales[i3 + 2]);
 				_matrix.compose(_vec3, _quat, _vec3_2);
 				mainMesh.setMatrixAt(i, _matrix);
 
@@ -508,11 +465,13 @@ export default function Plane({
 						finalRotations[i3 + 1],
 						finalRotations[i3 + 2],
 					);
-					const width = finalSizes[i2] * planeScale * SELECTION_SCALE;
-					const height = finalSizes[i2 + 1] * planeScale * SELECTION_SCALE;
-					// Use thin depth (0.01) for visible outline effect
+					const width = finalSizes[i2] * finalScales[i3] * SELECTION_SCALE;
+					const height =
+						finalSizes[i2 + 1] * finalScales[i3 + 1] * SELECTION_SCALE;
+					// Use thin depth (0.01) for visible outline effect, scaled by z-scale
+					const depth = 0.01 * finalScales[i3 + 2];
 					_quat.setFromEuler(_euler);
-					_vec3_2.set(width, height, 0.01);
+					_vec3_2.set(width, height, depth);
 					_matrix.compose(_vec3, _quat, _vec3_2);
 					selectionMesh.setMatrixAt(index, _matrix);
 				});
@@ -535,12 +494,13 @@ export default function Plane({
 		sizeData,
 		colorData,
 		rotationData,
+		scaleData, // Add scaleData
 		positionProp,
 		sizeProp,
 		colorProp,
 		rotationProp,
+		scale, // Add scale
 		instanceCount,
-		planeScale,
 		validSelectedIndices,
 		selecting,
 		geometryKey,
@@ -573,7 +533,7 @@ export default function Plane({
 			hoverMesh.scale.set(
 				_vec3_2.x * HOVER_SCALE,
 				_vec3_2.y * HOVER_SCALE,
-				0.01, // Thin depth for outline
+				_vec3_2.z, // Keep z-scale (which is likely thin)
 			);
 		} else {
 			hoverMesh.visible = false;

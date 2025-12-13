@@ -1,21 +1,42 @@
 /**
  * Type definitions for geometry data props.
- * Updated to match backend normalization - all non-dynamic fields are lists.
+ * Backend uses strict list-only format:
+ * - Position/Rotation/Scale: string (dynamic) | number[][] (Vec3 list)
+ * - Color: string (dynamic) | string[]
+ * - Size/Radius: string (dynamic) | number[]
+ * Single-element lists broadcast to all instances.
  */
-// Position is ALWAYS per-instance (list of tuples or dynamic key)
-export type PositionProp = string | [number, number, number][];
 
-// Color is always hex strings - list of hex strings or dynamic reference
-export type ColorProp = string | string[];
+import { isTransform, type Transform } from "./transformProcessor";
 
-// Size/radius can be shared (single value) or per-instance (list) or dynamic
-export type SizeProp = string | number | number[];
+// Fetched data types from server
+// Uses any to handle TypedArray (Float32Array, etc.) since we call Array.from()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type FetchedNumeric = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type FetchedStrings = any;
 
-// Rotation can be shared (single tuple) or per-instance (list of tuples) or dynamic
-export type RotationProp =
-	| string
-	| [number, number, number]
-	| [number, number, number][];
+// Position is ALWAYS per-instance list of Vec3 or dynamic key or Transform
+// Use number[][] instead of tuple for flexibility with JSON parsing
+export type PositionProp = string | number[][] | Transform;
+
+// Color is always hex strings - list of hex strings or dynamic reference or Transform
+export type ColorProp = string | string[] | Transform;
+
+// Size/radius is always list of floats or dynamic reference or Transform
+export type SizeProp = string | number[] | Transform;
+
+// Rotation is always list of Vec3 (Euler angles) or dynamic reference
+export type RotationProp = string | number[][];
+
+// Scale is always list of Vec3 or dynamic reference
+export type ScaleProp = string | number[][];
+
+// Size2D for planes: always list of [width, height] or dynamic reference
+export type Size2DProp = string | number[][];
+
+// Size3D for boxes: always list of [width, height, depth] or dynamic reference
+export type Size3DProp = string | number[][];
 
 // Generic data prop type (for processNumericAttribute)
 export type DataProp =
@@ -23,7 +44,8 @@ export type DataProp =
 	| number
 	| number[]
 	| number[][]
-	| Record<string, any>;
+	| Transform
+	| Record<string, unknown>;
 
 /**
  * Constants for selection and hover visual effects.
@@ -33,233 +55,268 @@ export const HOVER_SCALE = 1.25;
 export const SELECTION_COLOR = [1.0, 0.75, 0.8] as const; // Pink
 
 /**
- * Process a numeric attribute (position, radius, scale, direction, etc.).
- * Handles both fetched data and static values.
+ * Process a Vec3 list attribute (position, rotation, scale, direction).
+ * Backend always sends [[x,y,z], ...] format.
+ * Single-element lists are broadcast to all instances.
  *
- * @param propValue - The prop value (string key or static data)
+ * @param propValue - The prop value (string key or Vec3 list)
  * @param fetchedValue - Data fetched from server (if propValue is a string)
  * @param count - Expected number of instances
- * @returns Flattened array of numeric values
+ * @returns Flattened array of values [x,y,z,x,y,z,...]
  */
-export function processNumericAttribute(
-	propValue: DataProp,
-	fetchedValue: any,
+export function processVec3Attribute(
+	propValue: string | number[][],
+	fetchedValue: FetchedNumeric,
 	count: number,
 ): number[] {
-	let finalArray: number[] = [];
-
 	if (fetchedValue) {
-		finalArray = Array.from(fetchedValue);
-	} else if (typeof propValue !== "string" && typeof propValue !== "number") {
-		// Handle static values (arrays)
-		if (Array.isArray(propValue) && propValue.length > 0) {
-			const firstElem = propValue[0];
-			if (Array.isArray(firstElem)) {
-				// Array of arrays/vectors (e.g., [[1,2,3], [4,5,6]])
-				finalArray = (propValue as number[][]).flat();
-			} else if (typeof firstElem === "number") {
-				// Check if it's a single vector or array to replicate
-				if (propValue.length === 1 || propValue.length === 3) {
-					// Single value to replicate for all instances
-					finalArray = Array(count)
-						.fill([...propValue])
-						.flat();
-				} else {
-					// Already a flat array
-					finalArray = propValue as number[];
-				}
-			}
-		}
-	} else if (typeof propValue === "number") {
-		// Single number to replicate
-		finalArray = Array(count).fill(propValue);
+		return Array.from(fetchedValue);
 	}
 
-	return finalArray;
+	if (typeof propValue === "string") {
+		// Dynamic reference not yet fetched
+		return [];
+	}
+
+	// Backend sends [[x,y,z], ...] - broadcast if single element
+	if (propValue.length === 1 && count > 1) {
+		const [x, y, z] = propValue[0];
+		const result: number[] = [];
+		for (let i = 0; i < count; i++) {
+			result.push(x, y, z);
+		}
+		return result;
+	}
+
+	return propValue.flat();
 }
 
 /**
- * Process color data - returns array of hex strings
- * Backend sends: string (dynamic ref) | string[] (hex list)
- * Fetched data: string[] (hex list from server)
- *
- * @param propValue - The color prop value from backend
- * @param fetchedValue - Data fetched from server (if propValue is dynamic ref)
- * @param count - Expected number of instances
- * @returns Array of hex color strings
+ * Process position attribute.
+ * Alias for processVec3Attribute for semantic clarity.
  */
-export function processColorData(
-	propValue: string | string[] | Record<string, any>,
-	fetchedValue: any,
+export function processPositionAttribute(
+	propValue: PositionProp,
+	fetchedValue: FetchedNumeric,
+	count = 0,
+): number[] {
+	// Transform should be evaluated before calling this
+	if (isTransform(propValue)) {
+		return [];
+	}
+	// For position, count is derived from the data itself
+	const effectiveCount =
+		count || (Array.isArray(propValue) ? propValue.length : 0);
+	return processVec3Attribute(propValue, fetchedValue, effectiveCount);
+}
+
+/**
+ * Process rotation attribute.
+ * Backend sends [[rx,ry,rz], ...] Euler angles in radians.
+ */
+export function processRotationAttribute(
+	propValue: RotationProp,
+	fetchedValue: FetchedNumeric,
 	count: number,
-): string[] {
-	// Fetched data is already hex strings from backend
+): number[] {
+	return processVec3Attribute(propValue, fetchedValue, count);
+}
+
+/**
+ * Process scale attribute.
+ * Backend sends [[sx,sy,sz], ...] - always anisotropic.
+ */
+export function processScaleAttribute(
+	propValue: ScaleProp,
+	fetchedValue: FetchedNumeric,
+	count: number,
+): { values: number[]; isAnisotropic: boolean } {
+	const values = processVec3Attribute(propValue, fetchedValue, count);
+	// With strict list-only format, scale is always anisotropic (Vec3)
+	return { values, isAnisotropic: true };
+}
+
+/**
+ * Process a float list attribute (radius, etc.).
+ * Backend sends [v, ...] format.
+ * Single-element lists are broadcast to all instances.
+ *
+ * @param propValue - The prop value (string key or float list)
+ * @param fetchedValue - Data fetched from server (if propValue is a string)
+ * @param count - Expected number of instances
+ * @returns Array of values [v1, v2, ...]
+ */
+export function processFloatAttribute(
+	propValue: SizeProp,
+	fetchedValue: FetchedNumeric,
+	count: number,
+): number[] {
 	if (fetchedValue) {
-		return fetchedValue as string[];
+		return Array.from(fetchedValue);
 	}
 
-	// Backend always sends list of hex strings [\"#FF0000\", ...]
-	if (Array.isArray(propValue)) {
-		return propValue;
+	// Transform should be evaluated before calling this
+	if (isTransform(propValue)) {
+		return [];
 	}
 
-	// Dynamic ref or Transform not fetched - throw error
 	if (typeof propValue === "string") {
-		throw new Error(`Dynamic color reference not fetched: ${propValue}`);
+		// Dynamic reference not yet fetched
+		return [];
 	}
 
-	// Transform case - should be evaluated before calling this function
-	throw new Error(`Transform not evaluated before processing color data`);
+	// Backend sends [v, ...] - broadcast if single element
+	if (propValue.length === 1 && count > 1) {
+		return Array(count).fill(propValue[0]);
+	}
+
+	return propValue;
 }
 
 /**
  * Process a 2D size attribute (Plane geometry: width, height).
- * Handles shared (single tuple for all) or per-instance (list of tuples) or dynamic data.
+ * Backend sends [[w, h], ...] format.
+ * Single-element lists are broadcast to all instances.
  *
- * @param propValue - The size prop value (string key, tuple, or list of tuples)
+ * @param propValue - The size prop value (string key or Vec2 list)
  * @param fetchedValue - Data fetched from server (if propValue is a string)
  * @param count - Expected number of instances
  * @returns Flattened array of 2D size values [w1,h1, w2,h2, ...]
  */
 export function processSize2D(
-	propValue: string | number[] | number[][],
-	fetchedValue: any,
+	propValue: Size2DProp,
+	fetchedValue: FetchedNumeric,
 	count: number,
 ): number[] {
 	if (fetchedValue) {
 		return Array.from(fetchedValue);
 	}
 
-	if (typeof propValue !== "string" && Array.isArray(propValue)) {
-		// Check if it's a list of tuples or a single tuple
-		const firstElem = propValue[0];
-		if (Array.isArray(firstElem)) {
-			// Check if it's a single tuple that needs replication
-			if ((propValue as number[][]).length === 1 && count > 1) {
-				// Single tuple in a list [(w,h)] - replicate for all instances
-				return Array(count)
-					.fill([...(propValue as number[][])[0]])
-					.flat();
-			}
-			// List of tuples [[w,h], [w,h], ...]
-			return (propValue as number[][]).flat();
-		} else if (propValue.length === 2 && typeof firstElem === "number") {
-			// Single tuple [w, h] - replicate for all instances
-			return Array(count)
-				.fill([...propValue])
-				.flat();
-		}
+	if (typeof propValue === "string") {
+		return [];
 	}
 
-	return [];
+	// Backend sends [[w,h], ...] - broadcast if single element
+	if (propValue.length === 1 && count > 1) {
+		const [w, h] = propValue[0];
+		const result: number[] = [];
+		for (let i = 0; i < count; i++) {
+			result.push(w, h);
+		}
+		return result;
+	}
+
+	return propValue.flat();
 }
 
 /**
  * Process a 3D size attribute (Box geometry: width, height, depth).
- * Handles shared (single tuple for all) or per-instance (list of tuples) or dynamic data.
+ * Backend sends [[w, h, d], ...] format.
+ * Single-element lists are broadcast to all instances.
  *
- * @param propValue - The size prop value (string key, tuple, or list of tuples)
+ * @param propValue - The size prop value (string key or Vec3 list)
  * @param fetchedValue - Data fetched from server (if propValue is a string)
  * @param count - Expected number of instances
  * @returns Flattened array of 3D size values [w1,h1,d1, w2,h2,d2, ...]
  */
 export function processSize3D(
-	propValue: string | number[] | number[][],
-	fetchedValue: any,
+	propValue: Size3DProp,
+	fetchedValue: FetchedNumeric,
 	count: number,
 ): number[] {
 	if (fetchedValue) {
 		return Array.from(fetchedValue);
 	}
 
-	if (typeof propValue !== "string" && Array.isArray(propValue)) {
-		// Check if it's a list of tuples or a single tuple
-		const firstElem = propValue[0];
-		if (Array.isArray(firstElem)) {
-			// Check if it's a single tuple that needs replication
-			if ((propValue as number[][]).length === 1 && count > 1) {
-				// Single tuple in a list [(w,h,d)] - replicate for all instances
-				return Array(count)
-					.fill([...(propValue as number[][])[0]])
-					.flat();
-			}
-			// List of tuples [[w,h,d], [w,h,d], ...]
-			return (propValue as number[][]).flat();
-		} else if (propValue.length === 3 && typeof firstElem === "number") {
-			// Single tuple [w, h, d] - replicate for all instances
-			return Array(count)
-				.fill([...propValue])
-				.flat();
-		}
+	if (typeof propValue === "string") {
+		return [];
 	}
 
-	return [];
+	// Backend sends [[w,h,d], ...] - broadcast if single element
+	if (propValue.length === 1 && count > 1) {
+		const [w, h, d] = propValue[0];
+		const result: number[] = [];
+		for (let i = 0; i < count; i++) {
+			result.push(w, h, d);
+		}
+		return result;
+	}
+
+	return propValue.flat();
 }
 
 /**
- * Process a rotation attribute.
- * Handles shared (single tuple for all) or per-instance (list of tuples) or dynamic data.
+ * Process color data - returns array of hex strings.
+ * Backend sends ["#hex", ...] format.
+ * Single-element lists are broadcast to all instances.
  *
- * @param propValue - The rotation prop value (string key, tuple, or list of tuples)
- * @param fetchedValue - Data fetched from server (if propValue is a string)
+ * @param propValue - The color prop value from backend
+ * @param fetchedValue - Data fetched from server (if propValue is dynamic ref)
  * @param count - Expected number of instances
- * @returns Flattened array of rotation values [x,y,z,x,y,z,...]
+ * @returns Array of hex color strings (empty if dynamic ref not yet fetched)
  */
-export function processRotationAttribute(
-	propValue: string | number[] | number[][],
-	fetchedValue: any,
+export function processColorData(
+	propValue: ColorProp | Record<string, unknown>,
+	fetchedValue: FetchedStrings,
 	count: number,
-): number[] {
+): string[] {
 	if (fetchedValue) {
 		return Array.from(fetchedValue);
 	}
 
 	if (Array.isArray(propValue)) {
-		// Check if it's a single tuple or list of tuples
-		if (typeof propValue[0] === "number") {
-			// Single tuple [x, y, z] - replicate for all instances
-			return Array(count)
-				.fill([...propValue])
-				.flat();
-		} else {
-			// Check if it's a single tuple in a list that needs replication
-			if ((propValue as number[][]).length === 1 && count > 1) {
-				// Single tuple in a list [(x,y,z)] - replicate for all instances
-				return Array(count)
-					.fill([...(propValue as number[][])[0]])
-					.flat();
-			}
-			// List of tuples [[x,y,z], [x,y,z], ...] - flatten
-			return (propValue as number[][]).flat();
+		// Broadcast if single element
+		if (propValue.length === 1 && count > 1) {
+			return Array(count).fill(propValue[0]);
 		}
+		return propValue;
 	}
 
+	// Dynamic reference or transform not yet fetched/evaluated
 	return [];
 }
 
 /**
- * Process position attribute (always per-instance).
- *
- * @param propValue - The position prop value (string key, list of tuples, or flat array)
- * @param fetchedValue - Data fetched from server (if propValue is a string)
- * @returns Flattened array of position values [x,y,z,x,y,z,...]
+ * Legacy function for backwards compatibility.
+ * Use processVec3Attribute or processFloatAttribute instead.
  */
-export function processPositionAttribute(
-	propValue: string | number[][] | number[],
-	fetchedValue: any,
+export function processNumericAttribute(
+	propValue: DataProp,
+	fetchedValue: FetchedNumeric,
+	count: number,
 ): number[] {
 	if (fetchedValue) {
 		return Array.from(fetchedValue);
 	}
 
-	if (typeof propValue !== "string" && Array.isArray(propValue)) {
-		// Check if it's already flat or needs flattening
-		if (Array.isArray(propValue[0])) {
-			// List of tuples [[x,y,z], [x,y,z], ...]
-			return propValue.flat();
+	if (typeof propValue === "number") {
+		return Array(count).fill(propValue);
+	}
+
+	if (typeof propValue === "string") {
+		return [];
+	}
+
+	if (Array.isArray(propValue) && propValue.length > 0) {
+		const firstElem = propValue[0];
+		if (Array.isArray(firstElem)) {
+			// [[x,y,z], ...] -> broadcast if single element
+			const tuples = propValue as number[][];
+			if (tuples.length === 1 && count > 1) {
+				const result: number[] = [];
+				for (let i = 0; i < count; i++) {
+					result.push(...tuples[0]);
+				}
+				return result;
+			}
+			return tuples.flat();
 		}
-		// Already flat array [x,y,z,x,y,z,...]
-		return propValue as number[];
+		// [v, ...] - assume floats
+		const values = propValue as number[];
+		if (values.length === 1 && count > 1) {
+			return Array(count).fill(values[0]);
+		}
+		return values;
 	}
 
 	return [];
@@ -294,34 +351,37 @@ export function validateArrayLengths(
  *
  * @param positionProp - The position prop value
  * @param fetchedPosition - Fetched position data (if applicable)
- * @returns Number of instances
+ * @returns Number of instances (0 if invalid or not yet fetched)
  */
 export function getInstanceCount(
-	positionProp: string | number[][] | Record<string, any>,
-	fetchedPosition: any,
+	positionProp: PositionProp | Record<string, unknown>,
+	fetchedPosition: FetchedNumeric,
 ): number {
 	if (fetchedPosition) {
+		if (fetchedPosition.length % 3 !== 0) {
+			return 0;
+		}
 		return fetchedPosition.length / 3;
 	}
 
 	if (Array.isArray(positionProp)) {
-		return positionProp.length; // Backend always sends [[x,y,z], ...]
+		return positionProp.length;
 	}
 
-	return 0; // Dynamic reference not yet fetched (string key or Transform)
+	return 0;
 }
 
 /**
- * Get color count to detect single-color mode for UI
+ * Get color count to detect single-color mode for UI.
  *
  * @param colorProp - The color prop value
- * @returns Number of colors, or 0 if dynamic reference
+ * @returns Number of colors, or 0 if dynamic reference or Transform
  */
-export function getColorCount(colorProp: string | string[]): number {
-	if (typeof colorProp === "string") {
-		return 0; // Dynamic reference
+export function getColorCount(colorProp: ColorProp): number {
+	if (typeof colorProp === "string" || isTransform(colorProp)) {
+		return 0; // Dynamic reference or Transform
 	}
-	return colorProp.length; // List of hex strings
+	return colorProp.length;
 }
 
 /**

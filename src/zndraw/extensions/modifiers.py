@@ -383,7 +383,7 @@ class NewCanvas(UpdateScene):
         vis.geometries["plane"] = Plane(
             position=[(0.0, 0.0, 0.0)],
             rotation=[(0.0, 0.0, 0.0)],
-            scale=1.0,
+            scale=[(1.0, 1.0, 1.0)],
             size=[(10.0, 10.0)],
         )
 

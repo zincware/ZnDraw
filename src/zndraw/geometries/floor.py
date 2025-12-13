@@ -2,7 +2,7 @@
 
 import typing as t
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from .base import BaseGeometry
 
@@ -23,6 +23,14 @@ class Floor(BaseGeometry):
     position: tuple[float, float, float] = Field(
         default=(0, 0, 0), description="Floor center position [x,y,z]"
     )
+
+    @field_validator("position", mode="before")
+    @classmethod
+    def normalize_position(cls, v: t.Any) -> tuple[float, float, float]:
+        """Convert position input to tuple[float, float, float]."""
+        if not hasattr(v, "__len__") or len(v) != 3:
+            raise ValueError("position must have exactly 3 elements [x, y, z]")
+        return (float(v[0]), float(v[1]), float(v[2]))
 
     color: str = Field(
         default="default",

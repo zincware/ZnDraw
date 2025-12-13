@@ -2,16 +2,18 @@ import * as THREE from "three";
 import { useAppStore } from "../../store";
 import { useRef, useMemo, useEffect, useState, useCallback } from "react";
 import { useGeometryEditing } from "../../hooks/useGeometryEditing";
+import { useGeometryPersistence } from "../../hooks/useGeometryPersistence";
 import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
 import { renderMaterial } from "./materials";
-import { getFrames, createGeometry } from "../../myapi/client";
+import { getFrames } from "../../myapi/client";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { debounce } from "lodash";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
 	type SizeProp,
+	type ScaleProp,
 	processNumericAttribute,
 	processColorData,
+	processScaleAttribute,
 	getInstanceCount,
 	validateArrayLengths,
 	expandSharedColor,
@@ -46,7 +48,7 @@ interface ArrowData {
 	direction: string | number[][];
 	color: string | string[]; // Dynamic ref or list of hex strings
 	radius: SizeProp;
-	scale: SizeProp;
+	scale: ScaleProp;
 	resolution: number;
 	material: string;
 	opacity: number;
@@ -132,7 +134,6 @@ export default function Arrow({
 	const frameCount = useAppStore((state) => state.frameCount);
 	const roomId = useAppStore((state) => state.roomId);
 	const userName = useAppStore((state) => state.userName);
-	const lock = useAppStore((state) => state.lock);
 	const selections = useAppStore((state) => state.selections);
 	const updateSelections = useAppStore((state) => state.updateSelections);
 	const hoveredGeometryInstance = useAppStore(
@@ -152,11 +153,6 @@ export default function Arrow({
 	);
 	const requestPathtracingUpdate = useAppStore(
 		(state) => state.requestPathtracingUpdate,
-	);
-	const showSnackbar = useAppStore((state) => state.showSnackbar);
-	const geometries = useAppStore((state) => state.geometries);
-	const geometryUpdateSources = useAppStore(
-		(state) => state.geometryUpdateSources,
 	);
 
 	// Fetch frame keys to check if required data is available
@@ -283,89 +279,21 @@ export default function Arrow({
 		typeof positionProp === "string"
 			? positionData?.[positionProp]
 			: positionProp;
+	// Arrow doesn't have rotation (uses direction for orientation), and scale is per-instance
+	const scaleValue = scale ?? 1.0;
 	useGeometryEditing(
 		geometryKey,
 		finalPositionData,
+		null, // Arrow uses direction instead of rotation
+		scaleValue,
 		selectedIndices,
 		"Arrow",
 		fullData,
+		instanceCount,
 	);
 
-	// Persistence callback - persists position changes to server
-	const persistPositions = useCallback(async () => {
-		if (!roomId) return;
-
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry || !currentGeometry.data) return;
-
-		const currentPosition = currentGeometry.data.position;
-
-		// Only persist if position is static (number[][])
-		if (
-			!Array.isArray(currentPosition) ||
-			currentPosition.length === 0 ||
-			!Array.isArray(currentPosition[0])
-		) {
-			return;
-		}
-
-		try {
-			await createGeometry(
-				roomId,
-				geometryKey,
-				"Arrow",
-				currentGeometry.data,
-				lock?.token,
-			);
-		} catch (error: any) {
-			console.error(`[Arrow] Failed to persist ${geometryKey}:`, error);
-			// Snackbar is shown automatically by withAutoLock for lock failures
-		}
-	}, [roomId, geometryKey, geometries, lock, showSnackbar]);
-
-	// Memoize debounced persist function to avoid recreation on every render
-	const debouncedPersist = useMemo(
-		() => debounce(persistPositions, 500),
-		[persistPositions],
-	);
-
-	// Cleanup debounce on unmount
-	useEffect(() => {
-		return () => {
-			debouncedPersist.cancel();
-		};
-	}, [debouncedPersist]);
-
-	// Watch position changes and persist - only if source is 'local'
-	useEffect(() => {
-		const currentGeometry = geometries[geometryKey];
-		if (!currentGeometry) return;
-
-		const currentPosition = currentGeometry.data?.position;
-		if (!currentPosition) return;
-
-		// Only persist if position is static
-		if (
-			!Array.isArray(currentPosition) ||
-			currentPosition.length === 0 ||
-			!Array.isArray(currentPosition[0])
-		) {
-			return;
-		}
-
-		// Only persist if update source is 'local' (not from server)
-		const updateSource = geometryUpdateSources[geometryKey];
-		if (updateSource !== "local") {
-			return;
-		}
-
-		debouncedPersist();
-	}, [
-		geometries[geometryKey]?.data?.position,
-		geometryUpdateSources[geometryKey],
-		debouncedPersist,
-		geometryKey,
-	]);
+	// Handle persistence of local geometry changes to server
+	useGeometryPersistence(geometryKey, "Arrow");
 
 	useEffect(() => {
 		// When frameCount is 0, explicitly clear arrows (e.g., after del vis[:])
@@ -426,7 +354,7 @@ export default function Arrow({
 
 			const fetchedScale =
 				typeof scale === "string" ? scaleData?.[scale as string] : undefined;
-			const finalScales = processNumericAttribute(
+			const { values: finalScales } = processScaleAttribute(
 				scale,
 				fetchedScale,
 				finalCount,
@@ -448,7 +376,7 @@ export default function Arrow({
 						positions: finalCount * 3,
 						directions: finalCount * 3,
 						radii: finalCount,
-						scales: finalCount,
+						scales: finalCount * 3,
 					},
 				) && finalColorHex.length === finalCount;
 
@@ -481,12 +409,18 @@ export default function Arrow({
 					finalDirections[i3 + 2],
 				);
 
-				const arrowLength = _vec3_2.length() * finalScales[i];
-				const arrowRadius = finalRadii[i];
-				_vec3_3.set(arrowRadius, arrowLength, arrowRadius);
+				const dirLength = _vec3_2.length();
+				const arrowLength = dirLength * finalScales[i3 + 1]; // y-scale for length
+
+				// Compute x and z radii independently from base radius
+				const baseRadius = finalRadii[i];
+				const xRadius = baseRadius * finalScales[i3];
+				const zRadius = baseRadius * finalScales[i3 + 2];
+
+				_vec3_3.set(xRadius, arrowLength, zRadius);
 
 				// Avoid issues with zero-length vectors
-				if (arrowLength > 1e-6) {
+				if (dirLength > 1e-6) {
 					_quat.setFromUnitVectors(_arrowUp, _vec3_2.normalize());
 				} else {
 					_quat.identity(); // No rotation
@@ -526,12 +460,18 @@ export default function Arrow({
 						finalDirections[i3 + 2],
 					);
 
-					const arrowLength = _vec3_2.length() * finalScales[id];
-					const arrowRadius = finalRadii[id] * SELECTION_SCALE;
-					_vec3_3.set(arrowRadius, arrowLength * SELECTION_SCALE, arrowRadius);
+					const dirLength = _vec3_2.length();
+					const arrowLength = dirLength * finalScales[i3 + 1];
+
+					// Compute x and z radii independently from base radius
+					const baseRadius = finalRadii[id];
+					const xRadius = baseRadius * finalScales[i3] * SELECTION_SCALE;
+					const zRadius = baseRadius * finalScales[i3 + 2] * SELECTION_SCALE;
+
+					_vec3_3.set(xRadius, arrowLength * SELECTION_SCALE, zRadius);
 
 					// Avoid issues with zero-length vectors
-					if (arrowLength > 1e-6) {
+					if (dirLength > 1e-6) {
 						_quat.setFromUnitVectors(_arrowUp, _vec3_2.normalize());
 					} else {
 						_quat.identity();
@@ -596,7 +536,7 @@ export default function Arrow({
 			hoverMesh.quaternion.copy(_quat2);
 			hoverMesh.scale.set(
 				_vec3_2.x * HOVER_SCALE,
-				_vec3_2.y,
+				_vec3_2.y * HOVER_SCALE,
 				_vec3_2.z * HOVER_SCALE,
 			);
 		} else {

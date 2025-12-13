@@ -97,7 +97,7 @@ def test_sphere_with_transform_position():
         source="constraints", path="0.kwargs.indices", filter="arrays.positions"
     )
 
-    sphere = Sphere(position=transform, radius=1.0, color=["#FF0000"])
+    sphere = Sphere(position=transform, radius=[1.0], color=["#FF0000"])
 
     # The position field should contain the transform
     assert isinstance(sphere.position, InArrayTransform)
@@ -125,7 +125,7 @@ def test_sphere_with_transform_color():
         source="constraints", path="0.kwargs.indices", filter="arrays.colors"
     )
 
-    sphere = Sphere(position=[(0, 0, 0)], radius=1.0, color=transform)
+    sphere = Sphere(position=[(0, 0, 0)], radius=[1.0], color=transform)
 
     # The color field should contain the transform
     assert isinstance(sphere.color, InArrayTransform)
@@ -156,7 +156,7 @@ def test_sphere_serialization_with_transform():
         source="constraints", path="0.kwargs.indices", filter="arrays.positions"
     )
 
-    sphere = Sphere(position=transform, radius=1.0, color=["#FF0000"])
+    sphere = Sphere(position=transform, radius=[1.0], color=["#FF0000"])
 
     # Serialize to dict
     data = sphere.model_dump()
@@ -179,7 +179,7 @@ def test_sphere_deserialization_with_transform():
             "path": "0.kwargs.indices",
             "filter": "arrays.positions",
         },
-        "radius": 1.0,
+        "radius": [1.0],
         "color": ["#FF0000"],
     }
 
