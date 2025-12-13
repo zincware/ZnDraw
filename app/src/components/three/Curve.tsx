@@ -833,8 +833,8 @@ export default function Curve({
 	useGeometryEditing(
 		geometryKey,
 		finalPositionData,
-		null, // Curve doesn't have rotation
-		1.0, // Curve doesn't have scale
+		null, // Curve doesn't have rotation (orbital rotation only affects positions)
+		undefined, // Curve doesn't support scale transforms
 		selectedIndices,
 		"Curve",
 		fullData,

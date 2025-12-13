@@ -120,8 +120,13 @@ export function useGeometryEditing(
 			if (!staticPositions) {
 				shouldDeselect = true;
 			}
-			// If rotating, rotation must be static
-			else if (transformMode === "rotate" && !staticRotations) {
+			// If rotating and geometry has rotation data, rotation must be static
+			// (geometries without rotation data, like Curve, can still orbit positions)
+			else if (
+				transformMode === "rotate" &&
+				rotationData !== null &&
+				!staticRotations
+			) {
 				shouldDeselect = true;
 			}
 			// If scaling, scale must be static
