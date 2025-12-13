@@ -280,7 +280,7 @@ export default function Arrow({
 			? positionData?.[positionProp]
 			: positionProp;
 	// Arrow doesn't have rotation (uses direction for orientation), and scale is per-instance
-	const scaleValue = scale || 1.0;
+	const scaleValue = scale ?? 1.0;
 	useGeometryEditing(
 		geometryKey,
 		finalPositionData,

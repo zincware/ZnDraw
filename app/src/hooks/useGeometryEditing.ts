@@ -15,27 +15,19 @@ import {
 
 import type { TypedArray } from "../myapi/client";
 import type { Transform } from "../utils/transformProcessor";
+import type { ScaleProp as BackendScaleProp } from "../utils/geometryData";
 
 // Type definitions for geometry data
 // Accept TypedArray from server, number[][] from local state, or Transform
 type PositionData = TypedArray | number[][] | Transform | null | undefined;
 type RotationData = TypedArray | number[][] | null | undefined;
-type ScaleData =
-	| TypedArray
-	| string
-	| number
-	| number[]
-	| number[][]
-	| [number, number, number]
-	| [number, number, number][]
-	| null
-	| undefined;
+type ScaleData = BackendScaleProp | number | null | undefined;
 
 // Type for the geometry data object passed to updateGeometry
 interface GeometryUpdateData {
 	position?: number[][];
 	rotation?: number[][];
-	scale?: number | [number, number, number][];
+	scale?: number | [number, number, number][]; // Reflects normalized output
 	[key: string]: unknown; // Allow other properties from fullGeometryData
 }
 
@@ -84,8 +76,21 @@ export function useGeometryEditing(
 
 	// Check which properties are static and editable
 	const isPositionStaticVal = positionData && isPositionStatic(positionData);
+	const staticPositions = isPositionStaticVal
+		? (positionData as number[][])
+		: undefined;
+
 	const isRotationStaticVal = rotationData && isRotationStatic(rotationData);
+	const staticRotations = isRotationStaticVal
+		? (rotationData as number[][])
+		: undefined;
+
+	// ScaleData can be a number (fallback 1.0) or ScaleProp (string | number[][])
 	const isScaleStaticVal = scaleData !== undefined && isScaleStatic(scaleData);
+	// Cast for staticScales to what normalizeScaleToArray expects as a valid static input
+	const staticScales = isScaleStaticVal
+		? (scaleData as number | number[][] | [number, number, number][])
+		: undefined;
 
 	// Memoize selectedIndices to prevent infinite loops from array reference changes
 	const stableSelectedIndices = useMemo(
@@ -112,15 +117,15 @@ export function useGeometryEditing(
 			let shouldDeselect = false;
 
 			// Position must always be static for any editing
-			if (!isPositionStaticVal) {
+			if (!staticPositions) {
 				shouldDeselect = true;
 			}
 			// If rotating, rotation must be static
-			else if (transformMode === "rotate" && !isRotationStaticVal) {
+			else if (transformMode === "rotate" && !staticRotations) {
 				shouldDeselect = true;
 			}
 			// If scaling, scale must be static
-			else if (transformMode === "scale" && !isScaleStaticVal) {
+			else if (transformMode === "scale" && staticScales === undefined) {
 				shouldDeselect = true;
 			}
 
@@ -132,7 +137,7 @@ export function useGeometryEditing(
 		}
 
 		// Skip if not editable (this covers the general static position check)
-		if (!isPositionStaticVal) {
+		if (!staticPositions) {
 			return;
 		}
 
@@ -162,7 +167,7 @@ export function useGeometryEditing(
 			const positionsToUse =
 				currentPositions && isPositionStatic(currentPositions)
 					? currentPositions
-					: positionData;
+					: staticPositions;
 
 			if (!positionsToUse) {
 				return;
@@ -183,9 +188,9 @@ export function useGeometryEditing(
 			let rotationsToUse =
 				currentRotations && isRotationStatic(currentRotations)
 					? currentRotations
-					: rotationData;
+					: staticRotations;
 
-			if (rotationsToUse && isRotationStatic(rotationsToUse)) {
+			if (rotationsToUse) {
 				// Handle broadcasted rotation (single value for multiple instances)
 				// We must expand it before getting initial rotations for specific indices
 				if (rotationsToUse.length === 1 && instanceCount > 1) {
@@ -199,7 +204,7 @@ export function useGeometryEditing(
 			}
 
 			// Initialize scales if available and static
-			const scalesToUse = currentScales ?? scaleData;
+			const scalesToUse = currentScales ?? staticScales;
 			if (scalesToUse !== undefined && isScaleStatic(scalesToUse)) {
 				initialScalesRef.current = getInitialScales(
 					scalesToUse,
@@ -220,7 +225,7 @@ export function useGeometryEditing(
 			return;
 		}
 
-		if (!positionData) {
+		if (!staticPositions) {
 			return;
 		}
 
@@ -256,7 +261,7 @@ export function useGeometryEditing(
 					case "translate": {
 						// Apply position transform
 						const newPositions = applyTransformToPositions(
-							positionData,
+							staticPositions,
 							stableSelectedIndices,
 							matrix,
 							currentCentroid,
@@ -269,7 +274,7 @@ export function useGeometryEditing(
 						// Rotation mode: orbital rotation around centroid
 						// 1. Update positions (objects orbit around centroid)
 						const newPositions = applyTransformToPositions(
-							positionData,
+							staticPositions,
 							stableSelectedIndices,
 							matrix,
 							currentCentroid,
@@ -278,15 +283,13 @@ export function useGeometryEditing(
 						updatedData.position = newPositions;
 
 						// 2. Update individual rotations if rotation data is static
-						if (
-							isRotationStaticVal &&
-							rotationData &&
-							currentInitialRotations.size > 0
-						) {
+						if (staticRotations && currentInitialRotations.size > 0) {
 							// Handle broadcasted rotation: expand if needed
-							let rotationDataToUse = rotationData;
-							if (rotationData.length === 1 && instanceCount > 1) {
-								rotationDataToUse = Array(instanceCount).fill(rotationData[0]);
+							let rotationDataToUse = staticRotations;
+							if (staticRotations.length === 1 && instanceCount > 1) {
+								rotationDataToUse = Array(instanceCount).fill(
+									staticRotations[0],
+								);
 							}
 
 							const newRotations = applyTransformToRotations(
@@ -300,13 +303,9 @@ export function useGeometryEditing(
 						break;
 					}
 					case "scale": {
-						if (
-							isScaleStaticVal &&
-							scaleData !== undefined &&
-							currentInitialScales.size > 0
-						) {
+						if (staticScales !== undefined && currentInitialScales.size > 0) {
 							const newScales = applyTransformToScales(
-								scaleData,
+								staticScales,
 								stableSelectedIndices,
 								scale,
 								currentInitialScales,
@@ -336,9 +335,9 @@ export function useGeometryEditing(
 	}, [
 		isEditing,
 		hasSelection,
-		positionData,
-		rotationData,
-		scaleData,
+		staticPositions,
+		staticRotations,
+		staticScales,
 		stableSelectedIndices,
 		subscribeToEditing,
 		updateGeometry,
@@ -346,9 +345,6 @@ export function useGeometryEditing(
 		geometryKey,
 		geometryType,
 		fullGeometryData,
-		isPositionStaticVal,
-		isRotationStaticVal,
-		isScaleStaticVal,
 		instanceCount,
 		editingCombinedCentroid,
 		geometries,

@@ -59,8 +59,8 @@ class Curve(BaseGeometry):
     """A curve geometry."""
 
     position: PositionProp = Field(
-        default=[],
-        description="Position [x,y,z]. String for dynamic data key, tuple/list for static values.",
+        default_factory=list,
+        description="Control points: list of [x,y,z]. String for dynamic data key, list of tuples/lists for static values.",
         json_schema_extra={
             "x-custom-type": "dynamic-enum",
             "x-features": ["dynamic-atom-props", "editable-array"],

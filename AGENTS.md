@@ -7,6 +7,7 @@ Always consider a better design approach compared to the existing one.
 Consider multiple approaches, review them against the principles above, the existing methods and the overall architecture - and choose the best one.
 When in doubt, ask for a review of your design approach before implementing it.
 You MUST NEVER run `git add` / `git commit` / `git push`!
+The frontend data always originates from the backend! No other data source has to be considered / edge cases beyond the backend data must not be handled!
 
 # Redis
 You can not use LUA scripts!
@@ -24,6 +25,9 @@ To run python code use
 
 To format / lint code use exactly
 - `uvx prek run --all-files`
+
+To build the frontend use
+ - `uv sync --reinstall`
 
 Tests can run for up to 15 minutes - be patient!
 
