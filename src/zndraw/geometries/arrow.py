@@ -8,7 +8,9 @@ from .base import (
     BaseGeometry,
     InteractionSettings,
     PositionProp,
+    ScaleProp,
     apply_schema_feature,
+    validate_scale_value,
 )
 
 
@@ -30,6 +32,7 @@ class Arrow(BaseGeometry):
         apply_schema_feature(
             schema, "direction", ["dynamic-atom-props", "editable-array"]
         )
+        apply_schema_feature(schema, "scale", ["dynamic-atom-props", "editable-array"])
         apply_schema_feature(
             schema,
             "color",
@@ -60,7 +63,7 @@ class Arrow(BaseGeometry):
         description="Arrow shaft radius. String for dynamic data key, float for static value.",
     )
 
-    scale: float = Field(
+    scale: ScaleProp = Field(
         default=1.0,
         description="Length scale multiplier applied to direction vector length. String for dynamic data key, float for static value.",
     )
@@ -100,3 +103,27 @@ class Arrow(BaseGeometry):
         if isinstance(v, tuple):  # Single tuple -> wrap in list
             return [v]
         return v  # Already a list
+
+    @field_validator("scale", mode="before")
+    @classmethod
+    def normalize_scale(cls, v):
+        """Normalize and validate scale to appropriate format."""
+        if v is None:
+            return 1.0
+        if isinstance(v, str):  # Dynamic reference
+            return v
+        if isinstance(v, (int, float)):  # Single scalar - validate and keep as-is
+            return validate_scale_value(float(v))
+        if isinstance(v, tuple):  # Single anisotropic tuple -> validate and wrap in list
+            validated_tuple = tuple(validate_scale_value(float(x)) for x in v)
+            return [validated_tuple]
+        if isinstance(v, list):  # List of values or tuples
+            if len(v) == 0:
+                return v
+            if isinstance(v[0], (int, float)):  # List of scalars
+                return [validate_scale_value(float(x)) for x in v]
+            if isinstance(v[0], (tuple, list)):  # List of tuples
+                return [
+                    tuple(validate_scale_value(float(x)) for x in t) for t in v
+                ]
+        return v  # Fallback

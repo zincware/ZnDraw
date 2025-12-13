@@ -341,3 +341,105 @@ export function expandSharedColor(
 		? Array(count).fill(colorHexArray[0])
 		: colorHexArray;
 }
+
+// Scale prop type (flexible format)
+export type ScaleProp =
+	| string // Dynamic reference
+	| number // Uniform for all (isotropic)
+	| number[] // Per-instance uniform (isotropic)
+	| [number, number, number] // Shared anisotropic
+	| [number, number, number][]; // Per-instance anisotropic
+
+/**
+ * Process a scale attribute.
+ * Handles uniform (single number), per-instance uniform (number[]),
+ * shared anisotropic ([x,y,z]), per-instance anisotropic ([[x,y,z],...]), or dynamic data.
+ *
+ * @param propValue - The scale prop value
+ * @param fetchedValue - Data fetched from server (if propValue is a string)
+ * @param count - Expected number of instances
+ * @returns Object with { values: flattened array [sx,sy,sz,...], isAnisotropic: boolean }
+ */
+export function processScaleAttribute(
+	propValue: ScaleProp,
+	fetchedValue: any,
+	count: number,
+): { values: number[]; isAnisotropic: boolean } {
+	// Dynamic data from server
+	if (fetchedValue) {
+		const values = Array.from(fetchedValue) as number[];
+		// Determine if anisotropic based on length
+		// If length is 3*count, it's anisotropic; if count, it's uniform
+		const isAnisotropic = values.length === count * 3;
+		return { values, isAnisotropic };
+	}
+
+	// Uniform for all (single number)
+	if (typeof propValue === "number") {
+		// Expand to per-instance: [s,s,s, s,s,s, ...]
+		const values: number[] = [];
+		for (let i = 0; i < count; i++) {
+			values.push(propValue, propValue, propValue);
+		}
+		return { values, isAnisotropic: false };
+	}
+
+	// String (dynamic reference) - should have been fetched
+	if (typeof propValue === "string") {
+		// Return default uniform scale
+		const values: number[] = [];
+		for (let i = 0; i < count; i++) {
+			values.push(1, 1, 1);
+		}
+		return { values, isAnisotropic: false };
+	}
+
+	// Array cases
+	if (Array.isArray(propValue) && propValue.length > 0) {
+		const firstElem = propValue[0];
+
+		// Per-instance anisotropic: [[sx,sy,sz], ...]
+		if (Array.isArray(firstElem)) {
+			const tuples = propValue as [number, number, number][];
+			// If single tuple and count > 1, replicate
+			if (tuples.length === 1 && count > 1) {
+				const values: number[] = [];
+				const [sx, sy, sz] = tuples[0];
+				for (let i = 0; i < count; i++) {
+					values.push(sx, sy, sz);
+				}
+				return { values, isAnisotropic: true };
+			}
+			// Otherwise, flatten
+			return { values: tuples.flat(), isAnisotropic: true };
+		}
+
+		// Check if shared anisotropic [sx,sy,sz] or per-instance uniform [s1,s2,...]
+		if (typeof firstElem === "number") {
+			if (propValue.length === 3 && count !== 3) {
+				// Shared anisotropic: [sx, sy, sz] - replicate for all
+				const [sx, sy, sz] = propValue as [number, number, number];
+				const values: number[] = [];
+				for (let i = 0; i < count; i++) {
+					values.push(sx, sy, sz);
+				}
+				return { values, isAnisotropic: true };
+			} else {
+				// Per-instance uniform: [s1, s2, ...] - expand each to [s,s,s]
+				const scales = propValue as number[];
+				const values: number[] = [];
+				for (const s of scales) {
+					values.push(s, s, s);
+				}
+				return { values, isAnisotropic: false };
+			}
+		}
+	}
+
+	// Fallback: uniform scale of 1
+	const values: number[] = [];
+	for (let i = 0; i < count; i++) {
+		values.push(1, 1, 1);
+	}
+	return { values, isAnisotropic: false };
+}

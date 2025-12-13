@@ -119,6 +119,18 @@ export default function ArrayEditorDialog({
 	const isSingleValueMode =
 		config.supportsSingleValue && arrayData.length === 1;
 
+	// Detect actual dimensions from data (for fields with variableDimensions like scale)
+	const actualDimensions = useMemo(() => {
+		if (!config.variableDimensions) {
+			return config.dimensions;
+		}
+		// For variable dimension fields, check first row to determine actual dimensions
+		if (arrayData.length > 0 && arrayData[0].length > config.dimensions) {
+			return arrayData[0].length;
+		}
+		return config.dimensions;
+	}, [arrayData, config.dimensions, config.variableDimensions]);
+
 	// Validate on data change
 	useEffect(() => {
 		const validation = validateArrayData(arrayData, fieldType);
@@ -148,10 +160,21 @@ export default function ArrayEditorDialog({
 			},
 		];
 
-		for (let i = 0; i < config.dimensions; i++) {
+		// Use actualDimensions for column count (handles anisotropic scale with 3 values)
+		for (let i = 0; i < actualDimensions; i++) {
+			// For scale with 3 dimensions, use X/Y/Z labels instead of generic "Scale"
+			let columnLabel = config.columnLabels[i] || `Col ${i + 1}`;
+			if (
+				fieldType === "scale" &&
+				config.variableDimensions &&
+				actualDimensions === 3
+			) {
+				columnLabel = ["X", "Y", "Z"][i];
+			}
+
 			const column: GridColDef<RowData> = {
 				field: `col${i}`,
-				headerName: config.columnLabels[i] || `Col ${i + 1}`,
+				headerName: columnLabel,
 				width: config.isStringType && fieldType === "color" ? 200 : 120,
 				editable: true,
 				type: config.isStringType ? "string" : "number",
@@ -202,7 +225,7 @@ export default function ArrayEditorDialog({
 		}
 
 		return cols;
-	}, [config, fieldType, arrayData]);
+	}, [config, fieldType, arrayData, actualDimensions]);
 
 	// Handle cell edit
 	const processRowUpdate = useCallback(
@@ -211,7 +234,8 @@ export default function ArrayEditorDialog({
 			const newArrayData = [...arrayData];
 			const updatedRow: (string | number)[] = [];
 
-			for (let i = 0; i < config.dimensions; i++) {
+			// Use actualDimensions to handle all columns (including anisotropic scale)
+			for (let i = 0; i < actualDimensions; i++) {
 				const value = newRow[`col${i}`];
 				if (config.isStringType) {
 					updatedRow.push(
@@ -229,7 +253,7 @@ export default function ArrayEditorDialog({
 
 			return newRow;
 		},
-		[arrayData, config],
+		[arrayData, config, actualDimensions],
 	);
 
 	// Add new row
@@ -291,15 +315,29 @@ export default function ArrayEditorDialog({
 				return;
 			}
 
-			// Validate dimensions
-			const invalidRows = parsed.filter(
-				(row) => row.length !== config.dimensions,
-			);
-			if (invalidRows.length > 0) {
-				setValidationErrors([
-					`Pasted data has invalid dimensions. Expected ${config.dimensions} columns per row.`,
-				]);
-				return;
+			// Validate dimensions - allow variable dimensions for scale
+			if (config.variableDimensions) {
+				// For variable dimension fields (like scale), allow either config.dimensions or 3
+				const invalidRows = parsed.filter(
+					(row) => row.length !== config.dimensions && row.length !== 3,
+				);
+				if (invalidRows.length > 0) {
+					setValidationErrors([
+						`Pasted data has invalid dimensions. Expected ${config.dimensions} or 3 columns per row.`,
+					]);
+					return;
+				}
+			} else {
+				// For fixed dimension fields, require exact match
+				const invalidRows = parsed.filter(
+					(row) => row.length !== config.dimensions,
+				);
+				if (invalidRows.length > 0) {
+					setValidationErrors([
+						`Pasted data has invalid dimensions. Expected ${config.dimensions} columns per row.`,
+					]);
+					return;
+				}
 			}
 
 			setArrayData(parsed);
@@ -309,7 +347,7 @@ export default function ArrayEditorDialog({
 				"Failed to read clipboard. Please check browser permissions.",
 			]);
 		}
-	}, [config.dimensions]);
+	}, [config.dimensions, config.variableDimensions]);
 
 	// Handle save
 	const handleSave = useCallback(() => {

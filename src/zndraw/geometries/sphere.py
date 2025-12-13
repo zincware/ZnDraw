@@ -1,8 +1,15 @@
 import typing as t
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
-from .base import BaseGeometry, InteractionSettings, SizeProp, apply_schema_feature
+from .base import (
+    BaseGeometry,
+    InteractionSettings,
+    ScaleProp,
+    SizeProp,
+    apply_schema_feature,
+    validate_scale_value,
+)
 
 
 class Sphere(BaseGeometry):
@@ -32,6 +39,7 @@ class Sphere(BaseGeometry):
         apply_schema_feature(
             schema, "radius", ["dynamic-atom-props", "editable-array", "transform"]
         )
+        apply_schema_feature(schema, "scale", ["dynamic-atom-props", "editable-array"])
         apply_schema_feature(
             schema,
             "color",
@@ -53,10 +61,9 @@ class Sphere(BaseGeometry):
         description="Sphere geometry resolution (number of segments). Higher values = smoother sphere.",
     )
 
-    scale: float = Field(
+    scale: ScaleProp = Field(
         default=1.0,
-        ge=0.0,
-        description="Uniform scale factor applied to sphere radius.",
+        description="Scale factor(s). Float for uniform, tuple [sx,sy,sz] for anisotropic, list for per-instance. String for dynamic data key.",
     )
     opacity: float = Field(
         default=1.0,
@@ -73,3 +80,28 @@ class Sphere(BaseGeometry):
         default=InteractionSettings(color="#FF0000", opacity=0.5),
         description="Hover interaction settings.",
     )
+
+    @field_validator("scale", mode="before")
+    @classmethod
+    def normalize_scale(cls, v):
+        """Normalize and validate scale to appropriate format."""
+        if v is None:
+            return 1.0
+        if isinstance(v, str):  # Dynamic reference
+            return v
+        if isinstance(v, (int, float)):  # Single scalar - validate and keep as-is
+            return validate_scale_value(float(v))
+        if isinstance(v, tuple):  # Single anisotropic tuple -> validate and wrap in list
+            validated_tuple = tuple(validate_scale_value(float(x)) for x in v)
+            return [validated_tuple]
+        if isinstance(v, list):  # List of values or tuples
+            # Validate each element
+            if len(v) == 0:
+                return v
+            if isinstance(v[0], (int, float)):  # List of scalars
+                return [validate_scale_value(float(x)) for x in v]
+            if isinstance(v[0], (tuple, list)):  # List of tuples
+                return [
+                    tuple(validate_scale_value(float(x)) for x in t) for t in v
+                ]
+        return v  # Fallback

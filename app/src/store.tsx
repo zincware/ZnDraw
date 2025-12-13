@@ -60,6 +60,7 @@ interface AppState {
 	geometryDefaults: Record<string, any>; // Default values for each geometry type from Pydantic
 	geometryUpdateSources: Record<string, "local" | "remote">; // Track update source per geometry
 	mode: "view" | "drawing" | "editing"; // Current interaction mode
+	transformMode: "translate" | "rotate" | "scale"; // Transform mode within editing mode
 	drawingPointerPosition: THREE.Vector3 | null; // 3D position of mouse cursor for drawing
 	drawingIsValid: boolean; // Whether the drawing position is valid (over geometry)
 	editingCallbacks: Map<string, Set<(matrix: THREE.Matrix4) => void>>; // Callbacks for geometry components to subscribe to transform changes, keyed by geometryKey
@@ -134,6 +135,8 @@ interface AppState {
 	exitDrawingMode: () => Promise<void>;
 	enterEditingMode: () => Promise<void>;
 	exitEditingMode: () => Promise<void>;
+	setTransformMode: (mode: "translate" | "rotate" | "scale") => void;
+	cycleTransformMode: () => void;
 	setDrawingPointerPosition: (position: THREE.Vector3 | null) => void;
 	updateSelections: (
 		geometryKey: string,
@@ -252,6 +255,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	geometryDefaults: {},
 	geometryUpdateSources: {},
 	mode: "view",
+	transformMode: "translate",
 	drawingPointerPosition: null,
 	drawingIsValid: false,
 	editingCombinedCentroid: null,
@@ -813,13 +817,31 @@ export const useAppStore = create<AppState>((set, get) => ({
 		}
 
 		const released = await get().releaseLock("trajectory:meta");
-		set({ mode: "view" });
+		set({ mode: "view", transformMode: "translate" }); // Reset transform mode when exiting
 		if (released) {
 			state.showSnackbar("Exited editing mode", "info");
 		} else {
 			// Even if release failed, exit editing mode
 			console.warn("Failed to release lock when exiting editing mode");
 		}
+	},
+
+	setTransformMode: (mode: "translate" | "rotate" | "scale") => {
+		set({ transformMode: mode });
+	},
+
+	cycleTransformMode: () => {
+		const { transformMode, showSnackbar } = get();
+		const modes: Array<"translate" | "rotate" | "scale"> = [
+			"translate",
+			"rotate",
+			"scale",
+		];
+		const currentIndex = modes.indexOf(transformMode);
+		const nextIndex = (currentIndex + 1) % modes.length;
+		const nextMode = modes[nextIndex];
+		set({ transformMode: nextMode });
+		showSnackbar(`Transform mode: ${nextMode}`, "info");
 	},
 
 	enterDrawingMode: async (queryClient?: any) => {

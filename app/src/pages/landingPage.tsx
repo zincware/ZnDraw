@@ -15,6 +15,7 @@ import CodeIcon from "@mui/icons-material/Code";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import BrushIcon from "@mui/icons-material/Brush";
+import EditIcon from "@mui/icons-material/Edit";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LoginIcon from "@mui/icons-material/Login";
@@ -79,6 +80,8 @@ export default function MainPage() {
 	const interactionMode = useAppStore((state) => state.mode);
 	const enterDrawingMode = useAppStore((state) => state.enterDrawingMode);
 	const exitDrawingMode = useAppStore((state) => state.exitDrawingMode);
+	const enterEditingMode = useAppStore((state) => state.enterEditingMode);
+	const exitEditingMode = useAppStore((state) => state.exitEditingMode);
 	const chatUnreadCount = useAppStore((state) => state.chatUnreadCount);
 	const serverVersion = useAppStore((state) => state.serverVersion);
 	const globalSettings = useAppStore((state) => state.globalSettings);
@@ -293,6 +296,31 @@ export default function MainPage() {
 								}}
 							>
 								<BrushIcon />
+							</IconButton>
+						</Tooltip>
+						<Tooltip
+							title={
+								interactionMode === "editing"
+									? "Exit editing mode (E)"
+									: "Enter editing mode (E)"
+							}
+						>
+							<IconButton
+								color="inherit"
+								aria-label="toggle editing mode"
+								onClick={() =>
+									interactionMode === "editing"
+										? exitEditingMode()
+										: enterEditingMode()
+								}
+								sx={{
+									backgroundColor:
+										interactionMode === "editing"
+											? "rgba(255, 255, 255, 0.2)"
+											: "transparent",
+								}}
+							>
+								<EditIcon />
 							</IconButton>
 						</Tooltip>
 						<Tooltip

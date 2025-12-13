@@ -30,6 +30,7 @@ export const KeyboardShortcutsHandler = () => {
 		exitDrawingMode,
 		enterEditingMode,
 		exitEditingMode,
+		cycleTransformMode,
 		roomId,
 	} = useAppStore();
 
@@ -294,6 +295,13 @@ export const KeyboardShortcutsHandler = () => {
 				return;
 			}
 
+			// Handle t/T for cycling transform mode (only in editing mode)
+			if ((event.key === "t" || event.key === "T") && mode === "editing") {
+				event.preventDefault();
+				cycleTransformMode();
+				return;
+			}
+
 			// Handle i/I for toggle info boxes
 			if (event.key === "i" || event.key === "I") {
 				event.preventDefault();
@@ -354,6 +362,7 @@ export const KeyboardShortcutsHandler = () => {
 		exitDrawingMode,
 		enterEditingMode,
 		exitEditingMode,
+		cycleTransformMode,
 		roomId,
 	]);
 

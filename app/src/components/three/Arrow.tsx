@@ -10,8 +10,10 @@ import { debounce } from "lodash";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
 	type SizeProp,
+	type ScaleProp,
 	processNumericAttribute,
 	processColorData,
+	processScaleAttribute,
 	getInstanceCount,
 	validateArrayLengths,
 	expandSharedColor,
@@ -46,7 +48,7 @@ interface ArrowData {
 	direction: string | number[][];
 	color: string | string[]; // Dynamic ref or list of hex strings
 	radius: SizeProp;
-	scale: SizeProp;
+	scale: ScaleProp;
 	resolution: number;
 	material: string;
 	opacity: number;
@@ -283,31 +285,25 @@ export default function Arrow({
 		typeof positionProp === "string"
 			? positionData?.[positionProp]
 			: positionProp;
+	// Arrow doesn't have rotation (uses direction for orientation), and scale is per-instance
+	const scaleValue = scale || 1.0;
 	useGeometryEditing(
 		geometryKey,
 		finalPositionData,
+		null, // Arrow uses direction instead of rotation
+		scaleValue,
 		selectedIndices,
 		"Arrow",
 		fullData,
+		instanceCount,
 	);
 
-	// Persistence callback - persists position changes to server
-	const persistPositions = useCallback(async () => {
+	// Persistence callback - persists geometry changes to server
+	const persistGeometryData = useCallback(async () => {
 		if (!roomId) return;
 
 		const currentGeometry = geometries[geometryKey];
 		if (!currentGeometry || !currentGeometry.data) return;
-
-		const currentPosition = currentGeometry.data.position;
-
-		// Only persist if position is static (number[][])
-		if (
-			!Array.isArray(currentPosition) ||
-			currentPosition.length === 0 ||
-			!Array.isArray(currentPosition[0])
-		) {
-			return;
-		}
 
 		try {
 			await createGeometry(
@@ -319,14 +315,13 @@ export default function Arrow({
 			);
 		} catch (error: any) {
 			console.error(`[Arrow] Failed to persist ${geometryKey}:`, error);
-			// Snackbar is shown automatically by withAutoLock for lock failures
 		}
-	}, [roomId, geometryKey, geometries, lock, showSnackbar]);
+	}, [roomId, geometryKey, geometries, lock]);
 
 	// Memoize debounced persist function to avoid recreation on every render
 	const debouncedPersist = useMemo(
-		() => debounce(persistPositions, 500),
-		[persistPositions],
+		() => debounce(persistGeometryData, 500),
+		[persistGeometryData],
 	);
 
 	// Cleanup debounce on unmount
@@ -336,22 +331,10 @@ export default function Arrow({
 		};
 	}, [debouncedPersist]);
 
-	// Watch position changes and persist - only if source is 'local'
+	// Watch geometry data changes and persist - only if source is 'local'
 	useEffect(() => {
 		const currentGeometry = geometries[geometryKey];
 		if (!currentGeometry) return;
-
-		const currentPosition = currentGeometry.data?.position;
-		if (!currentPosition) return;
-
-		// Only persist if position is static
-		if (
-			!Array.isArray(currentPosition) ||
-			currentPosition.length === 0 ||
-			!Array.isArray(currentPosition[0])
-		) {
-			return;
-		}
 
 		// Only persist if update source is 'local' (not from server)
 		const updateSource = geometryUpdateSources[geometryKey];
@@ -362,6 +345,7 @@ export default function Arrow({
 		debouncedPersist();
 	}, [
 		geometries[geometryKey]?.data?.position,
+		geometries[geometryKey]?.data?.scale,
 		geometryUpdateSources[geometryKey],
 		debouncedPersist,
 		geometryKey,
@@ -426,7 +410,7 @@ export default function Arrow({
 
 			const fetchedScale =
 				typeof scale === "string" ? scaleData?.[scale as string] : undefined;
-			const finalScales = processNumericAttribute(
+			const { values: finalScales } = processScaleAttribute(
 				scale,
 				fetchedScale,
 				finalCount,
@@ -448,7 +432,7 @@ export default function Arrow({
 						positions: finalCount * 3,
 						directions: finalCount * 3,
 						radii: finalCount,
-						scales: finalCount,
+						scales: finalCount * 3,
 					},
 				) && finalColorHex.length === finalCount;
 
@@ -481,12 +465,23 @@ export default function Arrow({
 					finalDirections[i3 + 2],
 				);
 
-				const arrowLength = _vec3_2.length() * finalScales[i];
-				const arrowRadius = finalRadii[i];
-				_vec3_3.set(arrowRadius, arrowLength, arrowRadius);
+				const dirLength = _vec3_2.length();
+				const arrowLength = dirLength * finalScales[i3 + 1]; // y-scale for length
+				const arrowRadius = finalRadii[i] * finalScales[i3]; // x-scale for radius (could use z too)
+
+				// Compute z-radius with epsilon check to prevent division by zero
+				const EPSILON = 1e-10;
+				const xScale = finalScales[i3];
+				const zScale = finalScales[i3 + 2];
+				const zRadius =
+					Math.abs(xScale) > EPSILON
+						? arrowRadius * (zScale / xScale)
+						: arrowRadius;
+
+				_vec3_3.set(arrowRadius, arrowLength, zRadius);
 
 				// Avoid issues with zero-length vectors
-				if (arrowLength > 1e-6) {
+				if (dirLength > 1e-6) {
 					_quat.setFromUnitVectors(_arrowUp, _vec3_2.normalize());
 				} else {
 					_quat.identity(); // No rotation
@@ -526,12 +521,23 @@ export default function Arrow({
 						finalDirections[i3 + 2],
 					);
 
-					const arrowLength = _vec3_2.length() * finalScales[id];
-					const arrowRadius = finalRadii[id] * SELECTION_SCALE;
-					_vec3_3.set(arrowRadius, arrowLength * SELECTION_SCALE, arrowRadius);
+					const dirLength = _vec3_2.length();
+					const arrowLength = dirLength * finalScales[i3 + 1];
+					const arrowRadius = finalRadii[id] * finalScales[i3] * SELECTION_SCALE;
+
+					// Compute z-radius with epsilon check to prevent division by zero
+					const EPSILON = 1e-10;
+					const xScale = finalScales[i3];
+					const zScale = finalScales[i3 + 2];
+					const zRadius =
+						Math.abs(xScale) > EPSILON
+							? arrowRadius * (zScale / xScale)
+							: arrowRadius;
+
+					_vec3_3.set(arrowRadius, arrowLength * SELECTION_SCALE, zRadius);
 
 					// Avoid issues with zero-length vectors
-					if (arrowLength > 1e-6) {
+					if (dirLength > 1e-6) {
 						_quat.setFromUnitVectors(_arrowUp, _vec3_2.normalize());
 					} else {
 						_quat.identity();
@@ -596,7 +602,7 @@ export default function Arrow({
 			hoverMesh.quaternion.copy(_quat2);
 			hoverMesh.scale.set(
 				_vec3_2.x * HOVER_SCALE,
-				_vec3_2.y,
+				_vec3_2.y * HOVER_SCALE,
 				_vec3_2.z * HOVER_SCALE,
 			);
 		} else {

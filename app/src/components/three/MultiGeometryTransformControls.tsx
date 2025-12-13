@@ -26,6 +26,7 @@ import {
 export default function MultiGeometryTransformControls() {
 	const {
 		mode,
+		transformMode,
 		geometries,
 		selections,
 		notifyEditingChange,
@@ -219,7 +220,7 @@ export default function MultiGeometryTransformControls() {
 			{virtualObjectRef.current && (
 				<TransformControls
 					object={virtualObjectRef.current}
-					mode="translate"
+					mode={transformMode}
 					onChange={handleTransformChange}
 					onMouseDown={handleDragStart}
 					onMouseUp={handleDragEnd}

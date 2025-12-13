@@ -4,6 +4,13 @@ import * as THREE from "three";
  * Utility functions for geometry editing with transform controls
  */
 
+// Type for scale data (can be uniform or anisotropic)
+type ScaleData =
+	| number // Uniform for all instances
+	| number[] // Per-instance uniform
+	| [number, number, number] // Shared anisotropic
+	| [number, number, number][]; // Per-instance anisotropic
+
 /**
  * Check if a position property is static (number[][]) rather than dynamic (string reference or TypedArray)
  * @param position - Position property from geometry data
@@ -272,4 +279,221 @@ export function getAllRelativePositions(
 	}
 
 	return allRelativePositions;
+}
+
+/**
+ * Check if a rotation property is static (number[][]) rather than dynamic (string reference)
+ * @param rotation - Rotation property from geometry data
+ * @returns true if rotation is static and can be edited
+ */
+export function isRotationStatic(rotation: any): rotation is number[][] {
+	return (
+		Array.isArray(rotation) && rotation.length > 0 && Array.isArray(rotation[0])
+	);
+}
+
+/**
+ * Check if a scale property is static (editable) rather than dynamic (string reference)
+ * Scale can be: number (uniform), number[] (per-instance uniform),
+ * [x,y,z] (shared anisotropic), or [[x,y,z],...] (per-instance anisotropic)
+ * @param scale - Scale property from geometry data
+ * @returns true if scale is static and can be edited
+ */
+export function isScaleStatic(scale: any): scale is ScaleData {
+	if (typeof scale === "number") return true;
+	if (typeof scale === "string") return false; // Dynamic reference
+	if (!Array.isArray(scale)) return false;
+	if (scale.length === 0) return true;
+	// Check if it's per-instance uniform [n1, n2, ...] or anisotropic
+	return (
+		typeof scale[0] === "number" ||
+		(Array.isArray(scale[0]) && scale[0].length === 3)
+	);
+}
+
+/**
+ * Get the initial rotation values for selected indices
+ * @param rotations - Array of all rotation tuples [[x, y, z], ...]
+ * @param indices - Array of selected instance indices
+ * @returns Map of index -> initial Euler rotation as Vector3
+ */
+export function getInitialRotations(
+	rotations: number[][],
+	indices: number[],
+): Map<number, THREE.Vector3> {
+	const initialRotations = new Map<number, THREE.Vector3>();
+
+	for (const idx of indices) {
+		if (idx >= 0 && idx < rotations.length) {
+			const [rx, ry, rz] = rotations[idx];
+			initialRotations.set(idx, new THREE.Vector3(rx, ry, rz));
+		}
+	}
+
+	return initialRotations;
+}
+
+/**
+ * Get the initial scale values for selected indices
+ * Normalizes scale to per-instance anisotropic format for editing
+ * @param scale - Scale data (various formats)
+ * @param indices - Array of selected instance indices
+ * @param instanceCount - Total number of instances
+ * @returns Map of index -> initial scale as Vector3 [sx, sy, sz]
+ */
+export function getInitialScales(
+	scale: ScaleData,
+	indices: number[],
+	instanceCount: number,
+): Map<number, THREE.Vector3> {
+	const initialScales = new Map<number, THREE.Vector3>();
+
+	// Normalize scale to per-instance anisotropic format
+	const scaleArray = normalizeScaleToArray(scale, instanceCount);
+
+	for (const idx of indices) {
+		if (idx >= 0 && idx < scaleArray.length) {
+			const [sx, sy, sz] = scaleArray[idx];
+			initialScales.set(idx, new THREE.Vector3(sx, sy, sz));
+		}
+	}
+
+	return initialScales;
+}
+
+/**
+ * Normalize scale data to per-instance anisotropic array format
+ * @param scale - Scale data in any supported format
+ * @param instanceCount - Number of instances
+ * @returns Array of [sx, sy, sz] tuples
+ */
+export function normalizeScaleToArray(
+	scale: ScaleData,
+	instanceCount: number,
+): [number, number, number][] {
+	if (typeof scale === "number") {
+		// Uniform for all: create new arrays to avoid shared references
+		return Array.from({ length: instanceCount }, () => [
+			scale,
+			scale,
+			scale,
+		] as [number, number, number]);
+	}
+
+	if (!Array.isArray(scale) || scale.length === 0) {
+		// Default to 1: create new arrays to avoid shared references
+		return Array.from({ length: instanceCount }, () => [1, 1, 1] as [
+			number,
+			number,
+			number,
+		]);
+	}
+
+	// Check if first element is array (anisotropic) or number (uniform per-instance)
+	if (typeof scale[0] === "number") {
+		// Per-instance uniform: [s1, s2, s3, ...] -> [[s1,s1,s1], [s2,s2,s2], ...]
+		return (scale as number[]).map(
+			(s) => [s, s, s] as [number, number, number],
+		);
+	}
+
+	// Per-instance anisotropic: already [[sx,sy,sz], ...]
+	if (Array.isArray(scale[0]) && scale[0].length === 3) {
+		return scale as [number, number, number][];
+	}
+
+	// Fallback: create new arrays to avoid shared references
+	return Array.from({ length: instanceCount }, () => [1, 1, 1] as [
+		number,
+		number,
+		number,
+	]);
+}
+
+/**
+ * Apply a rotation delta (quaternion) to selected rotations
+ * @param rotations - Array of all rotation tuples (Euler angles)
+ * @param indices - Array of selected instance indices
+ * @param deltaQuaternion - Rotation delta to apply
+ * @param initialRotations - Map of initial rotation values
+ * @returns New rotations array with transformations applied
+ */
+export function applyTransformToRotations(
+	rotations: number[][],
+	indices: number[],
+	deltaQuaternion: THREE.Quaternion,
+	initialRotations: Map<number, THREE.Vector3>,
+): number[][] {
+	// Create a copy to avoid mutating original
+	const newRotations = rotations.map((rot) => [...rot]) as number[][];
+
+	for (const idx of indices) {
+		const initialRot = initialRotations.get(idx);
+		if (initialRot && idx >= 0 && idx < newRotations.length) {
+			// Convert initial Euler to quaternion
+			const euler = new THREE.Euler(initialRot.x, initialRot.y, initialRot.z);
+			const initialQuat = new THREE.Quaternion().setFromEuler(euler);
+
+			// Apply delta rotation
+			const newQuat = deltaQuaternion.clone().multiply(initialQuat);
+
+			// Convert back to Euler
+			const newEuler = new THREE.Euler().setFromQuaternion(newQuat);
+			newRotations[idx] = [newEuler.x, newEuler.y, newEuler.z];
+		}
+	}
+
+	return newRotations;
+}
+
+/**
+ * Apply scale factors to selected instances' scales
+ * @param scale - Current scale data
+ * @param indices - Array of selected instance indices
+ * @param scaleFactors - Scale factors to apply [sx, sy, sz]
+ * @param initialScales - Map of initial scale values
+ * @param instanceCount - Total number of instances
+ * @returns New scale array with transformations applied (always anisotropic format)
+ */
+export function applyTransformToScales(
+	scale: ScaleData,
+	indices: number[],
+	scaleFactors: THREE.Vector3,
+	initialScales: Map<number, THREE.Vector3>,
+	instanceCount: number,
+): [number, number, number][] {
+	// Normalize current scale to per-instance anisotropic format
+	const newScales = normalizeScaleToArray(scale, instanceCount);
+
+	for (const idx of indices) {
+		const initialScale = initialScales.get(idx);
+		if (initialScale && idx >= 0 && idx < newScales.length) {
+			// Apply scale factors to initial scale
+			newScales[idx] = [
+				initialScale.x * scaleFactors.x,
+				initialScale.y * scaleFactors.y,
+				initialScale.z * scaleFactors.z,
+			];
+		}
+	}
+
+	return newScales;
+}
+
+/**
+ * Apply uniform scale factor for geometries with a single scale value
+ * Uses geometric mean of scale factors for uniform scaling
+ * @param initialScale - Original uniform scale value
+ * @param scaleFactors - Scale factors from transform [sx, sy, sz]
+ * @returns New uniform scale value
+ */
+export function applyUniformScale(
+	initialScale: number,
+	scaleFactors: THREE.Vector3,
+): number {
+	// Use geometric mean for uniform scaling from potentially non-uniform transform
+	const geometricMean = Math.cbrt(
+		scaleFactors.x * scaleFactors.y * scaleFactors.z,
+	);
+	return initialScale * geometricMean;
 }

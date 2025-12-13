@@ -10,11 +10,13 @@ import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
 	processNumericAttribute,
 	processColorData,
+	processScaleAttribute,
 	getInstanceCount,
 	validateArrayLengths,
 	expandSharedColor,
 	SELECTION_SCALE,
 	HOVER_SCALE,
+	type ScaleProp,
 } from "../../utils/geometryData";
 import {
 	_vec3,
@@ -49,7 +51,7 @@ interface SphereData {
 	radius: string | number[] | number | Transform;
 	material: string;
 	resolution: number;
-	scale: number;
+	scale: ScaleProp;
 	opacity: number;
 	selecting: InteractionSettings;
 	hovering: InteractionSettings;
@@ -301,6 +303,20 @@ export default function Sphere({
 		retry: false,
 	});
 
+	const {
+		data: scaleData,
+		isFetching: isScaleFetching,
+		isError: isScaleError,
+	} = useQuery({
+		queryKey: ["frame", roomId, currentFrame, scale],
+		queryFn: ({ signal }: { signal: AbortSignal }) =>
+			getFrames(roomId!, currentFrame, [scale as string], signal),
+		enabled:
+			!!roomId && !!userName && frameCount > 0 && typeof scale === "string",
+		placeholderData: keepPreviousData,
+		retry: false,
+	});
+
 	// Check if any enabled query is still fetching
 	const isFetching =
 		(allTransformKeys.length > 0 && isTransformFetching) ||
@@ -311,7 +327,8 @@ export default function Sphere({
 			!colorIsTransform &&
 			shouldFetchAsFrameData(colorProp as string) &&
 			isColorFetching) ||
-		(typeof radiusProp === "string" && !radiusIsTransform && isRadiusFetching);
+		(typeof radiusProp === "string" && !radiusIsTransform && isRadiusFetching) ||
+		(typeof scale === "string" && isScaleFetching);
 
 	// Check if any query has errored - treat as data unavailable
 	const hasQueryError = useMemo(
@@ -324,7 +341,8 @@ export default function Sphere({
 				!colorIsTransform &&
 				shouldFetchAsFrameData(colorProp as string) &&
 				isColorError) ||
-			(typeof radiusProp === "string" && !radiusIsTransform && isRadiusError),
+			(typeof radiusProp === "string" && !radiusIsTransform && isRadiusError) ||
+			(typeof scale === "string" && isScaleError),
 		[
 			allTransformKeys.length,
 			isTransformError,
@@ -337,6 +355,8 @@ export default function Sphere({
 			radiusProp,
 			radiusIsTransform,
 			isRadiusError,
+			scale,
+			isScaleError,
 		],
 	);
 
@@ -357,12 +377,19 @@ export default function Sphere({
 		typeof positionProp === "string"
 			? positionData?.[positionProp]
 			: positionProp;
+	const finalScaleData =
+		typeof scale === "string" ? scaleData?.[scale] : scale;
+	const scaleValue = finalScaleData || 1.0;
+
 	useGeometryEditing(
 		geometryKey,
 		finalPositionData,
+		null, // Particles don't have static rotation
+		scaleValue,
 		selectedIndices,
 		"Sphere",
 		fullData,
+		instanceCount,
 	);
 
 	// Persistence callback - persists position changes to server
@@ -436,6 +463,7 @@ export default function Sphere({
 		debouncedPersist();
 	}, [
 		geometries[geometryKey]?.data?.position,
+		geometries[geometryKey]?.data?.scale,
 		geometryUpdateSources[geometryKey],
 		debouncedPersist,
 		geometryKey,
@@ -545,14 +573,30 @@ export default function Sphere({
 				finalCount,
 			);
 
+			const fetchedScale =
+				typeof scale === "string" ? scaleData?.[scale as string] : undefined;
+			const { values: finalScales } = processScaleAttribute(
+				scale,
+				fetchedScale,
+				finalCount,
+			);
+
 			// Handle shared color (single color for all instances)
 			const finalColorHex = expandSharedColor(colorHexArray, finalCount);
 
 			// --- Validation Step ---
 			const isDataValid =
 				validateArrayLengths(
-					{ positions: finalPositions, radii: finalRadii },
-					{ positions: finalCount * 3, radii: finalCount },
+					{
+						positions: finalPositions,
+						radii: finalRadii,
+						scales: finalScales,
+					},
+					{
+						positions: finalCount * 3,
+						radii: finalCount,
+						scales: finalCount * 3,
+					},
 				) && finalColorHex.length === finalCount;
 
 			if (!isDataValid) {
@@ -580,11 +624,17 @@ export default function Sphere({
 					finalPositions[i3 + 1],
 					finalPositions[i3 + 2],
 				);
-				const r = finalRadii[i] * particleScale;
+				const r = finalRadii[i];
 				_matrix
 					.identity()
 					.setPosition(_vec3)
-					.scale(_vec3.set(r, r, r));
+					.scale(
+						_vec3.set(
+							r * finalScales[i3],
+							r * finalScales[i3 + 1],
+							r * finalScales[i3 + 2],
+						),
+					);
 				mainMesh.setMatrixAt(i, _matrix);
 
 				// Set color directly from hex string (THREE.Color.set() accepts hex)
@@ -611,11 +661,17 @@ export default function Sphere({
 						finalPositions[i3 + 1],
 						finalPositions[i3 + 2],
 					);
-					const r = finalRadii[id] * particleScale * SELECTION_SCALE;
+					const r = finalRadii[id] * SELECTION_SCALE;
 					_matrix
 						.identity()
 						.setPosition(_vec3)
-						.scale(_vec3.set(r, r, r));
+						.scale(
+							_vec3.set(
+								r * finalScales[i3],
+								r * finalScales[i3 + 1],
+								r * finalScales[i3 + 2],
+							),
+						);
 					selectionMesh.setMatrixAt(index, _matrix);
 				});
 				selectionMesh.instanceMatrix.needsUpdate = true;
@@ -636,15 +692,16 @@ export default function Sphere({
 		positionData,
 		colorData,
 		radiusData,
+		scaleData, // Add scaleData
 		transformData,
 		positionProp,
 		colorProp,
 		radiusProp,
+		scale, // Add scale
 		positionIsTransform,
 		radiusIsTransform,
 		colorIsTransform,
 		instanceCount,
-		particleScale,
 		validSelectedIndices,
 		selecting,
 	]);

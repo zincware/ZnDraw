@@ -12,11 +12,13 @@ import {
 	processSize3D,
 	processRotationAttribute,
 	processColorData,
+	processScaleAttribute,
 	getInstanceCount,
 	validateArrayLengths,
 	expandSharedColor,
 	SELECTION_SCALE,
 	HOVER_SCALE,
+	type ScaleProp,
 } from "../../utils/geometryData";
 import {
 	_vec3,
@@ -48,7 +50,7 @@ interface BoxData {
 	color: string | string[]; // Dynamic ref or list of hex strings
 	rotation: string | number[][];
 	material: string;
-	scale: number;
+	scale: ScaleProp;
 	opacity: number;
 	selecting: InteractionSettings;
 	hovering: InteractionSettings;
@@ -159,8 +161,6 @@ export default function Box({
 		[selectedIndices, instanceCount],
 	);
 
-	const boxScale = scale || 1.0;
-
 	// Individual queries for each attribute
 	const {
 		data: positionData,
@@ -228,6 +228,20 @@ export default function Box({
 		retry: false,
 	});
 
+	const {
+		data: scaleData,
+		isFetching: isScaleFetching,
+		isError: isScaleError,
+	} = useQuery({
+		queryKey: ["frame", roomId, currentFrame, scale],
+		queryFn: ({ signal }: { signal: AbortSignal }) =>
+			getFrames(roomId!, currentFrame, [scale as string], signal),
+		enabled:
+			!!roomId && !!userName && frameCount > 0 && typeof scale === "string",
+		placeholderData: keepPreviousData,
+		retry: false,
+	});
+
 	// Check if any enabled query is still fetching
 	const isFetching =
 		(typeof positionProp === "string" && isPositionFetching) ||
@@ -235,7 +249,8 @@ export default function Box({
 		(typeof colorProp === "string" &&
 			shouldFetchAsFrameData(colorProp as string) &&
 			isColorFetching) ||
-		(typeof rotationProp === "string" && isRotationFetching);
+		(typeof rotationProp === "string" && isRotationFetching) ||
+		(typeof scale === "string" && isScaleFetching);
 
 	// Check if any query has errored - treat as data unavailable
 	const hasQueryError = useMemo(
@@ -245,7 +260,8 @@ export default function Box({
 			(typeof colorProp === "string" &&
 				shouldFetchAsFrameData(colorProp as string) &&
 				isColorError) ||
-			(typeof rotationProp === "string" && isRotationError),
+			(typeof rotationProp === "string" && isRotationError) ||
+			(typeof scale === "string" && isScaleError),
 		[
 			positionProp,
 			isPositionError,
@@ -255,6 +271,8 @@ export default function Box({
 			isColorError,
 			rotationProp,
 			isRotationError,
+			scale,
+			isScaleError,
 		],
 	);
 
@@ -275,33 +293,33 @@ export default function Box({
 		typeof positionProp === "string"
 			? positionData?.[positionProp]
 			: positionProp;
+	const finalRotationData =
+		typeof rotationProp === "string"
+			? rotationData?.[rotationProp]
+			: rotationProp;
+	const finalScaleData =
+		typeof scale === "string" ? scaleData?.[scale] : scale;
+	const scaleValue = finalScaleData || 1.0;
+
 	useGeometryEditing(
 		geometryKey,
 		finalPositionData,
+		finalRotationData,
+		scaleValue,
 		selectedIndices,
 		"Box",
 		fullData,
+		instanceCount,
 	);
 
-	// Persist position changes to server (debounced)
-	// Watch the geometry's position in Zustand store and persist when it changes locally
-	const persistPositions = useCallback(async () => {
+	// Persist geometry changes to server (debounced)
+	// Watch the geometry's data in Zustand store and persist when it changes locally
+	const persistGeometryData = useCallback(async () => {
 		if (!roomId) return;
 
 		// Get current geometry from Zustand store
 		const currentGeometry = geometries[geometryKey];
 		if (!currentGeometry || !currentGeometry.data) return;
-
-		const currentPosition = currentGeometry.data.position;
-
-		// Only persist if position is static (number[][])
-		if (
-			!Array.isArray(currentPosition) ||
-			currentPosition.length === 0 ||
-			!Array.isArray(currentPosition[0])
-		) {
-			return;
-		}
 
 		try {
 			await createGeometry(
@@ -313,14 +331,13 @@ export default function Box({
 			);
 		} catch (error: any) {
 			console.error(`[Box] Failed to persist ${geometryKey}:`, error);
-			// Snackbar is shown automatically by withAutoLock for lock failures
 		}
-	}, [roomId, geometryKey, geometries, lock, showSnackbar]);
+	}, [roomId, geometryKey, geometries, lock]);
 
 	// Memoize debounced persist function to avoid recreation on every render
 	const debouncedPersist = useMemo(
-		() => debounce(persistPositions, 500),
-		[persistPositions],
+		() => debounce(persistGeometryData, 500),
+		[persistGeometryData],
 	);
 
 	// Cleanup debounce on unmount
@@ -330,22 +347,10 @@ export default function Box({
 		};
 	}, [debouncedPersist]);
 
-	// Watch position changes and persist - only if source is 'local'
+	// Watch geometry data changes and persist - only if source is 'local'
 	useEffect(() => {
 		const currentGeometry = geometries[geometryKey];
 		if (!currentGeometry) return;
-
-		const currentPosition = currentGeometry.data?.position;
-		if (!currentPosition) return;
-
-		// Only persist if position is static
-		if (
-			!Array.isArray(currentPosition) ||
-			currentPosition.length === 0 ||
-			!Array.isArray(currentPosition[0])
-		) {
-			return;
-		}
 
 		// Only persist if update source is 'local' (not from server)
 		const updateSource = geometryUpdateSources[geometryKey];
@@ -356,6 +361,8 @@ export default function Box({
 		debouncedPersist();
 	}, [
 		geometries[geometryKey]?.data?.position,
+		geometries[geometryKey]?.data?.rotation,
+		geometries[geometryKey]?.data?.scale,
 		geometryUpdateSources[geometryKey],
 		debouncedPersist,
 		geometryKey,
@@ -421,6 +428,14 @@ export default function Box({
 				finalCount,
 			);
 
+			const fetchedScale =
+				typeof scale === "string" ? scaleData?.[scale] : undefined;
+			const { values: finalScales } = processScaleAttribute(
+				scale,
+				fetchedScale,
+				finalCount,
+			);
+
 			// Handle shared color (single color for all instances)
 			const finalColorHex = expandSharedColor(colorHexArray, finalCount);
 
@@ -431,11 +446,13 @@ export default function Box({
 						positions: finalPositions,
 						sizes: finalSizes,
 						rotations: finalRotations,
+						scales: finalScales,
 					},
 					{
 						positions: finalCount * 3,
 						sizes: finalCount * 3,
 						rotations: finalCount * 3,
+						scales: finalCount * 3,
 					},
 				) && finalColorHex.length === finalCount;
 
@@ -467,9 +484,9 @@ export default function Box({
 					finalRotations[i3 + 1],
 					finalRotations[i3 + 2],
 				);
-				const width = finalSizes[i3] * boxScale;
-				const height = finalSizes[i3 + 1] * boxScale;
-				const depth = finalSizes[i3 + 2] * boxScale;
+				const width = finalSizes[i3] * finalScales[i3];
+				const height = finalSizes[i3 + 1] * finalScales[i3 + 1];
+				const depth = finalSizes[i3 + 2] * finalScales[i3 + 2];
 				_quat.setFromEuler(_euler);
 				_vec3_2.set(width, height, depth);
 				_matrix.compose(_vec3, _quat, _vec3_2);
@@ -504,9 +521,11 @@ export default function Box({
 						finalRotations[i3 + 1],
 						finalRotations[i3 + 2],
 					);
-					const width = finalSizes[i3] * boxScale * SELECTION_SCALE;
-					const height = finalSizes[i3 + 1] * boxScale * SELECTION_SCALE;
-					const depth = finalSizes[i3 + 2] * boxScale * SELECTION_SCALE;
+					const width = finalSizes[i3] * finalScales[i3] * SELECTION_SCALE;
+					const height =
+						finalSizes[i3 + 1] * finalScales[i3 + 1] * SELECTION_SCALE;
+					const depth =
+						finalSizes[i3 + 2] * finalScales[i3 + 2] * SELECTION_SCALE;
 					_quat.setFromEuler(_euler);
 					_vec3_2.set(width, height, depth);
 					_matrix.compose(_vec3, _quat, _vec3_2);
@@ -531,12 +550,13 @@ export default function Box({
 		sizeData,
 		colorData,
 		rotationData,
+		scaleData, // Add scaleData
 		positionProp,
 		sizeProp,
 		colorProp,
 		rotationProp,
+		scale, // Add scale
 		instanceCount,
-		boxScale,
 		validSelectedIndices,
 		selecting,
 		geometryKey,

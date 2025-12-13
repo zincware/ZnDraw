@@ -5,34 +5,59 @@ import {
 	getRelativePositions,
 	applyTransformToPositions,
 	isPositionStatic,
+	isRotationStatic,
+	isScaleStatic,
+	getInitialRotations,
+	getInitialScales,
+	applyTransformToRotations,
+	applyTransformToScales,
+	applyUniformScale,
 } from "../utils/geometryEditing";
+
+// Type definitions for geometry data
+type PositionData = number[][] | null | undefined;
+type RotationData = number[][] | null | undefined;
+type ScaleData =
+	| number
+	| number[]
+	| [number, number, number]
+	| [number, number, number][]
+	| null
+	| undefined;
 
 /**
  * Hook for geometry components to handle editing mode with transform controls
  *
  * Responsibilities:
  * - Subscribe to transform matrix changes from MultiGeometryTransformControls
- * - Calculate relative positions from initial centroid
+ * - Calculate relative positions/rotations/scales from initial centroid
  * - Apply transforms to selected instances and update local Zustand state
  *
  * NOTE: This hook does NOT persist to server - that's the component's responsibility!
- * Components should watch their position data and debounce persistence themselves.
+ * Components should watch their data and debounce persistence themselves.
  *
  * @param geometryKey - Unique key for this geometry
- * @param positionData - Position data (must be static number[][])
+ * @param positionData - Position data (must be static number[][] for editing)
+ * @param rotationData - Rotation data (must be static number[][] for editing)
+ * @param scaleData - Scale data (can be number, number[], or [number, number, number][] for editing)
  * @param selectedIndices - Array of selected instance indices
  * @param geometryType - Type of geometry (e.g., "Arrow", "Box")
- * @param fullGeometryData - Complete geometry data object
+ * @param fullGeometryData - Complete geometry data object (any type to allow flexibility)
+ * @param instanceCount - Number of instances (for scale normalization)
  */
 export function useGeometryEditing(
 	geometryKey: string,
-	positionData: any, // Can be number[][], string, TypedArray, or undefined
+	positionData: PositionData,
+	rotationData: RotationData,
+	scaleData: ScaleData,
 	selectedIndices: number[],
 	geometryType: string,
-	fullGeometryData: any,
+	fullGeometryData: Record<string, unknown>,
+	instanceCount: number,
 ) {
 	const {
 		mode,
+		transformMode,
 		subscribeToEditing,
 		updateGeometry,
 		editingCombinedCentroid,
@@ -41,9 +66,13 @@ export function useGeometryEditing(
 
 	const isEditing = mode === "editing";
 
-	// Early return if position is not static - this geometry can't be edited
-	// This prevents any side effects for dynamic geometries like particles
-	const isStatic = positionData && isPositionStatic(positionData);
+	// Check which properties are static and editable
+	const isPositionStaticVal = positionData && isPositionStatic(positionData);
+	const isRotationStaticVal = rotationData && isRotationStatic(rotationData);
+	const isScaleStaticVal = scaleData !== undefined && isScaleStatic(scaleData);
+
+	// For editing mode, position must be static
+	const canEdit = isPositionStaticVal;
 
 	// Memoize selectedIndices to prevent infinite loops from array reference changes
 	const stableSelectedIndices = useMemo(
@@ -54,6 +83,9 @@ export function useGeometryEditing(
 	// Use refs instead of state to avoid triggering re-renders and infinite loops
 	const initialCentroidRef = useRef<[number, number, number] | null>(null);
 	const relativePositionsRef = useRef<Map<number, THREE.Vector3>>(new Map());
+	const initialRotationsRef = useRef<Map<number, THREE.Vector3>>(new Map());
+	const initialScalesRef = useRef<Map<number, THREE.Vector3>>(new Map());
+	const initialUniformScaleRef = useRef<number | null>(null);
 	const hasSelection = stableSelectedIndices.length > 0;
 
 	// Store the last combined centroid we used to detect when it changes
@@ -61,13 +93,9 @@ export function useGeometryEditing(
 
 	// COMBINED effect: Initialize AND subscribe in one effect
 	// This ensures subscription happens immediately after initialization
-	// Previously these were separate effects, causing a bug where:
-	// - Initialization effect ran (set refs)
-	// - Subscription effect didn't re-run (no dependency changed)
-	// - Result: refs set but no subscription!
 	useEffect(() => {
-		// Skip entirely if not static
-		if (!isStatic) {
+		// Skip entirely if not editable
+		if (!canEdit) {
 			return;
 		}
 
@@ -75,6 +103,9 @@ export function useGeometryEditing(
 		if (!isEditing || !hasSelection || !editingCombinedCentroid) {
 			initialCentroidRef.current = null;
 			relativePositionsRef.current = new Map();
+			initialRotationsRef.current = new Map();
+			initialScalesRef.current = new Map();
+			initialUniformScaleRef.current = null;
 			lastCombinedCentroidRef.current = null;
 			return;
 		}
@@ -85,12 +116,13 @@ export function useGeometryEditing(
 
 		// Initialize or re-initialize if centroid changed
 		if (centroidChanged) {
-			// Access geometries directly from store to get current positions
+			// Access geometries directly from store to get current data
 			const currentGeometry = geometries[geometryKey];
 			const currentPositions = currentGeometry?.data?.position;
+			const currentRotations = currentGeometry?.data?.rotation;
+			const currentScales = currentGeometry?.data?.scale;
 
-			// Use current positions from store if available (may have been transformed)
-			// Otherwise fall back to original positionData
+			// Use current data from store if available (may have been transformed)
 			const positionsToUse =
 				currentPositions && isPositionStatic(currentPositions)
 					? currentPositions
@@ -110,6 +142,32 @@ export function useGeometryEditing(
 				centroid,
 			);
 			relativePositionsRef.current = relative;
+
+			// Initialize rotations if available and static
+			const rotationsToUse =
+				currentRotations && isRotationStatic(currentRotations)
+					? currentRotations
+					: rotationData;
+			if (rotationsToUse && isRotationStatic(rotationsToUse)) {
+				initialRotationsRef.current = getInitialRotations(
+					rotationsToUse,
+					stableSelectedIndices,
+				);
+			}
+
+			// Initialize scales if available and static
+			const scalesToUse = currentScales ?? scaleData;
+			if (scalesToUse !== undefined && isScaleStatic(scalesToUse)) {
+				initialScalesRef.current = getInitialScales(
+					scalesToUse,
+					stableSelectedIndices,
+					instanceCount,
+				);
+				// Track initial uniform scale if it's a single number
+				if (typeof scalesToUse === "number") {
+					initialUniformScaleRef.current = scalesToUse;
+				}
+			}
 
 			// Store this centroid to detect future changes
 			lastCombinedCentroidRef.current = centroidKey;
@@ -131,33 +189,111 @@ export function useGeometryEditing(
 		const unsubscribe = subscribeToEditing(
 			geometryKey,
 			(matrix: THREE.Matrix4) => {
-				// Get current refs (they may have been updated by selection changes)
+				// Get current refs
 				const currentCentroid = initialCentroidRef.current;
 				const currentRelativePositions = relativePositionsRef.current;
+				const currentInitialRotations = initialRotationsRef.current;
+				const currentInitialScales = initialScalesRef.current;
 
 				if (!currentCentroid || currentRelativePositions.size === 0) {
 					return;
 				}
 
-				// Apply transform to this geometry's selected instances
-				const newPositions = applyTransformToPositions(
-					positionData,
-					stableSelectedIndices,
-					matrix,
-					currentCentroid,
-					currentRelativePositions,
-				);
+				// Decompose the matrix
+				const position = new THREE.Vector3();
+				const quaternion = new THREE.Quaternion();
+				const scale = new THREE.Vector3();
+				matrix.decompose(position, quaternion, scale);
+
+				// Build updated data based on current transform mode
+				const updatedData: any = { ...fullGeometryData };
+
+				// Get current mode from store (need fresh value in callback)
+				const currentTransformMode = useAppStore.getState().transformMode;
+
+				switch (currentTransformMode) {
+					case "translate": {
+						// Apply position transform
+						const newPositions = applyTransformToPositions(
+							positionData,
+							stableSelectedIndices,
+							matrix,
+							currentCentroid,
+							currentRelativePositions,
+						);
+						updatedData.position = newPositions;
+						break;
+					}
+					case "rotate": {
+						// Rotation mode: orbital rotation around centroid
+						// 1. Update positions (objects orbit around centroid)
+						const newPositions = applyTransformToPositions(
+							positionData,
+							stableSelectedIndices,
+							matrix,
+							currentCentroid,
+							currentRelativePositions,
+						);
+						updatedData.position = newPositions;
+
+						// 2. Update individual rotations if rotation data is static
+						if (
+							isRotationStaticVal &&
+							rotationData &&
+							currentInitialRotations.size > 0
+						) {
+							const newRotations = applyTransformToRotations(
+								rotationData,
+								stableSelectedIndices,
+								quaternion,
+								currentInitialRotations,
+							);
+							updatedData.rotation = newRotations;
+						}
+						break;
+					}
+					case "scale": {
+						// Apply scale transform if scale is static
+						if (isScaleStaticVal && scaleData !== undefined) {
+							const initialUniformScale = initialUniformScaleRef.current;
+
+							// Optimization: Keep as simple number if possible (all selected + uniform transform)
+							// Otherwise, promote to array to support anisotropic scaling or subset selection
+							const isUniformTransform =
+								Math.abs(scale.x - scale.y) < 1e-6 &&
+								Math.abs(scale.x - scale.z) < 1e-6;
+							const allSelected = stableSelectedIndices.length === instanceCount;
+
+							if (
+								typeof scaleData === "number" &&
+								initialUniformScale !== null &&
+								isUniformTransform &&
+								allSelected
+							) {
+								const newScale = applyUniformScale(initialUniformScale, scale);
+								updatedData.scale = newScale;
+							} else if (currentInitialScales.size > 0) {
+								// Use per-instance scale for array formats OR anisotropic/subset transform
+								const newScales = applyTransformToScales(
+									scaleData,
+									stableSelectedIndices,
+									scale,
+									currentInitialScales,
+									instanceCount,
+								);
+								updatedData.scale = newScales;
+							}
+						}
+						break;
+					}
+				}
 
 				// Update local Zustand state immediately for responsive feedback
-				// Mark as 'local' so component knows to persist to server
 				updateGeometry(
 					geometryKey,
 					{
 						type: geometryType,
-						data: {
-							...fullGeometryData,
-							position: newPositions,
-						},
+						data: updatedData,
 					},
 					"local",
 				);
@@ -171,14 +307,19 @@ export function useGeometryEditing(
 		isEditing,
 		hasSelection,
 		positionData,
+		rotationData,
+		scaleData,
 		stableSelectedIndices,
 		subscribeToEditing,
 		updateGeometry,
 		geometryKey,
 		geometryType,
 		fullGeometryData,
-		isStatic,
-		editingCombinedCentroid, // KEY: This ensures effect re-runs when centroid is set!
+		canEdit,
+		isRotationStaticVal,
+		isScaleStaticVal,
+		instanceCount,
+		editingCombinedCentroid,
 		geometries,
 	]);
 }

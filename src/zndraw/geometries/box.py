@@ -10,8 +10,11 @@ from .base import (
     InteractionSettings,
     PositionProp,
     RotationProp,
+    ScaleProp,
     Size3DProp,
     apply_schema_feature,
+    validate_rotation_value,
+    validate_scale_value,
 )
 
 
@@ -52,6 +55,7 @@ class Box(BaseGeometry):
         apply_schema_feature(
             schema, "rotation", ["dynamic-atom-props", "editable-array"]
         )
+        apply_schema_feature(schema, "scale", ["dynamic-atom-props", "editable-array"])
         apply_schema_feature(
             schema,
             "color",
@@ -71,10 +75,9 @@ class Box(BaseGeometry):
         description="Rotation as Euler angles [x, y, z] in radians. List of tuples for per-instance rotations, string for dynamic data key. Single tuples are automatically normalized to lists.",
     )
 
-    scale: float = Field(
+    scale: ScaleProp = Field(
         default=1.0,
-        ge=0.0,
-        description="Uniform scale factor applied to box size.",
+        description="Scale factor(s). Float for uniform, tuple [sx,sy,sz] for anisotropic, list for per-instance. String for dynamic data key.",
     )
 
     opacity: float = Field(
@@ -94,10 +97,30 @@ class Box(BaseGeometry):
         description="Hover interaction settings.",
     )
 
-    @field_validator("rotation", "size", mode="before")
+    @field_validator("rotation", mode="before")
     @classmethod
-    def normalize_vector_fields(cls, v):
-        """Normalize vector fields to list of tuples (position inherited from BaseGeometry)."""
+    def normalize_rotation(cls, v):
+        """Normalize and validate rotation to list of tuples."""
+        if v is None:
+            return []
+        if isinstance(v, str):  # Dynamic reference
+            return v
+        if isinstance(v, tuple):  # Single tuple -> validate and wrap in list
+            validated_tuple = tuple(validate_rotation_value(float(x)) for x in v)
+            return [validated_tuple]
+        if isinstance(v, list):  # List of tuples
+            if len(v) == 0:
+                return v
+            if isinstance(v[0], (tuple, list)):
+                return [
+                    tuple(validate_rotation_value(float(x)) for x in t) for t in v
+                ]
+        return v  # Already a list
+
+    @field_validator("size", mode="before")
+    @classmethod
+    def normalize_size(cls, v):
+        """Normalize size to list of tuples."""
         if v is None:
             return []
         if isinstance(v, str):  # Dynamic reference
@@ -105,3 +128,27 @@ class Box(BaseGeometry):
         if isinstance(v, tuple):  # Single tuple -> wrap in list
             return [v]
         return v  # Already a list
+
+    @field_validator("scale", mode="before")
+    @classmethod
+    def normalize_scale(cls, v):
+        """Normalize and validate scale to appropriate format."""
+        if v is None:
+            return 1.0
+        if isinstance(v, str):  # Dynamic reference
+            return v
+        if isinstance(v, (int, float)):  # Single scalar - validate and keep as-is
+            return validate_scale_value(float(v))
+        if isinstance(v, tuple):  # Single anisotropic tuple -> validate and wrap in list
+            validated_tuple = tuple(validate_scale_value(float(x)) for x in v)
+            return [validated_tuple]
+        if isinstance(v, list):  # List of values or tuples
+            if len(v) == 0:
+                return v
+            if isinstance(v[0], (int, float)):  # List of scalars
+                return [validate_scale_value(float(x)) for x in v]
+            if isinstance(v[0], (tuple, list)):  # List of tuples
+                return [
+                    tuple(validate_scale_value(float(x)) for x in t) for t in v
+                ]
+        return v  # Fallback

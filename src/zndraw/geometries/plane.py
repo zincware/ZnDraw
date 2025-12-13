@@ -10,6 +10,7 @@ from .base import (
     InteractionSettings,
     PositionProp,
     RotationProp,
+    ScaleProp,
     Size2DProp,
     apply_schema_feature,
 )
@@ -53,6 +54,7 @@ class Plane(BaseGeometry):
         apply_schema_feature(
             schema, "rotation", ["dynamic-atom-props", "editable-array"]
         )
+        apply_schema_feature(schema, "scale", ["dynamic-atom-props", "editable-array"])
         apply_schema_feature(
             schema,
             "color",
@@ -72,10 +74,9 @@ class Plane(BaseGeometry):
         description="Rotation as Euler angles [x, y, z] in radians. List of tuples for per-instance rotations, string for dynamic data key. Single tuples are automatically normalized to lists.",
     )
 
-    scale: float = Field(
+    scale: ScaleProp = Field(
         default=1.0,
-        ge=0.0,
-        description="Uniform scale factor applied to plane size.",
+        description="Scale factor(s). Float for uniform, tuple [sx,sy,sz] for anisotropic, list for per-instance. String for dynamic data key.",
     )
 
     opacity: float = Field(
@@ -126,3 +127,17 @@ class Plane(BaseGeometry):
             return [v]
         # Already a list -> return as is
         return v
+
+    @field_validator("scale", mode="before")
+    @classmethod
+    def normalize_scale(cls, v):
+        """Normalize scale to appropriate format."""
+        if v is None:
+            return 1.0
+        if isinstance(v, str):  # Dynamic reference
+            return v
+        if isinstance(v, (int, float)):  # Single scalar - keep as-is
+            return float(v)
+        if isinstance(v, tuple):  # Single anisotropic tuple -> wrap in list
+            return [v]
+        return v  # Already a list

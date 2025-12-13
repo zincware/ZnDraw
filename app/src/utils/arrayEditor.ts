@@ -32,6 +32,8 @@ export interface FieldTypeConfig {
 	defaultValue: number | string;
 	/** Whether this field uses string values (e.g., hex colors) instead of numbers */
 	isStringType?: boolean;
+	/** Whether this field supports variable dimensions (e.g., 1 or 3 for scale) */
+	variableDimensions?: boolean;
 }
 
 /**
@@ -71,6 +73,7 @@ export function getFieldTypeConfig(fieldType: ArrayFieldType): FieldTypeConfig {
 			valueRange: [0, Infinity],
 			supportsSingleValue: true,
 			defaultValue: 1.0,
+			variableDimensions: true, // Allow 1 (uniform) or 3 (anisotropic)
 		},
 		rotation: {
 			dimensions: 3,
@@ -187,6 +190,14 @@ export function normalizeToArray(
 	// If it's a 1D array
 	if (Array.isArray(value)) {
 		const arr = value as number[];
+
+		// Special handling for variableDimensions fields (like scale)
+		// Check if this looks like anisotropic data [x, y, z] instead of uniform [value]
+		if (config.variableDimensions && arr.length === 3) {
+			// Single anisotropic value [x, y, z] -> wrap in array
+			return [arr];
+		}
+
 		// If dimensions match, wrap in array (single row)
 		if (arr.length === config.dimensions) {
 			return [arr];
@@ -235,8 +246,13 @@ export function denormalizeFromArray(
 	// For numeric types
 	// Single row for single-value-supporting fields
 	if (arrayValue.length === 1 && config.supportsSingleValue) {
+		// Check for multi-dim on variable dimension fields (e.g. scale [1, 2, 3])
+		if (config.variableDimensions && arrayValue[0].length > 1) {
+			return arrayValue[0] as number[]; // Return [x, y, z] for single shared anisotropic scale
+		}
+
 		// If it's a 1D field (like radius), return single number
-		if (config.dimensions === 1) {
+		if (config.dimensions === 1 && arrayValue[0].length === 1) {
 			return arrayValue[0][0] as number;
 		}
 		// Otherwise return the row array
@@ -244,8 +260,15 @@ export function denormalizeFromArray(
 	}
 
 	// For 1D fields with multiple rows, flatten to 1D array [1, 1, 1]
+	// But ONLY if not variable dimensions or if actually 1D
 	if (config.dimensions === 1) {
-		return arrayValue.map((row) => row[0] as number);
+		const isMultiDim =
+			config.variableDimensions && arrayValue.some((row) => row.length > 1);
+
+		if (!isMultiDim) {
+			return arrayValue.map((row) => row[0] as number);
+		}
+		// If multi-dim, fall through to default behavior (return 2D array)
 	}
 
 	// Position and direction are ALWAYS per-instance (never single shared value)
@@ -276,9 +299,21 @@ export function validateArrayData(
 
 	// Check all rows have correct dimensions
 	arrayValue.forEach((row, idx) => {
-		if (row.length !== config.dimensions) {
+		let isValidDim = row.length === config.dimensions;
+
+		// Allow 3 dimensions for scale if variableDimensions is true
+		if (!isValidDim && config.variableDimensions && config.dimensions === 1) {
+			if (row.length === 3) {
+				isValidDim = true;
+			}
+		}
+
+		if (!isValidDim) {
+			const expected = config.variableDimensions
+				? `${config.dimensions} or 3`
+				: config.dimensions;
 			errors.push(
-				`Row ${idx + 1} has ${row.length} values, expected ${config.dimensions}`,
+				`Row ${idx + 1} has ${row.length} values, expected ${expected}`,
 			);
 		}
 
@@ -305,7 +340,7 @@ export function validateArrayData(
 						numVal > config.valueRange![1]
 					) {
 						errors.push(
-							`Row ${idx + 1}, ${config.columnLabels[colIdx]}: value ${numVal} outside range [${config.valueRange![0]}, ${config.valueRange![1]}]`,
+							`Row ${idx + 1}, ${config.columnLabels[colIdx] || "Column " + (colIdx + 1)}: value ${numVal} outside range [${config.valueRange![0]}, ${config.valueRange![1]}]`,
 						);
 					}
 				});
