@@ -29,7 +29,7 @@ type ScaleData = BackendScaleProp | TypedArray | number | null | undefined;
 interface GeometryUpdateData {
 	position?: number[][];
 	rotation?: number[][];
-	scale?: number | [number, number, number][]; // Reflects normalized output
+	scale?: [number, number, number][]; // Always anisotropic after transform
 	[key: string]: unknown; // Allow other properties from fullGeometryData
 }
 
