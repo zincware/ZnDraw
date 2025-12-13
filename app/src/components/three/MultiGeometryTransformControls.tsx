@@ -4,23 +4,28 @@ import { throttle } from "lodash";
 import { TransformControls } from "@react-three/drei";
 import { useAppStore } from "../../store";
 import {
-	validateStaticPositions,
-	calculateCombinedCentroid,
+	validateEditablePositions,
+	calculateCombinedCentroidWithDynamic,
+	type LoadedPositionData,
 } from "../../utils/geometryEditing";
 
 /**
  * MultiGeometryTransformControls provides a single transform control
  * at the centroid of all selected instances across geometries.
  *
+ * Supports both static positions (number[][]) and dynamic positions
+ * (frame data referenced by string keys like "arrays.positions").
+ *
  * Responsibilities:
- * - Calculate combined centroid from selections
+ * - Calculate combined centroid from selections (static + dynamic)
  * - Render transform controls at centroid
  * - Broadcast transform matrix changes via callback system
- * - Validate that selections have static positions
+ * - Validate that selections have editable positions
  *
  * Individual geometry components are responsible for:
  * - Subscribing to transform changes
  * - Applying transforms to their own data
+ * - Registering loaded dynamic positions (via registerLoadedDynamicPositions)
  * - Persisting their own updates
  */
 export default function MultiGeometryTransformControls() {
@@ -34,6 +39,7 @@ export default function MultiGeometryTransformControls() {
 		showSnackbar,
 		updateSelectionForGeometry,
 		setEditingCombinedCentroid,
+		loadedDynamicPositions,
 	} = useAppStore();
 
 	// Virtual object at centroid for transform controls
@@ -67,17 +73,32 @@ export default function MultiGeometryTransformControls() {
 		return entries;
 	}, [selections]);
 
-	// Validate selections ONCE when entering edit mode - deselect invalid ones
+	// Convert store's loadedDynamicPositions to the format expected by utility functions
+	const loadedPositionsMap = useMemo((): Map<string, LoadedPositionData> => {
+		const map = new Map<string, LoadedPositionData>();
+		loadedDynamicPositions.forEach((data, geometryKey) => {
+			map.set(geometryKey, {
+				geometryKey,
+				positionKey: data.positionKey,
+				positions: data.positions,
+			});
+		});
+		return map;
+	}, [loadedDynamicPositions]);
+
+	// Validate selections ONCE when entering edit mode - deselect truly invalid ones
+	// (dynamic positions are now valid if they have loaded data)
 	useEffect(() => {
 		if (mode !== "editing") {
 			validatedGeometriesRef.current.clear();
 			return;
 		}
 
-		// Validate that all selected positions are static
-		const { invalidGeometries } = validateStaticPositions(
+		// Validate that all selected positions are editable (static OR dynamic with loaded data)
+		const { invalidGeometries } = validateEditablePositions(
 			geometries,
 			selections,
+			loadedPositionsMap,
 		);
 
 		// Only deselect if we haven't already warned about these geometries
@@ -87,7 +108,7 @@ export default function MultiGeometryTransformControls() {
 
 		if (newInvalidGeometries.length > 0) {
 			showSnackbar(
-				`Deselected instances with dynamic positions in: ${newInvalidGeometries.join(", ")}`,
+				`Deselected instances with unavailable positions in: ${newInvalidGeometries.join(", ")}`,
 				"warning",
 			);
 
@@ -103,7 +124,7 @@ export default function MultiGeometryTransformControls() {
 		}
 		// Note: showSnackbar and updateSelectionForGeometry are stable Zustand actions, omit from deps
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [mode, geometries, selections]);
+	}, [mode, geometries, selections, loadedPositionsMap]);
 
 	// Calculate centroid and position virtual object
 	// IMPORTANT: Only reposition when entering edit mode or selection changes, NOT during drag
@@ -131,11 +152,20 @@ export default function MultiGeometryTransformControls() {
 			return;
 		}
 
-		// Validate that all selected positions are static
-		const { validSelections } = validateStaticPositions(geometries, selections);
+		// Validate that all selected positions are editable (static OR dynamic with loaded data)
+		const { validSelections, dynamicSelections } = validateEditablePositions(
+			geometries,
+			selections,
+			loadedPositionsMap,
+		);
 
-		// Calculate combined centroid
-		const newCentroid = calculateCombinedCentroid(geometries, validSelections);
+		// Calculate combined centroid including both static and dynamic positions
+		const newCentroid = calculateCombinedCentroidWithDynamic(
+			geometries,
+			validSelections,
+			dynamicSelections,
+			loadedPositionsMap,
+		);
 		if (!newCentroid) {
 			setCentroid(null);
 			setHasValidSelections(false);
@@ -158,7 +188,14 @@ export default function MultiGeometryTransformControls() {
 			virtualObjectRef.current.rotation.set(0, 0, 0);
 			virtualObjectRef.current.scale.set(1, 1, 1);
 		}
-	}, [mode, geometries, selections, selectionKey, setEditingCombinedCentroid]);
+	}, [
+		mode,
+		geometries,
+		selections,
+		selectionKey,
+		setEditingCombinedCentroid,
+		loadedPositionsMap,
+	]);
 
 	// Throttle the notification to geometry components
 	// This limits how often geometries update their Zustand state

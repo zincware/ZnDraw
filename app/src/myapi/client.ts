@@ -1,5 +1,5 @@
 import axios from "axios";
-import { unpackBinary } from "../utils/msgpack-numpy";
+import { unpackBinary, packBinary } from "../utils/msgpack-numpy";
 import { getToken } from "../utils/auth";
 import { useAppStore } from "../store";
 
@@ -692,6 +692,47 @@ export const getFrames = async (
 		}
 		throw error;
 	}
+};
+
+export interface PartialFrameUpdateResponse {
+	success: boolean;
+	frame_id: number;
+	updated_keys: string[];
+}
+
+/**
+ * Partially update a frame by merging new data with existing frame data.
+ * This allows updating specific keys (e.g., arrays.positions) without sending the entire frame.
+ *
+ * @param roomId - Room ID
+ * @param frameId - Frame index to update
+ * @param updates - Dictionary of key-value pairs to update (e.g., {"arrays.positions": Float32Array})
+ * @param shapes - Optional map of key paths to shapes for TypedArrays
+ * @returns Response with success status and updated keys
+ */
+export const partialUpdateFrame = async (
+	roomId: string,
+	frameId: number,
+	updates: Record<string, any>,
+	shapes?: Map<string, number[]>,
+): Promise<PartialFrameUpdateResponse> => {
+	const encoded = packBinary(updates, shapes);
+
+	// Use Blob to ensure axios sends exactly the right number of bytes
+	// Without this, axios may send extra buffer data beyond the actual content
+	const blob = new Blob([encoded], { type: "application/msgpack" });
+
+	const { data } = await apiClient.patch(
+		`/api/rooms/${roomId}/frames/${frameId}/partial`,
+		blob,
+		{
+			headers: {
+				"Content-Type": "application/msgpack",
+			},
+		},
+	);
+
+	return data;
 };
 
 // ==================== Chat API ====================

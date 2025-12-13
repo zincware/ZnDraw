@@ -5,6 +5,8 @@ import { useAppStore } from "../../store";
 import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { useGeometryEditing } from "../../hooks/useGeometryEditing";
 import { useGeometryPersistence } from "../../hooks/useGeometryPersistence";
+import { useFrameEditing } from "../../hooks/useFrameEditing";
+import { isPositionDynamic } from "../../utils/geometryEditing";
 import { renderMaterial } from "./materials";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import {
@@ -97,6 +99,12 @@ export default function Sphere({
 		(state) => state.requestPathtracingUpdate,
 	);
 	const updateGeometry = useAppStore((state) => state.updateGeometry);
+	const registerLoadedDynamicPositions = useAppStore(
+		(state) => state.registerLoadedDynamicPositions,
+	);
+	const unregisterLoadedDynamicPositions = useAppStore(
+		(state) => state.unregisterLoadedDynamicPositions,
+	);
 
 	// Merge with defaults from Pydantic (single source of truth)
 	const fullData = getGeometryWithDefaults<SphereData>(
@@ -376,14 +384,77 @@ export default function Sphere({
 	const finalScaleData = typeof scale === "string" ? scaleData?.[scale] : scale;
 	const scaleValue = finalScaleData || 1.0;
 
+	// Determine if position is dynamic (frame data reference like "arrays.positions")
+	const positionIsDynamic = isPositionDynamic(positionProp);
+
+	// Get the raw Float32Array position data for dynamic positions
+	const dynamicPositionData: Float32Array | null =
+		positionIsDynamic && typeof positionProp === "string"
+			? ((positionData?.[positionProp] as Float32Array | undefined) ?? null)
+			: null;
+
+	// Track the registered geometry key for proper cleanup
+	const registeredGeometryKeyRef = useRef<string | null>(null);
+
+	// Register dynamic positions with store for centroid calculation
+	// Note: We register whenever data changes, but only unregister on unmount
+	// to avoid brief gaps during refetch that would cause validation failures
+	useEffect(() => {
+		if (!positionIsDynamic || typeof positionProp !== "string") {
+			return;
+		}
+
+		if (dynamicPositionData) {
+			// Unregister old key if it changed
+			if (
+				registeredGeometryKeyRef.current &&
+				registeredGeometryKeyRef.current !== geometryKey
+			) {
+				unregisterLoadedDynamicPositions(registeredGeometryKeyRef.current);
+			}
+			registerLoadedDynamicPositions(
+				geometryKey,
+				positionProp,
+				dynamicPositionData,
+			);
+			registeredGeometryKeyRef.current = geometryKey;
+		}
+	}, [
+		geometryKey,
+		positionProp,
+		positionIsDynamic,
+		dynamicPositionData,
+		registerLoadedDynamicPositions,
+		unregisterLoadedDynamicPositions,
+	]);
+
+	// Cleanup on unmount - use ref to get the correct key
+	useEffect(() => {
+		return () => {
+			if (registeredGeometryKeyRef.current) {
+				unregisterLoadedDynamicPositions(registeredGeometryKeyRef.current);
+			}
+		};
+	}, [unregisterLoadedDynamicPositions]);
+
+	// Use static geometry editing for static positions (number[][])
 	useGeometryEditing(
 		geometryKey,
-		finalPositionData,
+		positionIsDynamic ? null : finalPositionData, // Only pass if static
 		null, // Particles don't have static rotation
 		scaleValue,
 		selectedIndices,
 		"Sphere",
 		fullData,
+		instanceCount,
+	);
+
+	// Use frame editing for dynamic positions (string references)
+	useFrameEditing(
+		geometryKey,
+		positionIsDynamic && typeof positionProp === "string" ? positionProp : "",
+		dynamicPositionData,
+		selectedIndices,
 		instanceCount,
 	);
 
