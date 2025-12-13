@@ -4,12 +4,8 @@ import * as THREE from "three";
  * Utility functions for geometry editing with transform controls
  */
 
-// Type for scale data (can be uniform or anisotropic)
-export type ScaleData =
-	| number // Uniform for all instances
-	| number[] // Per-instance uniform
-	| [number, number, number] // Shared anisotropic
-	| [number, number, number][]; // Per-instance anisotropic
+// Type for static scale data from backend (always per-instance anisotropic)
+export type ScaleData = [number, number, number][];
 
 /**
  * Check if a position property is static (number[][]) rather than dynamic (string reference or TypedArray)
@@ -293,22 +289,13 @@ export function isRotationStatic(rotation: any): rotation is number[][] {
 }
 
 /**
- * Check if a scale property is static (editable) rather than dynamic (string reference)
- * Scale can be: number (uniform), number[] (per-instance uniform),
- * [x,y,z] (shared anisotropic), or [[x,y,z],...] (per-instance anisotropic)
+ * Check if scale property is static (not a dynamic string reference)
  * @param scale - Scale property from geometry data
- * @returns true if scale is static and can be edited
+ * @returns true if scale is static [[x,y,z],...] and can be edited
  */
 export function isScaleStatic(scale: any): scale is ScaleData {
-	if (typeof scale === "number") return true;
 	if (typeof scale === "string") return false; // Dynamic reference
-	if (!Array.isArray(scale)) return false;
-	if (scale.length === 0) return true;
-	// Check if it's per-instance uniform [n1, n2, ...] or anisotropic
-	return (
-		typeof scale[0] === "number" ||
-		(Array.isArray(scale[0]) && scale[0].length === 3)
-	);
+	return Array.isArray(scale);
 }
 
 /**
@@ -363,63 +350,42 @@ export function getInitialScales(
 
 /**
  * Normalize scale data to per-instance anisotropic array format
- * @param scale - Scale data in any supported format
+ * @param scale - Scale data as [number, number, number][]
  * @param instanceCount - Number of instances
- * @returns Array of [sx, sy, sz] tuples
+ * @returns Array of [sx, sy, sz] tuples with exactly instanceCount entries
  */
 export function normalizeScaleToArray(
 	scale: ScaleData,
 	instanceCount: number,
 ): [number, number, number][] {
-	if (typeof scale === "number") {
-		// Uniform for all: create new arrays to avoid shared references
-		return Array.from(
-			{ length: instanceCount },
-			() => [scale, scale, scale] as [number, number, number],
-		);
-	}
-
-	if (!Array.isArray(scale) || scale.length === 0) {
-		// Default to 1: create new arrays to avoid shared references
+	if (scale.length === 0) {
+		// Empty array: default to [1,1,1] for all instances
 		return Array.from(
 			{ length: instanceCount },
 			() => [1, 1, 1] as [number, number, number],
 		);
 	}
 
-	// Check if first element is array (anisotropic) or number (uniform per-instance)
-	if (typeof scale[0] === "number") {
-		// Handle broadcasted uniform scale: [s] -> [[s,s,s], [s,s,s], ...]
-		if (scale.length === 1 && instanceCount > 1) {
-			const s = scale[0] as number;
-			return Array.from(
-				{ length: instanceCount },
-				() => [s, s, s] as [number, number, number],
-			);
-		}
-
-		// Per-instance uniform: [s1, s2, s3, ...] -> [[s1,s1,s1], [s2,s2,s2], ...]
-		return (scale as number[]).map(
-			(s) => [s, s, s] as [number, number, number],
+	// Handle broadcasted scale: [[sx,sy,sz]] -> [[sx,sy,sz], [sx,sy,sz], ...]
+	if (scale.length === 1) {
+		const template = scale[0];
+		return Array.from(
+			{ length: instanceCount },
+			() => [...template] as [number, number, number],
 		);
 	}
 
-	// Per-instance anisotropic: already [[sx,sy,sz], ...]
-	if (Array.isArray(scale[0]) && scale[0].length === 3) {
-		// Handle broadcasted anisotropic scale: [[sx,sy,sz]] -> [[sx,sy,sz], [sx,sy,sz], ...]
-		if (scale.length === 1 && instanceCount > 1) {
-			const s = scale[0] as [number, number, number];
-			// Clone to avoid shared references
-			return Array.from({ length: instanceCount }, () => [...s]);
-		}
-		return scale as [number, number, number][];
+	// Clone each entry and ensure exactly instanceCount entries
+	// Truncate if longer, pad with [1,1,1] if shorter
+	const result: [number, number, number][] = scale
+		.slice(0, instanceCount)
+		.map((s) => [...s] as [number, number, number]);
+
+	while (result.length < instanceCount) {
+		result.push([1, 1, 1]);
 	}
 
-	// Fallback: create new arrays to avoid shared references
-	return Array.from(
-		{ length: instanceCount },
-		() => [1, 1, 1] as [number, number, number],
-	);
+	return result;
 }
 
 /**
