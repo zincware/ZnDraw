@@ -201,7 +201,10 @@ export function useGeometryEditing(
 				// Handle broadcasted rotation (single value for multiple instances)
 				// We must expand it before getting initial rotations for specific indices
 				if (rotationsToUse.length === 1 && instanceCount > 1) {
-					rotationsToUse = Array(instanceCount).fill(rotationsToUse[0]);
+					const template = rotationsToUse[0];
+					rotationsToUse = Array.from({ length: instanceCount }, () => [
+						...template,
+					]);
 				}
 
 				initialRotationsRef.current = getInitialRotations(
@@ -294,8 +297,10 @@ export function useGeometryEditing(
 							// Handle broadcasted rotation: expand if needed
 							let rotationDataToUse = staticRotations;
 							if (staticRotations.length === 1 && instanceCount > 1) {
-								rotationDataToUse = Array(instanceCount).fill(
-									staticRotations[0],
+								const template = staticRotations[0];
+								rotationDataToUse = Array.from(
+									{ length: instanceCount },
+									() => [...template],
 								);
 							}
 

@@ -27,7 +27,7 @@ To format / lint code use exactly
 - `uvx prek run --all-files`
 
 To build the frontend use
- - `uv sync --reinstall`
+- `uv sync --reinstall`
 
 Tests can run for up to 15 minutes - be patient!
 
