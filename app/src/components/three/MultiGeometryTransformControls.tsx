@@ -211,13 +211,13 @@ export default function MultiGeometryTransformControls() {
 		isDraggingRef.current = false;
 	}, []);
 
-	// Callback ref to track when object3D mounts/unmounts
+	// Callback ref to track when object3D mounts/unmounts and set initial position
 	const handleVirtualObjectRef = useCallback(
 		(object: THREE.Object3D | null) => {
 			virtualObjectRef.current = object;
 			setVirtualObjectMounted(!!object);
 		},
-		[],
+		[centroid],
 	);
 
 	// Handle arrow key transforms when axis is selected
@@ -284,8 +284,8 @@ export default function MultiGeometryTransformControls() {
 
 	return (
 		<>
-			{/* Virtual object at centroid */}
-			<object3D ref={handleVirtualObjectRef} position={centroid} />
+			{/* Virtual object at centroid - position managed via ref only, not as prop */}
+			<object3D ref={handleVirtualObjectRef} />
 
 			{/* Transform controls attached to virtual object */}
 			{virtualObjectMounted && virtualObjectRef.current && (
