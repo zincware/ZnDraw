@@ -61,6 +61,7 @@ interface AppState {
 	geometryUpdateSources: Record<string, "local" | "remote">; // Track update source per geometry
 	mode: "view" | "drawing" | "editing"; // Current interaction mode
 	transformMode: "translate" | "rotate" | "scale"; // Transform mode within editing mode
+	editingSelectedAxis: "x" | "y" | "z" | null; // Axis selected for keyboard editing (hold X/Y/Z)
 	drawingPointerPosition: THREE.Vector3 | null; // 3D position of mouse cursor for drawing
 	drawingIsValid: boolean; // Whether the drawing position is valid (over geometry)
 	editingCallbacks: Map<string, Set<(matrix: THREE.Matrix4) => void>>; // Callbacks for geometry components to subscribe to transform changes, keyed by geometryKey
@@ -137,6 +138,7 @@ interface AppState {
 	exitEditingMode: () => Promise<void>;
 	setTransformMode: (mode: "translate" | "rotate" | "scale") => void;
 	cycleTransformMode: () => void;
+	setEditingSelectedAxis: (axis: "x" | "y" | "z" | null) => void;
 	setDrawingPointerPosition: (position: THREE.Vector3 | null) => void;
 	updateSelections: (
 		geometryKey: string,
@@ -256,6 +258,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	geometryUpdateSources: {},
 	mode: "view",
 	transformMode: "translate",
+	editingSelectedAxis: null,
 	drawingPointerPosition: null,
 	drawingIsValid: false,
 	editingCombinedCentroid: null,
@@ -817,7 +820,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 		}
 
 		const released = await get().releaseLock("trajectory:meta");
-		set({ mode: "view", transformMode: "translate" }); // Reset transform mode when exiting
+		set({
+			mode: "view",
+			transformMode: "translate",
+			editingSelectedAxis: null,
+		}); // Reset when exiting
 		if (released) {
 			state.showSnackbar("Exited editing mode", "info");
 		} else {
@@ -828,6 +835,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	setTransformMode: (mode: "translate" | "rotate" | "scale") => {
 		set({ transformMode: mode });
+	},
+
+	setEditingSelectedAxis: (axis: "x" | "y" | "z" | null) => {
+		set({ editingSelectedAxis: axis });
 	},
 
 	cycleTransformMode: () => {

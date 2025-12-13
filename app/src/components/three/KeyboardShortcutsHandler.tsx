@@ -31,6 +31,8 @@ export const KeyboardShortcutsHandler = () => {
 		enterEditingMode,
 		exitEditingMode,
 		cycleTransformMode,
+		setEditingSelectedAxis,
+		editingSelectedAxis,
 		roomId,
 	} = useAppStore();
 
@@ -267,6 +269,22 @@ export const KeyboardShortcutsHandler = () => {
 				return;
 			}
 
+			// Handle X/Y/Z for axis selection in editing mode
+			if (
+				mode === "editing" &&
+				(event.key === "x" ||
+					event.key === "X" ||
+					event.key === "y" ||
+					event.key === "Y" ||
+					event.key === "z" ||
+					event.key === "Z")
+			) {
+				event.preventDefault();
+				const axis = event.key.toLowerCase() as "x" | "y" | "z";
+				setEditingSelectedAxis(axis);
+				return;
+			}
+
 			// Handle x/X for drawing mode (mutually exclusive with editing)
 			if (event.key === "x" || event.key === "X") {
 				event.preventDefault();
@@ -277,7 +295,7 @@ export const KeyboardShortcutsHandler = () => {
 					// Enter drawing mode (only from view mode)
 					enterDrawingMode(queryClient);
 				}
-				// If in editing mode, do nothing (modes are exclusive)
+				// If in editing mode, handled above
 				return;
 			}
 
@@ -347,8 +365,31 @@ export const KeyboardShortcutsHandler = () => {
 			}
 		};
 
+		// Handle keyup to clear axis selection
+		const handleKeyUp = (event: KeyboardEvent) => {
+			if (
+				mode === "editing" &&
+				(event.key === "x" ||
+					event.key === "X" ||
+					event.key === "y" ||
+					event.key === "Y" ||
+					event.key === "z" ||
+					event.key === "Z")
+			) {
+				const axis = event.key.toLowerCase() as "x" | "y" | "z";
+				// Only clear if this is the axis we're tracking
+				if (editingSelectedAxis === axis) {
+					setEditingSelectedAxis(null);
+				}
+			}
+		};
+
 		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
+		window.addEventListener("keyup", handleKeyUp);
+		return () => {
+			window.removeEventListener("keydown", handleKeyDown);
+			window.removeEventListener("keyup", handleKeyUp);
+		};
 	}, [
 		controls,
 		selections,
@@ -363,6 +404,8 @@ export const KeyboardShortcutsHandler = () => {
 		enterEditingMode,
 		exitEditingMode,
 		cycleTransformMode,
+		setEditingSelectedAxis,
+		editingSelectedAxis,
 		roomId,
 	]);
 

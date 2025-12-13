@@ -17,6 +17,12 @@ const transformModeLabels = {
 	scale: "Scale",
 };
 
+const axisColors = {
+	x: "#f44336", // Red
+	y: "#4caf50", // Green
+	z: "#2196f3", // Blue
+};
+
 /**
  * EditingIndicator shows when the user is in geometry editing mode
  * Similar to DrawingIndicator but for transform controls editing
@@ -24,6 +30,7 @@ const transformModeLabels = {
 export default function EditingIndicator() {
 	const mode = useAppStore((state) => state.mode);
 	const transformMode = useAppStore((state) => state.transformMode);
+	const editingSelectedAxis = useAppStore((state) => state.editingSelectedAxis);
 
 	// Only show if editing mode is active
 	if (mode !== "editing") {
@@ -43,6 +50,28 @@ export default function EditingIndicator() {
 				gap: 0.5,
 			}}
 		>
+			{/* Axis indicator - shows when holding X/Y/Z */}
+			{editingSelectedAxis && (
+				<Chip
+					label={
+						<Typography variant="body2" sx={{ fontWeight: "bold" }}>
+							{editingSelectedAxis.toUpperCase()} axis
+						</Typography>
+					}
+					size="small"
+					sx={{
+						backgroundColor: axisColors[editingSelectedAxis],
+						color: "white",
+						fontWeight: "bold",
+						animation: "pulse 0.5s ease-in-out",
+						"@keyframes pulse": {
+							"0%": { transform: "scale(1)" },
+							"50%": { transform: "scale(1.05)" },
+							"100%": { transform: "scale(1)" },
+						},
+					}}
+				/>
+			)}
 			<Chip
 				icon={<EditIcon />}
 				label={
@@ -65,7 +94,9 @@ export default function EditingIndicator() {
 				variant="caption"
 				sx={{ color: "text.secondary", fontSize: "0.7rem" }}
 			>
-				Press T to cycle modes
+				{editingSelectedAxis
+					? "↑/↓ to adjust (Shift for larger steps)"
+					: "T: cycle modes | X/Y/Z: select axis"}
 			</Typography>
 		</Box>
 	);

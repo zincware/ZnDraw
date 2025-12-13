@@ -27,6 +27,7 @@ export default function MultiGeometryTransformControls() {
 	const {
 		mode,
 		transformMode,
+		editingSelectedAxis,
 		geometries,
 		selections,
 		notifyEditingChange,
@@ -218,6 +219,63 @@ export default function MultiGeometryTransformControls() {
 		},
 		[],
 	);
+
+	// Handle arrow key transforms when axis is selected
+	useEffect(() => {
+		if (mode !== "editing" || !editingSelectedAxis || !virtualObjectRef.current)
+			return;
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+			if (!virtualObjectRef.current || !editingSelectedAxis) return;
+
+			event.preventDefault();
+
+			const direction = event.key === "ArrowUp" ? 1 : -1;
+			const obj = virtualObjectRef.current;
+
+			// Step sizes (shift for larger steps)
+			const translateStep = event.shiftKey ? 1.0 : 0.1;
+			const rotateStep = event.shiftKey ? Math.PI / 4 : Math.PI / 36; // 45° or 5°
+			const scaleFactor = event.shiftKey ? 1.5 : 1.1;
+
+			const axisIndex = { x: 0, y: 1, z: 2 }[editingSelectedAxis];
+
+			switch (transformMode) {
+				case "translate": {
+					const delta = [0, 0, 0];
+					delta[axisIndex] = direction * translateStep;
+					obj.position.x += delta[0];
+					obj.position.y += delta[1];
+					obj.position.z += delta[2];
+					break;
+				}
+				case "rotate": {
+					const euler = new THREE.Euler();
+					euler.copy(obj.rotation);
+					const rotations = [euler.x, euler.y, euler.z];
+					rotations[axisIndex] += direction * rotateStep;
+					obj.rotation.set(rotations[0], rotations[1], rotations[2]);
+					break;
+				}
+				case "scale": {
+					const factor = direction > 0 ? scaleFactor : 1 / scaleFactor;
+					const scales = [obj.scale.x, obj.scale.y, obj.scale.z];
+					scales[axisIndex] *= factor;
+					obj.scale.set(scales[0], scales[1], scales[2]);
+					break;
+				}
+			}
+
+			// Broadcast the change via the transform notification system
+			const matrix = new THREE.Matrix4();
+			matrix.compose(obj.position, obj.quaternion, obj.scale);
+			notifyEditingChange(matrix);
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [mode, editingSelectedAxis, transformMode, notifyEditingChange]);
 
 	// Don't render if not editing or no valid selections
 	if (mode !== "editing" || !centroid || !hasValidSelections) {
