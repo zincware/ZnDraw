@@ -1,3 +1,5 @@
+"""Bond geometry for ZnDraw."""
+
 import typing as t
 
 from pydantic import Field
@@ -6,37 +8,43 @@ from .base import (
     BaseGeometry,
     ConnectivityProp,
     InteractionSettings,
-    apply_schema_feature,
 )
 
 
 class Bond(BaseGeometry):
     """A bond geometry."""
 
-    @classmethod
-    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
-        schema = super().model_json_schema(**kwargs)
+    position: str = Field(
+        default="arrays.positions",
+        description="Position data key for atom positions.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "editable-array"],
+        },
+    )
 
-        # Apply schema features using helper
-        apply_schema_feature(
-            schema, "position", ["dynamic-atom-props", "editable-array"]
-        )
-        apply_schema_feature(
-            schema, "connectivity", ["dynamic-atom-props", "editable-array"]
-        )
-        apply_schema_feature(
-            schema,
-            "color",
-            ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"],
-        )
-        apply_schema_feature(
-            schema,
-            "color",
-            ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"],
-            definition_path="InteractionSettings",
-        )
+    color: str = Field(
+        default="arrays.colors",
+        description="Color data key for bond colors.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": [
+                "color-picker",
+                "dynamic-atom-props",
+                "free-solo",
+                "editable-array",
+            ],
+        },
+    )
 
-        return schema
+    connectivity: ConnectivityProp = Field(
+        default="info.connectivity",
+        description="Connectivity information. String for dynamic data key, list of tuples for static value.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "editable-array"],
+        },
+    )
 
     radius: float = Field(
         default=1,
@@ -50,16 +58,12 @@ class Bond(BaseGeometry):
         description="Bond geometry resolution (number of segments). Higher values = smoother bond.",
     )
 
-    connectivity: ConnectivityProp = Field(
-        default="info.connectivity",
-        description="Connectivity information. String for dynamic data key, list of tuples for static value.",
-    )
-
     scale: float = Field(
         default=1.0,
         ge=0.0,
         description="Uniform scale factor applied to bond radius.",
     )
+
     opacity: float = Field(
         default=1.0,
         ge=0.0,
@@ -89,6 +93,7 @@ class Bond(BaseGeometry):
         ),
         description="Selection interaction settings.",
     )
+
     hovering: InteractionSettings = Field(
         default_factory=lambda: InteractionSettings(
             enabled=True, color="#FF0000", opacity=0.5

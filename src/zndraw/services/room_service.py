@@ -237,7 +237,14 @@ class RoomService:
         pipe : Redis.pipeline
             Redis pipeline to add operations to
         """
-        from zndraw.geometries import Bond, Cell, Curve, Floor, Sphere
+        from zndraw.geometries import (
+            Bond,
+            Cell,
+            Curve,
+            Floor,
+            Sphere,
+            InteractionSettings,
+        )
         from zndraw.materials import MeshBasicMaterial
         from zndraw.transformations import InArrayTransform
 
@@ -250,7 +257,7 @@ class RoomService:
                     "position": "arrays.positions",
                     "color": "arrays.colors",
                     "radius": "arrays.radii",
-                    "scale": 0.7,
+                    "scale": [(0.7, 0.7, 0.7)],
                 },
             ),
             "bonds": (
@@ -279,8 +286,10 @@ class RoomService:
                     ),
                     "color": ["#FF0000"],
                     "material": MeshBasicMaterial(wireframe=True),
-                    "scale": 0.71,  # Larger to be clearly visible as overlay
+                    "scale": [(0.71, 0.71, 0.71)],  # Larger to be clearly visible
                     "active": True,  # Active by default to visualize constraints
+                    "selecting": InteractionSettings(enabled=False),
+                    "hovering": InteractionSettings(enabled=False),
                 },
             ),
         }

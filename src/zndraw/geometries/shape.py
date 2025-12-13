@@ -1,8 +1,6 @@
 """Shape geometry for ZnDraw - 2D polygons rendered in 3D space."""
 
-import typing as t
-
-from pydantic import Field, field_validator
+from pydantic import Field
 
 from .base import (
     BaseGeometry,
@@ -11,8 +9,6 @@ from .base import (
     PositionProp,
     RotationProp,
     ScaleProp,
-    apply_schema_feature,
-    normalize_scale as _normalize_scale,
 )
 
 
@@ -37,96 +33,66 @@ class Shape(BaseGeometry):
     ... )
     """
 
-    @classmethod
-    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
-        schema = super().model_json_schema(**kwargs)
-
-        apply_schema_feature(
-            schema, "position", ["dynamic-atom-props", "editable-array"]
-        )
-        # Note: vertices intentionally NOT editable-array - 2D tuples not supported by UI
-        apply_schema_feature(
-            schema, "rotation", ["dynamic-atom-props", "editable-array"]
-        )
-        apply_schema_feature(schema, "scale", ["dynamic-atom-props", "editable-array"])
-        apply_schema_feature(
-            schema,
-            "color",
-            ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"],
-        )
-
-        return schema
-
-    # Shape outline vertices (2D) - THE SHAPE TEMPLATE
     vertices: list[tuple[float, float]] = Field(
-        default=[(0, 0), (1, 0), (0.5, 0.866)],  # Default equilateral triangle
+        default=[(0.0, 0.0), (1.0, 0.0), (0.5, 0.866)],
         description="Shape vertices in 2D [(x,y), ...]. Connected by lines, auto-closed.",
         json_schema_extra={"x-custom-type": "vertices-2d"},
     )
 
-    # Instance positions (where to place shape copies)
     position: PositionProp = Field(
         default=[(0.0, 0.0, 0.0)],
-        description="Instance center positions in 3D [(x,y,z), ...]",
+        description="Position coordinates [(x,y,z), ...]. String for dynamic data key.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "editable-array"],
+        },
     )
 
-    # Instance rotations
     rotation: RotationProp = Field(
         default=[(0.0, 0.0, 0.0)],
-        description="Instance rotations as Euler angles [x, y, z] in radians",
+        description="Rotation as Euler angles [(x, y, z), ...] in radians. String for dynamic data key.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "editable-array"],
+        },
     )
 
-    # Scale
     scale: ScaleProp = Field(
-        default=1.0,
-        description="Scale factor(s). Float for uniform, tuple [sx,sy,sz] for anisotropic, list for per-instance. String for dynamic data key.",
+        default=[(1.0, 1.0, 1.0)],
+        description="Scale factors [(sx, sy, sz), ...]. String for dynamic data key.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "editable-array"],
+        },
     )
 
-    # Appearance
     color: ColorProp = Field(
         default=["#808080"],
-        description="Fill color(s). Single color or per-instance list.",
+        description="Color values ['#RRGGBB', ...]. String for dynamic data key.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": [
+                "color-picker",
+                "dynamic-atom-props",
+                "free-solo",
+                "editable-array",
+            ],
+        },
     )
 
     opacity: float = Field(
         default=1.0,
         ge=0.0,
         le=1.0,
-        description="Shape opacity",
+        description="Shape opacity.",
     )
 
-    # Interaction
     selecting: InteractionSettings = Field(
         default=InteractionSettings(color="#FF6A00", opacity=0.5),
         description="Selection interaction settings.",
     )
+
     hovering: InteractionSettings = Field(
         default=InteractionSettings(color="#FF0000", opacity=0.5),
         description="Hover interaction settings.",
     )
-
-    @field_validator("vertices", mode="before")
-    @classmethod
-    def normalize_vertices(cls, v):
-        """Ensure vertices is a list of tuples."""
-        if v is None:
-            return []
-        return v
-
-    @field_validator("rotation", mode="before")
-    @classmethod
-    def normalize_rotation(cls, v):
-        """Normalize rotation to list of tuples."""
-        if v is None:
-            return []
-        if isinstance(v, str):  # Dynamic reference
-            return v
-        if isinstance(v, tuple):  # Single tuple -> wrap in list
-            return [v]
-        return v
-
-    @field_validator("scale", mode="before")
-    @classmethod
-    def normalize_scale(cls, v):
-        """Normalize and validate scale using shared function."""
-        return _normalize_scale(v, validate=True)

@@ -14,12 +14,19 @@ import {
 	applyUniformScale,
 } from "../utils/geometryEditing";
 
+import type { TypedArray } from "../myapi/client";
+import type { Transform } from "../utils/transformProcessor";
+
 // Type definitions for geometry data
-type PositionData = number[][] | null | undefined;
-type RotationData = number[][] | null | undefined;
+// Accept TypedArray from server, number[][] from local state, or Transform
+type PositionData = TypedArray | number[][] | Transform | null | undefined;
+type RotationData = TypedArray | number[][] | null | undefined;
 type ScaleData =
+	| TypedArray
+	| string
 	| number
 	| number[]
+	| number[][]
 	| [number, number, number]
 	| [number, number, number][]
 	| null
@@ -60,7 +67,8 @@ export function useGeometryEditing(
 	scaleData: ScaleData,
 	selectedIndices: number[],
 	geometryType: string,
-	fullGeometryData: Record<string, unknown>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	fullGeometryData: any,
 	instanceCount: number,
 ) {
 	const {

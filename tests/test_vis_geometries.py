@@ -2,7 +2,17 @@ import pytest
 import requests
 
 from zndraw import ZnDraw
-from zndraw.geometries import Bond, Camera, CameraType, Curve, Sphere
+from zndraw.geometries import (
+    Bond,
+    Camera,
+    CameraType,
+    Curve,
+    Sphere,
+    Box,
+    Plane,
+    InArrayTransform,
+)
+import numpy as np
 
 
 def test_rest_get_geometries(joined_room, get_jwt_auth_headers):
@@ -31,7 +41,7 @@ def test_rest_get_geometries(joined_room, get_jwt_auth_headers):
     assert data["key"] == "particles"
     assert data["geometry"]["type"] == "Sphere"
     assert data["geometry"]["data"]["color"] == "arrays.colors"
-    assert data["geometry"]["data"]["scale"] == 0.7
+    assert data["geometry"]["data"]["scale"] == [[0.7, 0.7, 0.7]]
 
     # Test getting individual geometry - bonds
     response = requests.get(f"{server}/api/rooms/{room}/geometries/bonds")
@@ -40,7 +50,7 @@ def test_rest_get_geometries(joined_room, get_jwt_auth_headers):
     assert data["key"] == "bonds"
     assert data["geometry"]["type"] == "Bond"
     assert data["geometry"]["data"]["connectivity"] == "info.connectivity"
-    assert data["geometry"]["data"]["scale"] == 0.15
+    assert data["geometry"]["data"]["scale"] == 0.15  # Bond has scalar scale
 
     # Test getting non-existent geometry
     response = requests.get(f"{server}/api/rooms/{room}/geometries/nonexistent")
@@ -55,9 +65,9 @@ def test_rest_update_geometries(joined_room):
     vis = ZnDraw(url=server, room=room, user="test-geom-update")
 
     new_sphere = Sphere(
-        color="#FF0000",
+        color=["#FF0000"],
         position=[[1.0, 1.0, 1.0]],
-        radius=1.0,
+        radius=[1.0],
     )
     vis.geometries["particles"] = new_sphere
 
@@ -68,7 +78,7 @@ def test_rest_update_geometries(joined_room):
     assert data["geometry"]["type"] == "Sphere"
     assert data["geometry"]["data"]["color"] == ["#FF0000"]
     assert data["geometry"]["data"]["position"] == [[1.0, 1.0, 1.0]]
-    assert data["geometry"]["data"]["radius"] == 1.0
+    assert data["geometry"]["data"]["radius"] == [1.0]
 
 
 def test_rest_partial_update_geometries(joined_room):
@@ -81,7 +91,7 @@ def test_rest_partial_update_geometries(joined_room):
     # First, create a geometry with some data
     initial_curve = Curve(
         position=[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
-        color="#FF0000",
+        color=["#FF0000"],
     )
     vis.geometries["curve"] = initial_curve
 
@@ -164,7 +174,7 @@ def test_vis_list_geometries(server):
         position="arrays.positions",
         color="arrays.colors",
         radius="arrays.radii",
-        scale=0.7,
+        scale=[(0.7, 0.7, 0.7)],
     )
     assert vis.geometries["bonds"] == Bond(
         position="arrays.positions", color="arrays.colors", scale=0.15
@@ -177,7 +187,7 @@ def test_vis_list_geometries(server):
     constraints_geom = vis.geometries["constraints-fixed-atoms"]
     assert isinstance(constraints_geom, Sphere)
     assert constraints_geom.color == ["#FF0000"]
-    assert constraints_geom.scale == 0.71
+    assert constraints_geom.scale == [(0.71, 0.71, 0.71)]
     assert constraints_geom.active is True
     assert constraints_geom.material == MeshBasicMaterial(wireframe=True)
 
@@ -186,7 +196,7 @@ def test_vis_add_update_delete_geometry(server):
     vis1 = ZnDraw(url=server, room="room1", user="tester")
     vis2 = ZnDraw(url=server, room="room1", user="tester2")
 
-    new_sphere = Sphere(color="#00FF00", position=[[0.0, 0.0, 0.0]], radius=2.0)
+    new_sphere = Sphere(color=["#00FF00"], position=[[0.0, 0.0, 0.0]], radius=[2.0])
     vis1.geometries["new_sphere"] = new_sphere
     vis2.socket.sio.sleep(0.5)
     assert vis1.geometries["new_sphere"] == new_sphere
@@ -403,78 +413,92 @@ def test_vis_camera_update_progress(server):
     assert retrieved.position_progress == 1.0
 
 
-def test_box_normalization():
-    """Test that Box normalizes inputs to list format."""
-    from zndraw.geometries import Box
+@pytest.mark.parametrize("geometry_class", [Sphere, Box, Plane])
+def test_geom_defaults_pos(geometry_class):
+    """Test that geometries use Field defaults when no args are provided."""
+    geom = geometry_class()
+    assert geom.position == [(0.0, 0.0, 0.0)]
 
-    # Single tuple/hex inputs -> wrapped in lists
-    box1 = Box(
-        position=(0, 0, 0), rotation=(0, 0.5, 0), color="#FF0000", size=(1, 1, 1)
+    geom = geometry_class(position=[])
+    assert geom.position == []
+
+    geom = geometry_class(position="arrays.positions")
+    assert geom.position == "arrays.positions"
+
+    geom = geometry_class(
+        position=InArrayTransform(
+            source="constraints", path="FixAtoms.indices", filter="arrays.positions"
+        )
     )
-    assert box1.position == [(0.0, 0.0, 0.0)]
-    assert box1.rotation == [(0.0, 0.5, 0.0)]
-    assert box1.color == ["#FF0000"]
-    assert box1.size == [(1.0, 1.0, 1.0)]
+    assert isinstance(geom.position, InArrayTransform)
 
-    # List inputs -> kept as lists
-    box2 = Box(
-        position=[(0, 0, 0), (1, 1, 1)],
-        rotation=[(0, 0.5, 0), (0, 0, 0.5)],
-        color=["#FF0000", "#00FF00"],
-        size=[(1, 1, 1), (2, 2, 2)],
+    # numpy
+    geom = geometry_class(position=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
+    assert geom.position == [(1.0, 2.0, 3.0), (4.0, 5.0, 6.0)]
+
+    # list[list]
+    geom = geometry_class(position=[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    assert geom.position == [(1.0, 2.0, 3.0), (4.0, 5.0, 6.0)]
+
+    with pytest.raises(ValueError):
+        geometry_class(position=[(0, 0)])
+    with pytest.raises(ValueError):
+        geometry_class(position=(1, 2, 3))
+    with pytest.raises(ValueError):
+        geometry_class(position=[1, 2, 3])
+    with pytest.raises(ValueError):
+        geometry_class(position=["arrays.invalid"])
+
+
+def test_geom_curve_pos_defaults():
+    curve = Curve()
+    assert curve.position == []
+    curve = Curve(position="arrays.positions")
+    assert curve.position == "arrays.positions"
+
+    curve = Curve(
+        position=InArrayTransform(
+            source="constraints", path="FixAtoms.indices", filter="arrays.positions"
+        )
     )
-    assert len(box2.position) == 2
-    assert len(box2.rotation) == 2
-    assert box2.color == ["#FF0000", "#00FF00"]
-    assert len(box2.size) == 2
+    assert isinstance(curve.position, InArrayTransform)
 
-    # Dynamic references -> pass through
-    box3 = Box(position="arrays.positions", color="arrays.colors")
-    assert box3.position == "arrays.positions"
-    assert box3.color == "arrays.colors"
+    # numpy
+    curve = Curve(position=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
+    assert curve.position == [(1.0, 2.0, 3.0), (4.0, 5.0, 6.0)]
+    # list[list]
+    curve = Curve(position=[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    assert curve.position == [(1.0, 2.0, 3.0), (4.0, 5.0, 6.0)]
+    # list[tuple[float, float,float]]
+    curve = Curve(position=[(1.0, 2.0, 3.0), (4.0, 5.0, 6.0)])
+    assert curve.position == [(1.0, 2.0, 3.0), (4.0, 5.0, 6.0)]
 
-
-def test_plane_normalization():
-    """Test that Plane normalizes inputs to list format."""
-    from zndraw.geometries import Plane
-
-    # Single tuple/hex inputs -> wrapped in lists
-    plane1 = Plane(
-        position=(0, 0, 0), rotation=(0, 0.5, 0), color="#FF0000", size=(1, 1)
-    )
-    assert plane1.position == [(0.0, 0.0, 0.0)]
-    assert plane1.rotation == [(0.0, 0.5, 0.0)]
-    assert plane1.color == ["#FF0000"]
-    assert plane1.size == [(1.0, 1.0)]
-
-    # List inputs -> kept as lists
-    plane2 = Plane(
-        position=[(0, 0, 0), (1, 1, 1)],
-        rotation=[(0, 0.5, 0), (0, 0, 0.5)],
-        color=["#FF0000", "#00FF00"],
-        size=[(1, 1), (2, 2)],
-    )
-    assert len(plane2.position) == 2
-    assert len(plane2.rotation) == 2
-    assert plane2.color == ["#FF0000", "#00FF00"]
-    assert len(plane2.size) == 2
+    with pytest.raises(ValueError):
+        Curve(position=[(0, 0)])
+    with pytest.raises(ValueError):
+        Curve(position=(1, 2, 3))
+    with pytest.raises(ValueError):
+        Curve(position=["arrays.invalid"])
 
 
-def test_arrow_normalization():
-    """Test that Arrow normalizes inputs to list format."""
-    from zndraw.geometries import Arrow
+def test_default_colors():
+    """Test that geometries use Field defaults for color."""
+    # Check actual defaults - Sphere uses base class default, Box/Plane override it
+    assert Sphere().color == ["#FFA200"]
+    assert Box().color == ["#808080"]
+    assert Plane().color == ["#808080"]
 
-    # Single tuple/hex inputs -> wrapped in lists
-    arrow1 = Arrow(position=(0, 0, 0), direction=(0, 0, 1), color="#FF0000")
-    assert (
-        arrow1.position == [(0.0, 0.0, 0.0)] or arrow1.position == "arrays.positions"
-    )  # Default might be dynamic
-    assert (
-        arrow1.direction == [(0.0, 0.0, 1.0)] or arrow1.direction == "calc.forces"
-    )  # Default might be dynamic
-    assert (
-        arrow1.color == ["#FF0000"] or arrow1.color == "arrays.colors"
-    )  # Default might be dynamic
+    # Empty list is valid
+    assert Sphere(color=[]).color == []
+    assert Box(color=[]).color == []
+    assert Plane(color=[]).color == []
+
+    # Dynamic reference (string) is valid
+    assert Sphere(color="arrays.colors").color == "arrays.colors"
+
+    # Invalid: list with non-string elements
+    with pytest.raises(ValueError):
+        Sphere(color=[123])
 
 
 def test_color_conversion_to_hex():

@@ -1,8 +1,6 @@
 """Plane geometry for ZnDraw."""
 
-import typing as t
-
-from pydantic import Field, field_validator
+from pydantic import Field
 
 from .base import (
     BaseGeometry,
@@ -12,8 +10,6 @@ from .base import (
     RotationProp,
     ScaleProp,
     Size2DProp,
-    apply_schema_feature,
-    normalize_scale as _normalize_scale,
 )
 
 
@@ -27,57 +23,54 @@ class Plane(BaseGeometry):
     By default, creates a single 1x1 plane at the origin (0,0,0).
     """
 
-    # Override defaults for user-created geometries
     position: PositionProp = Field(
         default=[(0.0, 0.0, 0.0)],
-        description="Position coordinates. String for dynamic data key (e.g. 'arrays.positions'), list of tuples for static per-instance positions [(x,y,z), ...].",
+        description="Position coordinates [(x,y,z), ...]. String for dynamic data key.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "editable-array"],
+        },
     )
 
     color: ColorProp = Field(
         default=["#808080"],
-        description="Color values. String for dynamic key (e.g. 'arrays.colors') or list of hex colors ['#FF0000', '#00FF00', ...].",
+        description="Color values ['#RRGGBB', ...]. String for dynamic data key.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": [
+                "color-picker",
+                "dynamic-atom-props",
+                "free-solo",
+                "editable-array",
+            ],
+        },
     )
-
-    @classmethod
-    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
-        schema = super().model_json_schema(**kwargs)
-
-        # Apply schema features using helper
-        apply_schema_feature(
-            schema, "position", ["dynamic-atom-props", "editable-array"]
-        )
-        apply_schema_feature(schema, "size", ["dynamic-atom-props", "editable-array"])
-        apply_schema_feature(
-            schema,
-            "color",
-            ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"],
-        )
-        apply_schema_feature(
-            schema, "rotation", ["dynamic-atom-props", "editable-array"]
-        )
-        apply_schema_feature(schema, "scale", ["dynamic-atom-props", "editable-array"])
-        apply_schema_feature(
-            schema,
-            "color",
-            ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"],
-            definition_path="InteractionSettings",
-        )
-
-        return schema
 
     size: Size2DProp = Field(
         default=[(1.0, 1.0)],
-        description="Plane dimensions [width, height]. List of tuples for per-instance sizes, string for dynamic data key. Single tuples are automatically normalized to lists.",
+        description="Plane dimensions [(width, height), ...]. String for dynamic.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "editable-array"],
+        },
     )
 
     rotation: RotationProp = Field(
         default=[(0.0, 0.0, 0.0)],
-        description="Rotation as Euler angles [x, y, z] in radians. List of tuples for per-instance rotations, string for dynamic data key. Single tuples are automatically normalized to lists.",
+        description="Rotation as Euler angles [(x, y, z), ...] in radians.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "editable-array"],
+        },
     )
 
     scale: ScaleProp = Field(
-        default=1.0,
-        description="Scale factor(s). Float for uniform, tuple [sx,sy,sz] for anisotropic, list for per-instance. String for dynamic data key.",
+        default=[(1.0, 1.0, 1.0)],
+        description="Scale factors [(sx, sy, sz), ...]. String for dynamic data key.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "editable-array"],
+        },
     )
 
     opacity: float = Field(
@@ -89,7 +82,7 @@ class Plane(BaseGeometry):
 
     double_sided: bool = Field(
         default=True,
-        description="If true, plane is visible from both sides. If false, only visible from front.",
+        description="If true, plane is visible from both sides.",
     )
 
     selecting: InteractionSettings = Field(
@@ -101,36 +94,3 @@ class Plane(BaseGeometry):
         default=InteractionSettings(color="#FF0000", opacity=0.5),
         description="Hover interaction settings.",
     )
-
-    @field_validator("position", "rotation", "size", mode="before")
-    @classmethod
-    def normalize_vector_fields(cls, v):
-        """Normalize vector fields to list of tuples."""
-        if v is None:
-            return []
-        if isinstance(v, str):  # Dynamic reference
-            return v
-        if isinstance(v, tuple):  # Single tuple -> wrap in list
-            return [v]
-        return v  # Already a list
-
-    @field_validator("color", mode="before")
-    @classmethod
-    def normalize_color(cls, v):
-        """Normalize color to list of hex strings."""
-        if v is None:
-            return []
-        # Dynamic reference -> pass through
-        if isinstance(v, str) and not v.startswith("#"):
-            return v
-        # Single hex color -> wrap in list
-        if isinstance(v, str) and v.startswith("#"):
-            return [v]
-        # Already a list -> return as is
-        return v
-
-    @field_validator("scale", mode="before")
-    @classmethod
-    def normalize_scale(cls, v):
-        """Normalize and validate scale using shared function."""
-        return _normalize_scale(v, validate=True)

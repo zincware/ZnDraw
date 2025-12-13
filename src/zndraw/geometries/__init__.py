@@ -16,23 +16,18 @@ from zndraw.geometries.plane import Plane
 from zndraw.geometries.shape import Shape
 from zndraw.geometries.sphere import Sphere
 
-# Rebuild Pydantic models after Transform is fully defined
-# This resolves forward references to Transform in type hints
-try:
-    from zndraw.transformations import Transform  # noqa: F401
+from zndraw.transformations import InArrayTransform, Transform
 
-    Sphere.model_rebuild()
-    Arrow.model_rebuild()
-    Bond.model_rebuild()
-    Box.model_rebuild()
-    Cell.model_rebuild()
-    Curve.model_rebuild()
-    Floor.model_rebuild()
-    Plane.model_rebuild()
-    Shape.model_rebuild()
-except ImportError:
-    # Transform not available yet during initial imports
-    pass
+Sphere.model_rebuild()
+Arrow.model_rebuild()
+Bond.model_rebuild()
+Box.model_rebuild()
+Cell.model_rebuild()
+Curve.model_rebuild()
+Floor.model_rebuild()
+Plane.model_rebuild()
+Shape.model_rebuild()
+
 
 geometries = {
     "Sphere": Sphere,
@@ -66,4 +61,6 @@ __all__ = [
     "ColorProp",
     "SizeProp",
     "RotationProp",
+    "InArrayTransform",
+    "Transform",
 ]

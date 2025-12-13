@@ -1,3 +1,5 @@
+"""Curve geometry for ZnDraw."""
+
 import typing as t
 
 import numpy as np
@@ -9,7 +11,6 @@ from .base import (
     ColorProp,
     InteractionSettings,
     PositionProp,
-    apply_schema_feature,
 )
 
 
@@ -28,6 +29,15 @@ class CurveMarker(BaseModel):
     color: str = Field(
         default="default",
         description="Color of the markers. If None, uses the curve color",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": [
+                "color-picker",
+                "dynamic-atom-props",
+                "free-solo",
+                "editable-array",
+            ],
+        },
     )
     opacity: float = Field(
         default=1.0,
@@ -48,37 +58,27 @@ class CurveMarker(BaseModel):
 class Curve(BaseGeometry):
     """A curve geometry."""
 
-    @classmethod
-    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
-        schema = super().model_json_schema(**kwargs)
+    position: PositionProp = Field(
+        default=[],
+        description="Position [x,y,z]. String for dynamic data key, tuple/list for static values.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "editable-array"],
+        },
+    )
 
-        # Apply schema features using helper
-        apply_schema_feature(
-            schema, "position", ["dynamic-atom-props", "editable-array"]
-        )
-        apply_schema_feature(
-            schema,
-            "color",
-            ["color-picker", "dynamic-atom-props", "free-solo", "editable-array"],
-        )
-
-        # Color picker for CurveMarker properties
-        if "CurveMarker" in schema.get("$defs", {}):
-            schema["$defs"]["CurveMarker"]["properties"]["color"]["x-custom-type"] = (
-                "dynamic-enum"
-            )
-            schema["$defs"]["CurveMarker"]["properties"]["color"]["x-features"] = [
+    color: ColorProp = Field(
+        default="default",
+        description="Curve color",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": [
                 "color-picker",
                 "dynamic-atom-props",
                 "free-solo",
                 "editable-array",
-            ]
-
-        return schema
-
-    position: PositionProp = Field(
-        default=[],
-        description="Position [x,y,z]. String for dynamic data key, tuple/list for static values.",
+            ],
+        },
     )
 
     material: t.Literal[
@@ -88,31 +88,32 @@ class Curve(BaseGeometry):
         default="LineBasicMaterial",
         description="Material type (static config, not fetched from server)",
     )
+
     variant: t.Literal["CatmullRomCurve3"] = Field(
         default="CatmullRomCurve3",
         description="Curve variant type (static config, not fetched from server)",
     )
+
     divisions: int = Field(
         default=50,
         description="Number of divisions along the curve",
         ge=1,
     )
+
     thickness: float = Field(
         default=2.0,
         description="Thickness of the line (not implemented in Three.js LineBasicMaterial)",
         gt=0,
     )
+
     marker: CurveMarker = Field(
         default_factory=CurveMarker,
         description="Settings for markers at the control points",
     )
+
     virtual_marker: CurveMarker = Field(
         default_factory=lambda: CurveMarker(size=0.08, color="default", opacity=0.5),
         description="Virtual marker between two existing markers (for adding new points)",
-    )
-    color: ColorProp = Field(
-        default="default",
-        description="Curve color",
     )
 
     def get_interpolated_points(self) -> np.ndarray:

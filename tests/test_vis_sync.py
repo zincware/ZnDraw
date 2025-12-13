@@ -43,7 +43,7 @@ def test_bookmarks_sync(server, s22):
 
 def test_geometries_sync(server, s22):
     vis1 = ZnDraw(url=server, room="testroom", user="u1")
-    vis1.geometries["box"] = Box(position=[(0, 0, 0)], size=(1, 1, 1))
+    vis1.geometries["box"] = Box(position=[(0, 0, 0)], size=[(1, 1, 1)])
     assert "box" in vis1.geometries
     vis2 = ZnDraw(url=server, room="testroom", user="u2")
     assert "box" in vis2.geometries

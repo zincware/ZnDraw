@@ -139,7 +139,11 @@ def test_requires_lock_valid_session_and_token(room_with_lock):
         json={
             "key": "test_sphere",
             "type": "Sphere",
-            "data": {"position": [[1.0, 2.0, 3.0]], "color": "#FF0000", "radius": 1.0},
+            "data": {
+                "position": [[1.0, 2.0, 3.0]],
+                "color": ["#FF0000"],
+                "radius": [1.0],
+            },
         },
         headers={**auth_headers, "X-Session-ID": session_id},
     )
@@ -260,7 +264,7 @@ def test_requires_lock_multiple_operations_same_lock(room_with_lock):
         json={
             "key": "sphere1",
             "type": "Sphere",
-            "data": {"position": [[0, 0, 0]], "radius": 1.0},
+            "data": {"position": [[0, 0, 0]], "radius": [1.0]},
         },
         headers={**auth_headers, "X-Session-ID": session_id},
     )
@@ -272,7 +276,7 @@ def test_requires_lock_multiple_operations_same_lock(room_with_lock):
         json={
             "key": "sphere2",
             "type": "Sphere",
-            "data": {"position": [[5, 5, 5]], "radius": 2.0},
+            "data": {"position": [[5, 5, 5]], "radius": [2.0]},
         },
         headers={**auth_headers, "X-Session-ID": session_id},
     )

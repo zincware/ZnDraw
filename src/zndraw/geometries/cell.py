@@ -1,31 +1,31 @@
+"""Cell geometry for ZnDraw."""
+
 import typing as t
 
 from pydantic import Field
 
-from .base import BaseGeometry, apply_schema_feature
+from .base import BaseGeometry
 
 
 class Cell(BaseGeometry):
     """A geometry to draw the simulation cell."""
 
-    @classmethod
-    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
-        schema = super().model_json_schema(**kwargs)
-
-        # Apply schema features using helper
-        apply_schema_feature(
-            schema, "position", ["dynamic-atom-props", "editable-array"]
-        )
-        apply_schema_feature(schema, "color", ["color-picker", "editable-array"])
-        # TODO: add dropdown with "default" option, where default means follow color scheme
-
-        return schema
-
-    color: str = Field(default="default", description="Color of the cell")
-
     position: str = Field(
         default="cell",
         description="Cell vectors. Should be a 3x3 matrix.",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "editable-array"],
+        },
+    )
+
+    color: str = Field(
+        default="default",
+        description="Color of the cell",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["color-picker", "editable-array"],
+        },
     )
 
     thickness: float = Field(
