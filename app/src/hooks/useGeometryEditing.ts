@@ -11,7 +11,6 @@ import {
 	getInitialScales,
 	applyTransformToRotations,
 	applyTransformToScales,
-	applyUniformScale,
 } from "../utils/geometryEditing";
 
 import type { TypedArray } from "../myapi/client";
@@ -101,7 +100,6 @@ export function useGeometryEditing(
 	const relativePositionsRef = useRef<Map<number, THREE.Vector3>>(new Map());
 	const initialRotationsRef = useRef<Map<number, THREE.Vector3>>(new Map());
 	const initialScalesRef = useRef<Map<number, THREE.Vector3>>(new Map());
-	const initialUniformScaleRef = useRef<number | null>(null);
 	const hasSelection = stableSelectedIndices.length > 0;
 
 	// Store the last combined centroid we used to detect when it changes
@@ -121,7 +119,6 @@ export function useGeometryEditing(
 			relativePositionsRef.current = new Map();
 			initialRotationsRef.current = new Map();
 			initialScalesRef.current = new Map();
-			initialUniformScaleRef.current = null;
 			lastCombinedCentroidRef.current = null;
 			return;
 		}
@@ -179,10 +176,6 @@ export function useGeometryEditing(
 					stableSelectedIndices,
 					instanceCount,
 				);
-				// Track initial uniform scale if it's a single number
-				if (typeof scalesToUse === "number") {
-					initialUniformScaleRef.current = scalesToUse;
-				}
 			}
 
 			// Store this centroid to detect future changes
@@ -271,37 +264,19 @@ export function useGeometryEditing(
 						break;
 					}
 					case "scale": {
-						// Apply scale transform if scale is static
-						if (isScaleStaticVal && scaleData !== undefined) {
-							const initialUniformScale = initialUniformScaleRef.current;
-
-							// Optimization: Keep as simple number if possible (all selected + uniform transform)
-							// Otherwise, promote to array to support anisotropic scaling or subset selection
-							const isUniformTransform =
-								Math.abs(scale.x - scale.y) < 1e-6 &&
-								Math.abs(scale.x - scale.z) < 1e-6;
-							const allSelected =
-								stableSelectedIndices.length === instanceCount;
-
-							if (
-								typeof scaleData === "number" &&
-								initialUniformScale !== null &&
-								isUniformTransform &&
-								allSelected
-							) {
-								const newScale = applyUniformScale(initialUniformScale, scale);
-								updatedData.scale = newScale;
-							} else if (currentInitialScales.size > 0) {
-								// Use per-instance scale for array formats OR anisotropic/subset transform
-								const newScales = applyTransformToScales(
-									scaleData,
-									stableSelectedIndices,
-									scale,
-									currentInitialScales,
-									instanceCount,
-								);
-								updatedData.scale = newScales;
-							}
+						if (
+							isScaleStaticVal &&
+							scaleData !== undefined &&
+							currentInitialScales.size > 0
+						) {
+							const newScales = applyTransformToScales(
+								scaleData,
+								stableSelectedIndices,
+								scale,
+								currentInitialScales,
+								instanceCount,
+							);
+							updatedData.scale = newScales;
 						}
 						break;
 					}

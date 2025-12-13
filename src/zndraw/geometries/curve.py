@@ -28,7 +28,7 @@ class CurveMarker(BaseModel):
     )
     color: str = Field(
         default="default",
-        description="Color of the markers. If None, uses the curve color",
+        description="Color of the markers. If 'default', uses the curve color.",
         json_schema_extra={
             "x-custom-type": "dynamic-enum",
             "x-features": [

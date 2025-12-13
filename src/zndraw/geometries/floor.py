@@ -27,7 +27,9 @@ class Floor(BaseGeometry):
     @field_validator("position", mode="before")
     @classmethod
     def normalize_position(cls, v: t.Any) -> tuple[float, float, float]:
-        """Override base validator - Floor uses simple tuple, not list."""
+        """Convert position input to tuple[float, float, float]."""
+        if not hasattr(v, "__len__") or len(v) != 3:
+            raise ValueError("position must have exactly 3 elements [x, y, z]")
         return (float(v[0]), float(v[1]), float(v[2]))
 
     color: str = Field(

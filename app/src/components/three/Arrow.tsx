@@ -60,9 +60,6 @@ interface ArrowData {
 // Arrow-specific reusable THREE objects
 const _arrowUp = new THREE.Vector3(0, 1, 0);
 
-// Small value for division-by-zero prevention in anisotropic scale calculations
-const EPSILON = 1e-10;
-
 /**
  * Creates a standard arrow geometry with a total height of 1,
  * with its base at the origin, pointing along the positive Y-axis.
@@ -414,17 +411,13 @@ export default function Arrow({
 
 				const dirLength = _vec3_2.length();
 				const arrowLength = dirLength * finalScales[i3 + 1]; // y-scale for length
-				const arrowRadius = finalRadii[i] * finalScales[i3]; // x-scale for radius (could use z too)
 
-				// Compute z-radius with epsilon check to prevent division by zero
-				const xScale = finalScales[i3];
-				const zScale = finalScales[i3 + 2];
-				const zRadius =
-					Math.abs(xScale) > EPSILON
-						? arrowRadius * (zScale / xScale)
-						: arrowRadius;
+				// Compute x and z radii independently from base radius
+				const baseRadius = finalRadii[i];
+				const xRadius = baseRadius * finalScales[i3];
+				const zRadius = baseRadius * finalScales[i3 + 2];
 
-				_vec3_3.set(arrowRadius, arrowLength, zRadius);
+				_vec3_3.set(xRadius, arrowLength, zRadius);
 
 				// Avoid issues with zero-length vectors
 				if (dirLength > 1e-6) {
@@ -469,18 +462,13 @@ export default function Arrow({
 
 					const dirLength = _vec3_2.length();
 					const arrowLength = dirLength * finalScales[i3 + 1];
-					const arrowRadius =
-						finalRadii[id] * finalScales[i3] * SELECTION_SCALE;
 
-					// Compute z-radius with epsilon check to prevent division by zero
-					const xScale = finalScales[i3];
-					const zScale = finalScales[i3 + 2];
-					const zRadius =
-						Math.abs(xScale) > EPSILON
-							? arrowRadius * (zScale / xScale)
-							: arrowRadius;
+					// Compute x and z radii independently from base radius
+					const baseRadius = finalRadii[id];
+					const xRadius = baseRadius * finalScales[i3] * SELECTION_SCALE;
+					const zRadius = baseRadius * finalScales[i3 + 2] * SELECTION_SCALE;
 
-					_vec3_3.set(arrowRadius, arrowLength * SELECTION_SCALE, zRadius);
+					_vec3_3.set(xRadius, arrowLength * SELECTION_SCALE, zRadius);
 
 					// Avoid issues with zero-length vectors
 					if (dirLength > 1e-6) {

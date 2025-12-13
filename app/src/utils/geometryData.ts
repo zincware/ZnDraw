@@ -253,7 +253,7 @@ export function processSize3D(
  * @param propValue - The color prop value from backend
  * @param fetchedValue - Data fetched from server (if propValue is dynamic ref)
  * @param count - Expected number of instances
- * @returns Array of hex color strings
+ * @returns Array of hex color strings (empty if dynamic ref not yet fetched)
  */
 export function processColorData(
 	propValue: ColorProp | Record<string, unknown>,
@@ -272,11 +272,8 @@ export function processColorData(
 		return propValue;
 	}
 
-	if (typeof propValue === "string") {
-		throw new Error(`Dynamic color reference not fetched: ${propValue}`);
-	}
-
-	throw new Error("Transform not evaluated before processing color data");
+	// Dynamic reference or transform not yet fetched/evaluated
+	return [];
 }
 
 /**
@@ -354,13 +351,16 @@ export function validateArrayLengths(
  *
  * @param positionProp - The position prop value
  * @param fetchedPosition - Fetched position data (if applicable)
- * @returns Number of instances
+ * @returns Number of instances (0 if invalid or not yet fetched)
  */
 export function getInstanceCount(
 	positionProp: PositionProp | Record<string, unknown>,
 	fetchedPosition: FetchedNumeric,
 ): number {
 	if (fetchedPosition) {
+		if (fetchedPosition.length % 3 !== 0) {
+			return 0;
+		}
 		return fetchedPosition.length / 3;
 	}
 
@@ -368,7 +368,7 @@ export function getInstanceCount(
 		return positionProp.length;
 	}
 
-	return 0; // Dynamic reference not yet fetched
+	return 0;
 }
 
 /**

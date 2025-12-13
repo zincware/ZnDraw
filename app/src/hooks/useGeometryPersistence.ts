@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { debounce } from "lodash";
 import { useAppStore } from "../store";
 import { createGeometry } from "../myapi/client";
@@ -19,7 +19,6 @@ export function useGeometryPersistence(
 	debounceMs: number = 500,
 ) {
 	const roomId = useAppStore((state) => state.roomId);
-	const lock = useAppStore((state) => state.lock);
 	const geometries = useAppStore((state) => state.geometries);
 	const geometryUpdateSources = useAppStore(
 		(state) => state.geometryUpdateSources,
@@ -28,14 +27,19 @@ export function useGeometryPersistence(
 	// Ref to track if persistence is needed (dirty flag)
 	const isDirtyRef = useRef(false);
 
-	// Persistence callback - persists geometry changes to server
-	const persistGeometryData = useCallback(async () => {
+	// Ref to hold the latest persist function (avoids stale closure in debounce)
+	const persistRef = useRef<() => Promise<void>>();
+
+	// Update persistRef with latest closure
+	persistRef.current = async () => {
 		if (!roomId) return;
 
-		const currentGeometry = geometries[geometryKey];
+		// Get fresh data from store
+		const currentGeometries = useAppStore.getState().geometries;
+		const currentLock = useAppStore.getState().lock;
+		const currentGeometry = currentGeometries[geometryKey];
 		if (!currentGeometry || !currentGeometry.data) return;
 
-		// Only persist if data is dirty
 		if (!isDirtyRef.current) return;
 
 		try {
@@ -44,53 +48,46 @@ export function useGeometryPersistence(
 				geometryKey,
 				geometryType,
 				currentGeometry.data,
-				lock?.token,
+				currentLock?.token,
 			);
-			// Clear dirty flag after successful persistence
 			isDirtyRef.current = false;
 		} catch (error: unknown) {
 			console.error(
 				`[${geometryType}] Failed to persist ${geometryKey}:`,
 				error,
 			);
-			// Keep dirty flag set on error so we can retry
 		}
-	}, [roomId, geometryKey, geometryType, geometries, lock]);
+	};
 
-	// Create stable debounced function
+	// Stable debounced function that calls through ref
 	const debouncedPersist = useMemo(
-		() => debounce(persistGeometryData, debounceMs),
-		[persistGeometryData, debounceMs],
+		() =>
+			debounce(() => {
+				persistRef.current?.();
+			}, debounceMs),
+		[debounceMs],
 	);
 
-	// Cleanup debounce on unmount and flush any pending changes
+	// Cleanup on unmount
 	useEffect(() => {
 		return () => {
-			// Cancel any pending debounced calls
-			debouncedPersist.cancel();
-			// Flush immediately if there are unsaved changes
-			if (isDirtyRef.current) {
-				persistGeometryData();
-			}
+			debouncedPersist.flush();
 		};
-	}, [debouncedPersist, persistGeometryData]);
+	}, [debouncedPersist]);
 
 	// Watch geometry data changes and persist - only if source is 'local'
 	useEffect(() => {
 		const currentGeometry = geometries[geometryKey];
 		if (!currentGeometry) return;
 
-		// Only persist if update source is 'local' (not from server)
 		const updateSource = geometryUpdateSources[geometryKey];
 		if (updateSource !== "local") {
 			return;
 		}
 
-		// Mark as dirty and trigger debounced persist
 		isDirtyRef.current = true;
 		debouncedPersist();
 	}, [
-		// Watch the geometry itself and the update source
 		geometries[geometryKey],
 		geometryUpdateSources[geometryKey],
 		debouncedPersist,
