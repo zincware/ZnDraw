@@ -5,7 +5,7 @@ import * as THREE from "three";
  */
 
 // Type for scale data (can be uniform or anisotropic)
-type ScaleData =
+export type ScaleData =
 	| number // Uniform for all instances
 	| number[] // Per-instance uniform
 	| [number, number, number] // Shared anisotropic

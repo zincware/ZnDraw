@@ -11,6 +11,7 @@ import {
 	getInitialScales,
 	applyTransformToRotations,
 	applyTransformToScales,
+	type ScaleData as UtilScaleData,
 } from "../utils/geometryEditing";
 
 import type { TypedArray } from "../myapi/client";
@@ -21,7 +22,8 @@ import type { ScaleProp as BackendScaleProp } from "../utils/geometryData";
 // Accept TypedArray from server, number[][] from local state, or Transform
 type PositionData = TypedArray | number[][] | Transform | null | undefined;
 type RotationData = TypedArray | number[][] | null | undefined;
-type ScaleData = BackendScaleProp | number | null | undefined;
+// ScaleData accepts backend prop (string | number[][]), TypedArray from server, or static number
+type ScaleData = BackendScaleProp | TypedArray | number | null | undefined;
 
 // Type for the geometry data object passed to updateGeometry
 interface GeometryUpdateData {
@@ -87,9 +89,9 @@ export function useGeometryEditing(
 
 	// ScaleData can be a number (fallback 1.0) or ScaleProp (string | number[][])
 	const isScaleStaticVal = scaleData !== undefined && isScaleStatic(scaleData);
-	// Cast for staticScales to what normalizeScaleToArray expects as a valid static input
+	// Cast for staticScales to what the utility functions expect
 	const staticScales = isScaleStaticVal
-		? (scaleData as number | number[][] | [number, number, number][])
+		? (scaleData as UtilScaleData)
 		: undefined;
 
 	// Memoize selectedIndices to prevent infinite loops from array reference changes

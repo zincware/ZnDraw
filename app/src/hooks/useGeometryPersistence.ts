@@ -28,7 +28,7 @@ export function useGeometryPersistence(
 	const isDirtyRef = useRef(false);
 
 	// Ref to hold the latest persist function (avoids stale closure in debounce)
-	const persistRef = useRef<() => Promise<void>>();
+	const persistRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
 	// Update persistRef with latest closure
 	persistRef.current = async () => {
