@@ -1,0 +1,92 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      zndraw:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  zndraw:
+    image: pythonf/zndraw:latest
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - ZNDRAW_REDIS_URL=redis://redis:6379
+      - ZNDRAW_SERVER_HOST=0.0.0.0
+      - ZNDRAW_SERVER_PORT=5000
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
+      - ZNDRAW_SERVER_URL=http://nginx
+      - FLASK_SECRET_KEY=change-me-in-production
+      # Optional: Admin access
+      # - ZNDRAW_ADMIN_USERNAME=admin
+      # - ZNDRAW_ADMIN_PASSWORD=secure-password
+    volumes:
+      - zndraw-data:/app/data
+    deploy:
+      replicas: 1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  celery-worker:
+    image: pythonf/zndraw:latest
+    restart: unless-stopped
+    command: ["celery", "-A", "zndraw_cli.celery", "worker", "--loglevel=info", "--pool=eventlet"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - ZNDRAW_REDIS_URL=redis://redis:6379
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
+      - ZNDRAW_SERVER_URL=http://nginx
+    volumes:
+      - zndraw-data:/app/data
+      - ./ethanol.xyz:/app/templates/ethanol.xyz:ro
+    deploy:
+      replicas: 2
+
+  # One-shot service to load template after zndraw is healthy
+  template-loader:
+    image: pythonf/zndraw:latest
+    restart: "no"
+    depends_on:
+      nginx:
+        condition: service_healthy
+    command: ["zndraw", "--connect", "http://nginx", "--room", "template", "/app/templates/ethanol.xyz"]
+    environment:
+      - ZNDRAW_REDIS_URL=redis://redis:6379
+      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
+      - ZNDRAW_SERVER_URL=http://nginx
+    volumes:
+      - zndraw-data:/app/data
+      - ./ethanol.xyz:/app/templates/ethanol.xyz:ro
+
+volumes:
+  redis-data:
+  zndraw-data:

@@ -77,8 +77,6 @@ class ZnDrawConfig:
         Enable file browser feature.
     file_browser_root : str
         Root directory for file browser.
-    celery_enabled : bool
-        Enable Celery background task processing.
     lock_template_room : bool
         Auto-lock rooms created from CLI file loading (template rooms).
         When enabled, these rooms will be admin-locked and non-admins cannot unlock them.
@@ -139,9 +137,6 @@ class ZnDrawConfig:
     )
     file_browser_root: str = field(
         default_factory=lambda: os.getenv("ZNDRAW_FILE_BROWSER_ROOT", os.getcwd())
-    )
-    celery_enabled: bool = field(
-        default_factory=lambda: _parse_bool(os.getenv("ZNDRAW_CELERY_ENABLED", "true"))
     )
     lock_template_room: bool = field(
         default_factory=lambda: _parse_bool(
@@ -215,7 +210,6 @@ class ZnDrawConfig:
         log.info(
             f"  File Browser: {'Enabled' if self.file_browser_enabled else 'Disabled'}"
         )
-        log.info(f"  Celery: {'Enabled' if self.celery_enabled else 'Disabled'}")
         log.info(
             f"  Lock Template Room: {'Enabled' if self.lock_template_room else 'Disabled'}"
         )

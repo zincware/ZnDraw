@@ -404,8 +404,6 @@ def main(
         config.file_browser_root = file_browser_root
     else:
         config.file_browser_root = os.getcwd()
-    config.celery_enabled = celery
-
     # Revalidate after overrides
     config._validate()
 
