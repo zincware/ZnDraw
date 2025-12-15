@@ -8,8 +8,7 @@ __pycache__
 *.pyd
 .Python
 
-# Git
-.git
+# Git (keep .git for hatch-vcs version detection via build mount)
 .gitignore
 .gitattributes
 
