@@ -34,6 +34,7 @@ export const KeyboardShortcutsHandler = () => {
 		setEditingSelectedAxis,
 		editingSelectedAxis,
 		roomId,
+		saveFrameEdits,
 	} = useAppStore();
 
 	useEffect(() => {
@@ -316,7 +317,14 @@ export const KeyboardShortcutsHandler = () => {
 			// Handle t/T for cycling transform mode (only in editing mode)
 			if ((event.key === "t" || event.key === "T") && mode === "editing") {
 				event.preventDefault();
-				cycleTransformMode();
+				void cycleTransformMode(); // async - fire and forget
+				return;
+			}
+
+			// Handle s/S for saving frame edits (only in editing mode)
+			if ((event.key === "s" || event.key === "S") && mode === "editing") {
+				event.preventDefault();
+				void saveFrameEdits(); // async - fire and forget
 				return;
 			}
 
@@ -407,6 +415,7 @@ export const KeyboardShortcutsHandler = () => {
 		setEditingSelectedAxis,
 		editingSelectedAxis,
 		roomId,
+		saveFrameEdits,
 	]);
 
 	return null; // This component only handles keyboard events

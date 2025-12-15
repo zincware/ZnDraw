@@ -12,6 +12,7 @@ import {
 	acquireLock,
 	refreshLock,
 	releaseLock,
+	partialUpdateFrame,
 } from "./myapi/client";
 import type { UserRole } from "./utils/auth";
 
@@ -101,6 +102,20 @@ interface AppState {
 	} | null; // Snackbar notification state
 	progressTrackers: Record<string, Progress>; // Active progress trackers keyed by progressId
 
+	// Frame editing state for dynamic positions
+	pendingFrameEdits: {
+		frameId: number;
+		keys: Record<string, any>; // e.g., { "arrays.positions": Float32Array }
+	} | null;
+	// Reference count for frame editing consumers (multiple hooks can be editing simultaneously)
+	editingFrameDataCount: number;
+	// Loaded dynamic positions registered by geometry components
+	// Used by MultiGeometryTransformControls to calculate centroid for dynamic positions
+	loadedDynamicPositions: Map<
+		string,
+		{ positionKey: string; positions: Float32Array }
+	>;
+
 	// Actions (functions to modify the state)
 	setRoomId: (roomId: string) => void;
 	setUserName: (userName: string) => void;
@@ -137,7 +152,7 @@ interface AppState {
 	enterEditingMode: () => Promise<void>;
 	exitEditingMode: () => Promise<void>;
 	setTransformMode: (mode: "translate" | "rotate" | "scale") => void;
-	cycleTransformMode: () => void;
+	cycleTransformMode: () => Promise<void>;
 	setEditingSelectedAxis: (axis: "x" | "y" | "z" | null) => void;
 	setDrawingPointerPosition: (position: THREE.Vector3 | null) => void;
 	updateSelections: (
@@ -219,6 +234,19 @@ interface AppState {
 		progress?: number | null,
 	) => void;
 	removeProgressTracker: (progressId: string) => void;
+
+	// Frame editing actions
+	setPendingFrameEdit: (frameId: number, key: string, data: any) => void;
+	clearPendingFrameEdits: () => void;
+	saveFrameEdits: () => Promise<void>;
+	incrementEditingFrameDataCount: () => void;
+	decrementEditingFrameDataCount: () => void;
+	registerLoadedDynamicPositions: (
+		geometryKey: string,
+		positionKey: string,
+		positions: Float32Array,
+	) => void;
+	unregisterLoadedDynamicPositions: (geometryKey: string) => void;
 }
 
 // Helper functions (pure, exported for reuse across components)
@@ -284,6 +312,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 	globalSettings: null,
 	snackbar: null,
 	progressTrackers: {},
+
+	// Frame editing state
+	pendingFrameEdits: null,
+	editingFrameDataCount: 0,
+	loadedDynamicPositions: new Map(),
 
 	/**
 	 * Non-serializable THREE.js curve objects shared between Curve and Camera components.
@@ -813,6 +846,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 			return;
 		}
 
+		// Save any pending frame edits before exiting
+		await get().saveFrameEdits();
+
 		// Clear selections when exiting editing mode
 		const { selections } = state;
 		for (const geometryKey of Object.keys(selections)) {
@@ -824,6 +860,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			mode: "view",
 			transformMode: "translate",
 			editingSelectedAxis: null,
+			editingFrameDataCount: 0, // Reset frame editing count
 		}); // Reset when exiting
 		if (released) {
 			state.showSnackbar("Exited editing mode", "info");
@@ -841,7 +878,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set({ editingSelectedAxis: axis });
 	},
 
-	cycleTransformMode: () => {
+	cycleTransformMode: async () => {
+		// Save any pending frame edits before switching modes
+		await get().saveFrameEdits();
+
 		const { transformMode, showSnackbar } = get();
 		const modes: Array<"translate" | "rotate" | "scale"> = [
 			"translate",
@@ -1058,4 +1098,125 @@ export const useAppStore = create<AppState>((set, get) => ({
 			const { [progressId]: _, ...remainingTrackers } = state.progressTrackers;
 			return { progressTrackers: remainingTrackers };
 		}),
+
+	// Frame editing actions
+	setPendingFrameEdit: (frameId, key, data) => {
+		const state = get();
+
+		// If there are existing pending edits for a different frame, auto-save them first
+		if (
+			state.pendingFrameEdits &&
+			state.pendingFrameEdits.frameId !== frameId
+		) {
+			// Schedule async save of old edits (fire and forget)
+			const oldEdits = state.pendingFrameEdits;
+			void (async () => {
+				const { roomId, showSnackbar } = get();
+				if (!roomId || Object.keys(oldEdits.keys).length === 0) return;
+
+				try {
+					const shapes = new Map<string, number[]>();
+					for (const [k, d] of Object.entries(oldEdits.keys)) {
+						if (k === "arrays.positions" && d instanceof Float32Array) {
+							shapes.set(k, [d.length / 3, 3]);
+						}
+					}
+					await partialUpdateFrame(
+						roomId,
+						oldEdits.frameId,
+						oldEdits.keys,
+						shapes,
+					);
+					showSnackbar(`Auto-saved frame ${oldEdits.frameId}`, "info");
+				} catch (error) {
+					console.error("[setPendingFrameEdit] Auto-save failed:", error);
+					showSnackbar(
+						`Failed to auto-save frame ${oldEdits.frameId}`,
+						"warning",
+					);
+				}
+			})();
+		}
+
+		set({
+			pendingFrameEdits: {
+				frameId,
+				keys: {
+					...(state.pendingFrameEdits?.frameId === frameId
+						? state.pendingFrameEdits.keys
+						: {}),
+					[key]: data,
+				},
+			},
+		});
+	},
+
+	clearPendingFrameEdits: () => set({ pendingFrameEdits: null }),
+
+	saveFrameEdits: async () => {
+		const state = get();
+		const { roomId, pendingFrameEdits, showSnackbar } = state;
+
+		if (!roomId) {
+			console.warn("[saveFrameEdits] No roomId");
+			return;
+		}
+
+		if (!pendingFrameEdits) {
+			// Nothing to save
+			return;
+		}
+
+		const { frameId, keys } = pendingFrameEdits;
+
+		if (Object.keys(keys).length === 0) {
+			// No keys to save
+			return;
+		}
+
+		try {
+			// Create shapes map for position data (N atoms x 3 dimensions)
+			const shapes = new Map<string, number[]>();
+			for (const [key, data] of Object.entries(keys)) {
+				if (key === "arrays.positions" && data instanceof Float32Array) {
+					// Positions are Nx3
+					const numAtoms = data.length / 3;
+					shapes.set(key, [numAtoms, 3]);
+				}
+			}
+
+			// Call the API to save the partial update
+			await partialUpdateFrame(roomId, frameId, keys, shapes);
+
+			// Clear pending edits on success
+			set({ pendingFrameEdits: null });
+
+			showSnackbar(`Frame ${frameId} saved`, "success");
+		} catch (error) {
+			console.error("[saveFrameEdits] Error saving frame edits:", error);
+			showSnackbar("Failed to save frame edits", "error");
+		}
+	},
+
+	incrementEditingFrameDataCount: () =>
+		set((state) => ({
+			editingFrameDataCount: state.editingFrameDataCount + 1,
+		})),
+
+	decrementEditingFrameDataCount: () =>
+		set((state) => ({
+			editingFrameDataCount: Math.max(0, state.editingFrameDataCount - 1),
+		})),
+
+	registerLoadedDynamicPositions: (geometryKey, positionKey, positions) => {
+		const newMap = new Map(get().loadedDynamicPositions);
+		newMap.set(geometryKey, { positionKey, positions });
+		set({ loadedDynamicPositions: newMap });
+	},
+
+	unregisterLoadedDynamicPositions: (geometryKey) => {
+		const newMap = new Map(get().loadedDynamicPositions);
+		newMap.delete(geometryKey);
+		set({ loadedDynamicPositions: newMap });
+	},
 }));

@@ -19,6 +19,69 @@ export function isPositionStatic(position: any): position is number[][] {
 }
 
 /**
+ * Check if a position property is a dynamic reference (string key like "arrays.positions")
+ * @param position - Position property from geometry data
+ * @returns true if position is a dynamic reference
+ */
+export function isPositionDynamic(position: any): position is string {
+	return typeof position === "string";
+}
+
+/**
+ * Check if position data is editable (either static or dynamic with loaded data)
+ * @param position - Position property from geometry data
+ * @param loadedPositions - Optional loaded positions from frame data (Float32Array)
+ * @returns true if positions can be edited
+ */
+export function isPositionEditable(
+	position: any,
+	loadedPositions?: Float32Array | null,
+): boolean {
+	// Static positions are always editable
+	if (isPositionStatic(position)) {
+		return true;
+	}
+	// Dynamic positions are editable if we have loaded the data
+	if (isPositionDynamic(position) && loadedPositions) {
+		return true;
+	}
+	return false;
+}
+
+/**
+ * Convert a Float32Array of positions to number[][] format.
+ * Assumes positions are packed as [x0, y0, z0, x1, y1, z1, ...].
+ *
+ * @param data - Float32Array of position data
+ * @returns Array of [x, y, z] tuples
+ */
+export function convertFloat32ToPositionArray(data: Float32Array): number[][] {
+	const positions: number[][] = [];
+	for (let i = 0; i < data.length; i += 3) {
+		positions.push([data[i], data[i + 1], data[i + 2]]);
+	}
+	return positions;
+}
+
+/**
+ * Convert number[][] positions back to Float32Array format.
+ *
+ * @param positions - Array of [x, y, z] tuples
+ * @returns Float32Array packed as [x0, y0, z0, x1, y1, z1, ...]
+ */
+export function convertPositionArrayToFloat32(
+	positions: number[][],
+): Float32Array {
+	const result = new Float32Array(positions.length * 3);
+	for (let i = 0; i < positions.length; i++) {
+		result[i * 3] = positions[i][0];
+		result[i * 3 + 1] = positions[i][1];
+		result[i * 3 + 2] = positions[i][2];
+	}
+	return result;
+}
+
+/**
  * Calculate the centroid (center point) of selected instances
  * @param positions - Array of all position tuples [[x, y, z], ...]
  * @param indices - Array of selected instance indices
@@ -275,6 +338,158 @@ export function getAllRelativePositions(
 	}
 
 	return allRelativePositions;
+}
+
+// ==================== Dynamic Position Support ====================
+
+/**
+ * Loaded position data for a geometry (from TanStack Query cache)
+ */
+export interface LoadedPositionData {
+	geometryKey: string;
+	positionKey: string; // e.g., "arrays.positions"
+	positions: Float32Array;
+}
+
+/**
+ * Validate editable positions - supports both static and dynamic (loaded) positions.
+ * This is the combined version that MultiGeometryTransformControls should use.
+ *
+ * @param geometries - Record of all geometries
+ * @param selections - Record of selections per geometry
+ * @param loadedPositions - Map of geometryKey -> LoadedPositionData for dynamic positions
+ * @returns Object with { validSelections, dynamicSelections, invalidGeometries }
+ */
+export function validateEditablePositions(
+	geometries: Record<string, any>,
+	selections: Record<string, number[]>,
+	loadedPositions: Map<string, LoadedPositionData>,
+): {
+	validSelections: Record<string, number[]>; // Static positions
+	dynamicSelections: Record<string, number[]>; // Dynamic positions with loaded data
+	invalidGeometries: string[]; // No valid position data
+} {
+	const validSelections: Record<string, number[]> = {};
+	const dynamicSelections: Record<string, number[]> = {};
+	const invalidGeometries: string[] = [];
+
+	for (const [geometryKey, selectedIndices] of Object.entries(selections)) {
+		// Skip if no selection
+		if (!selectedIndices || selectedIndices.length === 0) {
+			continue;
+		}
+
+		const geometry = geometries[geometryKey];
+		if (!geometry) {
+			continue;
+		}
+
+		const position = geometry.data?.position;
+
+		// Check if position is static
+		if (isPositionStatic(position)) {
+			validSelections[geometryKey] = selectedIndices;
+		}
+		// Check if position is dynamic with loaded data
+		else if (isPositionDynamic(position)) {
+			const loaded = loadedPositions.get(geometryKey);
+			if (loaded && loaded.positions) {
+				dynamicSelections[geometryKey] = selectedIndices;
+			} else {
+				// Dynamic but not loaded yet - invalid
+				invalidGeometries.push(geometryKey);
+			}
+		} else {
+			invalidGeometries.push(geometryKey);
+		}
+	}
+
+	return { validSelections, dynamicSelections, invalidGeometries };
+}
+
+/**
+ * Calculate a combined centroid for all selected instances across multiple geometries,
+ * supporting both static and dynamic positions.
+ *
+ * @param geometries - Record of all geometries
+ * @param validSelections - Record of valid static selections per geometry
+ * @param dynamicSelections - Record of dynamic selections per geometry
+ * @param loadedPositions - Map of geometryKey -> LoadedPositionData for dynamic positions
+ * @returns Combined centroid position or null if no valid selections
+ */
+export function calculateCombinedCentroidWithDynamic(
+	geometries: Record<string, any>,
+	validSelections: Record<string, number[]>,
+	dynamicSelections: Record<string, number[]>,
+	loadedPositions: Map<string, LoadedPositionData>,
+): [number, number, number] | null {
+	let sumX = 0;
+	let sumY = 0;
+	let sumZ = 0;
+	let totalCount = 0;
+
+	// Process static positions
+	for (const [geometryKey, selectedIndices] of Object.entries(
+		validSelections,
+	)) {
+		if (selectedIndices.length === 0) {
+			continue;
+		}
+
+		const geometry = geometries[geometryKey];
+		if (!geometry) {
+			continue;
+		}
+
+		const positions = geometry.data?.position;
+		if (!isPositionStatic(positions)) {
+			continue;
+		}
+
+		// Add up positions for this geometry
+		for (const idx of selectedIndices) {
+			if (idx >= 0 && idx < positions.length) {
+				const [x, y, z] = positions[idx];
+				sumX += x;
+				sumY += y;
+				sumZ += z;
+				totalCount++;
+			}
+		}
+	}
+
+	// Process dynamic positions
+	for (const [geometryKey, selectedIndices] of Object.entries(
+		dynamicSelections,
+	)) {
+		if (selectedIndices.length === 0) {
+			continue;
+		}
+
+		const loaded = loadedPositions.get(geometryKey);
+		if (!loaded || !loaded.positions) {
+			continue;
+		}
+
+		const positions = loaded.positions;
+		const numAtoms = positions.length / 3;
+
+		// Add up positions for this geometry (Float32Array format: [x0, y0, z0, x1, y1, z1, ...])
+		for (const idx of selectedIndices) {
+			if (idx >= 0 && idx < numAtoms) {
+				sumX += positions[idx * 3];
+				sumY += positions[idx * 3 + 1];
+				sumZ += positions[idx * 3 + 2];
+				totalCount++;
+			}
+		}
+	}
+
+	if (totalCount === 0) {
+		return null;
+	}
+
+	return [sumX / totalCount, sumY / totalCount, sumZ / totalCount];
 }
 
 /**

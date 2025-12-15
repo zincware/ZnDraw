@@ -113,12 +113,18 @@ export function useGeometryEditing(
 	// COMBINED effect: Initialize AND subscribe in one effect
 	// This ensures subscription happens immediately after initialization
 	useEffect(() => {
+		// Skip if position data was explicitly passed as null (dynamic positions handled elsewhere)
+		// This allows useFrameEditing to handle dynamic positions without this hook deselecting
+		if (positionData === null) {
+			return;
+		}
+
 		// 1. Validation Logic: Deselect if dynamic attributes are targeted by transform mode
 		// "As soon as a transform controls action is applied... If any of these are dynamic, they should be deselected"
 		if (isEditing && hasSelection) {
 			let shouldDeselect = false;
 
-			// Position must always be static for any editing
+			// Position must always be static for any editing (when this hook handles positions)
 			if (!staticPositions) {
 				shouldDeselect = true;
 			}
@@ -347,6 +353,7 @@ export function useGeometryEditing(
 	}, [
 		isEditing,
 		hasSelection,
+		positionData,
 		staticPositions,
 		staticRotations,
 		staticScales,

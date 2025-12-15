@@ -904,6 +904,185 @@ def bulk_replace_frames(room_id: str, session_id: str, user_id: str):
         return {"error": "Failed to bulk replace frames"}, 500
 
 
+@frames.route(
+    "/api/rooms/<string:room_id>/frames/<int:frame_id>/partial", methods=["PATCH"]
+)
+@requires_lock(target="trajectory:meta", forbid=["room:locked"])
+def partial_update_frame(room_id: str, frame_id: int, session_id: str, user_id: str):
+    """Partially update a frame by merging new data with existing frame data.
+
+    This endpoint allows updating specific keys (e.g., arrays.positions) without
+    having to send the entire frame. The server merges the partial update with
+    the existing frame data and persists the result.
+
+    Parameters
+    ----------
+    room_id : str
+        The room containing the frame.
+    frame_id : int
+        The logical frame index to update.
+
+    Body
+    ----
+    msgpack-encoded dict with keys to update. Keys should be strings like
+    "arrays.positions" and values should be the new data (e.g., numpy arrays
+    encoded via msgpack-numpy).
+
+    Returns
+    -------
+    dict
+        Success status and updated frame info.
+    """
+    import msgpack_numpy as m
+
+    r = current_app.extensions["redis"]
+    room_keys = RoomKeys(room_id)
+
+    try:
+        # Get frame index manager and validate frame_id
+        index_manager = FrameIndexManager(r, room_keys.trajectory_indices())
+        frame_count = len(index_manager)
+
+        if frame_count == 0:
+            return {"error": f"No frames found in room '{room_id}'"}, 404
+
+        if frame_id < 0 or frame_id >= frame_count:
+            return {
+                "error": f"Invalid frame index {frame_id}, valid range: 0-{frame_count - 1}",
+                "type": "IndexError",
+            }, 404
+
+        # Unpack the partial update data
+        log.debug(f"[partial_update] Received {len(request.data)} bytes")
+        log.debug(f"[partial_update] First 100 bytes hex: {request.data[:100].hex()}")
+
+        try:
+            raw_unpacked = msgpack.unpackb(request.data, strict_map_key=False)
+        except (msgpack.UnpackException, msgpack.ExtraData, ValueError) as e:
+            log.warning(f"Failed to decode msgpack data: {e}")
+            return {"error": f"Invalid msgpack data: {e}"}, 400
+
+        def decode_numpy_recursively(obj):
+            """Recursively decode numpy arrays from msgpack-numpy format.
+
+            JavaScript msgpack sends string keys ('nd', 'type', etc.) while Python
+            msgpack-numpy expects byte keys (b'nd', b'type', etc.).
+            """
+            if isinstance(obj, dict):
+                # Check for numpy array marker with string key (from JavaScript)
+                if "nd" in obj and obj.get("nd") is True:
+                    # Convert string keys to byte keys for msgpack-numpy
+                    byte_key_obj = {
+                        k.encode() if isinstance(k, str) else k: v
+                        for k, v in obj.items()
+                    }
+                    return m.decode(byte_key_obj)
+                # Check for numpy array marker with byte key (from Python)
+                if b"nd" in obj and obj.get(b"nd") is True:
+                    return m.decode(obj)
+                # Regular dict - recurse into values
+                return {k: decode_numpy_recursively(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [decode_numpy_recursively(item) for item in obj]
+            return obj
+
+        unpacked_data = decode_numpy_recursively(raw_unpacked)
+
+        if not isinstance(unpacked_data, dict):
+            return {"error": "Body must be a dictionary of keys to update"}, 400
+
+        if len(unpacked_data) == 0:
+            return {"error": "No keys provided to update"}, 400
+
+        # Get the mapping entry for this frame
+        mapping_entry = index_manager[frame_id]
+        mapping_entry_str = (
+            mapping_entry.decode("utf-8")
+            if isinstance(mapping_entry, bytes)
+            else mapping_entry
+        )
+
+        # Parse mapping to get source room and physical index
+        source_room_id, physical_index = parse_frame_mapping(mapping_entry_str, room_id)
+        source_storage = get_storage(source_room_id)
+
+        # Get existing frame data (dict[bytes, bytes])
+        existing_frame = source_storage.get(physical_index)
+
+        # Merge updates into existing frame
+        # First, decode existing frame values to apply updates
+        from asebytes import decode as asebytes_decode, encode as asebytes_encode
+
+        # Decode existing frame to ASE Atoms object for easier manipulation
+        atoms = asebytes_decode(existing_frame)
+
+        # Apply updates to the atoms object
+        import numpy as np
+
+        for key, value in unpacked_data.items():
+            # Parse key format: "arrays.KEY" or "info.KEY" or "calc.KEY"
+            if key.startswith("arrays."):
+                array_name = key[7:]  # Remove "arrays." prefix
+                atoms.arrays[array_name] = np.asarray(value)
+            elif key.startswith("info."):
+                info_name = key[5:]  # Remove "info." prefix
+                atoms.info[info_name] = value
+            elif key.startswith("calc."):
+                # Calculator results - need calculator to be set
+                calc_name = key[5:]  # Remove "calc." prefix
+                if atoms.calc is None:
+                    from ase.calculators.singlepoint import SinglePointCalculator
+
+                    atoms.calc = SinglePointCalculator(atoms)
+
+                atoms.calc.results[calc_name] = np.asarray(value)
+
+            else:
+                log.warning(f"Unknown key format: {key}, skipping")
+
+        # Encode updated atoms back to bytes format
+        updated_frame = asebytes_encode(atoms)
+
+        # Get the storage for the current room (we always write to current room)
+        storage = get_storage(room_id)
+
+        # Append the new frame data to physical storage
+        new_physical_index = len(storage)
+        storage.append(updated_frame)
+
+        # Update the frame mapping to point to new physical index
+        # Get the original score to preserve gap-based indexing
+        frame_mapping_with_scores = index_manager.get_all(withscores=True)
+        _, old_score = frame_mapping_with_scores[frame_id]
+
+        # Remove old mapping and add new one
+        pipeline = r.pipeline()
+        pipeline.zrem(room_keys.trajectory_indices(), mapping_entry)
+        pipeline.zadd(
+            room_keys.trajectory_indices(),
+            {f"{room_id}:{new_physical_index}": old_score},
+        )
+        pipeline.execute()
+
+        # Emit frame invalidation for this specific frame
+        emit_frames_invalidate(room_id, operation="replace", affected_index=frame_id)
+
+        log.info(
+            f"Partial update of frame {frame_id} in room '{room_id}': "
+            f"updated keys {list(unpacked_data.keys())}"
+        )
+
+        return {
+            "success": True,
+            "frame_id": frame_id,
+            "updated_keys": list(unpacked_data.keys()),
+        }
+
+    except Exception as e:
+        log.error(f"Failed to partial update frame: {e}\n{traceback.format_exc()}")
+        return {"error": f"Failed to partial update frame: {e}"}, 500
+
+
 @frames.route("/api/rooms/<string:room_id>/download", methods=["GET"])
 def download_frames(room_id: str):
     """Download frames in ExtendedXYZ format using streaming.

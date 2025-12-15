@@ -9,7 +9,10 @@
  * - Simplified code without external dependencies (underscore)
  */
 
-import { decode as msgpackDecode } from "@msgpack/msgpack";
+import {
+	decode as msgpackDecode,
+	encode as msgpackEncode,
+} from "@msgpack/msgpack";
 
 // Detect system endianness
 const isLittleEndian =
@@ -371,4 +374,111 @@ export function unpackBinary(data: Uint8Array | ArrayBuffer): any {
 	);
 
 	return unpackNumpy(decoded);
+}
+
+// Reverse mapping: TypedArray constructor to numpy dtype string
+const constructorToDtype = new Map<TypedArrayConstructor, string>([
+	[Float32Array, "<f4"],
+	[Float64Array, "<f8"],
+	[Int8Array, "|i1"],
+	[Int16Array, "<i2"],
+	[Int32Array, "<i4"],
+	[Uint8Array, "|u1"],
+	[Uint16Array, "<u2"],
+	[Uint32Array, "<u4"],
+	[BigInt64Array, "<i8"],
+	[BigUint64Array, "<u8"],
+]);
+
+/**
+ * Convert a TypedArray to msgpack-numpy format (dict with nd, type, data, shape keys).
+ * This format is what Python msgpack-numpy expects for decoding.
+ *
+ * @param arr - TypedArray to encode (e.g., Float32Array)
+ * @param shape - Shape of the array (e.g., [100, 3] for 100 positions with x,y,z)
+ * @returns Object in msgpack-numpy format
+ */
+function typedArrayToNumpyFormat(
+	arr: ArrayBufferView,
+	shape?: number[],
+): Record<string, unknown> {
+	const dtype = constructorToDtype.get(
+		arr.constructor as TypedArrayConstructor,
+	);
+	if (!dtype) {
+		throw new Error(`Unsupported TypedArray type: ${arr.constructor.name}`);
+	}
+
+	// Get BYTES_PER_ELEMENT from the typed array
+	const typedArr = arr as unknown as { BYTES_PER_ELEMENT: number };
+	const arrayShape = shape || [arr.byteLength / typedArr.BYTES_PER_ELEMENT];
+
+	// Create the msgpack-numpy dict format
+	// Keys need to be bytes for Python compatibility, which msgpack handles
+	return {
+		nd: true, // ndarray marker
+		type: dtype,
+		kind: "", // Not needed for basic arrays
+		shape: arrayShape,
+		data: new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength),
+	};
+}
+
+/**
+ * Recursively prepare data for msgpack encoding, converting TypedArrays to numpy format.
+ *
+ * @param data - Data to prepare
+ * @param shapes - Optional map of key paths to shapes for TypedArrays
+ * @returns Data ready for msgpack encoding
+ */
+function prepareForPack(
+	data: any,
+	shapes?: Map<string, number[]>,
+	keyPath: string = "",
+): any {
+	if (data === null || data === undefined) {
+		return data;
+	}
+
+	// Check if it's a TypedArray
+	if (ArrayBuffer.isView(data) && !(data instanceof DataView)) {
+		const shape = shapes?.get(keyPath);
+		return typedArrayToNumpyFormat(data as ArrayBufferView, shape);
+	}
+
+	// Handle arrays
+	if (Array.isArray(data)) {
+		return data.map((item, idx) =>
+			prepareForPack(item, shapes, `${keyPath}[${idx}]`),
+		);
+	}
+
+	// Handle objects
+	if (typeof data === "object") {
+		const result: Record<string, any> = {};
+		for (const key of Object.keys(data)) {
+			const newKeyPath = keyPath ? `${keyPath}.${key}` : key;
+			result[key] = prepareForPack(data[key], shapes, newKeyPath);
+		}
+		return result;
+	}
+
+	// Primitives
+	return data;
+}
+
+/**
+ * Pack data into msgpack format with numpy array support.
+ * Converts TypedArrays to the msgpack-numpy dict format that Python can decode.
+ *
+ * @param data - Data to pack (can contain TypedArrays)
+ * @param shapes - Optional map of key paths to shapes (e.g., {"arrays.positions": [100, 3]})
+ * @returns Msgpack-encoded Uint8Array
+ */
+export function packBinary(
+	data: any,
+	shapes?: Map<string, number[]>,
+): Uint8Array {
+	const prepared = prepareForPack(data, shapes);
+	return msgpackEncode(prepared);
 }
