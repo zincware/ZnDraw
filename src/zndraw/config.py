@@ -150,9 +150,6 @@ class ZnDrawConfig(BaseSettings):
     file_browser_root: str = Field(
         default_factory=os.getcwd, description="Root directory for file browser"
     )
-    celery_enabled: bool = Field(
-        default=True, description="Enable Celery task processing"
-    )
     lock_template_room: bool = Field(
         default=False, description="Auto-lock rooms created from CLI file loading"
     )

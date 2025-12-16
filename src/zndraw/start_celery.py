@@ -70,7 +70,6 @@ def run_celery_worker(config: "ZnDrawConfig") -> subprocess.Popen:
         "true" if config.file_browser_enabled else "false"
     )
     my_env["ZNDRAW_FILE_BROWSER_ROOT"] = config.file_browser_root
-    my_env["ZNDRAW_CELERY_ENABLED"] = "true" if config.celery_enabled else "false"
 
     # Flask secret key (needed for JWT validation in tasks)
     my_env["FLASK_SECRET_KEY"] = config.flask_secret_key
