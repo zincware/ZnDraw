@@ -48,6 +48,8 @@ class FrontendBuildHook(BuildHookInterface):
         # Build the frontend with version injected
         env = os.environ.copy()
         env["VITE_APP_VERSION"] = version
+        # Increase Node.js heap size for memory-constrained environments (e.g., RTD)
+        env["NODE_OPTIONS"] = env.get("NODE_OPTIONS", "") + " --max-old-space-size=4096"
         subprocess.run(build_cmd, cwd=app_dir, check=True, env=env)
 
         self.app.display_info("Frontend build complete.")
