@@ -13,13 +13,13 @@ class FrontendBuildHook(BuildHookInterface):
     PLUGIN_NAME = "frontend"
 
     def initialize(self, version: str, build_data: dict) -> None:
-        """Build the frontend before the Python package is built."""
-        # Get real version in editable mode
-        if version == "editable":
-            from hatch_vcs.version_source import VCSVersionSource
+        """Build the frontend before the Python package is built.
 
-            version_source = VCSVersionSource(root=self.root, config={})
-            version = version_source.get_version_data()["version"]
+        Note: The 'version' parameter is the build type ('standard' or 'editable'),
+        NOT the package version. Use self.metadata.version for the actual version.
+        """
+        # Get actual package version from metadata
+        pkg_version = self.metadata.version
 
         app_dir = os.path.join(self.root, "app")
 
@@ -39,7 +39,7 @@ class FrontendBuildHook(BuildHookInterface):
             raise RuntimeError("Neither bun nor npm found. Cannot build frontend.")
 
         self.app.display_info(
-            f"Building frontend with {pkg_manager} (version={version})..."
+            f"Building frontend with {pkg_manager} (version={pkg_version})..."
         )
 
         # Install dependencies
@@ -47,7 +47,7 @@ class FrontendBuildHook(BuildHookInterface):
 
         # Build the frontend with version injected
         env = os.environ.copy()
-        env["VITE_APP_VERSION"] = version
+        env["VITE_APP_VERSION"] = pkg_version
         # Increase Node.js heap size for memory-constrained environments (e.g., RTD)
         env["NODE_OPTIONS"] = env.get("NODE_OPTIONS", "") + " --max-old-space-size=4096"
         subprocess.run(build_cmd, cwd=app_dir, check=True, env=env)
