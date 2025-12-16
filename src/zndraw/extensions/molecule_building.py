@@ -88,5 +88,4 @@ class Wait(Extension):
 molify_modifiers: dict[str, type[Extension]] = {
     AddFromSMILES.__name__: AddFromSMILES,
     PackBox.__name__: PackBox,
-    Wait.__name__: Wait,
 }
