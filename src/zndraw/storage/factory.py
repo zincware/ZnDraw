@@ -3,10 +3,16 @@
 import logging
 import os
 
-from zndraw.config import LMDBStorageConfig, MongoDBStorageConfig, StorageConfig
+from zndraw.config import (
+    InMemoryStorageConfig,
+    LMDBStorageConfig,
+    MongoDBStorageConfig,
+    StorageConfig,
+)
 
 from .asebytes_backend import ASEBytesStorageBackend
 from .base import StorageBackend
+from .memory_backend import InMemoryStorageBackend
 from .mongodb_backend import MongoDBStorageBackend
 
 log = logging.getLogger(__name__)
@@ -20,7 +26,8 @@ def create_storage(room_id: str, config: StorageConfig) -> StorageBackend:
     room_id : str
         Room identifier for storage isolation
     config : StorageConfig
-        Storage configuration (LMDBStorageConfig or MongoDBStorageConfig)
+        Storage configuration (InMemoryStorageConfig, LMDBStorageConfig,
+        or MongoDBStorageConfig)
 
     Returns
     -------
@@ -28,6 +35,10 @@ def create_storage(room_id: str, config: StorageConfig) -> StorageBackend:
         Configured storage backend instance
     """
     match config:
+        case InMemoryStorageConfig():
+            log.info(f"Creating in-memory storage for room '{room_id}'")
+            return InMemoryStorageBackend()
+
         case MongoDBStorageConfig():
             log.info(
                 f"Creating MongoDB storage: uri='{config.get_masked_url()}', "
