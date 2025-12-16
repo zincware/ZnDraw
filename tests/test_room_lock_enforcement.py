@@ -9,10 +9,12 @@ import pytest
 @pytest.fixture
 def test_app(redis_client):
     """Create Flask app with external Redis for testing."""
+    from zndraw.config import ZnDrawConfig
     from zndraw.server import create_app
 
     # Use external Redis for testing so we can manipulate state
-    app = create_app(storage_path=":memory:", redis_url="redis://localhost:6379")
+    config = ZnDrawConfig(redis_url="redis://localhost:6379")
+    app = create_app(config=config)
     app.config["TESTING"] = True
 
     yield app

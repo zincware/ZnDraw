@@ -19,11 +19,10 @@ def test_analytics_module_imports():
 
 def test_create_app_has_prometheus(tmp_path):
     """Test that Flask app always has Prometheus enabled."""
-    from zndraw.config import ZnDrawConfig
+    from zndraw.config import LMDBStorageConfig, ZnDrawConfig
     from zndraw.server import create_app
 
-    config = ZnDrawConfig()
-    config.storage_path = str(tmp_path)
+    config = ZnDrawConfig(storage=LMDBStorageConfig(path=str(tmp_path)))
 
     app = create_app(config=config)
     assert app is not None
@@ -31,11 +30,10 @@ def test_create_app_has_prometheus(tmp_path):
 
 def test_metrics_endpoint_always_available(tmp_path):
     """Test that /metrics endpoint is always available."""
-    from zndraw.config import ZnDrawConfig
+    from zndraw.config import LMDBStorageConfig, ZnDrawConfig
     from zndraw.server import create_app
 
-    config = ZnDrawConfig()
-    config.storage_path = str(tmp_path)
+    config = ZnDrawConfig(storage=LMDBStorageConfig(path=str(tmp_path)))
 
     app = create_app(config=config)
 

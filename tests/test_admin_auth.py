@@ -1,54 +1,29 @@
 """Tests for admin authentication and @require_admin decorator."""
 
-import os
-
 import pytest
 
+from zndraw.config import ZnDrawConfig
 from zndraw.server import create_app
 
 
 @pytest.fixture
-def clear_admin_env_vars():
-    """Clear admin environment variables before and after test."""
-    # Save original values
-    original_username = os.environ.get("ZNDRAW_ADMIN_USERNAME")
-    original_password = os.environ.get("ZNDRAW_ADMIN_PASSWORD")
-
-    # Clear before test
-    if "ZNDRAW_ADMIN_USERNAME" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_USERNAME"]
-    if "ZNDRAW_ADMIN_PASSWORD" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_PASSWORD"]
-
-    yield
-
-    # Restore after test
-    if original_username is not None:
-        os.environ["ZNDRAW_ADMIN_USERNAME"] = original_username
-    elif "ZNDRAW_ADMIN_USERNAME" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_USERNAME"]
-
-    if original_password is not None:
-        os.environ["ZNDRAW_ADMIN_PASSWORD"] = original_password
-    elif "ZNDRAW_ADMIN_PASSWORD" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_PASSWORD"]
-
-
-@pytest.fixture
-def app_local_mode(clear_admin_env_vars):
+def app_local_mode():
     """Create Flask app in local mode (no admin credentials)."""
-    app = create_app(redis_url=None)
+    config = ZnDrawConfig(redis_url=None)
+    app = create_app(config=config)
     app.config["TESTING"] = True
     return app
 
 
 @pytest.fixture
-def app_deployment_mode(clear_admin_env_vars):
+def app_deployment_mode():
     """Create Flask app in deployment mode (admin credentials set)."""
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    app = create_app(redis_url=None)
+    config = ZnDrawConfig(
+        redis_url=None,
+        admin_username="admin",
+        admin_password="secret123",
+    )
+    app = create_app(config=config)
     app.config["TESTING"] = True
     return app
 

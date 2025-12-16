@@ -141,10 +141,12 @@ def join_room_and_get_headers():
 @pytest.fixture
 def app():
     """Create a Flask app for unit testing."""
+    from zndraw.config import ZnDrawConfig
     from zndraw.server import create_app
 
     # Create app with in-memory storage for testing
-    test_app = create_app(storage_path=":memory:", redis_url=None)
+    config = ZnDrawConfig(redis_url=None)
+    test_app = create_app(config=config)
     test_app.config["TESTING"] = True
 
     yield test_app
@@ -284,8 +286,10 @@ def server_admin_mode(tmp_path) -> t.Generator[str, None, None]:
 
 @pytest.fixture
 def celery_worker():
-    redis_url = "redis://localhost:6379"
-    worker = run_celery_worker(redis_url)
+    from zndraw.config import ZnDrawConfig
+
+    config = ZnDrawConfig(redis_url="redis://localhost:6379")
+    worker = run_celery_worker(config)
     try:
         yield worker
     finally:

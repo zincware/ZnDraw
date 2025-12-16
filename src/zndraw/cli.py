@@ -8,7 +8,12 @@ import typer
 
 from zndraw import __version__
 from zndraw.app.tasks import read_file
-from zndraw.utils import path_to_room, sanitize_room_name
+from zndraw.config import (
+    LMDBStorageConfig,
+    MongoDBStorageConfig,
+    ZnDrawConfig,
+    set_config,
+)
 from zndraw.server import create_app, socketio
 from zndraw.server_manager import (
     ServerInfo,
@@ -20,6 +25,7 @@ from zndraw.server_manager import (
     write_server_info,
 )
 from zndraw.start_celery import run_celery_worker
+from zndraw.utils import path_to_room, sanitize_room_name
 
 app = typer.Typer()
 
@@ -69,6 +75,70 @@ def daemonize(log_file: str = "zndraw.log") -> None:
     os.close(devnull)
 
 
+def _build_config(
+    port: int,
+    host: str,
+    redis_url: str | None,
+    storage_type: str | None,
+    storage_path: str | None,
+    storage_url: str | None,
+    storage_database: str | None,
+    media_path: str | None,
+    simgen: bool,
+    file_browser: bool,
+    file_browser_root: str | None,
+    celery: bool,
+) -> ZnDrawConfig:
+    """Build config from CLI arguments.
+
+    CLI arguments override environment variables. If a CLI argument is None,
+    pydantic-settings loads the value from environment variables.
+    """
+    # Build kwargs for config - only include non-None values
+    config_kwargs: dict = {}
+
+    # Server settings
+    config_kwargs["server_port"] = port
+    config_kwargs["server_host"] = host
+
+    # Redis
+    if redis_url is not None:
+        config_kwargs["redis_url"] = redis_url
+
+    # Storage - only construct if any storage arg was provided
+    if any([storage_type, storage_path, storage_url, storage_database]):
+        # Determine storage type
+        effective_type = storage_type or "lmdb"
+
+        if effective_type == "mongodb":
+            if storage_url is None:
+                raise typer.BadParameter(
+                    "--storage-url is required when --storage-type=mongodb"
+                )
+            config_kwargs["storage"] = MongoDBStorageConfig(
+                url=storage_url,
+                database=storage_database or "zndraw",
+            )
+        else:
+            config_kwargs["storage"] = LMDBStorageConfig(
+                path=storage_path or "./zndraw-data",
+            )
+
+    # Media path
+    if media_path is not None:
+        config_kwargs["media_path"] = media_path
+
+    # Feature flags
+    config_kwargs["simgen_enabled"] = simgen
+    config_kwargs["file_browser_enabled"] = file_browser
+    config_kwargs["celery_enabled"] = celery
+
+    if file_browser_root is not None:
+        config_kwargs["file_browser_root"] = file_browser_root
+
+    return ZnDrawConfig(**config_kwargs)
+
+
 @app.command()
 def main(
     path: list[str] | None = typer.Argument(
@@ -94,35 +164,43 @@ def main(
         "--room",
         help="Explicitly specify the room name. All files will be loaded into this room.",
     ),
-    port: int = 5000,
-    debug: bool = False,
-    verbose: bool = False,
-    celery: bool = True,
-    storage_path: str = typer.Option(
-        "./zndraw-data",
-        envvar="ZNDRAW_STORAGE_PATH",
-        help="Path to storage directory for trajectory data (LMDB files per room)",
+    port: int = typer.Option(5000, help="Server bind port."),
+    debug: bool = typer.Option(False, help="Enable debug mode."),
+    verbose: bool = typer.Option(False, help="Enable verbose logging."),
+    celery: bool = typer.Option(True, help="Enable Celery task processing."),
+    storage_type: str | None = typer.Option(
+        None,
+        "--storage-type",
+        help="Storage backend type: 'lmdb' (local) or 'mongodb' (distributed).",
+    ),
+    storage_path: str | None = typer.Option(
+        None,
+        "--storage-path",
+        help="Path to storage directory for LMDB files (when storage-type=lmdb).",
+    ),
+    storage_url: str | None = typer.Option(
+        None,
+        "--storage-url",
+        help="MongoDB connection URL (when storage-type=mongodb).",
+    ),
+    storage_database: str | None = typer.Option(
+        None,
+        "--storage-database",
+        help="MongoDB database name (when storage-type=mongodb).",
+    ),
+    media_path: str | None = typer.Option(
+        None,
+        "--media-path",
+        help="Path for local media files (screenshots, etc.).",
     ),
     redis_url: str | None = typer.Option(
         None,
-        help="Redis server URL (e.g., `redis://localhost:6379`). If not provided, an in-memory storage will be used.",
-    ),
-    mongodb_url: str | None = typer.Option(
-        None,
-        "--mongodb-url",
-        envvar="ZNDRAW_MONGODB_URL",
-        help="MongoDB connection URL (e.g., `mongodb://root:example@localhost:27017/`). If set, uses MongoDB instead of LMDB storage.",
-    ),
-    mongodb_database: str = typer.Option(
-        "zndraw",
-        "--mongodb-database",
-        envvar="ZNDRAW_MONGODB_DATABASE",
-        help="MongoDB database name.",
+        help="Redis server URL (e.g., `redis://localhost:6379`). "
+        "If not provided, uses in-memory storage.",
     ),
     host: str = typer.Option(
         "localhost",
-        envvar="ZNDRAW_SERVER_HOST",
-        help="Server hostname or IP address for the SERVER_URL (e.g., 'example.com' or '192.168.1.1')",
+        help="Server hostname or IP address.",
     ),
     force_new_server: bool = typer.Option(
         False,
@@ -132,7 +210,8 @@ def main(
     connect: str | None = typer.Option(
         None,
         "--connect",
-        help="Connect to a specified remote server (e.g., https://zndraw.myserver.com), bypassing local server checks.",
+        help="Connect to a specified remote server (e.g., https://zndraw.myserver.com), "
+        "bypassing local server checks.",
     ),
     status: bool = typer.Option(
         False,
@@ -167,7 +246,6 @@ def main(
     simgen: bool = typer.Option(
         False,
         "--simgen/--no-simgen",
-        envvar="ZNDRAW_SIMGEN_ENABLED",
         help="Enable SiMGen molecular generation features.",
     ),
     remove_storage: bool = typer.Option(
@@ -176,11 +254,10 @@ def main(
         help="Remove existing storage directory on startup.",
     ),
 ):
-    """
-    Start or connect to a ZnDraw server.
+    """Start or connect to a ZnDraw server.
 
-    By default, this command will check if a local server is already running and connect to it.
-    If no server is running, it will start a new one.
+    By default, this command will check if a local server is already running and
+    connect to it. If no server is running, it will start a new one.
 
     Use --status to check server status or --shutdown to stop the server.
     """
@@ -399,45 +476,41 @@ def main(
     room_names = get_room_names(path) if path else []
     typer.echo(f"Rooms: {room_names}" if path else "No files loaded on startup.")
 
-    # Load configuration from environment and apply CLI overrides
-    from zndraw.config import get_config
+    # Build configuration from CLI args (overrides env vars via pydantic-settings)
+    config = _build_config(
+        port=port,
+        host=host,
+        redis_url=redis_url,
+        storage_type=storage_type,
+        storage_path=storage_path,
+        storage_url=storage_url,
+        storage_database=storage_database,
+        media_path=media_path,
+        simgen=simgen,
+        file_browser=file_browser,
+        file_browser_root=file_browser_root,
+        celery=celery,
+    )
+    set_config(config)
 
-    config = get_config()
-
-    # Override config with CLI arguments
-    if redis_url is not None:
-        config.redis_url = redis_url
-    config.storage_path = storage_path
-    config.server_host = host
-    config.server_port = port
-    config.simgen_enabled = simgen
-    config.file_browser_enabled = file_browser
-    if file_browser_root is not None:
-        config.file_browser_root = file_browser_root
-    else:
-        config.file_browser_root = os.getcwd()
-    config.celery_enabled = celery
-    if mongodb_url is not None:
-        config.mongodb_url = mongodb_url
-    config.mongodb_database = mongodb_database
-
-    # Revalidate after overrides
-    config._validate()
+    # Get LMDB path for cleanup logic (only applicable for LMDB storage)
+    lmdb_path: str | None = None
+    if isinstance(config.storage, LMDBStorageConfig):
+        lmdb_path = config.storage.path
 
     # Check for stale LMDB data on startup when using in-memory mode
-    # This can happen if the server was killed without clean shutdown
-    if config.redis_url is None and os.path.exists(config.storage_path):
+    if lmdb_path and config.redis_url is None and os.path.exists(lmdb_path):
         if remove_storage:
-            shutil.rmtree(config.storage_path)
-            typer.echo(f"✓ Removed existing storage directory: {config.storage_path}")
+            shutil.rmtree(lmdb_path)
+            typer.echo(f"✓ Removed existing storage directory: {lmdb_path}")
         else:
-            typer.echo(f"⚠️  Warning: Found existing LMDB data at {config.storage_path}")
+            typer.echo(f"⚠️  Warning: Found existing LMDB data at {lmdb_path}")
             typer.echo(
                 "   This data may be stale when using in-memory storage (no Redis)."
             )
             if typer.confirm("   Delete and start fresh?", default=True):
-                shutil.rmtree(config.storage_path)
-                typer.echo(f"✓ Cleaned storage directory: {config.storage_path}")
+                shutil.rmtree(lmdb_path)
+                typer.echo(f"✓ Cleaned storage directory: {lmdb_path}")
             else:
                 typer.echo(
                     "⚠️  Continuing with existing data (may cause state inconsistencies)"
@@ -510,10 +583,10 @@ def main(
     finally:
         # Clean up LMDB storage for in-memory mode
         # In-memory mode has ephemeral Redis state, so LMDB data becomes stale
-        if config.redis_url is None and os.path.exists(config.storage_path):
-            typer.echo(f"🧹 Cleaning LMDB storage: {config.storage_path}")
+        if lmdb_path and config.redis_url is None and os.path.exists(lmdb_path):
+            typer.echo(f"🧹 Cleaning LMDB storage: {lmdb_path}")
             try:
-                shutil.rmtree(config.storage_path)
+                shutil.rmtree(lmdb_path)
             except OSError as e:
                 typer.echo(
                     f"Could not fully clean storage directory: {e}. "

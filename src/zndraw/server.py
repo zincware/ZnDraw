@@ -6,8 +6,8 @@ import redis
 from celery import Celery, Task
 from flask import Flask
 from flask_socketio import SocketIO
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from prometheus_client import make_wsgi_app
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from znsocket import MemoryStorage
 
 if TYPE_CHECKING:
@@ -42,16 +42,12 @@ def redis_init_app(app: Flask, redis_url: str | None) -> redis.Redis | MemorySto
 
 
 def services_init_app(app: Flask) -> None:
-    """Initialize service layer with Redis client.
+    """Initialize service layer with Redis client and config.
 
     Services provide domain logic abstraction over Redis operations.
     Must be called after redis_init_app.
-
-    Raises
-    ------
-    ValueError
-        If admin environment variables are misconfigured
     """
+    from zndraw.config import ZnDrawConfig
     from zndraw.services import (
         AdminService,
         ClientService,
@@ -61,9 +57,14 @@ def services_init_app(app: Flask) -> None:
     )
 
     redis_client = app.extensions["redis"]
+    config: ZnDrawConfig = app.extensions["config"]
 
-    # Initialize AdminService first (validates env vars)
-    app.extensions["admin_service"] = AdminService(redis_client)
+    # Initialize AdminService with config credentials
+    app.extensions["admin_service"] = AdminService(
+        redis_client,
+        admin_username=config.admin_username,
+        admin_password=config.admin_password,
+    )
 
     # Initialize UserService for user management
     app.extensions["user_service"] = UserService(redis_client)
@@ -73,21 +74,13 @@ def services_init_app(app: Flask) -> None:
     app.extensions["settings_service"] = SettingsService(redis_client)
 
 
-def create_app(
-    config: "ZnDrawConfig | None" = None,
-    storage_path: str | None = None,
-    redis_url: str | None = None,
-) -> Flask:
+def create_app(config: "ZnDrawConfig | None" = None) -> Flask:
     """Create and configure Flask application.
 
     Parameters
     ----------
     config : ZnDrawConfig | None
         Configuration object. If None, loads from environment via get_config().
-    storage_path : str | None
-        Override storage path (for backwards compatibility).
-    redis_url : str | None
-        Override Redis URL (for backwards compatibility).
 
     Returns
     -------
@@ -99,12 +92,6 @@ def create_app(
     # Load config from environment if not provided
     if config is None:
         config = _get_config()
-
-    # Apply overrides for backwards compatibility
-    if storage_path is not None:
-        config.storage_path = storage_path
-    if redis_url is not None:
-        config.redis_url = redis_url
 
     # Configure logging from config
     log_level = getattr(logging, config.log_level.upper(), logging.WARNING)

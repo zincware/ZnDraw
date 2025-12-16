@@ -21,34 +21,18 @@ def user_service(redis_client):
 
 @pytest.fixture
 def admin_service(redis_client):
-    """Create AdminService instance for testing."""
+    """Create AdminService instance in local mode for testing."""
     return AdminService(redis_client)
 
 
 @pytest.fixture
-def clear_admin_env_vars():
-    """Clear admin environment variables before and after test."""
-    import os
-
-    original_username = os.environ.get("ZNDRAW_ADMIN_USERNAME")
-    original_password = os.environ.get("ZNDRAW_ADMIN_PASSWORD")
-
-    if "ZNDRAW_ADMIN_USERNAME" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_USERNAME"]
-    if "ZNDRAW_ADMIN_PASSWORD" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_PASSWORD"]
-
-    yield
-
-    if original_username is not None:
-        os.environ["ZNDRAW_ADMIN_USERNAME"] = original_username
-    elif "ZNDRAW_ADMIN_USERNAME" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_USERNAME"]
-
-    if original_password is not None:
-        os.environ["ZNDRAW_ADMIN_PASSWORD"] = original_password
-    elif "ZNDRAW_ADMIN_PASSWORD" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_PASSWORD"]
+def admin_service_deployment(redis_client):
+    """Create AdminService instance in deployment mode for testing."""
+    return AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret",
+    )
 
 
 def test_username_exists_false(user_service):
@@ -104,18 +88,12 @@ def test_get_user_role_user(user_service):
     assert role == UserRole.USER
 
 
-def test_get_user_role_admin(user_service, admin_service, clear_admin_env_vars):
+def test_get_user_role_admin(user_service, admin_service_deployment):
     """Test getting role for admin user."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret"
-
-    admin_service_deployed = AdminService(admin_service.r)
     user_name = "admin-user"
 
     user_service.create_user(user_name)
-    admin_service_deployed.grant_admin(user_name)
+    admin_service_deployment.grant_admin(user_name)
 
     role = user_service.get_user_role(user_name)
     assert role == UserRole.ADMIN
@@ -387,51 +365,39 @@ def test_update_last_login(user_service, redis_client):
     assert new_last_login != original_last_login
 
 
-def test_delete_user(user_service, clear_admin_env_vars, redis_client):
+def test_delete_user(user_service, admin_service_deployment, redis_client):
     """Test deleting a user."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret"
-
-    admin_service = AdminService(redis_client)
     user_name = "DeleteMe"
 
     user_service.create_user(user_name)
     user_service.register_user(user_name, user_name, "password")
-    admin_service.grant_admin(user_name)
+    admin_service_deployment.grant_admin(user_name)
 
     assert redis_client.exists(f"user:{user_name}")
-    assert admin_service.is_admin(user_name)
+    assert admin_service_deployment.is_admin(user_name)
 
     result = user_service.delete_user(user_name)
     assert result is True
 
     assert not redis_client.exists(f"user:{user_name}")
-    assert not admin_service.is_admin(user_name)
+    assert not admin_service_deployment.is_admin(user_name)
 
 
 def test_delete_user_with_admin_status(
-    user_service, clear_admin_env_vars, redis_client
+    user_service, admin_service_deployment, redis_client
 ):
     """Test deleting a user also removes admin status."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret"
-
-    admin_service = AdminService(redis_client)
     user_name = "AdminUser"
 
     user_service.create_user(user_name)
     user_service.register_user(user_name, user_name, "password")
-    admin_service.grant_admin(user_name)
+    admin_service_deployment.grant_admin(user_name)
 
-    assert admin_service.is_admin(user_name)
+    assert admin_service_deployment.is_admin(user_name)
 
     user_service.delete_user(user_name)
 
-    assert not admin_service.is_admin(user_name)
+    assert not admin_service_deployment.is_admin(user_name)
 
 
 def test_delete_nonexistent_user(user_service):
@@ -440,14 +406,9 @@ def test_delete_nonexistent_user(user_service):
     assert result is True
 
 
-def test_list_all_users(user_service, clear_admin_env_vars, redis_client):
+def test_list_all_users(user_service, admin_service_deployment, redis_client):
     """Test listing all users with different roles."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret"
-
-    admin_service = AdminService(redis_client)
+    admin_service = admin_service_deployment
 
     guest_name = "GuestUser"
     user_name = "RegisteredUser"
@@ -540,15 +501,10 @@ def test_no_password_requirements(user_service):
 
 
 def test_register_user_transfers_admin_status(
-    user_service, clear_admin_env_vars, redis_client
+    user_service, admin_service_deployment, redis_client
 ):
     """Test that registering with new username transfers admin status."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret"
-
-    admin_service = AdminService(redis_client)
+    admin_service = admin_service_deployment
 
     guest_name = "guest-admin"
     new_username = "admin-user"

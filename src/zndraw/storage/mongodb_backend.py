@@ -126,7 +126,9 @@ class MongoDBStorageBackend(StorageBackend):
 
             # Filter by keys if requested
             if keys_bytes is not None:
-                msgpack_dict = {k: v for k, v in msgpack_dict.items() if k in keys_bytes}
+                msgpack_dict = {
+                    k: v for k, v in msgpack_dict.items() if k in keys_bytes
+                }
 
             results.append(msgpack_dict)
 
@@ -160,7 +162,9 @@ class MongoDBStorageBackend(StorageBackend):
         # Bulk insert
         self.collection.insert_many(documents)
 
-        log.debug(f"Extended storage with {len(values)} frames (indices {start_idx}-{start_idx + len(values) - 1})")
+        log.debug(
+            f"Extended storage with {len(values)} frames (indices {start_idx}-{start_idx + len(values) - 1})"
+        )
 
     def get_available_keys(self, index: int) -> list[str]:
         """List all keys available for a frame.
