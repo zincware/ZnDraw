@@ -30,8 +30,8 @@ def create_storage(room_id: str, config: StorageConfig) -> StorageBackend:
     match config:
         case MongoDBStorageConfig():
             log.info(
-                f"Creating MongoDB storage: database='{config.database}', "
-                f"collection='{room_id}'"
+                f"Creating MongoDB storage: uri='{config.get_masked_url()}', "
+                f"database='{config.database}', collection='{room_id}'"
             )
             return MongoDBStorageBackend(
                 uri=config.url,
@@ -44,3 +44,8 @@ def create_storage(room_id: str, config: StorageConfig) -> StorageBackend:
             os.makedirs(config.path, exist_ok=True)
             log.info(f"Creating LMDB storage at '{db_path}' for room '{room_id}'")
             return ASEBytesStorageBackend(db_path, map_size=config.map_size)
+
+        case _:
+            raise ValueError(
+                f"Unsupported storage config type: {type(config).__name__}"
+            )
