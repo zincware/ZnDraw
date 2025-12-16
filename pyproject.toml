@@ -26,6 +26,7 @@ dependencies = [
     "pandas>=2.3.3",
     "plotly>=6.3.1",
     "pydantic>=2.11.9",
+    "pydantic-settings>=2.8.0",
     "pyjwt>=2.10.1",
     "python-socketio[client]>=5.13.0",
     "rdkit2ase>=0.1.13",
@@ -39,6 +40,8 @@ dependencies = [
     "znsocket>=0.3.0",
     "prometheus-client>=0.23.1",
     "molify>=0.2.1",
+    "pymongo>=4.10.0",
+    "dnspython>=2.8.0",
 ]
 
 [dependency-groups]

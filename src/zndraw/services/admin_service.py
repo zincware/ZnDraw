@@ -4,7 +4,6 @@ Manages admin user privileges and deployment mode detection.
 """
 
 import logging
-import os
 
 from redis import Redis
 
@@ -14,8 +13,8 @@ log = logging.getLogger(__name__)
 class AdminService:
     """Handles admin access control and deployment mode.
 
-    Deployment mode is automatically enabled when both ZNDRAW_ADMIN_USERNAME
-    and ZNDRAW_ADMIN_PASSWORD environment variables are set.
+    Deployment mode is automatically enabled when both admin_username
+    and admin_password are configured in the ZnDrawConfig.
 
     In local mode (no admin credentials), all users are admins.
     In deployment mode (admin credentials set), only the admin account has privileges.
@@ -24,56 +23,28 @@ class AdminService:
     ----------
     redis_client : Redis
         Redis client instance for storing admin status
-
-    Raises
-    ------
-    ValueError
-        If only one of ZNDRAW_ADMIN_USERNAME or ZNDRAW_ADMIN_PASSWORD is set
+    admin_username : str | None
+        Admin username from config (None for local mode)
+    admin_password : str | None
+        Admin password from config (None for local mode)
     """
 
-    def __init__(self, redis_client: Redis):
+    def __init__(
+        self,
+        redis_client: Redis,
+        admin_username: str | None = None,
+        admin_password: str | None = None,
+    ):
         self.r = redis_client
-        self._validate_env_vars()
-        self._deployment_mode = self._check_deployment_mode()
+        self._admin_username = admin_username
+        self._admin_password = admin_password
+        self._deployment_mode = bool(admin_username and admin_password)
 
         if self._deployment_mode:
             log.info("Admin service initialized in DEPLOYMENT mode")
-            log.info(
-                f"Admin username: {os.getenv('ZNDRAW_ADMIN_USERNAME')} "
-                "(password configured)"
-            )
+            log.info(f"Admin username: {admin_username} (password configured)")
         else:
             log.info("Admin service initialized in LOCAL mode (all users are admin)")
-
-    def _validate_env_vars(self) -> None:
-        """Validate admin environment variables.
-
-        Raises
-        ------
-        ValueError
-            If only one of username or password is set
-        """
-        username = os.getenv("ZNDRAW_ADMIN_USERNAME")
-        password = os.getenv("ZNDRAW_ADMIN_PASSWORD")
-
-        # Both must be set or both must be unset
-        if bool(username) != bool(password):
-            raise ValueError(
-                "Admin configuration error: Both ZNDRAW_ADMIN_USERNAME and "
-                "ZNDRAW_ADMIN_PASSWORD must be set together, or neither should be set"
-            )
-
-    def _check_deployment_mode(self) -> bool:
-        """Check if deployment mode is enabled.
-
-        Returns
-        -------
-        bool
-            True if both admin username and password are configured
-        """
-        username = os.getenv("ZNDRAW_ADMIN_USERNAME")
-        password = os.getenv("ZNDRAW_ADMIN_PASSWORD")
-        return bool(username and password)
 
     def is_deployment_mode(self) -> bool:
         """Check if running in deployment mode.
@@ -86,7 +57,7 @@ class AdminService:
         return self._deployment_mode
 
     def validate_admin_credentials(self, username: str, password: str) -> bool:
-        """Validate admin credentials against environment variables.
+        """Validate admin credentials against configured values.
 
         Parameters
         ----------
@@ -103,10 +74,7 @@ class AdminService:
         if not self._deployment_mode:
             return False
 
-        expected_username = os.getenv("ZNDRAW_ADMIN_USERNAME")
-        expected_password = os.getenv("ZNDRAW_ADMIN_PASSWORD")
-
-        return username == expected_username and password == expected_password
+        return username == self._admin_username and password == self._admin_password
 
     def grant_admin(self, user_name: str) -> None:
         """Grant admin privileges to a user.
