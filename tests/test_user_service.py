@@ -365,7 +365,7 @@ def test_update_last_login(user_service, redis_client):
     assert new_last_login != original_last_login
 
 
-def test_delete_user(user_service, admin_service_deployment, redis_client):
+def test_delete_user(user_service, admin_service_deployment):
     """Test deleting a user."""
     user_name = "DeleteMe"
 
@@ -373,19 +373,17 @@ def test_delete_user(user_service, admin_service_deployment, redis_client):
     user_service.register_user(user_name, user_name, "password")
     admin_service_deployment.grant_admin(user_name)
 
-    assert redis_client.exists(f"user:{user_name}")
+    assert user_service.username_exists(user_name)
     assert admin_service_deployment.is_admin(user_name)
 
     result = user_service.delete_user(user_name)
     assert result is True
 
-    assert not redis_client.exists(f"user:{user_name}")
+    assert not user_service.username_exists(user_name)
     assert not admin_service_deployment.is_admin(user_name)
 
 
-def test_delete_user_with_admin_status(
-    user_service, admin_service_deployment, redis_client
-):
+def test_delete_user_with_admin_status(user_service, admin_service_deployment):
     """Test deleting a user also removes admin status."""
     user_name = "AdminUser"
 
@@ -406,7 +404,7 @@ def test_delete_nonexistent_user(user_service):
     assert result is True
 
 
-def test_list_all_users(user_service, admin_service_deployment, redis_client):
+def test_list_all_users(user_service, admin_service_deployment):
     """Test listing all users with different roles."""
     admin_service = admin_service_deployment
 
@@ -500,9 +498,7 @@ def test_no_password_requirements(user_service):
     assert user_service.verify_password(user_name_3, long_pass)
 
 
-def test_register_user_transfers_admin_status(
-    user_service, admin_service_deployment, redis_client
-):
+def test_register_user_transfers_admin_status(user_service, admin_service_deployment):
     """Test that registering with new username transfers admin status."""
     admin_service = admin_service_deployment
 

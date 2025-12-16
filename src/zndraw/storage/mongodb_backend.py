@@ -5,7 +5,7 @@ import logging
 import msgpack
 import numpy as np
 from bson import Binary
-from pymongo import MongoClient
+from pymongo import MongoClient, ReturnDocument
 from pymongo.collection import Collection
 
 from .base import StorageBackend
@@ -44,7 +44,15 @@ class MongoDBStorageBackend(StorageBackend):
         self.database_name = database
         self.room_id = room_id
 
-        self.client: MongoClient = MongoClient(uri)
+        self.client: MongoClient = MongoClient(
+            uri,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=10000,
+            maxPoolSize=50,
+        )
+        # Validate connection
+        self.client.admin.command("ping")
+
         self.db = self.client[database]
         self.collection: Collection = self.db[room_id]
 
@@ -52,6 +60,12 @@ class MongoDBStorageBackend(StorageBackend):
             f"Initialized MongoDBStorageBackend: "
             f"database='{database}', collection='{room_id}'"
         )
+
+    def close(self) -> None:
+        """Close MongoDB connection and release resources."""
+        if self.client:
+            self.client.close()
+            log.info(f"Closed MongoDB connection for room '{self.room_id}'")
 
     def get(
         self,
@@ -149,8 +163,15 @@ class MongoDBStorageBackend(StorageBackend):
         if not values:
             return
 
-        # Get current length to assign sequential indices
-        start_idx = len(self)
+        # Use atomic counter for sequential IDs to prevent race conditions
+        counters = self.db["_counters"]
+        result = counters.find_one_and_update(
+            {"_id": f"{self.room_id}_frame_counter"},
+            {"$inc": {"value": len(values)}},
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+        start_idx = result["value"] - len(values)
 
         # Prepare documents for bulk insert
         documents = []

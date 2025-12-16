@@ -1,5 +1,7 @@
 """Tests for MongoDB storage backend."""
 
+import uuid
+
 import numpy as np
 import pytest
 from pymongo import MongoClient
@@ -14,13 +16,19 @@ MONGODB_TEST_DATABASE = "zndraw_test"
 
 def is_mongodb_available() -> bool:
     """Check if MongoDB is available for testing."""
+    client = None
     try:
         client = MongoClient(MONGODB_TEST_URL, serverSelectionTimeoutMS=1000)
         client.admin.command("ping")
-        client.close()
         return True
-    except (ServerSelectionTimeoutError, Exception):
+    except ServerSelectionTimeoutError:
         return False
+    except Exception:
+        # Other connection errors (auth, network, etc.)
+        return False
+    finally:
+        if client:
+            client.close()
 
 
 # Skip all tests in this module if MongoDB is unavailable
@@ -41,8 +49,6 @@ def mongodb_client():
 @pytest.fixture
 def clean_collection(mongodb_client):
     """Fixture that provides a clean collection name and cleans up after test."""
-    import uuid
-
     collection_name = f"test_room_{uuid.uuid4().hex[:8]}"
     yield collection_name
     # Cleanup

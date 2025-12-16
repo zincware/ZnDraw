@@ -41,9 +41,6 @@ def create_storage(room_id: str, config: StorageConfig) -> StorageBackend:
 
         case LMDBStorageConfig():
             db_path = f"{config.path}/{room_id}.lmdb"
-            os.makedirs(
-                os.path.dirname(db_path) if os.path.dirname(db_path) else ".",
-                exist_ok=True,
-            )
+            os.makedirs(config.path, exist_ok=True)
             log.info(f"Creating LMDB storage at '{db_path}' for room '{room_id}'")
             return ASEBytesStorageBackend(db_path, map_size=config.map_size)

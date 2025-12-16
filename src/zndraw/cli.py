@@ -110,6 +110,11 @@ def _build_config(
         # Determine storage type
         effective_type = storage_type or "lmdb"
 
+        if effective_type not in ("lmdb", "mongodb"):
+            raise typer.BadParameter(
+                f"--storage-type must be 'lmdb' or 'mongodb', got '{effective_type}'"
+            )
+
         if effective_type == "mongodb":
             if storage_url is None:
                 raise typer.BadParameter(

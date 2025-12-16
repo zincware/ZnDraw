@@ -25,6 +25,7 @@ Example:
 import logging
 import os
 from typing import Annotated, Literal, Union
+from urllib.parse import urlparse, urlunparse
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -54,12 +55,14 @@ class MongoDBStorageConfig(BaseModel):
 
     def get_masked_url(self) -> str:
         """Return URL with credentials masked for logging."""
-        if "@" in self.url:
-            return (
-                self.url.split("@")[0].rsplit(":", 1)[0]
-                + ":***@"
-                + self.url.split("@")[1]
-            )
+        parsed = urlparse(self.url)
+        if parsed.password:
+            # Replace password with ***
+            netloc = f"{parsed.username}:***@{parsed.hostname}"
+            if parsed.port:
+                netloc += f":{parsed.port}"
+            masked = parsed._replace(netloc=netloc)
+            return urlunparse(masked)
         return self.url
 
 
@@ -124,7 +127,8 @@ class ZnDrawConfig(BaseSettings):
     # Upload settings
     upload_temp: str = Field(
         default="/tmp/zndraw_uploads",
-        description="Temporary directory for file uploads",
+        description="Temporary directory for file uploads. "
+        "In production, configure a secure dedicated directory.",
     )
     max_upload_mb: int = Field(
         default=500, ge=1, description="Maximum upload size in MB"
