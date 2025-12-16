@@ -4,7 +4,7 @@ Uses Pydantic Settings for type-safe configuration with environment variable sup
 All components (CLI, server, Celery) use this module for configuration.
 
 Environment variables:
-    ZNDRAW_STORAGE__TYPE: "lmdb" or "mongodb"
+    ZNDRAW_STORAGE__TYPE: "memory", "lmdb", or "mongodb"
     ZNDRAW_STORAGE__PATH: Path for LMDB storage (when type=lmdb)
     ZNDRAW_STORAGE__MAP_SIZE: LMDB map size in bytes (when type=lmdb)
     ZNDRAW_STORAGE__URL: MongoDB connection URL (when type=mongodb)
@@ -19,7 +19,7 @@ Example:
     >>> from zndraw.config import get_config
     >>> config = get_config()
     >>> print(config.storage)
-    LMDBStorageConfig(type='lmdb', path='./zndraw-data', map_size=1073741824)
+    InMemoryStorageConfig(type='memory')
 """
 
 import logging
@@ -31,6 +31,12 @@ from pydantic import BaseModel, Field, SecretStr, field_validator, model_validat
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 log = logging.getLogger(__name__)
+
+
+class InMemoryStorageConfig(BaseModel):
+    """In-memory storage configuration (no persistence)."""
+
+    type: Literal["memory"] = "memory"
 
 
 class LMDBStorageConfig(BaseModel):
@@ -77,7 +83,7 @@ class MongoDBStorageConfig(BaseModel):
 
 
 StorageConfig = Annotated[
-    Union[LMDBStorageConfig, MongoDBStorageConfig],
+    Union[InMemoryStorageConfig, LMDBStorageConfig, MongoDBStorageConfig],
     Field(discriminator="type"),
 ]
 
@@ -96,7 +102,7 @@ class ZnDrawConfig(BaseSettings):
     )
 
     # Storage configuration (discriminated union)
-    storage: StorageConfig = Field(default_factory=LMDBStorageConfig)
+    storage: StorageConfig = Field(default_factory=InMemoryStorageConfig)
 
     # Media storage (always local filesystem, for screenshots etc.)
     media_path: str = Field(
@@ -193,6 +199,8 @@ class ZnDrawConfig(BaseSettings):
         log.info(f"  Redis URL: {self.redis_url or 'None (in-memory mode)'}")
 
         match self.storage:
+            case InMemoryStorageConfig():
+                log.info("  Storage Backend: In-Memory (no persistence)")
             case MongoDBStorageConfig():
                 log.info("  Storage Backend: MongoDB")
                 log.info(f"    URL: {self.storage.get_masked_url()}")

@@ -1,6 +1,4 @@
 import os
-import shutil
-import subprocess
 import sys
 import webbrowser
 
@@ -252,11 +250,6 @@ def main(
         "--simgen/--no-simgen",
         help="Enable SiMGen molecular generation features.",
     ),
-    remove_storage: bool = typer.Option(
-        False,
-        "--remove-storage",
-        help="Remove existing storage directory on startup.",
-    ),
 ):
     """Start or connect to a ZnDraw server.
 
@@ -497,29 +490,6 @@ def main(
     )
     set_config(config)
 
-    # Get LMDB path for cleanup logic (only applicable for LMDB storage)
-    lmdb_path: str | None = None
-    if isinstance(config.storage, LMDBStorageConfig):
-        lmdb_path = config.storage.path
-
-    # Check for stale LMDB data on startup when using in-memory mode
-    if lmdb_path and config.redis_url is None and os.path.exists(lmdb_path):
-        if remove_storage:
-            shutil.rmtree(lmdb_path)
-            typer.echo(f"✓ Removed existing storage directory: {lmdb_path}")
-        else:
-            typer.echo(f"⚠️  Warning: Found existing LMDB data at {lmdb_path}")
-            typer.echo(
-                "   This data may be stale when using in-memory storage (no Redis)."
-            )
-            if typer.confirm("   Delete and start fresh?", default=True):
-                shutil.rmtree(lmdb_path)
-                typer.echo(f"✓ Cleaned storage directory: {lmdb_path}")
-            else:
-                typer.echo(
-                    "⚠️  Continuing with existing data (may cause state inconsistencies)"
-                )
-
     flask_app = create_app(config=config)
 
     # Track the first room for browser opening
@@ -585,30 +555,14 @@ def main(
     try:
         socketio.run(flask_app, debug=debug, host="0.0.0.0", port=config.server_port)
     finally:
-        # Clean up LMDB storage for in-memory mode
-        # In-memory mode has ephemeral Redis state, so LMDB data becomes stale
-        if lmdb_path and config.redis_url is None and os.path.exists(lmdb_path):
-            typer.echo(f"🧹 Cleaning LMDB storage: {lmdb_path}")
-            try:
-                shutil.rmtree(lmdb_path)
-            except OSError as e:
-                typer.echo(
-                    f"Could not fully clean storage directory: {e}. "
-                    "You may need to manually remove it."
-                )
-
         flask_app.extensions["redis"].flushall()
         if celery:
-            # Properly terminate celery worker and all its child processes
-            worker.terminate()
-            try:
-                worker.wait(timeout=5)  # Wait up to 5 seconds for graceful shutdown
-            except subprocess.TimeoutExpired:
-                typer.echo(
-                    "Celery worker did not shut down gracefully, forcing termination..."
-                )
-                worker.kill()  # Force kill if it doesn't shut down
-                worker.wait()
+            # Use SIGKILL directly instead of SIGTERM. Celery with eventlet pool
+            # has a bug where the SIGTERM handler tries to print a shutdown message
+            # using eventlet's patched os.write(), which raises RuntimeError
+            # "do not call blocking functions from the mainloop".
+            worker.kill()
+            worker.wait()
             typer.echo("Celery worker closed.")
         # Clean up PID file when server stops
         remove_server_info()

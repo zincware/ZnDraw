@@ -25,7 +25,8 @@ services:
       - ZNDRAW_SERVER_HOST=0.0.0.0
       - ZNDRAW_SERVER_PORT=5000
       - ZNDRAW_SERVER_URL=http://zndraw:5000
-      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
+      - ZNDRAW_STORAGE__TYPE=lmdb
+      - ZNDRAW_STORAGE__PATH=/app/data/zndraw-data
       - FLASK_SECRET_KEY=change-me-in-production
       # Optional: Admin access
       # - ZNDRAW_ADMIN_USERNAME=admin
@@ -43,7 +44,8 @@ services:
         condition: service_healthy
     environment:
       - ZNDRAW_REDIS_URL=redis://redis:6379
-      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
+      - ZNDRAW_STORAGE__TYPE=lmdb
+      - ZNDRAW_STORAGE__PATH=/app/data/zndraw-data
       - ZNDRAW_SERVER_URL=http://zndraw:5000
     volumes:
       - zndraw-data:/app/data

@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from zndraw.config import (
+    InMemoryStorageConfig,
     LMDBStorageConfig,
     MongoDBStorageConfig,
     ZnDrawConfig,
@@ -47,8 +48,8 @@ def test_config_defaults(clean_env):
     config = ZnDrawConfig()
 
     assert config.redis_url is None
-    assert isinstance(config.storage, LMDBStorageConfig)
-    assert config.storage.path == "./zndraw-data"
+    assert isinstance(config.storage, InMemoryStorageConfig)
+    assert config.storage.type == "memory"
     assert config.media_path == "./zndraw-media"
     assert config.server_host == "localhost"
     assert config.server_port == 5000
@@ -86,6 +87,16 @@ def test_config_mongodb_storage_from_environment(clean_env):
     assert isinstance(config.storage, MongoDBStorageConfig)
     assert config.storage.url == "mongodb://localhost:27017"
     assert config.storage.database == "testdb"
+
+
+def test_config_memory_storage_from_environment(clean_env):
+    """Test that in-memory storage config loads from environment variables."""
+    os.environ["ZNDRAW_STORAGE__TYPE"] = "memory"
+
+    config = ZnDrawConfig()
+
+    assert isinstance(config.storage, InMemoryStorageConfig)
+    assert config.storage.type == "memory"
 
 
 def test_config_loads_from_environment(clean_env):
@@ -323,8 +334,13 @@ def test_config_mongodb_url_without_credentials(clean_env):
 
 def test_config_storage_discriminated_union(clean_env):
     """Test that storage config uses proper discriminated union based on type."""
-    # LMDB (default)
-    config_lmdb = ZnDrawConfig()
+    # In-memory (default)
+    config_memory = ZnDrawConfig()
+    assert isinstance(config_memory.storage, InMemoryStorageConfig)
+    assert config_memory.storage.type == "memory"
+
+    # LMDB via constructor
+    config_lmdb = ZnDrawConfig(storage=LMDBStorageConfig())
     assert isinstance(config_lmdb.storage, LMDBStorageConfig)
     assert config_lmdb.storage.type == "lmdb"
 
