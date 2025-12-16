@@ -9,7 +9,7 @@ submodules:
 
 # Set the version of Python and other tools you might need
 build:
-  os: ubuntu-latest
+  os: ubuntu-lts-latest
   tools:
     python: "3.11"
   jobs:
