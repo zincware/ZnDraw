@@ -3032,21 +3032,6 @@ wheels = [
 ]
 
 [[package]]
-name = "rdkit2ase"
-version = "0.1.13"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "ase" },
-    { name = "matplotlib" },
-    { name = "networkx" },
-    { name = "rdkit" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/df/3a/2a92f6f4699ba1ffbf4e8382e05240dd463d39e2280d82ad85367463b69d/rdkit2ase-0.1.13.tar.gz", hash = "sha256:557d691addc967795504354706fe2dee287ae3e356d913b549dd3b1cf100dcb6", size = 292827, upload-time = "2025-08-11T15:00:54.872Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c3/03/8d5774caef8262c0b9332a6241551d03682d143fc4fb00877acf2d6168ba/rdkit2ase-0.1.13-py3-none-any.whl", hash = "sha256:26a0bcc78035c24139eb67e61e5e63d850bcb16069f2a4f3c8e6b86422e2630c", size = 26724, upload-time = "2025-08-11T15:00:53.384Z" },
-]
-
-[[package]]
 name = "redis"
 version = "7.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3911,7 +3896,6 @@ dependencies = [
     { name = "pyjwt" },
     { name = "pymongo" },
     { name = "python-socketio", extra = ["client"] },
-    { name = "rdkit2ase" },
     { name = "redis" },
     { name = "rich" },
     { name = "splines" },
@@ -3968,7 +3952,6 @@ requires-dist = [
     { name = "pyjwt", specifier = ">=2.10.1" },
     { name = "pymongo", specifier = ">=4.10.0" },
     { name = "python-socketio", extras = ["client"], specifier = ">=5.13.0" },
-    { name = "rdkit2ase", specifier = ">=0.1.13" },
     { name = "redis", specifier = ">=6.4.0" },
     { name = "rich", specifier = ">=14.1.0" },
     { name = "splines", specifier = ">=0.3.3" },
