@@ -13,33 +13,57 @@ def create_storage(
     room_id: str,
     base_path: str | None = None,
     map_size: int | None = None,
-    **kwargs,
+    mongodb_url: str | None = None,
+    mongodb_database: str | None = None,
 ) -> StorageBackend:
     """Factory for creating storage backends.
+
+    If mongodb_url is provided, creates a MongoDB backend.
+    Otherwise, creates an ASEBytes (LMDB) backend.
 
     Parameters
     ----------
     room_id : str
         Room identifier for storage isolation
     base_path : str | None
-        Base directory path for file-based storage.
-        If None, raises ValueError (in-memory storage not supported).
+        Base directory path for LMDB storage.
+        Required if not using MongoDB.
     map_size : int | None
         Maximum LMDB database size in bytes (virtual allocation).
-        Must be provided from config.
-    **kwargs
-        Additional backend-specific configuration (unused)
+        Required if not using MongoDB.
+    mongodb_url : str | None
+        MongoDB connection URI. If set, uses MongoDB backend.
+    mongodb_database : str | None
+        MongoDB database name. Required if mongodb_url is set.
 
     Returns
     -------
     StorageBackend
-        Configured ASEBytesStorageBackend instance
+        Configured storage backend instance
 
     Raises
     ------
     ValueError
-        If base_path is None or map_size is None
+        If required parameters are missing for the selected backend
     """
+    # MongoDB backend
+    if mongodb_url is not None:
+        from .mongodb_backend import MongoDBStorageBackend
+
+        if mongodb_database is None:
+            mongodb_database = "zndraw"
+
+        log.info(
+            f"Creating MongoDB storage: database='{mongodb_database}', "
+            f"collection='{room_id}'"
+        )
+        return MongoDBStorageBackend(
+            uri=mongodb_url,
+            database=mongodb_database,
+            room_id=room_id,
+        )
+
+    # LMDB backend (default)
     if base_path is None:
         raise ValueError(
             "ASEBytes backend requires a base_path (in-memory storage not supported)"

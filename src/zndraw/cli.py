@@ -107,6 +107,18 @@ def main(
         None,
         help="Redis server URL (e.g., `redis://localhost:6379`). If not provided, an in-memory storage will be used.",
     ),
+    mongodb_url: str | None = typer.Option(
+        None,
+        "--mongodb-url",
+        envvar="ZNDRAW_MONGODB_URL",
+        help="MongoDB connection URL (e.g., `mongodb://root:example@localhost:27017/`). If set, uses MongoDB instead of LMDB storage.",
+    ),
+    mongodb_database: str = typer.Option(
+        "zndraw",
+        "--mongodb-database",
+        envvar="ZNDRAW_MONGODB_DATABASE",
+        help="MongoDB database name.",
+    ),
     host: str = typer.Option(
         "localhost",
         envvar="ZNDRAW_SERVER_HOST",
@@ -405,6 +417,9 @@ def main(
     else:
         config.file_browser_root = os.getcwd()
     config.celery_enabled = celery
+    if mongodb_url is not None:
+        config.mongodb_url = mongodb_url
+    config.mongodb_database = mongodb_database
 
     # Revalidate after overrides
     config._validate()

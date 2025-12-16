@@ -39,6 +39,8 @@ dependencies = [
     "znsocket>=0.3.0",
     "prometheus-client>=0.23.1",
     "molify>=0.2.1",
+    "pymongo>=4.10.0",
+    "dnspython>=2.8.0",
 ]
 
 [dependency-groups]

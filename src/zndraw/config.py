@@ -53,6 +53,10 @@ class ZnDrawConfig:
     lmdb_map_size : int
         Maximum size per LMDB database in bytes (virtual allocation).
         Default: 1 GB. Increase for rooms with large trajectories.
+    mongodb_url : str | None
+        MongoDB connection URI. If set, uses MongoDB instead of LMDB storage.
+    mongodb_database : str
+        MongoDB database name. Default: "zndraw".
     server_host : str
         Server bind host address.
     server_port : int
@@ -126,6 +130,14 @@ class ZnDrawConfig:
     )
     lmdb_map_size: int = field(
         default_factory=lambda: _getenv_int("ZNDRAW_LMDB_MAP_SIZE", 1_073_741_824)
+    )
+
+    # MongoDB (alternative to LMDB)
+    mongodb_url: str | None = field(
+        default_factory=lambda: os.getenv("ZNDRAW_MONGODB_URL")
+    )
+    mongodb_database: str = field(
+        default_factory=lambda: os.getenv("ZNDRAW_MONGODB_DATABASE", "zndraw")
     )
 
     # Optional features
@@ -205,8 +217,22 @@ class ZnDrawConfig:
         log.info("=" * 80)
         log.info("ZnDraw Configuration:")
         log.info(f"  Redis URL: {self.redis_url or 'None (in-memory mode)'}")
-        log.info(f"  Storage Path: {self.storage_path}")
-        log.info(f"  LMDB Map Size: {self.lmdb_map_size / 1024**3:.2f} GB per room")
+        if self.mongodb_url:
+            # Mask credentials in MongoDB URL for logging
+            masked_url = self.mongodb_url
+            if "@" in masked_url:
+                masked_url = (
+                    masked_url.split("@")[0].rsplit(":", 1)[0]
+                    + ":***@"
+                    + masked_url.split("@")[1]
+                )
+            log.info("  Storage Backend: MongoDB")
+            log.info(f"    URL: {masked_url}")
+            log.info(f"    Database: {self.mongodb_database}")
+        else:
+            log.info("  Storage Backend: LMDB")
+            log.info(f"    Path: {self.storage_path}")
+            log.info(f"    Map Size: {self.lmdb_map_size / 1024**3:.2f} GB per room")
         log.info(f"  Server: {self.server_url}")
         log.info(f"  Log Level: {self.log_level}")
         log.info(f"  Admin Mode: {'Enabled' if self.admin_username else 'Disabled'}")

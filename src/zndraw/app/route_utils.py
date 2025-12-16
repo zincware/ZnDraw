@@ -52,7 +52,7 @@ def get_storage(room_id: str) -> StorageBackend:
     Returns
     -------
     StorageBackend
-        ASEBytesStorageBackend instance for the room
+        Storage backend instance for the room (MongoDB or LMDB based on config)
     """
     if room_id not in STORAGE:
         config = current_app.extensions["config"]
@@ -66,9 +66,14 @@ def get_storage(room_id: str) -> StorageBackend:
             )
 
         STORAGE[room_id] = create_storage(
-            room_id=room_id, base_path=base_path, map_size=config.lmdb_map_size
+            room_id=room_id,
+            base_path=base_path,
+            map_size=config.lmdb_map_size,
+            mongodb_url=config.mongodb_url,
+            mongodb_database=config.mongodb_database,
         )
-        log.info(f"Created ASEBytes storage for room '{room_id}'")
+        backend_type = "MongoDB" if config.mongodb_url else "LMDB"
+        log.info(f"Created {backend_type} storage for room '{room_id}'")
 
     return STORAGE[room_id]
 
