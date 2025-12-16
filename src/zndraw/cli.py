@@ -1,5 +1,4 @@
 import os
-import subprocess
 import sys
 import webbrowser
 
@@ -558,16 +557,12 @@ def main(
     finally:
         flask_app.extensions["redis"].flushall()
         if celery:
-            # Properly terminate celery worker and all its child processes
-            worker.terminate()
-            try:
-                worker.wait(timeout=5)  # Wait up to 5 seconds for graceful shutdown
-            except subprocess.TimeoutExpired:
-                typer.echo(
-                    "Celery worker did not shut down gracefully, forcing termination..."
-                )
-                worker.kill()  # Force kill if it doesn't shut down
-                worker.wait()
+            # Use SIGKILL directly instead of SIGTERM. Celery with eventlet pool
+            # has a bug where the SIGTERM handler tries to print a shutdown message
+            # using eventlet's patched os.write(), which raises RuntimeError
+            # "do not call blocking functions from the mainloop".
+            worker.kill()
+            worker.wait()
             typer.echo("Celery worker closed.")
         # Clean up PID file when server stops
         remove_server_info()
