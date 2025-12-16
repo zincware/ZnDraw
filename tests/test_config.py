@@ -60,7 +60,6 @@ def test_config_defaults(clean_env):
     assert config.max_upload_mb == 500
     assert config.simgen_enabled is False
     assert config.file_browser_enabled is False
-    assert config.celery_enabled is True
 
 
 def test_config_lmdb_storage_from_environment(clean_env):
@@ -101,7 +100,6 @@ def test_config_loads_from_environment(clean_env):
     os.environ["FLASK_SECRET_KEY"] = "test-secret-key"
     os.environ["ZNDRAW_SIMGEN_ENABLED"] = "true"
     os.environ["ZNDRAW_FILE_BROWSER_ENABLED"] = "1"
-    os.environ["ZNDRAW_CELERY_ENABLED"] = "false"
 
     config = ZnDrawConfig()
 
@@ -115,7 +113,6 @@ def test_config_loads_from_environment(clean_env):
     assert config.flask_secret_key == "test-secret-key"
     assert config.simgen_enabled is True
     assert config.file_browser_enabled is True
-    assert config.celery_enabled is False
 
 
 def test_config_boolean_parsing(clean_env):

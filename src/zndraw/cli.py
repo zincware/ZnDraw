@@ -136,7 +136,6 @@ def _build_config(
     # Feature flags
     config_kwargs["simgen_enabled"] = simgen
     config_kwargs["file_browser_enabled"] = file_browser
-    config_kwargs["celery_enabled"] = celery
 
     if file_browser_root is not None:
         config_kwargs["file_browser_root"] = file_browser_root
