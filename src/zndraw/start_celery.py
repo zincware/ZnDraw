@@ -75,6 +75,12 @@ def run_celery_worker(config: "ZnDrawConfig") -> subprocess.Popen:
     # Flask secret key (needed for JWT validation in tasks)
     my_env["FLASK_SECRET_KEY"] = config.flask_secret_key
 
+    # Admin credentials
+    if config.admin_username is not None:
+        my_env["ZNDRAW_ADMIN_USERNAME"] = config.admin_username
+    if config.admin_password is not None:
+        my_env["ZNDRAW_ADMIN_PASSWORD"] = config.admin_password
+
     worker = subprocess.Popen(
         # eventlet worker - use zndraw_cli.celery for proper monkey patching
         [

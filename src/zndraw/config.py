@@ -53,6 +53,16 @@ class MongoDBStorageConfig(BaseModel):
     url: str = Field(description="MongoDB connection URI")
     database: str = Field(default="zndraw", description="MongoDB database name")
 
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        """Validate MongoDB URL format."""
+        if not (v.startswith("mongodb://") or v.startswith("mongodb+srv://")):
+            raise ValueError(
+                "MongoDB URL must start with 'mongodb://' or 'mongodb+srv://'"
+            )
+        return v
+
     def get_masked_url(self) -> str:
         """Return URL with credentials masked for logging."""
         parsed = urlparse(self.url)

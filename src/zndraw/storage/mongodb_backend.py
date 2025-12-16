@@ -50,22 +50,25 @@ class MongoDBStorageBackend(StorageBackend):
             connectTimeoutMS=10000,
             maxPoolSize=50,
         )
-        # Validate connection
-        self.client.admin.command("ping")
+        try:
+            # Validate connection
+            self.client.admin.command("ping")
 
-        self.db = self.client[database]
-        self.collection: Collection = self.db[room_id]
+            self.db = self.client[database]
+            self.collection: Collection = self.db[room_id]
 
-        log.info(
-            f"Initialized MongoDBStorageBackend: "
-            f"database='{database}', collection='{room_id}'"
-        )
+            log.info(
+                f"Initialized MongoDBStorageBackend: "
+                f"database='{database}', collection='{room_id}'"
+            )
+        except Exception:
+            self.client.close()
+            raise
 
     def close(self) -> None:
         """Close MongoDB connection and release resources."""
-        if self.client:
-            self.client.close()
-            log.info(f"Closed MongoDB connection for room '{self.room_id}'")
+        self.client.close()
+        log.info(f"Closed MongoDB connection for room '{self.room_id}'")
 
     def get(
         self,
