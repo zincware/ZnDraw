@@ -96,7 +96,7 @@ services:
 
   # One-shot service to load template after zndraw is healthy
   template-loader:
-    image: zndraw:local
+    image: pythonf/zndraw:latest
     restart: "no"
     depends_on:
       nginx:
