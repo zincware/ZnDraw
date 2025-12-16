@@ -12,33 +12,7 @@ def redis_client():
     return MemoryStorage()
 
 
-@pytest.fixture
-def clear_admin_env_vars():
-    """Clear admin environment variables before and after test."""
-    import os
-
-    original_username = os.environ.get("ZNDRAW_ADMIN_USERNAME")
-    original_password = os.environ.get("ZNDRAW_ADMIN_PASSWORD")
-
-    if "ZNDRAW_ADMIN_USERNAME" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_USERNAME"]
-    if "ZNDRAW_ADMIN_PASSWORD" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_PASSWORD"]
-
-    yield
-
-    if original_username is not None:
-        os.environ["ZNDRAW_ADMIN_USERNAME"] = original_username
-    elif "ZNDRAW_ADMIN_USERNAME" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_USERNAME"]
-
-    if original_password is not None:
-        os.environ["ZNDRAW_ADMIN_PASSWORD"] = original_password
-    elif "ZNDRAW_ADMIN_PASSWORD" in os.environ:
-        del os.environ["ZNDRAW_ADMIN_PASSWORD"]
-
-
-def test_admin_service_local_mode(redis_client, clear_admin_env_vars):
+def test_admin_service_local_mode(redis_client):
     """Test AdminService in local mode (no admin credentials configured)."""
     service = AdminService(redis_client)
 
@@ -50,14 +24,13 @@ def test_admin_service_local_mode(redis_client, clear_admin_env_vars):
     assert service.is_admin("guest-user-123")
 
 
-def test_admin_service_deployment_mode(redis_client, clear_admin_env_vars):
+def test_admin_service_deployment_mode(redis_client):
     """Test AdminService in deployment mode (admin credentials set)."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     assert service.is_deployment_mode()
 
@@ -66,72 +39,61 @@ def test_admin_service_deployment_mode(redis_client, clear_admin_env_vars):
     assert not service.is_admin("another-user")
 
 
-def test_admin_service_validate_credentials_correct(redis_client, clear_admin_env_vars):
+def test_admin_service_validate_credentials_correct(redis_client):
     """Test credential validation with correct credentials."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     assert service.validate_admin_credentials("admin", "secret123")
 
 
-def test_admin_service_validate_credentials_wrong_username(
-    redis_client, clear_admin_env_vars
-):
+def test_admin_service_validate_credentials_wrong_username(redis_client):
     """Test credential validation with wrong username."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     assert not service.validate_admin_credentials("notadmin", "secret123")
     assert not service.validate_admin_credentials("", "secret123")
 
 
-def test_admin_service_validate_credentials_wrong_password(
-    redis_client, clear_admin_env_vars
-):
+def test_admin_service_validate_credentials_wrong_password(redis_client):
     """Test credential validation with wrong password."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     assert not service.validate_admin_credentials("admin", "wrong")
     assert not service.validate_admin_credentials("admin", "")
     assert not service.validate_admin_credentials("admin", "secret124")
 
 
-def test_admin_service_validate_credentials_both_wrong(
-    redis_client, clear_admin_env_vars
-):
+def test_admin_service_validate_credentials_both_wrong(redis_client):
     """Test credential validation with both username and password wrong."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     assert not service.validate_admin_credentials("notadmin", "wrong")
     assert not service.validate_admin_credentials("", "")
 
 
-def test_admin_service_grant_revoke(redis_client, clear_admin_env_vars):
+def test_admin_service_grant_revoke(redis_client):
     """Test granting and revoking admin privileges to userName."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     user_name = "test-user"
 
@@ -153,14 +115,13 @@ def test_admin_service_grant_revoke(redis_client, clear_admin_env_vars):
     assert not redis_client.exists(f"admin:user:{user_name}")
 
 
-def test_admin_service_grant_multiple_admins(redis_client, clear_admin_env_vars):
+def test_admin_service_grant_multiple_admins(redis_client):
     """Test granting admin to multiple users."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     # Grant admin to multiple users
     service.grant_admin("alice")
@@ -175,14 +136,13 @@ def test_admin_service_grant_multiple_admins(redis_client, clear_admin_env_vars)
     assert not service.is_admin("dave")
 
 
-def test_admin_service_grant_idempotent(redis_client, clear_admin_env_vars):
+def test_admin_service_grant_idempotent(redis_client):
     """Test that granting admin multiple times is idempotent."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     user_name = "test-user"
 
@@ -194,14 +154,13 @@ def test_admin_service_grant_idempotent(redis_client, clear_admin_env_vars):
     assert service.is_admin(user_name)
 
 
-def test_admin_service_revoke_non_admin(redis_client, clear_admin_env_vars):
+def test_admin_service_revoke_non_admin(redis_client):
     """Test revoking admin from user who isn't admin (should not error)."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     user_name = "test-user"
 
@@ -212,14 +171,13 @@ def test_admin_service_revoke_non_admin(redis_client, clear_admin_env_vars):
     assert not service.is_admin(user_name)
 
 
-def test_admin_service_get_all_admins(redis_client, clear_admin_env_vars):
+def test_admin_service_get_all_admins(redis_client):
     """Test getting all admin users."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     # Grant admin to multiple users
     service.grant_admin("alice")
@@ -233,27 +191,25 @@ def test_admin_service_get_all_admins(redis_client, clear_admin_env_vars):
     assert "charlie" in admins
 
 
-def test_admin_service_get_all_admins_empty(redis_client, clear_admin_env_vars):
+def test_admin_service_get_all_admins_empty(redis_client):
     """Test getting all admins when none exist."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     admins = service.get_all_admins()
     assert len(admins) == 0
 
 
-def test_admin_service_get_all_admins_after_revoke(redis_client, clear_admin_env_vars):
+def test_admin_service_get_all_admins_after_revoke(redis_client):
     """Test getting all admins after revoking some."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     service.grant_admin("alice")
     service.grant_admin("bob")
@@ -269,35 +225,7 @@ def test_admin_service_get_all_admins_after_revoke(redis_client, clear_admin_env
     assert "bob" not in admins
 
 
-def test_admin_service_env_validation_only_username(redis_client, clear_admin_env_vars):
-    """Test that only setting username raises error."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    # Password not set
-
-    with pytest.raises(
-        ValueError, match="Both ZNDRAW_ADMIN_USERNAME and ZNDRAW_ADMIN_PASSWORD"
-    ):
-        AdminService(redis_client)
-
-
-def test_admin_service_env_validation_only_password(redis_client, clear_admin_env_vars):
-    """Test that only setting password raises error."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-    # Username not set
-
-    with pytest.raises(
-        ValueError, match="Both ZNDRAW_ADMIN_USERNAME and ZNDRAW_ADMIN_PASSWORD"
-    ):
-        AdminService(redis_client)
-
-
-def test_admin_service_validate_credentials_in_local_mode(
-    redis_client, clear_admin_env_vars
-):
+def test_admin_service_validate_credentials_in_local_mode(redis_client):
     """Test that validate_admin_credentials returns False in local mode."""
     service = AdminService(redis_client)
 
@@ -307,9 +235,7 @@ def test_admin_service_validate_credentials_in_local_mode(
     assert not service.validate_admin_credentials("admin", "password")
 
 
-def test_admin_service_local_mode_grant_revoke_ignored(
-    redis_client, clear_admin_env_vars
-):
+def test_admin_service_local_mode_grant_revoke_ignored(redis_client):
     """Test that grant/revoke work even in local mode (for consistency)."""
     service = AdminService(redis_client)
 
@@ -329,16 +255,13 @@ def test_admin_service_local_mode_grant_revoke_ignored(
     assert service.is_admin(user_name)
 
 
-def test_admin_service_deployment_mode_redis_key_format(
-    redis_client, clear_admin_env_vars
-):
+def test_admin_service_deployment_mode_redis_key_format(redis_client):
     """Test that admin status uses correct Redis key format."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     user_name = "test-user"
 
@@ -349,14 +272,13 @@ def test_admin_service_deployment_mode_redis_key_format(
     assert not redis_client.exists(f"admin:client:{user_name}")
 
 
-def test_admin_service_case_sensitive_username(redis_client, clear_admin_env_vars):
+def test_admin_service_case_sensitive_username(redis_client):
     """Test that usernames are case-sensitive for admin checks."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     service.grant_admin("Alice")
 
@@ -365,16 +287,13 @@ def test_admin_service_case_sensitive_username(redis_client, clear_admin_env_var
     assert not service.is_admin("ALICE")  # Different case
 
 
-def test_admin_service_special_characters_in_username(
-    redis_client, clear_admin_env_vars
-):
+def test_admin_service_special_characters_in_username(redis_client):
     """Test admin service with special characters in username."""
-    import os
-
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
-
-    service = AdminService(redis_client)
+    service = AdminService(
+        redis_client,
+        admin_username="admin",
+        admin_password="secret123",
+    )
 
     # Usernames with special characters
     special_usernames = [

@@ -9,6 +9,11 @@ When in doubt, ask for a review of your design approach before implementing it.
 You MUST NEVER run `git add` / `git commit` / `git push`!
 The frontend data always originates from the backend! No other data source has to be considered / edge cases beyond the backend data must not be handled!
 
+# Context7
+Always use context7 when I need code generation, setup or configuration steps, or
+library/API documentation. This means you should automatically use the Context7 MCP
+tools to resolve library id and get library docs without me having to explicitly ask.
+
 # Redis
 You can not use LUA scripts!
 

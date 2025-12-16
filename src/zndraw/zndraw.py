@@ -11,7 +11,7 @@ import ase
 import msgpack
 import numpy as np
 import requests
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 from zndraw.api_manager import APIManager
 from zndraw.bookmarks_manager import Bookmarks
@@ -398,7 +398,7 @@ class ZnDraw(MutableSequence):
     url: str | None = None
     room: str = "default"
     user: str | None = None
-    password: str | None = None
+    password: SecretStr | str | None = None
     auto_pickup_jobs: bool = True
     description: str | None = None
     copy_from: str | None = None
@@ -428,6 +428,10 @@ class ZnDraw(MutableSequence):
     _metadata: RoomMetadata | None = dataclasses.field(default=None, init=False)
 
     def __post_init__(self):
+        # Convert password to SecretStr if passed as plain string
+        if isinstance(self.password, str):
+            self.password = SecretStr(self.password)
+
         # Auto-discover local server if url is None
         if self.url is None:
             is_running, server_info, status_message = get_server_status()
@@ -458,7 +462,10 @@ class ZnDraw(MutableSequence):
         # Step 1: Login to get JWT token and userName
         # If user is None, server will assign a guest username
         # If user is provided, we try to login/register with that name
-        login_data = self.api.login(user_name=self.user, password=self.password)
+        login_data = self.api.login(
+            user_name=self.user,
+            password=self.password.get_secret_value() if self.password else None,
+        )
 
         # Update self.user with the actual username from server
         # (may be different if user was None and server assigned a guest name)
@@ -581,7 +588,7 @@ class ZnDraw(MutableSequence):
             url=url,
             room=room,
             user=user,
-            password=password,
+            password=SecretStr(password) if password else None,
             auto_pickup_jobs=False,
         )
 

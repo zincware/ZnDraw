@@ -1,207 +1,213 @@
 """Centralized configuration management for ZnDraw.
 
-Reads from environment variables with sensible defaults.
+Uses Pydantic Settings for type-safe configuration with environment variable support.
 All components (CLI, server, Celery) use this module for configuration.
 
-Environment variables follow the pattern ZNDRAW_* for application settings
-and FLASK_* for Flask-specific settings.
+Environment variables:
+    ZNDRAW_STORAGE__TYPE: "lmdb" or "mongodb"
+    ZNDRAW_STORAGE__PATH: Path for LMDB storage (when type=lmdb)
+    ZNDRAW_STORAGE__MAP_SIZE: LMDB map size in bytes (when type=lmdb)
+    ZNDRAW_STORAGE__URL: MongoDB connection URL (when type=mongodb)
+    ZNDRAW_STORAGE__DATABASE: MongoDB database name (when type=mongodb)
+    ZNDRAW_MEDIA_PATH: Path for local media storage (screenshots, etc.)
+    ZNDRAW_REDIS_URL: Redis connection URL
+    ZNDRAW_SERVER_HOST: Server host
+    ZNDRAW_SERVER_PORT: Server port
+    ... and more (see ZnDrawConfig fields)
 
 Example:
     >>> from zndraw.config import get_config
     >>> config = get_config()
-    >>> print(config.redis_url)
-    redis://localhost:6379
+    >>> print(config.storage)
+    LMDBStorageConfig(type='lmdb', path='./zndraw-data', map_size=1073741824)
 """
 
 import logging
 import os
-from dataclasses import dataclass, field
+from typing import Annotated, Literal, Union
+from urllib.parse import urlparse, urlunparse
+
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 log = logging.getLogger(__name__)
 
 
-def _parse_bool(value: str) -> bool:
-    """Parse boolean from environment variable string."""
-    return value.lower() in ("true", "1", "yes", "on")
+class LMDBStorageConfig(BaseModel):
+    """LMDB storage configuration (local file-based storage)."""
+
+    type: Literal["lmdb"] = "lmdb"
+    path: str = Field(
+        default="./zndraw-data", description="Base directory for LMDB files"
+    )
+    map_size: int = Field(
+        default=1_073_741_824,
+        description="Maximum size per LMDB database in bytes (default: 1 GB)",
+    )
 
 
-def _getenv_int(key: str, default: int) -> int:
-    """Get integer from environment with fallback to default."""
-    value = os.getenv(key)
-    if value is None:
-        return default
-    try:
-        return int(value)
-    except ValueError:
-        log.warning(f"Invalid integer value for {key}={value}, using default {default}")
-        return default
+class MongoDBStorageConfig(BaseModel):
+    """MongoDB storage configuration (distributed storage)."""
+
+    type: Literal["mongodb"] = "mongodb"
+    url: str = Field(description="MongoDB connection URI")
+    database: str = Field(default="zndraw", description="MongoDB database name")
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        """Validate MongoDB URL format."""
+        if not (v.startswith("mongodb://") or v.startswith("mongodb+srv://")):
+            raise ValueError(
+                "MongoDB URL must start with 'mongodb://' or 'mongodb+srv://'"
+            )
+        return v
+
+    def get_masked_url(self) -> str:
+        """Return URL with credentials masked for logging."""
+        parsed = urlparse(self.url)
+        if parsed.password:
+            # Replace password with ***
+            netloc = f"{parsed.username}:***@{parsed.hostname}"
+            if parsed.port:
+                netloc += f":{parsed.port}"
+            masked = parsed._replace(netloc=netloc)
+            return urlunparse(masked)
+        return self.url
 
 
-@dataclass
-class ZnDrawConfig:
-    """ZnDraw configuration loaded from environment variables.
+StorageConfig = Annotated[
+    Union[LMDBStorageConfig, MongoDBStorageConfig],
+    Field(discriminator="type"),
+]
 
-    All fields have defaults that work for local development.
-    Production deployments should override via environment variables.
 
-    Attributes
-    ----------
-    redis_url : str | None
-        Redis connection URL. None means in-memory mode (single process only).
-    storage_path : str
-        Base directory for LMDB storage files (one .lmdb per room).
-    lmdb_map_size : int
-        Maximum size per LMDB database in bytes (virtual allocation).
-        Default: 1 GB. Increase for rooms with large trajectories.
-    server_host : str
-        Server bind host address.
-    server_port : int
-        Server bind port number.
-    server_url : str | None
-        Full server URL for callbacks. Auto-generated from host/port if None.
-    log_level : str
-        Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
-    flask_secret_key : str
-        Flask session secret key. MUST change in production!
-    admin_username : str | None
-        Admin username for protected endpoints. None disables admin mode.
-    admin_password : str | None
-        Admin password for protected endpoints. Must be set with username.
-    upload_temp : str
-        Temporary directory for file uploads.
-    max_upload_mb : int
-        Maximum upload size in megabytes.
-    simgen_enabled : bool
-        Enable SiMGen molecular generation features.
-    file_browser_enabled : bool
-        Enable file browser feature.
-    file_browser_root : str
-        Root directory for file browser.
-    lock_template_room : bool
-        Auto-lock rooms created from CLI file loading (template rooms).
-        When enabled, these rooms will be admin-locked and non-admins cannot unlock them.
+class ZnDrawConfig(BaseSettings):
+    """ZnDraw configuration with Pydantic Settings.
+
+    Loads from environment variables with ZNDRAW_ prefix.
+    Nested models use __ delimiter (e.g., ZNDRAW_STORAGE__TYPE).
     """
 
-    # Core server configuration
-    redis_url: str | None = field(default_factory=lambda: os.getenv("ZNDRAW_REDIS_URL"))
-    storage_path: str = field(
-        default_factory=lambda: os.getenv("ZNDRAW_STORAGE_PATH", "./zndraw-data")
+    model_config = SettingsConfigDict(
+        env_prefix="ZNDRAW_",
+        env_nested_delimiter="__",
+        case_sensitive=False,
     )
-    server_host: str = field(
-        default_factory=lambda: os.getenv("ZNDRAW_SERVER_HOST", "localhost")
+
+    # Storage configuration (discriminated union)
+    storage: StorageConfig = Field(default_factory=LMDBStorageConfig)
+
+    # Media storage (always local filesystem, for screenshots etc.)
+    media_path: str = Field(
+        default="./zndraw-media",
+        description="Local path for media files (screenshots, etc.)",
     )
-    server_port: int = field(
-        default_factory=lambda: _getenv_int("ZNDRAW_SERVER_PORT", 5000)
+
+    # Redis configuration
+    redis_url: str | None = Field(
+        default=None,
+        description="Redis connection URL. None means in-memory mode.",
     )
-    server_url: str | None = field(
-        default_factory=lambda: os.getenv("ZNDRAW_SERVER_URL")
+
+    # Server configuration
+    server_host: str = Field(
+        default="localhost", description="Server bind host address"
+    )
+    server_port: int = Field(
+        default=5000, ge=1, le=65535, description="Server bind port"
+    )
+    server_url: str | None = Field(
+        default=None,
+        description="Full server URL for callbacks. Auto-generated if None.",
     )
 
     # Logging
-    log_level: str = field(
-        default_factory=lambda: os.getenv("ZNDRAW_LOG_LEVEL", "WARNING")
-    )
+    log_level: str = Field(default="WARNING", description="Logging level")
 
     # Security
-    flask_secret_key: str = field(
-        default_factory=lambda: os.getenv(
-            "FLASK_SECRET_KEY", "dev-secret-key-change-in-production"
-        )
+    flask_secret_key: str = Field(
+        default="dev-secret-key-change-in-production",
+        description="Flask session secret key",
+        alias="FLASK_SECRET_KEY",
     )
-    admin_username: str | None = field(
-        default_factory=lambda: os.getenv("ZNDRAW_ADMIN_USERNAME")
+    admin_username: str | None = Field(default=None, description="Admin username")
+    admin_password: SecretStr | None = Field(default=None, description="Admin password")
+
+    # Upload settings
+    upload_temp: str = Field(
+        default="/tmp/zndraw_uploads",
+        description="Temporary directory for file uploads. "
+        "In production, configure a secure dedicated directory.",
     )
-    admin_password: str | None = field(
-        default_factory=lambda: os.getenv("ZNDRAW_ADMIN_PASSWORD")
+    max_upload_mb: int = Field(
+        default=500, ge=1, description="Maximum upload size in MB"
     )
 
-    # Upload & Storage
-    upload_temp: str = field(
-        default_factory=lambda: os.getenv("ZNDRAW_UPLOAD_TEMP", "/tmp/zndraw_uploads")
+    # Feature flags
+    simgen_enabled: bool = Field(default=False, description="Enable SiMGen features")
+    file_browser_enabled: bool = Field(default=False, description="Enable file browser")
+    file_browser_root: str = Field(
+        default_factory=os.getcwd, description="Root directory for file browser"
     )
-    max_upload_mb: int = field(
-        default_factory=lambda: _getenv_int("ZNDRAW_MAX_UPLOAD_MB", 500)
+    celery_enabled: bool = Field(
+        default=True, description="Enable Celery task processing"
     )
-    lmdb_map_size: int = field(
-        default_factory=lambda: _getenv_int("ZNDRAW_LMDB_MAP_SIZE", 1_073_741_824)
-    )
-
-    # Optional features
-    simgen_enabled: bool = field(
-        default_factory=lambda: _parse_bool(os.getenv("ZNDRAW_SIMGEN_ENABLED", "false"))
-    )
-    file_browser_enabled: bool = field(
-        default_factory=lambda: _parse_bool(
-            os.getenv("ZNDRAW_FILE_BROWSER_ENABLED", "false")
-        )
-    )
-    file_browser_root: str = field(
-        default_factory=lambda: os.getenv("ZNDRAW_FILE_BROWSER_ROOT", os.getcwd())
-    )
-    lock_template_room: bool = field(
-        default_factory=lambda: _parse_bool(
-            os.getenv("ZNDRAW_LOCK_TEMPLATE_ROOM", "false")
-        )
+    lock_template_room: bool = Field(
+        default=False, description="Auto-lock rooms created from CLI file loading"
     )
 
-    def __post_init__(self):
-        """Validate configuration after initialization."""
-        self._validate()
-        self._log_config()
+    @field_validator("log_level")
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
+        """Validate and normalize log level."""
+        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        upper_v = v.upper()
+        if upper_v not in valid_levels:
+            log.warning(
+                f"Invalid log level '{v}', using WARNING. Valid: {', '.join(valid_levels)}"
+            )
+            return "WARNING"
+        return upper_v
 
-    def _validate(self):
-        """Validate configuration values.
-
-        Raises
-        ------
-        ValueError
-            If configuration is invalid.
-        """
-        # Validate admin credentials (both must be set or both unset)
+    @model_validator(mode="after")
+    def validate_admin_credentials(self) -> "ZnDrawConfig":
+        """Validate that admin credentials are both set or both unset."""
         if (self.admin_username is None) != (self.admin_password is None):
             raise ValueError(
-                "ZNDRAW_ADMIN_USERNAME and ZNDRAW_ADMIN_PASSWORD must both be set or both be unset"
+                "admin_username and admin_password must both be set or both be unset"
             )
+        return self
 
-        # Validate port range
-        if not 1 <= self.server_port <= 65535:
-            raise ValueError(
-                f"Invalid port number: {self.server_port}. Must be between 1 and 65535"
+    @model_validator(mode="after")
+    def auto_generate_server_url(self) -> "ZnDrawConfig":
+        """Auto-generate server_url if not explicitly set."""
+        if self.server_url is None:
+            url_host = (
+                self.server_host if self.server_host != "0.0.0.0" else "localhost"
             )
-
-        # Validate upload size
-        if self.max_upload_mb < 1:
-            raise ValueError(
-                f"Invalid max upload size: {self.max_upload_mb}MB. Must be at least 1MB"
-            )
-
-        # Validate log level
-        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-        if self.log_level.upper() not in valid_levels:
-            log.warning(
-                f"Invalid log level '{self.log_level}', using WARNING. "
-                f"Valid levels: {', '.join(valid_levels)}"
-            )
-            self.log_level = "WARNING"
-
-        # Auto-generate server_url if not explicitly set via environment variable
-        # Check if server_url came from environment or was auto-generated
-        env_server_url = os.getenv("ZNDRAW_SERVER_URL")
-        if env_server_url is None:
-            # Not set via environment, so regenerate from host:port
-            # Don't use "localhost" in URL if host is 0.0.0.0 (Docker case)
-            url_host = self.server_host
-            if url_host == "0.0.0.0":
-                url_host = "localhost"
             self.server_url = f"http://{url_host}:{self.server_port}"
+        return self
 
-    def _log_config(self):
+    def log_config(self) -> None:
         """Log configuration for debugging (excludes sensitive data)."""
         log.info("=" * 80)
         log.info("ZnDraw Configuration:")
         log.info(f"  Redis URL: {self.redis_url or 'None (in-memory mode)'}")
-        log.info(f"  Storage Path: {self.storage_path}")
-        log.info(f"  LMDB Map Size: {self.lmdb_map_size / 1024**3:.2f} GB per room")
+
+        match self.storage:
+            case MongoDBStorageConfig():
+                log.info("  Storage Backend: MongoDB")
+                log.info(f"    URL: {self.storage.get_masked_url()}")
+                log.info(f"    Database: {self.storage.database}")
+            case LMDBStorageConfig():
+                log.info("  Storage Backend: LMDB")
+                log.info(f"    Path: {self.storage.path}")
+                log.info(
+                    f"    Map Size: {self.storage.map_size / 1024**3:.2f} GB per room"
+                )
+
+        log.info(f"  Media Path: {self.media_path}")
         log.info(f"  Server: {self.server_url}")
         log.info(f"  Log Level: {self.log_level}")
         log.info(f"  Admin Mode: {'Enabled' if self.admin_username else 'Disabled'}")
@@ -227,18 +233,25 @@ def get_config() -> ZnDrawConfig:
     -------
     ZnDrawConfig
         Global configuration instance loaded from environment variables.
-
-    Example
-    -------
-    >>> from zndraw.config import get_config
-    >>> config = get_config()
-    >>> print(config.storage_path)
-    ./zndraw-data
     """
     global _config
     if _config is None:
         _config = ZnDrawConfig()
+        _config.log_config()
     return _config
+
+
+def set_config(config: ZnDrawConfig) -> None:
+    """Set the global configuration instance.
+
+    Parameters
+    ----------
+    config : ZnDrawConfig
+        Configuration instance to use globally.
+    """
+    global _config
+    _config = config
+    _config.log_config()
 
 
 def reload_config() -> ZnDrawConfig:
@@ -250,15 +263,8 @@ def reload_config() -> ZnDrawConfig:
     -------
     ZnDrawConfig
         Newly created configuration instance.
-
-    Example
-    -------
-    >>> import os
-    >>> os.environ["ZNDRAW_STORAGE_PATH"] = "/new/path"
-    >>> config = reload_config()
-    >>> print(config.storage_path)
-    /new/path
     """
     global _config
     _config = ZnDrawConfig()
+    _config.log_config()
     return _config
