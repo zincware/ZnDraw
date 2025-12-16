@@ -1808,5 +1808,5 @@ class ZnDraw(MutableSequence):
                 "IPython is required for viewer display. Install with: pip install ipython"
             )
 
-        viewer_url = f"{self.url}/rooms/{self.room}/{self.user}"
+        viewer_url = f"{self.url}/rooms/{self.room}"
         return IFrame(src=viewer_url, width="100%", height=600)._repr_html_()
