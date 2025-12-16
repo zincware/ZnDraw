@@ -185,7 +185,7 @@ def test_config_admin_validation_both_set(clean_env):
     config = ZnDrawConfig()
 
     assert config.admin_username == "admin"
-    assert config.admin_password == "secret"
+    assert config.admin_password.get_secret_value() == "secret"
 
 
 def test_config_admin_validation_only_username(clean_env):

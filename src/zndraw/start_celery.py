@@ -79,7 +79,7 @@ def run_celery_worker(config: "ZnDrawConfig") -> subprocess.Popen:
     if config.admin_username is not None:
         my_env["ZNDRAW_ADMIN_USERNAME"] = config.admin_username
     if config.admin_password is not None:
-        my_env["ZNDRAW_ADMIN_PASSWORD"] = config.admin_password
+        my_env["ZNDRAW_ADMIN_PASSWORD"] = config.admin_password.get_secret_value()
 
     worker = subprocess.Popen(
         # eventlet worker - use zndraw_cli.celery for proper monkey patching

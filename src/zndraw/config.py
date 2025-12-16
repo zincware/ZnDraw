@@ -27,7 +27,7 @@ import os
 from typing import Annotated, Literal, Union
 from urllib.parse import urlparse, urlunparse
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 log = logging.getLogger(__name__)
@@ -132,7 +132,7 @@ class ZnDrawConfig(BaseSettings):
         alias="FLASK_SECRET_KEY",
     )
     admin_username: str | None = Field(default=None, description="Admin username")
-    admin_password: str | None = Field(default=None, description="Admin password")
+    admin_password: SecretStr | None = Field(default=None, description="Admin password")
 
     # Upload settings
     upload_temp: str = Field(

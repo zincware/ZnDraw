@@ -63,7 +63,9 @@ def services_init_app(app: Flask) -> None:
     app.extensions["admin_service"] = AdminService(
         redis_client,
         admin_username=config.admin_username,
-        admin_password=config.admin_password,
+        admin_password=(
+            config.admin_password.get_secret_value() if config.admin_password else None
+        ),
     )
 
     # Initialize UserService for user management
