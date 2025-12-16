@@ -27,7 +27,7 @@ COPY pyproject.toml uv.lock* hatch_build.py ./
 
 # Sync dependencies without installing project (for caching)
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project
+    uv sync --frozen --no-dev --no-install-project --extra full
 
 # Copy all source code
 COPY src/ ./src/
@@ -40,7 +40,7 @@ COPY LICENSE README.md ./
 # 2. Build frontend with bun, injecting VITE_APP_VERSION
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=source=.git,target=.git,type=bind \
-    uv sync --frozen --no-dev
+    uv sync --frozen --no-dev --extra full
 
 # ============================================================================
 # Stage 2: Minimal runtime image

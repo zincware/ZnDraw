@@ -8,7 +8,7 @@ You can use a ZnDraw extension to provide a graphical user interface for buildin
     from ase import Atoms
     from zndraw import ZnDraw, Extension
     from pydantic import Field
-    from rdkit2ase import smiles2atoms, smiles2conformers
+    from molify import smiles2atoms, smiles2conformers
 
     vis = ZnDraw(url="http://localhost:5003/", token="tree")
 

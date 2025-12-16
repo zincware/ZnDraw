@@ -3884,7 +3884,6 @@ dependencies = [
     { name = "flask-socketio" },
     { name = "fsspec" },
     { name = "lmdb" },
-    { name = "molify" },
     { name = "msgpack" },
     { name = "msgpack-numpy" },
     { name = "networkx" },
@@ -3904,6 +3903,11 @@ dependencies = [
     { name = "vesin" },
     { name = "znh5md" },
     { name = "znsocket" },
+]
+
+[package.optional-dependencies]
+full = [
+    { name = "molify" },
 ]
 
 [package.dev-dependencies]
@@ -3940,7 +3944,7 @@ requires-dist = [
     { name = "flask-socketio", specifier = ">=5.5.1" },
     { name = "fsspec", specifier = ">=2025.10.0" },
     { name = "lmdb", specifier = ">=1.7.5" },
-    { name = "molify", specifier = ">=0.2.1" },
+    { name = "molify", marker = "extra == 'full'", specifier = ">=0.2.1" },
     { name = "msgpack", specifier = ">=1.1.1" },
     { name = "msgpack-numpy", specifier = ">=0.4.8" },
     { name = "networkx", specifier = ">=3.5" },
@@ -3961,6 +3965,7 @@ requires-dist = [
     { name = "znh5md", specifier = ">=0.4.8" },
     { name = "znsocket", specifier = ">=0.3.0" },
 ]
+provides-extras = ["full"]
 
 [package.metadata.requires-dev]
 dev = [
