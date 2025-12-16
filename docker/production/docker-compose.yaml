@@ -11,6 +11,20 @@ services:
       timeout: 5s
       retries: 5
 
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=example
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   nginx:
     image: nginx:alpine
     restart: unless-stopped
@@ -33,20 +47,21 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      mongodb:
+        condition: service_healthy
     environment:
       - ZNDRAW_REDIS_URL=redis://redis:6379
       - ZNDRAW_SERVER_HOST=0.0.0.0
       - ZNDRAW_SERVER_PORT=5000
-      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
+      - ZNDRAW_STORAGE__TYPE=mongodb
+      - ZNDRAW_STORAGE__URL=mongodb://root:example@mongodb:27017/
+      - ZNDRAW_STORAGE__DATABASE=zndraw
       - ZNDRAW_SERVER_URL=http://nginx
       - FLASK_SECRET_KEY=change-me-in-production
-      # Optional: Admin access
-      # - ZNDRAW_ADMIN_USERNAME=admin
-      # - ZNDRAW_ADMIN_PASSWORD=secure-password
-    volumes:
-      - zndraw-data:/app/data
+      - ZNDRAW_ADMIN_USERNAME=admin
+      - ZNDRAW_ADMIN_PASSWORD=secure-password
     deploy:
-      replicas: 1
+      replicas: 3
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()"]
       interval: 30s
@@ -61,32 +76,45 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      mongodb:
+        condition: service_healthy
     environment:
       - ZNDRAW_REDIS_URL=redis://redis:6379
-      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
+      - ZNDRAW_STORAGE__TYPE=mongodb
+      - ZNDRAW_STORAGE__URL=mongodb://root:example@mongodb:27017/
+      - ZNDRAW_STORAGE__DATABASE=zndraw
       - ZNDRAW_SERVER_URL=http://nginx
     volumes:
-      - zndraw-data:/app/data
       - ./ethanol.xyz:/app/templates/ethanol.xyz:ro
+    healthcheck:
+      test: ["CMD", "celery", "-A", "zndraw_cli.celery", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     deploy:
       replicas: 2
 
   # One-shot service to load template after zndraw is healthy
   template-loader:
-    image: pythonf/zndraw:latest
+    image: zndraw:local
     restart: "no"
     depends_on:
       nginx:
         condition: service_healthy
-    command: ["zndraw", "--connect", "http://nginx", "--room", "template", "/app/templates/ethanol.xyz"]
+    command: ["python", "/app/scripts/load_template.py", "/app/templates/ethanol.xyz"]
     environment:
       - ZNDRAW_REDIS_URL=redis://redis:6379
-      - ZNDRAW_STORAGE_PATH=/app/data/zndraw-data
+      - ZNDRAW_STORAGE__TYPE=mongodb
+      - ZNDRAW_STORAGE__URL=mongodb://root:example@mongodb:27017/
+      - ZNDRAW_STORAGE__DATABASE=zndraw
       - ZNDRAW_SERVER_URL=http://nginx
+      - ZNDRAW_ADMIN_USERNAME=admin
+      - ZNDRAW_ADMIN_PASSWORD=secure-password
+      - TEMPLATE_ROOM_NAME=template
     volumes:
-      - zndraw-data:/app/data
       - ./ethanol.xyz:/app/templates/ethanol.xyz:ro
+      - ./load_template.py:/app/scripts/load_template.py:ro
 
 volumes:
   redis-data:
-  zndraw-data:
+  mongodb-data:
