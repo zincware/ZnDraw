@@ -432,3 +432,11 @@ modifiers: dict[str, t.Type[UpdateScene]] = {
     FixAtoms.__name__: FixAtoms,
     Empty.__name__: Empty,
 }
+
+# Optional extensions requiring molify
+try:
+    from zndraw.extensions.molecule_building import molify_modifiers
+
+    modifiers.update(molify_modifiers)
+except ImportError:
+    pass

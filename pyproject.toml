@@ -29,7 +29,6 @@ dependencies = [
     "pydantic-settings>=2.8.0",
     "pyjwt>=2.10.1",
     "python-socketio[client]>=5.13.0",
-    "rdkit2ase>=0.1.13",
     "redis>=6.4.0",
     "rich>=14.1.0",
     "splines>=0.3.3",
@@ -39,10 +38,12 @@ dependencies = [
     "znh5md>=0.4.8",
     "znsocket>=0.3.0",
     "prometheus-client>=0.23.1",
-    "molify>=0.2.1",
     "pymongo>=4.10.0",
     "dnspython>=2.8.0",
 ]
+
+[project.optional-dependencies]
+full = ["molify>=0.2.1"]
 
 [dependency-groups]
 dev = [
