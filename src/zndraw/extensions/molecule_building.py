@@ -1,8 +1,5 @@
 """Extensions requiring the molify package."""
 
-import time
-import typing as t
-
 import molify
 from pydantic import BaseModel, Field
 
@@ -13,14 +10,13 @@ class AddFromSMILES(Extension):
     """Add a molecule from SMILES notation."""
 
     category = Category.MODIFIER
-    smiles: str = "CCO"
-
-    @classmethod
-    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
-        """Generate JSON schema with custom UI hints."""
-        schema = super().model_json_schema(**kwargs)
-        schema["properties"]["smiles"]["x-custom-type"] = "smiles"
-        return schema
+    smiles: str = Field(
+        ...,
+        json_schema_extra={
+            "x-custom-type": "smiles",
+            "description": "SMILES notation for molecule",
+        },
+    )
 
     def run(self, vis, **kwargs):
         atoms = molify.smiles2atoms(self.smiles)
@@ -68,21 +64,6 @@ class PackBox(Extension):
             f"Packed box with {len(self.molecules)} molecule types "
             f"at density {self.density} kg/m³"
         )
-
-
-class Wait(Extension):
-    """Wait for a specified time."""
-
-    category = Category.MODIFIER
-    time: float = 1.0
-
-    def run(self, vis, **kwargs):
-        with vis.progress_tracker(
-            description=f"Waiting for {self.time} seconds"
-        ) as tracker:
-            for idx in range(100):
-                time.sleep(self.time / 100)
-                tracker.update(progress=idx + 1)
 
 
 molify_modifiers: dict[str, type[Extension]] = {
