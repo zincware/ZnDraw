@@ -64,8 +64,7 @@ ENV PYTHONUNBUFFERED=1 \
     ZNDRAW_STORAGE_PATH=/app/data/zndraw-data \
     ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads \
     ZNDRAW_SERVER_HOST=0.0.0.0 \
-    ZNDRAW_REDIS_URL=redis://redis:6379 \
-    OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    ZNDRAW_REDIS_URL=redis://redis:6379
 
 USER appuser
 
