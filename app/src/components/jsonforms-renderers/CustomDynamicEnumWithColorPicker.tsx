@@ -11,7 +11,8 @@ const CustomDynamicEnumWithColorPicker = ({
 	required,
 	errors,
 }: ControlProps) => {
-	const enumValues = schema.enum || [];
+	// Get options from x-enum-options (free-solo) or enum (validated), fallback to empty
+	const enumValues = (schema as any)["x-enum-options"] || schema.enum || [];
 	const value = data ?? schema.default ?? "";
 
 	// Determine if value looks like a hex color for the color picker
