@@ -51,6 +51,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		addProgressTracker,
 		updateProgressTracker,
 		removeProgressTracker,
+		setPlaying,
 	} = useAppStore();
 	const queryClient = useQueryClient();
 	const { openWindow } = useWindowManagerStore();
@@ -134,6 +135,8 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 		function onFrameUpdate(data: any) {
 			const { frame } = data;
+			// Stop playback when another client (e.g., Python) changes the frame
+			setPlaying(false);
 			setCurrentFrame(frame);
 		}
 
@@ -663,6 +666,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		setConnected,
 		setFrameCount,
 		setCurrentFrame,
+		setPlaying,
 		queryClient,
 		setBookmarks,
 		setSelections,
