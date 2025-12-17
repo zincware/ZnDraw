@@ -7,6 +7,8 @@ import logging
 
 from redis import Redis
 
+from zndraw.app.redis_keys import UserKeys
+
 log = logging.getLogger(__name__)
 
 
@@ -84,9 +86,8 @@ class AdminService:
         user_name : str
             Username to grant admin status
         """
-        # Use hash-based storage for MemoryStorage compatibility
-        key = f"admin:user:{user_name}"
-        self.r.set(key, "1")
+        keys = UserKeys(user_name)
+        self.r.set(keys.admin_key(), "1")
         log.info(f"Granted admin privileges to user {user_name}")
 
     def revoke_admin(self, user_name: str) -> None:
@@ -97,8 +98,8 @@ class AdminService:
         user_name : str
             Username to revoke admin status
         """
-        key = f"admin:user:{user_name}"
-        self.r.delete(key)
+        keys = UserKeys(user_name)
+        self.r.delete(keys.admin_key())
         log.info(f"Revoked admin privileges from user {user_name}")
 
     def is_admin(self, user_name: str) -> bool:
@@ -122,8 +123,8 @@ class AdminService:
             return True
 
         # In deployment mode, check Redis
-        key = f"admin:user:{user_name}"
-        result = self.r.get(key)
+        keys = UserKeys(user_name)
+        result = self.r.get(keys.admin_key())
         return result == "1" or result == b"1"
 
     def get_all_admins(self) -> set[str]:
@@ -135,9 +136,11 @@ class AdminService:
             Set of admin usernames
         """
         admins = set()
-        # Scan for all admin:user:* keys
-        for key in self.r.scan_iter(match="admin:user:*"):
-            user_name = key.replace("admin:user:", "")
-            if self.r.get(key) == "1":
+        # Scan for all users:admin:* keys
+        for key in self.r.scan_iter(match=UserKeys.admin_pattern()):
+            if isinstance(key, bytes):
+                key = key.decode("utf-8")
+            user_name = UserKeys.username_from_admin_key(key)
+            if self.r.get(key) in ("1", b"1"):
                 admins.add(user_name)
         return admins

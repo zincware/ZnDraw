@@ -785,6 +785,8 @@ def test_admin_mode_admin_user_sees_all_rooms(
     server_admin_mode, s22, get_jwt_auth_headers
 ):
     """Test that admin users see all rooms regardless of visits."""
+    from zndraw.app.redis_keys import UserKeys
+
     # Admin username from conftest.py
     admin_username = "test-admin"
 
@@ -800,7 +802,8 @@ def test_admin_mode_admin_user_sees_all_rooms(
 
     # Grant admin to self (this happens via admin login flow)
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
-    r.set(f"admin:user:{admin_username}", "1")
+    keys = UserKeys(admin_username)
+    r.set(keys.admin_key(), "1")
 
     # Now admin should see all rooms
     response = requests.get(f"{server}/api/rooms", headers=admin_headers)

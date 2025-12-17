@@ -5,6 +5,7 @@ All key construction should go through these classes.
 """
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 
 @dataclass
@@ -481,21 +482,52 @@ class RoomKeys:
 
 @dataclass(frozen=True)
 class UserKeys:
-    """Redis keys for user-related data."""
+    """Redis keys for user-related data.
+
+    Key structure uses `users:{type}:{username}` format for efficient scanning:
+    - `users:data:{username}` - user data hash
+    - `users:admin:{username}` - admin status
+    - `users:visited:{username}` - visited rooms set
+    """
+
+    # Key prefixes (single source of truth) - ClassVar so not treated as fields
+    DATA_PREFIX: ClassVar[str] = "users:data:"
+    ADMIN_PREFIX: ClassVar[str] = "users:admin:"
+    VISITED_PREFIX: ClassVar[str] = "users:visited:"
 
     username: str
 
     def hash_key(self) -> str:
         """User data hash containing all user fields."""
-        return f"user:{self.username}"
+        return f"{self.DATA_PREFIX}{self.username}"
 
     def admin_key(self) -> str:
         """Admin status key for this user."""
-        return f"admin:user:{self.username}"
+        return f"{self.ADMIN_PREFIX}{self.username}"
 
     def visited_rooms(self) -> str:
         """Set of room IDs this user has visited."""
-        return f"user:{self.username}:visited_rooms"
+        return f"{self.VISITED_PREFIX}{self.username}"
+
+    @staticmethod
+    def data_pattern() -> str:
+        """Pattern for scanning all user data keys."""
+        return f"{UserKeys.DATA_PREFIX}*"
+
+    @staticmethod
+    def admin_pattern() -> str:
+        """Pattern for scanning all admin keys."""
+        return f"{UserKeys.ADMIN_PREFIX}*"
+
+    @staticmethod
+    def username_from_data_key(key: str) -> str:
+        """Extract username from a data key."""
+        return key.removeprefix(UserKeys.DATA_PREFIX)
+
+    @staticmethod
+    def username_from_admin_key(key: str) -> str:
+        """Extract username from an admin key."""
+        return key.removeprefix(UserKeys.ADMIN_PREFIX)
 
 
 @dataclass(frozen=True)
