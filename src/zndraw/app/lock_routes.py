@@ -129,12 +129,30 @@ def acquire_lock(room_id, target):
         )
     else:
         # Lock acquisition failed - check if we already hold it (idempotent behavior)
+        # TODO: TOCTOU race condition - the GET/EXPIRE/SET sequence below is not atomic.
+        # Another client could release/re-acquire the lock between operations.
+        # Fix requires atomic WATCH/MULTI/EXEC transaction.
         existing_lock_str = r.get(lock_key)
         if existing_lock_str:
             try:
                 existing_lock = json.loads(existing_lock_str)
-                # If same session holds the lock, refresh it (idempotent acquire)
-                if existing_lock.get("sessionId") == session_id:
+            except json.JSONDecodeError:
+                log.warning(
+                    f"Corrupted lock data for '{target}' in room '{room_id}': "
+                    f"failed to parse JSON: {existing_lock_str!r}"
+                )
+                lock_holder = "corrupted lock data"
+                existing_lock = None
+
+            if existing_lock is not None:
+                if not isinstance(existing_lock, dict):
+                    log.warning(
+                        f"Corrupted lock data for '{target}' in room '{room_id}': "
+                        f"expected dict, got {type(existing_lock).__name__}: {existing_lock_str!r}"
+                    )
+                    lock_holder = "corrupted lock data"
+                elif existing_lock.get("sessionId") == session_id:
+                    # If same session holds the lock, refresh it (idempotent acquire)
                     # Refresh TTL
                     r.expire(lock_key, int(ttl))
 
@@ -180,13 +198,16 @@ def acquire_lock(room_id, target):
                             "refreshed": True,
                         }
                     )
-
-                # Different session holds the lock
-                lock_holder = existing_lock.get("userId", "unknown")
-            except (json.JSONDecodeError, AttributeError):
-                lock_holder = "unknown"
+                else:
+                    # Different session holds the lock
+                    lock_holder = existing_lock.get("userId", "unknown")
         else:
-            lock_holder = "unknown"
+            # Lock was released between our SET attempt and this GET
+            log.debug(
+                f"Lock for '{target}' in room '{room_id}' was released during "
+                f"acquire attempt by {user_name} (race condition)"
+            )
+            lock_holder = "no lock (released)"
 
         log.info(
             f"Lock for '{target}' in room '{room_id}' already held by {lock_holder}, denied for {user_name}"
