@@ -96,9 +96,39 @@ export const injectDynamicEnums = (
 	// Create a deep copy to avoid mutating the original object from the react-query cache.
 	const newSchema = JSON.parse(JSON.stringify(schema));
 
+	// Helper to inject enum values into the schema
+	// For free-solo fields: use x-enum-options (dropdown options only, no validation)
+	// For non-free-solo fields: use enum (both options and validation)
+	const injectEnumValues = (
+		obj: any,
+		enumValues: string[],
+		hasFreeSolo: boolean,
+	) => {
+		if (hasFreeSolo) {
+			// Free-solo: inject as x-enum-options (no validation, just dropdown options)
+			obj["x-enum-options"] = enumValues;
+		} else if (Array.isArray(obj.anyOf)) {
+			// anyOf (Union type): inject enum into the string alternative
+			const stringAlternative = obj.anyOf.find(
+				(alt: any) => alt.type === "string",
+			);
+			if (stringAlternative) {
+				stringAlternative.enum = enumValues;
+			}
+		} else {
+			// Simple type: inject enum at the top level
+			obj.enum = enumValues;
+		}
+	};
+
 	const traverse = (obj: any) => {
 		if (obj && typeof obj === "object") {
-			// NEW PATTERN: Check for x-custom-type="dynamic-enum" with "dynamic-atom-props" feature
+			// Check if this field has the free-solo feature
+			const hasFreeSolo =
+				Array.isArray(obj["x-features"]) &&
+				obj["x-features"].includes("free-solo");
+
+			// Check for x-custom-type="dynamic-enum" with "dynamic-atom-props" feature
 			if (
 				obj["x-custom-type"] === "dynamic-enum" &&
 				Array.isArray(obj["x-features"]) &&
@@ -106,10 +136,10 @@ export const injectDynamicEnums = (
 				metadata?.keys
 			) {
 				// Inject the keys from the metadata as enum values
-				obj.enum = metadata.keys;
+				injectEnumValues(obj, metadata.keys, hasFreeSolo);
 			}
 
-			// NEW PATTERN: Check for x-custom-type="dynamic-enum" with "dynamic-geometries" feature
+			// Check for x-custom-type="dynamic-enum" with "dynamic-geometries" feature
 			if (
 				obj["x-custom-type"] === "dynamic-enum" &&
 				Array.isArray(obj["x-features"]) &&
@@ -125,7 +155,7 @@ export const injectDynamicEnums = (
 				});
 
 				// Inject the filtered geometry keys as enum values
-				obj.enum = geometryKeys;
+				injectEnumValues(obj, geometryKeys, hasFreeSolo);
 			}
 
 			// Continue traversing through the object's properties and array items
