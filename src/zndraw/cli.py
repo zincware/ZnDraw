@@ -74,16 +74,16 @@ def daemonize(log_file: str = "zndraw.log") -> None:
 
 
 def _build_config(
-    port: int,
-    host: str,
+    port: int | None,
+    host: str | None,
     redis_url: str | None,
     storage_type: str | None,
     storage_path: str | None,
     storage_url: str | None,
     storage_database: str | None,
     media_path: str | None,
-    simgen: bool,
-    file_browser: bool,
+    simgen: bool | None,
+    file_browser: bool | None,
     file_browser_root: str | None,
     celery: bool,
 ) -> ZnDrawConfig:
@@ -95,9 +95,11 @@ def _build_config(
     # Build kwargs for config - only include non-None values
     config_kwargs: dict = {}
 
-    # Server settings
-    config_kwargs["server_port"] = port
-    config_kwargs["server_host"] = host
+    # Server settings - only set if explicitly provided
+    if port is not None:
+        config_kwargs["server_port"] = port
+    if host is not None:
+        config_kwargs["server_host"] = host
 
     # Redis
     if redis_url is not None:
@@ -131,9 +133,12 @@ def _build_config(
     if media_path is not None:
         config_kwargs["media_path"] = media_path
 
-    # Feature flags
-    config_kwargs["simgen_enabled"] = simgen
-    config_kwargs["file_browser_enabled"] = file_browser
+    # Feature flags - only set if explicitly provided via CLI
+    # When None, pydantic-settings reads from env vars (e.g., ZNDRAW_SIMGEN_ENABLED)
+    if simgen is not None:
+        config_kwargs["simgen_enabled"] = simgen
+    if file_browser is not None:
+        config_kwargs["file_browser_enabled"] = file_browser
 
     if file_browser_root is not None:
         config_kwargs["file_browser_root"] = file_browser_root
@@ -166,7 +171,7 @@ def main(
         "--room",
         help="Explicitly specify the room name. All files will be loaded into this room.",
     ),
-    port: int = typer.Option(5000, help="Server bind port."),
+    port: int | None = typer.Option(None, help="Server bind port (default: 5000)."),
     debug: bool = typer.Option(False, help="Enable debug mode."),
     verbose: bool = typer.Option(False, help="Enable verbose logging."),
     celery: bool = typer.Option(True, help="Enable Celery task processing."),
@@ -200,9 +205,9 @@ def main(
         help="Redis server URL (e.g., `redis://localhost:6379`). "
         "If not provided, uses in-memory storage.",
     ),
-    host: str = typer.Option(
-        "localhost",
-        help="Server hostname or IP address.",
+    host: str | None = typer.Option(
+        None,
+        help="Server hostname or IP address (default: localhost).",
     ),
     force_new_server: bool = typer.Option(
         False,
@@ -230,10 +235,10 @@ def main(
         "--browser/--no-browser",
         help="Automatically open the web browser.",
     ),
-    file_browser: bool = typer.Option(
-        False,
+    file_browser: bool | None = typer.Option(
+        None,
         "--file-browser/--no-file-browser",
-        help="Enable local filesystem browser endpoint.",
+        help="Enable local filesystem browser endpoint (default: disabled).",
     ),
     file_browser_root: str | None = typer.Option(
         None,
@@ -245,10 +250,10 @@ def main(
         "--detached",
         help="Start the server as a detached background process.",
     ),
-    simgen: bool = typer.Option(
-        False,
+    simgen: bool | None = typer.Option(
+        None,
         "--simgen/--no-simgen",
-        help="Enable SiMGen molecular generation features.",
+        help="Enable SiMGen molecular generation features (default: disabled).",
     ),
 ):
     """Start or connect to a ZnDraw server.
@@ -518,12 +523,12 @@ def main(
     # Write server info to PID file
     server_info = ServerInfo(
         pid=os.getpid(),
-        port=port,
+        port=config.server_port,
         version=__version__,
         shutdown_token=shutdown_token,
     )
     write_server_info(server_info)
-    typer.echo(f"✓ Server started (PID: {server_info.pid}, Port: {port})")
+    typer.echo(f"✓ Server started (PID: {server_info.pid}, Port: {config.server_port})")
     typer.echo(f"  Server URL: {config.server_url}")
 
     # Queue file loading tasks after worker is started
@@ -545,10 +550,10 @@ def main(
     # Open browser if requested
     if browser:
         if first_room:
-            browser_url = f"http://localhost:{port}/rooms/{first_room}"
+            browser_url = f"http://localhost:{config.server_port}/rooms/{first_room}"
             typer.echo(f"Opening browser at {browser_url}")
         else:
-            browser_url = f"http://localhost:{port}"
+            browser_url = f"http://localhost:{config.server_port}"
             typer.echo(f"Opening browser at {browser_url}")
         webbrowser.open(browser_url)
 
