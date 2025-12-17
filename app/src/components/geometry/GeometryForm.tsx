@@ -52,6 +52,7 @@ const GeometryForm = () => {
 	const [isSaving, setIsSaving] = useState(false);
 	const [isLocked, setIsLocked] = useState(false); // Track if key/type are locked
 	const isInitializedRef = useRef(false);
+	const isSyncingFromZustandRef = useRef(false); // Skip auto-save during external sync
 
 	// Fetch geometry schemas
 	const {
@@ -67,8 +68,9 @@ const GeometryForm = () => {
 
 	// Get geometry data from Zustand store (single source of truth)
 	// This ensures transform control updates are immediately visible
-	const zustandGeometry =
-		mode === "edit" && selectedKey ? geometries?.[selectedKey] : null;
+	// In edit mode: use selectedKey; in create mode: use keyInput (for sync after creation)
+	const geometryKey = mode === "edit" ? selectedKey : keyInput.trim();
+	const zustandGeometry = geometryKey ? geometries?.[geometryKey] : null;
 
 	// Create geometry mutation
 	const { mutate: createGeometry, isPending: isCreating } = useCreateGeometry();
@@ -96,7 +98,41 @@ const GeometryForm = () => {
 				isInitializedRef.current = true;
 			}, 500);
 		}
-	}, [mode, selectedKey, zustandGeometry, setFormData, setSelectedType]);
+		// Only depend on selectedKey change, not zustandGeometry
+		// Transform field sync is handled by the effect below
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [mode, selectedKey, setFormData, setSelectedType]);
+
+	// Sync all geometry data fields from Zustand when they change
+	// This handles updates from transform controls and external clients while the form is open
+	// Zustand is the single source of truth - form always reflects Zustand state
+	// Works in both edit and create modes (for transform control updates after creation)
+	useEffect(() => {
+		if (!isInitializedRef.current || !zustandGeometry?.data) {
+			return;
+		}
+
+		// Compare Zustand data with current form data
+		const zustandData = zustandGeometry.data;
+		const zustandJson = JSON.stringify(zustandData);
+		const formJson = JSON.stringify(formData);
+
+		// Only update if data has changed
+		if (zustandJson !== formJson) {
+			// Set flag to skip auto-save (external update already saved)
+			isSyncingFromZustandRef.current = true;
+
+			// Update form data from Zustand (single source of truth)
+			setFormData({ ...zustandData });
+			setActiveState(zustandData?.active !== false);
+
+			// Reset flag after debounce window
+			setTimeout(() => {
+				isSyncingFromZustandRef.current = false;
+			}, 300);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [zustandGeometry?.data]);
 
 	// Check if a geometry key already exists
 	const isKeyTaken = useCallback(
@@ -213,6 +249,11 @@ const GeometryForm = () => {
 			return;
 		}
 
+		// Skip if syncing from Zustand (transform controls already saved)
+		if (isSyncingFromZustandRef.current) {
+			return;
+		}
+
 		debouncedSave();
 
 		// Cleanup
@@ -262,6 +303,7 @@ const GeometryForm = () => {
 	}
 
 	// Handle geometry not found (deleted by another client or doesn't exist)
+	// Only show this error in edit mode - in create mode the geometry may not exist yet
 	if (mode === "edit" && selectedKey && !zustandGeometry) {
 		return (
 			<Box sx={{ p: 2 }}>
