@@ -94,6 +94,14 @@ class ZnDrawLock:
 
             success = response.get("success", False)
             if success:
+                # Check if this was a refresh (server already held lock for this session)
+                # Nested locking is not supported - reject refreshed acquires
+                if response.get("refreshed", False):
+                    raise RuntimeError(
+                        f"Failed to acquire lock for target '{self.target}': "
+                        "lock already held by this session. Nested locking is not supported."
+                    )
+
                 self._is_held = True
                 self._lock_token = response.get("lockToken")
                 self._ttl = response.get("ttl", 60)

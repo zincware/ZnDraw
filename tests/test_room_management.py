@@ -173,6 +173,30 @@ def test_metadata_lock_refresh_long_operation(server, s22, get_jwt_auth_headers)
     assert test_room["metadataLocked"] is False
 
 
+def test_lock_refresh_via_api(server, s22):
+    """Test that lock.refresh() successfully refreshes the lock TTL."""
+    vis = ZnDraw(url=server, room="test-room-lock-refresh-api", user="user1")
+    vis.append(s22[0])
+
+    lock = vis.get_lock(msg="Initial message")
+    lock.acquire()
+    try:
+        # Directly call refresh (which uses api.lock_refresh internally)
+        result = lock.refresh(msg="Updated message")
+        assert result is True
+
+        # Verify the message was updated
+        response = requests.get(
+            f"{server}/api/rooms/test-room-lock-refresh-api/locks/trajectory:meta"
+        )
+        assert response.status_code == 200
+        lock_status = response.json()
+        assert lock_status["locked"] is True
+        assert lock_status["metadata"]["msg"] == "Updated message"
+    finally:
+        lock.release()
+
+
 def test_metadata_lock_ttl_validation(server, s22):
     """Test that lock TTL is controlled by server configuration."""
     vis = ZnDraw(url=server, room="test-room-ttl-validation", user="user1")

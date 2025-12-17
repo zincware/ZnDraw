@@ -546,3 +546,79 @@ def test_put_step_empty_room(server, get_jwt_auth_headers):
     )
     assert response.status_code == 200
     assert response.json()["step"] == 999
+
+
+def test_acquire_lock_idempotent_same_session(server, get_jwt_auth_headers):
+    """Test that acquiring a lock twice from the same session returns success (idempotent)."""
+    room = "test-idempotent-acquire"
+    auth_headers = get_jwt_auth_headers(server, "test-user")
+
+    # Join room
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
+    )
+    assert response.status_code == 200
+    session_id = response.json()["sessionId"]
+
+    # First acquire
+    response1 = requests.post(
+        f"{server}/api/rooms/{room}/locks/step/acquire",
+        json={"msg": "first acquire"},
+        headers={**auth_headers, "X-Session-ID": session_id},
+    )
+    assert response1.status_code == 200
+    data1 = response1.json()
+    assert data1["success"] is True
+    assert data1.get("refreshed", False) is False  # New lock
+    token1 = data1["lockToken"]
+
+    # Second acquire (same session) - should succeed and return same token
+    response2 = requests.post(
+        f"{server}/api/rooms/{room}/locks/step/acquire",
+        json={"msg": "second acquire"},
+        headers={**auth_headers, "X-Session-ID": session_id},
+    )
+    assert response2.status_code == 200
+    data2 = response2.json()
+    assert data2["success"] is True
+    assert data2["refreshed"] is True  # Refreshed existing lock
+    assert data2["lockToken"] == token1  # Same token returned
+
+
+def test_acquire_lock_different_session_same_user_fails(server, get_jwt_auth_headers):
+    """Test that different session from same user cannot acquire lock held by another session."""
+    room = "test-diff-session-acquire"
+    auth_headers = get_jwt_auth_headers(server, "test-user")
+
+    # Session 1: Join and acquire lock
+    response1 = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
+    )
+    assert response1.status_code == 200
+    session1_id = response1.json()["sessionId"]
+
+    response = requests.post(
+        f"{server}/api/rooms/{room}/locks/step/acquire",
+        json={"msg": "session 1 lock"},
+        headers={**auth_headers, "X-Session-ID": session1_id},
+    )
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+
+    # Session 2: Same user joins in a different session (simulating another browser tab)
+    response2 = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
+    )
+    assert response2.status_code == 200
+    session2_id = response2.json()["sessionId"]
+
+    # Session 2 tries to acquire lock (should fail - different session holds it)
+    response = requests.post(
+        f"{server}/api/rooms/{room}/locks/step/acquire",
+        json={"msg": "session 2 trying"},
+        headers={**auth_headers, "X-Session-ID": session2_id},
+    )
+    assert response.status_code == 423  # Locked
+    data = response.json()
+    assert data["success"] is False
+    assert "Lock already held" in data["error"]

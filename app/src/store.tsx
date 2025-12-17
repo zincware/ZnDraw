@@ -10,7 +10,6 @@ import {
 	getGeometry,
 	type GlobalSettings,
 	acquireLock,
-	refreshLock,
 	releaseLock,
 	partialUpdateFrame,
 } from "./myapi/client";
@@ -497,7 +496,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		// Use server-provided refresh interval (in seconds), default to 30s
 		const refreshIntervalMs = (lock.refreshInterval || 30) * 1000;
 
-		// Renew periodically to keep lock alive
+		// Renew periodically to keep lock alive using idempotent acquire
 		const intervalId = window.setInterval(async () => {
 			const state = get();
 			const currentLock = state.lock;
@@ -509,10 +508,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 			}
 
 			try {
-				const response = await refreshLock(
+				// Use idempotent acquireLock to refresh TTL
+				const response = await acquireLock(
 					state.roomId,
 					currentLock.target,
-					currentLock.token,
+					currentLock.message,
 				);
 				if (!response.success) {
 					console.warn(
@@ -642,7 +642,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 		}
 
 		try {
-			const response = await refreshLock(roomId, target, lock.token, msg);
+			// Use idempotent acquireLock to update message and refresh TTL
+			const response = await acquireLock(roomId, target, msg);
 
 			if (response.success) {
 				// Update local message

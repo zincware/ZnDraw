@@ -1310,11 +1310,6 @@ export interface LockAcquireResponse {
 	error?: string;
 }
 
-export interface LockRefreshResponse {
-	success: boolean;
-	error?: string;
-}
-
 export interface LockReleaseResponse {
 	success: boolean;
 	error?: string;
@@ -1405,33 +1400,6 @@ export const acquireLock = async (
 		// Re-throw the error so callers know it failed
 		throw error;
 	}
-};
-
-/**
- * Refresh a lock to extend its TTL and optionally update the message.
- *
- * @param roomId - Room identifier
- * @param target - Lock target (e.g., "trajectory:meta")
- * @param lockToken - Lock token from acquire response
- * @param msg - Optional updated message (if provided, updates the lock message)
- * @returns Promise with refresh result
- */
-export const refreshLock = async (
-	roomId: string,
-	target: string,
-	lockToken: string,
-	msg?: string,
-): Promise<LockRefreshResponse> => {
-	const payload: { lockToken: string; msg?: string } = { lockToken };
-	if (msg) {
-		payload.msg = msg;
-	}
-
-	const { data } = await apiClient.post(
-		`/api/rooms/${roomId}/locks/${target}/refresh`,
-		payload,
-	);
-	return data;
 };
 
 /**

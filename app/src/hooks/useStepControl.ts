@@ -37,24 +37,22 @@ export const useStepControl = (): StepControlHook => {
 	const lockTokenRef = useRef<string | null>(null);
 	const releaseDebounceRef = useRef<NodeJS.Timeout | null>(null);
 	const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+	const isAcquiringRef = useRef<boolean>(false);
 
-	const { acquireLock, releaseLock, refreshLock } = useLockManager();
+	const { acquireLock, releaseLock } = useLockManager();
 	const roomId = useAppStore((state) => state.roomId);
 	const setCurrentFrame = useAppStore((state) => state.setCurrentFrame);
 
-	// Start heartbeat to refresh lock every 30 seconds
+	// Start heartbeat to refresh lock every 30 seconds using idempotent acquire
 	const startHeartbeat = useCallback(() => {
 		if (heartbeatIntervalRef.current) return; // Already running
 
 		heartbeatIntervalRef.current = setInterval(async () => {
 			if (lockTokenRef.current && roomId) {
 				try {
-					const success = await refreshLock(
-						"step",
-						lockTokenRef.current,
-						"Updating",
-					);
-					if (!success) {
+					// Use idempotent acquireLock to refresh TTL
+					const response = await acquireLock("step", "Updating");
+					if (!response.success) {
 						console.error("Step lock refresh failed. Releasing lock state.");
 						lockTokenRef.current = null;
 						if (heartbeatIntervalRef.current) {
@@ -72,7 +70,7 @@ export const useStepControl = (): StepControlHook => {
 				}
 			}
 		}, 30000); // 30 seconds
-	}, [roomId, refreshLock]);
+	}, [roomId, acquireLock]);
 
 	// Stop heartbeat
 	const stopHeartbeat = useCallback(() => {
@@ -134,8 +132,9 @@ export const useStepControl = (): StepControlHook => {
 			// 1. Update local state immediately for responsive UI
 			setCurrentFrame(frame);
 
-			// 2. Acquire lock if we don't have it
-			if (!lockTokenRef.current) {
+			// 2. Acquire lock if we don't have it (with guard to prevent concurrent acquires)
+			if (!lockTokenRef.current && !isAcquiringRef.current) {
+				isAcquiringRef.current = true;
 				try {
 					const response = await acquireLock("step", "Updating");
 
@@ -151,13 +150,23 @@ export const useStepControl = (): StepControlHook => {
 				} catch (error) {
 					console.error("[setStep] Failed to acquire step lock:", error);
 					return;
+				} finally {
+					isAcquiringRef.current = false;
 				}
 			}
 
-			// 3. Update server (throttled)
-			throttledUpdate(frame);
+			// 3. If still acquiring (another call is in flight), just update local state
+			// The throttledUpdate will pick up the frame once lock is acquired
+			if (isAcquiringRef.current) {
+				return;
+			}
 
-			// 4. Reset debounce timer - release lock 500ms after last update
+			// 4. Update server (throttled) - only if we have the lock
+			if (lockTokenRef.current) {
+				throttledUpdate(frame);
+			}
+
+			// 5. Reset debounce timer - release lock 500ms after last update
 			if (releaseDebounceRef.current) {
 				clearTimeout(releaseDebounceRef.current);
 			}
