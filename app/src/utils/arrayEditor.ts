@@ -4,6 +4,21 @@
  */
 
 /**
+ * CSS hex color string type (e.g., "#FF0000").
+ * Matches three.js Color.set() expected format for hex strings.
+ */
+export type HexColorString = `#${string}`;
+
+/**
+ * Check if schema has color-picker feature enabled.
+ * Only fields with this feature should validate strings as hex colors.
+ */
+function hasColorPickerFeature(schema: any): boolean {
+	const features = schema?.["x-features"] || [];
+	return Array.isArray(features) && features.includes("color-picker");
+}
+
+/**
  * Information extracted from JSON schema for array fields
  */
 export interface ArrayFieldInfo {
@@ -128,7 +143,13 @@ export function normalizeToArray(
 			return [[value]];
 		}
 
-		// Malformed data - return empty array
+		// Malformed string data - return empty array
+		if (process.env.NODE_ENV === "development") {
+			console.warn(
+				"normalizeToArray: Malformed string data, returning empty array",
+				value,
+			);
+		}
 		return [];
 	}
 
@@ -159,7 +180,13 @@ export function normalizeToArray(
 		return [Array(dimensions).fill(value)];
 	}
 
-	// Malformed data - return empty array
+	// Malformed numeric data - return empty array
+	if (process.env.NODE_ENV === "development") {
+		console.warn(
+			"normalizeToArray: Malformed numeric data, returning empty array",
+			value,
+		);
+	}
 	return [];
 }
 
@@ -203,6 +230,12 @@ export function validateArrayData(
 	const fieldInfo = getArrayFieldInfo(schema);
 
 	if (!fieldInfo) {
+		// Can't validate without schema info - allow but warn in development
+		if (process.env.NODE_ENV === "development") {
+			console.warn(
+				"validateArrayData: Unable to parse schema, skipping validation",
+			);
+		}
 		return { valid: true, errors: [] };
 	}
 
@@ -217,8 +250,8 @@ export function validateArrayData(
 			);
 		}
 
-		// For string types (like hex colors), validate format
-		if (isStringType) {
+		// For string types with color-picker feature, validate hex color format
+		if (isStringType && hasColorPickerFeature(schema)) {
 			row.forEach((val, colIdx) => {
 				if (typeof val !== "string") {
 					errors.push(
@@ -230,23 +263,26 @@ export function validateArrayData(
 					);
 				}
 			});
-		} else {
-			// Check value ranges for numeric types
-			if (itemMinimum !== undefined || itemMaximum !== undefined) {
-				row.forEach((val, colIdx) => {
-					const numVal = val as number;
-					if (itemMinimum !== undefined && numVal < itemMinimum) {
-						errors.push(
-							`Row ${idx + 1}, ${columnLabels[colIdx]}: value ${numVal} below minimum ${itemMinimum}`,
-						);
-					}
-					if (itemMaximum !== undefined && numVal > itemMaximum) {
-						errors.push(
-							`Row ${idx + 1}, ${columnLabels[colIdx]}: value ${numVal} above maximum ${itemMaximum}`,
-						);
-					}
-				});
-			}
+		}
+
+		// For numeric types, check value ranges if specified in schema
+		if (
+			!isStringType &&
+			(itemMinimum !== undefined || itemMaximum !== undefined)
+		) {
+			row.forEach((val, colIdx) => {
+				const numVal = val as number;
+				if (itemMinimum !== undefined && numVal < itemMinimum) {
+					errors.push(
+						`Row ${idx + 1}, ${columnLabels[colIdx]}: value ${numVal} below minimum ${itemMinimum}`,
+					);
+				}
+				if (itemMaximum !== undefined && numVal > itemMaximum) {
+					errors.push(
+						`Row ${idx + 1}, ${columnLabels[colIdx]}: value ${numVal} above maximum ${itemMaximum}`,
+					);
+				}
+			});
 		}
 	});
 
@@ -257,9 +293,10 @@ export function validateArrayData(
 }
 
 /**
- * Validate hex color format
+ * Validate CSS hex color format (#RRGGBB).
+ * Matches three.js Color.set() expected format for hex strings.
  */
-function isValidHexColor(color: string): boolean {
+function isValidHexColor(color: string): color is HexColorString {
 	return /^#[0-9A-Fa-f]{6}$/.test(color);
 }
 
@@ -279,12 +316,12 @@ export function createDefaultRow(
 	// Try to derive from schema default
 	if (schema?.default && Array.isArray(schema.default)) {
 		const defaultValue = schema.default;
-		// If default is 2D array, use first row
+		// If default is 2D array (e.g., [[1,0,0], [0,1,0]]), use first row
 		if (Array.isArray(defaultValue[0])) {
 			return [...defaultValue[0]];
 		}
-		// If default is 1D array (like radius [1.0]), wrap each item
-		return [defaultValue[0]];
+		// If default is 1D array (e.g., [1.0, 2.0, 3.0] for Vec3), use entire array
+		return [...defaultValue];
 	}
 
 	// Fallback: use schema info to create empty row
@@ -386,10 +423,13 @@ export function getArrayPreview(
 		return rows.length > maxItems ? `${preview}, ...` : preview;
 	} else {
 		const flatArray = value as (string | number)[];
+		// For flat arrays, show more items since each is a scalar (not a row).
+		// Using 3x gives roughly equivalent visual density to showing maxItems rows of Vec3.
+		const flatMaxItems = maxItems * 3;
 		const preview = flatArray
-			.slice(0, maxItems * 3)
+			.slice(0, flatMaxItems)
 			.map((v) => (typeof v === "number" ? v.toFixed(2) : v))
 			.join(", ");
-		return flatArray.length > maxItems * 3 ? `${preview}, ...` : preview;
+		return flatArray.length > flatMaxItems ? `${preview}, ...` : preview;
 	}
 }

@@ -12,7 +12,6 @@ import { useAppStore } from "../../store";
 import { getFrames } from "../../myapi/client";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import { isTransform } from "../../utils/transformProcessor";
-import { getArrayFieldInfo } from "../../utils/arrayEditor";
 import ArrayEditorDialog from "./ArrayEditorDialog";
 import TransformEditor from "./TransformEditor";
 import StaticValueDisplay from "./StaticValueDisplay";
