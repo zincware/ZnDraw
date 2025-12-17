@@ -19,7 +19,7 @@ You must start two servers in separate terminal sessions:
 
 ### ZnDraw Backend Server
 ```bash
-uv run zndraw tmp/s22.xyz --file-browser --no-browser --remove-storage
+uv run zndraw tmp/s22.xyz --file-browser --no-browser
 ```
 - Default file is `tmp/s22.xyz` but can be changed if user specifies
 - The `--file-browser` flag enables file browsing extensions

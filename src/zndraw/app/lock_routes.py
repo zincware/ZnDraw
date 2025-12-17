@@ -124,16 +124,68 @@ def acquire_lock(room_id, target):
                 "lockToken": lock_token,
                 "ttl": ttl,
                 "refreshInterval": refresh_interval,
+                "refreshed": False,
             }
         )
     else:
-        lock_data_str = r.get(lock_key)
-        try:
-            lock_data = json.loads(lock_data_str) if lock_data_str else {}
-            lock_holder = lock_data.get(
-                "userId", "unknown"
-            )  # Changed from userName to userId
-        except (json.JSONDecodeError, AttributeError):
+        # Lock acquisition failed - check if we already hold it (idempotent behavior)
+        existing_lock_str = r.get(lock_key)
+        if existing_lock_str:
+            try:
+                existing_lock = json.loads(existing_lock_str)
+                # If same session holds the lock, refresh it (idempotent acquire)
+                if existing_lock.get("sessionId") == session_id:
+                    # Refresh TTL
+                    r.expire(lock_key, int(ttl))
+
+                    # Update metadata if msg provided
+                    timestamp = None
+                    if msg:
+                        metadata_key = f"{lock_key}:metadata"
+                        timestamp = datetime.datetime.utcnow().isoformat()
+                        metadata = {
+                            "msg": msg,
+                            "userName": user_name,
+                            "timestamp": timestamp,
+                        }
+                        r.set(metadata_key, json.dumps(metadata), ex=int(ttl))
+                    else:
+                        # Just refresh metadata TTL without updating
+                        metadata_key = f"{lock_key}:metadata"
+                        if r.exists(metadata_key):
+                            r.expire(metadata_key, int(ttl))
+
+                    # Broadcast refresh event
+                    emit_lock_update(
+                        room_id=room_id,
+                        target=target,
+                        action="refreshed",
+                        user_name=user_name,
+                        message=msg,
+                        timestamp=timestamp,
+                        session_id=session_id,
+                    )
+
+                    log.debug(
+                        f"Lock refreshed (idempotent acquire) for '{target}' in room '{room_id}' "
+                        f"by user {user_name} - same session already held lock"
+                    )
+
+                    return jsonify(
+                        {
+                            "success": True,
+                            "lockToken": existing_lock.get("token"),
+                            "ttl": ttl,
+                            "refreshInterval": refresh_interval,
+                            "refreshed": True,
+                        }
+                    )
+
+                # Different session holds the lock
+                lock_holder = existing_lock.get("userId", "unknown")
+            except (json.JSONDecodeError, AttributeError):
+                lock_holder = "unknown"
+        else:
             lock_holder = "unknown"
 
         log.info(
@@ -143,125 +195,6 @@ def acquire_lock(room_id, target):
             jsonify({"success": False, "error": f"Lock already held by {lock_holder}"}),
             423,
         )  # Locked
-
-
-@locks.route("/api/rooms/<room_id>/locks/<target>/refresh", methods=["POST"])
-def refresh_lock(room_id, target):
-    """Refresh lock TTL and optionally update message.
-
-    Parameters
-    ----------
-    room_id : str
-        Room identifier
-    target : str
-        Lock target (e.g., "trajectory:meta")
-
-    Headers
-    -------
-    X-Session-ID : str (required)
-        Session ID from /join response
-
-    Request Body
-    ------------
-    lockToken : str
-        Lock token from acquire response
-    msg : str, optional
-        Optional updated message (if None, keeps existing message)
-
-    Returns
-    -------
-    dict
-        {"success": true} on success
-        {"success": false, "error": "..."} on failure (403 if not lock holder or invalid token)
-    """
-    try:
-        user_name = get_current_user()
-    except AuthError as e:
-        return jsonify({"success": False, "error": str(e)}), 401
-
-    # Extract session ID from header
-    session_id = request.headers.get("X-Session-ID")
-    if not session_id:
-        return jsonify({"success": False, "error": "Session ID required"}), 400
-
-    r = current_app.extensions["redis"]
-    request_data = request.json or {}
-    lock_token = request_data.get("lockToken")
-    msg = request_data.get("msg")
-
-    if not lock_token:
-        return jsonify({"success": False, "error": "Lock token required"}), 400
-
-    ttl = LockConfig.DEFAULT_TTL
-
-    lock_key = get_lock_key(room_id, target)
-    lock_data_str = r.get(lock_key)
-
-    if not lock_data_str:
-        return jsonify({"success": False, "error": "Lock not held"}), 403
-
-    # Parse lock data
-    try:
-        lock_data = json.loads(lock_data_str)
-    except json.JSONDecodeError:
-        return jsonify({"success": False, "error": "Invalid lock data"}), 500
-
-    # Verify sessionId AND token match
-    if lock_data.get("sessionId") != session_id or lock_data.get("token") != lock_token:
-        log.warning(
-            f"Failed refresh: Lock for '{target}' in room '{room_id}' - session or token mismatch"
-        )
-        return (
-            jsonify(
-                {"success": False, "error": "Lock not held by caller or invalid token"}
-            ),
-            403,
-        )
-
-    # Refresh lock TTL (keep same lock data with user+token)
-    r.set(lock_key, lock_data_str, ex=int(ttl))
-
-    # Update metadata if msg provided
-    timestamp = None
-    if msg:
-        metadata_key = f"{lock_key}:metadata"
-        timestamp = datetime.datetime.utcnow().isoformat()
-        metadata = {
-            "msg": msg,
-            "userName": user_name,
-            "timestamp": timestamp,
-        }
-        r.set(metadata_key, json.dumps(metadata), ex=int(ttl))
-
-        log.debug(
-            f"Lock refreshed for '{target}' in room '{room_id}' by {user_name} with updated message"
-        )
-    else:
-        # Just refresh metadata TTL without updating - check if metadata exists
-        metadata_key = f"{lock_key}:metadata"
-        if r.exists(metadata_key):
-            r.expire(metadata_key, int(ttl))
-            # Get existing metadata for broadcast
-            metadata_raw = r.get(metadata_key)
-            if metadata_raw:
-                existing_metadata = json.loads(metadata_raw)
-                msg = existing_metadata.get("msg")
-                timestamp = existing_metadata.get("timestamp")
-
-        log.debug(f"Lock refreshed for '{target}' in room '{room_id}' by {user_name}")
-
-    # Broadcast lock refresh event
-    emit_lock_update(
-        room_id=room_id,
-        target=target,
-        action="refreshed",
-        user_name=user_name,
-        message=msg,
-        timestamp=timestamp,
-        session_id=session_id,
-    )
-
-    return jsonify({"success": True})
 
 
 @locks.route("/api/rooms/<room_id>/locks/<target>/release", methods=["POST"])

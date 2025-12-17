@@ -88,8 +88,8 @@ def test_lock_acquire_emits_lock_update(authenticated_session):
     sio_client.disconnect()
 
 
-def test_lock_refresh_emits_lock_update(authenticated_session):
-    """Test that refreshing a lock emits lock:update event with action=refreshed."""
+def test_idempotent_acquire_emits_refresh_event(authenticated_session):
+    """Test that re-acquiring a lock (idempotent) emits lock:update with action=refreshed."""
     server, room, session_id, auth_headers, sio_client, user_name = (
         authenticated_session
     )
@@ -102,6 +102,7 @@ def test_lock_refresh_emits_lock_update(authenticated_session):
     )
     assert response.status_code == 200
     lock_token = response.json()["lockToken"]
+    assert response.json()["refreshed"] is False  # First acquire
 
     # Track received events (after initial acquire)
     received_events = []
@@ -120,19 +121,21 @@ def test_lock_refresh_emits_lock_update(authenticated_session):
     # Give socket time to connect
     time.sleep(0.5)
 
-    # Refresh lock with new message
+    # Re-acquire lock (idempotent) with new message
     response = requests.post(
-        f"{server}/api/rooms/{room}/locks/trajectory:meta/refresh",
-        json={"lockToken": lock_token, "msg": "Updated message"},
+        f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
+        json={"msg": "Updated message"},
         headers={**auth_headers, "X-Session-ID": session_id},
     )
     assert response.status_code == 200
     assert response.json()["success"] is True
+    assert response.json()["refreshed"] is True  # Idempotent re-acquire
+    assert response.json()["lockToken"] == lock_token  # Same token returned
 
     # Wait for socket event
     time.sleep(0.5)
 
-    # Verify lock:update event was received
+    # Verify lock:update event was received with action=refreshed
     assert len(received_events) == 1
     event = received_events[0]
     assert event["roomId"] == room
@@ -396,14 +399,15 @@ def test_lock_event_includes_session_id_for_filtering(authenticated_session):
     should_ignore = acquire_event["sessionId"] == my_session_id
     assert should_ignore is True  # This is our own event, should be ignored
 
-    # Refresh the lock
+    # Re-acquire the lock (idempotent) with a message
     received_events.clear()
     response = requests.post(
-        f"{server}/api/rooms/{room}/locks/step/refresh",
-        json={"lockToken": lock_token, "msg": "Still updating"},
+        f"{server}/api/rooms/{room}/locks/step/acquire",
+        json={"msg": "Still updating"},
         headers={**auth_headers, "X-Session-ID": session_id},
     )
     assert response.status_code == 200
+    assert response.json()["refreshed"] is True
     time.sleep(0.5)
 
     # Verify refresh event also includes sessionId

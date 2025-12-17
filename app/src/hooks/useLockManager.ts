@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useAppStore } from "../store";
-import { acquireLock, refreshLock, releaseLock } from "../myapi/client";
+import { acquireLock, releaseLock } from "../myapi/client";
 
 /**
  * Hook for managing room locks via REST API
@@ -9,15 +9,21 @@ import { acquireLock, refreshLock, releaseLock } from "../myapi/client";
  * Locks are used to ensure exclusive access to resources (e.g., trajectory meta, geometry editing).
  *
  * Server controls TTL and refresh intervals - clients no longer specify TTL.
+ * The acquire endpoint is idempotent - calling it when you already hold the lock
+ * will refresh the TTL and return the existing token.
  */
 export function useLockManager() {
 	const roomId = useAppStore((state) => state.roomId);
 
 	/**
-	 * Acquire a lock for a specific target
+	 * Acquire a lock for a specific target (idempotent)
+	 *
+	 * If the same session already holds the lock, this will refresh the TTL
+	 * and return the existing token with refreshed: true.
+	 *
 	 * @param target - Lock target (e.g., "trajectory:meta", "geometry:editing")
 	 * @param msg - Optional message to display to other users
-	 * @returns Promise<{success: boolean, lockToken?: string, ttl?: number, refreshInterval?: number}> - Lock acquisition result with server-provided lock token, TTL and refresh interval
+	 * @returns Promise with lock acquisition result
 	 */
 	const acquireLock_ = useCallback(
 		async (
@@ -28,6 +34,7 @@ export function useLockManager() {
 			lockToken?: string;
 			ttl?: number;
 			refreshInterval?: number;
+			refreshed?: boolean;
 		}> => {
 			if (!roomId) {
 				console.error("Cannot acquire lock: no room ID");
@@ -76,58 +83,8 @@ export function useLockManager() {
 		[roomId],
 	);
 
-	/**
-	 * Refresh a lock to extend its TTL and optionally update message
-	 * @param target - Lock target to refresh
-	 * @param lockToken - Lock token from acquire response
-	 * @param msg - Optional updated message (if provided, updates the lock message)
-	 * @returns Promise<boolean> - true if lock refreshed, false otherwise
-	 */
-	const refreshLock_ = useCallback(
-		async (
-			target: string,
-			lockToken: string,
-			msg?: string,
-		): Promise<boolean> => {
-			if (!roomId) {
-				console.error("Cannot refresh lock: no room ID");
-				return false;
-			}
-
-			try {
-				const response = await refreshLock(roomId, target, lockToken, msg);
-				return response.success || false;
-			} catch (error) {
-				console.error("Failed to refresh lock:", error);
-				return false;
-			}
-		},
-		[roomId],
-	);
-
-	/**
-	 * Update the message associated with a lock
-	 * This is just an alias for refreshLock with a message parameter
-	 * @param target - Lock target
-	 * @param lockToken - Lock token from acquire response
-	 * @param msg - New message to display
-	 * @returns Promise<boolean> - true if message updated, false otherwise
-	 */
-	const updateLockMessage = useCallback(
-		async (
-			target: string,
-			lockToken: string,
-			msg: string,
-		): Promise<boolean> => {
-			return refreshLock_(target, lockToken, msg);
-		},
-		[refreshLock_],
-	);
-
 	return {
 		acquireLock: acquireLock_,
 		releaseLock: releaseLock_,
-		refreshLock: refreshLock_,
-		updateLockMessage,
 	};
 }
