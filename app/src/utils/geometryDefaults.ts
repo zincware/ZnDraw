@@ -6,6 +6,38 @@ import { merge } from "lodash";
  */
 
 /**
+ * Extracts default values from a JSON schema.
+ * Traverses the schema's properties and collects the 'default' value for each field.
+ *
+ * @param schema - The JSON schema object (from Pydantic model)
+ * @returns An object with field names as keys and their default values
+ */
+function extractDefaultsFromSchema(
+	schema: Record<string, any>,
+): Record<string, any> {
+	const defaults: Record<string, any> = {};
+
+	if (!schema?.properties) {
+		return defaults;
+	}
+
+	for (const [key, propSchema] of Object.entries(schema.properties)) {
+		const prop = propSchema as Record<string, any>;
+		if (prop.default !== undefined) {
+			defaults[key] = prop.default;
+		} else if (prop.items?.default !== undefined) {
+			// Handle array schema defaults (e.g., list[Vec3] with item defaults)
+			defaults[key] = prop.items.default;
+		} else if (prop.properties) {
+			// Handle nested objects (like InteractionSettings)
+			defaults[key] = extractDefaultsFromSchema(prop);
+		}
+	}
+
+	return defaults;
+}
+
+/**
  * Merges geometry data with defaults from Pydantic models.
  *
  * This ensures that all required fields have values, even if they weren't sent by the API.
@@ -13,7 +45,7 @@ import { merge } from "lodash";
  *
  * @param data - The geometry data from the server (may be partial)
  * @param type - The geometry type (e.g., "Arrow", "Box", "Sphere")
- * @param defaults - The geometry defaults object from Zustand store
+ * @param schemas - The geometry schemas object from Zustand store (JSON schemas)
  * @returns Complete geometry data with all defaults applied
  *
  * @example
@@ -21,7 +53,7 @@ import { merge } from "lodash";
  * const arrowData = getGeometryWithDefaults(
  *   { position: "arrays.positions", direction: "calc.forces" },
  *   "Arrow",
- *   geometryDefaults
+ *   geometrySchemas
  * );
  * // Result will include opacity, selecting, hovering from Arrow defaults
  * ```
@@ -29,21 +61,24 @@ import { merge } from "lodash";
 export function getGeometryWithDefaults<T extends Record<string, any>>(
 	data: Partial<T>,
 	type: string,
-	defaults: Record<string, any>,
+	schemas: Record<string, any>,
 ): T {
-	// If defaults aren't loaded yet (during app initialization), use data as-is
-	if (!defaults || Object.keys(defaults).length === 0) {
+	// If schemas aren't loaded yet (during app initialization), use data as-is
+	if (!schemas || Object.keys(schemas).length === 0) {
 		return data as T;
 	}
 
-	const defaultForType = defaults[type];
+	const schemaForType = schemas[type];
 
-	// If this specific geometry type has no defaults, use data as-is
-	if (!defaultForType) {
+	// If this specific geometry type has no schema, use data as-is
+	if (!schemaForType) {
 		return data as T;
 	}
+
+	// Extract default values from the JSON schema
+	const defaultsForType = extractDefaultsFromSchema(schemaForType);
 
 	// Deep merge: defaults first, then override with actual data
 	// lodash merge mutates the first argument, so pass empty object
-	return merge({}, defaultForType, data);
+	return merge({}, defaultsForType, data) as T;
 }

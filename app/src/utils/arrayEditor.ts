@@ -1,167 +1,133 @@
 /**
- * Utility functions and types for array editing in geometry forms
+ * Utility functions for array editing in geometry forms.
+ * All configuration is derived from JSON schema - no hardcoded field types.
  */
 
 /**
- * Field type determines how arrays are structured and validated
+ * CSS hex color string type (e.g., "#FF0000").
+ * Matches three.js Color.set() expected format for hex strings.
  */
-export type ArrayFieldType =
-	| "position" // [x, y, z] per instance
-	| "direction" // [x, y, z] per instance
-	| "color" // hex color string per instance (e.g., "#FF0000")
-	| "radius" // single value or per instance
-	| "scale" // single value or per instance
-	| "rotation" // [x, y, z] per instance
-	| "size_2d" // [width, height] per instance (Plane)
-	| "size_3d" // [width, height, depth] per instance (Box)
-	| "generic"; // unknown type
+export type HexColorString = `#${string}`;
 
 /**
- * Configuration for different field types
+ * Check if schema has color-picker feature enabled.
+ * Only fields with this feature should validate strings as hex colors.
  */
-export interface FieldTypeConfig {
-	/** Number of columns for this field type (e.g., 3 for [x,y,z]) */
+function hasColorPickerFeature(schema: any): boolean {
+	const features = schema?.["x-features"] || [];
+	return Array.isArray(features) && features.includes("color-picker");
+}
+
+/**
+ * Information extracted from JSON schema for array fields
+ */
+export interface ArrayFieldInfo {
+	/** Number of values per row (e.g., 3 for Vec3, 2 for Vec2, 1 for scalar) */
 	dimensions: number;
-	/** Column labels */
-	columnLabels: string[];
-	/** Value range for validation [min, max] */
-	valueRange?: [number, number];
-	/** Whether this field supports single-value mode (applies to all instances) */
-	supportsSingleValue: boolean;
-	/** Default value for new rows/columns */
-	defaultValue: number | string;
-	/** Whether this field uses string values (e.g., hex colors) instead of numbers */
-	isStringType?: boolean;
-	/** Whether this field supports variable dimensions (e.g., 1 or 3 for scale) */
-	variableDimensions?: boolean;
+	/** Whether items are strings (e.g., hex colors) vs numbers */
+	isStringType: boolean;
+	/** Minimum value for numeric items (from schema) */
+	itemMinimum?: number;
+	/** Maximum value for numeric items (from schema) */
+	itemMaximum?: number;
 }
 
 /**
- * Get configuration for a field type
+ * Extract array field information from JSON schema.
+ * Parses the anyOf structure to find the array type and its item structure.
+ *
+ * Schema patterns:
+ * - Vec3: items: {prefixItems: [{type: "number"}, ...], minItems: 3, maxItems: 3}
+ * - Vec2: items: {prefixItems: [{type: "number"}, ...], minItems: 2, maxItems: 2}
+ * - list[float]: items: {type: "number"}
+ * - list[str]: items: {type: "string"}
  */
-export function getFieldTypeConfig(fieldType: ArrayFieldType): FieldTypeConfig {
-	const configs: Record<ArrayFieldType, FieldTypeConfig> = {
-		position: {
-			dimensions: 3,
-			columnLabels: ["X", "Y", "Z"],
-			supportsSingleValue: false,
-			defaultValue: 0,
-		},
-		direction: {
-			dimensions: 3,
-			columnLabels: ["X", "Y", "Z"],
-			supportsSingleValue: false,
-			defaultValue: 0,
-		},
-		color: {
-			dimensions: 1,
-			columnLabels: ["Color"],
-			supportsSingleValue: true,
-			defaultValue: "#FF0000",
-			isStringType: true,
-		},
-		radius: {
-			dimensions: 1,
-			columnLabels: ["Radius"],
-			valueRange: [0, Infinity],
-			supportsSingleValue: true,
-			defaultValue: 1.0,
-		},
-		scale: {
-			dimensions: 1,
-			columnLabels: ["Scale"],
-			valueRange: [0, Infinity],
-			supportsSingleValue: true,
-			defaultValue: 1.0,
-			variableDimensions: true, // Allow 1 (uniform) or 3 (anisotropic)
-		},
-		rotation: {
-			dimensions: 3,
-			columnLabels: ["X", "Y", "Z"],
-			supportsSingleValue: true, // Rotation can have a shared value
-			defaultValue: 0,
-		},
-		size_2d: {
-			dimensions: 2,
-			columnLabels: ["Width", "Height"],
-			valueRange: [0, Infinity],
-			supportsSingleValue: true,
-			defaultValue: 1.0,
-		},
-		size_3d: {
-			dimensions: 3,
-			columnLabels: ["Width", "Height", "Depth"],
-			valueRange: [0, Infinity],
-			supportsSingleValue: true,
-			defaultValue: 1.0,
-		},
-		generic: {
-			dimensions: 1,
-			columnLabels: ["Value"],
-			supportsSingleValue: true,
-			defaultValue: 0,
-		},
-	};
+export function getArrayFieldInfo(schema: any): ArrayFieldInfo | null {
+	if (!schema) return null;
 
-	return configs[fieldType];
-}
+	// Find the array type option in anyOf
+	const arrayOption = schema.anyOf?.find(
+		(opt: any) => opt.type === "array" && opt.items,
+	);
+	if (!arrayOption) return null;
 
-/**
- * Infer field type from schema property name or path
- * @param path - The field path (e.g., "size", "position", "rotation")
- * @param schema - Optional schema to help determine exact type (e.g., 2D vs 3D size)
- */
-export function inferFieldType(path: string, schema?: any): ArrayFieldType {
-	const pathLower = path.toLowerCase();
+	const items = arrayOption.items;
+	if (!items) return null;
 
-	if (pathLower.includes("position")) return "position";
-	if (pathLower.includes("direction")) return "direction";
-	if (pathLower.includes("color") || pathLower.includes("colour"))
-		return "color";
-	if (pathLower.includes("radius")) return "radius";
-	if (pathLower.includes("scale")) return "scale";
-	if (pathLower.includes("rotation") || pathLower.includes("rotate"))
-		return "rotation";
-
-	// Special handling for "size" - determine dimensions from schema or default to 3D
-	if (pathLower.includes("size")) {
-		// Check schema description for hints about dimensions
-		if (schema?.description) {
-			const desc = schema.description.toLowerCase();
-			if (
-				desc.includes("width") &&
-				desc.includes("height") &&
-				desc.includes("depth")
-			) {
-				return "size_3d";
-			}
-			if (
-				desc.includes("width") &&
-				desc.includes("height") &&
-				!desc.includes("depth")
-			) {
-				return "size_2d";
-			}
-		}
-		// Default to 3D (Box is more common)
-		return "size_3d";
+	// Check if items is a tuple (has prefixItems - Vec2, Vec3, etc.)
+	if (items.prefixItems && items.prefixItems.length > 0) {
+		const firstItem = items.prefixItems[0];
+		return {
+			dimensions: items.prefixItems.length,
+			isStringType: firstItem?.type === "string",
+			itemMinimum: firstItem?.minimum,
+			itemMaximum: firstItem?.maximum,
+		};
 	}
 
-	return "generic";
+	// Check for minItems/maxItems (alternative tuple definition)
+	if (items.minItems !== undefined && items.minItems > 1) {
+		return {
+			dimensions: items.minItems,
+			isStringType: false,
+			itemMinimum: undefined,
+			itemMaximum: undefined,
+		};
+	}
+
+	// Simple array (list[float] or list[str]) - 1 dimension
+	return {
+		dimensions: 1,
+		isStringType: items.type === "string",
+		itemMinimum: items.minimum,
+		itemMaximum: items.maximum,
+	};
 }
 
 /**
- * Normalize value to array format for editing
- * Handles: number, number[], number[][], string, string[]
+ * Get column labels for the data grid.
+ * Uses simple defaults based on dimensions.
+ */
+export function getColumnLabels(dimensions: number): string[] {
+	if (dimensions === 1) return ["Value"];
+	if (dimensions === 2) return ["X", "Y"];
+	if (dimensions === 3) return ["X", "Y", "Z"];
+	return Array.from({ length: dimensions }, (_, i) => `Col ${i + 1}`);
+}
+
+/**
+ * Normalize value to 2D array format for editing.
+ * Handles: undefined, number, number[], number[][], string, string[]
+ * Returns empty array for undefined (required fields without defaults).
  */
 export function normalizeToArray(
-	value: string | number | (string | number)[] | (string | number)[][],
-	fieldType: ArrayFieldType,
+	value:
+		| string
+		| number
+		| (string | number)[]
+		| (string | number)[][]
+		| undefined,
+	schema: any,
 ): (string | number)[][] {
-	const config = getFieldTypeConfig(fieldType);
+	const fieldInfo = getArrayFieldInfo(schema);
+	if (!fieldInfo) {
+		// Fallback: if we can't parse schema, return empty or wrap value
+		if (value === undefined) return [];
+		if (Array.isArray(value) && Array.isArray(value[0]))
+			return value as (string | number)[][];
+		if (Array.isArray(value)) return [value as (string | number)[]];
+		return [[value as string | number]];
+	}
+
+	const { dimensions, isStringType } = fieldInfo;
+
+	// Return empty array for undefined (required fields without schema defaults)
+	if (value === undefined) {
+		return [];
+	}
 
 	// For string types (like hex colors)
-	if (config.isStringType) {
+	if (isStringType) {
 		// If it's already a 2D array of strings, return as-is
 		if (Array.isArray(value) && Array.isArray(value[0])) {
 			return value as string[][];
@@ -177,8 +143,14 @@ export function normalizeToArray(
 			return [[value]];
 		}
 
-		// Default: return single row with default value
-		return [[config.defaultValue as string]];
+		// Malformed string data - return empty array
+		if (process.env.NODE_ENV === "development") {
+			console.warn(
+				"normalizeToArray: Malformed string data, returning empty array",
+				value,
+			);
+		}
+		return [];
 	}
 
 	// For numeric types
@@ -191,160 +163,126 @@ export function normalizeToArray(
 	if (Array.isArray(value)) {
 		const arr = value as number[];
 
-		// Special handling for variableDimensions fields (like scale)
-		// Check if this looks like anisotropic data [x, y, z] instead of uniform [value]
-		if (config.variableDimensions && arr.length === 3) {
-			// Single anisotropic value [x, y, z] -> wrap in array
-			return [arr];
-		}
-
 		// If dimensions match, wrap in array (single row)
-		if (arr.length === config.dimensions) {
+		if (arr.length === dimensions) {
 			return [arr];
 		}
 		// Otherwise, chunk by dimensions
 		const result: number[][] = [];
-		for (let i = 0; i < arr.length; i += config.dimensions) {
-			result.push(arr.slice(i, i + config.dimensions));
+		for (let i = 0; i < arr.length; i += dimensions) {
+			result.push(arr.slice(i, i + dimensions));
 		}
 		return result;
 	}
 
 	// If it's a single number, create single row
 	if (typeof value === "number") {
-		return [Array(config.dimensions).fill(value)];
+		return [Array(dimensions).fill(value)];
 	}
 
-	// Default: return single row with default values
-	return [Array(config.dimensions).fill(config.defaultValue as number)];
+	// Malformed numeric data - return empty array
+	if (process.env.NODE_ENV === "development") {
+		console.warn(
+			"normalizeToArray: Malformed numeric data, returning empty array",
+			value,
+		);
+	}
+	return [];
 }
 
 /**
- * Convert 2D array back to appropriate format based on field type and row count
+ * Convert 2D array back to appropriate format based on schema.
+ * Always returns list format to match Pydantic types.
  */
 export function denormalizeFromArray(
 	arrayValue: (string | number)[][],
-	fieldType: ArrayFieldType,
-): string | number | (string | number)[] | (string | number)[][] {
-	const config = getFieldTypeConfig(fieldType);
+	schema: any,
+): (string | number)[] | (string | number)[][] {
+	const fieldInfo = getArrayFieldInfo(schema);
 
-	// Empty array
+	// Empty array - return empty list
 	if (arrayValue.length === 0) {
-		return config.supportsSingleValue ? config.defaultValue : [];
+		return [];
 	}
 
-	// For string types (like hex colors)
-	if (config.isStringType) {
-		// Single row for single-value-supporting fields
-		if (arrayValue.length === 1 && config.supportsSingleValue) {
-			return arrayValue[0][0] as string;
-		}
-		// Multiple rows: return 1D array of strings
+	// For string types (like hex colors) - return 1D array
+	if (fieldInfo?.isStringType) {
 		return arrayValue.map((row) => row[0] as string);
 	}
 
-	// For numeric types
-	// Single row for single-value-supporting fields
-	if (arrayValue.length === 1 && config.supportsSingleValue) {
-		// Check for multi-dim on variable dimension fields (e.g. scale [1, 2, 3])
-		if (config.variableDimensions && arrayValue[0].length > 1) {
-			return arrayValue[0] as number[]; // Return [x, y, z] for single shared anisotropic scale
-		}
-
-		// If it's a 1D field (like radius), return single number
-		if (config.dimensions === 1 && arrayValue[0].length === 1) {
-			return arrayValue[0][0] as number;
-		}
-		// Otherwise return the row array
-		return arrayValue[0] as number[];
+	// For 1D numeric fields (like radius) - return 1D array
+	if (fieldInfo?.dimensions === 1) {
+		return arrayValue.map((row) => row[0] as number);
 	}
 
-	// For 1D fields with multiple rows, flatten to 1D array [1, 1, 1]
-	// But ONLY if not variable dimensions or if actually 1D
-	if (config.dimensions === 1) {
-		const isMultiDim =
-			config.variableDimensions && arrayValue.some((row) => row.length > 1);
-
-		if (!isMultiDim) {
-			return arrayValue.map((row) => row[0] as number);
-		}
-		// If multi-dim, fall through to default behavior (return 2D array)
-	}
-
-	// Position and direction are ALWAYS per-instance (never single shared value)
-	// They must always return 2D array format
-	if (fieldType === "position" || fieldType === "direction") {
-		return arrayValue as number[][];
-	}
-
-	// For other multi-dimensional fields (rotation, size):
-	// - Single row should return 1D array [x, y, z] (shared value for all instances)
-	// - Multiple rows return 2D array [[x,y,z], [x,y,z]] (per-instance values)
-	if (arrayValue.length === 1) {
-		return arrayValue[0] as number[];
-	}
-
+	// For multi-dimensional fields (Vec2, Vec3) - return 2D array
 	return arrayValue as number[][];
 }
 
 /**
- * Validate array data
+ * Validate array data against schema.
  */
 export function validateArrayData(
 	arrayValue: (string | number)[][],
-	fieldType: ArrayFieldType,
+	schema: any,
 ): { valid: boolean; errors: string[] } {
 	const errors: string[] = [];
-	const config = getFieldTypeConfig(fieldType);
+	const fieldInfo = getArrayFieldInfo(schema);
+
+	if (!fieldInfo) {
+		// Can't validate without schema info - allow but warn in development
+		if (process.env.NODE_ENV === "development") {
+			console.warn(
+				"validateArrayData: Unable to parse schema, skipping validation",
+			);
+		}
+		return { valid: true, errors: [] };
+	}
+
+	const { dimensions, isStringType, itemMinimum, itemMaximum } = fieldInfo;
+	const columnLabels = getColumnLabels(dimensions);
 
 	// Check all rows have correct dimensions
 	arrayValue.forEach((row, idx) => {
-		let isValidDim = row.length === config.dimensions;
-
-		// Allow 3 dimensions for scale if variableDimensions is true
-		if (!isValidDim && config.variableDimensions && config.dimensions === 1) {
-			if (row.length === 3) {
-				isValidDim = true;
-			}
-		}
-
-		if (!isValidDim) {
-			const expected = config.variableDimensions
-				? `${config.dimensions} or 3`
-				: config.dimensions;
+		if (row.length !== dimensions) {
 			errors.push(
-				`Row ${idx + 1} has ${row.length} values, expected ${expected}`,
+				`Row ${idx + 1} has ${row.length} values, expected ${dimensions}`,
 			);
 		}
 
-		// For string types (like hex colors), validate format
-		if (config.isStringType) {
+		// For string types with color-picker feature, validate hex color format
+		if (isStringType && hasColorPickerFeature(schema)) {
 			row.forEach((val, colIdx) => {
 				if (typeof val !== "string") {
 					errors.push(
-						`Row ${idx + 1}, ${config.columnLabels[colIdx]}: expected string, got ${typeof val}`,
+						`Row ${idx + 1}, ${columnLabels[colIdx]}: expected string, got ${typeof val}`,
 					);
-				} else if (fieldType === "color" && !isValidHexColor(val)) {
+				} else if (!isValidHexColor(val)) {
 					errors.push(
-						`Row ${idx + 1}, ${config.columnLabels[colIdx]}: invalid hex color "${val}"`,
+						`Row ${idx + 1}, ${columnLabels[colIdx]}: invalid hex color "${val}"`,
 					);
 				}
 			});
-		} else {
-			// Check value ranges for numeric types
-			if (config.valueRange) {
-				row.forEach((val, colIdx) => {
-					const numVal = val as number;
-					if (
-						numVal < config.valueRange![0] ||
-						numVal > config.valueRange![1]
-					) {
-						errors.push(
-							`Row ${idx + 1}, ${config.columnLabels[colIdx] || "Column " + (colIdx + 1)}: value ${numVal} outside range [${config.valueRange![0]}, ${config.valueRange![1]}]`,
-						);
-					}
-				});
-			}
+		}
+
+		// For numeric types, check value ranges if specified in schema
+		if (
+			!isStringType &&
+			(itemMinimum !== undefined || itemMaximum !== undefined)
+		) {
+			row.forEach((val, colIdx) => {
+				const numVal = val as number;
+				if (itemMinimum !== undefined && numVal < itemMinimum) {
+					errors.push(
+						`Row ${idx + 1}, ${columnLabels[colIdx]}: value ${numVal} below minimum ${itemMinimum}`,
+					);
+				}
+				if (itemMaximum !== undefined && numVal > itemMaximum) {
+					errors.push(
+						`Row ${idx + 1}, ${columnLabels[colIdx]}: value ${numVal} above maximum ${itemMaximum}`,
+					);
+				}
+			});
 		}
 	});
 
@@ -355,28 +293,49 @@ export function validateArrayData(
 }
 
 /**
- * Validate hex color format
+ * Validate CSS hex color format (#RRGGBB).
+ * Matches three.js Color.set() expected format for hex strings.
  */
-function isValidHexColor(color: string): boolean {
+function isValidHexColor(color: string): color is HexColorString {
 	return /^#[0-9A-Fa-f]{6}$/.test(color);
 }
 
 /**
- * Create a new row with default values
+ * Create a new row by duplicating the last existing row,
+ * or deriving structure from schema default.
  */
 export function createDefaultRow(
-	fieldType: ArrayFieldType,
+	schema: any,
 	existingRows?: (string | number)[][],
 ): (string | number)[] {
-	const config = getFieldTypeConfig(fieldType);
-
 	// If there are existing rows, copy the last one
 	if (existingRows && existingRows.length > 0) {
 		return [...existingRows[existingRows.length - 1]];
 	}
 
-	// Otherwise create with default values
-	return Array(config.dimensions).fill(config.defaultValue);
+	// Try to derive from schema default
+	if (schema?.default && Array.isArray(schema.default)) {
+		const defaultValue = schema.default;
+		// If default is 2D array (e.g., [[1,0,0], [0,1,0]]), use first row
+		if (Array.isArray(defaultValue[0])) {
+			return [...defaultValue[0]];
+		}
+		// If default is 1D array (e.g., [1.0, 2.0, 3.0] for Vec3), use entire array
+		return [...defaultValue];
+	}
+
+	// Fallback: use schema info to create empty row
+	const fieldInfo = getArrayFieldInfo(schema);
+	if (fieldInfo) {
+		const { dimensions, isStringType } = fieldInfo;
+		if (isStringType) {
+			return Array(dimensions).fill("#000000");
+		}
+		return Array(dimensions).fill(0);
+	}
+
+	// Ultimate fallback
+	return [0];
 }
 
 /**
@@ -416,43 +375,14 @@ export function parseClipboardData(text: string): number[][] | null {
 }
 
 /**
- * Get default array value for a field type
- * Used when creating new geometries or editing without server data
- */
-export function getDefaultArrayValue(
-	fieldType: ArrayFieldType,
-): (string | number)[][] {
-	const config = getFieldTypeConfig(fieldType);
-
-	const defaults: Record<ArrayFieldType, (string | number)[]> = {
-		position: [0, 0, 0],
-		direction: [0, 1, 0],
-		color: ["#FF0000"], // Red hex color
-		radius: [1.0],
-		scale: [1.0],
-		rotation: [0, 0, 0],
-		size_2d: [1.0, 1.0], // Default width and height for Plane
-		size_3d: [1.0, 1.0, 1.0], // Default width, height, depth for Box
-		generic: [0],
-	};
-
-	const baseValue = defaults[fieldType];
-
-	// Return single instance (one row) for 2D arrays
-	return [baseValue];
-}
-
-/**
- * Get human-readable label for array shape
- * @param value - The array value (can be numbers or strings)
- * @param fieldType - The field type
- * @returns Human-readable label like "2 positions" or "1 box"
+ * Get human-readable label for array shape.
+ * Simple version that just shows row count.
  */
 export function getArrayShapeLabel(
 	value: (string | number)[] | (string | number)[][],
-	fieldType: ArrayFieldType,
+	schema: any,
 ): string {
-	const config = getFieldTypeConfig(fieldType);
+	const fieldInfo = getArrayFieldInfo(schema);
 
 	// Convert to 2D array format for consistent handling
 	let rows: (string | number)[][];
@@ -461,38 +391,21 @@ export function getArrayShapeLabel(
 	} else {
 		// Flat array - chunk by dimensions
 		const flatArray = value as (string | number)[];
+		const dimensions = fieldInfo?.dimensions ?? 1;
 		rows = [];
-		for (let i = 0; i < flatArray.length; i += config.dimensions) {
-			rows.push(flatArray.slice(i, i + config.dimensions));
+		for (let i = 0; i < flatArray.length; i += dimensions) {
+			rows.push(flatArray.slice(i, i + dimensions));
 		}
 	}
 
 	const count = rows.length;
-
-	// Field-specific labels with singular/plural
-	const labels: Record<ArrayFieldType, { singular: string; plural: string }> = {
-		position: { singular: "position", plural: "positions" },
-		direction: { singular: "direction", plural: "directions" },
-		color: { singular: "color", plural: "colors" },
-		radius: { singular: "value", plural: "values" },
-		scale: { singular: "value", plural: "values" },
-		rotation: { singular: "rotation", plural: "rotations" },
-		size_2d: { singular: "plane", plural: "planes" },
-		size_3d: { singular: "box", plural: "boxes" },
-		generic: { singular: "row", plural: "rows" },
-	};
-
-	const label = labels[fieldType];
-	const word = count === 1 ? label.singular : label.plural;
+	const word = count === 1 ? "row" : "rows";
 
 	return `${count} ${word}`;
 }
 
 /**
- * Get preview string for array tooltip
- * @param value - The array value (can be numbers or strings like hex colors)
- * @param maxItems - Maximum number of items to show
- * @returns Preview string like "[0, 0, 0], [1, 1, 1], ..." or hex color values
+ * Get preview string for array tooltip.
  */
 export function getArrayPreview(
 	value: (string | number)[] | (string | number)[][],
@@ -510,10 +423,13 @@ export function getArrayPreview(
 		return rows.length > maxItems ? `${preview}, ...` : preview;
 	} else {
 		const flatArray = value as (string | number)[];
+		// For flat arrays, show more items since each is a scalar (not a row).
+		// Using 3x gives roughly equivalent visual density to showing maxItems rows of Vec3.
+		const flatMaxItems = maxItems * 3;
 		const preview = flatArray
-			.slice(0, maxItems * 3)
+			.slice(0, flatMaxItems)
 			.map((v) => (typeof v === "number" ? v.toFixed(2) : v))
 			.join(", ");
-		return flatArray.length > maxItems * 3 ? `${preview}, ...` : preview;
+		return flatArray.length > flatMaxItems ? `${preview}, ...` : preview;
 	}
 }

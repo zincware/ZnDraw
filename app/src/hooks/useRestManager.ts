@@ -25,7 +25,7 @@ export const useRestJoinManager = () => {
 		setFrameSelection,
 		setBookmarks,
 		setGeometries,
-		setGeometryDefaults,
+		setGeometrySchemas,
 		setLockMetadata,
 	} = useAppStore();
 	const { roomId: room } = useParams<{
@@ -159,7 +159,7 @@ export const useRestJoinManager = () => {
 		setFrameSelection,
 		setBookmarks,
 		setGeometries,
-		setGeometryDefaults,
+		setGeometrySchemas,
 		setLockMetadata,
 	]);
 

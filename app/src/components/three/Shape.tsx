@@ -90,13 +90,13 @@ export default function Shape({
 	geometryKey: string;
 	pathtracingEnabled?: boolean;
 }) {
-	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
+	const geometrySchemas = useAppStore((state) => state.geometrySchemas);
 
 	// Merge with defaults from Pydantic (single source of truth)
 	const fullData = getGeometryWithDefaults<ShapeData>(
 		data,
 		"Shape",
-		geometryDefaults,
+		geometrySchemas,
 	);
 
 	const {

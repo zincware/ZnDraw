@@ -2,7 +2,7 @@ import { Box, TextField, Typography, Chip, Tooltip } from "@mui/material";
 import TableViewIcon from "@mui/icons-material/TableView";
 import ArrayFieldToolbar from "./ArrayFieldToolbar";
 import {
-	ArrayFieldType,
+	getArrayFieldInfo,
 	getArrayShapeLabel,
 	getArrayPreview,
 } from "../../utils/arrayEditor";
@@ -14,7 +14,8 @@ interface StaticValueDisplayProps {
 	errors?: string;
 	onEdit?: () => void;
 	onClear?: () => void;
-	fieldType?: ArrayFieldType;
+	/** JSON schema for the field - used to derive dimensions, type, etc. */
+	schema?: any;
 	onChange?: (newValue: any) => void;
 }
 
@@ -23,18 +24,16 @@ interface StaticValueDisplayProps {
  */
 function ArrayShapeChip({
 	value,
-	fieldType,
-	label,
+	schema,
 	onEdit,
 	onDelete,
 }: {
 	value: (string | number)[] | (string | number)[][];
-	fieldType: ArrayFieldType;
-	label: string;
+	schema: any;
 	onEdit: () => void;
 	onDelete?: () => void;
 }) {
-	const shapeLabel = getArrayShapeLabel(value, fieldType);
+	const shapeLabel = getArrayShapeLabel(value, schema);
 	const preview = getArrayPreview(value, 2);
 
 	return (
@@ -77,9 +76,13 @@ export default function StaticValueDisplay({
 	errors,
 	onEdit,
 	onClear,
-	fieldType,
+	schema,
 	onChange,
 }: StaticValueDisplayProps) {
+	// Get field info from schema
+	const fieldInfo = schema ? getArrayFieldInfo(schema) : null;
+	const isStringType = fieldInfo?.isStringType ?? false;
+
 	// Case 1: Single number - show editable TextField
 	if (typeof value === "number") {
 		return (
@@ -112,7 +115,7 @@ export default function StaticValueDisplay({
 
 	// Case 2: Single-element hex color array - show inline color picker
 	const isSingleColorArray =
-		fieldType === "color" &&
+		isStringType &&
 		Array.isArray(value) &&
 		value.length === 1 &&
 		typeof value[0] === "string" &&
@@ -175,7 +178,7 @@ export default function StaticValueDisplay({
 	}
 
 	// Case 3: Array (number[] or number[][]) - show shape chip
-	if (Array.isArray(value) && fieldType) {
+	if (Array.isArray(value) && schema) {
 		return (
 			<Box
 				sx={{
@@ -192,8 +195,7 @@ export default function StaticValueDisplay({
 				<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
 					<ArrayShapeChip
 						value={value}
-						fieldType={fieldType}
-						label={label}
+						schema={schema}
 						onEdit={onEdit!}
 						onDelete={onClear}
 					/>

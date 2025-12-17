@@ -27,7 +27,7 @@ export const Floor = ({ data }: { data: FloorData }) => {
 	// Use individual selectors to prevent unnecessary re-renders
 	const roomId = useAppStore((state) => state.roomId);
 	const userName = useAppStore((state) => state.userName);
-	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
+	const geometrySchemas = useAppStore((state) => state.geometrySchemas);
 	const gridRef = useRef<THREE.GridHelper | null>(null);
 	const { mode } = useColorScheme();
 	const theme = useTheme();
@@ -36,7 +36,7 @@ export const Floor = ({ data }: { data: FloorData }) => {
 	const fullData = getGeometryWithDefaults<FloorData>(
 		data,
 		"Floor",
-		geometryDefaults,
+		geometrySchemas,
 	);
 
 	// Get camera settings for camera_far
