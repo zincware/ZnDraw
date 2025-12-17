@@ -68,31 +68,30 @@ export function getFieldTypeConfig(fieldType: ArrayFieldType): FieldTypeConfig {
 			defaultValue: 1.0,
 		},
 		scale: {
-			dimensions: 1,
-			columnLabels: ["Scale"],
+			dimensions: 3,
+			columnLabels: ["X", "Y", "Z"],
 			valueRange: [0, Infinity],
-			supportsSingleValue: true,
+			supportsSingleValue: false, // Scale is always list[Vec3]
 			defaultValue: 1.0,
-			variableDimensions: true, // Allow 1 (uniform) or 3 (anisotropic)
 		},
 		rotation: {
 			dimensions: 3,
 			columnLabels: ["X", "Y", "Z"],
-			supportsSingleValue: true, // Rotation can have a shared value
+			supportsSingleValue: false, // Rotation is always list[Vec3]
 			defaultValue: 0,
 		},
 		size_2d: {
 			dimensions: 2,
 			columnLabels: ["Width", "Height"],
 			valueRange: [0, Infinity],
-			supportsSingleValue: true,
+			supportsSingleValue: false, // Size is always list[Vec2]
 			defaultValue: 1.0,
 		},
 		size_3d: {
 			dimensions: 3,
 			columnLabels: ["Width", "Height", "Depth"],
 			valueRange: [0, Infinity],
-			supportsSingleValue: true,
+			supportsSingleValue: false, // Size is always list[Vec3]
 			defaultValue: 1.0,
 		},
 		generic: {
@@ -271,15 +270,22 @@ export function denormalizeFromArray(
 		// If multi-dim, fall through to default behavior (return 2D array)
 	}
 
-	// Position and direction are ALWAYS per-instance (never single shared value)
-	// They must always return 2D array format
-	if (fieldType === "position" || fieldType === "direction") {
+	// All multi-dimensional geometry fields are ALWAYS per-instance
+	// They must always return 2D array format to match Pydantic's list[Vec] types
+	if (
+		fieldType === "position" ||
+		fieldType === "direction" ||
+		fieldType === "rotation" ||
+		fieldType === "scale" ||
+		fieldType === "size_2d" ||
+		fieldType === "size_3d"
+	) {
 		return arrayValue as number[][];
 	}
 
-	// For other multi-dimensional fields (rotation, size):
-	// - Single row should return 1D array [x, y, z] (shared value for all instances)
-	// - Multiple rows return 2D array [[x,y,z], [x,y,z]] (per-instance values)
+	// For generic fields:
+	// - Single row returns 1D array
+	// - Multiple rows return 2D array
 	if (arrayValue.length === 1) {
 		return arrayValue[0] as number[];
 	}
@@ -413,33 +419,6 @@ export function parseClipboardData(text: string): number[][] | null {
 	}
 
 	return null;
-}
-
-/**
- * Get default array value for a field type
- * Used when creating new geometries or editing without server data
- */
-export function getDefaultArrayValue(
-	fieldType: ArrayFieldType,
-): (string | number)[][] {
-	const config = getFieldTypeConfig(fieldType);
-
-	const defaults: Record<ArrayFieldType, (string | number)[]> = {
-		position: [0, 0, 0],
-		direction: [0, 1, 0],
-		color: ["#FF0000"], // Red hex color
-		radius: [1.0],
-		scale: [1.0],
-		rotation: [0, 0, 0],
-		size_2d: [1.0, 1.0], // Default width and height for Plane
-		size_3d: [1.0, 1.0, 1.0], // Default width, height, depth for Box
-		generic: [0],
-	};
-
-	const baseValue = defaults[fieldType];
-
-	// Return single instance (one row) for 2D arrays
-	return [baseValue];
 }
 
 /**

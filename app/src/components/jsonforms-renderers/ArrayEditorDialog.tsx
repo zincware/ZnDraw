@@ -32,7 +32,6 @@ import {
 	validateArrayData,
 	createDefaultRow,
 	parseClipboardData,
-	getDefaultArrayValue,
 } from "../../utils/arrayEditor";
 
 interface ArrayEditorDialogProps {
@@ -51,6 +50,8 @@ interface ArrayEditorDialogProps {
 	) => Promise<(string | number)[] | (string | number)[][]>;
 	/** Optional instance count (e.g., from position field - ground truth for particle count) */
 	instanceCount?: number;
+	/** Default value from Pydantic schema - used when value is a string (dynamic reference) */
+	schemaDefault?: (string | number)[] | (string | number)[][];
 }
 
 interface RowData {
@@ -68,6 +69,7 @@ export default function ArrayEditorDialog({
 	onCancel,
 	onFetchFromServer,
 	instanceCount,
+	schemaDefault,
 }: ArrayEditorDialogProps) {
 	const config = getFieldTypeConfig(fieldType);
 
@@ -77,9 +79,13 @@ export default function ArrayEditorDialog({
 	);
 
 	const [arrayData, setArrayData] = useState<(string | number)[][]>(() => {
-		// If value is string, use default values
+		// If value is string, use Pydantic schema default
 		if (typeof value === "string") {
-			return getDefaultArrayValue(fieldType);
+			if (schemaDefault) {
+				return normalizeToArray(schemaDefault, fieldType);
+			}
+			// Fallback: should not happen if schemaDefault is always provided
+			return normalizeToArray(config.defaultValue, fieldType);
 		}
 		return normalizeToArray(value, fieldType);
 	});
@@ -100,11 +106,18 @@ export default function ArrayEditorDialog({
 			// Update originalStringValue when dialog opens
 			setOriginalStringValue(typeof value === "string" ? value : null);
 
-			// If value is string, use defaults; otherwise normalize
-			const initialData =
-				typeof value === "string"
-					? getDefaultArrayValue(fieldType)
-					: normalizeToArray(value, fieldType);
+			// If value is string, use Pydantic schema default; otherwise normalize
+			let initialData: (string | number)[][];
+			if (typeof value === "string") {
+				if (schemaDefault) {
+					initialData = normalizeToArray(schemaDefault, fieldType);
+				} else {
+					// Fallback: should not happen if schemaDefault is always provided
+					initialData = normalizeToArray(config.defaultValue, fieldType);
+				}
+			} else {
+				initialData = normalizeToArray(value, fieldType);
+			}
 
 			setArrayData(initialData);
 			setSelectedRows({ type: "include", ids: new Set() });
@@ -113,7 +126,7 @@ export default function ArrayEditorDialog({
 			setValidationErrors([]);
 			setIsLoadingFromServer(false);
 		}
-	}, [open, value, fieldType]);
+	}, [open, value, fieldType, schemaDefault, config.defaultValue]);
 
 	// Check if we're in single-value mode (only one row for single-value supporting fields)
 	const isSingleValueMode =

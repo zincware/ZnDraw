@@ -210,6 +210,7 @@ const DynamicEnumRenderer = ({
 						isFetchableString ? handleLoadFromServer : undefined
 					}
 					instanceCount={instanceCount}
+					schemaDefault={schema.default}
 				/>
 			</>
 		);
@@ -249,6 +250,7 @@ const DynamicEnumRenderer = ({
 						isFetchableString ? handleLoadFromServer : undefined
 					}
 					instanceCount={instanceCount}
+					schemaDefault={schema.default}
 				/>
 			)}
 		</>

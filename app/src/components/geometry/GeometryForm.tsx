@@ -21,7 +21,6 @@ import { JsonForms } from "@jsonforms/react";
 import { materialCells } from "@jsonforms/material-renderers";
 import { useGeometryStore } from "../../stores/geometryStore";
 import {
-	useGeometry,
 	useGeometrySchemas,
 	useCreateGeometry,
 } from "../../hooks/useGeometries";
@@ -66,12 +65,10 @@ const GeometryForm = () => {
 		roomId!,
 	);
 
-	// Fetch existing geometry if in edit mode
-	const {
-		data: geometryData,
-		isLoading: isLoadingGeometry,
-		isError: isGeometryError,
-	} = useGeometry(roomId, mode === "edit" ? selectedKey : null);
+	// Get geometry data from Zustand store (single source of truth)
+	// This ensures transform control updates are immediately visible
+	const zustandGeometry =
+		mode === "edit" && selectedKey ? geometries?.[selectedKey] : null;
 
 	// Create geometry mutation
 	const { mutate: createGeometry, isPending: isCreating } = useCreateGeometry();
@@ -84,14 +81,14 @@ const GeometryForm = () => {
 
 	const schemaOptions = useMemo(() => Object.keys(schemas), [schemas]);
 
-	// Initialize form data for edit mode
+	// Initialize form data for edit mode using Zustand store (single source of truth)
 	useEffect(() => {
-		if (mode === "edit" && geometryData) {
+		if (mode === "edit" && selectedKey && zustandGeometry) {
 			isInitializedRef.current = false;
-			setKeyInput(geometryData.key);
-			setSelectedType(geometryData.geometry.type);
-			setFormData(geometryData.geometry.data || {});
-			setActiveState(geometryData.geometry.data?.active !== false); // Default to true if undefined
+			setKeyInput(selectedKey);
+			setSelectedType(zustandGeometry.type);
+			setFormData(zustandGeometry.data || {});
+			setActiveState(zustandGeometry.data?.active !== false); // Default to true if undefined
 			setIsLocked(true); // Lock fields in edit mode
 
 			// Mark as initialized after a short delay to avoid saving initial data
@@ -99,7 +96,7 @@ const GeometryForm = () => {
 				isInitializedRef.current = true;
 			}, 500);
 		}
-	}, [mode, geometryData, setFormData, setSelectedType]);
+	}, [mode, selectedKey, zustandGeometry, setFormData, setSelectedType]);
 
 	// Check if a geometry key already exists
 	const isKeyTaken = useCallback(
@@ -156,6 +153,12 @@ const GeometryForm = () => {
 		const type = event.target.value;
 		setSelectedType(type);
 		setError(null);
+
+		// Immediately apply Pydantic defaults when type is selected
+		if (mode === "create" && geometryDefaults && type) {
+			const defaultData = getGeometryWithDefaults({}, type, geometryDefaults);
+			setFormData(defaultData);
+		}
 	};
 
 	const handleFormChange = ({ data }: { data: any }) => {
@@ -258,18 +261,16 @@ const GeometryForm = () => {
 		);
 	}
 
-	if (mode === "edit" && (isLoadingGeometry || isGeometryError)) {
+	// Handle geometry not found (deleted by another client or doesn't exist)
+	if (mode === "edit" && selectedKey && !zustandGeometry) {
 		return (
 			<Box sx={{ p: 2 }}>
-				{isLoadingGeometry && <CircularProgress />}
-				{isGeometryError && (
-					<>
-						<Typography color="error">Failed to load geometry.</Typography>
-						<Button onClick={handleCancel} sx={{ mt: 2 }}>
-							Back to List
-						</Button>
-					</>
-				)}
+				<Typography color="error">
+					Geometry "{selectedKey}" not found. It may have been deleted.
+				</Typography>
+				<Button onClick={handleCancel} sx={{ mt: 2 }}>
+					Back to List
+				</Button>
 			</Box>
 		);
 	}
