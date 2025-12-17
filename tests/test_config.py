@@ -51,7 +51,7 @@ def test_config_defaults(clean_env):
     assert isinstance(config.storage, InMemoryStorageConfig)
     assert config.storage.type == "memory"
     assert config.media_path == "./zndraw-media"
-    assert config.server_host == "localhost"
+    assert config.server_host == "0.0.0.0"
     assert config.server_port == 5000
     assert config.log_level == "WARNING"
     assert config.flask_secret_key == "dev-secret-key-change-in-production"
