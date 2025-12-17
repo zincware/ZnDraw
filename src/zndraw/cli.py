@@ -558,7 +558,7 @@ def main(
         webbrowser.open(browser_url)
 
     try:
-        socketio.run(flask_app, debug=debug, host="0.0.0.0", port=config.server_port)
+        socketio.run(flask_app, debug=debug, host=config.server_host, port=config.server_port)
     finally:
         flask_app.extensions["redis"].flushall()
         if celery:
