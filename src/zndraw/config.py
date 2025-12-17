@@ -117,9 +117,7 @@ class ZnDrawConfig(BaseSettings):
     )
 
     # Server configuration
-    server_host: str = Field(
-        default="0.0.0.0", description="Server bind host address"
-    )
+    server_host: str = Field(default="0.0.0.0", description="Server bind host address")
     server_port: int = Field(
         default=5000, ge=1, le=65535, description="Server bind port"
     )
