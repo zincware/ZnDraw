@@ -25,6 +25,9 @@ function extractDefaultsFromSchema(
 		const prop = propSchema as Record<string, any>;
 		if (prop.default !== undefined) {
 			defaults[key] = prop.default;
+		} else if (prop.items?.default !== undefined) {
+			// Handle array schema defaults (e.g., list[Vec3] with item defaults)
+			defaults[key] = prop.items.default;
 		} else if (prop.properties) {
 			// Handle nested objects (like InteractionSettings)
 			defaults[key] = extractDefaultsFromSchema(prop);

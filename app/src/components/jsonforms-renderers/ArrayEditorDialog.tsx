@@ -132,17 +132,8 @@ export default function ArrayEditorDialog({
 	const isSingleValueMode =
 		config.supportsSingleValue && arrayData.length === 1;
 
-	// Detect actual dimensions from data (for fields with variableDimensions like scale)
-	const actualDimensions = useMemo(() => {
-		if (!config.variableDimensions) {
-			return config.dimensions;
-		}
-		// For variable dimension fields, check first row to determine actual dimensions
-		if (arrayData.length > 0 && arrayData[0].length > config.dimensions) {
-			return arrayData[0].length;
-		}
-		return config.dimensions;
-	}, [arrayData, config.dimensions, config.variableDimensions]);
+	// Get dimensions from config
+	const actualDimensions = config.dimensions;
 
 	// Validate on data change
 	useEffect(() => {
@@ -173,17 +164,9 @@ export default function ArrayEditorDialog({
 			},
 		];
 
-		// Use actualDimensions for column count (handles anisotropic scale with 3 values)
+		// Create columns based on field dimensions
 		for (let i = 0; i < actualDimensions; i++) {
-			// For scale with 3 dimensions, use X/Y/Z labels instead of generic "Scale"
-			let columnLabel = config.columnLabels[i] || `Col ${i + 1}`;
-			if (
-				fieldType === "scale" &&
-				config.variableDimensions &&
-				actualDimensions === 3
-			) {
-				columnLabel = ["X", "Y", "Z"][i];
-			}
+			const columnLabel = config.columnLabels[i] || `Col ${i + 1}`;
 
 			const column: GridColDef<RowData> = {
 				field: `col${i}`,
@@ -328,29 +311,15 @@ export default function ArrayEditorDialog({
 				return;
 			}
 
-			// Validate dimensions - allow variable dimensions for scale
-			if (config.variableDimensions) {
-				// For variable dimension fields (like scale), allow either config.dimensions or 3
-				const invalidRows = parsed.filter(
-					(row) => row.length !== config.dimensions && row.length !== 3,
-				);
-				if (invalidRows.length > 0) {
-					setValidationErrors([
-						`Pasted data has invalid dimensions. Expected ${config.dimensions} or 3 columns per row.`,
-					]);
-					return;
-				}
-			} else {
-				// For fixed dimension fields, require exact match
-				const invalidRows = parsed.filter(
-					(row) => row.length !== config.dimensions,
-				);
-				if (invalidRows.length > 0) {
-					setValidationErrors([
-						`Pasted data has invalid dimensions. Expected ${config.dimensions} columns per row.`,
-					]);
-					return;
-				}
+			// Validate dimensions - require exact match
+			const invalidRows = parsed.filter(
+				(row) => row.length !== config.dimensions,
+			);
+			if (invalidRows.length > 0) {
+				setValidationErrors([
+					`Pasted data has invalid dimensions. Expected ${config.dimensions} columns per row.`,
+				]);
+				return;
 			}
 
 			setArrayData(parsed);
@@ -360,7 +329,7 @@ export default function ArrayEditorDialog({
 				"Failed to read clipboard. Please check browser permissions.",
 			]);
 		}
-	}, [config.dimensions, config.variableDimensions]);
+	}, [config.dimensions]);
 
 	// Handle save
 	const handleSave = useCallback(() => {

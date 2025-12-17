@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { debounce } from "lodash";
+import { debounce, isEqual } from "lodash";
 import {
 	Box,
 	Button,
@@ -29,11 +29,16 @@ import { useFrameKeys } from "../../hooks/useSchemas";
 import { customRenderers, injectDynamicEnums } from "../../utils/jsonforms";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 
+// Timing constants to prevent race conditions
+// Sync reset must be less than debounce delay to avoid saving stale data
+const DEBOUNCE_DELAY_MS = 250;
+const SYNC_RESET_DELAY_MS = 200;
+
 const GeometryForm = () => {
 	// Use individual selectors to prevent unnecessary re-renders
 	const roomId = useAppStore((state) => state.roomId);
 	const geometries = useAppStore((state) => state.geometries);
-	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
+	const geometrySchemas = useAppStore((state) => state.geometryDefaults);
 	const userName = null; // we don't want to skip when saving the current userName, so undefined
 	const {
 		mode,
@@ -112,13 +117,11 @@ const GeometryForm = () => {
 			return;
 		}
 
-		// Compare Zustand data with current form data
+		// Compare Zustand data with current form data using deep equality
 		const zustandData = zustandGeometry.data;
-		const zustandJson = JSON.stringify(zustandData);
-		const formJson = JSON.stringify(formData);
 
-		// Only update if data has changed
-		if (zustandJson !== formJson) {
+		// Only update if data has changed (isEqual handles nested objects reliably)
+		if (!isEqual(zustandData, formData)) {
 			// Set flag to skip auto-save (external update already saved)
 			isSyncingFromZustandRef.current = true;
 
@@ -126,10 +129,10 @@ const GeometryForm = () => {
 			setFormData({ ...zustandData });
 			setActiveState(zustandData?.active !== false);
 
-			// Reset flag after debounce window
+			// Reset flag before debounce fires to avoid saving stale data
 			setTimeout(() => {
 				isSyncingFromZustandRef.current = false;
-			}, 300);
+			}, SYNC_RESET_DELAY_MS);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [zustandGeometry?.data]);
@@ -149,7 +152,7 @@ const GeometryForm = () => {
 			mode === "create" &&
 			keyInput.trim() &&
 			selectedType &&
-			geometryDefaults &&
+			geometrySchemas &&
 			!isLocked
 		) {
 			// Check if the key is already taken
@@ -162,7 +165,7 @@ const GeometryForm = () => {
 			const defaultData = getGeometryWithDefaults(
 				{},
 				selectedType,
-				geometryDefaults,
+				geometrySchemas,
 			);
 			setFormData(defaultData);
 			setIsLocked(true);
@@ -172,7 +175,7 @@ const GeometryForm = () => {
 		mode,
 		keyInput,
 		selectedType,
-		geometryDefaults,
+		geometrySchemas,
 		isLocked,
 		setFormData,
 		isKeyTaken,
@@ -191,8 +194,8 @@ const GeometryForm = () => {
 		setError(null);
 
 		// Immediately apply Pydantic defaults when type is selected
-		if (mode === "create" && geometryDefaults && type) {
-			const defaultData = getGeometryWithDefaults({}, type, geometryDefaults);
+		if (mode === "create" && geometrySchemas && type) {
+			const defaultData = getGeometryWithDefaults({}, type, geometrySchemas);
 			setFormData(defaultData);
 		}
 	};
@@ -235,7 +238,7 @@ const GeometryForm = () => {
 
 	// Create debounced version of save
 	const debouncedSave = useMemo(
-		() => debounce(saveGeometry, 250),
+		() => debounce(saveGeometry, DEBOUNCE_DELAY_MS),
 		[saveGeometry],
 	);
 
