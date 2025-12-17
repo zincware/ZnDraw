@@ -12,7 +12,7 @@ import { useAppStore } from "../../store";
 import { getFrames } from "../../myapi/client";
 import { shouldFetchAsFrameData } from "../../utils/colorUtils";
 import { isTransform } from "../../utils/transformProcessor";
-import { inferFieldType, ArrayFieldType } from "../../utils/arrayEditor";
+import { getArrayFieldInfo } from "../../utils/arrayEditor";
 import ArrayEditorDialog from "./ArrayEditorDialog";
 import TransformEditor from "./TransformEditor";
 import StaticValueDisplay from "./StaticValueDisplay";
@@ -47,13 +47,11 @@ const DynamicEnumRenderer = ({
 	required,
 	errors,
 	visible,
-	rootData,
-}: ControlProps & { rootData?: any }) => {
+}: ControlProps) => {
 	// Extract features from schema (with type assertion for custom properties)
 	const features = (schema as any)["x-features"] || [];
 	const hasColorPicker = features.includes("color-picker");
 	const hasFreeSolo = features.includes("free-solo");
-	const hasDynamicProps = features.includes("dynamic-atom-props");
 	const hasEditableArray = features.includes("editable-array");
 	const hasTransform = features.includes("transform");
 
@@ -70,41 +68,13 @@ const DynamicEnumRenderer = ({
 	// Use individual selectors to prevent unnecessary re-renders
 	const roomId = useAppStore((state) => state.roomId);
 	const currentFrame = useAppStore((state) => state.currentFrame);
-	const userName = useAppStore((state) => state.userName);
-
-	// Infer field type from path and schema
-	const fieldType: ArrayFieldType = inferFieldType(path, schema);
-
-	// Compute instance count from position data (ground truth for instance count)
-	const instanceCount = (() => {
-		const position = rootData?.position;
-		if (position) {
-			// If position is a 2D array of tuples or numbers
-			if (Array.isArray(position) && Array.isArray(position[0])) {
-				return position.length; // Number of instances
-			}
-			// If position is a single tuple/array
-			if (
-				Array.isArray(position) &&
-				position.length > 0 &&
-				!Array.isArray(position[0])
-			) {
-				return 1; // Single position = 1 instance
-			}
-		}
-		return undefined;
-	})();
 
 	// Determine if the current value is a fetchable string (not a hex color)
 	const isFetchableString =
 		typeof data === "string" && shouldFetchAsFrameData(data);
 
 	// React-query for fetching server data (only enabled when needed)
-	const {
-		data: fetchedServerData,
-		refetch: refetchServerData,
-		isFetching: isFetchingServerData,
-	} = useQuery({
+	const { refetch: refetchServerData } = useQuery({
 		queryKey: ["frame", roomId, currentFrame, data],
 		queryFn: ({ signal }: { signal: AbortSignal }) =>
 			getFrames(roomId!, currentFrame, [data as string], signal),
@@ -195,13 +165,13 @@ const DynamicEnumRenderer = ({
 					errors={errors}
 					onEdit={handleOpenArrayEditor}
 					onClear={handleClearValue}
-					fieldType={fieldType}
+					schema={schema}
 					onChange={(newValue) => handleChange(path, newValue)}
 				/>
 				<ArrayEditorDialog
 					open={arrayEditorOpen}
 					value={data}
-					fieldType={fieldType}
+					schema={schema}
 					fieldLabel={label || path}
 					enumOptions={options as string[]}
 					onSave={handleSaveArrayEditor}
@@ -209,8 +179,6 @@ const DynamicEnumRenderer = ({
 					onFetchFromServer={
 						isFetchableString ? handleLoadFromServer : undefined
 					}
-					instanceCount={instanceCount}
-					schemaDefault={schema.default}
 				/>
 			</>
 		);
@@ -241,7 +209,7 @@ const DynamicEnumRenderer = ({
 				<ArrayEditorDialog
 					open={arrayEditorOpen}
 					value={data}
-					fieldType={fieldType}
+					schema={schema}
 					fieldLabel={label || path}
 					enumOptions={options as string[]}
 					onSave={handleSaveArrayEditor}
@@ -249,8 +217,6 @@ const DynamicEnumRenderer = ({
 					onFetchFromServer={
 						isFetchableString ? handleLoadFromServer : undefined
 					}
-					instanceCount={instanceCount}
-					schemaDefault={schema.default}
 				/>
 			)}
 		</>

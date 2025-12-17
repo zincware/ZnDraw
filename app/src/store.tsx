@@ -57,7 +57,7 @@ interface AppState {
 	playing: boolean;
 	chatOpen: boolean;
 	geometries: Record<string, any>; // Store geometries by their IDs
-	geometryDefaults: Record<string, any>; // Default values for each geometry type from Pydantic
+	geometrySchemas: Record<string, any>; // Pydantic schemas with defaults for each geometry type
 	geometryUpdateSources: Record<string, "local" | "remote">; // Track update source per geometry
 	mode: "view" | "drawing" | "editing"; // Current interaction mode
 	transformMode: "translate" | "rotate" | "scale"; // Transform mode within editing mode
@@ -138,7 +138,7 @@ interface AppState {
 	setPlaying: (playing: boolean) => void;
 	setChatOpen: (open: boolean) => void;
 	setGeometries: (geometries: Record<string, any>) => void;
-	setGeometryDefaults: (defaults: Record<string, any>) => void;
+	setGeometrySchemas: (schemas: Record<string, any>) => void;
 	updateGeometry: (
 		key: string,
 		geometry: any,
@@ -281,7 +281,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	playing: false,
 	chatOpen: false,
 	geometries: {},
-	geometryDefaults: {},
+	geometrySchemas: {},
 	geometryUpdateSources: {},
 	mode: "view",
 	transformMode: "translate",
@@ -402,7 +402,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	setPlaying: (playing) => set({ playing: playing }),
 	setChatOpen: (open) => set({ chatOpen: open }),
 	setGeometries: (geometries) => set({ geometries: geometries }),
-	setGeometryDefaults: (defaults) => set({ geometryDefaults: defaults }),
+	setGeometrySchemas: (schemas) => set({ geometrySchemas: schemas }),
 	updateGeometry: (
 		key: string,
 		geometry: any,

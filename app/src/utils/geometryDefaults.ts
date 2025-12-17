@@ -80,5 +80,5 @@ export function getGeometryWithDefaults<T extends Record<string, any>>(
 
 	// Deep merge: defaults first, then override with actual data
 	// lodash merge mutates the first argument, so pass empty object
-	return merge({}, defaultsForType, data);
+	return merge({}, defaultsForType, data) as T;
 }

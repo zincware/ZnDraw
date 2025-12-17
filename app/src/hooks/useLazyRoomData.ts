@@ -42,7 +42,7 @@ export const useLazyRoomData = (roomId: string | null, enabled: boolean) => {
 		setCurrentFrame,
 		setBookmarks,
 		setGeometries,
-		setGeometryDefaults,
+		setGeometrySchemas,
 	} = useAppStore();
 
 	// Fetch room info (includes frameCount)
@@ -191,9 +191,9 @@ export const useLazyRoomData = (roomId: string | null, enabled: boolean) => {
 
 	useEffect(() => {
 		if (geometrySchemasData?.schemas !== undefined) {
-			setGeometryDefaults(geometrySchemasData.schemas);
+			setGeometrySchemas(geometrySchemasData.schemas);
 		}
-	}, [geometrySchemasData, setGeometryDefaults]);
+	}, [geometrySchemasData, setGeometrySchemas]);
 
 	// Aggregate loading state
 	// Note: Settings are fetched on-demand per category by useSettingData hook

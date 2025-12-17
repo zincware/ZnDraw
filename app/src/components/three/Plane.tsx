@@ -68,13 +68,13 @@ export default function Plane({
 	pathtracingEnabled?: boolean;
 }) {
 	// Use individual selectors to prevent unnecessary re-renders
-	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
+	const geometrySchemas = useAppStore((state) => state.geometrySchemas);
 
 	// Merge with defaults from Pydantic (single source of truth)
 	const fullData = getGeometryWithDefaults<PlaneData>(
 		data,
 		"Plane",
-		geometryDefaults,
+		geometrySchemas,
 	);
 
 	const {

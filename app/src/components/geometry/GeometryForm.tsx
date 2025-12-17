@@ -38,7 +38,7 @@ const GeometryForm = () => {
 	// Use individual selectors to prevent unnecessary re-renders
 	const roomId = useAppStore((state) => state.roomId);
 	const geometries = useAppStore((state) => state.geometries);
-	const geometrySchemas = useAppStore((state) => state.geometryDefaults);
+	const geometrySchemas = useAppStore((state) => state.geometrySchemas);
 	const userName = null; // we don't want to skip when saving the current userName, so undefined
 	const {
 		mode,

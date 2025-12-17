@@ -11,7 +11,6 @@ import {
 	Alert,
 	Tooltip,
 	Typography,
-	Chip,
 	CircularProgress,
 } from "@mui/material";
 import {
@@ -25,8 +24,8 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ContentPasteIcon from "@mui/icons-material/ContentPaste";
 import {
-	ArrayFieldType,
-	getFieldTypeConfig,
+	getArrayFieldInfo,
+	getColumnLabels,
 	normalizeToArray,
 	denormalizeFromArray,
 	validateArrayData,
@@ -37,7 +36,8 @@ import {
 interface ArrayEditorDialogProps {
 	open: boolean;
 	value: string | number | (string | number)[] | (string | number)[][];
-	fieldType: ArrayFieldType;
+	/** JSON schema for the field - used to derive dimensions, type, etc. */
+	schema: any;
 	fieldLabel: string;
 	enumOptions: string[];
 	onSave: (
@@ -48,10 +48,6 @@ interface ArrayEditorDialogProps {
 	onFetchFromServer?: (
 		key: string,
 	) => Promise<(string | number)[] | (string | number)[][]>;
-	/** Optional instance count (e.g., from position field - ground truth for particle count) */
-	instanceCount?: number;
-	/** Default value from Pydantic schema - used when value is a string (dynamic reference) */
-	schemaDefault?: (string | number)[] | (string | number)[][];
 }
 
 interface RowData {
@@ -62,16 +58,18 @@ interface RowData {
 export default function ArrayEditorDialog({
 	open,
 	value,
-	fieldType,
+	schema,
 	fieldLabel,
 	enumOptions,
 	onSave,
 	onCancel,
 	onFetchFromServer,
-	instanceCount,
-	schemaDefault,
 }: ArrayEditorDialogProps) {
-	const config = getFieldTypeConfig(fieldType);
+	// Extract field info from schema
+	const fieldInfo = useMemo(() => getArrayFieldInfo(schema), [schema]);
+	const dimensions = fieldInfo?.dimensions ?? 1;
+	const isStringType = fieldInfo?.isStringType ?? false;
+	const columnLabels = useMemo(() => getColumnLabels(dimensions), [dimensions]);
 
 	// Store the original string value if applicable (updated when dialog opens)
 	const [originalStringValue, setOriginalStringValue] = useState<string | null>(
@@ -79,15 +77,11 @@ export default function ArrayEditorDialog({
 	);
 
 	const [arrayData, setArrayData] = useState<(string | number)[][]>(() => {
-		// If value is string, use Pydantic schema default
+		// If value is string (dynamic reference), use Pydantic schema default
 		if (typeof value === "string") {
-			if (schemaDefault) {
-				return normalizeToArray(schemaDefault, fieldType);
-			}
-			// Fallback: should not happen if schemaDefault is always provided
-			return normalizeToArray(config.defaultValue, fieldType);
+			return normalizeToArray(schema?.default, schema);
 		}
-		return normalizeToArray(value, fieldType);
+		return normalizeToArray(value, schema);
 	});
 
 	const [selectedRows, setSelectedRows] = useState<GridRowSelectionModel>({
@@ -106,18 +100,11 @@ export default function ArrayEditorDialog({
 			// Update originalStringValue when dialog opens
 			setOriginalStringValue(typeof value === "string" ? value : null);
 
-			// If value is string, use Pydantic schema default; otherwise normalize
-			let initialData: (string | number)[][];
-			if (typeof value === "string") {
-				if (schemaDefault) {
-					initialData = normalizeToArray(schemaDefault, fieldType);
-				} else {
-					// Fallback: should not happen if schemaDefault is always provided
-					initialData = normalizeToArray(config.defaultValue, fieldType);
-				}
-			} else {
-				initialData = normalizeToArray(value, fieldType);
-			}
+			// If value is string (dynamic reference), use Pydantic schema default
+			const initialData =
+				typeof value === "string"
+					? normalizeToArray(schema?.default, schema)
+					: normalizeToArray(value, schema);
 
 			setArrayData(initialData);
 			setSelectedRows({ type: "include", ids: new Set() });
@@ -126,20 +113,13 @@ export default function ArrayEditorDialog({
 			setValidationErrors([]);
 			setIsLoadingFromServer(false);
 		}
-	}, [open, value, fieldType, schemaDefault, config.defaultValue]);
-
-	// Check if we're in single-value mode (only one row for single-value supporting fields)
-	const isSingleValueMode =
-		config.supportsSingleValue && arrayData.length === 1;
-
-	// Get dimensions from config
-	const actualDimensions = config.dimensions;
+	}, [open, value, schema]);
 
 	// Validate on data change
 	useEffect(() => {
-		const validation = validateArrayData(arrayData, fieldType);
+		const validation = validateArrayData(arrayData, schema);
 		setValidationErrors(validation.errors);
-	}, [arrayData, fieldType]);
+	}, [arrayData, schema]);
 
 	// Convert array data to DataGrid rows
 	const rows: GridRowsProp<RowData> = useMemo(() => {
@@ -160,25 +140,25 @@ export default function ArrayEditorDialog({
 				headerName: "#",
 				width: 60,
 				editable: false,
-				valueGetter: (value, row) => row.id + 1,
+				valueGetter: (_value, row) => row.id + 1,
 			},
 		];
 
 		// Create columns based on field dimensions
-		for (let i = 0; i < actualDimensions; i++) {
-			const columnLabel = config.columnLabels[i] || `Col ${i + 1}`;
+		for (let i = 0; i < dimensions; i++) {
+			const columnLabel = columnLabels[i] || `Col ${i + 1}`;
 
 			const column: GridColDef<RowData> = {
 				field: `col${i}`,
 				headerName: columnLabel,
-				width: config.isStringType && fieldType === "color" ? 200 : 120,
+				width: isStringType ? 200 : 120,
 				editable: true,
-				type: config.isStringType ? "string" : "number",
-				valueGetter: (value, row) => row[`col${i}`],
+				type: isStringType ? "string" : "number",
+				valueGetter: (_value, row) => row[`col${i}`],
 			};
 
 			// Add custom color picker cell renderer for color fields
-			if (config.isStringType && fieldType === "color") {
+			if (isStringType) {
 				column.renderCell = (params) => {
 					const cellValue = params.value as string;
 					return (
@@ -221,7 +201,7 @@ export default function ArrayEditorDialog({
 		}
 
 		return cols;
-	}, [config, fieldType, arrayData, actualDimensions]);
+	}, [dimensions, columnLabels, isStringType, arrayData]);
 
 	// Handle cell edit
 	const processRowUpdate = useCallback(
@@ -230,17 +210,12 @@ export default function ArrayEditorDialog({
 			const newArrayData = [...arrayData];
 			const updatedRow: (string | number)[] = [];
 
-			// Use actualDimensions to handle all columns (including anisotropic scale)
-			for (let i = 0; i < actualDimensions; i++) {
-				const value = newRow[`col${i}`];
-				if (config.isStringType) {
-					updatedRow.push(
-						typeof value === "string" ? value : (config.defaultValue as string),
-					);
+			for (let i = 0; i < dimensions; i++) {
+				const cellValue = newRow[`col${i}`];
+				if (isStringType) {
+					updatedRow.push(typeof cellValue === "string" ? cellValue : "");
 				} else {
-					updatedRow.push(
-						typeof value === "number" ? value : (config.defaultValue as number),
-					);
+					updatedRow.push(typeof cellValue === "number" ? cellValue : 0);
 				}
 			}
 
@@ -249,14 +224,14 @@ export default function ArrayEditorDialog({
 
 			return newRow;
 		},
-		[arrayData, config, actualDimensions],
+		[arrayData, dimensions, isStringType],
 	);
 
 	// Add new row
 	const handleAddRow = useCallback(() => {
-		const newRow = createDefaultRow(fieldType, arrayData);
+		const newRow = createDefaultRow(schema, arrayData);
 		setArrayData([...arrayData, newRow]);
-	}, [arrayData, fieldType]);
+	}, [arrayData, schema]);
 
 	// Delete selected rows
 	const handleDeleteSelected = useCallback(() => {
@@ -269,34 +244,12 @@ export default function ArrayEditorDialog({
 
 		// If we delete all rows, add one default row
 		if (newArrayData.length === 0) {
-			newArrayData.push(createDefaultRow(fieldType));
+			newArrayData.push(createDefaultRow(schema));
 		}
 
 		setArrayData(newArrayData);
 		setSelectedRows({ type: "include", ids: new Set() });
-	}, [arrayData, selectedRows, fieldType]);
-
-	// Toggle single value mode
-	const handleToggleSingleValue = useCallback(() => {
-		if (isSingleValueMode) {
-			// Switching from single to per-instance: this should not happen for position/direction
-			// For other fields, duplicate the row based on a reasonable default (or stay as-is)
-			if (fieldType === "position" || fieldType === "direction") {
-				// These fields should never have a toggle button, but guard just in case
-				return;
-			}
-			// For other per-instance fields, expand to match instance count or use sensible default
-			// Use instanceCount if available (ground truth from position field), otherwise expand by 1
-			const targetCount = instanceCount ?? Math.max(2, arrayData.length + 1);
-			const expandedRows = Array(targetCount)
-				.fill(arrayData[0])
-				.map((row) => [...row]);
-			setArrayData(expandedRows);
-		} else {
-			// Switching to single value: keep only first row
-			setArrayData([arrayData[0]]);
-		}
-	}, [arrayData, isSingleValueMode, fieldType, instanceCount]);
+	}, [arrayData, selectedRows, schema]);
 
 	// Handle paste
 	const handlePaste = useCallback(async () => {
@@ -312,37 +265,35 @@ export default function ArrayEditorDialog({
 			}
 
 			// Validate dimensions - require exact match
-			const invalidRows = parsed.filter(
-				(row) => row.length !== config.dimensions,
-			);
+			const invalidRows = parsed.filter((row) => row.length !== dimensions);
 			if (invalidRows.length > 0) {
 				setValidationErrors([
-					`Pasted data has invalid dimensions. Expected ${config.dimensions} columns per row.`,
+					`Pasted data has invalid dimensions. Expected ${dimensions} columns per row.`,
 				]);
 				return;
 			}
 
 			setArrayData(parsed);
 			setValidationErrors([]);
-		} catch (error) {
+		} catch {
 			setValidationErrors([
 				"Failed to read clipboard. Please check browser permissions.",
 			]);
 		}
-	}, [config.dimensions]);
+	}, [dimensions]);
 
 	// Handle save
 	const handleSave = useCallback(() => {
 		// Validate before saving
-		const validation = validateArrayData(arrayData, fieldType);
+		const validation = validateArrayData(arrayData, schema);
 		if (!validation.valid) {
 			setValidationErrors(validation.errors);
 			return;
 		}
 
-		const denormalized = denormalizeFromArray(arrayData, fieldType);
+		const denormalized = denormalizeFromArray(arrayData, schema);
 		onSave(denormalized);
-	}, [arrayData, fieldType, onSave]);
+	}, [arrayData, schema, onSave]);
 
 	// Handle switch to dropdown
 	const handleSwitchToDropdown = useCallback(() => {
@@ -359,7 +310,7 @@ export default function ArrayEditorDialog({
 
 		try {
 			const fetchedData = await onFetchFromServer(originalStringValue);
-			const normalizedData = normalizeToArray(fetchedData, fieldType);
+			const normalizedData = normalizeToArray(fetchedData, schema);
 			setArrayData(normalizedData);
 		} catch (error) {
 			setValidationErrors([
@@ -368,7 +319,7 @@ export default function ArrayEditorDialog({
 		} finally {
 			setIsLoadingFromServer(false);
 		}
-	}, [originalStringValue, onFetchFromServer, fieldType]);
+	}, [originalStringValue, onFetchFromServer, schema]);
 
 	return (
 		<Dialog
@@ -376,7 +327,7 @@ export default function ArrayEditorDialog({
 			onClose={onCancel}
 			maxWidth="md"
 			fullWidth
-			PaperProps={{ sx: { height: "80vh" } }}
+			slotProps={{ paper: { sx: { height: "80vh" } } }}
 		>
 			<DialogTitle>
 				<Box
@@ -454,12 +405,6 @@ export default function ArrayEditorDialog({
 							freeSolo
 							fullWidth
 						/>
-						{config.supportsSingleValue && (
-							<Alert severity="info" sx={{ mt: 2 }}>
-								Note: You can also enter a single numeric value instead of
-								selecting from the dropdown.
-							</Alert>
-						)}
 					</Box>
 				) : (
 					<Box
@@ -536,23 +481,6 @@ export default function ArrayEditorDialog({
 									Paste
 								</Button>
 							</Tooltip>
-							{config.supportsSingleValue &&
-								fieldType !== "position" &&
-								fieldType !== "direction" && (
-									<Box sx={{ ml: "auto" }}>
-										<Chip
-											label={
-												isSingleValueMode
-													? "Single Value (applies to all)"
-													: "Per Instance"
-											}
-											color={isSingleValueMode ? "primary" : "default"}
-											size="small"
-											onClick={handleToggleSingleValue}
-											sx={{ cursor: "pointer" }}
-										/>
-									</Box>
-								)}
 						</Box>
 					</Box>
 				)}
