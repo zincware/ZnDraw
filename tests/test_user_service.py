@@ -49,14 +49,17 @@ def test_username_exists_true(user_service):
 
 def test_create_user_success(user_service, redis_client):
     """Test creating a new user."""
+    from zndraw.app.redis_keys import UserKeys
+
     user_name = "new-user"
     result = user_service.create_user(user_name)
+    keys = UserKeys(user_name)
 
     assert result is True
-    assert redis_client.exists(f"user:{user_name}")
-    assert redis_client.hget(f"user:{user_name}", "userName") == user_name
-    assert redis_client.hexists(f"user:{user_name}", "createdAt")
-    assert redis_client.hexists(f"user:{user_name}", "lastLogin")
+    assert redis_client.exists(keys.hash_key())
+    assert redis_client.hget(keys.hash_key(), "userName") == user_name
+    assert redis_client.hexists(keys.hash_key(), "createdAt")
+    assert redis_client.hexists(keys.hash_key(), "lastLogin")
 
 
 def test_create_user_duplicate_raises_error(user_service):
@@ -130,8 +133,11 @@ def test_is_registered_nonexistent_user(user_service):
 
 def test_register_user_same_username(user_service, redis_client):
     """Test registering user with same username (guest -> user)."""
+    from zndraw.app.redis_keys import UserKeys
+
     user_name = "guest-user"
     password = "mypassword123"
+    keys = UserKeys(user_name)
 
     user_service.create_user(user_name)
     assert not user_service.is_registered(user_name)
@@ -140,8 +146,8 @@ def test_register_user_same_username(user_service, redis_client):
     assert result is True
 
     assert user_service.is_registered(user_name)
-    assert redis_client.hexists(f"user:{user_name}", "passwordHash")
-    assert redis_client.hexists(f"user:{user_name}", "passwordSalt")
+    assert redis_client.hexists(keys.hash_key(), "passwordHash")
+    assert redis_client.hexists(keys.hash_key(), "passwordSalt")
 
     role = user_service.get_user_role(user_name)
     assert role == UserRole.USER
@@ -149,9 +155,12 @@ def test_register_user_same_username(user_service, redis_client):
 
 def test_register_user_new_username(user_service, redis_client):
     """Test registering with new username (guest -> user with name change)."""
+    from zndraw.app.redis_keys import UserKeys
+
     guest_name = "user-abc123"
     new_username = "CoolUsername"
     password = "mypassword123"
+    new_keys = UserKeys(new_username)
 
     user_service.create_user(guest_name)
     result = user_service.register_user(guest_name, new_username, password)
@@ -160,8 +169,8 @@ def test_register_user_new_username(user_service, redis_client):
     # New username should exist and be registered
     assert user_service.username_exists(new_username)
     assert user_service.is_registered(new_username)
-    assert redis_client.hexists(f"user:{new_username}", "passwordHash")
-    assert redis_client.hexists(f"user:{new_username}", "passwordSalt")
+    assert redis_client.hexists(new_keys.hash_key(), "passwordHash")
+    assert redis_client.hexists(new_keys.hash_key(), "passwordSalt")
 
     # Old guest username should be deleted
     assert not user_service.username_exists(guest_name)
@@ -211,18 +220,22 @@ def test_register_user_preserves_timestamps(user_service, redis_client):
     """Test that registration preserves original createdAt timestamp."""
     import time
 
+    from zndraw.app.redis_keys import UserKeys
+
     guest_name = "guest-user"
     new_username = "registered-user"
+    guest_keys = UserKeys(guest_name)
+    new_keys = UserKeys(new_username)
 
     user_service.create_user(guest_name)
-    original_created_at = redis_client.hget(f"user:{guest_name}", "createdAt")
+    original_created_at = redis_client.hget(guest_keys.hash_key(), "createdAt")
 
     # Wait a bit to ensure timestamp would be different
     time.sleep(0.1)
 
     user_service.register_user(guest_name, new_username, "password")
 
-    new_created_at = redis_client.hget(f"user:{new_username}", "createdAt")
+    new_created_at = redis_client.hget(new_keys.hash_key(), "createdAt")
 
     # Decode bytes if necessary
     if isinstance(original_created_at, bytes):
@@ -346,16 +359,19 @@ def test_update_last_login(user_service, redis_client):
     """Test updating last login timestamp."""
     import time
 
+    from zndraw.app.redis_keys import UserKeys
+
     user_name = "user"
+    keys = UserKeys(user_name)
     user_service.create_user(user_name)
 
-    original_last_login = redis_client.hget(f"user:{user_name}", "lastLogin")
+    original_last_login = redis_client.hget(keys.hash_key(), "lastLogin")
 
     time.sleep(0.1)
 
     user_service.update_last_login(user_name)
 
-    new_last_login = redis_client.hget(f"user:{user_name}", "lastLogin")
+    new_last_login = redis_client.hget(keys.hash_key(), "lastLogin")
 
     if isinstance(original_last_login, bytes):
         original_last_login = original_last_login.decode("utf-8")
@@ -448,11 +464,43 @@ def test_list_all_users_empty(user_service):
     assert users == []
 
 
+def test_list_all_users_with_visited_rooms(user_service, redis_client):
+    """Test listing users when visited_rooms keys exist.
+
+    This tests the bug where scanning for 'user:*' also matches
+    'user:{username}:visited_rooms' keys, which are Sets not Hashes,
+    causing WRONGTYPE errors when hgetall() is called on them.
+
+    Note: Username must NOT contain 'user' substring to trigger the bug,
+    because str.replace('user:', '') replaces all occurrences.
+    """
+    from zndraw.app.redis_keys import UserKeys
+
+    # Use 'admin' - a username without 'user' substring to properly trigger bug
+    user_name = "admin"
+    user_service.create_user(user_name)
+
+    # Add visited rooms (creates a Set key that matches 'user:*' pattern)
+    keys = UserKeys(user_name)
+    redis_client.sadd(keys.visited_rooms(), "room1")
+    redis_client.sadd(keys.visited_rooms(), "room2")
+
+    # This should NOT fail even though user:admin:visited_rooms exists
+    users = user_service.list_all_users()
+
+    assert len(users) == 1
+    assert users[0]["userName"] == user_name
+
+
 def test_password_hashing_different_salts(user_service, redis_client):
     """Test that same password with different salts produces different hashes."""
+    from zndraw.app.redis_keys import UserKeys
+
     user_name_1 = "user-1"
     user_name_2 = "user-2"
     same_password = "samepassword123"
+    keys_1 = UserKeys(user_name_1)
+    keys_2 = UserKeys(user_name_2)
 
     user_service.create_user(user_name_1)
     user_service.register_user(user_name_1, user_name_1, same_password)
@@ -463,8 +511,8 @@ def test_password_hashing_different_salts(user_service, redis_client):
     assert user_service.verify_password(user_name_1, same_password)
     assert user_service.verify_password(user_name_2, same_password)
 
-    hash_1 = redis_client.hget(f"user:{user_name_1}", "passwordHash")
-    hash_2 = redis_client.hget(f"user:{user_name_2}", "passwordHash")
+    hash_1 = redis_client.hget(keys_1.hash_key(), "passwordHash")
+    hash_2 = redis_client.hget(keys_2.hash_key(), "passwordHash")
 
     if isinstance(hash_1, bytes):
         hash_1 = hash_1.decode("utf-8")

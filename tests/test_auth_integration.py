@@ -192,6 +192,8 @@ def test_python_client_auto_login(server):
 
 def test_user_session_persists_in_redis(server, redis_client):
     """Test that user session data is stored in Redis after login."""
+    from zndraw.app.redis_keys import UserKeys
+
     username = "redis-test-user"
 
     # Login
@@ -201,11 +203,11 @@ def test_user_session_persists_in_redis(server, redis_client):
     user_name = data["userName"]
 
     # Check Redis for user session
-    user_key = f"user:{user_name}"
-    assert redis_client.exists(user_key) == 1
+    keys = UserKeys(user_name)
+    assert redis_client.exists(keys.hash_key()) == 1
 
     # Verify stored data
-    user_data = redis_client.hgetall(user_key)
+    user_data = redis_client.hgetall(keys.hash_key())
     assert user_data["userName"] == username
     assert "createdAt" in user_data
     assert "lastLogin" in user_data

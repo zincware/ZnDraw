@@ -105,14 +105,17 @@ def test_admin_service_grant_revoke(redis_client):
     assert service.is_admin(user_name)
 
     # Verify Redis key structure is correct
-    assert redis_client.get(f"admin:user:{user_name}") in ("1", b"1")
+    from zndraw.app.redis_keys import UserKeys
+
+    keys = UserKeys(user_name)
+    assert redis_client.get(keys.admin_key()) in ("1", b"1")
 
     # Revoke admin
     service.revoke_admin(user_name)
     assert not service.is_admin(user_name)
 
     # Verify Redis key was deleted
-    assert not redis_client.exists(f"admin:user:{user_name}")
+    assert not redis_client.exists(keys.admin_key())
 
 
 def test_admin_service_grant_multiple_admins(redis_client):
@@ -257,6 +260,8 @@ def test_admin_service_local_mode_grant_revoke_ignored(redis_client):
 
 def test_admin_service_deployment_mode_redis_key_format(redis_client):
     """Test that admin status uses correct Redis key format."""
+    from zndraw.app.redis_keys import UserKeys
+
     service = AdminService(
         redis_client,
         admin_username="admin",
@@ -264,11 +269,12 @@ def test_admin_service_deployment_mode_redis_key_format(redis_client):
     )
 
     user_name = "test-user"
+    keys = UserKeys(user_name)
 
     service.grant_admin(user_name)
 
-    # Should use admin:user:<userName> format (NOT admin:client:<clientId>)
-    assert redis_client.exists(f"admin:user:{user_name}")
+    # Should use users:admin:{username} format
+    assert redis_client.exists(keys.admin_key())
     assert not redis_client.exists(f"admin:client:{user_name}")
 
 

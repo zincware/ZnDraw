@@ -408,12 +408,11 @@ class UserService:
         """
         users = []
 
-        # Scan for all user keys
-        for key in self.r.scan_iter(match="user:*"):
-            # Extract userName from key
+        # Scan for all user data keys (users:data:*)
+        for key in self.r.scan_iter(match=UserKeys.data_pattern()):
             if isinstance(key, bytes):
                 key = key.decode("utf-8")
-            user_name = key.replace("user:", "")
+            user_name = UserKeys.username_from_data_key(key)
 
             # Get user data
             keys = UserKeys(user_name)
