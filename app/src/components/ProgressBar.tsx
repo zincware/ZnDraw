@@ -44,6 +44,8 @@ const FrameProgressBar = () => {
 		synchronizedMode,
 		setSynchronizedMode,
 		getIsFetching,
+		playing,
+		setPlaying,
 	} = useAppStore();
 
 	const { setStep, remoteLocked } = useStepControl();
@@ -74,6 +76,10 @@ const FrameProgressBar = () => {
 
 	// This is the primary handler for the slider
 	const handleSliderChange = (_e: Event, newFrame: number | number[]) => {
+		// Stop playback when scrubbing
+		if (playing) {
+			setPlaying(false);
+		}
 		// Apply snap-to-selected-frame logic if filtering is enabled
 		const snappedFrame = findNearestSelectedFrame(newFrame as number);
 		setStep(snappedFrame);
@@ -134,6 +140,10 @@ const FrameProgressBar = () => {
 	const handleInputSubmit = () => {
 		const newFrame = parseInt(inputValue, 10);
 		if (!isNaN(newFrame) && newFrame >= 0 && newFrame <= frameCount - 1) {
+			// Stop playback when manually setting frame
+			if (playing) {
+				setPlaying(false);
+			}
 			setStep(newFrame);
 		} else {
 			setInputValue(currentFrame.toString());
@@ -161,6 +171,14 @@ const FrameProgressBar = () => {
 		if (!isNaN(value) && value > 0) {
 			setSkipFrames(value);
 		}
+	};
+
+	// Bookmark click handler - stops playback and jumps to frame
+	const handleBookmarkClick = (frame: number) => {
+		if (playing) {
+			setPlaying(false);
+		}
+		setStep(frame);
 	};
 
 	const renderConnectionStatus = () => {
@@ -248,7 +266,7 @@ const FrameProgressBar = () => {
 					frameCount={frameCount}
 					currentFrame={currentFrame}
 					containerWidth={sliderWidth}
-					onBookmarkClick={setStep}
+					onBookmarkClick={handleBookmarkClick}
 					onBookmarkDelete={deleteBookmark}
 					onBookmarkEdit={addBookmark}
 				/>
