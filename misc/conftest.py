@@ -43,8 +43,13 @@ def server():
     print("\nStarting ZnDraw server...")
     process = subprocess.Popen(
         [
-            "uv", "run", "zndraw", "--no-browser",
-            "--file-browser", "--file-browser-root", str(MISC_DIR.parent)
+            "uv",
+            "run",
+            "zndraw",
+            "--no-browser",
+            "--file-browser",
+            "--file-browser-root",
+            str(MISC_DIR.parent),
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -95,12 +100,16 @@ def capture(page: Page, request):
     class Capture:
         def light(self) -> None:
             """Capture light mode screenshot."""
-            page.screenshot(path=SCREENSHOTS_DIR / "lightmode" / f"{screenshot_name}.png")
+            page.screenshot(
+                path=SCREENSHOTS_DIR / "lightmode" / f"{screenshot_name}.png"
+            )
             print(f"  Saved: lightmode/{screenshot_name}.png")
 
         def dark(self) -> None:
             """Capture dark mode screenshot."""
-            page.screenshot(path=SCREENSHOTS_DIR / "darkmode" / f"{screenshot_name}.png")
+            page.screenshot(
+                path=SCREENSHOTS_DIR / "darkmode" / f"{screenshot_name}.png"
+            )
             print(f"  Saved: darkmode/{screenshot_name}.png")
 
         def toggle(self) -> None:
@@ -114,13 +123,13 @@ def capture(page: Page, request):
 def bmim_bf4() -> ase.Atoms:
     bf4 = molify.smiles2conformers("[B-](F)(F)(F)F", numConfs=100)
     bmim = molify.smiles2conformers("CCCCN1C=C[N+](=C1)C", numConfs=100)
-    mols = [molify.pack([[bf4[i]], [bmim[i]]], counts=[1, 1], density=1200) for i in range(32)]
-    box = molify.pack(
-        [mols],
-        counts=[32],
-        density=1200
-    )
+    mols = [
+        molify.pack([[bf4[i]], [bmim[i]]], counts=[1, 1], density=1200)
+        for i in range(32)
+    ]
+    box = molify.pack([mols], counts=[32], density=1200)
     return box
+
 
 @pytest.fixture
 def bmim_bf4_e_f(bmim_bf4) -> list[ase.Atoms]:
