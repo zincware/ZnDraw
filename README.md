@@ -132,16 +132,16 @@ Create custom tools accessible via the ZnDraw UI:
 
 ```python
 from zndraw import Extension
+from molify import smiles2atoms
 
 class AddMolecule(Extension):
-    name: str
+    smiles: str
 
     def run(self, vis, **kwargs) -> None:
-        structures = kwargs["structures"]
-        vis.append(structures[self.name])
+        vis.append(smiles2atoms(self.smiles))
         vis.step = len(vis) - 1
 
-vis.register(AddMolecule, run_kwargs={"structures": s22}, public=True)
+vis.register(AddMolecule, public=True)
 vis.wait()
 ```
 

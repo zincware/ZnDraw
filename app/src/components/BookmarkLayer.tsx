@@ -108,6 +108,8 @@ const SingleBookmark: FC<SingleBookmarkProps> = memo(
 				enterNextDelay={300}
 			>
 				<Box
+					role="button"
+					aria-label={`Bookmark: ${label} (Frame ${frame})`}
 					onClick={(e) => {
 						if (e.shiftKey) {
 							e.preventDefault();

@@ -19,6 +19,7 @@ release = zndraw.__version__
 extensions = [
     "nbsphinx",
     "sphinx_copybutton",
+    "sphinx_design",
     "sphinxcontrib.mermaid",
 ]
 
