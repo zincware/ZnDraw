@@ -482,12 +482,7 @@ def test_chat(server, page, capture, bmim_bf4, request):
     # Add chat messages with different content types
     vis.log("Welcome to ZnDraw! This chat supports **markdown** formatting.")
 
-    vis.log(
-        "Here's a code example:\n\n"
-        "```py\n"
-        'print("Hello ZnDraw!")\n'
-        "```"
-    )
+    vis.log('Here\'s a code example:\n\n```py\nprint("Hello ZnDraw!")\n```')
 
     vis.log(
         "The potential energy is given by:\n\n"
@@ -496,9 +491,7 @@ def test_chat(server, page, capture, bmim_bf4, request):
         "\\left(\\frac{\\sigma}{r_{ij}}\\right)^{6} \\right]$$"
     )
 
-    vis.log(
-        "You can also use inline math like $E = mc^2$ in your messages."
-    )
+    vis.log("You can also use inline math like $E = mc^2$ in your messages.")
 
     page.goto(f"{server}/room/{request.node.name}")
     page.wait_for_timeout(1000)
@@ -535,8 +528,6 @@ def test_custom_modifier(server, page, capture, bmim_bf4, request):
         )
 
         def run(self, vis, **kwargs):
-            import numpy as np
-
             atoms = vis.atoms.copy()
             if self.center_first:
                 atoms.positions -= atoms.get_center_of_mass()
@@ -659,12 +650,15 @@ def test_dynamic_properties_dropdown(server, page, capture, request):
         positions=[(0, 0, 0), (2, 0, 0), (0, 2, 0), (2, 2, 0)],
     )
     # Add calculated forces to demonstrate dynamic properties
-    atoms.arrays["forces"] = np.array([
-        [0, 0, 1],
-        [0, 0, -1],
-        [1, 0, 0],
-        [-1, 0, 0],
-    ], dtype=float)
+    atoms.arrays["forces"] = np.array(
+        [
+            [0, 0, 1],
+            [0, 0, -1],
+            [1, 0, 0],
+            [-1, 0, 0],
+        ],
+        dtype=float,
+    )
     vis.append(atoms)
 
     # Add arrow geometry using dynamic properties
