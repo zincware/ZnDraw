@@ -564,3 +564,139 @@ def test_custom_modifier(server, page, capture, bmim_bf4, request):
     capture.light()
     capture.toggle()
     capture.dark()
+
+
+def test_progress_tracker(server, page, capture, bmim_bf4, request):
+    """Capture progress tracker showing active progress state."""
+    import threading
+    import time
+
+    vis = ZnDraw(url=server, room=request.node.name)
+    vis.append(bmim_bf4)
+
+    # Hold progress tracker active in background thread
+    progress_active = threading.Event()
+    progress_done = threading.Event()
+
+    def show_progress():
+        with vis.progress_tracker("Geometry Optimization") as tracker:
+            tracker.update("Step 42/100 - Energy: -1234.56 eV", progress=42)
+            progress_active.set()
+            # Hold progress visible until screenshots taken
+            for _ in range(100):
+                if progress_done.is_set():
+                    break
+                time.sleep(0.1)
+
+    progress_thread = threading.Thread(target=show_progress, daemon=True)
+    progress_thread.start()
+
+    # Wait for progress to be set
+    progress_active.wait(timeout=5)
+    time.sleep(0.3)
+
+    page.goto(f"{server}/room/{request.node.name}")
+    page.wait_for_timeout(2000)
+
+    capture.light()
+    capture.toggle()
+    capture.dark()
+
+    # Release progress tracker
+    progress_done.set()
+    progress_thread.join(timeout=2)
+
+
+def test_locked_room(server, page, capture, bmim_bf4, request):
+    """Capture a room with an active lock showing the lock indicator."""
+    import threading
+    import time
+
+    vis = ZnDraw(url=server, room=request.node.name)
+    vis.append(bmim_bf4)
+
+    # Start a background thread that holds a lock
+    lock_active = threading.Event()
+    lock_done = threading.Event()
+
+    def hold_lock():
+        with vis.get_lock(msg="Uploading trajectory data..."):
+            lock_active.set()
+            # Hold lock for 10 seconds or until signaled
+            for _ in range(100):
+                if lock_done.is_set():
+                    break
+                time.sleep(0.1)
+
+    lock_thread = threading.Thread(target=hold_lock, daemon=True)
+    lock_thread.start()
+
+    # Wait for lock to be acquired
+    lock_active.wait(timeout=5)
+    time.sleep(0.5)  # Give time for UI to update
+
+    page.goto(f"{server}/room/{request.node.name}")
+    page.wait_for_timeout(2000)
+
+    capture.light()
+    capture.toggle()
+    capture.dark()
+
+    # Release the lock
+    lock_done.set()
+    lock_thread.join(timeout=2)
+
+
+def test_dynamic_properties_dropdown(server, page, capture, request):
+    """Capture the dynamic properties dropdown for Arrow geometry."""
+    import numpy as np
+
+    vis = ZnDraw(url=server, room=request.node.name)
+
+    # Create atoms with forces for demonstration
+    atoms = ase.Atoms(
+        "H4",
+        positions=[(0, 0, 0), (2, 0, 0), (0, 2, 0), (2, 2, 0)],
+    )
+    # Add calculated forces to demonstrate dynamic properties
+    atoms.arrays["forces"] = np.array([
+        [0, 0, 1],
+        [0, 0, -1],
+        [1, 0, 0],
+        [-1, 0, 0],
+    ], dtype=float)
+    vis.append(atoms)
+
+    # Add arrow geometry using dynamic properties
+    vis.geometries["force_arrows"] = Arrow(
+        position="arrays.positions",
+        direction="arrays.forces",
+        color=["#ff6600"],
+        radius=0.1,
+    )
+
+    page.goto(f"{server}/room/{request.node.name}")
+    page.wait_for_timeout(2000)
+
+    # Open geometry manager
+    page.get_by_role("button", name="Manage geometries").click()
+    page.wait_for_timeout(500)
+
+    # Click on the row with force_arrows to open edit mode (MUI DataGrid row click)
+    page.get_by_role("row", name="force_arrows").click()
+    page.wait_for_timeout(500)
+
+    # Click on the position dropdown to show dynamic options
+    page.get_by_label("Position").click()
+    page.wait_for_timeout(500)
+
+    capture.light()
+
+    # Close dropdown, toggle theme, then re-open dropdown
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(200)
+    capture.toggle()
+    page.get_by_label("Position").click()
+    page.wait_for_timeout(500)
+
+    capture.dark()

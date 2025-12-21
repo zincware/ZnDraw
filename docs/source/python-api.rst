@@ -276,6 +276,51 @@ Drawing Mode
 Draw geometries interactively in the UI.
 
 
+Dynamic Properties
+^^^^^^^^^^^^^^^^^^
+
+.. image:: /_static/screenshots/lightmode/dynamic_properties_dropdown.png
+   :class: only-light
+   :alt: Dynamic properties dropdown
+
+.. image:: /_static/screenshots/darkmode/dynamic_properties_dropdown.png
+   :class: only-dark
+   :alt: Dynamic properties dropdown
+
+Geometry properties like ``position`` and ``direction`` can reference atom data dynamically.
+Instead of specifying fixed coordinates, use string references to atom arrays:
+
+.. code:: python
+
+    import numpy as np
+    from zndraw.geometries import Arrow
+
+    # Create atoms with calculated forces
+    atoms = ase.Atoms("H4", positions=[(0, 0, 0), (2, 0, 0), (0, 2, 0), (2, 2, 0)])
+    atoms.arrays["forces"] = np.array([
+        [0, 0, 1], [0, 0, -1], [1, 0, 0], [-1, 0, 0]
+    ], dtype=float)
+    vis.append(atoms)
+
+    # Create arrows showing forces at each atom position
+    vis.geometries["force_arrows"] = Arrow(
+        position="arrays.positions",  # Reference atom positions
+        direction="arrays.forces",     # Reference force vectors
+        color=["#ff6600"],
+        radius=0.1,
+    )
+
+Available dynamic property references:
+
+- ``arrays.positions`` - Atom positions
+- ``arrays.numbers`` - Atomic numbers
+- ``arrays.colors`` - Per-atom colors
+- ``arrays.radii`` - Per-atom radii
+- ``arrays.forces`` - Calculated forces (if available)
+- ``calc.energy`` - Calculated energy
+- ``info.connectivity`` - Bond connectivity
+
+
 Analysis & Figures
 ------------------
 
@@ -382,6 +427,53 @@ Send messages to the chat panel:
 
     # Get chat history
     messages = vis.get_messages(limit=10)
+
+
+Progress Tracking
+-----------------
+
+.. image:: /_static/screenshots/lightmode/progress_tracker.png
+   :class: only-light
+   :alt: Progress tracker
+
+.. image:: /_static/screenshots/darkmode/progress_tracker.png
+   :class: only-dark
+   :alt: Progress tracker
+
+Track long-running operations with ``vis.progress_tracker()``:
+
+.. code:: python
+
+    with vis.progress_tracker("Processing data") as tracker:
+        for i, item in enumerate(items):
+            process(item)
+            tracker.update(
+                f"Step {i + 1}/{len(items)}",
+                progress=(i + 1) / len(items) * 100  # 0-100 percentage
+            )
+
+The progress bar appears in the UI with the current message and completion percentage.
+
+
+Lock Mechanism
+--------------
+
+Use ``vis.get_lock()`` for safe batch operations that prevent concurrent modifications:
+
+.. code:: python
+
+    # Lock the room during bulk operations
+    with vis.get_lock(msg="Uploading trajectory..."):
+        for atoms in trajectory:
+            vis.append(atoms)
+
+    # Lock specific targets for fine-grained control
+    with vis.get_lock(target="step"):
+        vis.step = 42
+
+While a lock is held, other clients see a locked indicator and cannot modify the locked resources.
+This is useful when uploading large trajectories or performing multi-step operations
+that should not be interrupted.
 
 
 Custom Extensions
