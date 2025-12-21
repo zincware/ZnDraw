@@ -1,17 +1,19 @@
-Python interface
+Python Interface
 ================
 
 The ``zndraw`` package provides a Python interface to interact with the visualisation tool.
 To use this API, you need to have a running instance of the ZnDraw web server.
 
-.. note::
+Getting Started
+---------------
 
-    You can run a local webserver by using the command line interface.
+Start a local webserver using the command line interface:
 
-    .. code:: console
+.. code:: console
 
-        $ zndraw file.xyz --port 1234
+    $ zndraw file.xyz --port 1234
 
+Then connect from Python:
 
 .. code:: python
 
@@ -19,20 +21,26 @@ To use this API, you need to have a running instance of the ZnDraw web server.
 
     vis = ZnDraw(url="http://localhost:1234", room="my-room")
 
-
 .. note::
 
-    In ZnDraw each visualisation is associated with a room name.
-    You find this room name in the URL of the visualisation.
-    This room name can be used to interact with the visualisation using the Python API.
-    Additionally, you can use the room name to share the visualisation with others or view
-    the visualisation from different angles in different browser tabs.
+    Each visualisation is associated with a room name (visible in the URL).
+    Use this room name to interact via Python API or share with others.
+
+Click the connection info button in the UI to see how to connect from Python:
+
+.. image:: /_static/screenshots/lightmode/python_connection.png
+   :class: only-light
+   :alt: Connection info dialog
+
+.. image:: /_static/screenshots/darkmode/python_connection.png
+   :class: only-dark
+   :alt: Connection info dialog
 
 
 Authentication
 --------------
 
-ZnDraw supports optional user authentication. You can provide a username and password:
+ZnDraw supports optional user authentication:
 
 .. code:: python
 
@@ -49,27 +57,454 @@ If no user is provided, the server will assign a guest username.
 Working with Frames
 -------------------
 
-The ``vis`` object provides a Python interface to interact with the visualisation.
-Most basically, it behaves like a Python list of `ase.Atoms <https://wiki.fysik.dtu.dk/ase/ase/atoms.html>`_ objects.
-Modifying the list will update the visualisation in real-time.
+.. image:: /_static/screenshots/lightmode/timeline.png
+   :class: only-light
+   :alt: Timeline with multiple frames
+
+.. image:: /_static/screenshots/darkmode/timeline.png
+   :class: only-dark
+   :alt: Timeline with multiple frames
+
+The ``vis`` object behaves like a Python list of `ase.Atoms <https://wiki.fysik.dtu.dk/ase/ase/atoms.html>`_ objects.
+Modifying the list updates the visualisation in real-time.
 
 .. code:: python
 
     import ase.io as aio
 
+    # Load and display frames
     frames = aio.read("file.xyz", index=":")
     vis.extend(frames)
 
-You can also read frames from the visualisation:
+    # Access frames
+    atoms = vis[vis.step]  # Current frame
+    subset = vis[10:20]    # Slice of frames
 
-.. code:: python
-
-    # Get the current frame
-    atoms = vis[vis.step]
-
-    # Iterate over all frames
+    # Iterate
     for atoms in vis:
         print(atoms)
 
-    # Get a slice of frames
-    subset = vis[10:20]
+    # Navigate to a specific frame
+    vis.step = 25
+
+
+Selections
+----------
+
+.. image:: /_static/screenshots/lightmode/selection.png
+   :class: only-light
+   :alt: Selection tools
+
+.. image:: /_static/screenshots/darkmode/selection.png
+   :class: only-dark
+   :alt: Selection tools
+
+Select atoms by index using ``vis.selection``:
+
+.. code:: python
+
+    # Set selection
+    vis.selection = [0, 1, 2, 3]
+
+    # Get selection
+    selected = vis.selection
+
+    # Clear selection
+    vis.selection = []
+
+Use selection groups for named atom sets:
+
+.. code:: python
+
+    # Create named group
+    vis.selection_groups["backbone"] = [0, 1, 2]
+
+    # Access groups
+    groups = dict(vis.selection_groups)
+
+
+Bookmarks
+---------
+
+.. image:: /_static/screenshots/lightmode/bookmarks.png
+   :class: only-light
+   :alt: Frame bookmarks
+
+.. image:: /_static/screenshots/darkmode/bookmarks.png
+   :class: only-dark
+   :alt: Frame bookmarks
+
+Label important frames with bookmarks:
+
+.. code:: python
+
+    # Add bookmark to frame 0
+    vis.bookmarks[0] = "Initial State"
+
+    # Add bookmark to frame 50
+    vis.bookmarks[50] = "Transition"
+
+    # List all bookmarks
+    for frame, label in vis.bookmarks.items():
+        print(f"Frame {frame}: {label}")
+
+    # Delete bookmark
+    del vis.bookmarks[0]
+
+
+Geometries
+----------
+
+.. image:: /_static/screenshots/lightmode/geometries.png
+   :class: only-light
+   :alt: Geometries in scene
+
+.. image:: /_static/screenshots/darkmode/geometries.png
+   :class: only-dark
+   :alt: Geometries in scene
+
+Add 3D geometries to the scene using ``vis.geometries``:
+
+.. code:: python
+
+    from zndraw.geometries import Box, Sphere, Curve, Arrow, Floor
+
+    # Add a floor
+    vis.geometries["floor"] = Floor(active=True, height=-2.0, color="#808080")
+
+    # Add a red box with cartoon material
+    vis.geometries["box"] = Box(
+        position=[(0, 2, 0)],
+        size=[(4, 4, 4)],
+        color=["#e74c3c"],
+        material="MeshToonMaterial"
+    )
+
+    # Add a blue sphere with glass material
+    vis.geometries["sphere"] = Sphere(
+        position=[(8, 2, 0)],
+        radius=[2.0],
+        color=["#3498db"],
+        material="MeshPhysicalMaterial_glass"
+    )
+
+    # Add a green curve
+    vis.geometries["curve"] = Curve(
+        position=[(-6, 0, -6), (-3, 4, -3), (0, 0, 0), (3, 4, 3), (6, 0, 6)],
+        color="#2ecc71"
+    )
+
+    # Add an orange arrow with shiny material
+    vis.geometries["arrow"] = Arrow(
+        position=[(12, 0, 0)],
+        direction=[(0, 5, 0)],
+        color=["#f39c12"],
+        material="MeshPhysicalMaterial_shiny"
+    )
+
+    # List geometries
+    print(list(vis.geometries.keys()))
+
+    # Delete geometry
+    del vis.geometries["box"]
+
+Available materials: ``MeshPhysicalMaterial_matt`` (default), ``MeshPhysicalMaterial_glass``,
+``MeshPhysicalMaterial_shiny``, ``MeshToonMaterial``, ``MeshStandardMaterial_metallic``, and more.
+
+Manage geometries through the UI panel:
+
+.. image:: /_static/screenshots/lightmode/geometry_viewer.png
+   :class: only-light
+   :alt: Geometry management panel
+
+.. image:: /_static/screenshots/darkmode/geometry_viewer.png
+   :class: only-dark
+   :alt: Geometry management panel
+
+
+Camera Control
+^^^^^^^^^^^^^^
+
+.. image:: /_static/screenshots/lightmode/camera.png
+   :class: only-light
+   :alt: Camera with curve attachment
+
+.. image:: /_static/screenshots/darkmode/camera.png
+   :class: only-dark
+   :alt: Camera with curve attachment
+
+Control the camera programmatically with curves for smooth animations:
+
+.. code:: python
+
+    from zndraw.geometries import Camera, Curve
+
+    # Define camera path
+    vis.geometries["cam_path"] = Curve(
+        position=[(25, 15, 25), (30, 20, 15), (25, 15, 5)],
+        color="#3498db"
+    )
+
+    # Define target path
+    vis.geometries["target_path"] = Curve(
+        position=[(10, 10, 10), (12, 10, 10), (10, 10, 10)],
+        color="#e74c3c"
+    )
+
+    # Create camera following curves
+    vis.geometries["camera"] = Camera(
+        position_curve_key="cam_path",
+        target_curve_key="target_path",
+        position_progress=0.5,
+        target_progress=0.5,
+        fov=60,
+        helper_visible=True
+    )
+
+
+Drawing Mode
+^^^^^^^^^^^^
+
+.. image:: /_static/screenshots/lightmode/drawing_mode.png
+   :class: only-light
+   :alt: Drawing mode
+
+.. image:: /_static/screenshots/darkmode/drawing_mode.png
+   :class: only-dark
+   :alt: Drawing mode
+
+Draw geometries interactively in the UI.
+
+
+Analysis & Figures
+------------------
+
+.. image:: /_static/screenshots/lightmode/analysis_1d.png
+   :class: only-light
+   :alt: 1D analysis plot
+
+.. image:: /_static/screenshots/darkmode/analysis_1d.png
+   :class: only-dark
+   :alt: 1D analysis plot
+
+Display interactive Plotly figures with ``vis.figures``:
+
+.. code:: python
+
+    import plotly.express as px
+    import pandas as pd
+
+    # Create figure from data
+    df = pd.DataFrame({
+        "frame": range(len(vis)),
+        "energy": [atoms.get_potential_energy() for atoms in vis]
+    })
+
+    fig = px.line(df, x="frame", y="energy", title="Energy vs Frame")
+
+    # Display in ZnDraw
+    vis.figures["energy_plot"] = fig
+
+    # Remove figure
+    del vis.figures["energy_plot"]
+
+.. image:: /_static/screenshots/lightmode/analysis_2d.png
+   :class: only-light
+   :alt: 2D analysis scatter plot
+
+.. image:: /_static/screenshots/darkmode/analysis_2d.png
+   :class: only-dark
+   :alt: 2D analysis scatter plot
+
+2D analysis with scatter plots:
+
+.. code:: python
+
+    # 2D scatter plot
+    df = pd.DataFrame({
+        "ml_energy": [...],
+        "dft_energy": [...]
+    })
+
+    fig = px.scatter(df, x="ml_energy", y="dft_energy", title="ML vs DFT Energy")
+
+    vis.figures["comparison"] = fig
+
+
+Molecule Building
+-----------------
+
+.. image:: /_static/screenshots/lightmode/molecule_builder.png
+   :class: only-light
+   :alt: Molecule builder
+
+.. image:: /_static/screenshots/darkmode/molecule_builder.png
+   :class: only-dark
+   :alt: Molecule builder
+
+Build molecules from SMILES strings using the molecule builder:
+
+- Add molecules from SMILES notation
+- Use the Ketcher molecular editor
+- Pack molecules into simulation boxes
+
+**Ketcher Editor:**
+
+.. image:: /_static/screenshots/lightmode/molecule_builder_editor.png
+   :class: only-light
+   :alt: Ketcher molecular editor
+
+.. image:: /_static/screenshots/darkmode/molecule_builder_editor.png
+   :class: only-dark
+   :alt: Ketcher molecular editor
+
+
+Chat & Logging
+--------------
+
+.. image:: /_static/screenshots/lightmode/chat.png
+   :class: only-light
+   :alt: Chat panel
+
+.. image:: /_static/screenshots/darkmode/chat.png
+   :class: only-dark
+   :alt: Chat panel
+
+Send messages to the chat panel:
+
+.. code:: python
+
+    # Send a message
+    vis.log("Analysis complete!")
+
+    # Messages support Markdown and LaTeX
+    vis.log("Energy: $E = mc^2$")
+
+    # Get chat history
+    messages = vis.get_messages(limit=10)
+
+
+Custom Extensions
+-----------------
+
+.. image:: /_static/screenshots/lightmode/custom_modifier.png
+   :class: only-light
+   :alt: Custom modifier interface
+
+.. image:: /_static/screenshots/darkmode/custom_modifier.png
+   :class: only-dark
+   :alt: Custom modifier interface
+
+ZnDraw supports custom extensions for modifiers, selections, and analysis.
+Register your own Python classes to extend the UI:
+
+.. code:: python
+
+    from pydantic import Field
+    from zndraw.extensions import Extension, Category
+
+    class ScaleAtoms(Extension):
+        """Scale atom positions by a factor."""
+
+        category = Category.MODIFIER  # or SELECTION or ANALYSIS
+        factor: float = Field(
+            1.5, ge=0.1, le=5.0,
+            description="Scale factor",
+            json_schema_extra={"format": "range"},
+        )
+        center_first: bool = Field(
+            True,
+            description="Center atoms before scaling",
+        )
+
+        def run(self, vis, **kwargs):
+            atoms = vis.atoms.copy()
+            if self.center_first:
+                atoms.positions -= atoms.get_center_of_mass()
+            atoms.positions *= self.factor
+            vis.append(atoms)
+            vis.step = len(vis) - 1
+
+    # Register the extension
+    vis.register_extension(ScaleAtoms)
+
+
+Extension Categories
+^^^^^^^^^^^^^^^^^^^^
+
+Extensions are categorized by their purpose:
+
+- ``Category.MODIFIER``: Modify atomic structures (e.g., delete, rotate, translate)
+- ``Category.SELECTION``: Select atoms (e.g., by type, neighbors, random)
+- ``Category.ANALYSIS``: Analyze data and create plots (e.g., properties, correlations)
+
+
+Schema Customization
+^^^^^^^^^^^^^^^^^^^^
+
+Use ``json_schema_extra`` and ``Field`` options to customize how fields appear in the UI:
+
+**Slider Input**
+
+.. code:: python
+
+    factor: float = Field(
+        1.0, ge=0.0, le=10.0,
+        json_schema_extra={"format": "range"},
+    )
+
+**Dynamic Dropdowns**
+
+Populate dropdowns at runtime from available data:
+
+.. code:: python
+
+    # Dropdown from geometry names (filtered to Curves)
+    curve: str = Field(
+        "curve",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-geometries"],
+            "x-geometry-filter": "Curve",
+        },
+    )
+
+    # Dropdown from atom/frame properties
+    property: str = Field(
+        ...,
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props"],
+        },
+    )
+
+**SMILES Input with Ketcher Editor**
+
+.. code:: python
+
+    smiles: str = Field(
+        ...,
+        json_schema_extra={"x-custom-type": "smiles"},
+    )
+
+**Available Options**
+
++----------------------------------+-------------------------------------------+
+| Option                           | Description                               |
++==================================+===========================================+
+| ``"format": "range"``            | Render as slider (requires ge/le bounds)  |
++----------------------------------+-------------------------------------------+
+| ``"x-custom-type": "smiles"``    | SMILES input with Ketcher editor button   |
++----------------------------------+-------------------------------------------+
+| ``"x-custom-type":               | Runtime-populated dropdown                |
+| "dynamic-enum"``                 |                                           |
++----------------------------------+-------------------------------------------+
+| ``"x-features":                  | Populate from geometry names              |
+| ["dynamic-geometries"]``         |                                           |
++----------------------------------+-------------------------------------------+
+| ``"x-features":                  | Populate from atom/frame properties       |
+| ["dynamic-atom-props"]``         |                                           |
++----------------------------------+-------------------------------------------+
+| ``"x-geometry-filter":           | Filter geometries by type                 |
+| "Curve"``                        |                                           |
++----------------------------------+-------------------------------------------+

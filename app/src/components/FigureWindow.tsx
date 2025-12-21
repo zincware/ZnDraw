@@ -39,6 +39,7 @@ import {
 	Autocomplete,
 	Tooltip,
 } from "@mui/material";
+import { useColorScheme } from "@mui/material/styles";
 import {
 	Close as CloseIcon,
 	ErrorOutline as ErrorIcon,
@@ -447,6 +448,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 	const frame_selection = useAppStore((state) => state.frame_selection);
 	const selections = useAppStore((state) => state.selections);
 	const { setStep } = useStepControl();
+	const { mode } = useColorScheme();
 
 	if (!windowInstance) {
 		return null;
@@ -471,14 +473,33 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 		return null;
 	}, [figureResponse?.figure, windowInstance?.figureKey]);
 
-	// ===== MEMOIZED: Layout with autosize =====
-	const plotLayout = useMemo(
-		() => ({
+	// ===== MEMOIZED: Layout with autosize and dark mode support =====
+	const plotLayout = useMemo(() => {
+		const isDark = mode === "dark";
+		const darkModeOverrides = isDark
+			? {
+					paper_bgcolor: "rgba(30, 30, 30, 1)",
+					plot_bgcolor: "rgba(30, 30, 30, 1)",
+					font: { color: "#e0e0e0" },
+					xaxis: {
+						...plotlyJson?.layout?.xaxis,
+						gridcolor: "rgba(100, 100, 100, 0.3)",
+						zerolinecolor: "rgba(150, 150, 150, 0.5)",
+					},
+					yaxis: {
+						...plotlyJson?.layout?.yaxis,
+						gridcolor: "rgba(100, 100, 100, 0.3)",
+						zerolinecolor: "rgba(150, 150, 150, 0.5)",
+					},
+				}
+			: {};
+
+		return {
 			...plotlyJson?.layout,
+			...darkModeOverrides,
 			autosize: true,
-		}),
-		[plotlyJson?.layout],
-	);
+		};
+	}, [plotlyJson?.layout, mode]);
 
 	// ===== STABLE CALLBACKS: Event Handlers =====
 

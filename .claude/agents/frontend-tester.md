@@ -31,6 +31,7 @@ uv run zndraw tmp/s22.xyz --file-browser --no-browser
 cd app && bun run dev
 ```
 - This starts the Vite/Bun development server for the frontend
+- This server auto-reloads on code changes, no need to run build commands
 - Note the port it runs on (typically localhost:5173)
 - Do not wait for full readiness; proceed to testing immediately!
 
@@ -108,5 +109,5 @@ After testing, provide a structured report:
 ```python
 from zndraw import ZnDraw
 
-vis = ZnDraw(url="<user-id>", room="<room_id>")
+vis = ZnDraw(room="<room_id>") # finds local server automatically
 ```

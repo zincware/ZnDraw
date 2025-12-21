@@ -64,6 +64,7 @@ docs = [
     "nbsphinx>=0.9.8",
     "sphinx>=8.2.3",
     "sphinx-copybutton>=0.5.2",
+    "sphinx-design>=0.6.0",
     "sphinxcontrib-mermaid>=1.2.3",
 ]
 
@@ -111,6 +112,9 @@ exclude = [
     ".vscode",
     ".claude",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.codespell]
 skip = "*.lock,bun.lock,todo.md,*.svg"

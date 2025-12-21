@@ -332,7 +332,7 @@ export default function MainPage() {
 						>
 							<IconButton
 								color="inherit"
-								aria-label="toggle color mode"
+								aria-label="toggle theme"
 								onClick={handleToggleColorMode}
 							>
 								{colorMode === "light" ? <DarkModeIcon /> : <LightModeIcon />}

@@ -3,6 +3,14 @@ ZnDraw documentation
 
 A python-first visualisation and editing tool for atomic structures.
 
+.. image:: /_static/screenshots/lightmode/overview.png
+   :class: only-light
+   :alt: ZnDraw overview
+
+.. image:: /_static/screenshots/darkmode/overview.png
+   :class: only-dark
+   :alt: ZnDraw overview
+
 Installation
 ------------
 
@@ -28,5 +36,6 @@ You can use port forwarding to access the visualisation from a remote machine.
    :hidden:
 
    python-api
+   ui-guide
    developer-guide
    adventofcode
