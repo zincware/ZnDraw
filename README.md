@@ -140,7 +140,7 @@ class AddMolecule(Extension):
         vis.append(smiles2atoms(self.smiles))
         vis.step = len(vis) - 1
 
-vis.register(AddMolecule, run_kwargs={"structures": s22}, public=True)
+vis.register(AddMolecule, public=True)
 vis.wait()
 ```
 
