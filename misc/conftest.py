@@ -41,6 +41,7 @@ def _toggle_color_mode(page: Page) -> None:
 def server():
     """Start ZnDraw server for all screenshot tests."""
     print("\nStarting ZnDraw server...")
+    # Use DEVNULL to avoid blocking when pipe buffer fills up
     process = subprocess.Popen(
         [
             "uv",
@@ -50,9 +51,11 @@ def server():
             "--file-browser",
             "--file-browser-root",
             str(MISC_DIR.parent),
+            # "--redis-url",
+            # "redis://localhost:6379",
         ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
     if not _wait_for_server(BASE_URL):
@@ -81,6 +84,9 @@ def page():
         #     args=["--no-sandbox"],
         # )
         page = browser.new_page(viewport={"width": 1280, "height": 720})
+        # Set default timeouts to prevent tests from hanging forever
+        page.set_default_timeout(30000)  # 30 seconds for all operations
+        page.set_default_navigation_timeout(30000)  # 30 seconds for navigation
         yield page
         page.close()
         browser.close()
