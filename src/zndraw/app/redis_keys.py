@@ -582,6 +582,24 @@ class SessionKeys:
         """
         return f"session:{session_id}:sid"
 
+    @staticmethod
+    def session_locks(session_id: str) -> str:
+        """Set of lock keys held by this session.
+
+        Used for efficient cleanup on disconnect - avoids O(N) scan_iter.
+
+        Parameters
+        ----------
+        session_id : str
+            The session identifier
+
+        Returns
+        -------
+        str
+            Redis key for session's lock set
+        """
+        return f"session:{session_id}:locks"
+
 
 @dataclass(frozen=True)
 class JobKeys:
@@ -603,3 +621,54 @@ class WorkerKeys:
     def active_jobs(self) -> str:
         """Set of active job IDs assigned to this worker."""
         return f"worker:{self.worker_id}:jobs"
+
+
+class GlobalIndexKeys:
+    """Redis keys for global indices.
+
+    These indices enable O(1) lookups and avoid expensive scan_iter operations.
+    """
+
+    # Room index: SET containing all room IDs
+    ROOMS_INDEX = "rooms:index"
+
+    # User indices
+    USERS_INDEX = "users:index"  # SET of all usernames
+    ADMINS_INDEX = "admins:index"  # SET of all admin usernames
+
+    @staticmethod
+    def rooms_index() -> str:
+        """Set of all room IDs.
+
+        Used for efficient room listing without scan_iter.
+        When a room is created, its ID is added to this set.
+        When a room is deleted, its ID is removed from this set.
+
+        Returns
+        -------
+        str
+            Redis key for the rooms index set
+        """
+        return GlobalIndexKeys.ROOMS_INDEX
+
+    @staticmethod
+    def users_index() -> str:
+        """Set of all usernames.
+
+        Returns
+        -------
+        str
+            Redis key for the users index set
+        """
+        return GlobalIndexKeys.USERS_INDEX
+
+    @staticmethod
+    def admins_index() -> str:
+        """Set of all admin usernames.
+
+        Returns
+        -------
+        str
+            Redis key for the admins index set
+        """
+        return GlobalIndexKeys.ADMINS_INDEX

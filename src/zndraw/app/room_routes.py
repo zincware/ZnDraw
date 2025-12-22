@@ -13,7 +13,7 @@ from zndraw.app.constants import SocketEvents
 from zndraw.auth import require_auth, require_admin
 
 from .frame_index_manager import FrameIndexManager
-from .redis_keys import RoomKeys, SessionKeys
+from .redis_keys import GlobalIndexKeys, RoomKeys, SessionKeys
 from .room_manager import emit_room_update
 from .route_utils import (
     emit_bookmarks_invalidate,
@@ -72,13 +72,8 @@ def list_rooms():
         # Not authenticated - treat as non-admin
         pass
 
-    # Scan for all room keys to find unique room IDs
-    all_room_ids = set()
-    for key in redis_client.scan_iter(match="room:*"):
-        # Extract room ID from keys like "room:{room_id}:..."
-        parts = key.split(":")
-        if len(parts) >= 2:
-            all_room_ids.add(parts[1])
+    # Get all room IDs from the global index (O(1) instead of O(N) scan_iter)
+    all_room_ids = redis_client.smembers(GlobalIndexKeys.rooms_index())
 
     # Filter room IDs based on user role
     if is_admin:
@@ -153,11 +148,8 @@ def get_room(room_id):
     room_service = current_app.extensions["room_service"]
     keys = RoomKeys(room_id)
 
-    # Check if room exists
-    room_exists = False
-    for key in redis_client.scan_iter(match=keys.all_keys_pattern(), count=1):
-        room_exists = True
-        break
+    # Check if room exists using global index (O(1) instead of O(N) scan_iter)
+    room_exists = redis_client.sismember(GlobalIndexKeys.rooms_index(), room_id)
 
     if not room_exists:
         return {"error": "Room not found"}, 404
@@ -336,11 +328,8 @@ def update_room(room_id):
         current_user = None
         is_admin = False
 
-    # Check if room exists
-    room_exists = False
-    for key in redis_client.scan_iter(match=keys.all_keys_pattern(), count=1):
-        room_exists = True
-        break
+    # Check if room exists using global index (O(1) instead of O(N) scan_iter)
+    room_exists = redis_client.sismember(GlobalIndexKeys.rooms_index(), room_id)
 
     if not room_exists:
         return {"error": "Room not found"}, 404
@@ -433,12 +422,8 @@ def set_default_room():
 
             emit_room_update(socketio, previous_default, isDefault=False)
     else:
-        # Verify room exists
-        room_keys = RoomKeys(room_id)
-        room_exists = False
-        for key in redis_client.scan_iter(match=room_keys.all_keys_pattern(), count=1):
-            room_exists = True
-            break
+        # Verify room exists using global index (O(1) instead of O(N) scan_iter)
+        room_exists = redis_client.sismember(GlobalIndexKeys.rooms_index(), room_id)
 
         if not room_exists:
             return {"error": "Room not found"}, 404

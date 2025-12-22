@@ -11,7 +11,7 @@ from enum import Enum
 
 from redis import Redis
 
-from zndraw.app.redis_keys import UserKeys
+from zndraw.app.redis_keys import GlobalIndexKeys, UserKeys
 
 log = logging.getLogger(__name__)
 
@@ -134,7 +134,10 @@ class UserService:
 
         keys = UserKeys(user_name)
         current_time = datetime.datetime.utcnow().isoformat()
-        self.r.hset(
+
+        # Use pipeline for atomic user creation + index update
+        pipe = self.r.pipeline()
+        pipe.hset(
             keys.hash_key(),
             mapping={
                 "userName": user_name,
@@ -142,6 +145,9 @@ class UserService:
                 "lastLogin": current_time,
             },
         )
+        # Add to global users index for O(1) listing
+        pipe.sadd(GlobalIndexKeys.users_index(), user_name)
+        pipe.execute()
 
         log.info(f"Created user {user_name}")
         return True
@@ -223,7 +229,9 @@ class UserService:
         if isinstance(created_at, bytes):
             created_at = created_at.decode("utf-8")
 
-        self.r.hset(
+        # Use pipeline for atomic operations
+        pipe = self.r.pipeline()
+        pipe.hset(
             new_keys.hash_key(),
             mapping={
                 "userName": new_user_name,
@@ -234,13 +242,22 @@ class UserService:
             },
         )
 
+        # Update users index: add new, remove old
+        pipe.sadd(GlobalIndexKeys.users_index(), new_user_name)
+        pipe.srem(GlobalIndexKeys.users_index(), old_user_name)
+
         # Transfer admin status if exists
-        if self.r.get(old_keys.admin_key()):
-            self.r.set(new_keys.admin_key(), "1")
-            self.r.delete(old_keys.admin_key())
+        is_admin = self.r.get(old_keys.admin_key())
+        if is_admin:
+            pipe.set(new_keys.admin_key(), "1")
+            pipe.delete(old_keys.admin_key())
+            # Update admins index
+            pipe.sadd(GlobalIndexKeys.admins_index(), new_user_name)
+            pipe.srem(GlobalIndexKeys.admins_index(), old_user_name)
 
         # Delete old user
-        self.r.delete(old_keys.hash_key())
+        pipe.delete(old_keys.hash_key())
+        pipe.execute()
 
         log.info(
             f"User {old_user_name} registered as {new_user_name} (guest → user, username changed)"
@@ -389,11 +406,14 @@ class UserService:
         """
         keys = UserKeys(user_name)
 
-        # Delete user data
-        self.r.delete(keys.hash_key())
-
-        # Delete admin status if exists
-        self.r.delete(keys.admin_key())
+        # Use pipeline for atomic deletion
+        pipe = self.r.pipeline()
+        pipe.delete(keys.hash_key())
+        pipe.delete(keys.admin_key())
+        # Remove from indices
+        pipe.srem(GlobalIndexKeys.users_index(), user_name)
+        pipe.srem(GlobalIndexKeys.admins_index(), user_name)
+        pipe.execute()
 
         log.info(f"User {user_name} deleted")
         return True
@@ -405,19 +425,26 @@ class UserService:
         -------
         list[dict]
             List of user dictionaries with userName, role
+
+        Notes
+        -----
+        Uses users:index SET for O(1) user listing instead of O(N) scan_iter.
         """
         users = []
 
-        # Scan for all user data keys (users:data:*)
-        for key in self.r.scan_iter(match=UserKeys.data_pattern()):
-            if isinstance(key, bytes):
-                key = key.decode("utf-8")
-            user_name = UserKeys.username_from_data_key(key)
+        # Get all usernames from the global index (O(1) instead of O(N) scan_iter)
+        all_usernames = self.r.smembers(GlobalIndexKeys.users_index())
+
+        for user_name in all_usernames:
+            if isinstance(user_name, bytes):
+                user_name = user_name.decode("utf-8")
 
             # Get user data
             keys = UserKeys(user_name)
             user_data = self.r.hgetall(keys.hash_key())
             if not user_data:
+                # User in index but data missing - clean up stale index entry
+                self.r.srem(GlobalIndexKeys.users_index(), user_name)
                 continue
 
             # Handle bytes from Redis

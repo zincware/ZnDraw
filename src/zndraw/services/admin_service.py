@@ -7,7 +7,7 @@ import logging
 
 from redis import Redis
 
-from zndraw.app.redis_keys import UserKeys
+from zndraw.app.redis_keys import GlobalIndexKeys, UserKeys
 
 log = logging.getLogger(__name__)
 
@@ -87,7 +87,11 @@ class AdminService:
             Username to grant admin status
         """
         keys = UserKeys(user_name)
-        self.r.set(keys.admin_key(), "1")
+        # Use pipeline for atomic operations
+        pipe = self.r.pipeline()
+        pipe.set(keys.admin_key(), "1")
+        pipe.sadd(GlobalIndexKeys.admins_index(), user_name)
+        pipe.execute()
         log.info(f"Granted admin privileges to user {user_name}")
 
     def revoke_admin(self, user_name: str) -> None:
@@ -99,7 +103,11 @@ class AdminService:
             Username to revoke admin status
         """
         keys = UserKeys(user_name)
-        self.r.delete(keys.admin_key())
+        # Use pipeline for atomic operations
+        pipe = self.r.pipeline()
+        pipe.delete(keys.admin_key())
+        pipe.srem(GlobalIndexKeys.admins_index(), user_name)
+        pipe.execute()
         log.info(f"Revoked admin privileges from user {user_name}")
 
     def is_admin(self, user_name: str) -> bool:
@@ -134,13 +142,11 @@ class AdminService:
         -------
         set[str]
             Set of admin usernames
+
+        Notes
+        -----
+        Uses admins:index SET for O(1) listing instead of O(N) scan_iter.
         """
-        admins = set()
-        # Scan for all users:admin:* keys
-        for key in self.r.scan_iter(match=UserKeys.admin_pattern()):
-            if isinstance(key, bytes):
-                key = key.decode("utf-8")
-            user_name = UserKeys.username_from_admin_key(key)
-            if self.r.get(key) in ("1", b"1"):
-                admins.add(user_name)
-        return admins
+        # Get all admin usernames from the global index
+        admins = self.r.smembers(GlobalIndexKeys.admins_index())
+        return {a.decode("utf-8") if isinstance(a, bytes) else a for a in admins}

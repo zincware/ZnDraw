@@ -75,12 +75,16 @@ def handle_connect(auth):
         "token": "jwt-token-string"
     }
     """
+    import time as _time
+
     from flask_socketio import ConnectionRefusedError, join_room
 
     from zndraw.auth import AuthError, decode_jwt_token
 
+    _connect_start = _time.perf_counter()
     sid = request.sid
     r = current_app.extensions["redis"]
+    log.debug(f"[SOCKET-DEBUG] Connection attempt started: sid={sid}")
 
     # Get JWT token from auth
     token = auth.get("token") if auth else None
@@ -143,6 +147,10 @@ def handle_connect(auth):
     # Increment connected users metric
     connected_users.inc()
 
+    _connect_elapsed = (_time.perf_counter() - _connect_start) * 1000
+    log.info(
+        f"[SOCKET-DEBUG] Connection completed: sid={sid}, user={user_name}, elapsed={_connect_elapsed:.2f}ms"
+    )
     return {"status": "ok", "userName": user_name}
 
 
@@ -153,12 +161,20 @@ def handle_disconnect(*args, **kwargs):
     Note: No parameters needed - Flask-SocketIO provides request.sid automatically.
     The framework may pass arguments but we don't use them.
     """
+    import time as _time
+
+    _disconnect_start = _time.perf_counter()
+    _timings = {}
+
     sid = request.sid
     r = current_app.extensions["redis"]
+    log.debug(f"[SOCKET-DEBUG] Disconnect started: sid={sid}")
 
     # Get userName from connection lookup
+    _t0 = _time.perf_counter()
     session_keys = SessionKeys(sid)
     user_name = r.get(session_keys.username())
+    _timings["session_lookup"] = (_time.perf_counter() - _t0) * 1000
 
     # Decrement connected users metric
     connected_users.dec()
@@ -168,21 +184,27 @@ def handle_disconnect(*args, **kwargs):
         return
 
     # Get user data
+    _t0 = _time.perf_counter()
     user_keys = UserKeys(user_name)
     room_name = r.hget(user_keys.hash_key(), "currentRoom")
+    _timings["user_lookup"] = (_time.perf_counter() - _t0) * 1000
 
     log.info(f"User disconnected: sid={sid}, user={user_name}, room={room_name}")
 
     # Clean up session→sid bidirectional mapping (prevents memory leak)
+    _t0 = _time.perf_counter()
     session_id = r.get(session_keys.session_id())
     if session_id:
         # Remove session_id→sid mapping
         r.delete(SessionKeys.session_to_sid(session_id))
         # Remove sid→session_id mapping
         r.delete(session_keys.session_id())
+    _timings["session_cleanup"] = (_time.perf_counter() - _t0) * 1000
 
     # Update user's currentSid to empty (user still exists but disconnected)
+    _t0 = _time.perf_counter()
     r.hset(user_keys.hash_key(), "currentSid", "")
+    _timings["user_update"] = (_time.perf_counter() - _t0) * 1000
 
     # Note: We don't remove the user from the room or delete user data
     # The user may reconnect and rejoin the same room
@@ -190,6 +212,7 @@ def handle_disconnect(*args, **kwargs):
 
     if room_name:
         # Notify room that a user has disconnected (but not left)
+        _t0 = _time.perf_counter()
         client_service = current_app.extensions["client_service"]
         users_in_room = client_service.get_room_users(room_name)
         emit(
@@ -197,41 +220,38 @@ def handle_disconnect(*args, **kwargs):
             {"clients": list(users_in_room)},
             to=f"room:{room_name}",
         )
+        _timings["room_notify"] = (_time.perf_counter() - _t0) * 1000
     else:
         log.info(f"User {user_name} disconnected (was not in a room)")
 
     # --- Lock Cleanup Logic ---
-    # Scan for locks held by this session
-    lock_keys = r.scan_iter("*:lock:*")
-    for key in lock_keys:
-        # Skip metadata keys
-        if key.endswith(":metadata"):
-            continue
+    # Use session lock index for O(M) cleanup instead of O(N) scan_iter
+    _t0 = _time.perf_counter()
+    if session_id:
+        session_locks_key = SessionKeys.session_locks(session_id)
+        lock_keys = r.smembers(session_locks_key)
 
-        lock_data_str = r.get(key)
-        if not lock_data_str:
-            continue
-
-        try:
-            lock_data = json.loads(lock_data_str)
-            lock_session_id = lock_data.get("sessionId")
-
-            # If this lock is held by the disconnecting session, clean it up
-            if lock_session_id == session_id:
-                log.warning(
-                    f"Cleaning up orphaned lock '{key}' held by disconnected session {session_id}"
-                )
-                r.delete(key)
-                # Also delete associated metadata if it exists
+        if lock_keys:
+            log.info(
+                f"Cleaning up {len(lock_keys)} orphaned lock(s) for session {session_id}"
+            )
+            for lock_key in lock_keys:
+                # Delete the lock and its metadata
+                r.delete(lock_key)
                 metadata_key = (
-                    f"{key}:metadata" if isinstance(key, str) else key + b":metadata"
+                    f"{lock_key}:metadata"
+                    if isinstance(lock_key, str)
+                    else lock_key + b":metadata"
                 )
                 r.delete(metadata_key)
-        except (json.JSONDecodeError, TypeError, AttributeError):
-            # If lock data is not JSON (old format), skip it
-            continue
+                log.debug(f"Cleaned up orphaned lock '{lock_key}'")
+
+            # Delete the session locks set itself
+            r.delete(session_locks_key)
+    _timings["lock_cleanup"] = (_time.perf_counter() - _t0) * 1000
 
     if room_name:
+        _t0 = _time.perf_counter()
         room_keys = RoomKeys(room_name)
         presenter_sid = r.get(room_keys.presenter_lock())
         if presenter_sid and presenter_sid == sid:
@@ -240,9 +260,11 @@ def handle_disconnect(*args, **kwargs):
             from zndraw.app.room_manager import emit_room_update
 
             emit_room_update(socketio, room_name, skip_sid=sid, presenterSid=None)
+        _timings["presenter_cleanup"] = (_time.perf_counter() - _t0) * 1000
 
     # --- Job Cleanup Logic ---
     # Handle jobs assigned to or being processed by this worker
+    _t0 = _time.perf_counter()
     if not sid:
         log.error("No sid during disconnect cleanup")
         return
@@ -307,9 +329,11 @@ def handle_disconnect(*args, **kwargs):
     # Clean up worker capacity key
     capacity_key = ExtensionKeys.worker_capacity_key(worker_id)
     r.delete(capacity_key)
+    _timings["job_cleanup"] = (_time.perf_counter() - _t0) * 1000
     log.info(f"Cleaned up worker capacity for {worker_id}")
 
     # Extension cleanup - workers are tracked by server's sid
+    _t0 = _time.perf_counter()
     extension_categories = ["modifiers", "selections", "analysis"]
     log.info(
         f"Cleaning up extensions for worker_id={worker_id} (user={user_name}) in room '{room_name}'..."
@@ -399,7 +423,10 @@ def handle_disconnect(*args, **kwargs):
                 to=f"room:{room_name}",
             )
 
+    _timings["ext_cleanup"] = (_time.perf_counter() - _t0) * 1000
+
     # Clean up global (public) extensions
+    _t0 = _time.perf_counter()
     log.info(f"Checking for global extensions from worker_id={worker_id}...")
     for category in extension_categories:
         # Check if this worker registered any global extensions
@@ -483,7 +510,10 @@ def handle_disconnect(*args, **kwargs):
                 {"category": category, "global": True},
             )
 
+    _timings["global_ext_cleanup"] = (_time.perf_counter() - _t0) * 1000
+
     # Filesystem cleanup - similar to extensions
+    _t0 = _time.perf_counter()
     if room_name:
         worker_filesystems_key = FilesystemKeys.user_filesystems_key(
             room_name, worker_id
@@ -542,10 +572,19 @@ def handle_disconnect(*args, **kwargs):
         # Notify all clients that global filesystems changed
         socketio.emit(SocketEvents.FILESYSTEMS_UPDATE, {"scope": "global"})
 
+    _timings["fs_cleanup"] = (_time.perf_counter() - _t0) * 1000
+
     # Clean up connection lookup - MUST BE LAST to prevent double-disconnect issues
     # If this handler is called twice, the second call will find no username and return early
     r.delete(session_keys.username())
-    log.info(f"Cleaned up connection lookup for session {sid}")
+
+    # Log all timing information
+    _total_elapsed = (_time.perf_counter() - _disconnect_start) * 1000
+    _timings["total"] = _total_elapsed
+    log.debug(
+        f"[SOCKET-DEBUG] Disconnect completed: sid={sid}, user={user_name}, "
+        f"total={_total_elapsed:.2f}ms, timings={_timings}"
+    )
 
 
 @socketio.on("frame_selection:set")
@@ -606,10 +645,14 @@ def handle_leave_overview():
 @socketio.on("join:room")
 def handle_join_room(data):
     """Client joining specific room page - join room:<room_id> and leave overview:public."""
+    import time as _time
+
     from flask_socketio import join_room, leave_room
 
+    _start = _time.perf_counter()
     sid = request.sid
     room_id = data.get("roomId")
+    log.debug(f"[SOCKET-DEBUG] join:room started: sid={sid}, room={room_id}")
 
     if not room_id:
         return {"status": "error", "message": "roomId required"}
@@ -646,7 +689,10 @@ def handle_join_room(data):
     if progress_trackers:
         emit("progress:initial", {"progressTrackers": progress_trackers}, to=sid)
 
-    log.debug(f"User {sid} (userName: {user_name}) joined room:{room_id}")
+    _elapsed = (_time.perf_counter() - _start) * 1000
+    log.info(
+        f"[SOCKET-DEBUG] join:room completed: sid={sid}, room={room_id}, elapsed={_elapsed:.2f}ms"
+    )
     return {"status": "joined", "room": f"room:{room_id}"}
 
 

@@ -135,6 +135,8 @@ class RoomService:
         dict
             {"created": True, "frameCount": 0}
         """
+        from zndraw.app.redis_keys import GlobalIndexKeys
+
         keys = RoomKeys(room_id)
         pipe = self.r.pipeline()
 
@@ -145,6 +147,9 @@ class RoomService:
         # Initialize metadata
         pipe.set(keys.current_frame(), 0)
         pipe.set(keys.locked(), 0)
+
+        # Add room to global index for O(1) room listing
+        pipe.sadd(GlobalIndexKeys.rooms_index(), room_id)
 
         # Create default geometries
         self._initialize_default_geometries_pipeline(room_id, pipe)
@@ -181,6 +186,8 @@ class RoomService:
         ValueError
             If source room doesn't exist
         """
+        from zndraw.app.redis_keys import GlobalIndexKeys
+
         source_keys = RoomKeys(source_room)
         new_keys = RoomKeys(room_id)
 
@@ -216,6 +223,9 @@ class RoomService:
         # Initialize metadata
         pipe.set(new_keys.current_frame(), 0)
         pipe.set(new_keys.locked(), 0)
+
+        # Add room to global index for O(1) room listing
+        pipe.sadd(GlobalIndexKeys.rooms_index(), room_id)
 
         # Execute all operations atomically
         pipe.execute()
