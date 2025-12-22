@@ -287,7 +287,8 @@ class SocketManager:
 
     def _on_invalidate(self, data: dict):
         if data["category"] == "settings":
-            self.zndraw._settings.pop(data["extension"], None)
+            # Clear entire settings cache to refetch on next access
+            self.zndraw._settings.clear()
 
     def _on_frames_invalidate(self, data: dict):
         log.debug(f"Received cache invalidation event: {data}")

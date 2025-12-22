@@ -1,17 +1,16 @@
 """Settings API routes.
 
-Dedicated endpoints for user settings management.
+Consolidated endpoints for user settings management.
 Settings are per-user, per-room and stored via JWT authentication.
 """
 
-import json
 import logging
 
 from flask import Blueprint, current_app, request
 
 from zndraw.auth import get_current_user, require_auth
 from zndraw.server import socketio
-from zndraw.settings import settings as settings_registry
+from zndraw.settings import RoomConfig
 
 from .constants import SocketEvents
 
@@ -20,125 +19,71 @@ log = logging.getLogger(__name__)
 settings_bp = Blueprint("settings", __name__)
 
 
-@settings_bp.route("/api/rooms/<string:room_id>/settings/schema", methods=["GET"])
-def get_settings_schema(room_id: str):
-    """Get the JSON schema for all settings categories.
-
-    Returns schemas for camera, studio_lighting, pathtracing, property_inspector.
-    Settings are always per-user, per-room (never public).
-
-    Parameters
-    ----------
-    room_id : str
-        Room identifier (unused for schema, but kept for API consistency)
-
-    Returns
-    -------
-    list
-        List of settings schemas with metadata
-    """
-    schema_list = []
-
-    for name, cls in settings_registry.items():
-        schema_list.append(
-            {
-                "name": name,
-                "schema": cls.model_json_schema(),
-                "provider": "settings",
-            }
-        )
-
-    return schema_list
-
-
-@settings_bp.route(
-    "/api/rooms/<string:room_id>/settings/<string:category>",
-    methods=["GET"],
-)
+@settings_bp.route("/api/rooms/<string:room_id>/settings", methods=["GET"])
 @require_auth
-def get_setting(room_id: str, category: str):
-    """Get a specific settings category for the authenticated user.
+def get_settings(room_id: str):
+    """Get all settings with schema for the authenticated user.
+
+    Returns both the JSON schema and current data for all settings categories.
 
     Parameters
     ----------
     room_id : str
         Room identifier
-    category : str
-        Settings category (camera, studio_lighting, pathtracing, property_inspector)
 
     Returns
     -------
     dict
-        {"data": settings_data} - always returns valid data (defaults if not stored)
+        {"schema": RoomConfig schema, "data": all settings data}
     """
     user_name = get_current_user()
-
-    if category not in settings_registry:
-        return {"error": f"Unknown settings category: {category}"}, 400
-
     settings_service = current_app.extensions["settings_service"]
-    data = settings_service.get_category(room_id, user_name, category)
 
-    # If no data stored, return defaults from Pydantic model
-    if data is None:
-        settings_class = settings_registry[category]
-        data = settings_class().model_dump()
-        log.debug(
-            f"get_setting: room={room_id}, user={user_name}, category={category}, "
-            f"returning defaults"
-        )
-    else:
-        log.debug(
-            f"get_setting: room={room_id}, user={user_name}, category={category}, "
-            f"returning stored data"
-        )
+    data = settings_service.get_all(room_id, user_name)
+    schema = RoomConfig.model_json_schema()
 
-    return {"data": data}, 200
+    log.debug(f"get_settings: room={room_id}, user={user_name}")
+    return {"schema": schema, "data": data}, 200
 
 
-@settings_bp.route(
-    "/api/rooms/<string:room_id>/settings/<string:category>",
-    methods=["PUT"],
-)
+@settings_bp.route("/api/rooms/<string:room_id>/settings", methods=["PUT"])
 @require_auth
-def update_setting(room_id: str, category: str):
-    """Update a specific settings category for the authenticated user.
+def update_settings(room_id: str):
+    """Update settings categories for the authenticated user.
+
+    Accepts partial updates - only provided categories are updated.
 
     Parameters
     ----------
     room_id : str
         Room identifier
-    category : str
-        Settings category (camera, studio_lighting, pathtracing, property_inspector)
 
     Request Body
     ------------
-    JSON object with settings data
+    JSON object with category keys and settings data values, e.g.:
+    {"camera": {"near_plane": 0.5}, "studio_lighting": {"key_light": 0.8}}
 
     Returns
     -------
     dict
-        {"status": "success", "message": "Settings updated"}
+        {"status": "success"}
     """
     user_name = get_current_user()
-
-    if category not in settings_registry:
-        return {"error": f"Unknown settings category: {category}"}, 400
-
     json_data = request.json
+
     if json_data is None:
         return {"error": "Request body must be JSON"}, 400
 
-    # Allow both {"data": {...}} and direct {...} formats
-    data = json_data.get("data", json_data)
-
-    log.info(
-        f"Settings update: room={room_id}, user={user_name}, "
-        f"category={category}, data={json.dumps(data)}"
-    )
+    # Validate categories
+    valid_categories = set(RoomConfig.model_fields.keys())
+    provided_categories = set(json_data.keys())
+    invalid = provided_categories - valid_categories
+    if invalid:
+        return {"error": f"Unknown settings categories: {invalid}"}, 400
 
     settings_service = current_app.extensions["settings_service"]
-    settings_service.update_category(room_id, user_name, category, data)
+    log.info(f"update_settings received data: {json_data}")
+    settings_service.update_all(room_id, user_name, json_data)
 
     # Emit invalidate event to notify other clients (same user, same room)
     socketio.emit(
@@ -146,12 +91,14 @@ def update_setting(room_id: str, category: str):
         {
             "userName": user_name,
             "category": "settings",
-            "extension": category,
             "roomId": room_id,
         },
         to=f"room:{room_id}",
     )
 
-    log.info(f"Updated settings for room {room_id}, user {user_name}: {category}")
+    log.info(
+        f"Updated settings for room {room_id}, user {user_name}: "
+        f"{list(json_data.keys())}"
+    )
 
-    return {"status": "success", "message": "Settings updated"}, 200
+    return {"status": "success"}, 200

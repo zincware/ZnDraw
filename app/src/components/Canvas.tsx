@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useAppStore, getActiveCurves, selectPreferredCurve } from "../store";
-import { useSettingData } from "../hooks/useSettings";
+import { useSettings } from "../hooks/useSettings";
 import { useTheme } from "@mui/material/styles";
 import {
 	Snackbar,
@@ -62,18 +62,11 @@ function MyScene() {
 	// Get camera control states based on attached camera
 	const cameraControls = useCameraControls(attachedCameraKey, geometries);
 
-	const { data: studioLightingSettings } = useSettingData(
-		roomId || "",
-		"studio_lighting",
-	);
-
-	const { data: cameraSettings } = useSettingData(roomId || "", "camera");
-
-	const { data: pathtracingSettings } = useSettingData(
-		roomId || "",
-		"pathtracing",
-	);
-
+	// Fetch all settings in one call
+	const { data: settingsResponse } = useSettings(roomId || "");
+	const studioLightingSettings = settingsResponse?.data?.studio_lighting;
+	const cameraSettings = settingsResponse?.data?.camera;
+	const pathtracingSettings = settingsResponse?.data?.pathtracing;
 	const pathtracingEnabled = pathtracingSettings?.enabled === true;
 
 	// Auto-select default curve on startup

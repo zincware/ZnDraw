@@ -562,39 +562,25 @@ export const submitExtension = async (
 
 // ==================== Settings API ====================
 
-export interface SettingsSchema {
-	name: string;
+export interface SettingsResponse {
 	schema: any;
-	provider: "settings";
+	data: Record<string, any>;
 }
 
-export const getSettingsSchemas = async (
+export const getSettings = async (
 	roomId: string,
-): Promise<SettingsSchema[]> => {
-	const { data } = await apiClient.get(`/api/rooms/${roomId}/settings/schema`);
+): Promise<SettingsResponse> => {
+	const { data } = await apiClient.get(`/api/rooms/${roomId}/settings`);
 	return data;
 };
 
-export const getSetting = async (
+export const updateSettings = async (
 	roomId: string,
-	category: string,
-): Promise<{ data: any }> => {
-	const { data } = await apiClient.get(
-		`/api/rooms/${roomId}/settings/${category}`,
-	);
-	return data;
-};
-
-export const updateSetting = async (
-	roomId: string,
-	category: string,
-	settingData: any,
-): Promise<{ status: string; message: string }> => {
+	settingsData: Record<string, any>,
+): Promise<{ status: string }> => {
 	const { data } = await apiClient.put(
-		`/api/rooms/${roomId}/settings/${category}`,
-		{
-			data: settingData,
-		},
+		`/api/rooms/${roomId}/settings`,
+		settingsData,
 	);
 	return data;
 };

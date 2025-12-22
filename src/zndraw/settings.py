@@ -212,21 +212,13 @@ class PathTracing(SettingsBase):
         return schema
 
 
-settings = {
-    "camera": Camera,
-    "studio_lighting": StudioLighting,
-    "property_inspector": PropertyInspector,
-    "pathtracing": PathTracing,
-}
-
-
 class RoomConfig(SettingsBase):
     """ZnDraw room configuration combining all settings sections."""
 
-    camera: Camera = Camera()
-    studio_lighting: StudioLighting = StudioLighting()
-    property_inspector: PropertyInspector = PropertyInspector()
-    pathtracing: PathTracing = PathTracing()
+    camera: Camera = Field(default_factory=Camera)
+    studio_lighting: StudioLighting = Field(default_factory=StudioLighting)
+    property_inspector: PropertyInspector = Field(default_factory=PropertyInspector)
+    pathtracing: PathTracing = Field(default_factory=PathTracing)
 
 
 if __name__ == "__main__":

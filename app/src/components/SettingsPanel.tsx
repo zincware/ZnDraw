@@ -20,11 +20,7 @@ import {
 import { JsonForms } from "@jsonforms/react";
 import { materialCells } from "@jsonforms/material-renderers";
 import { useFormStore } from "../formStore";
-import {
-	useSettingsSchemas,
-	useSettingData,
-	useUpdateSetting,
-} from "../hooks/useSettings";
+import { useSettings, useUpdateSettings } from "../hooks/useSettings";
 import { useAppStore } from "../store";
 import { debounce } from "lodash";
 import { customRenderers, injectDynamicEnums } from "../utils/jsonforms";
@@ -45,49 +41,59 @@ const SettingsPanel = () => {
 	const { selectedExtensions, setSelectedExtension } = useFormStore();
 	const selectedSettingKey = selectedExtensions["settings"] || null;
 
-	// Fetch settings schemas
+	// Fetch all settings (schema + data) in one call
 	const {
-		data: schemas,
-		isLoading: isLoadingSchemas,
-		isError: isSchemasError,
-	} = useSettingsSchemas(roomId);
+		data: settingsResponse,
+		isLoading: isLoading,
+		isError: isError,
+	} = useSettings(roomId);
 
-	// Find selected schema
+	// Extract category names from schema
+	const categoryNames = useMemo(() => {
+		if (!settingsResponse?.schema?.properties) return [];
+		return Object.keys(settingsResponse.schema.properties);
+	}, [settingsResponse]);
+
+	// Get schema for selected category
 	const selectedSchema = useMemo(() => {
-		if (!schemas || !selectedSettingKey) return null;
-		return schemas.find((s) => s.name === selectedSettingKey);
-	}, [schemas, selectedSettingKey]);
+		if (!settingsResponse?.schema?.properties || !selectedSettingKey)
+			return null;
+		const categorySchema =
+			settingsResponse.schema.properties[selectedSettingKey];
+		if (!categorySchema?.$ref) return categorySchema;
+		// Resolve $ref to get the full schema
+		const refName = categorySchema.$ref.split("/").pop();
+		return settingsResponse.schema.$defs?.[refName] ?? null;
+	}, [settingsResponse, selectedSettingKey]);
 
-	// Fetch setting data
-	const {
-		data: serverData,
-		isLoading: isLoadingData,
-		isError: isDataError,
-	} = useSettingData(roomId, selectedSettingKey || "");
+	// Get data for selected category
+	const serverData = useMemo(() => {
+		if (!settingsResponse?.data || !selectedSettingKey) return undefined;
+		return settingsResponse.data[selectedSettingKey];
+	}, [settingsResponse, selectedSettingKey]);
 
-	// Update setting mutation
-	const { mutate: updateSettingMutation } = useUpdateSetting();
+	// Update settings mutation
+	const { mutate: updateSettingsMutation } = useUpdateSettings();
 
 	// Sync server data to local form data
 	useEffect(() => {
-		if (!isLoadingData && serverData !== undefined) {
+		if (!isLoading && serverData !== undefined) {
 			setLocalFormData(serverData ?? {});
 			ignoreFirstChangeRef.current = true;
 		}
-	}, [isLoadingData, serverData, selectedSettingKey]);
+	}, [isLoading, serverData, selectedSettingKey]);
 
 	// Debounced submit for auto-save
 	const debouncedSubmit = useMemo(
 		() =>
 			debounce((data: any) => {
 				if (!selectedSettingKey || !roomId || !userName) return;
-				updateSettingMutation({
+				updateSettingsMutation({
 					roomId,
-					category: selectedSettingKey,
-					data: data,
+					data: { [selectedSettingKey]: data },
 				});
 			}, 100),
-		[selectedSettingKey, roomId, userName, updateSettingMutation],
+		[selectedSettingKey, roomId, userName, updateSettingsMutation],
 	);
 
 	// Cleanup debounce on unmount
@@ -118,12 +124,11 @@ const SettingsPanel = () => {
 
 	// Create dynamic schema (for property inspector, etc.)
 	const dynamicSchema = useMemo(() => {
-		const originalSchema = selectedSchema?.schema;
-		if (!originalSchema) return null;
-		return injectDynamicEnums(originalSchema, undefined, geometries);
+		if (!selectedSchema) return null;
+		return injectDynamicEnums(selectedSchema, undefined, geometries);
 	}, [selectedSchema, geometries]);
 
-	if (isSchemasError || isDataError) {
+	if (isError) {
 		return (
 			<Typography color="error" sx={{ p: 2 }}>
 				Failed to load settings.
@@ -139,7 +144,7 @@ const SettingsPanel = () => {
 			<Divider />
 
 			<Box sx={{ p: 2, pb: 12, flexGrow: 1, overflowY: "auto" }}>
-				{isLoadingSchemas ? (
+				{isLoading ? (
 					<PanelSkeleton />
 				) : (
 					<>
@@ -153,10 +158,10 @@ const SettingsPanel = () => {
 								label="Settings Category"
 								onChange={handleSelectionChange}
 							>
-								{schemas?.map((schema) => (
-									<MenuItem key={schema.name} value={schema.name}>
+								{categoryNames.map((name) => (
+									<MenuItem key={name} value={name}>
 										<Typography>
-											{schema.name
+											{name
 												.replace(/_/g, " ")
 												.replace(/\b\w/g, (l) => l.toUpperCase())}
 										</Typography>
@@ -165,25 +170,19 @@ const SettingsPanel = () => {
 							</Select>
 						</FormControl>
 
-						{selectedSettingKey && (
-							<>
-								{isLoadingData ? (
-									<FormSkeleton />
-								) : dynamicSchema ? (
-									<Fade in={!isLoadingData} timeout={200}>
-										<Box>
-											<JsonForms
-												key={selectedSettingKey}
-												schema={dynamicSchema}
-												data={localFormData}
-												renderers={customRenderers}
-												cells={materialCells}
-												onChange={handleFormChange}
-											/>
-										</Box>
-									</Fade>
-								) : null}
-							</>
+						{selectedSettingKey && dynamicSchema && (
+							<Fade in={true} timeout={200}>
+								<Box>
+									<JsonForms
+										key={selectedSettingKey}
+										schema={dynamicSchema}
+										data={localFormData}
+										renderers={customRenderers}
+										cells={materialCells}
+										onChange={handleFormChange}
+									/>
+								</Box>
+							</Fade>
 						)}
 					</>
 				)}
