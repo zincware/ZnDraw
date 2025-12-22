@@ -61,7 +61,10 @@ class SettingsService:
                 result[category] = json.loads(stored_value)
             else:
                 # Use default_factory to create default instance
-                result[category] = field_info.default_factory().model_dump()
+                # by_alias=True ensures schema field names match (e.g., "camera" not "camera_type")
+                result[category] = field_info.default_factory().model_dump(
+                    by_alias=True
+                )
         return result
 
     def update_all(self, room_id: str, user_name: str, data: dict[str, dict]) -> None:
