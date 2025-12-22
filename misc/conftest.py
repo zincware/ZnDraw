@@ -51,8 +51,6 @@ def server():
             "--file-browser",
             "--file-browser-root",
             str(MISC_DIR.parent),
-            # "--redis-url",
-            # "redis://localhost:6379",
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
