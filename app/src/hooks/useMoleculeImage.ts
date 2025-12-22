@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useColorScheme } from "@mui/material/styles";
 import { convertMoleculeToImage } from "../myapi/client";
 
 interface MoleculeImageState {
@@ -15,6 +16,7 @@ interface MoleculeImageState {
 /**
  * Custom hook for fetching molecule images from SMILES notation.
  * Uses react-query for automatic caching, deduplication, and stale data management.
+ * Automatically uses dark mode based on the current theme.
  *
  * @param smiles - SMILES notation string
  * @param throttleMs - Optional throttle delay in milliseconds (default: 0)
@@ -25,6 +27,11 @@ export const useMoleculeImage = (
 	throttleMs: number = 0,
 ): MoleculeImageState => {
 	const [debouncedSmiles, setDebouncedSmiles] = useState(smiles);
+	const { mode, systemMode } = useColorScheme();
+	// Only use dark mode when explicitly "dark" or when system resolves to "dark"
+	// Default to light mode for undefined/initial state to avoid grey bonds
+	const isDarkMode =
+		mode === "dark" || (mode === "system" && systemMode === "dark");
 
 	// Debounce/throttle the SMILES input
 	useEffect(() => {
@@ -45,7 +52,7 @@ export const useMoleculeImage = (
 		isLoading: loading,
 		error: queryError,
 	} = useQuery({
-		queryKey: ["molecule-image", debouncedSmiles],
+		queryKey: ["molecule-image", debouncedSmiles, isDarkMode],
 		queryFn: async () => {
 			if (!debouncedSmiles || debouncedSmiles.trim() === "") {
 				return null;
@@ -54,6 +61,7 @@ export const useMoleculeImage = (
 			const response = await convertMoleculeToImage({
 				type: "smiles",
 				data: debouncedSmiles,
+				dark: isDarkMode,
 			});
 
 			return response.image;

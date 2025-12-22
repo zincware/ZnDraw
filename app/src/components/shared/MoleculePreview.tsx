@@ -106,7 +106,7 @@ export const MoleculePreview: React.FC<MoleculePreviewProps> = ({
 					width: "100%",
 					height: config.height,
 					objectFit: "contain",
-					backgroundColor: "white",
+					backgroundColor: "background.paper",
 					cursor: onClick ? "pointer" : "default",
 					...(onClick && {
 						"&:hover": {
