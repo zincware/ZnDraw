@@ -42,11 +42,14 @@ export const usePropertyInspectorSettings = (
 	const particleCount = useAppStore((state) => state.particleCount);
 
 	// Fetch all settings from backend (schema + data)
-	const { data: settingsResponse } = useSettings(roomId || "");
+	const { data: settingsResponse, isLoading } = useSettings(roomId || "");
 
 	// Extract enabled_properties array from property_inspector settings
+	// Backend always returns defaults, so once loaded this is guaranteed to exist
 	const enabledProperties: string[] =
-		settingsResponse?.data?.property_inspector?.enabled_properties || [];
+		isLoading || !settingsResponse
+			? []
+			: settingsResponse.data.property_inspector.enabled_properties;
 
 	// Fetch property categorization metadata (only if enabled and we need filtering)
 	const shouldFetchMetadata =

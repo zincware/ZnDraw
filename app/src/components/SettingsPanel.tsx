@@ -42,35 +42,40 @@ const SettingsPanel = () => {
 	const selectedSettingKey = selectedExtensions["settings"] || null;
 
 	// Fetch all settings (schema + data) in one call
-	const {
-		data: settingsResponse,
-		isLoading: isLoading,
-		isError: isError,
-	} = useSettings(roomId);
+	const { data: settingsResponse, isLoading, isError } = useSettings(roomId);
+
+	// Backend always returns schema and data with defaults once loaded
+	const schema = settingsResponse?.schema;
+	const data = settingsResponse?.data;
 
 	// Extract category names from schema
 	const categoryNames = useMemo(() => {
-		if (!settingsResponse?.schema?.properties) return [];
-		return Object.keys(settingsResponse.schema.properties);
-	}, [settingsResponse]);
+		if (isLoading || !schema) return [];
+		return Object.keys(schema.properties);
+	}, [isLoading, schema]);
 
 	// Get schema for selected category
 	const selectedSchema = useMemo(() => {
-		if (!settingsResponse?.schema?.properties || !selectedSettingKey)
-			return null;
-		const categorySchema =
-			settingsResponse.schema.properties[selectedSettingKey];
-		if (!categorySchema?.$ref) return categorySchema;
+		if (isLoading || !schema || !selectedSettingKey) return null;
+		const categorySchema = schema.properties[selectedSettingKey];
+		const defs = schema.$defs;
+		if (!categorySchema.$ref) {
+			// Include $defs for nested references
+			return defs ? { ...categorySchema, $defs: defs } : categorySchema;
+		}
 		// Resolve $ref to get the full schema
 		const refName = categorySchema.$ref.split("/").pop();
-		return settingsResponse.schema.$defs?.[refName] ?? null;
-	}, [settingsResponse, selectedSettingKey]);
+		const resolved = defs?.[refName];
+		if (!resolved) return null;
+		// Include $defs for nested references (e.g., CameraEnum in Camera)
+		return { ...resolved, $defs: defs };
+	}, [isLoading, schema, selectedSettingKey]);
 
 	// Get data for selected category
 	const serverData = useMemo(() => {
-		if (!settingsResponse?.data || !selectedSettingKey) return undefined;
-		return settingsResponse.data[selectedSettingKey];
-	}, [settingsResponse, selectedSettingKey]);
+		if (isLoading || !data || !selectedSettingKey) return undefined;
+		return data[selectedSettingKey];
+	}, [isLoading, data, selectedSettingKey]);
 
 	// Update settings mutation
 	const { mutate: updateSettingsMutation } = useUpdateSettings();

@@ -63,11 +63,9 @@ function MyScene() {
 	const cameraControls = useCameraControls(attachedCameraKey, geometries);
 
 	// Fetch all settings in one call
-	const { data: settingsResponse } = useSettings(roomId || "");
-	const studioLightingSettings = settingsResponse?.data?.studio_lighting;
-	const cameraSettings = settingsResponse?.data?.camera;
-	const pathtracingSettings = settingsResponse?.data?.pathtracing;
-	const pathtracingEnabled = pathtracingSettings?.enabled === true;
+	const { data: settingsResponse, isLoading: settingsLoading } = useSettings(
+		roomId || "",
+	);
 
 	// Auto-select default curve on startup
 	useEffect(() => {
@@ -86,8 +84,8 @@ function MyScene() {
 		setActiveCurveForDrawing(defaultCurve);
 	}, [geometries, activeCurveForDrawing, setActiveCurveForDrawing]);
 
-	// Return early with loading state if required settings are not yet loaded
-	if (!studioLightingSettings || !cameraSettings) {
+	// Return early with loading state while settings are loading
+	if (settingsLoading || !settingsResponse) {
 		return (
 			<MuiBox
 				sx={{
@@ -103,6 +101,12 @@ function MyScene() {
 			</MuiBox>
 		);
 	}
+
+	// Backend always returns defaults, so these are guaranteed to exist
+	const studioLightingSettings = settingsResponse.data.studio_lighting;
+	const cameraSettings = settingsResponse.data.camera;
+	const pathtracingSettings = settingsResponse.data.pathtracing;
+	const pathtracingEnabled = pathtracingSettings.enabled === true;
 
 	const backgroundColor =
 		studioLightingSettings.background_color === "default"
