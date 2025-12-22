@@ -706,7 +706,10 @@ export const partialUpdateFrame = async (
 
 	// Use Blob to ensure axios sends exactly the right number of bytes
 	// Without this, axios may send extra buffer data beyond the actual content
-	const blob = new Blob([encoded], { type: "application/msgpack" });
+	// Create a new Uint8Array to get a clean ArrayBuffer (satisfies TypeScript's BlobPart type)
+	const blob = new Blob([new Uint8Array(encoded)], {
+		type: "application/msgpack",
+	});
 
 	const { data } = await apiClient.patch(
 		`/api/rooms/${roomId}/frames/${frameId}/partial`,

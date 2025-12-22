@@ -10,6 +10,8 @@ from flask import Blueprint, current_app, request
 
 from zndraw.server import socketio
 
+from zndraw.settings import RoomConfig
+
 from .constants import SocketEvents
 from .redis_keys import ExtensionKeys, FilesystemKeys, SessionKeys
 
@@ -147,7 +149,6 @@ def register_worker():
         from zndraw.extensions.analysis import analysis
         from zndraw.extensions.modifiers import modifiers
         from zndraw.extensions.selections import selections
-        from zndraw.settings import RoomConfig
 
         # Settings category names from RoomConfig (excludes inherited fields like callback)
         settings_names = {

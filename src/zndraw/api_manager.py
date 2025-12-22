@@ -563,6 +563,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/settings",
             headers=headers,
+            timeout=10,
         )
         response.raise_for_status()
         return response.json()
@@ -580,6 +581,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/settings",
             json=data,
             headers=headers,
+            timeout=10,
         )
         response.raise_for_status()
 

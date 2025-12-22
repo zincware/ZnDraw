@@ -27,22 +27,27 @@ import { customRenderers, injectDynamicEnums } from "../utils/jsonforms";
 import { PanelSkeleton, FormSkeleton } from "./shared/LoadingSkeletons";
 
 const SettingsPanel = () => {
+	// All hooks must be called unconditionally (React Rules of Hooks)
 	const roomId = useAppStore((state) => state.roomId);
 	const userName = useAppStore((state) => state.userName);
 	const geometries = useAppStore((state) => state.geometries);
 	const [localFormData, setLocalFormData] = useState<any>({});
 	const ignoreFirstChangeRef = useRef(true);
 
-	if (!roomId || !userName) {
-		return <Typography sx={{ p: 2 }}>Joining room...</Typography>;
-	}
-
 	// Get selected setting from form store
 	const { selectedExtensions, setSelectedExtension } = useFormStore();
 	const selectedSettingKey = selectedExtensions["settings"] || null;
 
 	// Fetch all settings (schema + data) in one call
-	const { data: settingsResponse, isLoading, isError } = useSettings(roomId);
+	// Query is disabled when roomId is missing via enabled option
+	const {
+		data: settingsResponse,
+		isLoading,
+		isError,
+	} = useSettings(roomId ?? "");
+
+	// Update settings mutation
+	const { mutate: updateSettingsMutation } = useUpdateSettings();
 
 	// Backend always returns schema and data with defaults once loaded
 	const schema = settingsResponse?.schema;
@@ -76,9 +81,6 @@ const SettingsPanel = () => {
 		if (isLoading || !data || !selectedSettingKey) return undefined;
 		return data[selectedSettingKey];
 	}, [isLoading, data, selectedSettingKey]);
-
-	// Update settings mutation
-	const { mutate: updateSettingsMutation } = useUpdateSettings();
 
 	// Sync server data to local form data
 	useEffect(() => {
@@ -132,6 +134,11 @@ const SettingsPanel = () => {
 		if (!selectedSchema) return null;
 		return injectDynamicEnums(selectedSchema, undefined, geometries);
 	}, [selectedSchema, geometries]);
+
+	// Early returns AFTER all hooks are called (React Rules of Hooks)
+	if (!roomId || !userName) {
+		return <Typography sx={{ p: 2 }}>Joining room...</Typography>;
+	}
 
 	if (isError) {
 		return (
