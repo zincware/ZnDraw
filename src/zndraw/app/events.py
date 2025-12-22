@@ -201,7 +201,6 @@ def handle_disconnect(*args, **kwargs):
         log.info(f"User {user_name} disconnected (was not in a room)")
 
     # --- Lock Cleanup Logic ---
-    # Use session lock index for O(M) cleanup instead of O(N) scan_iter
     if session_id:
         session_locks_key = SessionKeys.session_locks(session_id)
         lock_keys = r.smembers(session_locks_key)

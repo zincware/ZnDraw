@@ -87,7 +87,6 @@ class AdminService:
             Username to grant admin status
         """
         keys = UserKeys(user_name)
-        # Use pipeline for atomic operations
         pipe = self.r.pipeline()
         pipe.set(keys.admin_key(), "1")
         pipe.sadd(GlobalIndexKeys.admins_index(), user_name)
@@ -103,7 +102,6 @@ class AdminService:
             Username to revoke admin status
         """
         keys = UserKeys(user_name)
-        # Use pipeline for atomic operations
         pipe = self.r.pipeline()
         pipe.delete(keys.admin_key())
         pipe.srem(GlobalIndexKeys.admins_index(), user_name)
@@ -142,11 +140,6 @@ class AdminService:
         -------
         set[str]
             Set of admin usernames
-
-        Notes
-        -----
-        Uses admins:index SET for O(1) listing instead of O(N) scan_iter.
         """
         # Get all admin usernames from the global index
-        admins = self.r.smembers(GlobalIndexKeys.admins_index())
-        return {a.decode("utf-8") if isinstance(a, bytes) else a for a in admins}
+        return self.r.smembers(GlobalIndexKeys.admins_index())

@@ -586,8 +586,6 @@ class SessionKeys:
     def session_locks(session_id: str) -> str:
         """Set of lock keys held by this session.
 
-        Used for efficient cleanup on disconnect - avoids O(N) scan_iter.
-
         Parameters
         ----------
         session_id : str
@@ -624,10 +622,7 @@ class WorkerKeys:
 
 
 class GlobalIndexKeys:
-    """Redis keys for global indices.
-
-    These indices enable O(1) lookups and avoid expensive scan_iter operations.
-    """
+    """Redis keys for global indices."""
 
     # Room index: SET containing all room IDs
     ROOMS_INDEX = "rooms:index"
@@ -639,8 +634,6 @@ class GlobalIndexKeys:
     @staticmethod
     def rooms_index() -> str:
         """Set of all room IDs.
-
-        Used for efficient room listing without scan_iter.
         When a room is created, its ID is added to this set.
         When a room is deleted, its ID is removed from this set.
 

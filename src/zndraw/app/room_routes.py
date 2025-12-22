@@ -72,7 +72,7 @@ def list_rooms():
         # Not authenticated - treat as non-admin
         pass
 
-    # Get all room IDs from the global index (O(1) instead of O(N) scan_iter)
+    # Get all room IDs
     all_room_ids = redis_client.smembers(GlobalIndexKeys.rooms_index())
 
     # Filter room IDs based on user role
@@ -148,7 +148,7 @@ def get_room(room_id):
     room_service = current_app.extensions["room_service"]
     keys = RoomKeys(room_id)
 
-    # Check if room exists using global index (O(1) instead of O(N) scan_iter)
+    # Check if room exists using global index
     room_exists = redis_client.sismember(GlobalIndexKeys.rooms_index(), room_id)
 
     if not room_exists:
@@ -328,7 +328,7 @@ def update_room(room_id):
         current_user = None
         is_admin = False
 
-    # Check if room exists using global index (O(1) instead of O(N) scan_iter)
+    # Check if room exists using global index
     room_exists = redis_client.sismember(GlobalIndexKeys.rooms_index(), room_id)
 
     if not room_exists:
@@ -422,7 +422,7 @@ def set_default_room():
 
             emit_room_update(socketio, previous_default, isDefault=False)
     else:
-        # Verify room exists using global index (O(1) instead of O(N) scan_iter)
+        # Verify room exists using global index
         room_exists = redis_client.sismember(GlobalIndexKeys.rooms_index(), room_id)
 
         if not room_exists:

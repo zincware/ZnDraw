@@ -115,7 +115,6 @@ def generate_room_name(base_name: str, redis_client, max_length: int = 20) -> st
     if redis_client is None:
         return truncated
 
-    # Check if this room name already exists using global index (O(1) vs O(N) scan_iter)
     room_exists = redis_client.sismember(GlobalIndexKeys.rooms_index(), truncated)
 
     if not room_exists:

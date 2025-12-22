@@ -135,7 +135,6 @@ class UserService:
         keys = UserKeys(user_name)
         current_time = datetime.datetime.utcnow().isoformat()
 
-        # Use pipeline for atomic user creation + index update
         pipe = self.r.pipeline()
         pipe.hset(
             keys.hash_key(),
@@ -229,7 +228,6 @@ class UserService:
         if isinstance(created_at, bytes):
             created_at = created_at.decode("utf-8")
 
-        # Use pipeline for atomic operations
         pipe = self.r.pipeline()
         pipe.hset(
             new_keys.hash_key(),
@@ -406,7 +404,6 @@ class UserService:
         """
         keys = UserKeys(user_name)
 
-        # Use pipeline for atomic deletion
         pipe = self.r.pipeline()
         pipe.delete(keys.hash_key())
         pipe.delete(keys.admin_key())
@@ -425,14 +422,10 @@ class UserService:
         -------
         list[dict]
             List of user dictionaries with userName, role
-
-        Notes
-        -----
-        Uses users:index SET for O(1) user listing instead of O(N) scan_iter.
         """
         users = []
 
-        # Get all usernames from the global index (O(1) instead of O(N) scan_iter)
+        # Get all usernames from the global index
         all_usernames = self.r.smembers(GlobalIndexKeys.users_index())
 
         for user_name in all_usernames:
