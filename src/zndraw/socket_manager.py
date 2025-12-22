@@ -125,10 +125,23 @@ class SocketManager:
             self.zndraw._frame_selection = frozenset(data["indices"])
 
     def _on_bookmarks_invalidate(self, data):
-        """Handle bookmark invalidation by refetching from server."""
-        # Refetch all bookmarks from server to update local cache
-        bookmarks = self.zndraw.api.get_all_bookmarks()
-        self.zndraw._bookmarks = bookmarks
+        """Handle bookmark invalidation by updating specific entry or refetching."""
+        index = data.get("index")
+        operation = data.get("operation")
+
+        if operation == "set" and index is not None:
+            # Targeted update - only fetch and update the specific bookmark
+            response = self.zndraw.api.get_bookmark(index)
+            label = response.get("label")
+            if label:
+                self.zndraw._bookmarks[index] = label
+        elif operation == "delete" and index is not None:
+            # Remove the specific bookmark from cache
+            self.zndraw._bookmarks.pop(index, None)
+        else:
+            # Full refresh for bulk operations (clear, shift, etc.)
+            bookmarks = self.zndraw.api.get_all_bookmarks()
+            self.zndraw._bookmarks = bookmarks
 
     def _on_geometry_invalidate(self, data):
         if data.get("key"):
