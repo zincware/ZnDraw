@@ -18,7 +18,7 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
 
     # Step 1: Join room (minimal response)
     response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers
+        f"{server}/api/rooms/{room}/join", json={}, headers=headers, timeout=10
     )
     assert response.status_code == 200
     data = response.json()
@@ -29,7 +29,7 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     assert "userName" in data
 
     # Step 2: Fetch room info
-    response = requests.get(f"{server}/api/rooms/{room}", headers=headers)
+    response = requests.get(f"{server}/api/rooms/{room}", headers=headers, timeout=10)
     assert response.status_code == 200
     room_info = response.json()
     assert room_info["id"] == room
@@ -37,7 +37,9 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     assert room_info["locked"] is False
 
     # Step 3: Fetch selections
-    response = requests.get(f"{server}/api/rooms/{room}/selections", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/selections", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     selections_data = response.json()
     assert selections_data["selections"] == {}
@@ -46,41 +48,49 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
 
     # Step 4: Fetch frame selection
     response = requests.get(
-        f"{server}/api/rooms/{room}/frame-selection", headers=headers
+        f"{server}/api/rooms/{room}/frame-selection", headers=headers, timeout=10
     )
     assert response.status_code == 200
     frame_selection_data = response.json()
     assert frame_selection_data["frameSelection"] is None
 
     # Step 5: Fetch current step
-    response = requests.get(f"{server}/api/rooms/{room}/step", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/step", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     step_data = response.json()
     assert step_data["step"] is None or step_data["step"] == 0
     assert step_data["totalFrames"] == 0
 
     # Step 6: Fetch bookmarks
-    response = requests.get(f"{server}/api/rooms/{room}/bookmarks", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/bookmarks", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     bookmarks_data = response.json()
     assert bookmarks_data["bookmarks"] == {} or bookmarks_data["bookmarks"] is None
 
     # Step 7: Fetch geometries
-    response = requests.get(f"{server}/api/rooms/{room}/geometries", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/geometries", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     geometries_data = response.json()
     # Geometries might contain default schemas even for empty room
     assert isinstance(geometries_data["geometries"], dict)
 
-    # Step 8: Fetch user settings (per-category endpoint)
+    # Step 8: Fetch user settings (all categories)
     response = requests.get(
-        f"{server}/api/rooms/{room}/settings/camera", headers=headers
+        f"{server}/api/rooms/{room}/settings", headers=headers, timeout=10
     )
     assert response.status_code == 200
     settings_data = response.json()
+    assert "schema" in settings_data
     assert "data" in settings_data
     # Settings always return valid data (defaults if not stored)
     assert isinstance(settings_data["data"], dict)
+    assert "camera" in settings_data["data"]
 
 
 def test_lazy_loading_with_data(server, s22, get_jwt_auth_headers):
@@ -97,21 +107,23 @@ def test_lazy_loading_with_data(server, s22, get_jwt_auth_headers):
 
     # Step 1: Join room as different user
     response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers
+        f"{server}/api/rooms/{room}/join", json={}, headers=headers, timeout=10
     )
     assert response.status_code == 200
     data = response.json()
     assert data["created"] is False  # Room already exists
 
     # Step 2: Fetch room info
-    response = requests.get(f"{server}/api/rooms/{room}", headers=headers)
+    response = requests.get(f"{server}/api/rooms/{room}", headers=headers, timeout=10)
     assert response.status_code == 200
     room_info = response.json()
     assert room_info["id"] == room
     assert room_info["frameCount"] == 5
 
     # Step 3: Fetch current step
-    response = requests.get(f"{server}/api/rooms/{room}/step", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/step", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     step_data = response.json()
     assert step_data["totalFrames"] == 5
@@ -120,7 +132,9 @@ def test_lazy_loading_with_data(server, s22, get_jwt_auth_headers):
         assert 0 <= step_data["step"] < 5
 
     # Step 4: Fetch bookmarks
-    response = requests.get(f"{server}/api/rooms/{room}/bookmarks", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/bookmarks", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     bookmarks_data = response.json()
     assert bookmarks_data["bookmarks"] is not None
@@ -130,7 +144,9 @@ def test_lazy_loading_with_data(server, s22, get_jwt_auth_headers):
     assert bookmarks_data["bookmarks"][bookmark_key] == "Frame 2"
 
     # Step 5: Fetch geometries (should be empty initially)
-    response = requests.get(f"{server}/api/rooms/{room}/geometries", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/geometries", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     geometries_data = response.json()
     assert isinstance(geometries_data["geometries"], dict)
@@ -143,7 +159,7 @@ def test_lazy_loading_auth_required(server, get_jwt_auth_headers):
 
     # Create room first
     response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers
+        f"{server}/api/rooms/{room}/join", json={}, headers=headers, timeout=10
     )
     assert response.status_code == 200
 
@@ -154,11 +170,11 @@ def test_lazy_loading_auth_required(server, get_jwt_auth_headers):
         f"/api/rooms/{room}/frame-selection",
         f"/api/rooms/{room}/step",
         f"/api/rooms/{room}/geometries",
-        f"/api/rooms/{room}/settings/camera",
+        f"/api/rooms/{room}/settings",
     ]
 
     for endpoint in endpoints:
-        response = requests.get(f"{server}{endpoint}")
+        response = requests.get(f"{server}{endpoint}", timeout=10)
         assert response.status_code == 401, f"Endpoint {endpoint} should require auth"
 
 
@@ -168,7 +184,7 @@ def test_lazy_loading_nonexistent_room(server, get_jwt_auth_headers):
     headers = get_jwt_auth_headers(server)
 
     # Room info should return 404
-    response = requests.get(f"{server}/api/rooms/{room}", headers=headers)
+    response = requests.get(f"{server}/api/rooms/{room}", headers=headers, timeout=10)
     assert response.status_code == 404
 
     # Other endpoints might return empty data or 404 depending on implementation
@@ -181,7 +197,7 @@ def test_lazy_loading_nonexistent_room(server, get_jwt_auth_headers):
     ]
 
     for endpoint in endpoints:
-        response = requests.get(f"{server}{endpoint}", headers=headers)
+        response = requests.get(f"{server}{endpoint}", headers=headers, timeout=10)
         # Should return either 200 with empty data or 404, but not 500
         assert response.status_code in [200, 404], (
             f"Endpoint {endpoint} returned {response.status_code}"
@@ -201,7 +217,9 @@ def test_step_clamping_with_deleted_frames(server, s22, get_jwt_auth_headers):
     vis.step = 8
 
     # Verify step is 8
-    response = requests.get(f"{server}/api/rooms/{room}/step", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/step", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["step"] == 8
@@ -212,7 +230,9 @@ def test_step_clamping_with_deleted_frames(server, s22, get_jwt_auth_headers):
     del vis[5:]
 
     # Fetch step again - should be clamped to 4 (last valid index)
-    response = requests.get(f"{server}/api/rooms/{room}/step", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/step", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["step"] == 4  # Clamped from 8 to 4
@@ -220,7 +240,9 @@ def test_step_clamping_with_deleted_frames(server, s22, get_jwt_auth_headers):
 
     # Verify that subsequent fetches return the same clamped value
     # (meaning Redis was updated, not just the response)
-    response = requests.get(f"{server}/api/rooms/{room}/step", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/step", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["step"] == 4
@@ -241,7 +263,7 @@ def test_parallel_lazy_loading(server, s22, get_jwt_auth_headers):
 
     # Join room
     response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers
+        f"{server}/api/rooms/{room}/join", json={}, headers=headers, timeout=10
     )
     assert response.status_code == 200
 
@@ -253,13 +275,13 @@ def test_parallel_lazy_loading(server, s22, get_jwt_auth_headers):
         f"{server}/api/rooms/{room}/step",
         f"{server}/api/rooms/{room}/bookmarks",
         f"{server}/api/rooms/{room}/geometries",
-        f"{server}/api/rooms/{room}/settings/camera",
+        f"{server}/api/rooms/{room}/settings",
     ]
 
     # Fetch all endpoints in parallel
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(endpoints)) as executor:
         futures = {
-            executor.submit(requests.get, url, headers=headers): url
+            executor.submit(requests.get, url, headers=headers, timeout=10): url
             for url in endpoints
         }
         results = {}

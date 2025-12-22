@@ -9,7 +9,7 @@
  */
 
 import { useMemo } from "react";
-import { useSettingData } from "./useSettings";
+import { useSettings } from "./useSettings";
 import {
 	usePropertyValues,
 	useAvailableProperties,
@@ -41,14 +41,15 @@ export const usePropertyInspectorSettings = (
 	const currentFrame = useAppStore((state) => state.currentFrame);
 	const particleCount = useAppStore((state) => state.particleCount);
 
-	// Fetch property_inspector settings from backend
-	const { data: settingsData } = useSettingData(
-		roomId || "",
-		"property_inspector",
-	);
+	// Fetch all settings from backend (schema + data)
+	const { data: settingsResponse, isLoading } = useSettings(roomId || "");
 
-	// Extract enabled_properties array from settings
-	const enabledProperties: string[] = settingsData?.enabled_properties || [];
+	// Extract enabled_properties array from property_inspector settings
+	// Backend always returns defaults, so once loaded this is guaranteed to exist
+	const enabledProperties: string[] =
+		isLoading || !settingsResponse
+			? []
+			: settingsResponse.data.property_inspector.enabled_properties;
 
 	// Fetch property categorization metadata (only if enabled and we need filtering)
 	const shouldFetchMetadata =

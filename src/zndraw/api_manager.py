@@ -551,44 +551,37 @@ class APIManager:
         response.raise_for_status()
         return response.json()
 
-    def get_extension_settings(self, category: str) -> dict:
-        """Get settings for a specific category.
-
-        Parameters
-        ----------
-        category : str
-            Settings category (camera, studio_lighting, pathtracing, property_inspector)
+    def get_settings(self) -> dict:
+        """Get all settings with schema.
 
         Returns
         -------
         dict
-            Settings data with "data" key
+            {"schema": RoomConfig schema, "data": all settings data}
         """
         headers = self._get_headers()
-
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/settings/{category}",
+            f"{self.url}/api/rooms/{self.room}/settings",
             headers=headers,
+            timeout=10,
         )
         response.raise_for_status()
         return response.json()
 
-    def submit_extension_settings(self, category: str, data: dict) -> None:
-        """Update settings for a specific category.
+    def update_settings(self, data: dict) -> None:
+        """Update settings categories.
 
         Parameters
         ----------
-        category : str
-            Settings category (camera, studio_lighting, pathtracing, property_inspector)
         data : dict
-            Settings data to store
+            Settings data keyed by category, e.g. {"camera": {...}}
         """
         headers = self._get_headers()
-
         response = requests.put(
-            f"{self.url}/api/rooms/{self.room}/settings/{category}",
-            json={"data": data},
+            f"{self.url}/api/rooms/{self.room}/settings",
+            json=data,
             headers=headers,
+            timeout=10,
         )
         response.raise_for_status()
 

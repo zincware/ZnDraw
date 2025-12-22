@@ -146,10 +146,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			queryClient.invalidateQueries({
 				queryKey: ["extensionData", roomId, userName, category, extension],
 			});
-			// Also invalidate settings queries (settings use dedicated endpoints)
+			// Invalidate settings queries (consolidated endpoint)
 			if (category === "settings") {
 				queryClient.invalidateQueries({
-					queryKey: ["settingData", roomId, userName, extension],
+					queryKey: ["settings", roomId, userName],
 				});
 			}
 		}

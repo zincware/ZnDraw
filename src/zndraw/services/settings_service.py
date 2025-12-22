@@ -5,11 +5,10 @@ Settings are stored per user per room to allow personalized configurations.
 """
 
 import json
-import logging
 
 from redis import Redis
 
-log = logging.getLogger(__name__)
+from zndraw.settings import RoomConfig
 
 
 class SettingsService:
@@ -27,8 +26,11 @@ class SettingsService:
     def __init__(self, redis_client: Redis):
         self.r = redis_client
 
-    def get_category(self, room_id: str, user_name: str, category: str) -> dict | None:
-        """Get specific settings category for a user.
+    def _get_settings_key(self, room_id: str, user_name: str) -> str:
+        return f"room:{room_id}:user:{user_name}:settings"
+
+    def get_all(self, room_id: str, user_name: str) -> dict[str, dict]:
+        """Get all settings categories for a user.
 
         Parameters
         ----------
@@ -36,22 +38,37 @@ class SettingsService:
             Room identifier
         user_name : str
             Username
-        category : str
-            Settings category name
 
         Returns
         -------
-        dict | None
-            Settings data for the category, or None if not found
+        dict[str, dict]
+            All settings data with defaults applied for missing categories
         """
-        settings_key = f"room:{room_id}:user:{user_name}:settings"
-        value: str | None = self.r.hget(settings_key, category)  # type: ignore
-        return json.loads(value) if value else None
+        settings_key = self._get_settings_key(room_id, user_name)
+        stored: dict[bytes, bytes] = self.r.hgetall(settings_key)  # type: ignore
 
-    def update_category(
-        self, room_id: str, user_name: str, category: str, data: dict
-    ) -> None:
-        """Update specific settings category for a user.
+        # Build result with defaults for each category (skip inherited callback field)
+        result = {}
+        for category, field_info in RoomConfig.model_fields.items():
+            if field_info.default_factory is None:
+                continue  # Skip non-settings fields like 'callback'
+            # Redis may return string or bytes keys depending on decode_responses setting
+            stored_value = stored.get(category) or stored.get(category.encode())
+            if stored_value:
+                # Handle both string and bytes values
+                if isinstance(stored_value, bytes):
+                    stored_value = stored_value.decode()
+                result[category] = json.loads(stored_value)
+            else:
+                # Use default_factory to create default instance
+                # by_alias=True ensures schema field names match (e.g., "camera" not "camera_type")
+                result[category] = field_info.default_factory().model_dump(
+                    by_alias=True
+                )
+        return result
+
+    def update_all(self, room_id: str, user_name: str, data: dict[str, dict]) -> None:
+        """Update multiple settings categories for a user.
 
         Parameters
         ----------
@@ -59,13 +76,10 @@ class SettingsService:
             Room identifier
         user_name : str
             Username
-        category : str
-            Settings category name
-        data : dict
-            Settings data to store
+        data : dict[str, dict]
+            Settings data to store, keyed by category name
         """
-        settings_key = f"room:{room_id}:user:{user_name}:settings"
-        self.r.hset(settings_key, category, json.dumps(data))
-        log.debug(
-            f"Updated settings category '{category}' for user '{user_name}' in room '{room_id}'"
-        )
+        settings_key = self._get_settings_key(room_id, user_name)
+        mapping = {category: json.dumps(values) for category, values in data.items()}
+        if mapping:
+            self.r.hset(settings_key, mapping=mapping)

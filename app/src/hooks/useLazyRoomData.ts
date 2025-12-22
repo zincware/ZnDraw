@@ -110,8 +110,8 @@ export const useLazyRoomData = (roomId: string | null, enabled: boolean) => {
 		retry: 2,
 	});
 
-	// Note: Settings are fetched on-demand per category by useSettingData hook
-	// from the dedicated /api/rooms/{roomId}/settings/{category} endpoint
+	// Note: Settings are fetched on-demand by useSettings hook
+	// from the dedicated /api/rooms/{roomId}/settings endpoint
 
 	// Fetch geometries with full data
 	const {
@@ -196,7 +196,7 @@ export const useLazyRoomData = (roomId: string | null, enabled: boolean) => {
 	}, [geometrySchemasData, setGeometrySchemas]);
 
 	// Aggregate loading state
-	// Note: Settings are fetched on-demand per category by useSettingData hook
+	// Note: Settings are fetched on-demand by useSettings hook
 	const isLoading =
 		isLoadingRoomInfo ||
 		isLoadingSelections ||

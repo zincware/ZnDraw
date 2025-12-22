@@ -56,57 +56,48 @@ class StudioLighting(SettingsBase):
     """Controls for the neutral studio lighting setup."""
 
     background_color: str = Field(
-        default="default", description="Neutral background color of the scene"
+        default="default",
+        description="Neutral background color of the scene",
+        json_schema_extra={"format": "color"},
     )
     key_light: float = Field(
         default=0.7,
         ge=0.0,
         le=3.0,
         description="Intensity of the main light attached to the camera",
+        json_schema_extra={"format": "range", "step": 0.01},
     )
     fill_light: float = Field(
         default=0.4,
         ge=0.0,
         le=3.0,
         description="Intensity of the soft global light that lifts shadows",
+        json_schema_extra={"format": "range", "step": 0.01},
     )
     rim_light: float = Field(
         default=0.5,
         ge=0.0,
         le=5.0,
         description="Intensity of the back light that creates highlights",
+        json_schema_extra={"format": "range", "step": 0.01},
     )
     hemisphere_light: float = Field(
         default=0.3,
         ge=0.0,
         le=3.0,
         description="Intensity of the ambient light from above",
+        json_schema_extra={"format": "range", "step": 0.01},
     )
     ambient_light: float = Field(
         default=0.35,
         ge=0.0,
         le=3.0,
         description="Intensity of the ambient light that fills the scene",
+        json_schema_extra={"format": "range", "step": 0.01},
     )
     contact_shadow: bool = Field(
         default=False, description="Show contact shadow below the model"
     )
-
-    @classmethod
-    def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
-        schema = super().model_json_schema(*args, **kwargs)
-        schema["properties"]["background_color"]["format"] = "color"
-        schema["properties"]["key_light"]["format"] = "range"
-        schema["properties"]["key_light"]["step"] = 0.01
-        schema["properties"]["fill_light"]["format"] = "range"
-        schema["properties"]["fill_light"]["step"] = 0.01
-        schema["properties"]["rim_light"]["format"] = "range"
-        schema["properties"]["rim_light"]["step"] = 0.01
-        schema["properties"]["hemisphere_light"]["format"] = "range"
-        schema["properties"]["hemisphere_light"]["step"] = 0.01
-        schema["properties"]["ambient_light"]["format"] = "range"
-        schema["properties"]["ambient_light"]["step"] = 0.01
-        return schema
 
 
 class PropertyInspector(SettingsBase):
@@ -115,21 +106,14 @@ class PropertyInspector(SettingsBase):
     enabled_properties: list[str] = Field(
         default_factory=list,
         description="Selected property keys to display in the inspector table",
+        json_schema_extra={"x-custom-type": "property-inspector"},
     )
-
-    @classmethod
-    def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
-        """Inject custom type for PropertyInspectorRenderer."""
-        schema = super().model_json_schema(*args, **kwargs)
-        # Mark enabled_properties field for custom renderer
-        schema["properties"]["enabled_properties"]["x-custom-type"] = (
-            "property-inspector"
-        )
-        return schema
 
 
 class Camera(SettingsBase):
     """Defines the camera projection and user interaction controls."""
+
+    model_config = ConfigDict(validate_assignment=True, populate_by_name=True)
 
     camera_type: CameraEnum = Field(
         default=CameraEnum.PerspectiveCamera,
@@ -157,11 +141,18 @@ class PathTracing(SettingsBase):
     enabled: bool = Field(default=False, description="Enable GPU path tracing renderer")
 
     min_samples: float = Field(
-        default=1.0, ge=1.0, description="Minimum samples before displaying result"
+        default=1.0,
+        ge=1.0,
+        description="Minimum samples before displaying result",
+        json_schema_extra={"format": "range"},
     )
 
     samples: float = Field(
-        default=256.0, ge=1.0, le=10000.0, description="Maximum samples to render"
+        default=256.0,
+        ge=1.0,
+        le=10000.0,
+        description="Maximum samples to render",
+        json_schema_extra={"format": "range"},
     )
 
     bounces: float = Field(
@@ -169,6 +160,7 @@ class PathTracing(SettingsBase):
         ge=1.0,
         le=32.0,
         description="Number of light bounces for global illumination",
+        json_schema_extra={"format": "range"},
     )
 
     tiles: float = Field(
@@ -176,6 +168,7 @@ class PathTracing(SettingsBase):
         ge=1.0,
         le=8.0,
         description="Rendering tile count (higher = less memory, slower)",
+        json_schema_extra={"format": "range"},
     )
 
     environment_preset: EnvironmentPreset = Field(
@@ -188,45 +181,31 @@ class PathTracing(SettingsBase):
         ge=0.0,
         le=10.0,
         description="Environment map brightness multiplier",
+        json_schema_extra={"format": "range", "step": 0.1},
     )
 
     environment_blur: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="Environment background blur amount"
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Environment background blur amount",
+        json_schema_extra={"format": "range", "step": 0.01},
     )
 
     environment_background: bool = Field(
         default=False, description="Show environment as visible background"
     )
 
-    @classmethod
-    def model_json_schema(cls, *args, **kwargs) -> dict[str, t.Any]:
-        schema = super().model_json_schema(*args, **kwargs)
-        schema["properties"]["min_samples"]["format"] = "range"
-        schema["properties"]["samples"]["format"] = "range"
-        schema["properties"]["bounces"]["format"] = "range"
-        schema["properties"]["tiles"]["format"] = "range"
-        schema["properties"]["environment_intensity"]["format"] = "range"
-        schema["properties"]["environment_intensity"]["step"] = 0.1
-        schema["properties"]["environment_blur"]["format"] = "range"
-        schema["properties"]["environment_blur"]["step"] = 0.01
-        return schema
-
-
-settings = {
-    "camera": Camera,
-    "studio_lighting": StudioLighting,
-    "property_inspector": PropertyInspector,
-    "pathtracing": PathTracing,
-}
-
 
 class RoomConfig(SettingsBase):
     """ZnDraw room configuration combining all settings sections."""
 
-    camera: Camera = Camera()
-    studio_lighting: StudioLighting = StudioLighting()
-    property_inspector: PropertyInspector = PropertyInspector()
-    pathtracing: PathTracing = PathTracing()
+    model_config = ConfigDict(validate_assignment=True, populate_by_name=True)
+
+    camera: Camera = Field(default_factory=Camera)
+    studio_lighting: StudioLighting = Field(default_factory=StudioLighting)
+    property_inspector: PropertyInspector = Field(default_factory=PropertyInspector)
+    pathtracing: PathTracing = Field(default_factory=PathTracing)
 
 
 if __name__ == "__main__":

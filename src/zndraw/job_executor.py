@@ -224,12 +224,10 @@ def _get_extension_class(category: str, extension: str, public: bool):
     from zndraw.extensions.analysis import analysis
     from zndraw.extensions.modifiers import modifiers
     from zndraw.extensions.selections import selections
-    from zndraw.settings import settings
 
     category_map = {
         "selections": selections,
         "modifiers": modifiers,
-        "settings": settings,
         "analysis": analysis,
     }
 

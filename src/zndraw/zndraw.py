@@ -21,7 +21,7 @@ from zndraw.frame_cache import FrameCache
 from zndraw.metadata_manager import RoomMetadata
 from zndraw.scene_manager import Geometries
 from zndraw.server_manager import get_server_status
-from zndraw.settings import RoomConfig, settings
+from zndraw.settings import RoomConfig
 from zndraw.socket_manager import SocketManager
 from zndraw.lock import ZnDrawLock
 from asebytes import encode, decode
@@ -1535,16 +1535,22 @@ class ZnDraw(MutableSequence):
     def settings(self) -> RoomConfig:
         """Access room-level settings configuration."""
 
-        def callback_fn(data, extension: str):
-            self.api.submit_extension_settings(extension, data)
+        def callback_fn(data: dict, category: str) -> None:
+            self.api.update_settings({category: data})
 
-        for key in settings:
-            if key not in self._settings:
-                data = self.api.get_extension_settings(key)
-                self._settings[key] = settings[key](**(data.get("data") or {}))
-                self._settings[key].callback = functools.partial(
-                    callback_fn, extension=key
+        if not self._settings:
+            response = self.api.get_settings()
+            data = response.get("data", {})
+            for category, field_info in RoomConfig.model_fields.items():
+                if field_info.default_factory is None:
+                    continue  # Skip non-settings fields like 'callback'
+                category_data = data.get(category, {})
+                # Use default_factory to get the class and instantiate with data
+                category_instance = field_info.default_factory(**category_data)
+                category_instance.callback = functools.partial(
+                    callback_fn, category=category
                 )
+                self._settings[category] = category_instance
 
         return RoomConfig(**self._settings)
 
