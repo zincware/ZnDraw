@@ -106,6 +106,8 @@ def generate_room_name(base_name: str, redis_client, max_length: int = 20) -> st
     """
     import uuid
 
+    from zndraw.app.redis_keys import GlobalIndexKeys
+
     # Truncate to max length
     truncated = base_name[:max_length]
 
@@ -113,11 +115,7 @@ def generate_room_name(base_name: str, redis_client, max_length: int = 20) -> st
     if redis_client is None:
         return truncated
 
-    # Check if this room name already exists
-    room_exists = False
-    for key in redis_client.scan_iter(match=f"room:{truncated}:*", count=1):
-        room_exists = True
-        break
+    room_exists = redis_client.sismember(GlobalIndexKeys.rooms_index(), truncated)
 
     if not room_exists:
         return truncated

@@ -201,35 +201,27 @@ def handle_disconnect(*args, **kwargs):
         log.info(f"User {user_name} disconnected (was not in a room)")
 
     # --- Lock Cleanup Logic ---
-    # Scan for locks held by this session
-    lock_keys = r.scan_iter("*:lock:*")
-    for key in lock_keys:
-        # Skip metadata keys
-        if key.endswith(":metadata"):
-            continue
+    if session_id:
+        session_locks_key = SessionKeys.session_locks(session_id)
+        lock_keys = r.smembers(session_locks_key)
 
-        lock_data_str = r.get(key)
-        if not lock_data_str:
-            continue
-
-        try:
-            lock_data = json.loads(lock_data_str)
-            lock_session_id = lock_data.get("sessionId")
-
-            # If this lock is held by the disconnecting session, clean it up
-            if lock_session_id == session_id:
-                log.warning(
-                    f"Cleaning up orphaned lock '{key}' held by disconnected session {session_id}"
-                )
-                r.delete(key)
-                # Also delete associated metadata if it exists
+        if lock_keys:
+            log.info(
+                f"Cleaning up {len(lock_keys)} orphaned lock(s) for session {session_id}"
+            )
+            for lock_key in lock_keys:
+                # Delete the lock and its metadata
+                r.delete(lock_key)
                 metadata_key = (
-                    f"{key}:metadata" if isinstance(key, str) else key + b":metadata"
+                    f"{lock_key}:metadata"
+                    if isinstance(lock_key, str)
+                    else lock_key + b":metadata"
                 )
                 r.delete(metadata_key)
-        except (json.JSONDecodeError, TypeError, AttributeError):
-            # If lock data is not JSON (old format), skip it
-            continue
+                log.debug(f"Cleaned up orphaned lock '{lock_key}'")
+
+            # Delete the session locks set itself
+            r.delete(session_locks_key)
 
     if room_name:
         room_keys = RoomKeys(room_name)
@@ -384,14 +376,14 @@ def handle_disconnect(*args, **kwargs):
 
         # Clean up the worker-specific reverse-lookup key
         r.delete(worker_extensions_key)
-        print(f"Cleaned up worker-specific extension list: {worker_extensions_key}")
+        log.info(f"Cleaned up worker-specific extension list: {worker_extensions_key}")
 
         # Notify clients about worker count changes
         # We always invalidate if this worker had any extensions, not just when deleting
         if worker_extensions:
-            print(
+            log.info(
                 f"Invalidating schema for category '{category}' in room '{room_name}' "
-                f"due to worker disconnect."
+                "due to worker disconnect."
             )
             socketio.emit(
                 SocketEvents.INVALIDATE_SCHEMA,
@@ -544,8 +536,8 @@ def handle_disconnect(*args, **kwargs):
 
     # Clean up connection lookup - MUST BE LAST to prevent double-disconnect issues
     # If this handler is called twice, the second call will find no username and return early
+    log.debug("Cleaning up session username mapping: %s", session_keys.username())
     r.delete(session_keys.username())
-    log.info(f"Cleaned up connection lookup for session {sid}")
 
 
 @socketio.on("frame_selection:set")

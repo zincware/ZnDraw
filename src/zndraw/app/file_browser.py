@@ -9,7 +9,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from zndraw.auth import require_auth
 
-from .redis_keys import RoomKeys
+from .redis_keys import GlobalIndexKeys, RoomKeys
 
 log = logging.getLogger(__name__)
 
@@ -32,10 +32,20 @@ def _get_all_rooms_metadata(redis_client) -> dict[str, dict]:
     from zndraw.app.metadata_manager import RoomMetadataManager
 
     rooms = {}
-    for key in redis_client.scan_iter(match="room:*:metadata"):
-        room_id = key.split(":")[1]
+
+    # Get all room IDs from the global index
+    all_room_ids = redis_client.smembers(GlobalIndexKeys.rooms_index())
+
+    for room_id in all_room_ids:
+        if isinstance(room_id, bytes):
+            room_id = room_id.decode("utf-8")
+
         manager = RoomMetadataManager(redis_client, room_id)
         metadata = manager.get_all()
+
+        # Skip rooms without metadata
+        if not metadata:
+            continue
 
         # Get room description
         room_keys = RoomKeys(room_id)
@@ -144,11 +154,18 @@ def _find_room_with_exact_file(
         f"Looking for duplicate file: relative_path={relative_path}, size={current_size}, mtime={current_mtime}"
     )
 
-    # Scan all rooms for matching metadata
-    for key in redis_client.scan_iter(match="room:*:metadata"):
-        room_id = key.split(":")[1]
+    # Get all room IDs from the global index
+    all_room_ids = redis_client.smembers(GlobalIndexKeys.rooms_index())
+
+    for room_id in all_room_ids:
+        if isinstance(room_id, bytes):
+            room_id = room_id.decode("utf-8")
+
         manager = RoomMetadataManager(redis_client, room_id)
         metadata = manager.get_all()
+
+        if not metadata:
+            continue
 
         stored_path = metadata.get("relative_file_path")
         stored_size = metadata.get("file_size")

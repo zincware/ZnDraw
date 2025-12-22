@@ -125,10 +125,39 @@ class SocketManager:
             self.zndraw._frame_selection = frozenset(data["indices"])
 
     def _on_bookmarks_invalidate(self, data):
-        """Handle bookmark invalidation by refetching from server."""
-        # Refetch all bookmarks from server to update local cache
-        bookmarks = self.zndraw.api.get_all_bookmarks()
-        self.zndraw._bookmarks = bookmarks
+        """Handle bookmark invalidation by updating specific entry or refetching."""
+        index = data.get("index")
+        operation = data.get("operation")
+
+        if operation == "set" and index is not None:
+            # Targeted update - only fetch and update the specific bookmark
+            try:
+                response = self.zndraw.api.get_bookmark(index)
+                label = response.get("label")
+                if label is not None:
+                    self.zndraw._bookmarks[index] = label
+            except Exception as e:
+                # Check for 404 - bookmark was deleted
+                if hasattr(e, "response") and e.response.status_code == 404:
+                    self.zndraw._bookmarks.pop(index, None)
+                else:
+                    log.error("Failed to fetch bookmark %s: %s", index, e)
+                    # Fallback to full refresh
+                    self._refresh_all_bookmarks()
+        elif operation == "delete" and index is not None:
+            # Remove the specific bookmark from cache
+            self.zndraw._bookmarks.pop(index, None)
+        else:
+            # Full refresh for bulk operations (clear, shift, etc.)
+            self._refresh_all_bookmarks()
+
+    def _refresh_all_bookmarks(self):
+        """Refresh all bookmarks from server, retaining cache on failure."""
+        try:
+            bookmarks = self.zndraw.api.get_all_bookmarks()
+            self.zndraw._bookmarks = bookmarks
+        except Exception as e:
+            log.error("Failed to refresh bookmarks: %s", e)
 
     def _on_geometry_invalidate(self, data):
         if data.get("key"):

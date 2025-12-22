@@ -41,6 +41,7 @@ def _toggle_color_mode(page: Page) -> None:
 def server():
     """Start ZnDraw server for all screenshot tests."""
     print("\nStarting ZnDraw server...")
+    # Use DEVNULL to avoid blocking when pipe buffer fills up
     process = subprocess.Popen(
         [
             "uv",
@@ -51,8 +52,8 @@ def server():
             "--file-browser-root",
             str(MISC_DIR.parent),
         ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
     if not _wait_for_server(BASE_URL):

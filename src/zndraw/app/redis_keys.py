@@ -479,6 +479,40 @@ class RoomKeys:
         """
         return f"room:{self.room_id}:*"
 
+    def all_static_keys(self) -> list[str]:
+        """Return all static room keys (keys without dynamic parameters).
+
+        Use this for bulk deletion. Does not include parameterized keys like
+        settings(username), lock(target), chat_message(id), etc.
+
+        Returns
+        -------
+        list[str]
+            All static Redis keys for this room
+        """
+        return [
+            self.description(),
+            self.locked(),
+            self.locked_by(),
+            self.current_frame(),
+            self.presenter_lock(),
+            self.bookmarks(),
+            self.geometries(),
+            self.figures(),
+            self.selections(),
+            self.selection_groups(),
+            self.active_selection_group(),
+            self.trajectory_indices(),
+            self.chat_counter(),
+            self.chat_data(),
+            self.chat_index(),
+            self.progress(),
+            self.metadata(),
+            self.jobs_active(),
+            self.jobs_inactive(),
+            self.jobs_by_time(),
+        ]
+
 
 @dataclass(frozen=True)
 class UserKeys:
@@ -582,6 +616,22 @@ class SessionKeys:
         """
         return f"session:{session_id}:sid"
 
+    @staticmethod
+    def session_locks(session_id: str) -> str:
+        """Set of lock keys held by this session.
+
+        Parameters
+        ----------
+        session_id : str
+            The session identifier
+
+        Returns
+        -------
+        str
+            Redis key for session's lock set
+        """
+        return f"session:{session_id}:locks"
+
 
 @dataclass(frozen=True)
 class JobKeys:
@@ -603,3 +653,49 @@ class WorkerKeys:
     def active_jobs(self) -> str:
         """Set of active job IDs assigned to this worker."""
         return f"worker:{self.worker_id}:jobs"
+
+
+class GlobalIndexKeys:
+    """Redis keys for global indices."""
+
+    # Room index: SET containing all room IDs
+    ROOMS_INDEX = "rooms:index"
+
+    # User indices
+    USERS_INDEX = "users:index"  # SET of all usernames
+    ADMINS_INDEX = "admins:index"  # SET of all admin usernames
+
+    @staticmethod
+    def rooms_index() -> str:
+        """Set of all room IDs.
+        When a room is created, its ID is added to this set.
+        When a room is deleted, its ID is removed from this set.
+
+        Returns
+        -------
+        str
+            Redis key for the rooms index set
+        """
+        return GlobalIndexKeys.ROOMS_INDEX
+
+    @staticmethod
+    def users_index() -> str:
+        """Set of all usernames.
+
+        Returns
+        -------
+        str
+            Redis key for the users index set
+        """
+        return GlobalIndexKeys.USERS_INDEX
+
+    @staticmethod
+    def admins_index() -> str:
+        """Set of all admin usernames.
+
+        Returns
+        -------
+        str
+            Redis key for the admins index set
+        """
+        return GlobalIndexKeys.ADMINS_INDEX
