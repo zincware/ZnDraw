@@ -10,6 +10,7 @@ from flask import Blueprint, current_app, jsonify, request
 from zndraw.auth import AuthError, get_current_user
 
 from .constants import LockConfig
+from .redis_keys import SessionKeys
 from .route_utils import emit_lock_update, get_lock_key
 
 log = logging.getLogger(__name__)
@@ -91,6 +92,10 @@ def acquire_lock(room_id, target):
 
     # Acquire lock (nx=True means only set if not exists)
     if r.set(lock_key, lock_data, nx=True, ex=int(ttl)):
+        # Track lock in session's lock set for efficient cleanup on disconnect
+        session_locks_key = SessionKeys.session_locks(session_id)
+        r.sadd(session_locks_key, lock_key)
+
         # Store metadata if provided
         timestamp = None
         if msg:
@@ -289,6 +294,10 @@ def release_lock(room_id, target):
     # Delete lock and metadata
     r.delete(lock_key)
     r.delete(f"{lock_key}:metadata")
+
+    # Remove from session's lock set
+    session_locks_key = SessionKeys.session_locks(session_id)
+    r.srem(session_locks_key, lock_key)
 
     # Broadcast lock release event
     emit_lock_update(
