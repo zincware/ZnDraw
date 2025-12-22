@@ -73,9 +73,7 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     assert isinstance(geometries_data["geometries"], dict)
 
     # Step 8: Fetch user settings (all categories)
-    response = requests.get(
-        f"{server}/api/rooms/{room}/settings", headers=headers
-    )
+    response = requests.get(f"{server}/api/rooms/{room}/settings", headers=headers)
     assert response.status_code == 200
     settings_data = response.json()
     assert "schema" in settings_data
