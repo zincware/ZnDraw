@@ -536,6 +536,7 @@ def handle_disconnect(*args, **kwargs):
 
     # Clean up connection lookup - MUST BE LAST to prevent double-disconnect issues
     # If this handler is called twice, the second call will find no username and return early
+    log.debug("Cleaning up session username mapping: %s", session_keys.username())
     r.delete(session_keys.username())
 
 
