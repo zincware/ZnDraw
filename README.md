@@ -9,6 +9,7 @@
 [![codecov](https://codecov.io/gh/zincware/ZnDraw/graph/badge.svg?token=3GPCKH1BBX)](https://codecov.io/gh/zincware/ZnDraw)
 [![Discord](https://img.shields.io/discord/1034511611802689557)](https://discord.gg/7ncfwhsnm4)
 [![Documentation Status](https://readthedocs.org/projects/zndraw/badge/?version=latest)](https://zndraw.readthedocs.io/en/latest/?badge=latest)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/zincware/ZnDraw)
 
 </div>
 

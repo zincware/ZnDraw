@@ -84,9 +84,6 @@ def page():
         #     args=["--no-sandbox"],
         # )
         page = browser.new_page(viewport={"width": 1280, "height": 720})
-        # Set default timeouts to prevent tests from hanging forever
-        page.set_default_timeout(30000)  # 30 seconds for all operations
-        page.set_default_navigation_timeout(30000)  # 30 seconds for navigation
         yield page
         page.close()
         browser.close()

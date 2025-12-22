@@ -99,11 +99,11 @@ Selections
    :class: only-dark
    :alt: Selection tools
 
-Select atoms by index using ``vis.selection``:
+Select atoms by index using ``vis.selection`` (shortcut for particles geometry):
 
 .. code:: python
 
-    # Set selection
+    # Set selection for particles
     vis.selection = [0, 1, 2, 3]
 
     # Get selection
@@ -112,15 +112,50 @@ Select atoms by index using ``vis.selection``:
     # Clear selection
     vis.selection = []
 
-Use selection groups for named atom sets:
+Select by geometry type using ``vis.selections`` (dict-like interface):
 
 .. code:: python
 
-    # Create named group
-    vis.selection_groups["backbone"] = [0, 1, 2]
+    # Set selection for specific geometry
+    vis.selections["particles"] = [0, 1, 2, 3]
+    vis.selections["forces"] = [5, 6, 7]
 
-    # Access groups
-    groups = dict(vis.selection_groups)
+    # Get selection for a geometry
+    particle_selection = vis.selections["particles"]
+
+    # Clear selection for a geometry
+    del vis.selections["particles"]
+
+    # Iterate over geometries with selections
+    for geometry in vis.selections:
+        print(f"{geometry}: {vis.selections[geometry]}")
+
+Use selection groups to save and restore named selections across multiple geometries:
+
+.. code:: python
+
+    # Create named group (maps geometry names to indices)
+    vis.selection_groups["backbone"] = {
+        "particles": [0, 1, 2],
+        "forces": [0, 1, 2]
+    }
+
+    # Create group with only particles
+    vis.selection_groups["active_site"] = {"particles": [10, 11, 12]}
+
+    # Get a group
+    group = vis.selection_groups["backbone"]
+    print(group)  # {"particles": [0, 1, 2], "forces": [0, 1, 2]}
+
+    # Load a group (apply it to current selections)
+    vis.load_selection_group("backbone")
+
+    # List all groups
+    for group_name in vis.selection_groups:
+        print(f"{group_name}: {vis.selection_groups[group_name]}")
+
+    # Delete a group
+    del vis.selection_groups["backbone"]
 
 
 Bookmarks
