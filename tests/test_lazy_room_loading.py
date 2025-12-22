@@ -72,15 +72,17 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     # Geometries might contain default schemas even for empty room
     assert isinstance(geometries_data["geometries"], dict)
 
-    # Step 8: Fetch user settings (per-category endpoint)
+    # Step 8: Fetch user settings (all categories)
     response = requests.get(
-        f"{server}/api/rooms/{room}/settings/camera", headers=headers
+        f"{server}/api/rooms/{room}/settings", headers=headers
     )
     assert response.status_code == 200
     settings_data = response.json()
+    assert "schema" in settings_data
     assert "data" in settings_data
     # Settings always return valid data (defaults if not stored)
     assert isinstance(settings_data["data"], dict)
+    assert "camera" in settings_data["data"]
 
 
 def test_lazy_loading_with_data(server, s22, get_jwt_auth_headers):
@@ -154,7 +156,7 @@ def test_lazy_loading_auth_required(server, get_jwt_auth_headers):
         f"/api/rooms/{room}/frame-selection",
         f"/api/rooms/{room}/step",
         f"/api/rooms/{room}/geometries",
-        f"/api/rooms/{room}/settings/camera",
+        f"/api/rooms/{room}/settings",
     ]
 
     for endpoint in endpoints:
@@ -253,7 +255,7 @@ def test_parallel_lazy_loading(server, s22, get_jwt_auth_headers):
         f"{server}/api/rooms/{room}/step",
         f"{server}/api/rooms/{room}/bookmarks",
         f"{server}/api/rooms/{room}/geometries",
-        f"{server}/api/rooms/{room}/settings/camera",
+        f"{server}/api/rooms/{room}/settings",
     ]
 
     # Fetch all endpoints in parallel
