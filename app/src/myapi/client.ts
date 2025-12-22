@@ -1051,6 +1051,7 @@ export const createRoomFromFile = async (
 export interface ConvertMoleculeToImageRequest {
 	type: "smiles" | "inchi";
 	data: string;
+	dark?: boolean;
 }
 
 export interface ConvertMoleculeToImageResponse {

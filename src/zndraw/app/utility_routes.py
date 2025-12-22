@@ -4,7 +4,6 @@ Handles health checks, versioning, authentication, tools, and static asset servi
 """
 
 import base64
-import io
 import logging
 from pathlib import Path
 
@@ -60,7 +59,8 @@ def rdkit_image():
     -------
     {
         "type": "smiles" | "inchi",  // Required: type of input
-        "data": "CCCO"                // Required: molecule string
+        "data": "CCCO",              // Required: molecule string
+        "dark": true                 // Optional: dark mode (default: false)
     }
 
     Response
@@ -72,13 +72,14 @@ def rdkit_image():
     """
     try:
         from rdkit import Chem
-        from rdkit.Chem import Draw
+        from rdkit.Chem.Draw import rdMolDraw2D
     except ImportError:
         return {"error": "RDKit is not installed", "type": "ImportError"}, 500
 
     data = request.get_json() or {}
     mol_type = data.get("type")
     mol_data = data.get("data")
+    dark_mode = data.get("dark", False)
 
     if not mol_type or not mol_data:
         return {
@@ -108,14 +109,24 @@ def rdkit_image():
         # Generate 2D coordinates if needed
         Chem.rdDepictor.Compute2DCoords(mol)
 
-        # Draw molecule to PNG
-        img = Draw.MolToImage(mol, size=(300, 300))
+        # Draw molecule to PNG using MolDraw2DCairo for full control
+        drawer = rdMolDraw2D.MolDraw2DCairo(300, 300)
+        opts = drawer.drawOptions()
+
+        # Transparent background - container handles visual background
+        opts.clearBackground = False
+
+        if dark_mode:
+            # Dark mode: light bonds/atoms for visibility on dark containers
+            opts.setSymbolColour((0.9, 0.9, 0.9))
+            opts.updateAtomPalette({6: (0.9, 0.9, 0.9)})
+
+        rdMolDraw2D.PrepareAndDrawMolecule(drawer, mol)
+        drawer.FinishDrawing()
+        png_data = drawer.GetDrawingText()
 
         # Convert to base64
-        buffer = io.BytesIO()
-        img.save(buffer, format="PNG")
-        buffer.seek(0)
-        img_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        img_base64 = base64.b64encode(png_data).decode("utf-8")
 
         return {
             "image": f"data:image/png;base64,{img_base64}",

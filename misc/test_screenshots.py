@@ -305,6 +305,7 @@ def test_molecule_builder(server, page, capture, request):
 
     capture.light()
     capture.toggle()
+    page.wait_for_timeout(500)
     capture.dark()
 
 
