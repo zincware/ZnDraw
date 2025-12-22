@@ -21,8 +21,8 @@ def test_generate_room_name_truncates_long_filename():
 
 def test_generate_room_name_collision_adds_hash(redis_client):
     """Test that collision detection adds hash suffix."""
-    # Create existing room
-    redis_client.zadd("room:test_file.xyz:trajectory:indices", {"frame_0": 0})
+    # Add room to the rooms index (simulating existing room)
+    redis_client.sadd("rooms:index", "test_file.xyz")
 
     # Generate name for file that would create same room name
     result = generate_room_name("test_file.xyz", redis_client, max_length=20)
@@ -88,9 +88,9 @@ def test_generate_room_name_no_redis_client():
 
 def test_generate_room_name_multiple_collisions(redis_client):
     """Test handling multiple files with same truncated name."""
-    # Create first room
+    # Add truncated room name to the rooms index (simulating existing room)
     truncated = "my_very_long_file_na"  # 20 chars
-    redis_client.zadd(f"room:{truncated}:trajectory:indices", {"frame_0": 0})
+    redis_client.sadd("rooms:index", truncated)
 
     # Generate for file that truncates to same name
     result1 = generate_room_name(
@@ -145,10 +145,10 @@ def test_generate_room_name_existing_underscore():
     assert result == "my_existing_name.xyz"
 
 
-def test_generate_room_name_hash_suffix_length():
+def test_generate_room_name_hash_suffix_length(redis_client):
     """Test that hash suffix is correct length."""
-    redis_client = pytest.importorskip("redis").Redis()
-    redis_client.zadd("room:test.xyz:trajectory:indices", {"frame_0": 0})
+    # Add room to the rooms index (simulating existing room)
+    redis_client.sadd("rooms:index", "test.xyz")
 
     result = generate_room_name("test.xyz", redis_client)
     # Should have _XXXX suffix where XXXX is 4 hex chars

@@ -479,6 +479,40 @@ class RoomKeys:
         """
         return f"room:{self.room_id}:*"
 
+    def all_static_keys(self) -> list[str]:
+        """Return all static room keys (keys without dynamic parameters).
+
+        Use this for bulk deletion. Does not include parameterized keys like
+        settings(username), lock(target), chat_message(id), etc.
+
+        Returns
+        -------
+        list[str]
+            All static Redis keys for this room
+        """
+        return [
+            self.description(),
+            self.locked(),
+            self.locked_by(),
+            self.current_frame(),
+            self.presenter_lock(),
+            self.bookmarks(),
+            self.geometries(),
+            self.figures(),
+            self.selections(),
+            self.selection_groups(),
+            self.active_selection_group(),
+            self.trajectory_indices(),
+            self.chat_counter(),
+            self.chat_data(),
+            self.chat_index(),
+            self.progress(),
+            self.metadata(),
+            self.jobs_active(),
+            self.jobs_inactive(),
+            self.jobs_by_time(),
+        ]
+
 
 @dataclass(frozen=True)
 class UserKeys:

@@ -95,6 +95,8 @@ def acquire_lock(room_id, target):
         # Track lock in session's lock set for efficient cleanup on disconnect
         session_locks_key = SessionKeys.session_locks(session_id)
         r.sadd(session_locks_key, lock_key)
+        # Set TTL on the tracking set to ensure cleanup even if disconnect handler fails
+        r.expire(session_locks_key, int(ttl))
 
         # Store metadata if provided
         timestamp = None

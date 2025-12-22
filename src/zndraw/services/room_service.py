@@ -14,6 +14,7 @@ import re
 from redis import Redis  # type: ignore
 
 from zndraw.app.redis_keys import RoomKeys
+from zndraw.app.redis_keys import GlobalIndexKeys
 
 log = logging.getLogger(__name__)
 
@@ -388,3 +389,33 @@ class RoomService:
         except (ValueError, TypeError) as e:
             log.error(f"Invalid step value in Redis for room {room_id}: {step} - {e}")
             return 0
+
+    def delete_room(self, room_id: str) -> bool:
+        """Delete a room and all its data.
+
+        Removes the room from the global index and deletes all room-related keys.
+
+        Parameters
+        ----------
+        room_id : str
+            Room identifier to delete
+
+        Returns
+        -------
+        bool
+            True if room was deleted, False if room didn't exist
+        """
+        keys = RoomKeys(room_id)
+
+        # Check if room exists
+        if not self.room_exists(room_id):
+            return False
+
+        # Delete all known room keys directly (no SCAN needed)
+        pipe = self.r.pipeline()
+        pipe.srem(GlobalIndexKeys.rooms_index(), room_id)
+        pipe.delete(*keys.all_static_keys())
+        pipe.execute()
+
+        log.info(f"Deleted room '{room_id}' and removed from index")
+        return True
