@@ -1,6 +1,6 @@
+import ase.build
 import numpy as np
 
-import ase.build
 from zndraw.zndraw import ZnDraw
 
 

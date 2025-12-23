@@ -3,14 +3,20 @@
 Handles room creation, listing, updates, metadata, locking, duplication, and schema management.
 """
 
+import datetime
 import json
 import logging
+import re
+import uuid
 
 from flask import Blueprint, current_app, request
 
-from zndraw.server import socketio
 from zndraw.app.constants import SocketEvents
-from zndraw.auth import require_auth, require_admin
+from zndraw.auth import require_admin, require_auth
+from zndraw.extensions.analysis import analysis
+from zndraw.extensions.modifiers import modifiers
+from zndraw.extensions.selections import selections
+from zndraw.server import socketio
 
 from .frame_index_manager import FrameIndexManager
 from .redis_keys import GlobalIndexKeys, RoomKeys, SessionKeys
@@ -47,10 +53,8 @@ def list_rooms():
             "metadata": {"relative_file_path": "...", ...}
         }]
     """
-    import re
-
     from zndraw.app.room_data_fetcher import BatchedRoomDataFetcher
-    from zndraw.auth import extract_token_from_request, decode_jwt_token, AuthError
+    from zndraw.auth import AuthError, decode_jwt_token, extract_token_from_request
 
     redis_client = current_app.extensions["redis"]
     room_service = current_app.extensions["room_service"]
@@ -209,9 +213,6 @@ def join_room(room_id):
     Room data (frameCount, selections, geometries, bookmarks, settings, etc.)
     should be fetched via separate REST endpoints after joining.
     """
-    import datetime
-    import uuid
-
     from zndraw.auth import AuthError, get_current_user
 
     data = request.get_json() or {}
@@ -611,8 +612,6 @@ def duplicate_room(room_id):
             "frameCount": 42
         }
     """
-    import uuid
-
     room_service = current_app.extensions["room_service"]
     data = request.get_json() or {}
 
@@ -715,10 +714,6 @@ def get_room_schema(room_id: str, category: str):
     - idleWorkers: number of idle workers available
     - progressingWorkers: number of workers currently processing tasks
     """
-    from zndraw.extensions.analysis import analysis
-    from zndraw.extensions.modifiers import modifiers
-    from zndraw.extensions.selections import selections
-
     # Map category strings to the corresponding imported objects
     # Note: "settings" category is now handled by dedicated /settings/ endpoints
     category_map = {

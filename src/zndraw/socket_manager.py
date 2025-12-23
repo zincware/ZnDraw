@@ -1,4 +1,5 @@
 import logging
+import re
 import traceback
 import typing as t
 
@@ -326,8 +327,6 @@ class SocketManager:
         Server sends: {requestId, fsName, public, path, recursive, filterExtensions, search}
         Client responds: {requestId, success, files, error}
         """
-        import re
-
         request_id = data.get("requestId")
         fs_name = data.get("fsName")
         public = data.get("public", False)

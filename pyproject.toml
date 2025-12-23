@@ -116,6 +116,9 @@ exclude = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.ruff.lint]
+select = ["I"]
+
 [tool.codespell]
 skip = "*.lock,bun.lock,todo.md,*.svg"
 ignore-words-list = "nwo,nd,smove"

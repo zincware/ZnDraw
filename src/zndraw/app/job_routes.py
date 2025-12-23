@@ -7,8 +7,8 @@ import logging
 
 from flask import Blueprint, current_app, jsonify, request
 
-from zndraw.server import socketio
 from zndraw.auth import require_auth
+from zndraw.server import socketio
 
 from .job_manager import JobManager, JobStatus
 from .redis_keys import ExtensionKeys

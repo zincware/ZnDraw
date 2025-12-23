@@ -8,11 +8,11 @@ Expected format:
 - Frontend should decode to: dict[str, Any] where Any is numpy arrays or JSON types
 """
 
+import asebytes
 import msgpack
 import msgpack_numpy as m
 import numpy as np
 import requests
-import asebytes
 
 from zndraw import ZnDraw
 

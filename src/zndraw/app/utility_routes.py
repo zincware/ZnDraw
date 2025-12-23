@@ -5,12 +5,19 @@ Handles health checks, versioning, authentication, tools, and static asset servi
 
 import base64
 import logging
+import secrets
 from pathlib import Path
 
 from flask import Blueprint, current_app, request, send_from_directory
 from flask_socketio import disconnect
 
-from zndraw.auth import AuthError, get_current_user, require_admin, require_auth
+from zndraw.auth import (
+    AuthError,
+    create_jwt_token,
+    get_current_user,
+    require_admin,
+    require_auth,
+)
 from zndraw.server import socketio
 
 from .redis_keys import SessionKeys, UserKeys
@@ -163,8 +170,6 @@ def login():
         "role": "guest"         // User role: "guest", "user", or "admin"
     }
     """
-    from zndraw.auth import create_jwt_token
-
     data = request.get_json() or {}
     user_name = data.get("userName")
     password = data.get("password")
@@ -280,8 +285,6 @@ def login():
 
     # CASE 3: No username, no password - Generate anonymous guest
     # Generate unique guest username
-    import secrets
-
     for _ in range(10):  # Try up to 10 times
         guest_name = f"user-{secrets.token_hex(4)}"
         if not user_service.username_exists(guest_name):
@@ -329,8 +332,6 @@ def register_user():
         "role": "user"
     }
     """
-    from zndraw.auth import create_jwt_token
-
     try:
         old_user_name = get_current_user()
 

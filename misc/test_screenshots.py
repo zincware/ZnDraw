@@ -3,7 +3,7 @@
 import ase
 
 from zndraw import ZnDraw
-from zndraw.geometries import Floor, Box, Curve, Camera, Sphere, Arrow
+from zndraw.geometries import Arrow, Box, Camera, Curve, Floor, Sphere
 
 
 def test_overview(server, page, capture, bmim_bf4, request):
@@ -509,7 +509,8 @@ def test_chat(server, page, capture, bmim_bf4, request):
 def test_custom_modifier(server, page, capture, bmim_bf4, request):
     """Capture custom modifier registered with vis.register_extension()."""
     from pydantic import Field
-    from zndraw.extensions import Extension, Category
+
+    from zndraw.extensions import Category, Extension
 
     class ScaleAtoms(Extension):
         """Scale atom positions by a factor."""

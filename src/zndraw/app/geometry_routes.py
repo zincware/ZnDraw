@@ -8,8 +8,9 @@ import logging
 
 from flask import Blueprint, current_app, request
 
-from zndraw.server import socketio
 from zndraw.auth import require_auth
+from zndraw.geometries import geometries as geometry_classes
+from zndraw.server import socketio
 
 from .constants import SocketEvents
 from .redis_keys import RoomKeys
@@ -52,9 +53,7 @@ def create_geometry(room_id: str, session_id: str, user_id: str):
             "type": "ValueError",
         }, 400
 
-    from zndraw.geometries import geometries
-
-    if geometry_type not in geometries:
+    if geometry_type not in geometry_classes:
         return {
             "error": f"Unknown geometry type '{geometry_type}'",
             "type": "ValueError",
@@ -77,7 +76,7 @@ def create_geometry(room_id: str, session_id: str, user_id: str):
 
     # Validate and apply defaults through Pydantic model
     try:
-        geometry_class = geometries[geometry_type]
+        geometry_class = geometry_classes[geometry_type]
         validated_geometry = geometry_class(**geometry_data)
         value_to_store = json.dumps(
             {"type": geometry_type, "data": validated_geometry.model_dump()}
@@ -187,9 +186,9 @@ def list_geometries(room_id: str):
 @geometries.route("/api/rooms/<string:room_id>/geometries/schemas", methods=["GET"])
 def list_geometry_schemas(room_id: str):
     """Return JSON schemas for all geometry types for form generation."""
-    from zndraw.geometries import geometries
-
-    schemas = {name: model.model_json_schema() for name, model in geometries.items()}
+    schemas = {
+        name: model.model_json_schema() for name, model in geometry_classes.items()
+    }
     return {"schemas": schemas}, 200
 
 

@@ -1,8 +1,8 @@
 import dataclasses
-import threading
-import warnings
 import logging
+import threading
 import typing as t
+import warnings
 
 log = logging.getLogger(__name__)
 

@@ -13,8 +13,7 @@ import re
 
 from redis import Redis  # type: ignore
 
-from zndraw.app.redis_keys import RoomKeys
-from zndraw.app.redis_keys import GlobalIndexKeys
+from zndraw.app.redis_keys import GlobalIndexKeys, RoomKeys
 
 log = logging.getLogger(__name__)
 
@@ -253,8 +252,8 @@ class RoomService:
             Cell,
             Curve,
             Floor,
-            Sphere,
             InteractionSettings,
+            Sphere,
         )
         from zndraw.materials import MeshBasicMaterial
         from zndraw.transformations import InArrayTransform

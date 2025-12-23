@@ -192,6 +192,7 @@ def test_batched_listing_scaling(server, s22, num_rooms, get_jwt_auth_headers):
     regardless of room count, unlike the O(n) behavior of N+1 queries.
     """
     import time
+
     import zndraw
 
     # Create many rooms

@@ -7,7 +7,7 @@ since the system now uses Socket.IO push-based job assignment.
 import requests
 
 from zndraw import ZnDraw
-from zndraw.extensions import Extension, Category
+from zndraw.extensions import Category, Extension
 
 
 class TestExtension(Extension):

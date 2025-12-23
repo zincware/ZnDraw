@@ -3,7 +3,7 @@ import requests
 
 from zndraw import ZnDraw
 from zndraw.app.job_manager import JobStatus
-from zndraw.extensions import Extension, Category
+from zndraw.extensions import Category, Extension
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
 

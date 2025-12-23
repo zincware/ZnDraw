@@ -4,7 +4,7 @@ import typing as t
 import networkx as nx
 from pydantic import Field
 
-from zndraw.extensions.abc import Extension, Category
+from zndraw.extensions.abc import Category, Extension
 
 
 class Selection(Extension):

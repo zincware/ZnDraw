@@ -10,8 +10,9 @@ Tests verify that:
 """
 
 import requests
+
 from zndraw import ZnDraw
-from zndraw.extensions import Extension, Category
+from zndraw.extensions import Category, Extension
 
 
 class TestExtension(Extension):

@@ -1,10 +1,12 @@
 """Tests for public (global) extensions with admin authentication."""
 
 import time
+
 import requests
 from ase import Atoms
+
 from zndraw import ZnDraw
-from zndraw.extensions import Extension, Category
+from zndraw.extensions import Category, Extension
 
 
 class GlobalTestExtension(Extension):

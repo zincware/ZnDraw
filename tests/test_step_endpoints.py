@@ -381,8 +381,9 @@ def test_step_lock_independence_from_trajectory_lock(server, get_jwt_auth_header
 
 def test_step_update_emits_frame_update_event(server, get_jwt_auth_headers):
     """Test that updating step emits frame_update socket event to other clients."""
-    import socketio
     import time
+
+    import socketio
 
     room = "test-frame-update-event"
 
@@ -445,6 +446,7 @@ def test_put_step_out_of_bounds(server, s22_xyz, get_jwt_auth_headers):
     """Test that PUT /step rejects step values beyond frame count."""
     import ase
     import ase.io
+
     import zndraw
 
     room = "test-step-out-of-bounds"

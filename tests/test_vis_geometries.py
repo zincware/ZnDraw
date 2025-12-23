@@ -1,18 +1,18 @@
+import numpy as np
 import pytest
 import requests
 
 from zndraw import ZnDraw
 from zndraw.geometries import (
     Bond,
+    Box,
     Camera,
     CameraType,
     Curve,
-    Sphere,
-    Box,
-    Plane,
     InArrayTransform,
+    Plane,
+    Sphere,
 )
-import numpy as np
 
 
 def test_rest_get_geometries(joined_room, get_jwt_auth_headers):

@@ -1,4 +1,5 @@
 import os
+import secrets
 import sys
 import webbrowser
 
@@ -513,8 +514,6 @@ def main(
         worker = run_celery_worker(config)
 
     # Generate secure shutdown token for CLI-based shutdown
-    import secrets
-
     shutdown_token = secrets.token_urlsafe(32)
 
     # Store shutdown token in Flask app config for validation

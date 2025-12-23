@@ -1011,7 +1011,8 @@ def partial_update_frame(room_id: str, frame_id: int, session_id: str, user_id: 
 
         # Merge updates into existing frame
         # First, decode existing frame values to apply updates
-        from asebytes import decode as asebytes_decode, encode as asebytes_encode
+        from asebytes import decode as asebytes_decode
+        from asebytes import encode as asebytes_encode
 
         # Decode existing frame to ASE Atoms object for easier manipulation
         atoms = asebytes_decode(existing_frame)

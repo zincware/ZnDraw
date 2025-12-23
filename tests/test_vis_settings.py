@@ -13,7 +13,9 @@ def test_settings_endpoint_returns_schema_and_defaults(
     room_id = "test-settings-defaults"
     headers = join_room_and_get_headers(server, room_id, "test-user")
 
-    response = requests.get(f"{server}/api/rooms/{room_id}/settings", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room_id}/settings", headers=headers, timeout=10
+    )
     assert response.status_code == 200
 
     data = response.json()
@@ -49,7 +51,9 @@ def test_settings_endpoint_partial_update(server, join_room_and_get_headers):
     headers = join_room_and_get_headers(server, room_id, "test-user")
 
     # Get initial defaults
-    response = requests.get(f"{server}/api/rooms/{room_id}/settings", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room_id}/settings", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     initial = response.json()["data"]
     initial_camera = initial["camera"]["near_plane"]
@@ -60,11 +64,14 @@ def test_settings_endpoint_partial_update(server, join_room_and_get_headers):
         f"{server}/api/rooms/{room_id}/settings",
         headers=headers,
         json={"studio_lighting": {"key_light": 1.5}},
+        timeout=10,
     )
     assert response.status_code == 200
 
     # Verify only studio_lighting changed
-    response = requests.get(f"{server}/api/rooms/{room_id}/settings", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room_id}/settings", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     updated = response.json()["data"]
 
@@ -88,11 +95,14 @@ def test_settings_endpoint_multiple_categories_update(
             "studio_lighting": {"key_light": 2.0, "fill_light": 1.0},
             "camera": {"near_plane": 0.5, "far_plane": 500},
         },
+        timeout=10,
     )
     assert response.status_code == 200
 
     # Verify all updates applied
-    response = requests.get(f"{server}/api/rooms/{room_id}/settings", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room_id}/settings", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     updated = response.json()["data"]
 
@@ -111,6 +121,7 @@ def test_settings_endpoint_invalid_category_rejected(server, join_room_and_get_h
         f"{server}/api/rooms/{room_id}/settings",
         headers=headers,
         json={"nonexistent_category": {"foo": "bar"}},
+        timeout=10,
     )
     assert response.status_code == 400
     assert "Unknown settings categories" in response.json()["error"]

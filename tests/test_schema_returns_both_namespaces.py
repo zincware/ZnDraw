@@ -8,8 +8,9 @@ structure that can hold multiple variants of the same name.
 """
 
 import requests
+
 from zndraw import ZnDraw
-from zndraw.extensions import Extension, Category
+from zndraw.extensions import Category, Extension
 
 
 class DuplicateNameExtension(Extension):

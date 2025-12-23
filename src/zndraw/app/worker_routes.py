@@ -5,15 +5,17 @@ Handles worker registration via REST endpoints.
 
 import json
 import logging
+from datetime import datetime
 
 from flask import Blueprint, current_app, request
 
+from zndraw.app.constants import SocketEvents
+from zndraw.app.redis_keys import ExtensionKeys, FilesystemKeys, SessionKeys
+from zndraw.extensions.analysis import analysis
+from zndraw.extensions.modifiers import modifiers
+from zndraw.extensions.selections import selections
 from zndraw.server import socketio
-
 from zndraw.settings import RoomConfig
-
-from .constants import SocketEvents
-from .redis_keys import ExtensionKeys, FilesystemKeys, SessionKeys
 
 log = logging.getLogger(__name__)
 
@@ -146,14 +148,10 @@ def register_worker():
     # Prevent overriding server-side extensions (only for global/public extensions)
     # Room-scoped extensions are allowed to have same names as server-side extensions
     if public:
-        from zndraw.extensions.analysis import analysis
-        from zndraw.extensions.modifiers import modifiers
-        from zndraw.extensions.selections import selections
-
         # Settings category names from RoomConfig (excludes inherited fields like callback)
         settings_names = {
-            name
-            for name, field in RoomConfig.model_fields.items()
+            field_name
+            for field_name, field in RoomConfig.model_fields.items()
             if field.default_factory is not None
         }
 
@@ -204,8 +202,6 @@ def register_worker():
             }, 409
 
         # Re-registration with same schema
-        from datetime import datetime
-
         # Add to extension registry with timestamp
         r.hset(keys.workers, worker_id, datetime.utcnow().timestamp())
 
@@ -254,8 +250,6 @@ def register_worker():
         }, 200
     else:
         # Brand new extension
-        from datetime import datetime
-
         with r.pipeline() as pipe:
             pipe.hset(keys.schema, name, json.dumps(schema))
             # Add to extension registry with timestamp

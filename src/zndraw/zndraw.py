@@ -11,31 +11,33 @@ import ase
 import msgpack
 import numpy as np
 import requests
+from asebytes import decode, encode
 from pydantic import BaseModel, Field, SecretStr
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
 from zndraw.api_manager import APIManager
 from zndraw.bookmarks_manager import Bookmarks
-from zndraw.extensions import Extension, Category
+from zndraw.connectivity import add_connectivity
+from zndraw.extensions import Category, Extension
+from zndraw.extensions.analysis import analysis
+from zndraw.extensions.modifiers import modifiers
+from zndraw.extensions.selections import selections
 from zndraw.figures_manager import Figures
 from zndraw.frame_cache import FrameCache
+from zndraw.lock import ZnDrawLock
 from zndraw.metadata_manager import RoomMetadata
 from zndraw.scene_manager import Geometries
 from zndraw.server_manager import get_server_status
 from zndraw.settings import RoomConfig
 from zndraw.socket_manager import SocketManager
-from zndraw.lock import ZnDrawLock
-from asebytes import encode, decode
-from zndraw.connectivity import add_connectivity
 from zndraw.utils import update_colors_and_radii
 from zndraw.version_utils import validate_server_version
-
-from rich.progress import (
-    Progress,
-    SpinnerColumn,
-    BarColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
 
 log = logging.getLogger(__name__)
 
@@ -55,10 +57,6 @@ def _is_celery_extension(extension_name: str, category: str) -> bool:
     bool
         True if the extension is a Celery (server-side) extension
     """
-    from zndraw.extensions.analysis import analysis
-    from zndraw.extensions.modifiers import modifiers
-    from zndraw.extensions.selections import selections
-
     category_map = {
         "modifiers": modifiers,
         "selections": selections,

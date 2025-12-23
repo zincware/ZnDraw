@@ -4,6 +4,7 @@ Manages user accounts, roles, and authentication.
 Uses userName as the primary identifier (no client_id).
 """
 
+import datetime
 import hashlib
 import logging
 import secrets
@@ -130,8 +131,6 @@ class UserService:
             raise ValueError(f"Username '{user_name}' already exists")
 
         # Create user entry
-        import datetime
-
         keys = UserKeys(user_name)
         current_time = datetime.datetime.utcnow().isoformat()
 
@@ -208,8 +207,6 @@ class UserService:
             return True
 
         # Different username - create new entry and delete old
-        import datetime
-
         old_keys = UserKeys(old_user_name)
         new_keys = UserKeys(new_user_name)
 
@@ -381,8 +378,6 @@ class UserService:
         user_name : str
             Username
         """
-        import datetime
-
         keys = UserKeys(user_name)
         current_time = datetime.datetime.utcnow().isoformat()
         self.r.hset(keys.hash_key(), "lastLogin", current_time)
