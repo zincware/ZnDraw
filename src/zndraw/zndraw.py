@@ -128,6 +128,24 @@ class Selections:
         data = self.vis.api.get_all_selections()
         return len(data["selections"])
 
+    def __repr__(self) -> str:
+        """Return string representation of selections."""
+        data = self.vis.api.get_all_selections()
+        selections = data.get("selections", {})
+        parts = []
+        for geom in sorted(selections.keys()):
+            indices = selections[geom]
+            if len(indices) <= 5:
+                parts.append(f"{geom!r}: {indices!r}")
+            else:
+                preview = indices[:3]
+                parts.append(f"{geom!r}: {preview!r}... ({len(indices)} items)")
+        return f"Selections({{{', '.join(parts)}}})"
+
+    def __str__(self) -> str:
+        """Return string representation of selections."""
+        return self.__repr__()
+
 
 class SelectionGroups:
     """Accessor for named selection groups.
