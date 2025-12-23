@@ -6,8 +6,9 @@ explicitly choose which namespace to use when running extensions.
 """
 
 import requests
+
 from zndraw import ZnDraw
-from zndraw.extensions import Extension, Category
+from zndraw.extensions import Category, Extension
 
 
 class DualExtension(Extension):

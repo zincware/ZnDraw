@@ -11,9 +11,12 @@ import uuid
 
 from flask import Blueprint, current_app, request
 
-from zndraw.server import socketio
 from zndraw.app.constants import SocketEvents
-from zndraw.auth import require_auth, require_admin
+from zndraw.auth import require_admin, require_auth
+from zndraw.extensions.analysis import analysis
+from zndraw.extensions.modifiers import modifiers
+from zndraw.extensions.selections import selections
+from zndraw.server import socketio
 
 from .frame_index_manager import FrameIndexManager
 from .redis_keys import GlobalIndexKeys, RoomKeys, SessionKeys
@@ -23,9 +26,6 @@ from .route_utils import (
     get_lock_key,
     requires_lock,
 )
-from zndraw.extensions.analysis import analysis
-from zndraw.extensions.modifiers import modifiers
-from zndraw.extensions.selections import selections
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ def list_rooms():
         }]
     """
     from zndraw.app.room_data_fetcher import BatchedRoomDataFetcher
-    from zndraw.auth import extract_token_from_request, decode_jwt_token, AuthError
+    from zndraw.auth import AuthError, decode_jwt_token, extract_token_from_request
 
     redis_client = current_app.extensions["redis"]
     room_service = current_app.extensions["room_service"]

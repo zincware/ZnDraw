@@ -46,8 +46,9 @@ def test_local_settings_validation():
 
 def test_calculate_chunk_boundaries_single_chunk():
     """Test chunk calculation when all frames fit in one chunk."""
-    from zndraw.zndraw import ZnDraw
     from unittest.mock import Mock
+
+    from zndraw.zndraw import ZnDraw
 
     # Create a mock ZnDraw instance
     vis = Mock(spec=ZnDraw)
@@ -56,6 +57,7 @@ def test_calculate_chunk_boundaries_single_chunk():
     # Create small test data (will fit in one chunk)
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
     from asebytes import encode
+
     from zndraw.utils import update_colors_and_radii
 
     update_colors_and_radii(atoms)
@@ -72,8 +74,9 @@ def test_calculate_chunk_boundaries_single_chunk():
 
 def test_calculate_chunk_boundaries_multiple_chunks():
     """Test chunk calculation when frames need to be split."""
-    from zndraw.zndraw import ZnDraw
     from unittest.mock import Mock
+
+    from zndraw.zndraw import ZnDraw
 
     # Create a mock ZnDraw instance
     vis = Mock(spec=ZnDraw)
@@ -82,6 +85,7 @@ def test_calculate_chunk_boundaries_multiple_chunks():
     # Create test data
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
     from asebytes import encode
+
     from zndraw.utils import update_colors_and_radii
 
     update_colors_and_radii(atoms)
@@ -108,10 +112,12 @@ def test_calculate_chunk_boundaries_multiple_chunks():
 
 def test_calculate_chunk_boundaries_exact_sizes():
     """Test that chunk sizes are calculated from exact encoded sizes."""
-    from zndraw.zndraw import ZnDraw
-    from asebytes import encode
-    import msgpack
     from unittest.mock import Mock
+
+    import msgpack
+    from asebytes import encode
+
+    from zndraw.zndraw import ZnDraw
 
     # Create a mock ZnDraw instance
     vis = Mock(spec=ZnDraw)
@@ -138,8 +144,9 @@ def test_calculate_chunk_boundaries_exact_sizes():
 
 def test_calculate_chunk_boundaries_empty_list():
     """Test chunk calculation with empty list."""
-    from zndraw.zndraw import ZnDraw
     from unittest.mock import Mock
+
+    from zndraw.zndraw import ZnDraw
 
     vis = Mock(spec=ZnDraw)
     vis.local = LocalSettings()
@@ -168,8 +175,9 @@ def test_local_settings_modification():
 
 def test_single_frame_exceeds_chunk_size():
     """Test that a single frame larger than target_chunk_size_bytes is handled correctly."""
-    from zndraw.zndraw import ZnDraw
     from unittest.mock import Mock
+
+    from zndraw.zndraw import ZnDraw
 
     vis = Mock(spec=ZnDraw)
     vis.local = LocalSettings(target_chunk_size_bytes=100)  # Very small, 100 bytes
@@ -180,6 +188,7 @@ def test_single_frame_exceeds_chunk_size():
     atoms = ase.Atoms(numbers=[6] * 100, positions=positions)
 
     from asebytes import encode
+
     from zndraw.utils import update_colors_and_radii
 
     update_colors_and_radii(atoms)
@@ -200,8 +209,9 @@ def test_single_frame_exceeds_chunk_size():
 
 def test_chunk_size_realistic():
     """Test chunk calculation with realistic data (28 atoms like in the user's case)."""
-    from zndraw.zndraw import ZnDraw
     from unittest.mock import Mock
+
+    from zndraw.zndraw import ZnDraw
 
     vis = Mock(spec=ZnDraw)
     vis.local = LocalSettings(target_chunk_size_bytes=500_000)  # 500KB
@@ -212,6 +222,7 @@ def test_chunk_size_realistic():
     atoms = ase.Atoms(numbers=numbers, positions=positions)
 
     from asebytes import encode
+
     from zndraw.utils import update_colors_and_radii
 
     update_colors_and_radii(atoms)

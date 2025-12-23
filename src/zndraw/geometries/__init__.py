@@ -15,7 +15,6 @@ from zndraw.geometries.floor import Floor
 from zndraw.geometries.plane import Plane
 from zndraw.geometries.shape import Shape
 from zndraw.geometries.sphere import Sphere
-
 from zndraw.transformations import InArrayTransform, Transform
 
 Sphere.model_rebuild()

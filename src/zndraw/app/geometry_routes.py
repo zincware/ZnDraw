@@ -8,9 +8,9 @@ import logging
 
 from flask import Blueprint, current_app, request
 
+from zndraw.auth import require_auth
 from zndraw.geometries import geometries as geometry_classes
 from zndraw.server import socketio
-from zndraw.auth import require_auth
 
 from .constants import SocketEvents
 from .redis_keys import RoomKeys

@@ -1,9 +1,10 @@
 """Tests for exception handling in chunked upload functionality."""
 
+from unittest.mock import Mock, patch
+
 import ase
 import numpy as np
 import pytest
-from unittest.mock import Mock, patch
 
 from zndraw.zndraw import LocalSettings, ZnDraw
 
@@ -21,6 +22,7 @@ def test_keyboard_interrupt_not_caught():
     # Create test data
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
     from asebytes import encode
+
     from zndraw.utils import update_colors_and_radii
 
     update_colors_and_radii(atoms)
@@ -59,6 +61,7 @@ def test_connection_error_triggers_retry():
 
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
     from asebytes import encode
+
     from zndraw.utils import update_colors_and_radii
 
     update_colors_and_radii(atoms)
@@ -109,6 +112,7 @@ def test_max_retries_exceeded_raises_error():
 
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
     from asebytes import encode
+
     from zndraw.utils import update_colors_and_radii
 
     update_colors_and_radii(atoms)
@@ -147,6 +151,7 @@ def test_specific_exceptions_only():
 
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
     from asebytes import encode
+
     from zndraw.utils import update_colors_and_radii
 
     update_colors_and_radii(atoms)
@@ -184,6 +189,7 @@ def test_exponential_backoff_timing():
 
     atoms = ase.Atoms("H2O", positions=np.random.rand(3, 3))
     from asebytes import encode
+
     from zndraw.utils import update_colors_and_radii
 
     update_colors_and_radii(atoms)

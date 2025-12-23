@@ -14,8 +14,9 @@ from pathlib import Path
 
 import ase.io
 import requests
-from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.dirfs import DirFileSystem
+from fsspec.implementations.local import LocalFileSystem
+
 from zndraw import ZnDraw
 
 

@@ -1,11 +1,11 @@
 """Server management utilities for ZnDraw CLI."""
 
 import json
+import logging
 import os
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-import logging
 
 import requests
 

@@ -15,6 +15,7 @@ import time
 import pytest
 import requests
 from ase import Atoms
+
 from zndraw import ZnDraw
 from zndraw.extensions import Category, Extension
 

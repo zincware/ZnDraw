@@ -8,8 +8,8 @@ arrays by indices extracted from frame data (e.g., constraint indices).
 import ase
 import ase.constraints
 import pytest
-
 from asebytes import encode
+
 from zndraw.geometries import Sphere
 from zndraw.transformations import InArrayTransform
 

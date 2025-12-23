@@ -46,10 +46,10 @@ def test_metrics_endpoint_always_available(tmp_path):
 
 def test_connected_users_metric_increments():
     """Test that connected_users metric can be incremented."""
-    from zndraw.analytics import connected_users
-
     # Get initial value (may not be 0 if other tests ran)
     from prometheus_client import REGISTRY
+
+    from zndraw.analytics import connected_users
 
     initial_value = None
     for metric in REGISTRY.collect():

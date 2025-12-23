@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.express as px
 from pydantic import Field
 
-from zndraw.extensions.abc import Extension, Category
+from zndraw.extensions.abc import Category, Extension
 
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw

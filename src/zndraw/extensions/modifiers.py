@@ -8,7 +8,7 @@ import numpy as np
 from ase.data import chemical_symbols
 from pydantic import Field
 
-from zndraw.extensions.abc import Extension, Category
+from zndraw.extensions.abc import Category, Extension
 from zndraw.utils import get_scaled_radii
 
 if t.TYPE_CHECKING:

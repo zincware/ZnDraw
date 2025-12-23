@@ -3,12 +3,12 @@
 import subprocess
 import time
 from pathlib import Path
-import molify
-import ase
-from ase.calculators.singlepoint import SinglePointCalculator
-import numpy as np
 
+import ase
+import molify
+import numpy as np
 import pytest
+from ase.calculators.singlepoint import SinglePointCalculator
 from playwright.sync_api import Page, sync_playwright
 
 MISC_DIR = Path(__file__).parent

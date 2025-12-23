@@ -1,8 +1,10 @@
-from zndraw import ZnDraw
+import time
+
+import pytest
 import requests
 from fsspec.implementations.local import LocalFileSystem
-import pytest
-import time
+
+from zndraw import ZnDraw
 
 
 def test_register_room_fs_basic(server):
