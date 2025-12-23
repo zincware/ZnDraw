@@ -6,10 +6,14 @@ Extension registration is handled via Socket.IO in events.py.
 
 import json
 import logging
+from datetime import datetime
 
 from flask import Blueprint, Response, current_app, jsonify, request
 
 from zndraw.auth import get_current_user, require_auth
+from zndraw.extensions.analysis import analysis
+from zndraw.extensions.modifiers import modifiers
+from zndraw.extensions.selections import selections
 from zndraw.server import socketio
 
 from .constants import SocketEvents
@@ -41,8 +45,6 @@ def _submit_extension_impl(
     tuple[dict, int]
         JSON response and HTTP status code
     """
-    from datetime import datetime
-
     from .job_dispatcher import assign_pending_jobs_for_extension
     from .job_manager import JobManager, JobStatus
 
@@ -68,10 +70,6 @@ def _submit_extension_impl(
 
     # Check if this is a server-side (Celery) extension
     # Note: "settings" category is now handled by dedicated /settings/ endpoints
-    from zndraw.extensions.analysis import analysis
-    from zndraw.extensions.modifiers import modifiers
-    from zndraw.extensions.selections import selections
-
     category_map = {
         "selections": selections,
         "modifiers": modifiers,

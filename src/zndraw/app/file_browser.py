@@ -2,6 +2,8 @@
 
 import logging
 import os
+import re
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -357,8 +359,6 @@ def list_directory():
     Response
         JSON response with directory contents or error.
     """
-    import re
-
     # Check if feature is enabled
     error = check_feature_enabled()
     if error:
@@ -612,8 +612,6 @@ def upload_file():
     Response
         JSON response with task information or error.
     """
-    import uuid
-
     from werkzeug.utils import secure_filename
 
     # Check if file was provided

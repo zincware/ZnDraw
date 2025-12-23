@@ -10,6 +10,9 @@ import traceback
 import requests
 
 from zndraw.app.job_manager import JobStatus
+from zndraw.extensions.analysis import analysis
+from zndraw.extensions.modifiers import modifiers
+from zndraw.extensions.selections import selections
 
 log = logging.getLogger(__name__)
 
@@ -221,10 +224,6 @@ def _get_extension_class(category: str, extension: str, public: bool):
     ValueError
         If category or extension not found
     """
-    from zndraw.extensions.analysis import analysis
-    from zndraw.extensions.modifiers import modifiers
-    from zndraw.extensions.selections import selections
-
     category_map = {
         "selections": selections,
         "modifiers": modifiers,

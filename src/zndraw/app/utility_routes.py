@@ -5,6 +5,7 @@ Handles health checks, versioning, authentication, tools, and static asset servi
 
 import base64
 import logging
+import secrets
 from pathlib import Path
 
 from flask import Blueprint, current_app, request, send_from_directory
@@ -280,8 +281,6 @@ def login():
 
     # CASE 3: No username, no password - Generate anonymous guest
     # Generate unique guest username
-    import secrets
-
     for _ in range(10):  # Try up to 10 times
         guest_name = f"user-{secrets.token_hex(4)}"
         if not user_service.username_exists(guest_name):

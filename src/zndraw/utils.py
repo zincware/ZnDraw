@@ -104,8 +104,6 @@ def generate_room_name(base_name: str, redis_client, max_length: int = 20) -> st
     >>> generate_room_name("structure.xyz", redis_client)  # if collision
     'structure.xyz_a3f2'  # random UUID suffix added
     """
-    import uuid
-
     from zndraw.app.redis_keys import GlobalIndexKeys
 
     # Truncate to max length

@@ -16,6 +16,9 @@ from pydantic import BaseModel, Field, SecretStr
 from zndraw.api_manager import APIManager
 from zndraw.bookmarks_manager import Bookmarks
 from zndraw.extensions import Extension, Category
+from zndraw.extensions.analysis import analysis
+from zndraw.extensions.modifiers import modifiers
+from zndraw.extensions.selections import selections
 from zndraw.figures_manager import Figures
 from zndraw.frame_cache import FrameCache
 from zndraw.metadata_manager import RoomMetadata
@@ -55,10 +58,6 @@ def _is_celery_extension(extension_name: str, category: str) -> bool:
     bool
         True if the extension is a Celery (server-side) extension
     """
-    from zndraw.extensions.analysis import analysis
-    from zndraw.extensions.modifiers import modifiers
-    from zndraw.extensions.selections import selections
-
     category_map = {
         "modifiers": modifiers,
         "selections": selections,
