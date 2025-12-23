@@ -545,3 +545,34 @@ def test_curve_selections_single_marker(s22, server):
     # Select a single marker
     vis.selections["test_curve"] = [1]
     assert vis.selections["test_curve"] == (1,)
+
+
+# ==================== Selections Repr Tests ====================
+
+
+def test_selections_repr_empty(s22, server):
+    """Test repr for empty selections."""
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    assert repr(vis.selections) == "Selections({})"
+    assert str(vis.selections) == "Selections({})"
+
+
+def test_selections_repr_short(s22, server):
+    """Test repr for short selections (≤5 items)."""
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+
+    vis.selections["particles"] = [0, 1, 2]
+    vis.selections["bonds"] = [3, 4]
+    assert (
+        repr(vis.selections) == "Selections({'bonds': [3, 4], 'particles': [0, 1, 2]})"
+    )
+
+
+def test_selections_repr_long(s22, server):
+    """Test repr for long selections (>5 items)."""
+    vis = ZnDraw(url=server, room="testroom", user="testuser")
+    vis.extend(s22)
+
+    vis.selections["particles"] = [0, 1, 2, 3, 4, 5, 6, 7]
+    assert repr(vis.selections) == "Selections({'particles': [0, 1, 2]... (8 items)})"
