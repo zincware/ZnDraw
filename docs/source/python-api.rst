@@ -464,6 +464,63 @@ Send messages to the chat panel:
     messages = vis.get_messages(limit=10)
 
 
+Frame References
+^^^^^^^^^^^^^^^^
+
+.. image:: /_static/screenshots/lightmode/chat_frame_reference.png
+   :class: only-light
+   :alt: Chat with frame references
+
+.. image:: /_static/screenshots/darkmode/chat_frame_reference.png
+   :class: only-dark
+   :alt: Chat with frame references
+
+Reference frames in chat messages using ``@{frame}`` syntax. Frame references
+become clickable chips that navigate to the referenced frame:
+
+.. code:: python
+
+    # Reference specific frames in messages
+    vis.log("Initial structure at @0")
+    vis.log("Compare @10 with @15 to see the transition")
+
+Clicking a frame reference chip navigates directly to that frame.
+
+
+Property Inspector
+------------------
+
+.. image:: /_static/screenshots/lightmode/property_inspector.png
+   :class: only-light
+   :alt: Property inspector info boxes
+
+.. image:: /_static/screenshots/darkmode/property_inspector.png
+   :class: only-dark
+   :alt: Property inspector info boxes
+
+The property inspector displays frame properties in floating info boxes.
+Press ``i`` to toggle visibility. Configure which properties to display
+via settings:
+
+.. code:: python
+
+    # Enable properties in the inspector
+    vis.settings.property_inspector.enabled_properties = [
+        "calc.energy",
+        "calc.forces",
+    ]
+
+Two info boxes are available:
+
+- **Scene Info** (top-right): Displays global properties like ``calc.energy``
+- **Hover Info** (follows cursor): Shows per-particle properties when hovering over atoms
+
+Properties are automatically categorized based on their shape:
+
+- **Global**: Scalar values or arrays not matching particle count
+- **Per-particle**: Arrays with first dimension equal to particle count
+
+
 Progress Tracking
 -----------------
 
