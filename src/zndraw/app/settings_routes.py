@@ -82,7 +82,7 @@ def update_settings(room_id: str):
         return {"error": f"Unknown settings categories: {invalid}"}, 400
 
     settings_service = current_app.extensions["settings_service"]
-    log.info(f"update_settings received data: {json_data}")
+    log.debug(f"update_settings received categories: {list(json_data.keys())}")
     settings_service.update_all(room_id, user_name, json_data)
 
     # Emit invalidate event to notify other clients (same user, same room)
@@ -96,9 +96,6 @@ def update_settings(room_id: str):
         to=f"room:{room_id}",
     )
 
-    log.info(
-        f"Updated settings for room {room_id}, user {user_name}: "
-        f"{list(json_data.keys())}"
-    )
+    log.debug(f"Updated settings for room {room_id}: {list(json_data.keys())}")
 
     return {"status": "success"}, 200

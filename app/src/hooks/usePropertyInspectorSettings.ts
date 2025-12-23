@@ -47,9 +47,9 @@ export const usePropertyInspectorSettings = (
 	// Extract enabled_properties array from property_inspector settings
 	// Backend always returns defaults, so once loaded this is guaranteed to exist
 	const enabledProperties: string[] =
-		isLoading || !settingsResponse
+		isLoading || !settingsResponse || !settingsResponse.data.property_inspector
 			? []
-			: settingsResponse.data.property_inspector.enabled_properties;
+			: (settingsResponse.data.property_inspector.enabled_properties ?? []);
 
 	// Fetch property categorization metadata (only if enabled and we need filtering)
 	const shouldFetchMetadata =

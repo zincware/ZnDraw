@@ -11,7 +11,13 @@ from pathlib import Path
 from flask import Blueprint, current_app, request, send_from_directory
 from flask_socketio import disconnect
 
-from zndraw.auth import AuthError, get_current_user, require_admin, require_auth
+from zndraw.auth import (
+    AuthError,
+    create_jwt_token,
+    get_current_user,
+    require_admin,
+    require_auth,
+)
 from zndraw.server import socketio
 
 from .redis_keys import SessionKeys, UserKeys
@@ -164,8 +170,6 @@ def login():
         "role": "guest"         // User role: "guest", "user", or "admin"
     }
     """
-    from zndraw.auth import create_jwt_token
-
     data = request.get_json() or {}
     user_name = data.get("userName")
     password = data.get("password")
@@ -328,8 +332,6 @@ def register_user():
         "role": "user"
     }
     """
-    from zndraw.auth import create_jwt_token
-
     try:
         old_user_name = get_current_user()
 

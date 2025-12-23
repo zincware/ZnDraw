@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
 	getRoomInfo,
 	getAllSelections,
@@ -32,7 +32,6 @@ const GEOMETRIES_STALE_TIME = 30000; // 30 seconds - geometries change infrequen
  * @param enabled - Whether to start fetching (typically after join succeeds)
  */
 export const useLazyRoomData = (roomId: string | null, enabled: boolean) => {
-	const queryClient = useQueryClient();
 	const {
 		setFrameCount,
 		setSelections,

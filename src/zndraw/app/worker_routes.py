@@ -150,8 +150,8 @@ def register_worker():
     if public:
         # Settings category names from RoomConfig (excludes inherited fields like callback)
         settings_names = {
-            name
-            for name, field in RoomConfig.model_fields.items()
+            field_name
+            for field_name, field in RoomConfig.model_fields.items()
             if field.default_factory is not None
         }
 
