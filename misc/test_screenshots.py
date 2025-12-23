@@ -696,3 +696,67 @@ def test_dynamic_properties_dropdown(server, page, capture, request):
     page.wait_for_timeout(500)
 
     capture.dark()
+
+
+def test_property_inspector(server, page, capture, bmim_bf4_e_f, request):
+    """Capture property inspector settings panel with info boxes visible."""
+    vis = ZnDraw(url=server, room=request.node.name)
+    vis.extend(bmim_bf4_e_f[:10])
+
+    page.goto(f"{server}/room/{request.node.name}")
+    page.wait_for_timeout(2000)
+
+    # Press 'i' to show info boxes
+    page.keyboard.press("i")
+    page.wait_for_timeout(500)
+
+    # Open settings panel
+    page.get_by_role("button", name="Application settings").click()
+    page.wait_for_timeout(500)
+
+    # Select "Property Inspector" from dropdown
+    page.get_by_label("Settings Category").click()
+    page.wait_for_timeout(300)
+    page.get_by_role("option", name="Property Inspector").click()
+    page.wait_for_timeout(500)
+
+    # Select arrays.positions (per-particle property) by clicking its list item
+    page.get_by_text("arrays.positions").click()
+    page.wait_for_timeout(300)
+
+    # Select calc.energy (global property) by clicking its list item
+    page.get_by_text("calc.energy").click()
+    page.wait_for_timeout(500)
+
+    # Hover over a particle - particles are on right side around x=950, y=280
+    page.mouse.move(950, 280)
+    page.wait_for_timeout(500)
+
+    capture.light()
+    capture.toggle()
+
+    # Re-hover after theme toggle to ensure HoverInfoBox is visible
+    page.mouse.move(950, 280)
+    page.wait_for_timeout(500)
+    capture.dark()
+
+
+def test_chat_frame_reference(server, page, capture, bmim_bf4, request):
+    """Capture chat with clickable @frame references."""
+    vis = ZnDraw(url=server, room=request.node.name)
+    vis.extend([bmim_bf4 for _ in range(20)])
+
+    # Send messages with frame references that become clickable chips
+    vis.log("Initial structure loaded at @0")
+    vis.log("Check the transition at @10 and compare with @15")
+
+    page.goto(f"{server}/room/{request.node.name}")
+    page.wait_for_timeout(1000)
+
+    # Open chat panel
+    page.get_by_role("button", name="toggle chat").click()
+    page.wait_for_timeout(500)
+
+    capture.light()
+    capture.toggle()
+    capture.dark()
