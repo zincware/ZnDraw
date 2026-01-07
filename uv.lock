@@ -3992,7 +3992,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "argon2-cffi", specifier = ">=23.1.0" },
+    { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "ase", specifier = ">=3.26.0" },
     { name = "asebytes", specifier = ">=0.1.7" },
     { name = "cachetools", specifier = ">=6.2.0" },
