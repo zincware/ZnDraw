@@ -54,6 +54,7 @@ def validate_password(password: str) -> None:
 
 # Username requirements
 MAX_USERNAME_LENGTH = 64
+# Pattern: 1 alphanumeric char + 0-63 more chars = 1-64 total (matches MAX_USERNAME_LENGTH)
 USERNAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$")
 
 

@@ -16,7 +16,7 @@ def utc_now() -> datetime.datetime:
     datetime.datetime
         Current UTC time with timezone info
     """
-    return datetime.datetime.now(datetime.UTC)
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 def utc_now_iso() -> str:

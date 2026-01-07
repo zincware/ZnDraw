@@ -131,17 +131,20 @@ def test_expired_jwt_token_raises_error(app):
     """Test that expired tokens raise AuthError."""
     import datetime
 
+    from zndraw.utils.time import utc_now
+
     with app.app_context():
         # Create a token with past expiration
         secret_key = app.config["SECRET_KEY"]
         algorithm = app.config.get("JWT_ALGORITHM", "HS256")
 
+        now = utc_now()
         expired_payload = {
             "sub": "TestUser",
             "role": "guest",
             "jti": "test-jti",
-            "iat": datetime.datetime.utcnow() - datetime.timedelta(days=8),
-            "exp": datetime.datetime.utcnow() - datetime.timedelta(days=1),
+            "iat": now - datetime.timedelta(days=8),
+            "exp": now - datetime.timedelta(days=1),
         }
 
         expired_token = pyjwt.encode(expired_payload, secret_key, algorithm=algorithm)
