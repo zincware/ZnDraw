@@ -4,6 +4,7 @@ Manages admin user privileges and deployment mode detection.
 """
 
 import logging
+import secrets
 
 from redis import Redis
 
@@ -76,7 +77,16 @@ class AdminService:
         if not self._deployment_mode:
             return False
 
-        return username == self._admin_username and password == self._admin_password
+        # Use constant-time comparison to prevent timing attacks
+        username_match = secrets.compare_digest(
+            username.encode("utf-8"),
+            (self._admin_username or "").encode("utf-8"),
+        )
+        password_match = secrets.compare_digest(
+            password.encode("utf-8"),
+            (self._admin_password or "").encode("utf-8"),
+        )
+        return username_match and password_match
 
     def is_admin_username(self, username: str) -> bool:
         """Check if username matches the configured admin username.

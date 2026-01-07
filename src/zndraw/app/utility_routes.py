@@ -322,7 +322,7 @@ def register_user():
     except ValueError as e:
         return {"error": str(e), "type": "ValidationError"}, 400
     except Exception as e:
-        log.error(f"Error registering user: {e}")
+        log.exception(f"Error registering user: {e}")
         return {"error": "Registration failed", "type": "ServerError"}, 500
 
 
@@ -388,7 +388,7 @@ def upgrade_user():
     except ValueError as e:
         return {"error": str(e), "type": "ValidationError"}, 400
     except Exception as e:
-        log.error(f"Error upgrading user: {e}")
+        log.exception(f"Error upgrading user: {e}")
         return {"error": "Upgrade failed", "type": "ServerError"}, 500
 
 

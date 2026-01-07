@@ -1,5 +1,7 @@
 """Unit tests for JWT authentication utilities."""
 
+import datetime
+
 import jwt as pyjwt
 import pytest
 
@@ -103,8 +105,6 @@ def test_get_current_user_with_invalid_token_raises_error(app):
 
 def test_jwt_token_has_expiration(app):
     """Test that JWT tokens have a 7-day expiration claim."""
-    import datetime
-
     with app.app_context():
         token = create_jwt_token("TestUser", role="guest")
         payload = decode_jwt_token(token)
@@ -129,8 +129,6 @@ def test_jwt_token_has_expiration(app):
 
 def test_expired_jwt_token_raises_error(app):
     """Test that expired tokens raise AuthError."""
-    import datetime
-
     from zndraw.utils.time import utc_now
 
     with app.app_context():

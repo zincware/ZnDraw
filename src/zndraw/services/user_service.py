@@ -510,6 +510,7 @@ class UserService:
         pipe = self.r.pipeline()
         pipe.delete(keys.hash_key())
         pipe.delete(keys.admin_key())
+        pipe.delete(keys.visited_rooms())
         # Remove from indices
         pipe.srem(GlobalIndexKeys.users_index(), user_name)
         pipe.srem(GlobalIndexKeys.admins_index(), user_name)

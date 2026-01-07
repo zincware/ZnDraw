@@ -230,7 +230,9 @@ class APIManager:
         if self.jwt_token:
             headers["Authorization"] = f"Bearer {self.jwt_token}"
 
-        response = requests.post(f"{self.url}/api/rooms", json=payload, headers=headers)
+        response = requests.post(
+            f"{self.url}/api/rooms", json=payload, headers=headers, timeout=10.0
+        )
 
         if response.status_code not in (200, 201):
             raise RuntimeError(
@@ -264,7 +266,10 @@ class APIManager:
 
         # Try to join existing room first
         response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/join", json={}, headers=headers
+            f"{self.url}/api/rooms/{self.room}/join",
+            json={},
+            headers=headers,
+            timeout=10.0,
         )
 
         # If room doesn't exist (404), create it then join
@@ -274,7 +279,10 @@ class APIManager:
 
             # Now join the newly created room
             response = requests.post(
-                f"{self.url}/api/rooms/{self.room}/join", json={}, headers=headers
+                f"{self.url}/api/rooms/{self.room}/join",
+                json={},
+                headers=headers,
+                timeout=10.0,
             )
 
         if response.status_code != 200:
@@ -307,7 +315,7 @@ class APIManager:
         """
         headers = self._get_headers()
         url = f"{self.url}/api/jobs/{job_id}"
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=10.0)
         response.raise_for_status()
         return response.json()
 
@@ -346,6 +354,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/jobs/{job_id}/status",
             json=payload,
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -686,6 +695,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/extensions/{scope}/{category}/{name}/submit",
             json={"data": data},
             headers=headers,
+            timeout=30.0,
         )
         if response.status_code != 200:
             error_data = response.json()
@@ -734,6 +744,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/chat/messages",
             params=params,
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -753,6 +764,7 @@ class APIManager:
                 f"{self.url}/api/rooms/{self.room}/geometries",
                 json={"key": key, "data": data, "type": geometry_type},
                 headers=headers,
+                timeout=10.0,
             )
             response.raise_for_status()
 
@@ -769,6 +781,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/geometries/{key}",
             headers=headers,
+            timeout=10.0,
         )
         if response.status_code == 404:
             return None
@@ -785,7 +798,9 @@ class APIManager:
             headers = self._get_headers()
 
             response = requests.delete(
-                f"{self.url}/api/rooms/{self.room}/geometries/{key}", headers=headers
+                f"{self.url}/api/rooms/{self.room}/geometries/{key}",
+                headers=headers,
+                timeout=10.0,
             )
             response_data = response.json()
             if response.status_code != 200:
@@ -806,6 +821,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/geometries",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json().get("geometries", {})
@@ -827,6 +843,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/figures",
             json={"key": key, "figure": figure},
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -835,6 +852,7 @@ class APIManager:
         response = requests.delete(
             f"{self.url}/api/rooms/{self.room}/figures/{key}",
             headers=headers,
+            timeout=10.0,
         )
         response_data = response.json()
         if response.status_code != 200:
@@ -850,6 +868,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/figures/{key}",
             headers=headers,
+            timeout=10.0,
         )
         if response.status_code == 404:
             return None
@@ -861,6 +880,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/figures",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json().get("figures", [])
@@ -875,7 +895,7 @@ class APIManager:
         """
         headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/metadata", headers=headers
+            f"{self.url}/api/rooms/{self.room}/metadata", headers=headers, timeout=10.0
         )
         response.raise_for_status()
         return response.json().get("metadata", {})
@@ -895,7 +915,10 @@ class APIManager:
         """
         headers = self._get_headers()
         response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/metadata", json=data, headers=headers
+            f"{self.url}/api/rooms/{self.room}/metadata",
+            json=data,
+            headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -914,7 +937,9 @@ class APIManager:
         """
         headers = self._get_headers()
         response = requests.delete(
-            f"{self.url}/api/rooms/{self.room}/metadata/{field}", headers=headers
+            f"{self.url}/api/rooms/{self.room}/metadata/{field}",
+            headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -936,7 +961,9 @@ class APIManager:
         """
         headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/selections", headers=headers
+            f"{self.url}/api/rooms/{self.room}/selections",
+            headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -958,6 +985,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/selections/{geometry}",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -982,6 +1010,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/selections/{geometry}",
             json={"indices": indices},
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -1007,6 +1036,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -1034,6 +1064,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}",
             json=group_data,
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -1054,6 +1085,7 @@ class APIManager:
         response = requests.delete(
             f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -1076,6 +1108,7 @@ class APIManager:
         response = requests.post(
             f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}/load",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -1093,7 +1126,7 @@ class APIManager:
         """
         headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/bookmarks", headers=headers
+            f"{self.url}/api/rooms/{self.room}/bookmarks", headers=headers, timeout=10.0
         )
         response.raise_for_status()
         bookmarks = response.json().get("bookmarks", {})
@@ -1122,7 +1155,9 @@ class APIManager:
         """
         headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/bookmarks/{index}", headers=headers
+            f"{self.url}/api/rooms/{self.room}/bookmarks/{index}",
+            headers=headers,
+            timeout=10.0,
         )
         if response.status_code == 404:
             self._raise_for_error_type(response)
@@ -1152,6 +1187,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/bookmarks/{index}",
             json={"label": label},
             headers=headers,
+            timeout=10.0,
         )
         if response.status_code == 400:
             self._raise_for_error_type(response)
@@ -1175,6 +1211,7 @@ class APIManager:
         response = requests.delete(
             f"{self.url}/api/rooms/{self.room}/bookmarks/{index}",
             headers=headers,
+            timeout=10.0,
         )
         if response.status_code == 404:
             self._raise_for_error_type(response)
@@ -1219,6 +1256,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/screenshots",
             params={"limit": limit, "offset": offset},
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -1252,6 +1290,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}/metadata",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -1278,6 +1317,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}",
             headers=headers,
+            timeout=30.0,
         )
         response.raise_for_status()
         return response.content
@@ -1304,6 +1344,7 @@ class APIManager:
         response = requests.delete(
             f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json().get("success", False)
@@ -1574,6 +1615,7 @@ class APIManager:
             url,
             json={"progressId": progress_id, "description": description},
             headers=self._get_headers(),
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -1607,7 +1649,9 @@ class APIManager:
             data["progress"] = progress
 
         url = f"{self.url}/api/rooms/{self.room}/progress/{progress_id}"
-        response = requests.put(url, json=data, headers=self._get_headers())
+        response = requests.put(
+            url, json=data, headers=self._get_headers(), timeout=10.0
+        )
         response.raise_for_status()
         return response.json()
 
@@ -1625,6 +1669,6 @@ class APIManager:
             Response from server
         """
         url = f"{self.url}/api/rooms/{self.room}/progress/{progress_id}"
-        response = requests.delete(url, headers=self._get_headers())
+        response = requests.delete(url, headers=self._get_headers(), timeout=10.0)
         response.raise_for_status()
         return response.json()
