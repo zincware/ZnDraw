@@ -20,6 +20,7 @@ from zndraw.auth import (
 )
 from zndraw.server import socketio
 from zndraw.services.user_service import (
+    PasswordValidationError,
     UsernameValidationError,
     validate_username,
 )
@@ -283,8 +284,6 @@ def register_user():
         "userName": "MyUsername"
     }
     """
-    from zndraw.services.user_service import PasswordValidationError
-
     data = request.get_json() or {}
     user_name = (data.get("userName") or "").strip()
     password = data.get("password")
@@ -321,8 +320,8 @@ def register_user():
         return {"error": str(e), "type": "ValidationError"}, 400
     except ValueError as e:
         return {"error": str(e), "type": "ValidationError"}, 400
-    except Exception as e:
-        log.exception(f"Error registering user: {e}")
+    except Exception:
+        log.exception("Error registering user")
         return {"error": "Registration failed", "type": "ServerError"}, 500
 
 
@@ -350,8 +349,6 @@ def upgrade_user():
         "role": "user"
     }
     """
-    from zndraw.services.user_service import PasswordValidationError
-
     try:
         old_user_name = get_current_user()
 
@@ -387,8 +384,8 @@ def upgrade_user():
         return {"error": str(e), "type": "ValidationError"}, 400
     except ValueError as e:
         return {"error": str(e), "type": "ValidationError"}, 400
-    except Exception as e:
-        log.exception(f"Error upgrading user: {e}")
+    except Exception:
+        log.exception("Error upgrading user")
         return {"error": "Upgrade failed", "type": "ServerError"}, 500
 
 

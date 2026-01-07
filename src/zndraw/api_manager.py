@@ -234,6 +234,8 @@ class APIManager:
             f"{self.url}/api/rooms", json=payload, headers=headers, timeout=10.0
         )
 
+        if response.status_code == 409:
+            raise RuntimeError(f"Room '{self.room}' already exists")
         if response.status_code not in (200, 201):
             raise RuntimeError(
                 f"Failed to create room '{self.room}': {response.status_code} {response.text}"
