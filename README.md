@@ -39,8 +39,8 @@ zndraw <file>
 > [!NOTE]
 > ZnDraw's webapp-based approach allows you to use port forwarding to work with trajectories on remote systems.
 
-![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/darkmode/overview.png#gh-dark-mode-only "ZnDraw UI")
-![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/lightmode/overview.png#gh-light-mode-only "ZnDraw UI")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/darkmode/overview.png#gh-dark-mode-only "ZnDraw UI")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/lightmode/overview.png#gh-light-mode-only "ZnDraw UI")
 
 ## Python API
 
@@ -67,8 +67,8 @@ vis = ZnDraw(
 
 If no credentials are provided, the server assigns a guest user.
 
-![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/darkmode/python.png#gh-dark-mode-only "ZnDraw Python Client")
-![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/lightmode/python.png#gh-light-mode-only "ZnDraw Python Client")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/darkmode/python_connection.png#gh-dark-mode-only "ZnDraw Python Client")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/lightmode/python_connection.png#gh-light-mode-only "ZnDraw Python Client")
 
 ## Working with Frames
 
@@ -116,15 +116,18 @@ vis.geometries["box"] = Box(position=(0, 1, 2))
 
 Available geometry types: `Sphere`, `Arrow`, `Bond`, `Curve`, `Cell`, `Floor`, `Box`, `Plane`, `Shape`, `Camera`.
 
-![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/darkmode/box.png#gh-dark-mode-only "ZnDraw Geometries")
-![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/lightmode/box.png#gh-light-mode-only "ZnDraw Geometries")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/darkmode/geometries.png#gh-dark-mode-only "ZnDraw Geometries")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/lightmode/geometries.png#gh-light-mode-only "ZnDraw Geometries")
 
 ## Analysis
 
 ZnDraw integrates with [Plotly](https://plotly.com/) for interactive data visualization. It automatically detects available properties and provides selection menus.
 
-![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/darkmode/analysis.png#gh-dark-mode-only "ZnDraw Analysis")
-![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/misc/lightmode/analysis.png#gh-light-mode-only "ZnDraw Analysis")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/darkmode/analysis_1d.png#gh-dark-mode-only "ZnDraw Analysis")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/lightmode/analysis_1d.png#gh-light-mode-only "ZnDraw Analysis")
+
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/darkmode/analysis_2d.png#gh-dark-mode-only "ZnDraw Analysis 2D")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/lightmode/analysis_2d.png#gh-light-mode-only "ZnDraw Analysis 2D")
 
 ## Extensions
 
