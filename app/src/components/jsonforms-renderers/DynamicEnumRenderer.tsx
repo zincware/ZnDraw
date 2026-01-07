@@ -54,8 +54,8 @@ const DynamicEnumRenderer = ({
 	const hasEditableArray = features.includes("editable-array");
 	const hasTransform = features.includes("transform");
 
-	// Get options from injected enum or empty array
-	const options = schema.enum || [];
+	// Get options from x-enum-options (free-solo) or enum (validated), fallback to empty
+	const options = (schema as any)["x-enum-options"] || schema.enum || [];
 
 	// Detect value types
 	const isTransformValue = isTransform(data);
