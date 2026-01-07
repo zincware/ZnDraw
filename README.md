@@ -160,11 +160,11 @@ zndraw <file> --url https://zndraw.icp.uni-stuttgart.de
 
 ## Self-Hosting
 
-ZnDraw can be deployed using Docker for both development and production environments.
+ZnDraw can be deployed using Docker:
 
 See the [docker/](docker/) directory for complete deployment configurations:
-- [Production deployment](docker/prod/README.md) - Scalable multi-replica setup with nginx
-- [Development setup](docker/dev/README.md) - Hot reload for local development
+- [Standalone](docker/standalone/README.md) - Simple single-instance deployment for personal use or small teams
+- [Production](docker/production/README.md) - Horizontal scaling with nginx load balancer for high load
 
 ## References
 
