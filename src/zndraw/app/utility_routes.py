@@ -19,10 +19,17 @@ from zndraw.auth import (
     require_auth,
 )
 from zndraw.server import socketio
+from zndraw.services.user_service import (
+    UsernameValidationError,
+    validate_username,
+)
 
 from .redis_keys import SessionKeys, UserKeys
 
 log = logging.getLogger(__name__)
+
+# Generic authentication error message to prevent username enumeration
+AUTH_FAILED_MSG = "Authentication failed"
 
 utility = Blueprint("utility", __name__)
 
@@ -177,6 +184,12 @@ def login():
     if not user_name:
         return {"error": "userName required"}, 400
 
+    # Validate username format
+    try:
+        validate_username(user_name)
+    except UsernameValidationError as e:
+        return {"error": str(e), "type": "ValidationError"}, 400
+
     admin_service = current_app.extensions["admin_service"]
     user_service = current_app.extensions["user_service"]
 
@@ -200,14 +213,14 @@ def _handle_password_login(user_name, password, user_service, admin_service):
 
     # If username matches configured admin but password is wrong
     if admin_service.is_admin_username(user_name):
-        return {"error": "Invalid username or password"}, 401
+        return {"error": AUTH_FAILED_MSG}, 401
 
     # User must exist (from /api/user/register)
     if not user_service.username_exists(user_name):
-        return {"error": "User not found. Please register first."}, 401
+        return {"error": AUTH_FAILED_MSG}, 401
 
     if not user_service.verify_password(user_name, password):
-        return {"error": "Invalid username or password"}, 401
+        return {"error": AUTH_FAILED_MSG}, 401
 
     user_service.update_last_login(user_name)
     role = _determine_role(user_name, user_service, admin_service)
@@ -218,11 +231,11 @@ def _handle_guest_login(user_name, user_service, admin_service):
     """Handle guest login (no password) - user must exist from /api/user/register."""
     # User must exist (from /api/user/register)
     if not user_service.username_exists(user_name):
-        return {"error": "User not found. Please register first."}, 401
+        return {"error": AUTH_FAILED_MSG}, 401
 
     # If existing registered user, require password
     if user_service.is_registered(user_name):
-        return {"error": "Password required for registered users"}, 401
+        return {"error": AUTH_FAILED_MSG}, 401
 
     user_service.update_last_login(user_name)
     role = _determine_role(user_name, user_service, admin_service)
@@ -281,6 +294,12 @@ def register_user():
     # Generate username if not provided (for guests)
     if not user_name:
         user_name = f"user-{secrets.token_hex(4)}"
+
+    # Validate username format
+    try:
+        validate_username(user_name)
+    except UsernameValidationError as e:
+        return {"error": str(e), "type": "ValidationError"}, 400
 
     # Check if user already exists
     if user_service.username_exists(user_name):

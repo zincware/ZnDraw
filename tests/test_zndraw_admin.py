@@ -158,9 +158,7 @@ def test_zndraw_deployment_mode_with_correct_password(deployment_server):
 
 def test_zndraw_deployment_mode_with_wrong_password(deployment_server):
     """Test ZnDraw in deployment mode with wrong password - should raise error."""
-    with pytest.raises(
-        RuntimeError, match="Login failed.*Invalid username or password"
-    ):
+    with pytest.raises(RuntimeError, match="Login failed.*Authentication failed"):
         ZnDraw(
             url=deployment_server,
             room="test_wrong",

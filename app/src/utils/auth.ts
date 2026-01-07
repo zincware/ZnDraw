@@ -71,25 +71,36 @@ export async function login(
 			body: JSON.stringify(registerBody),
 		});
 
-		// 409 = already exists, which is fine for login attempt
-		if (!registerResponse.ok && registerResponse.status !== 409) {
+		// Handle different registration outcomes
+		let usernameToLogin: string;
+
+		if (registerResponse.ok) {
+			// New user created - get username from response
+			const registerData = await registerResponse.json();
+			usernameToLogin = registerData.userName;
+		} else if (registerResponse.status === 409) {
+			// User already exists - use provided username
+			if (!userName) {
+				// Should never happen: 409 without providing username
+				throw new Error("Registration conflict without username");
+			}
+			usernameToLogin = userName;
+		} else {
+			// Other error - throw
 			const errorData = await registerResponse
 				.json()
 				.catch(() => ({ error: registerResponse.statusText }));
 			throw new Error(
-				errorData.error || `Registration failed: ${registerResponse.statusText}`,
+				errorData.error ||
+					`Registration failed: ${registerResponse.statusText}`,
 			);
 		}
-
-		// Get the username from registration (may be server-generated)
-		const registerData = await registerResponse.json();
-		const registeredUserName = registerData.userName || userName;
 
 		// Step 2: Login (get JWT)
 		const loginResponse = await fetch("/api/login", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ userName: registeredUserName }),
+			body: JSON.stringify({ userName: usernameToLogin }),
 		});
 
 		if (!loginResponse.ok) {

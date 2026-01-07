@@ -5,6 +5,7 @@ Uses userName as the primary identifier (no client_id).
 """
 
 import logging
+import re
 from enum import Enum
 
 from argon2 import PasswordHasher
@@ -48,6 +49,50 @@ def validate_password(password: str) -> None:
     if not password or len(password) < MIN_PASSWORD_LENGTH:
         raise PasswordValidationError(
             f"Password must be at least {MIN_PASSWORD_LENGTH} characters"
+        )
+
+
+# Username requirements
+MAX_USERNAME_LENGTH = 64
+USERNAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$")
+
+
+class UsernameValidationError(ValueError):
+    """Raised when username doesn't meet requirements."""
+
+    pass
+
+
+def validate_username(user_name: str) -> None:
+    """Validate username format.
+
+    Requirements:
+    - 1-64 characters
+    - Alphanumeric, underscore, hyphen only
+    - Must start with alphanumeric character
+
+    Parameters
+    ----------
+    user_name : str
+        Username to validate
+
+    Raises
+    ------
+    UsernameValidationError
+        If username doesn't meet requirements
+    """
+    if not user_name:
+        raise UsernameValidationError("Username is required")
+
+    if len(user_name) > MAX_USERNAME_LENGTH:
+        raise UsernameValidationError(
+            f"Username must be at most {MAX_USERNAME_LENGTH} characters"
+        )
+
+    if not USERNAME_PATTERN.match(user_name):
+        raise UsernameValidationError(
+            "Username must contain only letters, numbers, underscores, and hyphens, "
+            "and must start with a letter or number"
         )
 
 

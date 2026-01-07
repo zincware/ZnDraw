@@ -156,8 +156,8 @@ def get_current_user() -> str:
 def get_current_user_role() -> str:
     """Get role of current authenticated user from JWT token.
 
-    Note: This returns the role from the JWT, which may be stale.
-    For authorization decisions, use get_authoritative_role() instead.
+    Note: This returns the role from the JWT. For authorization decisions,
+    use AdminService.is_admin() directly to check Redis.
 
     Returns
     -------
@@ -175,32 +175,6 @@ def get_current_user_role() -> str:
 
     payload = decode_jwt_token(token)
     return payload.get("role", "guest")  # Default to guest if not specified
-
-
-def get_authoritative_role(user_name: str) -> str:
-    """Get authoritative role from Redis, not JWT.
-
-    JWT role is for display only. Authorization checks must use this function
-    to ensure immediate effect of role changes (e.g., admin revocation).
-
-    Parameters
-    ----------
-    user_name : str
-        Username to check
-
-    Returns
-    -------
-    str
-        Role (admin, user, or guest)
-    """
-    admin_service = current_app.extensions.get("admin_service")
-    user_service = current_app.extensions.get("user_service")
-
-    if admin_service and admin_service.is_admin(user_name):
-        return "admin"
-    if user_service and user_service.username_exists(user_name):
-        return user_service.get_user_role(user_name).value
-    return "guest"
 
 
 def require_auth(f):

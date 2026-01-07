@@ -33,13 +33,11 @@ def test_login_local_mode_all_users_admin(app_local_mode):
     client = app_local_mode.test_client()
 
     # Register user first
-    register_response = client.post(
-        "/api/user/register", json={"userName": "John Doe"}
-    )
+    register_response = client.post("/api/user/register", json={"userName": "john-doe"})
     assert register_response.status_code == 201
 
     # Login as any user
-    response = client.post("/api/login", json={"userName": "John Doe"})
+    response = client.post("/api/login", json={"userName": "john-doe"})
     assert response.status_code == 200
     data = response.get_json()
 
@@ -47,7 +45,7 @@ def test_login_local_mode_all_users_admin(app_local_mode):
     assert data["role"] == "admin"
     assert "token" in data
     assert "userName" in data
-    assert data["userName"] == "John Doe"
+    assert data["userName"] == "john-doe"
 
 
 def test_login_deployment_mode_admin_credentials(app_deployment_mode):
@@ -79,7 +77,7 @@ def test_login_deployment_mode_wrong_credentials(app_deployment_mode):
     data = response.get_json()
 
     assert "error" in data
-    assert data["error"] == "Invalid username or password"
+    assert data["error"] == "Authentication failed"
 
 
 def test_login_deployment_mode_non_admin_user(app_deployment_mode):
@@ -87,13 +85,11 @@ def test_login_deployment_mode_non_admin_user(app_deployment_mode):
     client = app_deployment_mode.test_client()
 
     # Register user first
-    register_response = client.post(
-        "/api/user/register", json={"userName": "John Doe"}
-    )
+    register_response = client.post("/api/user/register", json={"userName": "john-doe"})
     assert register_response.status_code == 201
 
     # Login without password (non-admin user)
-    response = client.post("/api/login", json={"userName": "John Doe"})
+    response = client.post("/api/login", json={"userName": "john-doe"})
     assert response.status_code == 200
     data = response.get_json()
 
@@ -119,10 +115,10 @@ def test_shutdown_local_mode_any_user(app_local_mode):
     client = app_local_mode.test_client()
 
     # Register user first
-    client.post("/api/user/register", json={"userName": "John Doe"})
+    client.post("/api/user/register", json={"userName": "john-doe"})
 
     # Login
-    login_response = client.post("/api/login", json={"userName": "John Doe"})
+    login_response = client.post("/api/login", json={"userName": "john-doe"})
     token = login_response.get_json()["token"]
 
     # Try to shutdown with valid token
@@ -152,10 +148,10 @@ def test_shutdown_deployment_mode_non_admin_forbidden(app_deployment_mode):
     client = app_deployment_mode.test_client()
 
     # Register user first
-    client.post("/api/user/register", json={"userName": "John Doe"})
+    client.post("/api/user/register", json={"userName": "john-doe"})
 
     # Login as non-admin user
-    user_response = client.post("/api/login", json={"userName": "John Doe"})
+    user_response = client.post("/api/login", json={"userName": "john-doe"})
     user_token = user_response.get_json()["token"]
 
     # Non-admin cannot shutdown

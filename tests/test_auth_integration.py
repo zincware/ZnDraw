@@ -256,9 +256,7 @@ def test_user_created_on_register(server, redis_client):
     assert redis_client.exists(keys.hash_key()) == 0
 
     # Register - should create Redis entry
-    response = requests.post(
-        f"{server}/api/user/register", json={"userName": username}
-    )
+    response = requests.post(f"{server}/api/user/register", json={"userName": username})
     assert response.status_code == 201
 
     # Check Redis - user should NOW exist
@@ -271,7 +269,10 @@ def test_user_created_on_register(server, redis_client):
 
 
 def test_login_without_registration_fails(server):
-    """Test that login fails if user doesn't exist (wasn't registered)."""
+    """Test that login fails if user doesn't exist (wasn't registered).
+
+    Note: Error message is generic to prevent username enumeration attacks.
+    """
     username = "unregistered-user"
 
     # Login without registering first - should fail
@@ -280,7 +281,8 @@ def test_login_without_registration_fails(server):
     assert response.status_code == 401
     data = response.json()
     assert "error" in data
-    assert "register" in data["error"].lower()
+    # Generic error to prevent username enumeration
+    assert data["error"] == "Authentication failed"
 
 
 def test_join_room_updates_redis_room_users(server, redis_client, get_jwt_auth_headers):
