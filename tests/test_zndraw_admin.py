@@ -33,7 +33,7 @@ def local_server(tmp_path, get_free_port, wait_for_server):
     env.pop("ZNDRAW_ADMIN_USERNAME", None)
     env.pop("ZNDRAW_ADMIN_PASSWORD", None)
 
-    # Start server via subprocess
+    # Start server via subprocess (unique port ensures new server starts)
     proc = subprocess.Popen(
         [
             "zndraw",
@@ -45,7 +45,6 @@ def local_server(tmp_path, get_free_port, wait_for_server):
             "--redis-url",
             redis_url,
             "--no-browser",
-            "--force-new-server",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -70,7 +69,7 @@ def local_server(tmp_path, get_free_port, wait_for_server):
         shutil.rmtree(storage_path, ignore_errors=True)
         r = redis.Redis.from_url(redis_url, decode_responses=True)
         r.flushall()
-        remove_server_info()
+        remove_server_info(port)
         config_module._config = None
 
 
@@ -91,7 +90,7 @@ def deployment_server(tmp_path, get_free_port, wait_for_server):
     env["ZNDRAW_ADMIN_USERNAME"] = "admin"
     env["ZNDRAW_ADMIN_PASSWORD"] = "secret123"
 
-    # Start server via subprocess
+    # Start server via subprocess (unique port ensures new server starts)
     proc = subprocess.Popen(
         [
             "zndraw",
@@ -103,7 +102,6 @@ def deployment_server(tmp_path, get_free_port, wait_for_server):
             "--redis-url",
             redis_url,
             "--no-browser",
-            "--force-new-server",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -128,7 +126,7 @@ def deployment_server(tmp_path, get_free_port, wait_for_server):
         shutil.rmtree(storage_path, ignore_errors=True)
         r = redis.Redis.from_url(redis_url, decode_responses=True)
         r.flushall()
-        remove_server_info()
+        remove_server_info(port)
         config_module._config = None
 
 

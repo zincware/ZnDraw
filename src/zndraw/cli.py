@@ -15,10 +15,9 @@ from zndraw.config import (
 )
 from zndraw.server import create_app, socketio
 from zndraw.server_manager import (
+    DEFAULT_PORT,
     ServerInfo,
-    get_server_status,
-    is_process_running,
-    read_server_info,
+    find_running_server,
     remove_server_info,
     shutdown_server,
     write_server_info,
@@ -172,7 +171,12 @@ def main(
         "--room",
         help="Explicitly specify the room name. All files will be loaded into this room.",
     ),
-    port: int | None = typer.Option(None, help="Server bind port (default: 5000)."),
+    port: int | None = typer.Option(
+        None,
+        help="Server port. If specified and server exists on that port, connects to it. "
+        "If specified and no server on that port, starts new server. "
+        "If not specified, auto-discovers running servers (default port first, then smallest).",
+    ),
     debug: bool = typer.Option(False, help="Enable debug mode."),
     verbose: bool = typer.Option(False, help="Enable verbose logging."),
     celery: bool = typer.Option(True, help="Enable Celery task processing."),
@@ -210,11 +214,6 @@ def main(
         None,
         help="Server hostname or IP address (default: localhost).",
     ),
-    force_new_server: bool = typer.Option(
-        False,
-        "--force-new-server",
-        help="Always start a new server instance, ignoring any existing server.",
-    ),
     connect: str | None = typer.Option(
         None,
         "--connect",
@@ -224,12 +223,12 @@ def main(
     status: bool = typer.Option(
         False,
         "--status",
-        help="Check if a local server is running and display its status.",
+        help="Check if a local server is running. Uses --port if specified, otherwise auto-discovers.",
     ),
     shutdown: bool = typer.Option(
         False,
         "--shutdown",
-        help="Stop the local server if it is running.",
+        help="Stop the local server. Uses --port if specified, otherwise auto-discovers.",
     ),
     browser: bool = typer.Option(
         True,
@@ -260,7 +259,12 @@ def main(
     """Start or connect to a ZnDraw server.
 
     By default, this command will check if a local server is already running and
-    connect to it. If no server is running, it will start a new one.
+    connect to it. If no server is running, it will start a new one on the default
+    port (5000).
+
+    If --port is specified:
+    - If a server is running on that port, connects to it
+    - If no server on that port, starts a new server on that port
 
     Use --status to check server status or --shutdown to stop the server.
     """
@@ -291,44 +295,39 @@ def main(
 
     # Handle --status flag
     if status:
-        is_running, server_info, status_message = get_server_status()
+        server_info = find_running_server(port)
 
-        if is_running and server_info is not None:
-            typer.echo(f"✓ {status_message}")
+        if server_info is not None:
+            typer.echo(
+                f"✓ Server running (PID: {server_info.pid}, "
+                f"Port: {server_info.port}, Version: {server_info.version})"
+            )
             typer.echo(f"  Server URL: http://localhost:{server_info.port}")
             raise typer.Exit(0)
         else:
-            if server_info is None:
-                typer.echo("✗ No local ZnDraw server is running")
+            if port is not None:
+                typer.echo(f"✗ No ZnDraw server running on port {port}")
             else:
-                typer.echo(f"✗ {status_message}")
-                typer.echo("  (You may want to run 'zndraw --shutdown' to clean up)")
+                typer.echo("✗ No local ZnDraw server is running")
             raise typer.Exit(1)
-        return
 
     # Handle --shutdown flag
     if shutdown:
-        server_info = read_server_info()
+        server_info = find_running_server(port)
 
         if server_info is None:
-            typer.echo("No server.pid file found. No server to shut down.")
-            raise typer.Exit(0)
-
-        if not is_process_running(server_info.pid):
-            typer.echo(f"Process {server_info.pid} is not running.")
-            typer.echo("Cleaning up server.pid file...")
-            remove_server_info()
-            raise typer.Exit(0)
-
-        typer.echo(f"Shutting down server (PID: {server_info.pid})...")
-        if shutdown_server(server_info):
-            if not is_process_running(server_info.pid):
-                typer.echo("✓ Server shut down successfully")
-                remove_server_info()
-                raise typer.Exit(0)
+            if port is not None:
+                typer.echo(f"No server running on port {port}. Nothing to shut down.")
             else:
-                typer.echo("⚠ Server process may still be running")
-                raise typer.Exit(1)
+                typer.echo("No running server found. Nothing to shut down.")
+            raise typer.Exit(0)
+
+        typer.echo(
+            f"Shutting down server (PID: {server_info.pid}, Port: {server_info.port})..."
+        )
+        if shutdown_server(server_info):
+            typer.echo("✓ Server shut down successfully")
+            raise typer.Exit(0)
         else:
             typer.echo("✗ Failed to shut down server")
             raise typer.Exit(1)
@@ -393,75 +392,73 @@ def main(
 
         raise typer.Exit(0)
 
-    # Check for existing server unless force_new_server is set
-    if not force_new_server:
-        is_running, server_info, status_message = get_server_status()
+    # Check for existing server
+    # If port is specified, only check that port
+    # If port is None, auto-discover (default port first, then smallest)
+    server_info = find_running_server(port)
 
-        if is_running and server_info is not None:
-            typer.echo(f"✓ Found existing server: {status_message}")
-            typer.echo(f"  Server URL: http://localhost:{server_info.port}")
+    if server_info is not None:
+        typer.echo(
+            f"✓ Found existing server (PID: {server_info.pid}, "
+            f"Port: {server_info.port}, Version: {server_info.version})"
+        )
+        typer.echo(f"  Server URL: http://localhost:{server_info.port}")
 
-            # Check version compatibility
-            if server_info.version != __version__:
-                typer.echo(
-                    f"⚠ Warning: Server version ({server_info.version}) "
-                    f"differs from CLI version ({__version__})"
+        # Check version compatibility
+        if server_info.version != __version__:
+            typer.echo(
+                f"⚠ Warning: Server version ({server_info.version}) "
+                f"differs from CLI version ({__version__})"
+            )
+            typer.echo(
+                "  Consider running 'zndraw --shutdown' and starting a new server."
+            )
+
+        # If files are provided, load them into the existing server
+        if path is not None:
+            # Validate all files exist before proceeding
+            for p in path:
+                if not os.path.exists(p):
+                    typer.echo(f"✗ Error: File not found: {p}", err=True)
+                    raise typer.Exit(1)
+
+            typer.echo("Uploading files to existing server...")
+            make_default = True
+            server_url = f"http://localhost:{server_info.port}"
+            room_names = get_room_names(path)
+            first_room = room_names[0]
+
+            # Open browser before uploading so user can watch progress
+            if browser:
+                browser_url = f"http://localhost:{server_info.port}/rooms/{first_room}"
+                typer.echo(f"Opening browser at {browser_url}")
+                webbrowser.open(browser_url)
+
+            for p, room_name in zip(path, room_names):
+                typer.echo(f"  Uploading file {p} to room {room_name}")
+                read_file(
+                    file=p,
+                    room=room_name,
+                    server_url=server_url,
+                    start=start,
+                    stop=stop,
+                    step=step,
+                    make_default=make_default,
                 )
-                typer.echo(
-                    "  Consider running 'zndraw shutdown' and starting a new server."
-                )
+                make_default = False
+            typer.echo("✓ Files uploaded successfully")
 
-            # If files are provided, load them into the existing server
-            if path is not None:
-                # Validate all files exist before proceeding
-                for p in path:
-                    if not os.path.exists(p):
-                        typer.echo(f"✗ Error: File not found: {p}", err=True)
-                        raise typer.Exit(1)
+        else:
+            # Open browser to root if no files
+            if browser:
+                browser_url = f"http://localhost:{server_info.port}"
+                typer.echo(f"Opening browser at {browser_url}")
+                webbrowser.open(browser_url)
 
-                typer.echo("Uploading files to existing server...")
-                make_default = True
-                server_url = f"http://localhost:{server_info.port}"
-                room_names = get_room_names(path)
-                first_room = room_names[0]
+        typer.echo(f"\nServer is running at http://localhost:{server_info.port}")
+        raise typer.Exit(0)
 
-                # Open browser before uploading so user can watch progress
-                if browser:
-                    browser_url = (
-                        f"http://localhost:{server_info.port}/rooms/{first_room}"
-                    )
-                    typer.echo(f"Opening browser at {browser_url}")
-                    webbrowser.open(browser_url)
-
-                for p, room_name in zip(path, room_names):
-                    typer.echo(f"  Uploading file {p} to room {room_name}")
-                    read_file(
-                        file=p,
-                        room=room_name,
-                        server_url=server_url,
-                        start=start,
-                        stop=stop,
-                        step=step,
-                        make_default=make_default,
-                    )
-                    make_default = False
-                typer.echo("✓ Files uploaded successfully")
-
-            else:
-                # Open browser to root if no files
-                if browser:
-                    browser_url = f"http://localhost:{server_info.port}"
-                    typer.echo(f"Opening browser at {browser_url}")
-                    webbrowser.open(browser_url)
-
-            typer.echo(f"\nServer is running at http://localhost:{server_info.port}")
-            raise typer.Exit(0)
-        elif server_info is not None:
-            # Server info exists but server is not running - clean up
-            typer.echo(f"Found stale server info: {status_message}")
-            typer.echo("Cleaning up and starting a new server...")
-            remove_server_info()
-
+    # No running server found - start a new one
     # Validate files exist before starting server
     if path is not None:
         for p in path:
@@ -469,11 +466,9 @@ def main(
                 typer.echo(f"✗ Error: File not found: {p}", err=True)
                 raise typer.Exit(1)
 
-    # Start a new server
-    if force_new_server:
-        typer.echo("Starting a new server instance (--force-new-server)...")
-    else:
-        typer.echo("No existing server found. Starting a new server...")
+    # Determine the port to use
+    effective_port = port if port is not None else DEFAULT_PORT
+    typer.echo(f"Starting new server on port {effective_port}...")
 
     # Compute room names upfront (if files provided)
     room_names = get_room_names(path) if path else []
@@ -481,7 +476,7 @@ def main(
 
     # Build configuration from CLI args (overrides env vars via pydantic-settings)
     config = _build_config(
-        port=port,
+        port=effective_port,
         host=host,
         redis_url=redis_url,
         storage_type=storage_type,
@@ -520,14 +515,16 @@ def main(
     flask_app.config["SHUTDOWN_TOKEN"] = shutdown_token
 
     # Write server info to PID file
-    server_info = ServerInfo(
+    new_server_info = ServerInfo(
         pid=os.getpid(),
         port=config.server_port,
         version=__version__,
         shutdown_token=shutdown_token,
     )
-    write_server_info(server_info)
-    typer.echo(f"✓ Server started (PID: {server_info.pid}, Port: {config.server_port})")
+    write_server_info(new_server_info)
+    typer.echo(
+        f"✓ Server started (PID: {new_server_info.pid}, Port: {config.server_port})"
+    )
     typer.echo(f"  Server URL: {config.server_url}")
 
     # Queue file loading tasks after worker is started
@@ -571,5 +568,5 @@ def main(
             worker.wait()
             typer.echo("Celery worker closed.")
         # Clean up PID file when server stops
-        remove_server_info()
+        remove_server_info(config.server_port)
         typer.echo("Server stopped.")
