@@ -147,7 +147,7 @@ def test_register_user_same_username(user_service, redis_client):
 
     assert user_service.is_registered(user_name)
     assert redis_client.hexists(keys.hash_key(), "passwordHash")
-    assert redis_client.hexists(keys.hash_key(), "passwordSalt")
+    # Note: Argon2 stores salt in the hash itself, no separate passwordSalt field
 
     role = user_service.get_user_role(user_name)
     assert role == UserRole.USER
@@ -170,7 +170,7 @@ def test_register_user_new_username(user_service, redis_client):
     assert user_service.username_exists(new_username)
     assert user_service.is_registered(new_username)
     assert redis_client.hexists(new_keys.hash_key(), "passwordHash")
-    assert redis_client.hexists(new_keys.hash_key(), "passwordSalt")
+    # Note: Argon2 stores salt in the hash itself, no separate passwordSalt field
 
     # Old guest username should be deleted
     assert not user_service.username_exists(guest_name)
@@ -492,8 +492,8 @@ def test_list_all_users_with_visited_rooms(user_service, redis_client):
     assert users[0]["userName"] == user_name
 
 
-def test_password_hashing_different_salts(user_service, redis_client):
-    """Test that same password with different salts produces different hashes."""
+def test_password_hashing_produces_unique_hashes(user_service, redis_client):
+    """Test that same password produces different hashes (Argon2 random salt)."""
     from zndraw.app.redis_keys import UserKeys
 
     user_name_1 = "user-1"
@@ -508,9 +508,11 @@ def test_password_hashing_different_salts(user_service, redis_client):
     user_service.create_user(user_name_2)
     user_service.register_user(user_name_2, user_name_2, same_password)
 
+    # Both users should be able to verify their password
     assert user_service.verify_password(user_name_1, same_password)
     assert user_service.verify_password(user_name_2, same_password)
 
+    # Argon2 includes random salt in the hash, so same password produces different hashes
     hash_1 = redis_client.hget(keys_1.hash_key(), "passwordHash")
     hash_2 = redis_client.hget(keys_2.hash_key(), "passwordHash")
 
@@ -519,7 +521,11 @@ def test_password_hashing_different_salts(user_service, redis_client):
     if isinstance(hash_2, bytes):
         hash_2 = hash_2.decode("utf-8")
 
+    # Hashes should be different due to random salt
     assert hash_1 != hash_2
+    # Argon2 hashes start with $argon2
+    assert hash_1.startswith("$argon2")
+    assert hash_2.startswith("$argon2")
 
 
 def test_no_password_requirements(user_service):
@@ -561,3 +567,66 @@ def test_register_user_transfers_admin_status(user_service, admin_service_deploy
 
     assert not admin_service.is_admin(guest_name)
     assert admin_service.is_admin(new_username)
+
+
+def test_ensure_user_exists_creates_new_user(user_service, redis_client):
+    """Test ensure_user_exists creates user when missing."""
+    from zndraw.app.redis_keys import UserKeys
+
+    user_name = "new-user"
+    keys = UserKeys(user_name)
+
+    # User should not exist initially
+    assert not user_service.username_exists(user_name)
+
+    # ensure_user_exists should create the user
+    created = user_service.ensure_user_exists(user_name)
+    assert created is True
+
+    # User should now exist
+    assert user_service.username_exists(user_name)
+    assert redis_client.exists(keys.hash_key())
+    assert redis_client.hget(keys.hash_key(), "userName") == user_name
+    assert redis_client.hexists(keys.hash_key(), "createdAt")
+    assert redis_client.hexists(keys.hash_key(), "lastLogin")
+
+
+def test_ensure_user_exists_idempotent(user_service):
+    """Test ensure_user_exists is idempotent - doesn't create duplicate."""
+    user_name = "test-user"
+
+    # First call creates user
+    created1 = user_service.ensure_user_exists(user_name)
+    assert created1 is True
+
+    # Second call should return False (already exists)
+    created2 = user_service.ensure_user_exists(user_name)
+    assert created2 is False
+
+    # User still exists
+    assert user_service.username_exists(user_name)
+
+
+def test_ensure_user_exists_preserves_existing_data(user_service, redis_client):
+    """Test ensure_user_exists doesn't modify existing user data."""
+    from zndraw.app.redis_keys import UserKeys
+
+    user_name = "existing-user"
+    keys = UserKeys(user_name)
+
+    # Create and register a user
+    user_service.create_user(user_name)
+    user_service.register_user(user_name, user_name, "password123")
+
+    # Get original data
+    original_hash = redis_client.hget(keys.hash_key(), "passwordHash")
+    original_created_at = redis_client.hget(keys.hash_key(), "createdAt")
+
+    # ensure_user_exists should not modify existing user
+    created = user_service.ensure_user_exists(user_name)
+    assert created is False
+
+    # Data should be unchanged
+    assert redis_client.hget(keys.hash_key(), "passwordHash") == original_hash
+    assert redis_client.hget(keys.hash_key(), "createdAt") == original_created_at
+    assert user_service.verify_password(user_name, "password123")

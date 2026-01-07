@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useCallback, useRef } from "react";
 import { useAppStore } from "../store";
 import { useParams, useSearchParams } from "react-router-dom";
-import { set, throttle } from "lodash";
+import { throttle } from "lodash";
 import { useQueryClient } from "@tanstack/react-query";
-import { joinRoom as joinRoomApi } from "../myapi/client";
-import { convertBookmarkKeys } from "../utils/bookmarks";
-import { ensureAuthenticated, fetchUserRole, getUsername } from "../utils/auth";
+import { joinOrCreateRoom } from "../myapi/client";
+import { ensureAuthenticated, getUserRole, getUsername } from "../utils/auth";
 import { setLastVisitedRoom } from "../utils/roomTracking";
 import { useLazyRoomData } from "./useLazyRoomData";
 
@@ -64,9 +63,11 @@ export const useRestJoinManager = () => {
 		try {
 			await ensureAuthenticated();
 
-			// Fetch fresh user role from backend API
-			const { role: userRole } = await fetchUserRole();
-			setUserRole(userRole);
+			// Get user role from JWT (single source of truth)
+			const userRole = getUserRole();
+			if (userRole) {
+				setUserRole(userRole);
+			}
 		} catch (error) {
 			console.error("Authentication failed:", error);
 			return;
@@ -84,16 +85,15 @@ export const useRestJoinManager = () => {
 		abortControllerRef.current = controller; // Store it in the ref
 
 		// Get template from query parameters
-		const template = searchParams.get("template");
-
-		// Build request body (userName not needed - backend uses JWT)
-		const requestBody: { template?: string } = {};
-		if (template) {
-			requestBody.template = template;
-		}
+		const template = searchParams.get("template") ?? undefined;
 
 		try {
-			const data = await joinRoomApi(room, requestBody, controller.signal);
+			// Join room, creating it first if it doesn't exist
+			const data = await joinOrCreateRoom(
+				room,
+				{ template, copyFrom: template },
+				controller.signal,
+			);
 
 			// Store session ID for this browser tab
 			if (data.sessionId) {

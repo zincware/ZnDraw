@@ -57,10 +57,20 @@ def test_join_room_with_jwt_succeeds(server, get_jwt_auth_headers):
     # Login to get JWT
     headers = get_jwt_auth_headers(server, "test-user")
 
-    # Join room with JWT
+    # Create room first
     room = "test-room"
+    create_response = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": room},
+        headers=headers,
+    )
+    assert create_response.status_code == 201
+
+    # Join room with JWT
     response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers
+        f"{server}/api/rooms/{room}/join",
+        json={},
+        headers=headers,
     )
 
     assert response.status_code == 200
@@ -190,27 +200,49 @@ def test_python_client_auto_login(server):
     vis.socket.disconnect()
 
 
-def test_user_session_persists_in_redis(server, redis_client):
-    """Test that user session data is stored in Redis after login."""
+def test_guest_login_does_not_create_redis_entry(server, redis_client):
+    """Test that guest login does NOT create Redis entry (JWT only).
+
+    In the new flow, guest users are created in Redis only on socket.connect().
+    This ensures JWT is the single source of truth for identity.
+    """
     from zndraw.app.redis_keys import UserKeys
 
     username = "redis-test-user"
 
-    # Login
+    # Login - should NOT create Redis entry for guests
     response = requests.post(f"{server}/api/login", json={"userName": username})
     assert response.status_code == 200
     data = response.json()
     user_name = data["userName"]
 
-    # Check Redis for user session
+    # Check Redis - user should NOT exist yet
     keys = UserKeys(user_name)
-    assert redis_client.exists(keys.hash_key()) == 1
+    assert redis_client.exists(keys.hash_key()) == 0
 
-    # Verify stored data
-    user_data = redis_client.hgetall(keys.hash_key())
-    assert user_data["userName"] == username
-    assert "createdAt" in user_data
-    assert "lastLogin" in user_data
+
+def test_user_created_on_socket_connect(server, redis_client):
+    """Test that user is created in Redis when socket connects."""
+    from zndraw import ZnDraw
+    from zndraw.app.redis_keys import UserKeys
+
+    username = "socket-connect-user"
+
+    # Connect via ZnDraw (which triggers socket.connect)
+    vis = ZnDraw(url=server, room="test-room", user=username)
+
+    try:
+        # User should now exist in Redis (created by handle_connect)
+        keys = UserKeys(username)
+        assert redis_client.exists(keys.hash_key()) == 1
+
+        # Verify stored data
+        user_data = redis_client.hgetall(keys.hash_key())
+        assert user_data["userName"] == username
+        assert "createdAt" in user_data
+        assert "lastLogin" in user_data
+    finally:
+        vis.socket.disconnect()
 
 
 def test_join_room_updates_redis_room_users(server, redis_client, get_jwt_auth_headers):
@@ -225,13 +257,114 @@ def test_join_room_updates_redis_room_users(server, redis_client, get_jwt_auth_h
     payload = pyjwt.decode(token, options={"verify_signature": False})
     user_name = payload["sub"]
 
-    # Join room
+    # Create room first, then join
     room = "redis-room-test"
+    create_response = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": room},
+        headers=headers,
+    )
+    assert create_response.status_code == 201
+
+    # Join room
     response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers
+        f"{server}/api/rooms/{room}/join",
+        json={},
+        headers=headers,
     )
     assert response.status_code == 200
 
     # Verify user is in room's user set
     room_users_key = f"room:{room}:users"
     assert redis_client.sismember(room_users_key, user_name) == 1
+
+
+def test_join_nonexistent_room_fails(server, get_jwt_auth_headers):
+    """Test that joining a non-existent room returns 404.
+
+    Room creation and room joining are separate operations.
+    Use POST /api/rooms to create a room first.
+    """
+    headers = get_jwt_auth_headers(server, "test-user")
+
+    # Try to join a room that doesn't exist
+    room = "nonexistent-room-12345"
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join",
+        json={},
+        headers=headers,
+    )
+
+    assert response.status_code == 404
+    data = response.json()
+    assert "error" in data
+    assert room in data["error"]
+
+
+def test_explicit_room_creation(server, get_jwt_auth_headers):
+    """Test creating a room explicitly via POST /api/rooms."""
+    headers = get_jwt_auth_headers(server, "room-creator")
+
+    room = "explicit-room-test"
+    response = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": room, "description": "Test room"},
+        headers=headers,
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["roomId"] == room
+    assert data["created"] is True
+
+
+def test_explicit_room_creation_duplicate_fails(server, get_jwt_auth_headers):
+    """Test that creating a room that already exists fails."""
+    headers = get_jwt_auth_headers(server, "room-creator")
+
+    room = "duplicate-room-test"
+
+    # Create room first
+    response1 = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": room},
+        headers=headers,
+    )
+    assert response1.status_code == 201
+
+    # Try to create again - should fail
+    response2 = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": room},
+        headers=headers,
+    )
+    assert response2.status_code == 409
+    data = response2.json()
+    assert "error" in data
+
+
+def test_join_after_explicit_creation(server, get_jwt_auth_headers):
+    """Test joining a room after explicit creation without allowCreate."""
+    headers = get_jwt_auth_headers(server, "test-user")
+
+    room = "join-after-create-test"
+
+    # Create room explicitly
+    response1 = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": room},
+        headers=headers,
+    )
+    assert response1.status_code == 201
+
+    # Join without allowCreate - should succeed since room exists
+    response2 = requests.post(
+        f"{server}/api/rooms/{room}/join",
+        json={},  # No allowCreate needed
+        headers=headers,
+    )
+    assert response2.status_code == 200
+    data = response2.json()
+    assert data["status"] == "ok"
+    assert data["roomId"] == room

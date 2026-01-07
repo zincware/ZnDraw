@@ -421,9 +421,29 @@ export const deleteBookmark = async (
 
 // ==================== Room API ====================
 
+export interface CreateRoomRequest {
+	roomId: string;
+	description?: string;
+	copyFrom?: string;
+}
+
+export interface CreateRoomResponse {
+	status: string;
+	roomId: string;
+	frameCount: number;
+	created: boolean;
+}
+
+export const createRoom = async (
+	request: CreateRoomRequest,
+	signal?: AbortSignal,
+): Promise<CreateRoomResponse> => {
+	const { data } = await apiClient.post("/api/rooms", request, { signal });
+	return data;
+};
+
 export interface JoinRoomRequest {
 	template?: string;
-	allowCreate?: boolean;
 }
 
 export interface JoinRoomResponse {
@@ -431,7 +451,6 @@ export interface JoinRoomResponse {
 	userName: string;
 	sessionId: string; // Session ID for this browser tab
 	roomId: string;
-	created: boolean;
 }
 
 export const joinRoom = async (
@@ -443,6 +462,36 @@ export const joinRoom = async (
 		signal,
 	});
 	return data;
+};
+
+/**
+ * Join a room, creating it first if it doesn't exist.
+ * This is the recommended way to join rooms from the frontend.
+ */
+export const joinOrCreateRoom = async (
+	roomId: string,
+	options?: { template?: string; description?: string; copyFrom?: string },
+	signal?: AbortSignal,
+): Promise<JoinRoomResponse> => {
+	try {
+		// Try to join existing room first
+		return await joinRoom(roomId, { template: options?.template }, signal);
+	} catch (error: any) {
+		// If room doesn't exist (404), create it then join
+		if (error.response?.status === 404) {
+			await createRoom(
+				{
+					roomId,
+					description: options?.description,
+					copyFrom: options?.copyFrom ?? options?.template,
+				},
+				signal,
+			);
+			// Now join the newly created room
+			return await joinRoom(roomId, {}, signal);
+		}
+		throw error;
+	}
 };
 
 export interface RoomInfo {

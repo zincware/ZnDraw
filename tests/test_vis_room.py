@@ -4,7 +4,8 @@ import requests
 from zndraw.zndraw import ZnDraw
 
 
-def test_rest_join_new_room(server, get_jwt_auth_headers):
+def test_rest_create_and_join_room(server, get_jwt_auth_headers):
+    """Test creating and joining a room via REST API."""
     # Authenticate as admin to see all rooms
     headers = get_jwt_auth_headers(server, "admin")
     response = requests.get(f"{server}/api/rooms", headers=headers)
@@ -14,16 +15,29 @@ def test_rest_join_new_room(server, get_jwt_auth_headers):
     assert len(rooms) == 0  # no rooms yet
 
     room = "test-room-1"
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=get_jwt_auth_headers(server)
+
+    # First, create the room
+    create_response = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": room},
+        headers=headers,
     )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "ok"
-    assert data["roomId"] == room
-    assert data["created"] is True
-    assert "sessionId" in data
-    assert "userName" in data
+    assert create_response.status_code == 201
+    create_data = create_response.json()
+    assert create_data["status"] == "ok"
+    assert create_data["roomId"] == room
+    assert create_data["created"] is True
+
+    # Then join the room
+    join_response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=headers
+    )
+    assert join_response.status_code == 200
+    join_data = join_response.json()
+    assert join_data["status"] == "ok"
+    assert join_data["roomId"] == room
+    assert "sessionId" in join_data
+    assert "userName" in join_data
 
     # list all rooms again to see if the new room is there
     response = requests.get(f"{server}/api/rooms", headers=headers)
@@ -44,55 +58,83 @@ def test_rest_join_new_room(server, get_jwt_auth_headers):
         assert data["error"] == f"No frames found in room '{room}'"
 
 
-def test_join_existing_room(server, get_jwt_auth_headers):
-    # create a room first
-    room = "test-room-1"
+def test_join_nonexistent_room_fails(server, get_jwt_auth_headers):
+    """Test that joining a non-existent room returns 404."""
+    room = "nonexistent-room"
     response = requests.post(
         f"{server}/api/rooms/{room}/join", json={}, headers=get_jwt_auth_headers(server)
     )
-    assert response.status_code == 200
+    assert response.status_code == 404
+    data = response.json()
+    assert "error" in data
+    assert room in data["error"]
 
-    # join the existing room with a different user
+
+def test_join_existing_room(server, get_jwt_auth_headers):
+    """Test joining an existing room."""
+    room = "test-room-1"
+    headers = get_jwt_auth_headers(server)
+
+    # Create the room first
+    create_response = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": room},
+        headers=headers,
+    )
+    assert create_response.status_code == 201
+
+    # Join the existing room with the same user
     response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=get_jwt_auth_headers(server)
+        f"{server}/api/rooms/{room}/join", json={}, headers=headers
     )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
     assert data["roomId"] == room
-    assert data["created"] is False
     assert "sessionId" in data
     assert "userName" in data
 
+    # Join with a different user
+    headers2 = get_jwt_auth_headers(server, "user2")
+    response2 = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=headers2
+    )
+    assert response2.status_code == 200
+    data2 = response2.json()
+    assert data2["status"] == "ok"
+    assert data2["roomId"] == room
 
-def test_join_room_with_copy_from(server, s22, get_jwt_auth_headers):
+
+def test_create_room_with_copy_from(server, s22, get_jwt_auth_headers):
+    """Test creating a room by copying from an existing room."""
     # create a source room with some frames
     source_room = "source-room"
     vis = ZnDraw(url=server, room=source_room, user="user1")
     vis.extend(s22[:3])
 
-    # create a new room by copying from the source room
+    # Create a new room by copying from the source room
     new_room = "test-room-1"
+    headers = get_jwt_auth_headers(server)
     response = requests.post(
-        f"{server}/api/rooms/{new_room}/join",
-        json={"copyFrom": source_room},
-        headers=get_jwt_auth_headers(server),
+        f"{server}/api/rooms",
+        json={"roomId": new_room, "copyFrom": source_room},
+        headers=headers,
     )
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert data["status"] == "ok"
     assert data["roomId"] == new_room
     assert data["frameCount"] == 3  # Should have copied 3 frames
     assert data["created"] is True
 
-    # create a new room without copying from another room
+    # Create another room without copying
     another_room = "test-room-2"
     response = requests.post(
-        f"{server}/api/rooms/{another_room}/join",
-        json={},
-        headers=get_jwt_auth_headers(server),
+        f"{server}/api/rooms",
+        json={"roomId": another_room},
+        headers=headers,
     )
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert data["status"] == "ok"
     assert data["frameCount"] == 0  # Empty room

@@ -16,7 +16,13 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     room = "test-lazy-empty"
     headers = get_jwt_auth_headers(server)
 
-    # Step 1: Join room (minimal response)
+    # Step 1: Create room first
+    create_response = requests.post(
+        f"{server}/api/rooms", json={"roomId": room}, headers=headers, timeout=10
+    )
+    assert create_response.status_code == 201
+
+    # Step 2: Join room (minimal response)
     response = requests.post(
         f"{server}/api/rooms/{room}/join", json={}, headers=headers, timeout=10
     )
@@ -24,11 +30,10 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     data = response.json()
     assert data["status"] == "ok"
     assert data["roomId"] == room
-    assert data["created"] is True
     assert "sessionId" in data
     assert "userName" in data
 
-    # Step 2: Fetch room info
+    # Step 3: Fetch room info
     response = requests.get(f"{server}/api/rooms/{room}", headers=headers, timeout=10)
     assert response.status_code == 200
     room_info = response.json()
@@ -36,7 +41,7 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     assert room_info["frameCount"] == 0
     assert room_info["locked"] is False
 
-    # Step 3: Fetch selections
+    # Step 4: Fetch selections
     response = requests.get(
         f"{server}/api/rooms/{room}/selections", headers=headers, timeout=10
     )
@@ -46,7 +51,7 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     assert selections_data["groups"] == {}
     assert selections_data["activeGroup"] is None
 
-    # Step 4: Fetch frame selection
+    # Step 5: Fetch frame selection
     response = requests.get(
         f"{server}/api/rooms/{room}/frame-selection", headers=headers, timeout=10
     )
@@ -54,7 +59,7 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     frame_selection_data = response.json()
     assert frame_selection_data["frameSelection"] is None
 
-    # Step 5: Fetch current step
+    # Step 6: Fetch current step
     response = requests.get(
         f"{server}/api/rooms/{room}/step", headers=headers, timeout=10
     )
@@ -63,7 +68,7 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     assert step_data["step"] is None or step_data["step"] == 0
     assert step_data["totalFrames"] == 0
 
-    # Step 6: Fetch bookmarks
+    # Step 7: Fetch bookmarks
     response = requests.get(
         f"{server}/api/rooms/{room}/bookmarks", headers=headers, timeout=10
     )
@@ -71,7 +76,7 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     bookmarks_data = response.json()
     assert bookmarks_data["bookmarks"] == {} or bookmarks_data["bookmarks"] is None
 
-    # Step 7: Fetch geometries
+    # Step 8: Fetch geometries
     response = requests.get(
         f"{server}/api/rooms/{room}/geometries", headers=headers, timeout=10
     )
@@ -80,7 +85,7 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     # Geometries might contain default schemas even for empty room
     assert isinstance(geometries_data["geometries"], dict)
 
-    # Step 8: Fetch user settings (all categories)
+    # Step 9: Fetch user settings (all categories)
     response = requests.get(
         f"{server}/api/rooms/{room}/settings", headers=headers, timeout=10
     )
@@ -98,20 +103,21 @@ def test_lazy_loading_with_data(server, s22, get_jwt_auth_headers):
     room = "test-lazy-with-data"
     headers = get_jwt_auth_headers(server)
 
-    # Setup: Create room with frames
+    # Setup: Create room with frames (ZnDraw auto-creates room)
     vis = ZnDraw(url=server, room=room, user="user1")
     vis.extend(s22[:5])  # Add 5 frames
 
     # Add a bookmark
     vis.bookmarks[2] = "Frame 2"
 
-    # Step 1: Join room as different user
+    # Step 1: Join room as different user (room already created by ZnDraw)
     response = requests.post(
         f"{server}/api/rooms/{room}/join", json={}, headers=headers, timeout=10
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["created"] is False  # Room already exists
+    assert data["status"] == "ok"
+    assert data["roomId"] == room
 
     # Step 2: Fetch room info
     response = requests.get(f"{server}/api/rooms/{room}", headers=headers, timeout=10)
@@ -158,6 +164,12 @@ def test_lazy_loading_auth_required(server, get_jwt_auth_headers):
     headers = get_jwt_auth_headers(server)
 
     # Create room first
+    create_response = requests.post(
+        f"{server}/api/rooms", json={"roomId": room}, headers=headers, timeout=10
+    )
+    assert create_response.status_code == 201
+
+    # Join room
     response = requests.post(
         f"{server}/api/rooms/{room}/join", json={}, headers=headers, timeout=10
     )

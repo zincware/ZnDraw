@@ -110,13 +110,13 @@ def handle_connect(auth):
         log.error(f"Client {sid} authentication failed: {e.message}")
         raise ConnectionRefusedError(e.message)
 
-    # Verify user exists in Redis
-    user_keys = UserKeys(user_name)
-    if not r.exists(user_keys.hash_key()):
-        log.error(f"User {user_name} not found in Redis")
-        raise ConnectionRefusedError("User not registered. Call /api/login first.")
+    # Ensure user exists in Redis (creates from JWT claims if missing)
+    # This is the single source of truth - JWT identity creates Redis user
+    user_service = current_app.extensions["user_service"]
+    user_service.ensure_user_exists(user_name)
 
     # Update user's current SID
+    user_keys = UserKeys(user_name)
     r.hset(
         user_keys.hash_key(),
         mapping={

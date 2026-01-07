@@ -162,35 +162,87 @@ class APIManager:
         response.raise_for_status()
         return response.json()["version"]
 
-    def join_room(
+    def create_room(
         self,
         description: str | None = None,
         copy_from: str | None = None,
     ) -> dict:
-        """Join a room, optionally creating it with a description or copying from an existing room.
+        """Create a new room.
 
-        Args:
-            description: Optional description for the room (only used if room is created)
-            copy_from: Optional room ID to copy frames and settings from (only used if room is created)
+        Parameters
+        ----------
+        description : str | None
+            Optional description for the room
+        copy_from : str | None
+            Optional room ID to copy frames and settings from
 
-        Returns:
-            Dict containing room information (userName comes from JWT token)
+        Returns
+        -------
+        dict
+            Room information (status, roomId, frameCount, created)
+
+        Raises
+        ------
+        RuntimeError
+            If room creation fails (e.g., room already exists)
         """
-        payload = {}
+        payload = {"roomId": self.room}
 
         if description is not None:
             payload["description"] = description
         if copy_from is not None:
             payload["copyFrom"] = copy_from
 
-        # Send JWT token in Authorization header
         headers = {}
         if self.jwt_token:
             headers["Authorization"] = f"Bearer {self.jwt_token}"
 
+        response = requests.post(f"{self.url}/api/rooms", json=payload, headers=headers)
+
+        if response.status_code not in (200, 201):
+            raise RuntimeError(
+                f"Failed to create room '{self.room}': {response.status_code} {response.text}"
+            )
+
+        return response.json()
+
+    def join_room(
+        self,
+        description: str | None = None,
+        copy_from: str | None = None,
+    ) -> dict:
+        """Join a room, creating it first if it doesn't exist.
+
+        Parameters
+        ----------
+        description : str | None
+            Optional description for the room (only used if room is created)
+        copy_from : str | None
+            Optional room ID to copy frames and settings from (only used if room is created)
+
+        Returns
+        -------
+        dict
+            Room information (userName, sessionId, roomId)
+        """
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
+        # Try to join existing room first
         response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/join", json=payload, headers=headers
+            f"{self.url}/api/rooms/{self.room}/join", json={}, headers=headers
         )
+
+        # If room doesn't exist (404), create it then join
+        if response.status_code == 404:
+            log.info(f"Room '{self.room}' doesn't exist, creating it...")
+            self.create_room(description=description, copy_from=copy_from)
+
+            # Now join the newly created room
+            response = requests.post(
+                f"{self.url}/api/rooms/{self.room}/join", json={}, headers=headers
+            )
 
         if response.status_code != 200:
             raise RuntimeError(

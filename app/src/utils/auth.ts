@@ -2,19 +2,19 @@
  * JWT Authentication utilities for browser client.
  *
  * Uses jose library for secure JWT decoding and validation.
+ * JWT is the single source of truth for user identity and role.
  *
  * Simplified Architecture:
  * - userName is the primary identifier (unique, immutable after registration)
  * - Guests get auto-generated usernames (user-xyz)
  * - Registration allows choosing permanent username
- * - No client_id concept
+ * - Role is always read from JWT (no localStorage duplication)
  */
 
 import { decodeJwt, type JWTPayload } from "jose";
 
 const TOKEN_KEY = "zndraw_jwt_token";
 const USERNAME_KEY = "zndraw_username";
-const USER_ROLE_KEY = "zndraw_user_role";
 
 export type UserRole = "guest" | "user" | "admin";
 
@@ -23,16 +23,13 @@ interface ZnDrawJWTPayload extends JWTPayload {
 	sub: string; // userName
 	role: UserRole;
 	jti: string; // JWT ID
+	iat: number; // Issued at
+	exp: number; // Expiration (7 days)
 }
 
 export interface LoginResponse {
 	status: string;
 	token: string;
-	userName: string;
-	role: UserRole;
-}
-
-export interface UserRoleResponse {
 	userName: string;
 	role: UserRole;
 }
@@ -78,10 +75,9 @@ export async function login(
 
 	const data = await response.json();
 
-	// Store token, username, and role in localStorage
+	// Store token and username only - role comes from JWT
 	localStorage.setItem(TOKEN_KEY, data.token);
 	localStorage.setItem(USERNAME_KEY, data.userName);
-	localStorage.setItem(USER_ROLE_KEY, data.role);
 
 	return data;
 }
@@ -116,7 +112,6 @@ export function getUsername(): string | null {
 export function logout(): void {
 	localStorage.removeItem(TOKEN_KEY);
 	localStorage.removeItem(USERNAME_KEY);
-	localStorage.removeItem(USER_ROLE_KEY);
 }
 
 /**
@@ -141,8 +136,7 @@ export function decodeToken(token: string): ZnDrawJWTPayload | null {
 }
 
 /**
- * Check if stored token is valid (exists and can be decoded).
- * If token has expiry, also checks if not expired.
+ * Check if stored token is valid (exists, can be decoded, and not expired).
  */
 export function isTokenValid(): boolean {
 	const token = getToken();
@@ -156,7 +150,7 @@ export function isTokenValid(): boolean {
 		return false;
 	}
 
-	// Check expiry if present (currently tokens don't expire, but future-proof)
+	// Check expiry (tokens now expire after 7 days)
 	if (payload.exp && Date.now() >= payload.exp * 1000) {
 		logout(); // Clear expired token
 		return false;
@@ -179,7 +173,7 @@ export function getTokenClaims(): ZnDrawJWTPayload | null {
 }
 
 /**
- * Get username from token claims (preferred over localStorage).
+ * Get username from token claims.
  */
 export function getUsernameFromToken(): string | null {
 	const claims = getTokenClaims();
@@ -187,52 +181,11 @@ export function getUsernameFromToken(): string | null {
 }
 
 /**
- * Get role from token claims (preferred over localStorage).
- */
-export function getRoleFromToken(): UserRole | null {
-	const claims = getTokenClaims();
-	return claims?.role ?? null;
-}
-
-/**
- * Fetch user role from server.
- */
-export async function fetchUserRole(): Promise<UserRoleResponse> {
-	const token = getToken();
-	if (!token) {
-		throw new Error("Not authenticated");
-	}
-
-	const response = await fetch("/api/user/role", {
-		method: "GET",
-		headers: {
-			Authorization: `Bearer ${token}`,
-			"Content-Type": "application/json",
-		},
-	});
-
-	if (!response.ok) {
-		const errorData = await response
-			.json()
-			.catch(() => ({ error: response.statusText }));
-		throw new Error(
-			errorData.error || `Failed to fetch role: ${response.statusText}`,
-		);
-	}
-
-	const data = await response.json();
-
-	// Store role in localStorage
-	localStorage.setItem(USER_ROLE_KEY, data.role);
-
-	return data;
-}
-
-/**
- * Get stored user role.
+ * Get user role from JWT token (single source of truth).
  */
 export function getUserRole(): UserRole | null {
-	return localStorage.getItem(USER_ROLE_KEY) as UserRole | null;
+	const claims = getTokenClaims();
+	return claims?.role ?? null;
 }
 
 /**
@@ -271,10 +224,9 @@ export async function registerUser(
 
 	const data = await response.json();
 
-	// Update stored data with new token and username
+	// Update stored token and username - role comes from new JWT
 	localStorage.setItem(TOKEN_KEY, data.token);
 	localStorage.setItem(USERNAME_KEY, data.userName);
-	localStorage.setItem(USER_ROLE_KEY, data.role);
 
 	return data;
 }

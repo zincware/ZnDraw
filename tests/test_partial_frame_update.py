@@ -461,6 +461,14 @@ def test_partial_update_empty_room(server, get_jwt_auth_headers):
 
     # Create room without adding frames
     auth_headers = get_jwt_auth_headers(server, "test-user")
+
+    # Create room first
+    create_response = requests.post(
+        f"{server}/api/rooms", json={"roomId": room}, headers=auth_headers
+    )
+    assert create_response.status_code == 201
+
+    # Join room
     response = requests.post(
         f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
     )

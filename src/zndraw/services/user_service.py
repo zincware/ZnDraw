@@ -5,16 +5,19 @@ Uses userName as the primary identifier (no client_id).
 """
 
 import datetime
-import hashlib
 import logging
-import secrets
 from enum import Enum
 
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from redis import Redis
 
 from zndraw.app.redis_keys import GlobalIndexKeys, UserKeys
 
 log = logging.getLogger(__name__)
+
+# Argon2 password hasher with secure defaults
+_ph = PasswordHasher()
 
 
 class UserRole(str, Enum):
@@ -41,8 +44,8 @@ class UserService:
 
     Notes
     -----
-    Password storage uses SHA-256 hashing with salt.
-    No password requirements enforced (as per spec).
+    Password storage uses Argon2id (winner of Password Hashing Competition).
+    No password requirements enforced.
     """
 
     def __init__(self, redis_client: Redis):
@@ -150,6 +153,43 @@ class UserService:
         log.info(f"Created user {user_name}")
         return True
 
+    def ensure_user_exists(self, user_name: str) -> bool:
+        """Ensure user exists in Redis, creating if necessary.
+
+        Idempotent operation - safe to call multiple times.
+        Used by socket.connect() to create users from JWT claims.
+
+        Parameters
+        ----------
+        user_name : str
+            Username to ensure exists
+
+        Returns
+        -------
+        bool
+            True if user was created, False if already existed
+        """
+        if self.username_exists(user_name):
+            return False
+
+        keys = UserKeys(user_name)
+        current_time = datetime.datetime.utcnow().isoformat()
+
+        pipe = self.r.pipeline()
+        pipe.hset(
+            keys.hash_key(),
+            mapping={
+                "userName": user_name,
+                "createdAt": current_time,
+                "lastLogin": current_time,
+            },
+        )
+        pipe.sadd(GlobalIndexKeys.users_index(), user_name)
+        pipe.execute()
+
+        log.info(f"Created user {user_name} (from JWT)")
+        return True
+
     def register_user(
         self, old_user_name: str, new_user_name: str, password: str
     ) -> bool:
@@ -194,14 +234,10 @@ class UserService:
             if self.is_registered(old_user_name):
                 raise ValueError("User is already registered")
 
-            # Generate salt and hash password
-            salt = secrets.token_hex(16)
-            password_hash = self._hash_password(password, salt)
+            password_hash = _ph.hash(password)
 
-            # Add password to existing user
             keys = UserKeys(old_user_name)
             self.r.hset(keys.hash_key(), "passwordHash", password_hash)
-            self.r.hset(keys.hash_key(), "passwordSalt", salt)
 
             log.info(f"User {old_user_name} registered (guest → user)")
             return True
@@ -210,17 +246,11 @@ class UserService:
         old_keys = UserKeys(old_user_name)
         new_keys = UserKeys(new_user_name)
 
-        # Generate salt and hash password
-        salt = secrets.token_hex(16)
-        password_hash = self._hash_password(password, salt)
+        password_hash = _ph.hash(password)
 
-        # Get old user data
         old_data = self.r.hgetall(old_keys.hash_key())
-
-        # Create new user entry
         current_time = datetime.datetime.utcnow().isoformat()
 
-        # Decode bytes if needed
         created_at = old_data.get(b"createdAt") or old_data.get("createdAt")
         if isinstance(created_at, bytes):
             created_at = created_at.decode("utf-8")
@@ -231,26 +261,21 @@ class UserService:
             mapping={
                 "userName": new_user_name,
                 "passwordHash": password_hash,
-                "passwordSalt": salt,
                 "createdAt": created_at or current_time,
                 "lastLogin": current_time,
             },
         )
 
-        # Update users index: add new, remove old
         pipe.sadd(GlobalIndexKeys.users_index(), new_user_name)
         pipe.srem(GlobalIndexKeys.users_index(), old_user_name)
 
-        # Transfer admin status if exists
         is_admin = self.r.get(old_keys.admin_key())
         if is_admin:
             pipe.set(new_keys.admin_key(), "1")
             pipe.delete(old_keys.admin_key())
-            # Update admins index
             pipe.sadd(GlobalIndexKeys.admins_index(), new_user_name)
             pipe.srem(GlobalIndexKeys.admins_index(), old_user_name)
 
-        # Delete old user
         pipe.delete(old_keys.hash_key())
         pipe.execute()
 
@@ -260,7 +285,7 @@ class UserService:
         return True
 
     def verify_password(self, user_name: str, password: str) -> bool:
-        """Verify a user's password.
+        """Verify a user's password using Argon2.
 
         Parameters
         ----------
@@ -279,19 +304,18 @@ class UserService:
 
         keys = UserKeys(user_name)
         stored_hash = self.r.hget(keys.hash_key(), "passwordHash")
-        salt = self.r.hget(keys.hash_key(), "passwordSalt")
 
-        if not stored_hash or not salt:
+        if not stored_hash:
             return False
 
-        # Handle bytes from Redis
         if isinstance(stored_hash, bytes):
             stored_hash = stored_hash.decode("utf-8")
-        if isinstance(salt, bytes):
-            salt = salt.decode("utf-8")
 
-        computed_hash = self._hash_password(password, salt)
-        return computed_hash == stored_hash
+        try:
+            _ph.verify(stored_hash, password)
+            return True
+        except VerifyMismatchError:
+            return False
 
     def change_password(
         self, user_name: str, old_password: str, new_password: str
@@ -323,14 +347,10 @@ class UserService:
         if not self.verify_password(user_name, old_password):
             raise ValueError("Current password is incorrect")
 
-        # Generate new salt and hash
-        salt = secrets.token_hex(16)
-        password_hash = self._hash_password(new_password, salt)
+        password_hash = _ph.hash(new_password)
 
-        # Update password
         keys = UserKeys(user_name)
         self.r.hset(keys.hash_key(), "passwordHash", password_hash)
-        self.r.hset(keys.hash_key(), "passwordSalt", salt)
 
         log.info(f"User {user_name} changed password")
         return True
@@ -358,14 +378,10 @@ class UserService:
         if not self.is_registered(user_name):
             raise ValueError("User is not registered")
 
-        # Generate new salt and hash
-        salt = secrets.token_hex(16)
-        password_hash = self._hash_password(new_password, salt)
+        password_hash = _ph.hash(new_password)
 
-        # Update password
         keys = UserKeys(user_name)
         self.r.hset(keys.hash_key(), "passwordHash", password_hash)
-        self.r.hset(keys.hash_key(), "passwordSalt", salt)
 
         log.info(f"Admin reset password for user {user_name}")
         return True
@@ -456,21 +472,3 @@ class UserService:
             )
 
         return users
-
-    def _hash_password(self, password: str, salt: str) -> str:
-        """Hash password with salt using SHA-256.
-
-        Parameters
-        ----------
-        password : str
-            Password to hash
-        salt : str
-            Salt for hashing
-
-        Returns
-        -------
-        str
-            Hex-encoded hash
-        """
-        combined = f"{password}{salt}".encode("utf-8")
-        return hashlib.sha256(combined).hexdigest()
