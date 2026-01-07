@@ -4,11 +4,12 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
 from dateutil.parser import isoparse
+
+from zndraw.utils.time import utc_now_iso, utc_now_timestamp
 
 from .redis_keys import JobKeys, RoomKeys, WorkerKeys
 
@@ -164,7 +165,7 @@ class JobManager:
             job_id: Unique job identifier
         """
         job_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat()
+        now = utc_now_iso()
 
         job_data = {
             "id": job_id,
@@ -198,7 +199,7 @@ class JobManager:
         # Add to indexes
         redis_client.sadd(room_keys.jobs_active(), job_id)
         redis_client.zadd(
-            room_keys.jobs_by_time(), {job_id: datetime.utcnow().timestamp()}
+            room_keys.jobs_by_time(), {job_id: utc_now_timestamp()}
         )
         redis_client.sadd(room_keys.extension_jobs(category, extension), job_id)
 
@@ -311,7 +312,7 @@ class JobManager:
             return False
 
         # Update status
-        now = datetime.utcnow().isoformat()
+        now = utc_now_iso()
         created_at = redis_client.hget(job_keys.hash_key(), "created_at")
         room = redis_client.hget(job_keys.hash_key(), "room")
 
@@ -350,7 +351,7 @@ class JobManager:
         if not redis_client.exists(job_keys.hash_key()):
             return False
 
-        now = datetime.utcnow().isoformat()
+        now = utc_now_iso()
         started_at = redis_client.hget(job_keys.hash_key(), "started_at")
 
         # Calculate execution time
@@ -404,7 +405,7 @@ class JobManager:
         if not redis_client.exists(job_keys.hash_key()):
             return False
 
-        now = datetime.utcnow().isoformat()
+        now = utc_now_iso()
         started_at = redis_client.hget(job_keys.hash_key(), "started_at")
 
         # Calculate execution time

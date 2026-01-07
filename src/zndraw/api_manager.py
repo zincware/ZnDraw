@@ -28,6 +28,9 @@ class APIManager:
     ) -> dict:
         """Authenticate and get JWT token with retry logic.
 
+        Uses register-then-login flow: first creates user via /api/user/register,
+        then authenticates via /api/login to get JWT token.
+
         Uses exponential backoff to handle server startup race conditions.
 
         Parameters
@@ -53,19 +56,49 @@ class APIManager:
         requests.ConnectionError
             If server is unreachable after all retries
         """
-        payload = {"userName": user_name}
-        if password is not None:
-            payload["password"] = password
-
         delay = initial_delay
         max_delay = 2.0
         last_exception = None
 
         for attempt in range(1, max_retries + 1):
             try:
-                response = requests.post(
-                    f"{self.url}/api/login", json=payload, timeout=5.0
-                )
+                # For guests (no password), register first, then login
+                if password is None:
+                    # Step 1: Register user (creates in backend)
+                    register_payload = {"userName": user_name} if user_name else {}
+                    register_response = requests.post(
+                        f"{self.url}/api/user/register",
+                        json=register_payload,
+                        timeout=5.0,
+                    )
+                    # 409 = already exists, which is fine
+                    if (
+                        register_response.status_code not in (200, 201, 409)
+                        and register_response.status_code != 401
+                    ):
+                        raise RuntimeError(
+                            f"Registration failed: {register_response.text}"
+                        )
+
+                    # Get the username (may be server-generated if not provided)
+                    if register_response.status_code in (200, 201):
+                        reg_data = register_response.json()
+                        login_user_name = reg_data.get("userName", user_name)
+                    else:
+                        # 409 - user exists, use the provided username
+                        login_user_name = user_name
+
+                    # Step 2: Login (get JWT)
+                    login_payload = {"userName": login_user_name}
+                    response = requests.post(
+                        f"{self.url}/api/login", json=login_payload, timeout=5.0
+                    )
+                else:
+                    # For users with password, login directly (admin login)
+                    login_payload = {"userName": user_name, "password": password}
+                    response = requests.post(
+                        f"{self.url}/api/login", json=login_payload, timeout=5.0
+                    )
 
                 if response.status_code == 200:
                     data = response.json()

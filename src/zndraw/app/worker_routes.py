@@ -5,7 +5,6 @@ Handles worker registration via REST endpoints.
 
 import json
 import logging
-from datetime import datetime
 
 from flask import Blueprint, current_app, request
 
@@ -16,6 +15,7 @@ from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
 from zndraw.server import socketio
 from zndraw.settings import RoomConfig
+from zndraw.utils.time import utc_now_timestamp
 
 log = logging.getLogger(__name__)
 
@@ -203,7 +203,7 @@ def register_worker():
 
         # Re-registration with same schema
         # Add to extension registry with timestamp
-        r.hset(keys.workers, worker_id, datetime.utcnow().timestamp())
+        r.hset(keys.workers, worker_id, utc_now_timestamp())
 
         # Initialize worker capacity if not exists
         capacity_key = ExtensionKeys.worker_capacity_key(worker_id)
@@ -253,7 +253,7 @@ def register_worker():
         with r.pipeline() as pipe:
             pipe.hset(keys.schema, name, json.dumps(schema))
             # Add to extension registry with timestamp
-            pipe.hset(keys.workers, worker_id, datetime.utcnow().timestamp())
+            pipe.hset(keys.workers, worker_id, utc_now_timestamp())
             pipe.sadd(worker_extensions_key, name)
             pipe.execute()
 

@@ -1,6 +1,5 @@
 """REST API routes for distributed lock management."""
 
-import datetime
 import json
 import logging
 import uuid
@@ -8,6 +7,7 @@ import uuid
 from flask import Blueprint, current_app, jsonify, request
 
 from zndraw.auth import AuthError, get_current_user
+from zndraw.utils.time import utc_now_iso
 
 from .constants import LockConfig
 from .redis_keys import SessionKeys
@@ -102,7 +102,7 @@ def acquire_lock(room_id, target):
         timestamp = None
         if msg:
             metadata_key = f"{lock_key}:metadata"
-            timestamp = datetime.datetime.utcnow().isoformat()
+            timestamp = utc_now_iso()
             metadata = {
                 "msg": msg,
                 "userName": user_name,
@@ -167,7 +167,7 @@ def acquire_lock(room_id, target):
                     timestamp = None
                     if msg:
                         metadata_key = f"{lock_key}:metadata"
-                        timestamp = datetime.datetime.utcnow().isoformat()
+                        timestamp = utc_now_iso()
                         metadata = {
                             "msg": msg,
                             "userName": user_name,

@@ -4,7 +4,6 @@ Manages user accounts, roles, and authentication.
 Uses userName as the primary identifier (no client_id).
 """
 
-import datetime
 import logging
 from enum import Enum
 
@@ -13,11 +12,43 @@ from argon2.exceptions import VerifyMismatchError
 from redis import Redis
 
 from zndraw.app.redis_keys import GlobalIndexKeys, UserKeys
+from zndraw.utils.time import utc_now_iso
 
 log = logging.getLogger(__name__)
 
 # Argon2 password hasher with secure defaults
 _ph = PasswordHasher()
+
+# Password requirements
+MIN_PASSWORD_LENGTH = 8
+
+
+class PasswordValidationError(ValueError):
+    """Raised when password doesn't meet requirements."""
+
+    pass
+
+
+def validate_password(password: str) -> None:
+    """Validate password meets minimum requirements.
+
+    Requirements:
+    - At least 8 characters
+
+    Parameters
+    ----------
+    password : str
+        Password to validate
+
+    Raises
+    ------
+    PasswordValidationError
+        If password doesn't meet requirements
+    """
+    if not password or len(password) < MIN_PASSWORD_LENGTH:
+        raise PasswordValidationError(
+            f"Password must be at least {MIN_PASSWORD_LENGTH} characters"
+        )
 
 
 class UserRole(str, Enum):
@@ -45,7 +76,7 @@ class UserService:
     Notes
     -----
     Password storage uses Argon2id (winner of Password Hashing Competition).
-    No password requirements enforced.
+    Passwords must be at least 8 characters (see validate_password()).
     """
 
     def __init__(self, redis_client: Redis):
@@ -135,7 +166,7 @@ class UserService:
 
         # Create user entry
         keys = UserKeys(user_name)
-        current_time = datetime.datetime.utcnow().isoformat()
+        current_time = utc_now_iso()
 
         pipe = self.r.pipeline()
         pipe.hset(
@@ -157,7 +188,7 @@ class UserService:
         """Ensure user exists in Redis, creating if necessary.
 
         Idempotent operation - safe to call multiple times.
-        Used by socket.connect() to create users from JWT claims.
+        Used by /api/user/register to create guest users.
 
         Parameters
         ----------
@@ -173,7 +204,7 @@ class UserService:
             return False
 
         keys = UserKeys(user_name)
-        current_time = datetime.datetime.utcnow().isoformat()
+        current_time = utc_now_iso()
 
         pipe = self.r.pipeline()
         pipe.hset(
@@ -187,7 +218,7 @@ class UserService:
         pipe.sadd(GlobalIndexKeys.users_index(), user_name)
         pipe.execute()
 
-        log.info(f"Created user {user_name} (from JWT)")
+        log.info(f"Created guest user {user_name}")
         return True
 
     def register_user(
@@ -196,9 +227,10 @@ class UserService:
         """Register a guest user with chosen username + password.
 
         This promotes guest → user by:
-        1. Checking new username availability
-        2. Creating new user entry with password
-        3. Deleting old guest entry
+        1. Validating password requirements
+        2. Checking new username availability
+        3. Creating new user entry with password
+        4. Deleting old guest entry
 
         Parameters
         ----------
@@ -207,7 +239,7 @@ class UserService:
         new_user_name : str
             Desired username
         password : str
-            Password to set
+            Password to set (must be at least 8 characters)
 
         Returns
         -------
@@ -218,7 +250,12 @@ class UserService:
         ------
         ValueError
             If new username already exists or is invalid
+        PasswordValidationError
+            If password doesn't meet requirements
         """
+        # Validate password first
+        validate_password(password)
+
         # Validate new username
         if not new_user_name or not new_user_name.strip():
             raise ValueError("Username cannot be empty")
@@ -249,7 +286,7 @@ class UserService:
         password_hash = _ph.hash(password)
 
         old_data = self.r.hgetall(old_keys.hash_key())
-        current_time = datetime.datetime.utcnow().isoformat()
+        current_time = utc_now_iso()
 
         created_at = old_data.get(b"createdAt") or old_data.get("createdAt")
         if isinstance(created_at, bytes):
@@ -329,7 +366,7 @@ class UserService:
         old_password : str
             Current password for verification
         new_password : str
-            New password to set
+            New password to set (must be at least 8 characters)
 
         Returns
         -------
@@ -340,7 +377,12 @@ class UserService:
         ------
         ValueError
             If user is not registered or old password is wrong
+        PasswordValidationError
+            If new password doesn't meet requirements
         """
+        # Validate new password first
+        validate_password(new_password)
+
         if not self.is_registered(user_name):
             raise ValueError("User is not registered")
 
@@ -363,7 +405,7 @@ class UserService:
         user_name : str
             Username
         new_password : str
-            New password to set
+            New password to set (must be at least 8 characters)
 
         Returns
         -------
@@ -374,7 +416,12 @@ class UserService:
         ------
         ValueError
             If user is not registered
+        PasswordValidationError
+            If new password doesn't meet requirements
         """
+        # Validate new password first
+        validate_password(new_password)
+
         if not self.is_registered(user_name):
             raise ValueError("User is not registered")
 
@@ -395,8 +442,7 @@ class UserService:
             Username
         """
         keys = UserKeys(user_name)
-        current_time = datetime.datetime.utcnow().isoformat()
-        self.r.hset(keys.hash_key(), "lastLogin", current_time)
+        self.r.hset(keys.hash_key(), "lastLogin", utc_now_iso())
 
     def delete_user(self, user_name: str) -> bool:
         """Delete a user (hard deletion).

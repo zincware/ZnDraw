@@ -3,7 +3,6 @@
 Handles room creation, listing, updates, metadata, locking, duplication, and schema management.
 """
 
-import datetime
 import json
 import logging
 import re
@@ -17,6 +16,7 @@ from zndraw.extensions.analysis import analysis
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
 from zndraw.server import socketio
+from zndraw.utils.time import utc_now_iso
 
 from .frame_index_manager import FrameIndexManager
 from .redis_keys import GlobalIndexKeys, RoomKeys, SessionKeys
@@ -301,9 +301,9 @@ def join_room(room_id):
     if not room_service.room_exists(room_id):
         return {"error": f"Room '{room_id}' does not exist"}, 404
 
-    # Ensure user exists in Redis before updating membership
-    # This creates the user with proper fields if they don't exist yet
-    user_service.ensure_user_exists(user_name)
+    # User must exist from /api/user/register (users are ONLY created there)
+    if not user_service.username_exists(user_name):
+        return {"error": "User not found. Please register first."}, 401
 
     # Generate unique session ID for this client connection
     session_id = str(uuid.uuid4())
@@ -311,12 +311,13 @@ def join_room(room_id):
     # Store session mapping in Redis (sessionId → userId)
     # TTL: 24 hours (session expires if no activity)
     session_key = SessionKeys.session_data(session_id)
+    current_time = utc_now_iso()
     session_data = json.dumps(
         {
             "userId": user_name,
             "roomId": room_id,
-            "connectedAt": datetime.datetime.utcnow().isoformat(),
-            "lastActivity": datetime.datetime.utcnow().isoformat(),
+            "connectedAt": current_time,
+            "lastActivity": current_time,
         }
     )
     r.set(session_key, session_data, ex=86400)  # 24 hour TTL

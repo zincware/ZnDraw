@@ -32,6 +32,12 @@ def test_login_local_mode_all_users_admin(app_local_mode):
     """Test that all users are admin in local mode."""
     client = app_local_mode.test_client()
 
+    # Register user first
+    register_response = client.post(
+        "/api/user/register", json={"userName": "John Doe"}
+    )
+    assert register_response.status_code == 201
+
     # Login as any user
     response = client.post("/api/login", json={"userName": "John Doe"})
     assert response.status_code == 200
@@ -65,8 +71,9 @@ def test_login_deployment_mode_wrong_credentials(app_deployment_mode):
     client = app_deployment_mode.test_client()
 
     # Login with wrong password - should be rejected
+    # Note: admin user from config does NOT need to register
     response = client.post(
-        "/api/login", json={"userName": "admin", "password": "wrong"}
+        "/api/login", json={"userName": "admin", "password": "wrongpass"}
     )
     assert response.status_code == 401
     data = response.get_json()
@@ -78,6 +85,12 @@ def test_login_deployment_mode_wrong_credentials(app_deployment_mode):
 def test_login_deployment_mode_non_admin_user(app_deployment_mode):
     """Test login as non-admin user in deployment mode."""
     client = app_deployment_mode.test_client()
+
+    # Register user first
+    register_response = client.post(
+        "/api/user/register", json={"userName": "John Doe"}
+    )
+    assert register_response.status_code == 201
 
     # Login without password (non-admin user)
     response = client.post("/api/login", json={"userName": "John Doe"})
@@ -104,6 +117,9 @@ def test_shutdown_requires_auth(app_local_mode):
 def test_shutdown_local_mode_any_user(app_local_mode):
     """Test shutdown works for any authenticated user in local mode."""
     client = app_local_mode.test_client()
+
+    # Register user first
+    client.post("/api/user/register", json={"userName": "John Doe"})
 
     # Login
     login_response = client.post("/api/login", json={"userName": "John Doe"})
@@ -135,6 +151,9 @@ def test_shutdown_deployment_mode_non_admin_forbidden(app_deployment_mode):
     """Test non-admin user cannot shutdown in deployment mode."""
     client = app_deployment_mode.test_client()
 
+    # Register user first
+    client.post("/api/user/register", json={"userName": "John Doe"})
+
     # Login as non-admin user
     user_response = client.post("/api/login", json={"userName": "John Doe"})
     user_token = user_response.get_json()["token"]
@@ -150,16 +169,22 @@ def test_shutdown_deployment_mode_non_admin_forbidden(app_deployment_mode):
     assert "Admin access required" in data["error"]
 
 
-def test_login_missing_username_creates_anonymous_guest(app_local_mode):
-    """Test login without username creates anonymous guest."""
+def test_register_missing_username_creates_anonymous_guest(app_local_mode):
+    """Test /api/user/register without username creates anonymous guest."""
     client = app_local_mode.test_client()
 
-    response = client.post("/api/login", json={})
-    assert response.status_code == 200
+    # Register without username - creates anonymous guest
+    response = client.post("/api/user/register", json={})
+    assert response.status_code == 201
     data = response.get_json()
     assert data["status"] == "ok"
     # Anonymous guest gets auto-generated username
     assert "userName" in data
     assert data["userName"].startswith("user-")
+
+    # Login with generated username
+    login_response = client.post("/api/login", json={"userName": data["userName"]})
+    assert login_response.status_code == 200
+    login_data = login_response.get_json()
     # In local mode, all users are admin
-    assert data["role"] == "admin"
+    assert login_data["role"] == "admin"

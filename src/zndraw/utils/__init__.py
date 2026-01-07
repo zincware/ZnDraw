@@ -1,3 +1,9 @@
+"""ZnDraw utility modules.
+
+This module provides utility functions for room names, atom visualization,
+and time handling.
+"""
+
 import functools
 import re
 import uuid

@@ -8,7 +8,17 @@ from zndraw import ZnDraw
 
 
 def test_login_flow(server):
-    """Test full login flow - POST /api/login returns JWT token."""
+    """Test full auth flow - register user, then login to get JWT token."""
+    # Step 1: Register user
+    register_response = requests.post(
+        f"{server}/api/user/register", json={"userName": "test-user"}
+    )
+    assert register_response.status_code == 201
+    reg_data = register_response.json()
+    assert reg_data["status"] == "ok"
+    assert reg_data["userName"] == "test-user"
+
+    # Step 2: Login to get JWT
     response = requests.post(f"{server}/api/login", json={"userName": "test-user"})
 
     assert response.status_code == 200
@@ -24,30 +34,47 @@ def test_login_flow(server):
     assert data["userName"] == "test-user"
 
 
-def test_login_without_username_creates_anonymous_guest(server):
-    """Test that login without username creates anonymous guest user."""
-    response = requests.post(f"{server}/api/login", json={})
+def test_register_without_username_creates_anonymous_guest(server):
+    """Test that register without username creates anonymous guest user."""
+    # Step 1: Register without username (server generates one)
+    register_response = requests.post(f"{server}/api/user/register", json={})
+    assert register_response.status_code == 201
+    reg_data = register_response.json()
+    assert reg_data["status"] == "ok"
+    # Anonymous guest gets generated username like "user-abc123"
+    assert reg_data["userName"].startswith("user-")
 
+    # Step 2: Login with generated username
+    response = requests.post(
+        f"{server}/api/login", json={"userName": reg_data["userName"]}
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
     assert "token" in data
-    assert "userName" in data
-    # Anonymous guest gets generated username like "user-abc123"
-    assert data["userName"].startswith("user-")
     # In local mode (default), all users are admin
     assert data["role"] == "admin"
 
 
-def test_login_with_empty_username_creates_anonymous_guest(server):
-    """Test that login with empty/whitespace username creates anonymous guest."""
-    response = requests.post(f"{server}/api/login", json={"userName": "   "})
+def test_register_with_empty_username_creates_anonymous_guest(server):
+    """Test that register with empty/whitespace username creates anonymous guest."""
+    # Step 1: Register with empty username (server generates one)
+    register_response = requests.post(
+        f"{server}/api/user/register", json={"userName": "   "}
+    )
+    assert register_response.status_code == 201
+    reg_data = register_response.json()
+    assert reg_data["status"] == "ok"
+    # Empty username is treated same as no username - generates guest user
+    assert reg_data["userName"].startswith("user-")
 
+    # Step 2: Login with generated username
+    response = requests.post(
+        f"{server}/api/login", json={"userName": reg_data["userName"]}
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
-    # Empty username is treated same as no username - generates guest user
-    assert data["userName"].startswith("user-")
     # In local mode (default), all users are admin
     assert data["role"] == "admin"
 
@@ -151,6 +178,12 @@ def test_multiple_logins_same_username_get_same_user(server):
     """Test that multiple logins with same username get the same user identity."""
     username = "duplicate-user"
 
+    # Register user first
+    register_response = requests.post(
+        f"{server}/api/user/register", json={"userName": username}
+    )
+    assert register_response.status_code == 201
+
     # First login
     response1 = requests.post(f"{server}/api/login", json={"userName": username})
     assert response1.status_code == 200
@@ -170,7 +203,15 @@ def test_jwt_token_contains_correct_claims(server):
     """Test that JWT token contains expected claims."""
     import jwt as pyjwt
 
-    username = "test-user"
+    username = "test-user-claims"
+
+    # Register user first
+    register_response = requests.post(
+        f"{server}/api/user/register", json={"userName": username}
+    )
+    assert register_response.status_code == 201
+
+    # Login to get JWT
     response = requests.post(f"{server}/api/login", json={"userName": username})
     assert response.status_code == 200
     data = response.json()
@@ -200,49 +241,46 @@ def test_python_client_auto_login(server):
     vis.socket.disconnect()
 
 
-def test_guest_login_does_not_create_redis_entry(server, redis_client):
-    """Test that guest login does NOT create Redis entry (JWT only).
+def test_user_created_on_register(server, redis_client):
+    """Test that user is created in Redis when /api/user/register is called.
 
-    In the new flow, guest users are created in Redis only on socket.connect().
-    This ensures JWT is the single source of truth for identity.
+    In the new flow, users are created via /api/user/register (the ONLY place
+    for user creation). Login and socket.connect only authenticate/validate.
     """
     from zndraw.app.redis_keys import UserKeys
 
-    username = "redis-test-user"
+    username = "redis-register-test-user"
 
-    # Login - should NOT create Redis entry for guests
-    response = requests.post(f"{server}/api/login", json={"userName": username})
-    assert response.status_code == 200
-    data = response.json()
-    user_name = data["userName"]
-
-    # Check Redis - user should NOT exist yet
-    keys = UserKeys(user_name)
+    # Check user doesn't exist yet
+    keys = UserKeys(username)
     assert redis_client.exists(keys.hash_key()) == 0
 
+    # Register - should create Redis entry
+    response = requests.post(
+        f"{server}/api/user/register", json={"userName": username}
+    )
+    assert response.status_code == 201
 
-def test_user_created_on_socket_connect(server, redis_client):
-    """Test that user is created in Redis when socket connects."""
-    from zndraw import ZnDraw
-    from zndraw.app.redis_keys import UserKeys
+    # Check Redis - user should NOW exist
+    assert redis_client.exists(keys.hash_key()) == 1
 
-    username = "socket-connect-user"
+    # Verify stored data
+    user_data = redis_client.hgetall(keys.hash_key())
+    assert user_data["userName"] == username
+    assert "createdAt" in user_data
 
-    # Connect via ZnDraw (which triggers socket.connect)
-    vis = ZnDraw(url=server, room="test-room", user=username)
 
-    try:
-        # User should now exist in Redis (created by handle_connect)
-        keys = UserKeys(username)
-        assert redis_client.exists(keys.hash_key()) == 1
+def test_login_without_registration_fails(server):
+    """Test that login fails if user doesn't exist (wasn't registered)."""
+    username = "unregistered-user"
 
-        # Verify stored data
-        user_data = redis_client.hgetall(keys.hash_key())
-        assert user_data["userName"] == username
-        assert "createdAt" in user_data
-        assert "lastLogin" in user_data
-    finally:
-        vis.socket.disconnect()
+    # Login without registering first - should fail
+    response = requests.post(f"{server}/api/login", json={"userName": username})
+
+    assert response.status_code == 401
+    data = response.json()
+    assert "error" in data
+    assert "register" in data["error"].lower()
 
 
 def test_join_room_updates_redis_room_users(server, redis_client, get_jwt_auth_headers):

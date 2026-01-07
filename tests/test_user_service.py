@@ -306,7 +306,7 @@ def test_change_password_wrong_old_password(user_service):
     user_service.register_user(user_name, user_name, old_password)
 
     with pytest.raises(ValueError, match="Current password is incorrect"):
-        user_service.change_password(user_name, "wrongold", "newpass")
+        user_service.change_password(user_name, "wrongold1", "newpass123")
 
 
 def test_change_password_not_registered(user_service):
@@ -315,13 +315,13 @@ def test_change_password_not_registered(user_service):
     user_service.create_user(user_name)
 
     with pytest.raises(ValueError, match="not registered"):
-        user_service.change_password(user_name, "old", "new")
+        user_service.change_password(user_name, "oldpass123", "newpass123")
 
 
 def test_change_password_nonexistent_user(user_service):
     """Test that non-existent user cannot change password."""
     with pytest.raises(ValueError, match="not registered"):
-        user_service.change_password("nonexistent", "old", "new")
+        user_service.change_password("nonexistent", "oldpass123", "newpass123")
 
 
 def test_reset_password_admin(user_service):
@@ -346,13 +346,13 @@ def test_reset_password_not_registered(user_service):
     user_service.create_user(user_name)
 
     with pytest.raises(ValueError, match="not registered"):
-        user_service.reset_password(user_name, "newpass")
+        user_service.reset_password(user_name, "newpass123")
 
 
 def test_reset_password_nonexistent_user(user_service):
     """Test that cannot reset password for non-existent user."""
     with pytest.raises(ValueError, match="not registered"):
-        user_service.reset_password("nonexistent", "newpass")
+        user_service.reset_password("nonexistent", "newpass123")
 
 
 def test_update_last_login(user_service, redis_client):
@@ -528,28 +528,36 @@ def test_password_hashing_produces_unique_hashes(user_service, redis_client):
     assert hash_2.startswith("$argon2")
 
 
-def test_no_password_requirements(user_service):
-    """Test that any password is accepted (no requirements enforced)."""
+def test_password_requirements_enforced(user_service):
+    """Test that password requirements are enforced."""
+    from zndraw.services.user_service import PasswordValidationError
+
     base_name = "test-user"
 
-    # Very short password
+    # Very short password (< 8 chars) should be rejected
     user_name_1 = f"{base_name}-1"
     user_service.create_user(user_name_1)
-    user_service.register_user(user_name_1, user_name_1, "1")
-    assert user_service.verify_password(user_name_1, "1")
+    with pytest.raises(PasswordValidationError, match="at least 8 characters"):
+        user_service.register_user(user_name_1, user_name_1, "1")
 
-    # Password with only spaces
+    # Password with only spaces (< 8 chars) should be rejected
     user_name_2 = f"{base_name}-2"
     user_service.create_user(user_name_2)
-    user_service.register_user(user_name_2, user_name_2, "   ")
-    assert user_service.verify_password(user_name_2, "   ")
+    with pytest.raises(PasswordValidationError, match="at least 8 characters"):
+        user_service.register_user(user_name_2, user_name_2, "   ")
 
-    # Very long password
+    # Valid password (8+ chars) should be accepted
     user_name_3 = f"{base_name}-3"
-    long_pass = "x" * 1000
     user_service.create_user(user_name_3)
-    user_service.register_user(user_name_3, user_name_3, long_pass)
-    assert user_service.verify_password(user_name_3, long_pass)
+    user_service.register_user(user_name_3, user_name_3, "validpass123")
+    assert user_service.verify_password(user_name_3, "validpass123")
+
+    # Very long password should be accepted
+    user_name_4 = f"{base_name}-4"
+    long_pass = "x" * 1000
+    user_service.create_user(user_name_4)
+    user_service.register_user(user_name_4, user_name_4, long_pass)
+    assert user_service.verify_password(user_name_4, long_pass)
 
 
 def test_register_user_transfers_admin_status(user_service, admin_service_deployment):

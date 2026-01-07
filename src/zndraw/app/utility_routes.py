@@ -147,16 +147,17 @@ def rdkit_image():
 
 @utility.route("/api/login", methods=["POST"])
 def login():
-    """Issue JWT token. Does NOT create users in Redis for guests.
+    """Authenticate user and issue JWT. NEVER creates users.
 
-    Guest users get JWT with generated username; Redis entry created on socket.connect().
-    Registered users validate password against Redis.
-    Admin users validate against configured credentials.
+    User must exist (from /api/user/register) before login.
+    Guest users: no password required.
+    Registered users: password validation against Redis.
+    Admin users: validate against configured credentials.
 
     Request
     -------
     {
-        "userName": "JohnDoe",  // Optional, generates guest username if not provided
+        "userName": "JohnDoe",  // Required
         "password": "secret"    // Optional, required for registered users
     }
 
@@ -173,6 +174,9 @@ def login():
     user_name = (data.get("userName") or "").strip()
     password = data.get("password")
 
+    if not user_name:
+        return {"error": "userName required"}, 400
+
     admin_service = current_app.extensions["admin_service"]
     user_service = current_app.extensions["user_service"]
 
@@ -180,25 +184,27 @@ def login():
     if password:
         return _handle_password_login(user_name, password, user_service, admin_service)
 
-    # No password - guest login (JWT only, no Redis writes)
+    # No password - guest login (user must exist from /api/user/register)
     return _handle_guest_login(user_name, user_service, admin_service)
 
 
 def _handle_password_login(user_name, password, user_service, admin_service):
     """Handle login with password (registered user or admin)."""
-    if not user_name:
-        return {"error": "userName required with password"}, 400
-
     # Check admin credentials first
     if admin_service.validate_admin_credentials(user_name, password):
+        # Admin login - ensure user exists in Redis for tracking
         user_service.ensure_user_exists(user_name)
         admin_service.grant_admin(user_name)
         user_service.update_last_login(user_name)
         return _issue_token(user_name, "admin")
 
-    # Verify regular user
-    if not user_service.username_exists(user_name):
+    # If username matches configured admin but password is wrong
+    if admin_service.is_admin_username(user_name):
         return {"error": "Invalid username or password"}, 401
+
+    # User must exist (from /api/user/register)
+    if not user_service.username_exists(user_name):
+        return {"error": "User not found. Please register first."}, 401
 
     if not user_service.verify_password(user_name, password):
         return {"error": "Invalid username or password"}, 401
@@ -209,19 +215,16 @@ def _handle_password_login(user_name, password, user_service, admin_service):
 
 
 def _handle_guest_login(user_name, user_service, admin_service):
-    """Handle guest login (no password) - JWT only, no Redis entry."""
-    # Generate username if not provided
-    if not user_name:
-        user_name = f"user-{secrets.token_hex(4)}"
+    """Handle guest login (no password) - user must exist from /api/user/register."""
+    # User must exist (from /api/user/register)
+    if not user_service.username_exists(user_name):
+        return {"error": "User not found. Please register first."}, 401
 
     # If existing registered user, require password
-    if user_service.username_exists(user_name) and user_service.is_registered(
-        user_name
-    ):
+    if user_service.is_registered(user_name):
         return {"error": "Password required for registered users"}, 401
 
-    # Issue JWT without creating Redis entry
-    # User will be created on first socket.connect()
+    user_service.update_last_login(user_name)
     role = _determine_role(user_name, user_service, admin_service)
     log.info(f"Issued JWT for guest '{user_name}'")
     return _issue_token(user_name, role)
@@ -246,18 +249,77 @@ def _issue_token(user_name, role):
 
 
 @utility.route("/api/user/register", methods=["POST"])
-@require_auth
 def register_user():
-    """Register a guest user with chosen username and password.
+    """Register a new user (guest or with password).
 
-    Allows user to choose permanent username and set password.
-    Old guest username will be deleted.
+    This is the ONLY endpoint that creates users. Call this before /api/login.
+    - No password: Creates guest user (can be upgraded later)
+    - With password: Creates registered user with credentials
+
+    Request
+    -------
+    {
+        "userName": "MyUsername",  // Optional, generates random if not provided
+        "password": "mypassword"   // Optional, creates guest if not provided
+    }
+
+    Response
+    --------
+    {
+        "status": "ok",
+        "userName": "MyUsername"
+    }
+    """
+    from zndraw.services.user_service import PasswordValidationError
+
+    data = request.get_json() or {}
+    user_name = (data.get("userName") or "").strip()
+    password = data.get("password")
+
+    user_service = current_app.extensions["user_service"]
+
+    # Generate username if not provided (for guests)
+    if not user_name:
+        user_name = f"user-{secrets.token_hex(4)}"
+
+    # Check if user already exists
+    if user_service.username_exists(user_name):
+        return {"error": f"Username '{user_name}' already exists"}, 409
+
+    try:
+        if password:
+            # Register with password (full registration)
+            user_service.register_user(user_name, user_name, password)
+            log.info(f"Registered new user '{user_name}' with password")
+        else:
+            # Guest registration (no password)
+            user_service.ensure_user_exists(user_name)
+            log.info(f"Created guest user '{user_name}'")
+
+        return {"status": "ok", "userName": user_name}, 201
+
+    except PasswordValidationError as e:
+        return {"error": str(e), "type": "ValidationError"}, 400
+    except ValueError as e:
+        return {"error": str(e), "type": "ValidationError"}, 400
+    except Exception as e:
+        log.error(f"Error registering user: {e}")
+        return {"error": "Registration failed", "type": "ServerError"}, 500
+
+
+@utility.route("/api/user/upgrade", methods=["POST"])
+@require_auth
+def upgrade_user():
+    """Upgrade a guest user to registered with chosen username and password.
+
+    Allows guest user to choose permanent username and set password.
+    Old guest username will be deleted if different.
 
     Request
     -------
     {
         "userName": "MyUsername",  // Required, desired username
-        "password": "mypassword"   // Required, no requirements
+        "password": "mypassword"   // Required, must meet password requirements
     }
 
     Response
@@ -269,6 +331,8 @@ def register_user():
         "role": "user"
     }
     """
+    from zndraw.services.user_service import PasswordValidationError
+
     try:
         old_user_name = get_current_user()
 
@@ -300,11 +364,13 @@ def register_user():
             "role": "user",
         }
 
+    except PasswordValidationError as e:
+        return {"error": str(e), "type": "ValidationError"}, 400
     except ValueError as e:
         return {"error": str(e), "type": "ValidationError"}, 400
     except Exception as e:
-        log.error(f"Error registering user: {e}")
-        return {"error": "Registration failed", "type": "ServerError"}, 500
+        log.error(f"Error upgrading user: {e}")
+        return {"error": "Upgrade failed", "type": "ServerError"}, 500
 
 
 @utility.route("/api/user/change-password", methods=["POST"])

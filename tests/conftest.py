@@ -55,7 +55,9 @@ def _wait_for_server(port: int, timeout: float = 10.0) -> bool:
 
 
 def _get_jwt_auth_headers(server_url: str, user_name: str | None = None) -> dict:
-    """Login and get JWT authentication headers for API requests.
+    """Register user and get JWT authentication headers for API requests.
+
+    Follows the proper auth flow: register first, then login.
 
     Args:
         server_url: The base URL of the server (e.g., "http://127.0.0.1:5000")
@@ -69,6 +71,15 @@ def _get_jwt_auth_headers(server_url: str, user_name: str | None = None) -> dict
     if user_name is None:
         user_name = f"test-user-{uuid.uuid4().hex[:8]}"
 
+    # Step 1: Register user (creates in backend)
+    register_response = requests.post(
+        f"{server_url}/api/user/register", json={"userName": user_name}
+    )
+    # 409 = already exists, which is fine (allows reusing usernames in tests)
+    if register_response.status_code not in (200, 201, 409):
+        raise RuntimeError(f"Registration failed: {register_response.text}")
+
+    # Step 2: Login (get JWT)
     response = requests.post(f"{server_url}/api/login", json={"userName": user_name})
 
     if response.status_code != 200:

@@ -78,6 +78,23 @@ class AdminService:
 
         return username == self._admin_username and password == self._admin_password
 
+    def is_admin_username(self, username: str) -> bool:
+        """Check if username matches the configured admin username.
+
+        Used to detect wrong password attempts for admin user.
+
+        Parameters
+        ----------
+        username : str
+            Username to check
+
+        Returns
+        -------
+        bool
+            True if username matches configured admin username
+        """
+        return self._deployment_mode and username == self._admin_username
+
     def grant_admin(self, user_name: str) -> None:
         """Grant admin privileges to a user.
 
