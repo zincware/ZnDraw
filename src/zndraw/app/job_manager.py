@@ -198,9 +198,7 @@ class JobManager:
 
         # Add to indexes
         redis_client.sadd(room_keys.jobs_active(), job_id)
-        redis_client.zadd(
-            room_keys.jobs_by_time(), {job_id: utc_now_timestamp()}
-        )
+        redis_client.zadd(room_keys.jobs_by_time(), {job_id: utc_now_timestamp()})
         redis_client.sadd(room_keys.extension_jobs(category, extension), job_id)
 
         # Update Prometheus metrics - increment counter for submitted jobs

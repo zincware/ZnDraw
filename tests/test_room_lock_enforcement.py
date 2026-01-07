@@ -31,9 +31,7 @@ def test_user(client):
     """Create a test user and return username and token."""
     user_name = f"test-user-{uuid.uuid4().hex[:8]}"
     # Register user first
-    register_response = client.post(
-        "/api/user/register", json={"userName": user_name}
-    )
+    register_response = client.post("/api/user/register", json={"userName": user_name})
     assert register_response.status_code == 201
     # Then login
     response = client.post("/api/login", json={"userName": user_name})
