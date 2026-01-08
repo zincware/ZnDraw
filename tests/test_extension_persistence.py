@@ -34,7 +34,9 @@ def test_extension_reregisters_after_restart(server_provider):
     time.sleep(0.5)
 
     # Verify registered
-    response = requests.get(f"{server_provider.url}/api/rooms/test-room/schema/modifiers")
+    response = requests.get(
+        f"{server_provider.url}/api/rooms/test-room/schema/modifiers"
+    )
     assert "PersistenceTestExtension" in [ext["name"] for ext in response.json()]
 
     # Normal restart (Redis persists, session valid) - client should auto-reconnect
@@ -51,7 +53,9 @@ def test_extension_reregisters_after_restart(server_provider):
     time.sleep(1.0)
 
     # Extension should be available (persisted in Redis + re-registered by client)
-    response = requests.get(f"{server_provider.url}/api/rooms/test-room/schema/modifiers")
+    response = requests.get(
+        f"{server_provider.url}/api/rooms/test-room/schema/modifiers"
+    )
     assert response.status_code == 200
     extension_names = [ext["name"] for ext in response.json()]
     assert "PersistenceTestExtension" in extension_names, (
@@ -70,7 +74,9 @@ def test_fresh_restart_invalidates_session(server_provider):
     time.sleep(0.5)
 
     # Verify registered
-    response = requests.get(f"{server_provider.url}/api/rooms/test-room/schema/modifiers")
+    response = requests.get(
+        f"{server_provider.url}/api/rooms/test-room/schema/modifiers"
+    )
     assert "PersistenceTestExtension" in [ext["name"] for ext in response.json()]
 
     # Fresh restart flushes Redis - session becomes invalid
@@ -78,10 +84,14 @@ def test_fresh_restart_invalidates_session(server_provider):
 
     # Client cannot reconnect (session invalidated)
     time.sleep(2.0)
-    assert vis.socket.connected is False, "Client should NOT reconnect after fresh restart"
+    assert vis.socket.connected is False, (
+        "Client should NOT reconnect after fresh restart"
+    )
 
     # Extension is gone (Redis was flushed)
-    response = requests.get(f"{server_provider.url}/api/rooms/test-room/schema/modifiers")
+    response = requests.get(
+        f"{server_provider.url}/api/rooms/test-room/schema/modifiers"
+    )
     assert response.status_code == 200
     extension_names = [ext["name"] for ext in response.json()]
     assert "PersistenceTestExtension" not in extension_names, (
