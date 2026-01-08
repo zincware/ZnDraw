@@ -5,21 +5,34 @@ import redis
 import requests
 
 
+def _create_and_join_room(server, room, auth_headers):
+    """Helper to create a room and join it, returning session_id."""
+    # Create the room first
+    create_response = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": room},
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+
+    # Join the room
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
+    )
+    assert response.status_code == 200
+    return response.json()["sessionId"]
+
+
 @pytest.fixture
 def room_with_lock(server, get_jwt_auth_headers):
-    """Join a room, acquire a lock, and return server, room, session_id, auth_headers, lock_token."""
+    """Create a room, join it, acquire a lock, and return server, room, session_id, auth_headers, lock_token."""
     room = "test-lock-room"
 
     # Get auth headers
     auth_headers = get_jwt_auth_headers(server, "test-user")
 
-    # Join the room to get session ID
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
-    )
-    assert response.status_code == 200
-    join_data = response.json()
-    session_id = join_data["sessionId"]
+    # Create and join room
+    session_id = _create_and_join_room(server, room, auth_headers)
 
     # Acquire lock for trajectory:meta
     response = requests.post(
@@ -40,6 +53,9 @@ def test_requires_lock_missing_session_id(server, get_jwt_auth_headers):
     room = "test-missing-session"
     auth_headers = get_jwt_auth_headers(server, "test-user")
 
+    # Create room first
+    _create_and_join_room(server, room, auth_headers)
+
     # Try to create geometry without session ID header
     response = requests.post(
         f"{server}/api/rooms/{room}/geometries",
@@ -56,6 +72,9 @@ def test_requires_lock_invalid_session_id(server, get_jwt_auth_headers):
     """Test that decorator rejects requests with invalid session ID."""
     room = "test-invalid-session"
     auth_headers = get_jwt_auth_headers(server, "test-user")
+
+    # Create room first
+    _create_and_join_room(server, room, auth_headers)
 
     # Try to create geometry with invalid session ID
     response = requests.post(
@@ -79,12 +98,8 @@ def test_requires_lock_missing_lock_token(server, s22, get_jwt_auth_headers):
     room = "test-missing-lock"
     auth_headers = get_jwt_auth_headers(server, "test-user")
 
-    # Join room to get valid session ID
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
-    )
-    assert response.status_code == 200
-    session_id = response.json()["sessionId"]
+    # Create and join room
+    session_id = _create_and_join_room(server, room, auth_headers)
 
     # Prepare frame data
     frame_bytes = ase.io.write("-", s22[0], format="extxyz")
@@ -106,13 +121,9 @@ def test_requires_lock_session_user_mismatch(server, get_jwt_auth_headers):
 
     room = "test-session-mismatch"
 
-    # User 1 joins and gets session
+    # User 1 creates room and joins
     user1_headers = get_jwt_auth_headers(server, "user1")
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=user1_headers
-    )
-    assert response.status_code == 200
-    user1_session_id = response.json()["sessionId"]
+    user1_session_id = _create_and_join_room(server, room, user1_headers)
 
     # User 2 gets auth token
     user2_headers = get_jwt_auth_headers(server, "user2")
@@ -171,12 +182,8 @@ def test_requires_lock_different_session_same_user(server, s22, get_jwt_auth_hea
     room = "test-different-session"
     auth_headers = get_jwt_auth_headers(server, "test-user")
 
-    # Session 1: Join and acquire lock
-    response1 = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
-    )
-    assert response1.status_code == 200
-    session1_id = response1.json()["sessionId"]
+    # Session 1: Create room, join and acquire lock
+    session1_id = _create_and_join_room(server, room, auth_headers)
 
     response = requests.post(
         f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
@@ -218,12 +225,8 @@ def test_requires_lock_after_lock_expiry(server, s22, get_jwt_auth_headers):
     room = "test-lock-expiry"
     auth_headers = get_jwt_auth_headers(server, "test-user")
 
-    # Join room
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
-    )
-    assert response.status_code == 200
-    session_id = response.json()["sessionId"]
+    # Create and join room
+    session_id = _create_and_join_room(server, room, auth_headers)
 
     # Acquire lock
     response = requests.post(
@@ -292,9 +295,13 @@ def test_requires_lock_multiple_operations_same_lock(room_with_lock):
     assert "sphere2" in geom_list
 
 
-def test_requires_lock_with_missing_jwt(server):
+def test_requires_lock_with_missing_jwt(server, get_jwt_auth_headers):
     """Test that decorator rejects requests without JWT token."""
     room = "test-missing-jwt"
+    auth_headers = get_jwt_auth_headers(server, "test-user")
+
+    # Create room first
+    _create_and_join_room(server, room, auth_headers)
 
     # Try to create geometry without authentication
     response = requests.post(
@@ -307,9 +314,13 @@ def test_requires_lock_with_missing_jwt(server):
     assert response.status_code in [401, 403]
 
 
-def test_requires_lock_with_invalid_jwt(server):
+def test_requires_lock_with_invalid_jwt(server, get_jwt_auth_headers):
     """Test that decorator rejects requests with invalid JWT token."""
     room = "test-invalid-jwt"
+    auth_headers = get_jwt_auth_headers(server, "test-user")
+
+    # Create room first
+    _create_and_join_room(server, room, auth_headers)
 
     # Try to create geometry with invalid JWT
     response = requests.post(

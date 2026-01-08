@@ -11,6 +11,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "argon2-cffi>=25.1.0",
     "ase>=3.26.0",
     "asebytes>=0.1.7",
     "cachetools>=6.2.0",

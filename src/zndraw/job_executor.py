@@ -97,14 +97,16 @@ def execute_job_for_worker(
         category = job_data["category"]
         extension = job_data["extension"]
         data = job_data["data"]
-        public = job_data["public"]
 
         log.info(
             f"Worker {worker_id} fetched job {job_id}: {category}/{extension} in room {room}"
         )
 
         # Step 2: Create ZnDraw instance in target room
-        vis = ZnDraw(room=room, url=server_url, user=worker_id)
+        # Worker IDs use format "celery:{task_id}" for tracking purposes.
+        # Usernames don't allow colons (Redis key delimiter), so sanitize here.
+        user_name = worker_id.replace(":", "-")
+        vis = ZnDraw(room=room, url=server_url, user=user_name)
 
         # Step 3: Get extension class from registry or built-ins
         if extension_registry is not None:
@@ -123,7 +125,7 @@ def execute_job_for_worker(
             run_kwargs = {**stored_run_kwargs, **(run_kwargs or {})}
         else:
             # Celery worker: use built-in extensions only
-            extension_class = _get_extension_class(category, extension, public)
+            extension_class = _get_extension_class(category, extension)
 
         # Step 4: Update job status to 'processing' via vis.api.update_job_status()
         vis.api.update_job_status(
@@ -202,7 +204,7 @@ def execute_job_for_worker(
                 )
 
 
-def _get_extension_class(category: str, extension: str, public: bool):
+def _get_extension_class(category: str, extension: str):
     """Get extension class from category and extension name.
 
     Parameters
@@ -211,8 +213,6 @@ def _get_extension_class(category: str, extension: str, public: bool):
         Extension category
     extension : str
         Extension name
-    public : bool
-        Whether to look in public (global) extensions
 
     Returns
     -------

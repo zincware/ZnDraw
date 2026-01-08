@@ -3,7 +3,6 @@
 Handles room creation, listing, updates, metadata, locking, duplication, and schema management.
 """
 
-import datetime
 import json
 import logging
 import re
@@ -17,6 +16,7 @@ from zndraw.extensions.analysis import analysis
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
 from zndraw.server import socketio
+from zndraw.utils.time import utc_now_iso
 
 from .frame_index_manager import FrameIndexManager
 from .redis_keys import GlobalIndexKeys, RoomKeys, SessionKeys
@@ -132,6 +132,81 @@ def list_rooms():
     return rooms, 200
 
 
+@rooms.route("/api/rooms", methods=["POST"])
+@require_auth
+def create_room():
+    """Create a new room explicitly.
+
+    This is the preferred way to create rooms. Use this endpoint instead of
+    relying on implicit room creation during join.
+
+    Headers
+    -------
+    Authorization: Bearer <jwt-token> (required)
+
+    Request
+    -------
+    {
+        "roomId": "my-room",           // Required
+        "description": "...",          // Optional
+        "copyFrom": "source-room"      // Optional - copy data from existing room
+    }
+
+    Response
+    --------
+    {
+        "status": "ok",
+        "roomId": "my-room",
+        "frameCount": 0,
+        "created": true
+    }
+    """
+    from zndraw.auth import get_current_user
+
+    data = request.get_json() or {}
+    room_id = data.get("roomId")
+
+    if not room_id:
+        return {"error": "roomId is required"}, 400
+
+    if ":" in room_id:
+        return {"error": "Room ID cannot contain ':' character"}, 400
+
+    user_name = get_current_user()
+    room_service = current_app.extensions["room_service"]
+
+    if room_service.room_exists(room_id):
+        return {"error": f"Room '{room_id}' already exists"}, 409
+
+    description = data.get("description")
+    copy_from = data.get("copyFrom")
+
+    try:
+        result = room_service.create_room(room_id, user_name, description, copy_from)
+    except ValueError as e:
+        return {"error": str(e)}, 404
+
+    # Broadcast room creation
+    emit_room_update(
+        socketio,
+        room_id,
+        created=True,
+        description=description,
+        frameCount=result["frameCount"],
+        locked=False,
+        isDefault=False,
+    )
+
+    log.info(f"User {user_name} created room {room_id}")
+
+    return {
+        "status": "ok",
+        "roomId": room_id,
+        "frameCount": result["frameCount"],
+        "created": True,
+    }, 201
+
+
 @rooms.route("/api/rooms/<string:room_id>", methods=["GET"])
 @require_auth
 def get_room(room_id):
@@ -180,7 +255,9 @@ def get_room(room_id):
 
 @rooms.route("/api/rooms/<string:room_id>/join", methods=["POST"])
 def join_room(room_id):
-    """Join a room (requires JWT authentication).
+    """Join an existing room (requires JWT authentication).
+
+    Does NOT create rooms. Use POST /api/rooms to create first.
 
     Generates a unique sessionId for this client connection.
     The sessionId identifies this specific browser tab/client instance
@@ -190,22 +267,13 @@ def join_room(room_id):
     -------
     Authorization: Bearer <jwt-token> (required)
 
-    Request
-    -------
-    {
-        "description": "optional room description",
-        "copyFrom": "optional-source-room",
-        "allowCreate": true
-    }
-
     Response
     --------
     {
         "status": "ok",
         "roomId": "room-name",
         "userName": "username",
-        "sessionId": "unique-session-uuid",
-        "created": true
+        "sessionId": "unique-session-uuid"
     }
 
     Note
@@ -215,7 +283,6 @@ def join_room(room_id):
     """
     from zndraw.auth import AuthError, get_current_user
 
-    data = request.get_json() or {}
     if ":" in room_id:
         return {"error": "Room ID cannot contain ':' character"}, 400
 
@@ -225,76 +292,47 @@ def join_room(room_id):
     except AuthError as e:
         return {"error": e.message}, e.status_code
 
-    # Generate unique session ID for this client connection
-    session_id = str(uuid.uuid4())
-    description = data.get("description")
-    copy_from = data.get("copyFrom")
-    allow_create = data.get("allowCreate", True)
     r = current_app.extensions["redis"]
     room_service = current_app.extensions["room_service"]
     client_service = current_app.extensions["client_service"]
+    user_service = current_app.extensions["user_service"]
+
+    # Check if room exists - return 404 if not
+    if not room_service.room_exists(room_id):
+        return {"error": f"Room '{room_id}' does not exist"}, 404
+
+    # User must exist from /api/user/register (users are ONLY created there)
+    if not user_service.username_exists(user_name):
+        return {"error": "User not found. Please register first."}, 401
+
+    # Generate unique session ID for this client connection
+    session_id = str(uuid.uuid4())
 
     # Store session mapping in Redis (sessionId → userId)
     # TTL: 24 hours (session expires if no activity)
     session_key = SessionKeys.session_data(session_id)
+    current_time = utc_now_iso()
     session_data = json.dumps(
         {
             "userId": user_name,
             "roomId": room_id,
-            "connectedAt": datetime.datetime.utcnow().isoformat(),
-            "lastActivity": datetime.datetime.utcnow().isoformat(),
+            "connectedAt": current_time,
+            "lastActivity": current_time,
         }
     )
     r.set(session_key, session_data, ex=86400)  # 24 hour TTL
 
     log.info(f"User {user_name} joined room {room_id} with session {session_id}")
 
-    # Check if room already exists
-    room_exists = room_service.room_exists(room_id)
-
-    # If allowCreate is False and room doesn't exist, return 404
-    if not allow_create and not room_exists:
-        return {
-            "status": "not_found",
-            "message": f"Room '{room_id}' does not exist yet. It may still be loading.",
-        }, 404
-
     # Update client room membership atomically (using userName as identifier)
     client_service.update_user_and_room_membership(user_name, room_id)
 
-    response = {
+    return {
         "status": "ok",
         "userName": user_name,
-        "sessionId": session_id,  # Return session ID to client
+        "sessionId": session_id,
         "roomId": room_id,
-        "created": not room_exists,
     }
-
-    if not room_exists:
-        # Create new room using RoomService
-        try:
-            result = room_service.create_room(
-                room_id, user_name, description, copy_from
-            )
-            frame_count = result["frameCount"]
-        except ValueError as e:
-            return {"error": str(e)}, 404
-
-        # Include frameCount in response when creating room (especially for copyFrom)
-        response["frameCount"] = frame_count
-
-        # Broadcast room creation to all connected clients
-        emit_room_update(
-            socketio,
-            room_id,
-            created=True,
-            description=description,
-            frameCount=frame_count,
-            locked=False,
-            isDefault=False,
-        )
-
-    return response
 
 
 @rooms.route("/api/rooms/<string:room_id>", methods=["PATCH"])

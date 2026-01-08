@@ -8,9 +8,17 @@ from zndraw import ZnDraw
 def test_rest_get_chat_messages_empty(server, get_jwt_auth_headers):
     """Test fetching messages from an empty room"""
     room = "test-chat-room"
+    headers = get_jwt_auth_headers(server)
+
     # Create room first
+    create_response = requests.post(
+        f"{server}/api/rooms", json={"roomId": room}, headers=headers
+    )
+    assert create_response.status_code == 201
+
+    # Join room
     response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=get_jwt_auth_headers(server)
+        f"{server}/api/rooms/{room}/join", json={}, headers=headers
     )
     assert response.status_code == 200
 

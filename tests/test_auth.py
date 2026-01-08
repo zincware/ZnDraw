@@ -1,5 +1,7 @@
 """Unit tests for JWT authentication utilities."""
 
+import datetime
+
 import jwt as pyjwt
 import pytest
 
@@ -99,3 +101,51 @@ def test_get_current_user_with_invalid_token_raises_error(app):
         ):
             with pytest.raises(AuthError, match="Invalid token"):
                 get_current_user()
+
+
+def test_jwt_token_has_expiration(app):
+    """Test that JWT tokens have a 7-day expiration claim."""
+    with app.app_context():
+        token = create_jwt_token("TestUser", role="guest")
+        payload = decode_jwt_token(token)
+
+        # Token should have exp claim
+        assert "exp" in payload
+        assert "iat" in payload
+
+        # exp should be ~7 days after iat
+        exp_dt = datetime.datetime.fromtimestamp(
+            payload["exp"], tz=datetime.timezone.utc
+        )
+        iat_dt = datetime.datetime.fromtimestamp(
+            payload["iat"], tz=datetime.timezone.utc
+        )
+
+        # Check that expiration is approximately 7 days (within 1 minute tolerance)
+        expected_delta = datetime.timedelta(days=7)
+        actual_delta = exp_dt - iat_dt
+        assert abs((actual_delta - expected_delta).total_seconds()) < 60
+
+
+def test_expired_jwt_token_raises_error(app):
+    """Test that expired tokens raise AuthError."""
+    from zndraw.utils.time import utc_now
+
+    with app.app_context():
+        # Create a token with past expiration
+        secret_key = app.config["SECRET_KEY"]
+        algorithm = app.config.get("JWT_ALGORITHM", "HS256")
+
+        now = utc_now()
+        expired_payload = {
+            "sub": "TestUser",
+            "role": "guest",
+            "jti": "test-jti",
+            "iat": now - datetime.timedelta(days=8),
+            "exp": now - datetime.timedelta(days=1),
+        }
+
+        expired_token = pyjwt.encode(expired_payload, secret_key, algorithm=algorithm)
+
+        with pytest.raises(AuthError, match="Token expired"):
+            decode_jwt_token(expired_token)

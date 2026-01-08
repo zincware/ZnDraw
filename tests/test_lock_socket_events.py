@@ -7,6 +7,24 @@ import requests
 import socketio
 
 
+def _create_and_join_room(server, room, auth_headers):
+    """Helper to create a room and join it, returning session_id."""
+    # Create the room first
+    create_response = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": room},
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+
+    # Join the room
+    response = requests.post(
+        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
+    )
+    assert response.status_code == 200
+    return response.json()["sessionId"]
+
+
 @pytest.fixture
 def socketio_client():
     """Create a Socket.IO client for testing."""
@@ -18,20 +36,15 @@ def socketio_client():
 
 @pytest.fixture
 def authenticated_session(server, get_jwt_auth_headers):
-    """Join a room and return server, room, session_id, auth_headers, socketio_client."""
+    """Create and join a room, return server, room, session_id, auth_headers, socketio_client."""
     room = "test-lock-socket"
     user_name = "test-user"
 
     # Get auth headers
     auth_headers = get_jwt_auth_headers(server, user_name)
 
-    # Join the room to get session ID
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
-    )
-    assert response.status_code == 200
-    join_data = response.json()
-    session_id = join_data["sessionId"]
+    # Create and join room
+    session_id = _create_and_join_room(server, room, auth_headers)
 
     # Create socketio client
     client = socketio.Client()
@@ -305,14 +318,11 @@ def test_multiple_clients_receive_lock_events(server, get_jwt_auth_headers):
     user1_name = "user1"
     user2_name = "user2"
 
-    # User 1 setup
+    # User 1 creates and joins room
     user1_headers = get_jwt_auth_headers(server, user1_name)
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=user1_headers
-    )
-    user1_session = response.json()["sessionId"]
+    user1_session = _create_and_join_room(server, room, user1_headers)
 
-    # User 2 setup (listener)
+    # User 2 joins existing room (listener)
     user2_headers = get_jwt_auth_headers(server, user2_name)
     requests.post(f"{server}/api/rooms/{room}/join", json={}, headers=user2_headers)
 

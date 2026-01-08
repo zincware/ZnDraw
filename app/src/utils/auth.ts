@@ -2,19 +2,22 @@
  * JWT Authentication utilities for browser client.
  *
  * Uses jose library for secure JWT decoding and validation.
+ * JWT is the single source of truth for user identity and role.
  *
- * Simplified Architecture:
+ * Authentication Flow:
+ * 1. Call /api/user/register to create user (guest or with password)
+ * 2. Call /api/login to authenticate and get JWT token
+ *
+ * Architecture:
  * - userName is the primary identifier (unique, immutable after registration)
  * - Guests get auto-generated usernames (user-xyz)
- * - Registration allows choosing permanent username
- * - No client_id concept
+ * - Upgrade allows choosing permanent username + password
+ * - Role is always read from JWT (single source of truth)
  */
 
 import { decodeJwt, type JWTPayload } from "jose";
 
 const TOKEN_KEY = "zndraw_jwt_token";
-const USERNAME_KEY = "zndraw_username";
-const USER_ROLE_KEY = "zndraw_user_role";
 
 export type UserRole = "guest" | "user" | "admin";
 
@@ -23,16 +26,13 @@ interface ZnDrawJWTPayload extends JWTPayload {
 	sub: string; // userName
 	role: UserRole;
 	jti: string; // JWT ID
+	iat: number; // Issued at
+	exp: number; // Expiration (7 days)
 }
 
 export interface LoginResponse {
 	status: string;
 	token: string;
-	userName: string;
-	role: UserRole;
-}
-
-export interface UserRoleResponse {
 	userName: string;
 	role: UserRole;
 }
@@ -47,6 +47,9 @@ export interface RegisterResponse {
 /**
  * Login and get JWT token from server.
  *
+ * For guests: First registers user via /api/user/register, then authenticates via /api/login.
+ * For registered users with password: Authenticates directly via /api/login.
+ *
  * @param userName - Optional username (if not provided, server generates guest username)
  * @param password - Optional password (if provided, authenticates as registered user)
  */
@@ -54,19 +57,71 @@ export async function login(
 	userName?: string,
 	password?: string,
 ): Promise<LoginResponse> {
-	const body: { userName?: string; password?: string } = {};
+	// For guests (no password), we need to register first, then login
+	if (!password) {
+		// Step 1: Register user (creates in backend)
+		const registerBody: { userName?: string } = {};
+		if (userName !== undefined) {
+			registerBody.userName = userName;
+		}
 
-	if (userName !== undefined) {
-		body.userName = userName;
-	}
-	if (password !== undefined) {
-		body.password = password;
+		const registerResponse = await fetch("/api/user/register", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(registerBody),
+		});
+
+		// Handle different registration outcomes
+		let usernameToLogin: string;
+
+		if (registerResponse.ok) {
+			// New user created - get username from response
+			const registerData = await registerResponse.json();
+			usernameToLogin = registerData.userName;
+		} else if (registerResponse.status === 409) {
+			// User already exists - use provided username
+			if (!userName) {
+				// Should never happen: 409 without providing username
+				throw new Error("Registration conflict without username");
+			}
+			usernameToLogin = userName;
+		} else {
+			// Other error - throw
+			const errorData = await registerResponse
+				.json()
+				.catch(() => ({ error: registerResponse.statusText }));
+			throw new Error(
+				errorData.error ||
+					`Registration failed: ${registerResponse.statusText}`,
+			);
+		}
+
+		// Step 2: Login (get JWT)
+		const loginResponse = await fetch("/api/login", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ userName: usernameToLogin }),
+		});
+
+		if (!loginResponse.ok) {
+			const errorData = await loginResponse
+				.json()
+				.catch(() => ({ error: loginResponse.statusText }));
+			throw new Error(
+				errorData.error || `Login failed: ${loginResponse.statusText}`,
+			);
+		}
+
+		const data = await loginResponse.json();
+		localStorage.setItem(TOKEN_KEY, data.token);
+		return data;
 	}
 
+	// For registered users with password: direct login
 	const response = await fetch("/api/login", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(body),
+		body: JSON.stringify({ userName, password }),
 	});
 
 	if (!response.ok) {
@@ -77,12 +132,7 @@ export async function login(
 	}
 
 	const data = await response.json();
-
-	// Store token, username, and role in localStorage
 	localStorage.setItem(TOKEN_KEY, data.token);
-	localStorage.setItem(USERNAME_KEY, data.userName);
-	localStorage.setItem(USER_ROLE_KEY, data.role);
-
 	return data;
 }
 
@@ -104,10 +154,11 @@ export function getToken(): string | null {
 }
 
 /**
- * Get stored username.
+ * Get username from JWT token (single source of truth).
+ * @deprecated Use getUsernameFromToken() for clarity
  */
 export function getUsername(): string | null {
-	return localStorage.getItem(USERNAME_KEY);
+	return getUsernameFromToken();
 }
 
 /**
@@ -115,8 +166,6 @@ export function getUsername(): string | null {
  */
 export function logout(): void {
 	localStorage.removeItem(TOKEN_KEY);
-	localStorage.removeItem(USERNAME_KEY);
-	localStorage.removeItem(USER_ROLE_KEY);
 }
 
 /**
@@ -141,8 +190,7 @@ export function decodeToken(token: string): ZnDrawJWTPayload | null {
 }
 
 /**
- * Check if stored token is valid (exists and can be decoded).
- * If token has expiry, also checks if not expired.
+ * Check if stored token is valid (exists, can be decoded, and not expired).
  */
 export function isTokenValid(): boolean {
 	const token = getToken();
@@ -156,7 +204,7 @@ export function isTokenValid(): boolean {
 		return false;
 	}
 
-	// Check expiry if present (currently tokens don't expire, but future-proof)
+	// Check expiry (tokens now expire after 7 days)
 	if (payload.exp && Date.now() >= payload.exp * 1000) {
 		logout(); // Clear expired token
 		return false;
@@ -179,7 +227,7 @@ export function getTokenClaims(): ZnDrawJWTPayload | null {
 }
 
 /**
- * Get username from token claims (preferred over localStorage).
+ * Get username from token claims.
  */
 export function getUsernameFromToken(): string | null {
 	const claims = getTokenClaims();
@@ -187,59 +235,21 @@ export function getUsernameFromToken(): string | null {
 }
 
 /**
- * Get role from token claims (preferred over localStorage).
+ * Get user role from JWT token (single source of truth).
  */
-export function getRoleFromToken(): UserRole | null {
+export function getUserRole(): UserRole | null {
 	const claims = getTokenClaims();
 	return claims?.role ?? null;
 }
 
 /**
- * Fetch user role from server.
- */
-export async function fetchUserRole(): Promise<UserRoleResponse> {
-	const token = getToken();
-	if (!token) {
-		throw new Error("Not authenticated");
-	}
-
-	const response = await fetch("/api/user/role", {
-		method: "GET",
-		headers: {
-			Authorization: `Bearer ${token}`,
-			"Content-Type": "application/json",
-		},
-	});
-
-	if (!response.ok) {
-		const errorData = await response
-			.json()
-			.catch(() => ({ error: response.statusText }));
-		throw new Error(
-			errorData.error || `Failed to fetch role: ${response.statusText}`,
-		);
-	}
-
-	const data = await response.json();
-
-	// Store role in localStorage
-	localStorage.setItem(USER_ROLE_KEY, data.role);
-
-	return data;
-}
-
-/**
- * Get stored user role.
- */
-export function getUserRole(): UserRole | null {
-	return localStorage.getItem(USER_ROLE_KEY) as UserRole | null;
-}
-
-/**
- * Register current guest user with chosen username and password.
+ * Upgrade current guest user to registered with chosen username and password.
+ *
+ * Requires authentication (must be logged in as guest first).
+ * After upgrade, guest becomes a registered user with permanent credentials.
  *
  * @param userName - Desired username (unique, immutable)
- * @param password - Password to set
+ * @param password - Password to set (must meet minimum requirements)
  * @returns New token and username
  */
 export async function registerUser(
@@ -251,7 +261,7 @@ export async function registerUser(
 		throw new Error("Not authenticated");
 	}
 
-	const response = await fetch("/api/user/register", {
+	const response = await fetch("/api/user/upgrade", {
 		method: "POST",
 		headers: {
 			Authorization: `Bearer ${token}`,
@@ -265,16 +275,14 @@ export async function registerUser(
 			.json()
 			.catch(() => ({ error: response.statusText }));
 		throw new Error(
-			errorData.error || `Registration failed: ${response.statusText}`,
+			errorData.error || `Upgrade failed: ${response.statusText}`,
 		);
 	}
 
 	const data = await response.json();
 
-	// Update stored data with new token and username
+	// Update stored token - role and username come from new JWT
 	localStorage.setItem(TOKEN_KEY, data.token);
-	localStorage.setItem(USERNAME_KEY, data.userName);
-	localStorage.setItem(USER_ROLE_KEY, data.role);
 
 	return data;
 }

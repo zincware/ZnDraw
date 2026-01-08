@@ -55,7 +55,9 @@ def _wait_for_server(port: int, timeout: float = 10.0) -> bool:
 
 
 def _get_jwt_auth_headers(server_url: str, user_name: str | None = None) -> dict:
-    """Login and get JWT authentication headers for API requests.
+    """Register user and get JWT authentication headers for API requests.
+
+    Follows the proper auth flow: register first, then login.
 
     Args:
         server_url: The base URL of the server (e.g., "http://127.0.0.1:5000")
@@ -69,6 +71,15 @@ def _get_jwt_auth_headers(server_url: str, user_name: str | None = None) -> dict
     if user_name is None:
         user_name = f"test-user-{uuid.uuid4().hex[:8]}"
 
+    # Step 1: Register user (creates in backend)
+    register_response = requests.post(
+        f"{server_url}/api/user/register", json={"userName": user_name}
+    )
+    # 409 = already exists, which is fine (allows reusing usernames in tests)
+    if register_response.status_code not in (200, 201, 409):
+        raise RuntimeError(f"Registration failed: {register_response.text}")
+
+    # Step 2: Login (get JWT)
     response = requests.post(f"{server_url}/api/login", json={"userName": user_name})
 
     if response.status_code != 200:
@@ -82,6 +93,8 @@ def _join_room_and_get_headers(
     server: str, room_id: str, user: str = "test-user"
 ) -> dict:
     """Join a room and return auth headers with session ID.
+
+    Creates the room first if it doesn't exist.
 
     Parameters
     ----------
@@ -105,9 +118,33 @@ def _join_room_and_get_headers(
     import requests
 
     auth_headers = _get_jwt_auth_headers(server, user)
+
+    # Try to join existing room first
     response = requests.post(
-        f"{server}/api/rooms/{room_id}/join", json={}, headers=auth_headers
+        f"{server}/api/rooms/{room_id}/join",
+        json={},
+        headers=auth_headers,
     )
+
+    # If room doesn't exist (404), create it then join
+    if response.status_code == 404:
+        create_response = requests.post(
+            f"{server}/api/rooms",
+            json={"roomId": room_id},
+            headers=auth_headers,
+        )
+        if create_response.status_code not in (200, 201):
+            raise RuntimeError(
+                f"Failed to create room {room_id}: {create_response.text}"
+            )
+
+        # Now join the newly created room
+        response = requests.post(
+            f"{server}/api/rooms/{room_id}/join",
+            json={},
+            headers=auth_headers,
+        )
+
     if response.status_code != 200:
         raise RuntimeError(f"Failed to join room {room_id}: {response.text}")
     session_id = response.json()["sessionId"]
@@ -374,11 +411,22 @@ def joined_room(server, request):
     test_name = request.node.name
     room = test_name.replace("_", "-")
 
+    # Create the room first, then join
+    auth_headers = _get_jwt_auth_headers(server)
+    create_response = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": room},
+        headers=auth_headers,
+    )
+    assert create_response.status_code in (200, 201, 409), (
+        f"Failed to create room {room}"
+    )
+
     # Join the room with JWT authentication
     response = requests.post(
         f"{server}/api/rooms/{room}/join",
         json={},
-        headers=_get_jwt_auth_headers(server),
+        headers=auth_headers,
     )
     assert response.status_code == 200, f"Failed to join room {room}"
 

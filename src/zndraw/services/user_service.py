@@ -4,17 +4,97 @@ Manages user accounts, roles, and authentication.
 Uses userName as the primary identifier (no client_id).
 """
 
-import datetime
-import hashlib
 import logging
-import secrets
+import re
 from enum import Enum
 
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from redis import Redis
 
 from zndraw.app.redis_keys import GlobalIndexKeys, UserKeys
+from zndraw.utils.time import utc_now_iso
 
 log = logging.getLogger(__name__)
+
+# Argon2 password hasher with secure defaults
+_ph = PasswordHasher()
+
+# Password requirements
+MIN_PASSWORD_LENGTH = 8
+
+
+class PasswordValidationError(ValueError):
+    """Raised when password doesn't meet requirements."""
+
+    pass
+
+
+def validate_password(password: str) -> None:
+    """Validate password meets minimum requirements.
+
+    Requirements:
+    - At least 8 characters
+
+    Parameters
+    ----------
+    password : str
+        Password to validate
+
+    Raises
+    ------
+    PasswordValidationError
+        If password doesn't meet requirements
+    """
+    if not password or len(password) < MIN_PASSWORD_LENGTH:
+        raise PasswordValidationError(
+            f"Password must be at least {MIN_PASSWORD_LENGTH} characters"
+        )
+
+
+# Username requirements
+MAX_USERNAME_LENGTH = 64
+# Pattern: 1 alphanumeric char + 0-63 more chars = 1-64 total (matches MAX_USERNAME_LENGTH)
+USERNAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$")
+
+
+class UsernameValidationError(ValueError):
+    """Raised when username doesn't meet requirements."""
+
+    pass
+
+
+def validate_username(user_name: str) -> None:
+    """Validate username format.
+
+    Requirements:
+    - 1-64 characters
+    - Alphanumeric, underscore, hyphen only
+    - Must start with alphanumeric character
+
+    Parameters
+    ----------
+    user_name : str
+        Username to validate
+
+    Raises
+    ------
+    UsernameValidationError
+        If username doesn't meet requirements
+    """
+    if not user_name:
+        raise UsernameValidationError("Username is required")
+
+    if len(user_name) > MAX_USERNAME_LENGTH:
+        raise UsernameValidationError(
+            f"Username must be at most {MAX_USERNAME_LENGTH} characters"
+        )
+
+    if not USERNAME_PATTERN.match(user_name):
+        raise UsernameValidationError(
+            "Username must contain only letters, numbers, underscores, and hyphens, "
+            "and must start with a letter or number"
+        )
 
 
 class UserRole(str, Enum):
@@ -41,8 +121,8 @@ class UserService:
 
     Notes
     -----
-    Password storage uses SHA-256 hashing with salt.
-    No password requirements enforced (as per spec).
+    Password storage uses Argon2id (winner of Password Hashing Competition).
+    Passwords must be at least 8 characters (see validate_password()).
     """
 
     def __init__(self, redis_client: Redis):
@@ -132,7 +212,7 @@ class UserService:
 
         # Create user entry
         keys = UserKeys(user_name)
-        current_time = datetime.datetime.utcnow().isoformat()
+        current_time = utc_now_iso()
 
         pipe = self.r.pipeline()
         pipe.hset(
@@ -150,15 +230,53 @@ class UserService:
         log.info(f"Created user {user_name}")
         return True
 
+    def ensure_user_exists(self, user_name: str) -> bool:
+        """Ensure user exists in Redis, creating if necessary.
+
+        Idempotent operation - safe to call multiple times.
+        Used by /api/user/register to create guest users.
+
+        Parameters
+        ----------
+        user_name : str
+            Username to ensure exists
+
+        Returns
+        -------
+        bool
+            True if user was created, False if already existed
+        """
+        if self.username_exists(user_name):
+            return False
+
+        keys = UserKeys(user_name)
+        current_time = utc_now_iso()
+
+        pipe = self.r.pipeline()
+        pipe.hset(
+            keys.hash_key(),
+            mapping={
+                "userName": user_name,
+                "createdAt": current_time,
+                "lastLogin": current_time,
+            },
+        )
+        pipe.sadd(GlobalIndexKeys.users_index(), user_name)
+        pipe.execute()
+
+        log.info(f"Created guest user {user_name}")
+        return True
+
     def register_user(
         self, old_user_name: str, new_user_name: str, password: str
     ) -> bool:
         """Register a guest user with chosen username + password.
 
         This promotes guest → user by:
-        1. Checking new username availability
-        2. Creating new user entry with password
-        3. Deleting old guest entry
+        1. Validating password requirements
+        2. Checking new username availability
+        3. Creating new user entry with password
+        4. Deleting old guest entry
 
         Parameters
         ----------
@@ -167,7 +285,7 @@ class UserService:
         new_user_name : str
             Desired username
         password : str
-            Password to set
+            Password to set (must be at least 8 characters)
 
         Returns
         -------
@@ -178,7 +296,12 @@ class UserService:
         ------
         ValueError
             If new username already exists or is invalid
+        PasswordValidationError
+            If password doesn't meet requirements
         """
+        # Validate password first
+        validate_password(password)
+
         # Validate new username
         if not new_user_name or not new_user_name.strip():
             raise ValueError("Username cannot be empty")
@@ -194,14 +317,10 @@ class UserService:
             if self.is_registered(old_user_name):
                 raise ValueError("User is already registered")
 
-            # Generate salt and hash password
-            salt = secrets.token_hex(16)
-            password_hash = self._hash_password(password, salt)
+            password_hash = _ph.hash(password)
 
-            # Add password to existing user
             keys = UserKeys(old_user_name)
             self.r.hset(keys.hash_key(), "passwordHash", password_hash)
-            self.r.hset(keys.hash_key(), "passwordSalt", salt)
 
             log.info(f"User {old_user_name} registered (guest → user)")
             return True
@@ -210,17 +329,11 @@ class UserService:
         old_keys = UserKeys(old_user_name)
         new_keys = UserKeys(new_user_name)
 
-        # Generate salt and hash password
-        salt = secrets.token_hex(16)
-        password_hash = self._hash_password(password, salt)
+        password_hash = _ph.hash(password)
 
-        # Get old user data
         old_data = self.r.hgetall(old_keys.hash_key())
+        current_time = utc_now_iso()
 
-        # Create new user entry
-        current_time = datetime.datetime.utcnow().isoformat()
-
-        # Decode bytes if needed
         created_at = old_data.get(b"createdAt") or old_data.get("createdAt")
         if isinstance(created_at, bytes):
             created_at = created_at.decode("utf-8")
@@ -231,26 +344,21 @@ class UserService:
             mapping={
                 "userName": new_user_name,
                 "passwordHash": password_hash,
-                "passwordSalt": salt,
                 "createdAt": created_at or current_time,
                 "lastLogin": current_time,
             },
         )
 
-        # Update users index: add new, remove old
         pipe.sadd(GlobalIndexKeys.users_index(), new_user_name)
         pipe.srem(GlobalIndexKeys.users_index(), old_user_name)
 
-        # Transfer admin status if exists
         is_admin = self.r.get(old_keys.admin_key())
         if is_admin:
             pipe.set(new_keys.admin_key(), "1")
             pipe.delete(old_keys.admin_key())
-            # Update admins index
             pipe.sadd(GlobalIndexKeys.admins_index(), new_user_name)
             pipe.srem(GlobalIndexKeys.admins_index(), old_user_name)
 
-        # Delete old user
         pipe.delete(old_keys.hash_key())
         pipe.execute()
 
@@ -260,7 +368,7 @@ class UserService:
         return True
 
     def verify_password(self, user_name: str, password: str) -> bool:
-        """Verify a user's password.
+        """Verify a user's password using Argon2.
 
         Parameters
         ----------
@@ -279,19 +387,18 @@ class UserService:
 
         keys = UserKeys(user_name)
         stored_hash = self.r.hget(keys.hash_key(), "passwordHash")
-        salt = self.r.hget(keys.hash_key(), "passwordSalt")
 
-        if not stored_hash or not salt:
+        if not stored_hash:
             return False
 
-        # Handle bytes from Redis
         if isinstance(stored_hash, bytes):
             stored_hash = stored_hash.decode("utf-8")
-        if isinstance(salt, bytes):
-            salt = salt.decode("utf-8")
 
-        computed_hash = self._hash_password(password, salt)
-        return computed_hash == stored_hash
+        try:
+            _ph.verify(stored_hash, password)
+            return True
+        except VerifyMismatchError:
+            return False
 
     def change_password(
         self, user_name: str, old_password: str, new_password: str
@@ -305,7 +412,7 @@ class UserService:
         old_password : str
             Current password for verification
         new_password : str
-            New password to set
+            New password to set (must be at least 8 characters)
 
         Returns
         -------
@@ -316,21 +423,22 @@ class UserService:
         ------
         ValueError
             If user is not registered or old password is wrong
+        PasswordValidationError
+            If new password doesn't meet requirements
         """
+        # Validate new password first
+        validate_password(new_password)
+
         if not self.is_registered(user_name):
             raise ValueError("User is not registered")
 
         if not self.verify_password(user_name, old_password):
             raise ValueError("Current password is incorrect")
 
-        # Generate new salt and hash
-        salt = secrets.token_hex(16)
-        password_hash = self._hash_password(new_password, salt)
+        password_hash = _ph.hash(new_password)
 
-        # Update password
         keys = UserKeys(user_name)
         self.r.hset(keys.hash_key(), "passwordHash", password_hash)
-        self.r.hset(keys.hash_key(), "passwordSalt", salt)
 
         log.info(f"User {user_name} changed password")
         return True
@@ -343,7 +451,7 @@ class UserService:
         user_name : str
             Username
         new_password : str
-            New password to set
+            New password to set (must be at least 8 characters)
 
         Returns
         -------
@@ -354,18 +462,19 @@ class UserService:
         ------
         ValueError
             If user is not registered
+        PasswordValidationError
+            If new password doesn't meet requirements
         """
+        # Validate new password first
+        validate_password(new_password)
+
         if not self.is_registered(user_name):
             raise ValueError("User is not registered")
 
-        # Generate new salt and hash
-        salt = secrets.token_hex(16)
-        password_hash = self._hash_password(new_password, salt)
+        password_hash = _ph.hash(new_password)
 
-        # Update password
         keys = UserKeys(user_name)
         self.r.hset(keys.hash_key(), "passwordHash", password_hash)
-        self.r.hset(keys.hash_key(), "passwordSalt", salt)
 
         log.info(f"Admin reset password for user {user_name}")
         return True
@@ -379,8 +488,7 @@ class UserService:
             Username
         """
         keys = UserKeys(user_name)
-        current_time = datetime.datetime.utcnow().isoformat()
-        self.r.hset(keys.hash_key(), "lastLogin", current_time)
+        self.r.hset(keys.hash_key(), "lastLogin", utc_now_iso())
 
     def delete_user(self, user_name: str) -> bool:
         """Delete a user (hard deletion).
@@ -402,6 +510,7 @@ class UserService:
         pipe = self.r.pipeline()
         pipe.delete(keys.hash_key())
         pipe.delete(keys.admin_key())
+        pipe.delete(keys.visited_rooms())
         # Remove from indices
         pipe.srem(GlobalIndexKeys.users_index(), user_name)
         pipe.srem(GlobalIndexKeys.admins_index(), user_name)
@@ -456,21 +565,3 @@ class UserService:
             )
 
         return users
-
-    def _hash_password(self, password: str, salt: str) -> str:
-        """Hash password with salt using SHA-256.
-
-        Parameters
-        ----------
-        password : str
-            Password to hash
-        salt : str
-            Salt for hashing
-
-        Returns
-        -------
-        str
-            Hex-encoded hash
-        """
-        combined = f"{password}{salt}".encode("utf-8")
-        return hashlib.sha256(combined).hexdigest()

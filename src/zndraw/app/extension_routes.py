@@ -6,7 +6,6 @@ Extension registration is handled via Socket.IO in events.py.
 
 import json
 import logging
-from datetime import datetime
 
 from flask import Blueprint, Response, current_app, jsonify, request
 
@@ -15,6 +14,7 @@ from zndraw.extensions.analysis import analysis
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
 from zndraw.server import socketio
+from zndraw.utils.time import utc_now_timestamp
 
 from .constants import SocketEvents
 from .redis_keys import ExtensionKeys, RoomKeys
@@ -146,7 +146,7 @@ def _submit_extension_impl(
         ext_room_id = room_id  # Room-scoped extension
 
     # Add job to pending queue
-    timestamp = datetime.utcnow().timestamp()
+    timestamp = utc_now_timestamp()
     redis_client.zadd(keys.pending_jobs, {job_id: timestamp})
     log.info(f"Added job {job_id} to pending queue for {category}/{extension}")
 

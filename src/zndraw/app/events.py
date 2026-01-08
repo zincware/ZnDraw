@@ -1,4 +1,3 @@
-import datetime
 import json
 import logging
 import typing as t
@@ -8,6 +7,7 @@ from flask_socketio import emit
 
 from zndraw.analytics import connected_users
 from zndraw.server import socketio
+from zndraw.utils.time import utc_now_iso
 
 from .constants import SocketEvents
 from .redis_keys import ExtensionKeys, FilesystemKeys, RoomKeys, SessionKeys, UserKeys
@@ -110,18 +110,20 @@ def handle_connect(auth):
         log.error(f"Client {sid} authentication failed: {e.message}")
         raise ConnectionRefusedError(e.message)
 
-    # Verify user exists in Redis
-    user_keys = UserKeys(user_name)
-    if not r.exists(user_keys.hash_key()):
-        log.error(f"User {user_name} not found in Redis")
-        raise ConnectionRefusedError("User not registered. Call /api/login first.")
+    # Validate user exists (must be created via /api/user/register)
+    # Users are ONLY created there - socket connect never creates users
+    user_service = current_app.extensions["user_service"]
+    if not user_service.username_exists(user_name):
+        log.warning(f"Socket connect failed: user '{user_name}' not found")
+        raise ConnectionRefusedError("User not found. Please register first.")
 
     # Update user's current SID
+    user_keys = UserKeys(user_name)
     r.hset(
         user_keys.hash_key(),
         mapping={
             "currentSid": sid,
-            "lastActivity": datetime.datetime.utcnow().isoformat(),
+            "lastActivity": utc_now_iso(),
         },
     )
     # Register SID → userName mapping and role mapping

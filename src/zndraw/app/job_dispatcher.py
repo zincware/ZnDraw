@@ -5,7 +5,8 @@ and emitting job assignments via Socket.IO.
 """
 
 import logging
-from datetime import datetime
+
+from zndraw.utils.time import utc_now_timestamp
 
 from .constants import SocketEvents
 from .job_manager import JobManager
@@ -195,7 +196,7 @@ def assign_pending_jobs_for_extension(
 
         if not assigned:
             # Worker has no capacity (may have been assigned another job), re-queue the job
-            timestamp = datetime.utcnow().timestamp()
+            timestamp = utc_now_timestamp()
             redis_client.zadd(keys.pending_jobs, {job_id: timestamp})
             log.warning(
                 f"Worker {current_worker_id} has no capacity, re-queued job {job_id}"

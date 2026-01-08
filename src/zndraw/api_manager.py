@@ -28,6 +28,9 @@ class APIManager:
     ) -> dict:
         """Authenticate and get JWT token with retry logic.
 
+        Uses register-then-login flow: first creates user via /api/user/register,
+        then authenticates via /api/login to get JWT token.
+
         Uses exponential backoff to handle server startup race conditions.
 
         Parameters
@@ -53,19 +56,49 @@ class APIManager:
         requests.ConnectionError
             If server is unreachable after all retries
         """
-        payload = {"userName": user_name}
-        if password is not None:
-            payload["password"] = password
-
         delay = initial_delay
         max_delay = 2.0
         last_exception = None
 
         for attempt in range(1, max_retries + 1):
             try:
-                response = requests.post(
-                    f"{self.url}/api/login", json=payload, timeout=5.0
-                )
+                # For guests (no password), register first, then login
+                if password is None:
+                    # Step 1: Register user (creates in backend)
+                    register_payload = {"userName": user_name} if user_name else {}
+                    register_response = requests.post(
+                        f"{self.url}/api/user/register",
+                        json=register_payload,
+                        timeout=5.0,
+                    )
+                    # 409 = already exists, which is fine
+                    if (
+                        register_response.status_code not in (200, 201, 409)
+                        and register_response.status_code != 401
+                    ):
+                        raise RuntimeError(
+                            f"Registration failed: {register_response.text}"
+                        )
+
+                    # Get the username (may be server-generated if not provided)
+                    if register_response.status_code in (200, 201):
+                        reg_data = register_response.json()
+                        login_user_name = reg_data.get("userName", user_name)
+                    else:
+                        # 409 - user exists, use the provided username
+                        login_user_name = user_name
+
+                    # Step 2: Login (get JWT)
+                    login_payload = {"userName": login_user_name}
+                    response = requests.post(
+                        f"{self.url}/api/login", json=login_payload, timeout=5.0
+                    )
+                else:
+                    # For users with password, login directly (admin login)
+                    login_payload = {"userName": user_name, "password": password}
+                    response = requests.post(
+                        f"{self.url}/api/login", json=login_payload, timeout=5.0
+                    )
 
                 if response.status_code == 200:
                     data = response.json()
@@ -162,35 +195,97 @@ class APIManager:
         response.raise_for_status()
         return response.json()["version"]
 
-    def join_room(
+    def create_room(
         self,
         description: str | None = None,
         copy_from: str | None = None,
     ) -> dict:
-        """Join a room, optionally creating it with a description or copying from an existing room.
+        """Create a new room.
 
-        Args:
-            description: Optional description for the room (only used if room is created)
-            copy_from: Optional room ID to copy frames and settings from (only used if room is created)
+        Parameters
+        ----------
+        description : str | None
+            Optional description for the room
+        copy_from : str | None
+            Optional room ID to copy frames and settings from
 
-        Returns:
-            Dict containing room information (userName comes from JWT token)
+        Returns
+        -------
+        dict
+            Room information (status, roomId, frameCount, created)
+
+        Raises
+        ------
+        RuntimeError
+            If room creation fails (e.g., room already exists)
         """
-        payload = {}
+        payload = {"roomId": self.room}
 
         if description is not None:
             payload["description"] = description
         if copy_from is not None:
             payload["copyFrom"] = copy_from
 
-        # Send JWT token in Authorization header
         headers = {}
         if self.jwt_token:
             headers["Authorization"] = f"Bearer {self.jwt_token}"
 
         response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/join", json=payload, headers=headers
+            f"{self.url}/api/rooms", json=payload, headers=headers, timeout=10.0
         )
+
+        if response.status_code == 409:
+            raise RuntimeError(f"Room '{self.room}' already exists")
+        if response.status_code not in (200, 201):
+            raise RuntimeError(
+                f"Failed to create room '{self.room}': {response.status_code} {response.text}"
+            )
+
+        return response.json()
+
+    def join_room(
+        self,
+        description: str | None = None,
+        copy_from: str | None = None,
+    ) -> dict:
+        """Join a room, creating it first if it doesn't exist.
+
+        Parameters
+        ----------
+        description : str | None
+            Optional description for the room (only used if room is created)
+        copy_from : str | None
+            Optional room ID to copy frames and settings from (only used if room is created)
+
+        Returns
+        -------
+        dict
+            Room information (userName, sessionId, roomId)
+        """
+        headers = {}
+        if self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
+        # Try to join existing room first
+        response = requests.post(
+            f"{self.url}/api/rooms/{self.room}/join",
+            json={},
+            headers=headers,
+            timeout=10.0,
+        )
+
+        # If room doesn't exist (404), create it then join
+        if response.status_code == 404:
+            log.info(f"Room '{self.room}' doesn't exist, creating it...")
+            self.create_room(description=description, copy_from=copy_from)
+
+            # Now join the newly created room
+            response = requests.post(
+                f"{self.url}/api/rooms/{self.room}/join",
+                json={},
+                headers=headers,
+                timeout=10.0,
+            )
 
         if response.status_code != 200:
             raise RuntimeError(
@@ -222,7 +317,7 @@ class APIManager:
         """
         headers = self._get_headers()
         url = f"{self.url}/api/jobs/{job_id}"
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=10.0)
         response.raise_for_status()
         return response.json()
 
@@ -261,6 +356,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/jobs/{job_id}/status",
             json=payload,
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -601,6 +697,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/extensions/{scope}/{category}/{name}/submit",
             json={"data": data},
             headers=headers,
+            timeout=30.0,
         )
         if response.status_code != 200:
             error_data = response.json()
@@ -649,6 +746,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/chat/messages",
             params=params,
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -668,6 +766,7 @@ class APIManager:
                 f"{self.url}/api/rooms/{self.room}/geometries",
                 json={"key": key, "data": data, "type": geometry_type},
                 headers=headers,
+                timeout=10.0,
             )
             response.raise_for_status()
 
@@ -684,6 +783,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/geometries/{key}",
             headers=headers,
+            timeout=10.0,
         )
         if response.status_code == 404:
             return None
@@ -700,7 +800,9 @@ class APIManager:
             headers = self._get_headers()
 
             response = requests.delete(
-                f"{self.url}/api/rooms/{self.room}/geometries/{key}", headers=headers
+                f"{self.url}/api/rooms/{self.room}/geometries/{key}",
+                headers=headers,
+                timeout=10.0,
             )
             response_data = response.json()
             if response.status_code != 200:
@@ -721,6 +823,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/geometries",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json().get("geometries", {})
@@ -742,6 +845,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/figures",
             json={"key": key, "figure": figure},
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -750,6 +854,7 @@ class APIManager:
         response = requests.delete(
             f"{self.url}/api/rooms/{self.room}/figures/{key}",
             headers=headers,
+            timeout=10.0,
         )
         response_data = response.json()
         if response.status_code != 200:
@@ -765,6 +870,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/figures/{key}",
             headers=headers,
+            timeout=10.0,
         )
         if response.status_code == 404:
             return None
@@ -776,6 +882,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/figures",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json().get("figures", [])
@@ -790,7 +897,7 @@ class APIManager:
         """
         headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/metadata", headers=headers
+            f"{self.url}/api/rooms/{self.room}/metadata", headers=headers, timeout=10.0
         )
         response.raise_for_status()
         return response.json().get("metadata", {})
@@ -810,7 +917,10 @@ class APIManager:
         """
         headers = self._get_headers()
         response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/metadata", json=data, headers=headers
+            f"{self.url}/api/rooms/{self.room}/metadata",
+            json=data,
+            headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -829,7 +939,9 @@ class APIManager:
         """
         headers = self._get_headers()
         response = requests.delete(
-            f"{self.url}/api/rooms/{self.room}/metadata/{field}", headers=headers
+            f"{self.url}/api/rooms/{self.room}/metadata/{field}",
+            headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -851,7 +963,9 @@ class APIManager:
         """
         headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/selections", headers=headers
+            f"{self.url}/api/rooms/{self.room}/selections",
+            headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -873,6 +987,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/selections/{geometry}",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -897,6 +1012,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/selections/{geometry}",
             json={"indices": indices},
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -922,6 +1038,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -949,6 +1066,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}",
             json=group_data,
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -969,6 +1087,7 @@ class APIManager:
         response = requests.delete(
             f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -991,6 +1110,7 @@ class APIManager:
         response = requests.post(
             f"{self.url}/api/rooms/{self.room}/selections/groups/{group_name}/load",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -1008,7 +1128,7 @@ class APIManager:
         """
         headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/bookmarks", headers=headers
+            f"{self.url}/api/rooms/{self.room}/bookmarks", headers=headers, timeout=10.0
         )
         response.raise_for_status()
         bookmarks = response.json().get("bookmarks", {})
@@ -1037,7 +1157,9 @@ class APIManager:
         """
         headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/bookmarks/{index}", headers=headers
+            f"{self.url}/api/rooms/{self.room}/bookmarks/{index}",
+            headers=headers,
+            timeout=10.0,
         )
         if response.status_code == 404:
             self._raise_for_error_type(response)
@@ -1067,6 +1189,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/bookmarks/{index}",
             json={"label": label},
             headers=headers,
+            timeout=10.0,
         )
         if response.status_code == 400:
             self._raise_for_error_type(response)
@@ -1090,6 +1213,7 @@ class APIManager:
         response = requests.delete(
             f"{self.url}/api/rooms/{self.room}/bookmarks/{index}",
             headers=headers,
+            timeout=10.0,
         )
         if response.status_code == 404:
             self._raise_for_error_type(response)
@@ -1134,6 +1258,7 @@ class APIManager:
             f"{self.url}/api/rooms/{self.room}/screenshots",
             params={"limit": limit, "offset": offset},
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -1167,6 +1292,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}/metadata",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -1193,6 +1319,7 @@ class APIManager:
         response = requests.get(
             f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}",
             headers=headers,
+            timeout=30.0,
         )
         response.raise_for_status()
         return response.content
@@ -1219,6 +1346,7 @@ class APIManager:
         response = requests.delete(
             f"{self.url}/api/rooms/{self.room}/screenshots/{screenshot_id}",
             headers=headers,
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json().get("success", False)
@@ -1489,6 +1617,7 @@ class APIManager:
             url,
             json={"progressId": progress_id, "description": description},
             headers=self._get_headers(),
+            timeout=10.0,
         )
         response.raise_for_status()
         return response.json()
@@ -1522,7 +1651,9 @@ class APIManager:
             data["progress"] = progress
 
         url = f"{self.url}/api/rooms/{self.room}/progress/{progress_id}"
-        response = requests.put(url, json=data, headers=self._get_headers())
+        response = requests.put(
+            url, json=data, headers=self._get_headers(), timeout=10.0
+        )
         response.raise_for_status()
         return response.json()
 
@@ -1540,6 +1671,6 @@ class APIManager:
             Response from server
         """
         url = f"{self.url}/api/rooms/{self.room}/progress/{progress_id}"
-        response = requests.delete(url, headers=self._get_headers())
+        response = requests.delete(url, headers=self._get_headers(), timeout=10.0)
         response.raise_for_status()
         return response.json()

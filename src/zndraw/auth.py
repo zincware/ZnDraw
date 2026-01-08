@@ -1,5 +1,6 @@
 """JWT authentication utilities for ZnDraw server."""
 
+import datetime
 import logging
 import typing as t
 import uuid
@@ -8,7 +9,12 @@ from functools import wraps
 import jwt
 from flask import current_app, request
 
+from zndraw.utils.time import utc_now
+
 log = logging.getLogger(__name__)
+
+# JWT expiration time: 7 days
+JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60
 
 
 class AuthError(Exception):
@@ -48,7 +54,7 @@ class AdminAccessError(Exception):
 def create_jwt_token(
     user_name: str, role: t.Literal["guest", "user", "admin"] = "guest"
 ) -> str:
-    """Create JWT token for authenticated user.
+    """Create JWT token for authenticated user with 7-day expiration.
 
     Parameters
     ----------
@@ -65,10 +71,13 @@ def create_jwt_token(
     secret_key = current_app.config["SECRET_KEY"]
     algorithm = current_app.config.get("JWT_ALGORITHM", "HS256")
 
+    now = utc_now()
     payload = {
-        "sub": user_name,  # Subject: username (primary identifier)
-        "role": role,  # User role for authorization checks
-        "jti": str(uuid.uuid4()),  # JWT ID for revocation (future use)
+        "sub": user_name,
+        "role": role,
+        "jti": str(uuid.uuid4()),
+        "iat": now,
+        "exp": now + datetime.timedelta(seconds=JWT_EXPIRY_SECONDS),
     }
 
     token = jwt.encode(payload, secret_key, algorithm=algorithm)
@@ -145,7 +154,10 @@ def get_current_user() -> str:
 
 
 def get_current_user_role() -> str:
-    """Get role of current authenticated user from request.
+    """Get role of current authenticated user from JWT token.
+
+    Note: This returns the role from the JWT. For authorization decisions,
+    use AdminService.is_admin() directly to check Redis.
 
     Returns
     -------
