@@ -174,6 +174,7 @@ def test_auto_pickup_jobs_with_dual_registration(server):
     # Register extension in BOTH namespaces
     vis.register_extension(DualExtension, public=False)
     vis.register_extension(DualExtension, public=True)
+    vis.socket.sio.sleep(0.5)  # Give registration time to complete
 
     # Submit a job using private namespace
     ext = DualExtension(parameter=99)

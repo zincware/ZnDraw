@@ -837,6 +837,7 @@ def test_submit_task_via_vis_run(server):
 def test_submit_task_twice_via_vis_run(server, public):
     vis1 = ZnDraw(url=server, room="testroom", user="testuser", auto_pickup_jobs=True)
     vis1.register_extension(RaiseOnParameterExtension, public=public)
+    vis1.socket.sio.sleep(0.5)  # Give registration time to complete
 
     vis2 = ZnDraw(url=server, room="testroom", user="testuser2")
 
@@ -864,6 +865,7 @@ def test_submit_task_twice_via_vis_run_two_extensions(server, public):
     w2 = ZnDraw(url=server, room="testroom", user="testuser", auto_pickup_jobs=True)
     w1.register_extension(RaiseOnParameterExtension, public=public)
     w2.register_extension(RaiseOnParameterExtension, public=public)
+    w2.socket.sio.sleep(0.5)  # Give registration time to complete
 
     vis = ZnDraw(url=server, room="testroom", user="testuser2")
     job1 = vis.run(RaiseOnParameterExtension(parameter=0), public=public)
@@ -895,6 +897,7 @@ def test_submit_task_twice_via_vis_register_twice_single_worker(server):
     w1 = ZnDraw(url=server, room="testroom", user="testuser", auto_pickup_jobs=True)
     w1.register_extension(RaiseOnParameterExtension, public=True)
     w1.register_extension(RaiseOnParameterExtension, public=False)
+    w1.socket.sio.sleep(0.5)  # Give registration time to complete
 
     vis = ZnDraw(url=server, room="testroom", user="testuser2")
     job1 = vis.run(RaiseOnParameterExtension(parameter=0), public=True)

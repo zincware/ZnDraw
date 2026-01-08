@@ -26,6 +26,7 @@ def test_extension_execution_with_auto_pickup(server):
     # Create a worker with auto_pickup enabled (default)
     vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=True)
     vis.register_extension(TestExtension)
+    vis.socket.sio.sleep(0.5)  # Give registration time to complete
 
     # Create a second client to submit the job
     client = ZnDraw(url=server, room=room, user="submitter")
