@@ -173,6 +173,7 @@ def main(
     ),
     port: int | None = typer.Option(
         None,
+        "--port",
         help="Server port. If specified and server exists on that port, connects to it. "
         "If specified and no server on that port, starts new server. "
         "If not specified, auto-discovers running servers (default port first, then smallest).",
