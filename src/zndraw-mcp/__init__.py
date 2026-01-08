@@ -51,8 +51,14 @@ def get_geometry_doc(geometry_name: str) -> str:
 
 @mcp.resource("zndraw://state")
 def get_current_state() -> tuple[bool, ServerInfo | None]:
-    """
-    Returns the current status of the ZnDraw server.
+    """Get the current status of the ZnDraw server.
+
+    Returns
+    -------
+    tuple[bool, ServerInfo | None]
+        A pair (is_running, server_info) where:
+        - is_running is True if a ZnDraw server is currently running
+        - server_info contains server details if running, otherwise None
     """
     server_info = find_running_server()
     return (server_info is not None, server_info)
@@ -68,7 +74,8 @@ def upload(path: str) -> tuple[bool, str]:
     if server_info is None:
         return (
             False,
-            "Cannot upload: ZnDraw server is not running.",
+            "Cannot upload: No running ZnDraw server found. "
+            "Start a server with 'zndraw' command first.",
         )
 
     result = subprocess.run(["zndraw", path], capture_output=True)
@@ -110,7 +117,8 @@ def run_zndraw_script(
     if server_info is None:
         return (
             False,
-            "Cannot run script: ZnDraw server is not running.",
+            "Cannot run script: No running ZnDraw server found. "
+            "Start a server with 'zndraw' command first.",
         )
 
     vis = ZnDraw(url=url, room=room, user=user, password=password)

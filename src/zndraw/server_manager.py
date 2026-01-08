@@ -305,6 +305,10 @@ def find_running_server(port: int | None = None) -> ServerInfo | None:
         except (IndexError, ValueError):
             continue
 
+        # Skip default port; it was already checked explicitly above
+        if file_port == DEFAULT_PORT:
+            continue
+
         is_running, server_info, _ = get_server_status(file_port)
         if is_running and server_info is not None:
             running_servers.append(server_info)
@@ -343,7 +347,7 @@ def shutdown_server(server_info: ServerInfo) -> bool:
             headers=headers,
             timeout=5.0,
         )
-    except (requests.RequestException, requests.ConnectionError):
+    except requests.RequestException:
         pass
 
     # Wait for process to exit
