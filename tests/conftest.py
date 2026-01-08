@@ -243,6 +243,7 @@ def _create_server_process(
         env.pop("ZNDRAW_ADMIN_PASSWORD", None)
 
     # Start zndraw-server subprocess
+    # Using unique port ensures new server starts (no --force-new-server needed)
     with open(server_log, "w") as stdout_f, open(server_err, "w") as stderr_f:
         proc = subprocess.Popen(
             [
@@ -255,7 +256,6 @@ def _create_server_process(
                 "--redis-url",
                 redis_url,
                 "--no-browser",
-                "--force-new-server",  # Always start a new server, don't reuse existing
             ],
             stdout=stdout_f,
             stderr=stderr_f,
@@ -293,7 +293,7 @@ def _create_server_process(
             # Clean up server info file
             from zndraw.server_manager import remove_server_info
 
-            remove_server_info()
+            remove_server_info(port)
 
 
 @pytest.fixture

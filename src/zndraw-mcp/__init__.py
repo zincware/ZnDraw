@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 from fastmcp import FastMCP
 
 from zndraw import ZnDraw
-from zndraw.server_manager import ServerInfo, get_server_status
+from zndraw.server_manager import ServerInfo, find_running_server
 
 # Initialize the MCP Server
 mcp = FastMCP("ZnDraw Bridge")
@@ -50,11 +50,18 @@ def get_geometry_doc(geometry_name: str) -> str:
 
 
 @mcp.resource("zndraw://state")
-def get_current_state() -> tuple[bool, ServerInfo | None, str]:
+def get_current_state() -> tuple[bool, ServerInfo | None]:
+    """Get the current status of the ZnDraw server.
+
+    Returns
+    -------
+    tuple[bool, ServerInfo | None]
+        A pair (is_running, server_info) where:
+        - is_running is True if a ZnDraw server is currently running
+        - server_info contains server details if running, otherwise None
     """
-    Returns the current status of the ZnDraw server.
-    """
-    return get_server_status()
+    server_info = find_running_server()
+    return (server_info is not None, server_info)
 
 
 # --- 3. Tools (Actions) ---
@@ -63,11 +70,12 @@ def get_current_state() -> tuple[bool, ServerInfo | None, str]:
 @mcp.tool()
 def upload(path: str) -> tuple[bool, str]:
     """Upload a local file to the ZnDraw server."""
-    is_running, _, status_message = get_server_status()
-    if not is_running:
+    server_info = find_running_server()
+    if server_info is None:
         return (
             False,
-            f"Cannot upload: ZnDraw server is not running. Status: {status_message}",
+            "Cannot upload: No running ZnDraw server found. "
+            "Start a server with 'zndraw' command first.",
         )
 
     result = subprocess.run(["zndraw", path], capture_output=True)
@@ -105,11 +113,12 @@ def run_zndraw_script(
     Further Documentation:
     - use docs://geometries for geometry docs.
     """
-    is_running, _, status_message = get_server_status()
-    if not is_running:
+    server_info = find_running_server()
+    if server_info is None:
         return (
             False,
-            f"Cannot upload: ZnDraw server is not running. Status: {status_message}",
+            "Cannot run script: No running ZnDraw server found. "
+            "Start a server with 'zndraw' command first.",
         )
 
     vis = ZnDraw(url=url, room=room, user=user, password=password)

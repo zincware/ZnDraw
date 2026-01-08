@@ -33,7 +33,7 @@ from zndraw.frame_cache import FrameCache
 from zndraw.lock import ZnDrawLock
 from zndraw.metadata_manager import RoomMetadata
 from zndraw.scene_manager import Geometries
-from zndraw.server_manager import get_server_status
+from zndraw.server_manager import find_running_server
 from zndraw.settings import RoomConfig
 from zndraw.socket_manager import SocketManager
 from zndraw.utils import update_colors_and_radii
@@ -450,11 +450,13 @@ class ZnDraw(MutableSequence):
 
         # Auto-discover local server if url is None
         if self.url is None:
-            is_running, server_info, status_message = get_server_status()
+            server_info = find_running_server()
 
-            if is_running and server_info is not None:
+            if server_info is not None:
                 self.url = f"http://127.0.0.1:{server_info.port}"
-                log.info(f"Auto-discovered local ZnDraw server: {status_message}")
+                log.info(
+                    f"Auto-discovered local ZnDraw server (Port: {server_info.port})"
+                )
             else:
                 raise RuntimeError(
                     "No local ZnDraw server found. Please start a server with 'zndraw' "
