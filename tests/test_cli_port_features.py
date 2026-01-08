@@ -93,9 +93,10 @@ def test_shutdown_server_running_success():
     """--shutdown with running server shuts it down."""
     mock_info = ServerInfo(pid=1234, port=5000, version="1.0.0")
 
-    with patch("zndraw.cli.find_running_server", return_value=mock_info), patch(
-        "zndraw.cli.shutdown_server", return_value=True
-    ) as mock_shutdown:
+    with (
+        patch("zndraw.cli.find_running_server", return_value=mock_info),
+        patch("zndraw.cli.shutdown_server", return_value=True) as mock_shutdown,
+    ):
         result = runner.invoke(app, ["--shutdown"])
 
     assert result.exit_code == 0
@@ -109,8 +110,9 @@ def test_shutdown_server_running_failure():
     """--shutdown that fails returns exit code 1."""
     mock_info = ServerInfo(pid=1234, port=5000, version="1.0.0")
 
-    with patch("zndraw.cli.find_running_server", return_value=mock_info), patch(
-        "zndraw.cli.shutdown_server", return_value=False
+    with (
+        patch("zndraw.cli.find_running_server", return_value=mock_info),
+        patch("zndraw.cli.shutdown_server", return_value=False),
     ):
         result = runner.invoke(app, ["--shutdown"])
 
@@ -132,8 +134,9 @@ def test_shutdown_with_port_server_running():
     """--shutdown --port 5001 shuts down server on that specific port."""
     mock_info = ServerInfo(pid=5678, port=5001, version="2.0.0")
 
-    with patch("zndraw.cli.find_running_server", return_value=mock_info) as mock_find, patch(
-        "zndraw.cli.shutdown_server", return_value=True
+    with (
+        patch("zndraw.cli.find_running_server", return_value=mock_info) as mock_find,
+        patch("zndraw.cli.shutdown_server", return_value=True),
     ):
         result = runner.invoke(app, ["--shutdown", "--port", "5001"])
 
@@ -146,8 +149,9 @@ def test_shutdown_auto_discovers_without_port():
     """--shutdown without --port calls find_running_server with None."""
     mock_info = ServerInfo(pid=1234, port=DEFAULT_PORT, version="1.0.0")
 
-    with patch("zndraw.cli.find_running_server", return_value=mock_info) as mock_find, patch(
-        "zndraw.cli.shutdown_server", return_value=True
+    with (
+        patch("zndraw.cli.find_running_server", return_value=mock_info) as mock_find,
+        patch("zndraw.cli.shutdown_server", return_value=True),
     ):
         result = runner.invoke(app, ["--shutdown"])
 

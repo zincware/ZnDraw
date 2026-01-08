@@ -23,9 +23,7 @@ from zndraw.server_manager import (
 @pytest.fixture
 def mock_zndraw_dir(tmp_path, monkeypatch):
     """Mock get_zndraw_dir to use tmp_path."""
-    monkeypatch.setattr(
-        "zndraw.server_manager.get_zndraw_dir", lambda: tmp_path
-    )
+    monkeypatch.setattr("zndraw.server_manager.get_zndraw_dir", lambda: tmp_path)
     return tmp_path
 
 
@@ -159,8 +157,9 @@ def test_find_running_server_specific_port_running(mock_zndraw_dir):
     info = ServerInfo(pid=1234, port=5001, version="1.0.0")
     write_server_info(info)
 
-    with patch("zndraw.server_manager.is_process_running", return_value=True), patch(
-        "zndraw.server_manager.is_server_responsive", return_value=True
+    with (
+        patch("zndraw.server_manager.is_process_running", return_value=True),
+        patch("zndraw.server_manager.is_server_responsive", return_value=True),
     ):
         result = find_running_server(port=5001)
 
@@ -175,8 +174,9 @@ def test_find_running_server_auto_discovery_default_port_first(mock_zndraw_dir):
         info = ServerInfo(pid=port, port=port, version="1.0.0")
         write_server_info(info)
 
-    with patch("zndraw.server_manager.is_process_running", return_value=True), patch(
-        "zndraw.server_manager.is_server_responsive", return_value=True
+    with (
+        patch("zndraw.server_manager.is_process_running", return_value=True),
+        patch("zndraw.server_manager.is_server_responsive", return_value=True),
     ):
         result = find_running_server()
 
@@ -199,10 +199,14 @@ def test_find_running_server_auto_discovery_smallest_port_fallback(mock_zndraw_d
         # All servers "responsive"
         return True
 
-    with patch(
-        "zndraw.server_manager.is_process_running", side_effect=is_process_running
-    ), patch(
-        "zndraw.server_manager.is_server_responsive", side_effect=is_server_responsive
+    with (
+        patch(
+            "zndraw.server_manager.is_process_running", side_effect=is_process_running
+        ),
+        patch(
+            "zndraw.server_manager.is_server_responsive",
+            side_effect=is_server_responsive,
+        ),
     ):
         result = find_running_server()
 
@@ -267,8 +271,9 @@ def test_get_server_status_running_server(mock_zndraw_dir):
     info = ServerInfo(pid=1234, port=5000, version="1.0.0")
     write_server_info(info)
 
-    with patch("zndraw.server_manager.is_process_running", return_value=True), patch(
-        "zndraw.server_manager.is_server_responsive", return_value=True
+    with (
+        patch("zndraw.server_manager.is_process_running", return_value=True),
+        patch("zndraw.server_manager.is_server_responsive", return_value=True),
     ):
         is_running, returned_info, message = get_server_status(5000)
 
@@ -283,8 +288,9 @@ def test_get_server_status_process_running_but_not_responsive(mock_zndraw_dir):
     info = ServerInfo(pid=1234, port=5000, version="1.0.0")
     write_server_info(info)
 
-    with patch("zndraw.server_manager.is_process_running", return_value=True), patch(
-        "zndraw.server_manager.is_server_responsive", return_value=False
+    with (
+        patch("zndraw.server_manager.is_process_running", return_value=True),
+        patch("zndraw.server_manager.is_server_responsive", return_value=False),
     ):
         is_running, returned_info, message = get_server_status(5000)
 
