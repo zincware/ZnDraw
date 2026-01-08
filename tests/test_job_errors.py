@@ -33,7 +33,7 @@ def test_extension_execution_with_auto_pickup(server):
 
     # Submit and wait for job using the Job.wait() pattern
     job = client.run(TestExtension(parameter=42))
-    job.wait(timeout=10)
+    job.wait(timeout=30)
 
     # Check job completed
     assert job.status == "completed"

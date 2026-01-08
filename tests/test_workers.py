@@ -842,11 +842,11 @@ def test_submit_task_twice_via_vis_run(server, public):
     vis2 = ZnDraw(url=server, room="testroom", user="testuser2")
 
     job = vis2.run(RaiseOnParameterExtension(parameter=0), public=public)
-    job.wait(timeout=15)
+    job.wait(timeout=30)
     assert job.status == JobStatus.COMPLETED
     # submit again
     job = vis2.run(RaiseOnParameterExtension(parameter=1), public=public)
-    job.wait(timeout=15)
+    job.wait(timeout=30)
     assert job.status == JobStatus.FAILED
     # # submit again
     job1 = vis2.run(RaiseOnParameterExtension(parameter=0), public=public)

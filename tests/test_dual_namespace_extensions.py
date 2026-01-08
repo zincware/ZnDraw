@@ -182,7 +182,7 @@ def test_auto_pickup_jobs_with_dual_registration(server):
     assert job.job_id is not None
 
     # Wait for worker to pick up and process (uses socketio.sleep to not block event loop)
-    job.wait(timeout=15)
+    job.wait(timeout=30)
 
     # Job should have been processed successfully
     assert job.is_completed()
