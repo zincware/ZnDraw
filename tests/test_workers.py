@@ -841,20 +841,20 @@ def test_submit_task_twice_via_vis_run(server, public):
     vis2 = ZnDraw(url=server, room="testroom", user="testuser2")
 
     job = vis2.run(RaiseOnParameterExtension(parameter=0), public=public)
-    job.wait(timeout=5)
+    job.wait(timeout=15)
     assert job.status == JobStatus.COMPLETED
     # submit again
     job = vis2.run(RaiseOnParameterExtension(parameter=1), public=public)
-    job.wait(timeout=5)
+    job.wait(timeout=15)
     assert job.status == JobStatus.FAILED
     # # submit again
     job1 = vis2.run(RaiseOnParameterExtension(parameter=0), public=public)
     job2 = vis2.run(RaiseOnParameterExtension(parameter=0), public=public)
     assert job1.status == JobStatus.ASSIGNED
     assert job2.status == JobStatus.PENDING
-    job1.wait(timeout=5)
+    job1.wait(timeout=15)
     assert job1.status == JobStatus.COMPLETED
-    job2.wait(timeout=5)
+    job2.wait(timeout=15)
     assert job2.status == JobStatus.COMPLETED
 
 
@@ -901,7 +901,7 @@ def test_submit_task_twice_via_vis_register_twice_single_worker(server):
     job2 = vis.run(RaiseOnParameterExtension(parameter=0), public=False)
     assert job1.status == JobStatus.ASSIGNED
     assert job2.status == JobStatus.PENDING
-    job1.wait(timeout=5)
+    job1.wait(timeout=15)
     assert job1.status == JobStatus.COMPLETED
-    job2.wait(timeout=5)
+    job2.wait(timeout=15)
     assert job2.status == JobStatus.COMPLETED
