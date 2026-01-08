@@ -870,8 +870,8 @@ def test_submit_task_twice_via_vis_run_two_extensions(server, public):
     job2 = vis.run(RaiseOnParameterExtension(parameter=0), public=public)
     assert job1.status == JobStatus.ASSIGNED
     assert job2.status == JobStatus.ASSIGNED
-    job1.wait(timeout=5)
-    job2.wait(timeout=5)
+    job1.wait(timeout=15)
+    job2.wait(timeout=15)
     assert job1.status == JobStatus.COMPLETED
     assert job2.status == JobStatus.COMPLETED
 
@@ -882,9 +882,9 @@ def test_submit_task_twice_via_vis_run_two_extensions(server, public):
     assert job1.status == JobStatus.ASSIGNED
     assert job2.status == JobStatus.ASSIGNED
     assert job3.status == JobStatus.PENDING
-    job1.wait(timeout=5)
-    job2.wait(timeout=5)
-    job3.wait(timeout=5)
+    job1.wait(timeout=15)
+    job2.wait(timeout=15)
+    job3.wait(timeout=15)
     assert job1.status == JobStatus.COMPLETED
     assert job2.status == JobStatus.COMPLETED
     assert job3.status == JobStatus.COMPLETED

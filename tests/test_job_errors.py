@@ -18,7 +18,7 @@ class TestExtension(Extension):
         pass
 
 
-def test_extension_execution_with_auto_pickup(server, get_jwt_auth_headers):
+def test_extension_execution_with_auto_pickup(server):
     """Test that extensions execute correctly with auto_pickup_jobs=True."""
     room = "testroom"
     user = "testuser"
@@ -27,24 +27,15 @@ def test_extension_execution_with_auto_pickup(server, get_jwt_auth_headers):
     vis = ZnDraw(url=server, room=room, user=user, auto_pickup_jobs=True)
     vis.register_extension(TestExtension)
 
-    # Get authentication headers
-    auth_headers = get_jwt_auth_headers(server, user)
+    # Create a second client to submit the job
+    client = ZnDraw(url=server, room=room, user="submitter")
 
-    # Submit a job
-    response = requests.post(
-        f"{server}/api/rooms/{room}/extensions/private/modifiers/{TestExtension.__name__}/submit",
-        json={"data": {"parameter": 42}, "userId": user},
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
-    job_id = response.json()["jobId"]
+    # Submit and wait for job using the Job.wait() pattern
+    job = client.run(TestExtension(parameter=42))
+    job.wait(timeout=10)
 
-    # Wait for the job to be picked up and completed
-    vis.socket.sio.sleep(1)
+    # Check job completed
+    assert job.status == "completed"
 
-    # Check job status
-    response = requests.get(f"{server}/api/rooms/{room}/jobs/{job_id}")
-    assert response.status_code == 200
-    assert response.json()["status"] == "completed"
-
+    client.disconnect()
     vis.disconnect()
