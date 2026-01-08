@@ -184,7 +184,7 @@ def is_server_responsive(port: int, timeout: float = 2.0) -> bool:
     try:
         response = requests.get(f"http://localhost:{port}/health", timeout=timeout)
         return response.status_code == 200
-    except (requests.RequestException, requests.ConnectionError):
+    except requests.RequestException:
         return False
 
 

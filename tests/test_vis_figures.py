@@ -316,10 +316,10 @@ def test_properties_2d_analysis(server, celery_worker):
         color="step",
         fix_aspect_ratio=False,
     )
-    vis.run(analysis)
+    job = vis.run(analysis)
 
-    # Wait for celery worker to process the job
-    vis.socket.sio.sleep(4)
+    # Wait for celery worker to process the job using Job.wait()
+    job.wait(timeout=30)
 
     # Verify figure was created
     assert "Properties2D" in vis.figures
@@ -360,10 +360,10 @@ def test_properties_2d_with_step(server, celery_worker):
     analysis = Properties2D(
         x_data="step", y_data="info.energy", color="step", fix_aspect_ratio=True
     )
-    vis.run(analysis)
+    job = vis.run(analysis)
 
     # Wait for celery worker to process the job
-    vis.socket.sio.sleep(4)
+    job.wait(timeout=30)
 
     # Verify figure was created
     assert "Properties2D" in vis.figures

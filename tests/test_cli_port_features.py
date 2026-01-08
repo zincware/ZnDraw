@@ -166,10 +166,13 @@ def test_shutdown_auto_discovers_without_port():
 
 def test_port_help_text():
     """--port help text explains auto-discovery behavior."""
-    result = runner.invoke(app, ["--help"])
+    # Set TERM=dumb to disable Rich's fancy rendering (boxes, colors, cursor control)
+    # and COLUMNS for consistent width. This ensures consistent output in CI
+    # environments where Rich may render incorrectly due to no TTY.
+    result = runner.invoke(app, ["--help"], env={"TERM": "dumb", "COLUMNS": "200"})
 
     assert result.exit_code == 0
-    # Verify help text mentions auto-discovery
+    # Verify help text mentions --port option
     assert "--port" in result.output
 
 

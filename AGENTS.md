@@ -8,6 +8,7 @@ Consider multiple approaches, review them against the principles above, the exis
 When in doubt, ask for a review of your design approach before implementing it.
 You MUST NEVER run `git add` / `git commit` / `git push`!
 The frontend data always originates from the backend! No other data source has to be considered / edge cases beyond the backend data must not be handled!
+You MUST NEVER `@pytest.mark.xfail` or similar - all tests must pass!
 
 # Context7
 Always use context7 when I need code generation, setup or configuration steps, or
