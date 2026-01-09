@@ -14,19 +14,9 @@ def test_step_sync(server, s22):
     assert vis2.step == 7
 
 
-def test_settings_sync(server, s22):
-    """Test that settings are per-user (not shared across users).
-
-    Each user has their own settings in the same room.
-    """
-    vis1 = ZnDraw(url=server, room="testroom", user="u1")
-    vis1.extend(s22)
-    vis1.settings.camera.far_plane = 100.0
-    assert vis1.settings.camera.far_plane == 100.0
-
-    # vis2 is a different user, should have default settings
-    vis2 = ZnDraw(url=server, room="testroom", user="u2")
-    assert vis2.settings.camera.far_plane == 300  # Default value, not synced from u1
+# Note: test_settings_sync was removed because vis.settings is no longer
+# part of the Python client API. Settings are now managed via HTTP API only,
+# and camera settings are accessed via session.camera.
 
 
 def test_bookmarks_sync(server, s22):

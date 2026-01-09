@@ -242,6 +242,16 @@ export const createGeometry = async (
 		return data;
 	}
 
+	// Session cameras don't need lock acquisition - they're per-user viewport state
+	// Backend only checks forbid=["room:locked"], not trajectory:meta lock
+	if (key.startsWith("cam:session:")) {
+		const { data } = await apiClient.post(
+			`/api/rooms/${roomId}/geometries`,
+			requestBody,
+		);
+		return data;
+	}
+
 	// Otherwise, auto-acquire lock, perform operation, and release
 	return withAutoLock(
 		roomId,
@@ -291,6 +301,17 @@ export const getGeometrySchemas = async (
 	const { data } = await apiClient.get(
 		`/api/rooms/${roomId}/geometries/schemas`,
 	);
+	return data;
+};
+
+/**
+ * Get default values for all geometry types from Pydantic models.
+ * This allows frontend to use backend-defined defaults without duplication.
+ */
+export const getGeometryDefaults = async (): Promise<{
+	defaults: Record<string, any>;
+}> => {
+	const { data } = await apiClient.get("/api/schema/geometries/defaults");
 	return data;
 };
 
@@ -1459,4 +1480,132 @@ export const releaseLock = async (
 		{ lockToken },
 	);
 	return data;
+};
+
+// ==================== Session API ====================
+
+/**
+ * Session information returned from list endpoint.
+ */
+export interface SessionInfo {
+	session_id: string;
+	alias: string | null;
+}
+
+/**
+ * Session camera state.
+ */
+export interface SessionCameraState {
+	position:
+		| [number, number, number]
+		| { type: string; geometry_key: string; progress: number };
+	target:
+		| [number, number, number]
+		| { type: string; geometry_key: string; progress: number };
+	fov: number;
+	near: number;
+	far: number;
+	zoom: number;
+}
+
+/**
+ * List all frontend sessions in a room.
+ *
+ * @param roomId - Room identifier
+ * @returns Promise with array of session info
+ */
+export const listSessions = async (roomId: string): Promise<SessionInfo[]> => {
+	const { data } = await apiClient.get(`/api/rooms/${roomId}/sessions`);
+	return data.sessions;
+};
+
+/**
+ * Get camera state for a session.
+ *
+ * @param roomId - Room identifier
+ * @param sessionId - Session identifier
+ * @returns Promise with camera state
+ */
+export const getSessionCamera = async (
+	roomId: string,
+	sessionId: string,
+): Promise<SessionCameraState> => {
+	const { data } = await apiClient.get(
+		`/api/rooms/${roomId}/sessions/${sessionId}/camera`,
+	);
+	return data.camera;
+};
+
+/**
+ * Set camera state for a session (programmatic control).
+ *
+ * @param roomId - Room identifier
+ * @param sessionId - Session identifier
+ * @param camera - Camera state to set
+ * @returns Promise with success status
+ */
+export const setSessionCamera = async (
+	roomId: string,
+	sessionId: string,
+	camera: SessionCameraState,
+): Promise<{ status: string }> => {
+	const { data } = await apiClient.put(
+		`/api/rooms/${roomId}/sessions/${sessionId}/camera`,
+		camera,
+	);
+	return data;
+};
+
+/**
+ * Get alias for a session.
+ *
+ * @param roomId - Room identifier
+ * @param sessionId - Session identifier
+ * @returns Promise with alias (or null)
+ */
+export const getSessionAlias = async (
+	roomId: string,
+	sessionId: string,
+): Promise<string | null> => {
+	const { data } = await apiClient.get(
+		`/api/rooms/${roomId}/sessions/${sessionId}/alias`,
+	);
+	return data.alias;
+};
+
+/**
+ * Set alias for a session.
+ *
+ * @param roomId - Room identifier
+ * @param sessionId - Session identifier
+ * @param alias - Alias to set (or null to remove)
+ * @returns Promise with success status
+ */
+export const setSessionAlias = async (
+	roomId: string,
+	sessionId: string,
+	alias: string | null,
+): Promise<{ status: string }> => {
+	const { data } = await apiClient.put(
+		`/api/rooms/${roomId}/sessions/${sessionId}/alias`,
+		{ alias },
+	);
+	return data;
+};
+
+/**
+ * Get session ID by alias.
+ *
+ * @param roomId - Room identifier
+ * @param alias - Session alias
+ * @returns Promise with session ID (or null)
+ */
+export const getSessionByAlias = async (
+	roomId: string,
+	alias: string,
+): Promise<string | null> => {
+	const { data } = await apiClient.get(
+		`/api/rooms/${roomId}/sessions/by-alias/${alias}`,
+	);
+	return data.session_id;
 };

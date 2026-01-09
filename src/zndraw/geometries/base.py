@@ -84,6 +84,11 @@ class BaseGeometry(BaseModel):
         description="Whether this geometry should be rendered.",
     )
 
+    protected: bool = Field(
+        default=False,
+        description="Whether this geometry is protected from deletion.",
+    )
+
     position: PositionProp = Field(
         default=[(0.0, 0.0, 0.0)],
         description="Position coordinates [(x,y,z), ...]. String for dynamic data key.",

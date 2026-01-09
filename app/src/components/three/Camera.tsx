@@ -2,13 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import { useThree } from "@react-three/fiber";
 import { useAppStore } from "../../store";
+import {
+	isCurveAttachment,
+	CurveAttachment,
+	PositionType,
+} from "../../utils/cameraUtils";
 
 interface CameraData {
-	// Curve references (always used)
-	position_curve_key: string;
-	position_progress: number;
-	target_curve_key: string;
-	target_progress: number;
+	// Position and target can be either direct coordinates or CurveAttachment
+	position: PositionType;
+	target: PositionType;
 
 	// Camera properties
 	up: [number, number, number];
@@ -47,24 +50,46 @@ export default function Camera({
 
 	const isAttached = attachedCameraKey === geometryKey;
 
+	// Extract curve info from position/target (either direct coords or CurveAttachment)
+	const positionCurveKey = isCurveAttachment(data.position)
+		? data.position.geometry_key
+		: null;
+	const positionProgress = isCurveAttachment(data.position)
+		? data.position.progress
+		: 0;
+	const targetCurveKey = isCurveAttachment(data.target)
+		? data.target.geometry_key
+		: null;
+	const targetProgress = isCurveAttachment(data.target)
+		? data.target.progress
+		: 0;
+
 	// Get curve refs from store (shared with Curve components)
-	const positionCurveKey = data.position_curve_key || null;
-	const targetCurveKey = data.target_curve_key || null;
 	const positionCurve = positionCurveKey
 		? curveRefs[positionCurveKey]
 		: undefined;
 	const targetCurve = targetCurveKey ? curveRefs[targetCurveKey] : undefined;
 
 	/**
-	 * Helper: Compute 3D point from curve key + progress
-	 * Handles both multi-point curves (via THREE.js curve object) and single-point curves (direct read)
+	 * Helper: Resolve position from either direct coordinates or CurveAttachment
 	 */
-	const computePointFromCurve = (
+	const resolvePositionToVector = (
+		positionData: PositionType,
 		curveKey: string | null,
 		curve: THREE.CatmullRomCurve3 | undefined,
 		progress: number,
 		fallback: THREE.Vector3,
 	): THREE.Vector3 => {
+		// Direct coordinates - just use them
+		if (Array.isArray(positionData)) {
+			return new THREE.Vector3(
+				positionData[0],
+				positionData[1],
+				positionData[2],
+			);
+		}
+
+		// CurveAttachment - resolve via curve
 		if (!curveKey) {
 			return fallback;
 		}
@@ -90,36 +115,40 @@ export default function Camera({
 		}
 	};
 
-	// Compute position from curve
+	// Compute position (from direct coords or curve)
 	useEffect(() => {
-		const point = computePointFromCurve(
+		const point = resolvePositionToVector(
+			data.position,
 			positionCurveKey,
 			positionCurve,
-			data.position_progress,
+			positionProgress,
 			new THREE.Vector3(0, 0, 10),
 		);
 		setComputedPosition(point);
 	}, [
+		data.position,
 		positionCurve,
 		positionCurveKey,
-		data.position_progress,
+		positionProgress,
 		geometries,
 		geometryKey,
 	]);
 
-	// Compute target from curve
+	// Compute target (from direct coords or curve)
 	useEffect(() => {
-		const point = computePointFromCurve(
+		const point = resolvePositionToVector(
+			data.target,
 			targetCurveKey,
 			targetCurve,
-			data.target_progress,
+			targetProgress,
 			new THREE.Vector3(0, 0, 0),
 		);
 		setComputedTarget(point);
 	}, [
+		data.target,
 		targetCurve,
 		targetCurveKey,
-		data.target_progress,
+		targetProgress,
 		geometries,
 		geometryKey,
 	]);

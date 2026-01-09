@@ -18,6 +18,9 @@ from zndraw.geometries import (
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw
 
+# Reserved geometry key prefixes (system-generated keys)
+RESERVED_KEY_PREFIXES = ["cam:session:"]
+
 
 class Geometries(MutableMapping):
     def __init__(self, zndraw_instance: "ZnDraw") -> None:
@@ -77,6 +80,13 @@ class Geometries(MutableMapping):
     def __setitem__(self, key: str, value: BaseModel) -> None:
         from zndraw.geometries import geometries
 
+        # Validate key is not using reserved prefixes
+        for prefix in RESERVED_KEY_PREFIXES:
+            if key.startswith(prefix):
+                raise ValueError(
+                    f"Geometry key cannot start with reserved prefix '{prefix}'"
+                )
+
         geometry_type = type(value).__name__
         if geometry_type not in geometries:
             raise ValueError(f"Unknown geometry type: {geometry_type}")
@@ -88,6 +98,14 @@ class Geometries(MutableMapping):
     def __delitem__(self, key: str) -> None:
         if key not in self.vis._geometries:
             raise KeyError(f"Geometry with key '{key}' does not exist")
+
+        geometry = self.vis._geometries[key]
+        if geometry.get("data", {}).get("protected", False):
+            raise PermissionError(
+                f"Cannot delete protected geometry '{key}'. "
+                "Set 'protected=False' on the geometry first to allow deletion."
+            )
+
         del self.vis._geometries[key]
         self.vis.api.del_geometry(key=key)
 

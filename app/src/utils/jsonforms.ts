@@ -26,6 +26,9 @@ import MaterialEditor, {
 import Vertices2DRenderer, {
 	vertices2DRendererTester,
 } from "../components/jsonforms-renderers/Vertices2DRenderer";
+import PositionAttachmentRenderer, {
+	positionAttachmentTester,
+} from "../components/jsonforms-renderers/PositionAttachmentRenderer";
 import { FrameMetadata, FrameKeysResponse } from "../myapi/client";
 
 /**
@@ -36,6 +39,10 @@ export const customRenderers = [
 	...materialRenderers,
 	{ tester: vertices2DRendererTester, renderer: Vertices2DRenderer }, // Priority 10 - 2D vertices editor for Shape
 	{ tester: materialEditorTester, renderer: MaterialEditor }, // Priority 10 - Material editor with preset/object support
+	{
+		tester: positionAttachmentTester,
+		renderer: PositionAttachmentRenderer,
+	}, // Priority 10 - Position with optional CurveAttachment
 	{ tester: dynamicEnumTester, renderer: DynamicEnumRenderer }, // Priority 10 - New unified renderer with transform support
 	{ tester: propertyInspectorTester, renderer: PropertyInspectorRenderer }, // Priority 10 - Property Inspector
 	{
@@ -109,9 +116,9 @@ export const injectDynamicEnums = (
 				obj.enum = metadata.keys;
 			}
 
-			// NEW PATTERN: Check for x-custom-type="dynamic-enum" with "dynamic-geometries" feature
+			// NEW PATTERN: Check for x-features containing "dynamic-geometries"
+			// Supports both x-custom-type="dynamic-enum" and "position-attachment"
 			if (
-				obj["x-custom-type"] === "dynamic-enum" &&
 				Array.isArray(obj["x-features"]) &&
 				obj["x-features"].includes("dynamic-geometries") &&
 				geometries

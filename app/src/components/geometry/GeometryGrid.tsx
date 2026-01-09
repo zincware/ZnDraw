@@ -44,7 +44,6 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 	);
 	const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
 	const attachToCamera = useAppStore((state) => state.attachToCamera);
-	const detachFromCamera = useAppStore((state) => state.detachFromCamera);
 	const { setMode, setSelectedKey, searchFilter, setSearchFilter } =
 		useGeometryStore();
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -100,10 +99,9 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 				setActiveCurveForDrawing(key);
 			}
 		} else if (geometryType === "Camera") {
-			// Toggle camera attachment
-			if (attachedCameraKey === key) {
-				detachFromCamera();
-			} else {
+			// Radio button behavior: can only switch, not deselect
+			// Clicking the already-active camera does nothing
+			if (attachedCameraKey !== key) {
 				attachToCamera(key);
 			}
 		}

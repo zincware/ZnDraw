@@ -114,15 +114,41 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 				}
 
 				// Join appropriate room based on page
+				// IMPORTANT: Wait for join to complete before setting connected
+				// This ensures session:register runs AFTER the backend has processed join:room
 				if (isOverview) {
 					socket.emit("join:overview");
+					setConnected(true);
 				} else if (roomId) {
-					socket.emit("join:room", { roomId });
-					// Reset chat unread count when entering a room
-					useAppStore.getState().resetChatUnread();
-				}
+					// Wait for join:room to complete using socket.io acknowledgment
+					socket.emit("join:room", { roomId }, async (response: any) => {
+						// Reset chat unread count when entering a room
+						useAppStore.getState().resetChatUnread();
 
-				setConnected(true);
+						// Wait for sessionId to be available from REST /join API
+						// This coordinates the socket join:room with REST /join
+						let sessionId = useAppStore.getState().sessionId;
+						let attempts = 0;
+						const maxAttempts = 50; // 5 seconds max wait
+						while (!sessionId && attempts < maxAttempts) {
+							await new Promise((r) => setTimeout(r, 100));
+							sessionId = useAppStore.getState().sessionId;
+							attempts++;
+						}
+
+						// Register session if sessionId is available
+						if (sessionId) {
+							const urlParams = new URLSearchParams(window.location.search);
+							const alias = urlParams.get("alias");
+							socket.emit("session:register", { sessionId, alias });
+						}
+
+						// Only set connected after join:room is processed by backend
+						setConnected(true);
+					});
+				} else {
+					setConnected(true);
+				}
 			} catch (error) {
 				console.error("Error checking version compatibility:", error);
 				// Still connect even if version check fails
@@ -531,9 +557,15 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		async function onConnectError(err: any) {
 			console.error("Socket connection error:", err);
 
-			// Handle "Client not registered" error (stale token in localStorage)
+			// Handle authentication errors (stale token in localStorage)
 			// This happens when Redis is flushed but localStorage still has old token
-			if (err.message && err.message.includes("Client not registered")) {
+			// Handles both "Client not registered" and "User not found" errors
+			const isAuthError =
+				err.message &&
+				(err.message.includes("Client not registered") ||
+					err.message.includes("User not found"));
+
+			if (isAuthError) {
 				// Check if we've exceeded max retries
 				if (authRetryCountRef.current >= MAX_AUTH_RETRIES) {
 					console.error(

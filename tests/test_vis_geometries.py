@@ -13,6 +13,7 @@ from zndraw.geometries import (
     Plane,
     Sphere,
 )
+from zndraw.transformations import CurveAttachment
 
 
 def test_rest_get_geometries(joined_room, get_jwt_auth_headers):
@@ -242,13 +243,11 @@ def test_rest_create_basic_camera(joined_room):
     vis.geometries["cam_pos"] = Curve(position=[[0.0, 0.0, 10.0]])
     vis.geometries["cam_target"] = Curve(position=[[0.0, 0.0, 0.0]])
 
-    # Create camera
+    # Create camera with CurveAttachment
     camera = Camera(
-        position_curve_key="cam_pos",
-        position_progress=0.0,
-        target_curve_key="cam_target",
-        target_progress=0.0,
-        up=[0.0, 1.0, 0.0],
+        position=CurveAttachment(geometry_key="cam_pos", progress=0.0),
+        target=CurveAttachment(geometry_key="cam_target", progress=0.0),
+        up=(0.0, 1.0, 0.0),
         fov=60.0,
         camera_type=CameraType.PERSPECTIVE,
     )
@@ -259,8 +258,10 @@ def test_rest_create_basic_camera(joined_room):
     assert response.status_code == 200
     data = response.json()
     assert data["geometry"]["type"] == "Camera"
-    assert data["geometry"]["data"]["position_curve_key"] == "cam_pos"
-    assert data["geometry"]["data"]["target_curve_key"] == "cam_target"
+    # Check position is a CurveAttachment
+    pos = data["geometry"]["data"]["position"]
+    assert pos["type"] == "curve_attachment"
+    assert pos["geometry_key"] == "cam_pos"
     assert data["geometry"]["data"]["fov"] == 60.0
 
 
@@ -281,12 +282,10 @@ def test_vis_create_camera_with_curves(server):
     vis.geometries["camera_path"] = position_curve
     vis.geometries["target_path"] = target_curve
 
-    # Create camera with curve references
+    # Create camera with CurveAttachment references
     camera = Camera(
-        position_curve_key="camera_path",
-        position_progress=0.5,
-        target_curve_key="target_path",
-        target_progress=0.5,
+        position=CurveAttachment(geometry_key="camera_path", progress=0.5),
+        target=CurveAttachment(geometry_key="target_path", progress=0.5),
         fov=75.0,
         helper_visible=True,
         helper_color="#0000FF",
@@ -297,26 +296,24 @@ def test_vis_create_camera_with_curves(server):
 
     # Verify the camera was created with curve references
     retrieved_camera = vis.geometries["cinematic_camera"]
-    assert retrieved_camera.position_curve_key == "camera_path"
-    assert retrieved_camera.position_progress == 0.5
-    assert retrieved_camera.target_curve_key == "target_path"
-    assert retrieved_camera.target_progress == 0.5
+    assert isinstance(retrieved_camera.position, CurveAttachment)
+    assert retrieved_camera.position.geometry_key == "camera_path"
+    assert retrieved_camera.position.progress == 0.5
+    assert isinstance(retrieved_camera.target, CurveAttachment)
+    assert retrieved_camera.target.geometry_key == "target_path"
+    assert retrieved_camera.target.progress == 0.5
 
 
 def test_vis_camera_types(server):
     """Test creating cameras with different types."""
     vis = ZnDraw(url=server, room="room-camera-types", user="tester")
 
-    # Create curves for camera position and target
-    vis.geometries["pos1"] = Curve(position=[[0, 0, 10]])
-    vis.geometries["target1"] = Curve(position=[[0, 0, 0]])
-    vis.geometries["pos2"] = Curve(position=[[0, 0, 10]])
-    vis.geometries["target2"] = Curve(position=[[0, 0, 0]])
+    # Create cameras with direct coordinates (no curves needed for simple tests)
 
     # Perspective camera
     perspective_camera = Camera(
-        position_curve_key="pos1",
-        target_curve_key="target1",
+        position=(0.0, 0.0, 10.0),
+        target=(0.0, 0.0, 0.0),
         camera_type=CameraType.PERSPECTIVE,
         fov=75.0,
     )
@@ -324,8 +321,8 @@ def test_vis_camera_types(server):
 
     # Orthographic camera
     orthographic_camera = Camera(
-        position_curve_key="pos2",
-        target_curve_key="target2",
+        position=(0.0, 0.0, 10.0),
+        target=(0.0, 0.0, 0.0),
         camera_type=CameraType.ORTHOGRAPHIC,
         zoom=2.0,
     )
@@ -342,23 +339,19 @@ def test_vis_camera_validation(server):
     """Test camera validation for invalid parameters."""
     vis = ZnDraw(url=server, room="room-camera-validation", user="tester")
 
-    # Create curves for testing
-    vis.geometries["pos"] = Curve(position=[[0, 0, 10]])
-    vis.geometries["target"] = Curve(position=[[0, 0, 0]])
-
     # Test invalid FOV (must be between 0 and 180)
     with pytest.raises(Exception):  # Pydantic validation error
         Camera(
-            position_curve_key="pos",
-            target_curve_key="target",
+            position=(0.0, 0.0, 10.0),
+            target=(0.0, 0.0, 0.0),
             fov=200.0,  # Invalid: > 180
         )
 
     # Test invalid far plane (must be > near)
     with pytest.raises(Exception):  # Pydantic validation error
         Camera(
-            position_curve_key="pos",
-            target_curve_key="target",
+            position=(0.0, 0.0, 10.0),
+            target=(0.0, 0.0, 0.0),
             near=10.0,
             far=5.0,  # Invalid: < near
         )
@@ -366,8 +359,8 @@ def test_vis_camera_validation(server):
     # Test invalid up vector (cannot be zero)
     with pytest.raises(Exception):  # Pydantic validation error
         Camera(
-            position_curve_key="pos",
-            target_curve_key="target",
+            position=(0.0, 0.0, 10.0),
+            target=(0.0, 0.0, 0.0),
             up=(0.0, 0.0, 0.0),  # Invalid: zero vector
         )
 
@@ -388,29 +381,26 @@ def test_vis_camera_update_progress(server):
     vis.geometries["path"] = position_curve
     vis.geometries["target"] = target_curve
 
-    # Create camera attached to curve
+    # Create camera attached to curve using CurveAttachment
     camera = Camera(
-        position_curve_key="path",
-        position_progress=0.0,
-        target_curve_key="target",
-        target_progress=0.0,
+        position=CurveAttachment(geometry_key="path", progress=0.0),
+        target=CurveAttachment(geometry_key="target", progress=0.0),
     )
     vis.geometries["moving_camera"] = camera
     vis.socket.sio.sleep(0.5)
 
     # Update progress
     camera_updated = Camera(
-        position_curve_key="path",
-        position_progress=1.0,  # Move to end of curve
-        target_curve_key="target",
-        target_progress=0.0,
+        position=CurveAttachment(geometry_key="path", progress=1.0),  # Move to end
+        target=CurveAttachment(geometry_key="target", progress=0.0),
     )
     vis.geometries["moving_camera"] = camera_updated
     vis.socket.sio.sleep(0.5)
 
     # Verify progress was updated
     retrieved = vis.geometries["moving_camera"]
-    assert retrieved.position_progress == 1.0
+    assert isinstance(retrieved.position, CurveAttachment)
+    assert retrieved.position.progress == 1.0
 
 
 @pytest.mark.parametrize("geometry_class", [Sphere, Box, Plane])
@@ -597,3 +587,33 @@ def test_geometries_repr_and_str():
     # Verify exact format
     assert repr_str == "Geometries(keys=['particles', 'bonds', 'curve'])"
     assert str_str == "Geometries(keys=['particles', 'bonds', 'curve'])"
+
+
+def test_reserved_geometry_key_prefix_rejected(server):
+    """Cannot create geometry with reserved cam:session: prefix."""
+    vis = ZnDraw(url=server, room="room-reserved-key", user="tester")
+
+    with pytest.raises(ValueError, match="reserved prefix"):
+        vis.geometries["cam:session:test"] = Sphere()
+
+
+def test_reserved_geometry_key_prefix_variations(server):
+    """Reserved prefix check handles various key patterns."""
+    vis = ZnDraw(url=server, room="room-reserved-key-variations", user="tester")
+
+    # All cam:session: prefixed keys should be rejected
+    with pytest.raises(ValueError, match="reserved prefix"):
+        vis.geometries["cam:session:abc-123"] = Sphere()
+
+    with pytest.raises(ValueError, match="reserved prefix"):
+        vis.geometries["cam:session:"] = Sphere()  # Exact prefix
+
+    # Keys that don't start with the prefix should work
+    vis.geometries["session_camera"] = Sphere()  # Different format
+    vis.geometries["cam_session_test"] = Sphere()  # Underscore instead of colon
+    vis.geometries["my:cam:session:test"] = Sphere()  # Prefix not at start
+
+    # Verify the valid geometries were created
+    assert "session_camera" in vis.geometries
+    assert "cam_session_test" in vis.geometries
+    assert "my:cam:session:test" in vis.geometries

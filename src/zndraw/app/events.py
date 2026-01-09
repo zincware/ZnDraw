@@ -6,6 +6,7 @@ from flask import current_app, request
 from flask_socketio import emit
 
 from zndraw.analytics import connected_users
+from zndraw.geometries.camera import Camera
 from zndraw.server import socketio
 from zndraw.utils.time import utc_now_iso
 
@@ -63,6 +64,59 @@ def get_lock_key(room: str, target: str) -> str:
     """Constructs a standardized Redis key for a lock."""
     keys = RoomKeys(room)
     return keys.lock(target)
+
+
+def get_session_camera_key(session_id: str) -> str:
+    """Get the geometry key for a session camera."""
+    return f"cam:session:{session_id}"
+
+
+def create_session_camera(r, room: str, session_id: str) -> None:
+    """Create a Camera geometry for a session.
+
+    The session camera is the user's viewport into the scene.
+    It's stored in geometries with helper_visible=False (not cluttering the scene).
+    """
+    camera_key = get_session_camera_key(session_id)
+    keys = RoomKeys(room)
+
+    # Check if camera already exists (reconnection case)
+    existing = r.hget(keys.geometries(), camera_key)
+    if existing:
+        log.debug(f"Session camera {camera_key} already exists, skipping creation")
+        return
+
+    # Create camera with default position, helper_visible=False, protected=True
+    camera = Camera(helper_visible=False, protected=True)
+    geometry_data = {"type": "Camera", "data": camera.model_dump()}
+
+    r.hset(keys.geometries(), camera_key, json.dumps(geometry_data))
+    log.info(f"Created session camera: {camera_key}")
+
+    # Emit geometry invalidation so clients know about the new camera
+    socketio.emit(
+        SocketEvents.INVALIDATE_GEOMETRY,
+        {"key": camera_key, "operation": "set"},
+        to=f"room:{room}",
+    )
+
+
+def delete_session_camera(r, room: str, session_id: str) -> None:
+    """Delete a session's Camera geometry on disconnect."""
+    camera_key = get_session_camera_key(session_id)
+    keys = RoomKeys(room)
+
+    result = r.hdel(keys.geometries(), camera_key)
+    if result > 0:
+        log.info(f"Deleted session camera: {camera_key}")
+        # Emit geometry invalidation
+        socketio.emit(
+            SocketEvents.INVALIDATE_GEOMETRY,
+            {"key": camera_key, "operation": "delete"},
+            to=f"room:{room}",
+        )
+    else:
+        log.debug(f"Session camera {camera_key} not found (already deleted)")
 
 
 @socketio.on("connect")
@@ -182,6 +236,30 @@ def handle_disconnect(*args, **kwargs):
         r.delete(SessionKeys.session_to_sid(session_id))
         # Remove sid→session_id mapping
         r.delete(session_keys.session_id())
+
+        # Clean up frontend session data if in a room
+        if room_name:
+            room_keys = RoomKeys(room_name)
+
+            # Remove from frontend sessions set
+            r.srem(room_keys.frontend_sessions(), session_id)
+
+            # Delete session camera geometry
+            delete_session_camera(r, room_name, session_id)
+
+            # Delete session camera state (legacy, can be removed later)
+            r.hdel(room_keys.session_cameras(), session_id)
+
+            # Delete session settings
+            r.delete(room_keys.session_settings(session_id))
+
+            # Clean up alias mappings
+            alias = r.get(room_keys.session_alias(session_id))
+            if alias:
+                r.hdel(room_keys.aliases(), alias)
+                r.delete(room_keys.session_alias(session_id))
+
+            log.debug(f"Cleaned up frontend session data for {session_id}")
 
     # Update user's currentSid to empty (user still exists but disconnected)
     r.hset(user_keys.hash_key(), "currentSid", "")
@@ -698,6 +776,117 @@ def handle_chat_message_create(data):
     except Exception as e:
         log.error(f"Failed to create chat message: {e}")
         return {"success": False, "error": str(e)}
+
+
+@socketio.on(SocketEvents.CAMERA_STATE_UPDATE)
+def handle_camera_state_update(data):
+    """Update session camera state when OrbitControls changes.
+
+    Stores in session_cameras hash, NOT in geometries.
+    Does NOT broadcast - prevents feedback loop.
+
+    Payload
+    -------
+    {
+        "sessionId": str,
+        "position": [x, y, z],
+        "target": [x, y, z],
+        "fov": float,
+        "near": float,
+        "far": float,
+        "zoom": float
+    }
+    """
+    sid = request.sid
+    r = current_app.extensions["redis"]
+    room = get_project_room_from_session(sid)
+
+    if not room:
+        return {"success": False, "error": "Client has not joined a room."}
+
+    session_id = data.get("sessionId")
+    if not session_id:
+        return {"success": False, "error": "sessionId required"}
+
+    keys = RoomKeys(room)
+
+    # Build camera state from provided data (direct coordinates only)
+    camera_state = {
+        "position": tuple(data.get("position", [0, 5, 10])),
+        "target": tuple(data.get("target", [0, 0, 0])),
+        "fov": data.get("fov", 75.0),
+        "near": data.get("near", 0.1),
+        "far": data.get("far", 1000.0),
+        "zoom": data.get("zoom", 1.0),
+    }
+
+    r.hset(keys.session_cameras(), session_id, json.dumps(camera_state))
+
+    # NO broadcast - frontend is the source of truth for interactive mode
+    # This prevents feedback loops when OrbitControls updates
+
+    return {"success": True}
+
+
+@socketio.on("session:register")
+def handle_session_register(data):
+    """Register a frontend session when browser connects.
+
+    Called after socket connects. Adds session to frontend_sessions set.
+    Creates a session camera geometry (cam:session:<id>) for the user's viewport.
+    Optionally processes alias from URL parameter.
+
+    Payload
+    -------
+    {
+        "sessionId": str,
+        "alias": str | None  # From URL ?alias=projector
+    }
+    """
+    sid = request.sid
+    r = current_app.extensions["redis"]
+    room = get_project_room_from_session(sid)
+
+    if not room:
+        return {"success": False, "error": "Client has not joined a room."}
+
+    session_id = data.get("sessionId")
+    if not session_id:
+        return {"success": False, "error": "sessionId required"}
+
+    keys = RoomKeys(room)
+
+    # Register as frontend session
+    r.sadd(keys.frontend_sessions(), session_id)
+
+    # Join session-specific room for targeted updates
+    from flask_socketio import join_room
+
+    join_room(f"session:{session_id}")
+
+    # Create session camera geometry
+    create_session_camera(r, room, session_id)
+
+    # Process alias if provided (from URL parameter)
+    alias = data.get("alias")
+    if alias:
+        # Remove existing alias mapping if this alias was used elsewhere
+        existing_session = r.hget(keys.aliases(), alias)
+        if existing_session and existing_session != session_id:
+            r.delete(keys.session_alias(existing_session))
+
+        # Set new alias
+        r.hset(keys.aliases(), alias, session_id)
+        r.set(keys.session_alias(session_id), alias)
+        log.info(f"Session {session_id} registered with alias '{alias}'")
+    else:
+        log.debug(f"Session {session_id} registered without alias")
+
+    return {
+        "success": True,
+        "sessionId": session_id,
+        "cameraKey": get_session_camera_key(session_id),
+    }
 
 
 @socketio.on("chat:message:edit")

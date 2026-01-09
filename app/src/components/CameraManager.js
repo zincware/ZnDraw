@@ -1,29 +1,73 @@
-// CameraManager.js (or place it in the same file as MyScene)
+/**
+ * CameraManager - Updates camera properties from session camera geometry.
+ *
+ * Uses session camera data to configure the Three.js camera's near/far planes,
+ * position, target, and other properties.
+ *
+ * Position/target sync only happens when viewing through the session camera
+ * (not when attached to another camera geometry).
+ */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useThree } from "@react-three/fiber";
+import { useAppStore } from "../store";
 
-function CameraManager({ settings }) {
-	const { camera } = useThree();
+function CameraManager({ sessionCameraData }) {
+	const { camera, controls } = useThree();
+	const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
+	const sessionId = useAppStore((state) => state.sessionId);
+
+	// Derive session camera key
+	const sessionCameraKey = sessionId ? `cam:session:${sessionId}` : null;
+
+	// Track if this is the initial mount to avoid position sync on first render
+	// (let the Canvas's initial camera position take precedence)
+	const isInitialMount = useRef(true);
 
 	useEffect(() => {
-		if (settings) {
-			// Update properties that can be changed on the fly
-			camera.near = settings.near_plane;
-			camera.far = settings.far_plane;
+		if (!sessionCameraData) return;
 
-			// You could also update other properties like fov for a perspective camera
-			// if (camera.isPerspectiveCamera) {
-			//   camera.fov = settings.fov;
-			// }
+		// Always update projection properties (near/far/fov)
+		camera.near = sessionCameraData.near ?? 0.1;
+		camera.far = sessionCameraData.far ?? 1000;
 
-			// CRITICAL: This tells Three.js to re-calculate the camera's projection matrix
-			// with the new values. Without this, you won't see any change.
-			camera.updateProjectionMatrix();
+		if (camera.isPerspectiveCamera && sessionCameraData.fov) {
+			camera.fov = sessionCameraData.fov;
 		}
-	}, [settings, camera]); // Re-run this effect when settings or the camera object changes
 
-	return null; // This component doesn't render anything itself
+		// CRITICAL: Re-calculate projection matrix with new values
+		camera.updateProjectionMatrix();
+
+		// Only sync position/target when viewing through the session camera
+		// (not when attached to another camera) and not on initial mount
+		const isViewingSessionCamera = attachedCameraKey === sessionCameraKey;
+
+		if (isViewingSessionCamera && !isInitialMount.current) {
+			const position = sessionCameraData.position;
+			const target = sessionCameraData.target;
+
+			// Sync position if it's a direct coordinate array
+			if (Array.isArray(position) && position.length === 3) {
+				camera.position.set(position[0], position[1], position[2]);
+			}
+
+			// Sync target if controls exist and target is a direct coordinate array
+			if (controls?.target && Array.isArray(target) && target.length === 3) {
+				controls.target.set(target[0], target[1], target[2]);
+				controls.update();
+			}
+		}
+
+		isInitialMount.current = false;
+	}, [
+		sessionCameraData,
+		camera,
+		controls,
+		attachedCameraKey,
+		sessionCameraKey,
+	]);
+
+	return null;
 }
 
 export default CameraManager;

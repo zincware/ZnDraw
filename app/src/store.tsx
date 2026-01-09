@@ -206,7 +206,6 @@ interface AppState {
 	setLastFrameChangeTime: (time: number | null) => void;
 	setActiveCurveForDrawing: (key: string | null) => void;
 	attachToCamera: (cameraKey: string) => void;
-	detachFromCamera: () => void;
 	registerCurveRef: (key: string, curve: THREE.CatmullRomCurve3) => void;
 	unregisterCurveRef: (key: string) => void;
 	requestPathtracingUpdate: () => void; // Signal that pathtracer needs to update its scene
@@ -1030,10 +1029,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 		}
 
 		set({ attachedCameraKey: cameraKey });
-	},
-
-	detachFromCamera: () => {
-		set({ attachedCameraKey: null });
 	},
 
 	registerCurveRef: (key, curve) => {

@@ -1,6 +1,5 @@
 import contextlib
 import dataclasses
-import functools
 import logging
 import time
 import typing as t
@@ -34,7 +33,7 @@ from zndraw.lock import ZnDrawLock
 from zndraw.metadata_manager import RoomMetadata
 from zndraw.scene_manager import Geometries
 from zndraw.server_manager import find_running_server
-from zndraw.settings import RoomConfig
+from zndraw.session_manager import FrontendSessions
 from zndraw.socket_manager import SocketManager
 from zndraw.utils import update_colors_and_radii
 from zndraw.version_utils import validate_server_version
@@ -422,7 +421,6 @@ class ZnDraw(MutableSequence):
 
     _step: int = 0
     _len: int | None = 0  # None means cache invalidated, fetch from server
-    _settings: dict = dataclasses.field(default_factory=dict, init=False)
     _public_extensions: dict[str, _ExtensionStore] = dataclasses.field(
         default_factory=dict, init=False
     )
@@ -648,6 +646,38 @@ class ZnDraw(MutableSequence):
     @property
     def geometries(self) -> Geometries:
         return Geometries(self)
+
+    @property
+    def sessions(self) -> FrontendSessions:
+        """Active browser windows in this room.
+
+        Dict-like access to frontend sessions.
+        Each session has .camera and .settings properties.
+
+        Note: Python clients do NOT appear here.
+
+        Returns
+        -------
+        FrontendSessions
+            A Mapping interface to frontend sessions.
+
+        Examples
+        --------
+        >>> # List all sessions
+        >>> for sid, session in vis.sessions.items():
+        ...     print(f"{sid}: {session.camera.position}")
+
+        >>> # Set alias for stable access
+        >>> vis.sessions["abc-123"].alias = "projector"
+
+        >>> # Access by alias (survives reconnects)
+        >>> proj = vis.sessions.get(alias="projector")
+        >>> if proj:
+        ...     cam = proj.camera
+        ...     cam.position = (10, 10, 10)
+        ...     proj.camera = cam
+        """
+        return FrontendSessions(self)
 
     @property
     def figures(self) -> Figures:
@@ -1548,29 +1578,6 @@ class ZnDraw(MutableSequence):
                     )
 
         log.info(f"Successfully uploaded {total_frames} frames")
-
-    @property
-    def settings(self) -> RoomConfig:
-        """Access room-level settings configuration."""
-
-        def callback_fn(data: dict, category: str) -> None:
-            self.api.update_settings({category: data})
-
-        if not self._settings:
-            response = self.api.get_settings()
-            data = response.get("data", {})
-            for category, field_info in RoomConfig.model_fields.items():
-                if field_info.default_factory is None:
-                    continue  # Skip non-settings fields like 'callback'
-                category_data = data.get(category, {})
-                # Use default_factory to get the class and instantiate with data
-                category_instance = field_info.default_factory(**category_data)
-                category_instance.callback = functools.partial(
-                    callback_fn, category=category
-                )
-                self._settings[category] = category_instance
-
-        return RoomConfig(**self._settings)
 
     def register_extension(
         self,

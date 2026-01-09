@@ -1,20 +1,30 @@
 import { useEffect, useState } from "react";
+import { isCurveAttachment } from "../utils/cameraUtils";
 
-interface ControlsState {
+export interface ControlsState {
 	enabled: boolean;
 	enablePan: boolean;
 	enableRotate: boolean;
 	enableZoom: boolean;
+	/** Whether position can be changed (XYZ mode) */
+	positionEditable: boolean;
+	/** Whether target can be changed (XYZ mode) */
+	targetEditable: boolean;
 }
 
 /**
  * Hook to determine camera control states based on camera attachments.
  *
- * Control states:
- * - No attachment: full controls
- * - Position curve only: rotate only (can look around from fixed position)
- * - Target curve only: pan and zoom (can orbit around fixed target)
- * - Both curves: no controls (fully constrained cinematic mode)
+ * OrbitControls behavior:
+ * - Rotate: orbits camera around target (changes position only)
+ * - Pan: moves both camera and target together (changes both)
+ * - Zoom: dollies camera in/out (changes position only)
+ *
+ * Control states based on position/target mode:
+ * - Both XYZ: full controls, sync changes to geometry
+ * - Position Curve, Target XYZ: no controls (all ops change position which is locked)
+ * - Position XYZ, Target Curve: rotate+zoom only (pan changes target which is locked)
+ * - Both Curve: no controls (fully constrained cinematic mode)
  *
  * @param attachedCameraKey - The key of the currently attached camera geometry
  * @param geometries - All geometries in the scene
@@ -29,16 +39,20 @@ export function useCameraControls(
 		enablePan: true,
 		enableRotate: true,
 		enableZoom: true,
+		positionEditable: true,
+		targetEditable: true,
 	});
 
 	useEffect(() => {
 		if (!attachedCameraKey) {
-			// State 1: Not attached - full controls
+			// Not attached - full controls (default interactive camera)
 			setControlsState({
 				enabled: true,
 				enablePan: true,
 				enableRotate: true,
 				enableZoom: true,
+				positionEditable: true,
+				targetEditable: true,
 			});
 			return;
 		}
@@ -51,45 +65,57 @@ export function useCameraControls(
 				enablePan: true,
 				enableRotate: true,
 				enableZoom: true,
+				positionEditable: true,
+				targetEditable: true,
 			});
 			return;
 		}
 
-		// Check if curves are attached (curves are always used in new model)
-		const positionConstrained = !!camera.data.position_curve_key;
-		const targetConstrained = !!camera.data.target_curve_key;
+		// Check if position/target are CurveAttachment (locked) or XYZ (editable)
+		const positionLocked = isCurveAttachment(camera.data.position);
+		const targetLocked = isCurveAttachment(camera.data.target);
 
-		if (positionConstrained && targetConstrained) {
-			// State 5: Fully constrained - disable all controls (cinematic mode)
+		if (positionLocked && targetLocked) {
+			// Both locked - fully constrained cinematic mode
 			setControlsState({
 				enabled: false,
 				enablePan: false,
 				enableRotate: false,
 				enableZoom: false,
+				positionEditable: false,
+				targetEditable: false,
 			});
-		} else if (positionConstrained && !targetConstrained) {
-			// State 3: Position locked - can rotate only (security camera on rail)
+		} else if (positionLocked && !targetLocked) {
+			// Position locked, target free
+			// All OrbitControls ops change position, so disable all
+			setControlsState({
+				enabled: false,
+				enablePan: false,
+				enableRotate: false,
+				enableZoom: false,
+				positionEditable: false,
+				targetEditable: true,
+			});
+		} else if (!positionLocked && targetLocked) {
+			// Position free, target locked
+			// Rotate and zoom only change position (OK), pan changes target (NOT OK)
 			setControlsState({
 				enabled: true,
 				enablePan: false,
 				enableRotate: true,
-				enableZoom: false,
-			});
-		} else if (!positionConstrained && targetConstrained) {
-			// State 4: Target locked - can pan and zoom (follow moving object)
-			setControlsState({
-				enabled: true,
-				enablePan: true,
-				enableRotate: false,
 				enableZoom: true,
+				positionEditable: true,
+				targetEditable: false,
 			});
 		} else {
-			// State 2: Neither constrained - full controls
+			// Both free - full controls, sync changes to geometry
 			setControlsState({
 				enabled: true,
 				enablePan: true,
 				enableRotate: true,
 				enableZoom: true,
+				positionEditable: true,
+				targetEditable: true,
 			});
 		}
 	}, [attachedCameraKey, geometries]);

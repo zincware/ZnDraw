@@ -810,6 +810,8 @@ class APIManager:
                 error_type = response_data.get("type", None)
                 if error_type == "KeyError":
                     raise KeyError(error)
+                if error_type == "PermissionError":
+                    raise PermissionError(error)
             response.raise_for_status()
 
     def list_geometries(self) -> dict:
@@ -1674,3 +1676,203 @@ class APIManager:
         response = requests.delete(url, headers=self._get_headers(), timeout=10.0)
         response.raise_for_status()
         return response.json()
+
+    # ========================================================================
+    # Session/Camera API Methods
+    # ========================================================================
+
+    def list_frontend_sessions(self) -> list[str]:
+        """List all frontend (browser) sessions in this room.
+
+        Returns
+        -------
+        list[str]
+            List of session IDs for frontend sessions.
+        """
+        headers = self._get_headers()
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/sessions",
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        sessions = response.json().get("sessions", [])
+        return [s["session_id"] for s in sessions]
+
+    def get_session_camera(self, session_id: str) -> "Camera":
+        """Get camera state for a frontend session.
+
+        Parameters
+        ----------
+        session_id : str
+            Session identifier.
+
+        Returns
+        -------
+        Camera
+            The camera Pydantic model.
+
+        Raises
+        ------
+        requests.HTTPError
+            If session not found (404).
+        """
+        from zndraw.geometries import Camera
+
+        headers = self._get_headers()
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/sessions/{session_id}/camera",
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        camera_data = response.json().get("camera", {})
+        return Camera.model_validate(camera_data)
+
+    def set_session_camera(self, session_id: str, camera: "Camera") -> None:
+        """Set camera state for a frontend session.
+
+        Parameters
+        ----------
+        session_id : str
+            Session identifier.
+        camera : Camera
+            The camera model to set.
+
+        Raises
+        ------
+        requests.HTTPError
+            If session not found (404) or invalid camera data.
+        """
+        headers = self._get_headers()
+        response = requests.put(
+            f"{self.url}/api/rooms/{self.room}/sessions/{session_id}/camera",
+            json=camera.model_dump(),
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+
+    def get_session_alias(self, session_id: str) -> str | None:
+        """Get alias for a frontend session.
+
+        Parameters
+        ----------
+        session_id : str
+            Session identifier.
+
+        Returns
+        -------
+        str | None
+            The alias, or None if not set.
+
+        Raises
+        ------
+        requests.HTTPError
+            If session not found (404).
+        """
+        headers = self._get_headers()
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/sessions/{session_id}/alias",
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return response.json().get("alias")
+
+    def set_session_alias(self, session_id: str, alias: str | None) -> None:
+        """Set alias for a frontend session.
+
+        Parameters
+        ----------
+        session_id : str
+            Session identifier.
+        alias : str | None
+            The alias to set, or None to remove.
+
+        Raises
+        ------
+        requests.HTTPError
+            If session not found (404).
+        """
+        headers = self._get_headers()
+        response = requests.put(
+            f"{self.url}/api/rooms/{self.room}/sessions/{session_id}/alias",
+            json={"alias": alias},
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+
+    def get_session_by_alias(self, alias: str) -> str | None:
+        """Get session ID by alias.
+
+        Parameters
+        ----------
+        alias : str
+            Session alias.
+
+        Returns
+        -------
+        str | None
+            The session ID, or None if alias not found.
+        """
+        headers = self._get_headers()
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/sessions/by-alias/{alias}",
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return response.json().get("session_id")
+
+    def get_session_settings(self, session_id: str) -> dict:
+        """Get settings for a frontend session.
+
+        Parameters
+        ----------
+        session_id : str
+            Session identifier.
+
+        Returns
+        -------
+        dict
+            Settings dictionary.
+
+        Raises
+        ------
+        requests.HTTPError
+            If session not found (404).
+        """
+        headers = self._get_headers()
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/sessions/{session_id}/settings",
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return response.json().get("settings", {})
+
+    def set_session_settings(self, session_id: str, settings: dict) -> None:
+        """Set settings for a frontend session.
+
+        Parameters
+        ----------
+        session_id : str
+            Session identifier.
+        settings : dict
+            Settings dictionary to set.
+
+        Raises
+        ------
+        requests.HTTPError
+            If session not found (404).
+        """
+        headers = self._get_headers()
+        response = requests.put(
+            f"{self.url}/api/rooms/{self.room}/sessions/{session_id}/settings",
+            json=settings,
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()

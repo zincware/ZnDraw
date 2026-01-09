@@ -94,8 +94,9 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     assert "schema" in settings_data
     assert "data" in settings_data
     # Settings always return valid data (defaults if not stored)
+    # Note: Camera is no longer in settings (moved to session.camera)
     assert isinstance(settings_data["data"], dict)
-    assert "camera" in settings_data["data"]
+    assert "studio_lighting" in settings_data["data"]
 
 
 def test_lazy_loading_with_data(server, s22, get_jwt_auth_headers):

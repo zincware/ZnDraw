@@ -1,14 +1,16 @@
-"""Camera geometry for controlling viewport with curve attachment support.
+"""Camera geometry with flexible position/target specification.
 
-Cameras always reference curves for position and target.
-For static cameras, create single-point curves.
-Moving curve markers with TransformControls updates camera immediately.
+Cameras can use either direct coordinates or CurveAttachment for position/target.
+For session cameras (viewport state), direct coordinates are typical.
+For cinematic cameras (in vis.geometries), CurveAttachment enables path animation.
 """
 
 import typing as t
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from zndraw.transformations import CurveAttachment
 
 
 class CameraType(str, Enum):
@@ -18,26 +20,29 @@ class CameraType(str, Enum):
     ORTHOGRAPHIC = "OrthographicCamera"
 
 
-class Camera(BaseModel):
-    """A camera geometry for controlling viewport using curve references.
+# Union type for position/target - either direct coordinates or curve reference
+PositionType = tuple[float, float, float] | CurveAttachment
 
-    Cameras ALWAYS reference curves for position and target.
-    For static cameras, create single-point curves.
-    Moving curve markers with TransformControls updates camera immediately.
+
+class Camera(BaseModel):
+    """A camera geometry with flexible position/target specification.
+
+    Used for both geometry cameras (stored in vis.geometries) and the interactive
+    camera (stored in user settings). The only difference is that interactive
+    camera has helper_visible=False by default.
+
+    Position and target can be either:
+    - Direct coordinates: (10, 5, 10) - for static cameras or session viewport state
+    - CurveAttachment: reference to a Curve geometry for path animation
 
     Parameters
     ----------
-    position_curve_key : str
-        Geometry key of the curve defining camera position path.
-    position_progress : float
-        Position along the position curve (0.0 to 1.0).
-    target_curve_key : str
-        Geometry key of the curve defining camera target (look-at) path.
-    target_progress : float
-        Position along the target curve (0.0 to 1.0).
+    position : tuple[float, float, float] | CurveAttachment
+        Camera position, either as direct coordinates or a CurveAttachment.
+    target : tuple[float, float, float] | CurveAttachment
+        Camera look-at target, either as direct coordinates or a CurveAttachment.
     up : tuple[float, float, float]
-        Camera up vector [x,y,z]. Defines which direction is "up" for the camera.
-        Defaults to [0, 1, 0] (Y-axis up).
+        Camera up vector [x,y,z]. Defaults to [0, 1, 0] (Y-axis up).
     camera_type : CameraType
         Type of camera projection (PERSPECTIVE or ORTHOGRAPHIC).
     fov : float
@@ -55,80 +60,73 @@ class Camera(BaseModel):
 
     Examples
     --------
-    Create a static camera (using single-point curves):
+    Create a static camera with direct coordinates:
 
-    >>> vis.geometries["cam_pos"] = Curve(position=[[0, 0, 10]])
-    >>> vis.geometries["cam_target"] = Curve(position=[[0, 0, 0]])
-    >>> vis.geometries["camera"] = Camera(
-    ...     position_curve_key="cam_pos",
-    ...     target_curve_key="cam_target",
+    >>> Camera(
+    ...     position=(0, 5, 10),
+    ...     target=(0, 0, 0),
+    ...     fov=60
     ... )
 
-    Create an animated flythrough camera:
+    Create an animated camera using CurveAttachment:
 
+    >>> from zndraw.transformations import CurveAttachment
     >>> vis.geometries["flight_path"] = Curve(position=[
     ...     [0, 0, 10], [5, 5, 10], [10, 0, 10]
     ... ])
-    >>> vis.geometries["focus_path"] = Curve(position=[
-    ...     [0, 0, 0], [2, 2, 0], [4, 0, 0]
-    ... ])
-    >>> vis.geometries["camera"] = Camera(
-    ...     position_curve_key="flight_path",
-    ...     position_progress=0.5,  # Halfway along path
-    ...     target_curve_key="focus_path",
-    ...     target_progress=0.5,
+    >>> Camera(
+    ...     position=CurveAttachment(geometry_key="flight_path", progress=0.5),
+    ...     target=(0, 0, 0),  # Can mix direct and CurveAttachment
     ...     fov=60
     ... )
 
     Animate camera by updating progress:
 
-    >>> camera = vis.geometries["camera"]
-    >>> dump = camera.model_dump()
-    >>> dump["position_progress"] = 0.8
-    >>> vis.geometries["camera"] = Camera.model_validate(dump)
+    >>> from zndraw.transformations import CurveAttachment
+    >>> cam = vis.geometries["camera"]
+    >>> # Update position to follow curve at 80%
+    >>> cam_copy = cam.model_copy()
+    >>> cam_copy.position = CurveAttachment(geometry_key="flight_path", progress=0.8)
+    >>> vis.geometries["camera"] = cam_copy
     """
 
     model_config = ConfigDict(frozen=True)
 
     active: bool = Field(
         default=True,
-        description="Whether this geometry should be rendered. Inactive geometries are hidden.",
+        description="Whether this geometry should be rendered.",
     )
 
-    # Curve references (required)
-    position_curve_key: str = Field(
-        description="Geometry key of curve for camera position"
+    protected: bool = Field(
+        default=False,
+        description="Whether this geometry is protected from deletion.",
     )
 
-    position_progress: float = Field(
-        default=0.0,
-        description="Position along position curve (0.0 to 1.0)",
-        ge=0.0,
-        le=1.0,
+    # Position and target with union type
+    position: PositionType = Field(
+        default=(0.0, 5.0, 10.0),
+        description="Camera position - direct coordinates or CurveAttachment",
+        json_schema_extra={
+            "x-custom-type": "position-attachment",
+            "x-features": ["dynamic-geometries"],
+            "x-geometry-filter": "Curve",
+        },
     )
 
-    target_curve_key: str = Field(
-        description="Geometry key of curve for camera target (look-at point)"
-    )
-
-    target_progress: float = Field(
-        default=0.0,
-        description="Position along target curve (0.0 to 1.0)",
-        ge=0.0,
-        le=1.0,
-    )
-
-    # Override material and color (not applicable for cameras)
-    material: t.Any = Field(default=None, description="Not applicable for cameras")
-
-    color: str = Field(
-        default="#00ff00", description="Camera helper color (visualization only)"
+    target: PositionType = Field(
+        default=(0.0, 0.0, 0.0),
+        description="Camera look-at target - direct coordinates or CurveAttachment",
+        json_schema_extra={
+            "x-custom-type": "position-attachment",
+            "x-features": ["dynamic-geometries"],
+            "x-geometry-filter": "Curve",
+        },
     )
 
     # Camera orientation
     up: tuple[float, float, float] = Field(
         default=(0.0, 1.0, 0.0),
-        description="Camera up vector [x,y,z]. Defines which direction is 'up'. Should be normalized.",
+        description="Camera up vector [x,y,z].",
     )
 
     # Camera type and projection parameters
@@ -141,6 +139,7 @@ class Camera(BaseModel):
         description="Field of view in degrees (perspective only)",
         gt=0,
         lt=180,
+        json_schema_extra={"format": "range", "step": 1},
     )
 
     near: float = Field(
@@ -161,13 +160,35 @@ class Camera(BaseModel):
         gt=0,
     )
 
-    # Visual helper settings (no size field - managed by Three.js)
+    # Visual helper settings
     helper_visible: bool = Field(
         default=True, description="Show camera helper (cone visualization)"
     )
 
     helper_color: str = Field(
-        default="#00ff00", description="Color of the camera helper (hex or named color)"
+        default="#00ff00",
+        description="Color of the camera helper",
+        json_schema_extra={
+            "x-custom-type": "color-picker",
+            "x-features": ["color-picker"],
+        },
+    )
+
+    # Rendering settings
+    show_crosshair: bool = Field(
+        default=False, description="Show a crosshair at the screen center"
+    )
+
+    preserve_drawing_buffer: bool = Field(
+        default=False,
+        description="Enable screenshot capture (WARNING: reduces rendering performance)",
+    )
+
+    # Override material and color (not applicable for cameras)
+    material: t.Any = Field(default=None, description="Not applicable for cameras")
+
+    color: str = Field(
+        default="#00ff00", description="Camera helper color (visualization only)"
     )
 
     @field_validator("far")
@@ -187,41 +208,3 @@ class Camera(BaseModel):
         if abs(v[0]) < 1e-10 and abs(v[1]) < 1e-10 and abs(v[2]) < 1e-10:
             raise ValueError("up vector cannot be zero")
         return v
-
-    @classmethod
-    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
-        """Generate JSON schema with custom UI hints."""
-        schema = super().model_json_schema(**kwargs)
-
-        # Position curve key - dropdown of available curves
-        if "position_curve_key" in schema["properties"]:
-            schema["properties"]["position_curve_key"]["x-custom-type"] = "dynamic-enum"
-            schema["properties"]["position_curve_key"]["x-features"] = [
-                "dynamic-geometries"
-            ]
-            schema["properties"]["position_curve_key"]["x-geometry-filter"] = "Curve"
-
-        # Target curve key - dropdown of available curves
-        if "target_curve_key" in schema["properties"]:
-            schema["properties"]["target_curve_key"]["x-custom-type"] = "dynamic-enum"
-            schema["properties"]["target_curve_key"]["x-features"] = [
-                "dynamic-geometries"
-            ]
-            schema["properties"]["target_curve_key"]["x-geometry-filter"] = "Curve"
-
-        # Helper color customization
-        if "helper_color" in schema["properties"]:
-            schema["properties"]["helper_color"]["x-custom-type"] = "color-picker"
-            schema["properties"]["helper_color"]["x-features"] = ["color-picker"]
-
-        # Position progress - slider control
-        if "position_progress" in schema["properties"]:
-            schema["properties"]["position_progress"]["format"] = "range"
-            schema["properties"]["position_progress"]["step"] = 0.01
-
-        # Target progress - slider control
-        if "target_progress" in schema["properties"]:
-            schema["properties"]["target_progress"]["format"] = "range"
-            schema["properties"]["target_progress"]["step"] = 0.01
-
-        return schema

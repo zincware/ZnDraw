@@ -322,7 +322,9 @@ class RoomKeys:
         return f"room:{self.room_id}:active_selection_group"
 
     def settings(self, username: str) -> str:
-        """User-specific settings for this room.
+        """User-specific settings for this room (DEPRECATED).
+
+        Use session_settings() for session-scoped settings instead.
 
         Parameters
         ----------
@@ -335,6 +337,75 @@ class RoomKeys:
             Redis key for user settings hash
         """
         return f"room:{self.room_id}:settings:{username}"
+
+    def session_cameras(self) -> str:
+        """Session camera state hash (session_id -> camera JSON).
+
+        Stores live camera viewport state for each frontend session.
+        This is separate from vis.geometries - session cameras are ephemeral.
+
+        Returns
+        -------
+        str
+            Redis key for session cameras hash
+        """
+        return f"room:{self.room_id}:session_cameras"
+
+    def session_settings(self, session_id: str) -> str:
+        """Session-scoped rendering settings.
+
+        Replaces user-scoped settings to allow different settings per browser window.
+
+        Parameters
+        ----------
+        session_id : str
+            The session identifier
+
+        Returns
+        -------
+        str
+            Redis key for session settings hash
+        """
+        return f"room:{self.room_id}:session_settings:{session_id}"
+
+    def aliases(self) -> str:
+        """Session aliases hash (alias -> session_id).
+
+        Maps user-defined aliases to session IDs for stable Python access.
+
+        Returns
+        -------
+        str
+            Redis key for aliases hash
+        """
+        return f"room:{self.room_id}:aliases"
+
+    def session_alias(self, session_id: str) -> str:
+        """Reverse mapping from session_id to alias.
+
+        Parameters
+        ----------
+        session_id : str
+            The session identifier
+
+        Returns
+        -------
+        str
+            Redis key for session's alias
+        """
+        return f"room:{self.room_id}:session:{session_id}:alias"
+
+    def frontend_sessions(self) -> str:
+        """Set of frontend session IDs in this room.
+
+        Tracks which sessions are frontend (browser) vs Python clients.
+
+        Returns
+        -------
+        str
+            Redis key for frontend sessions set
+        """
+        return f"room:{self.room_id}:frontend_sessions"
 
     def trajectory_indices(self) -> str:
         """Trajectory indices sorted set."""
@@ -483,7 +554,7 @@ class RoomKeys:
         """Return all static room keys (keys without dynamic parameters).
 
         Use this for bulk deletion. Does not include parameterized keys like
-        settings(username), lock(target), chat_message(id), etc.
+        settings(username), lock(target), chat_message(id), session_settings(id), etc.
 
         Returns
         -------
@@ -511,6 +582,9 @@ class RoomKeys:
             self.jobs_active(),
             self.jobs_inactive(),
             self.jobs_by_time(),
+            self.session_cameras(),
+            self.aliases(),
+            self.frontend_sessions(),
         ]
 
 
