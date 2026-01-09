@@ -1,8 +1,8 @@
 /**
- * Settings hooks for managing user settings per room.
+ * Settings hooks for managing session settings per room.
  *
- * Settings are always per-user, per-room (authenticated via JWT).
- * Unlike extensions, settings are never public and don't use workers/job queues.
+ * Settings are per-session, per-room (identified via X-Session-ID header).
+ * Each browser window/tab has its own settings.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,27 +20,27 @@ export type { SettingsResponse };
  * Returns both the JSON schema and current data for all settings categories.
  */
 export const useSettings = (roomId: string) => {
-	const userName = useAppStore((state) => state.userName);
+	const sessionId = useAppStore((state) => state.sessionId);
 
 	return useQuery({
-		queryKey: ["settings", roomId, userName],
+		queryKey: ["settings", roomId, sessionId],
 		queryFn: async () => {
 			return await getSettings(roomId);
 		},
 		staleTime: Infinity, // Settings don't change often, rely on socket invalidation
-		enabled: !!roomId && !!userName,
+		enabled: !!roomId && !!sessionId,
 	});
 };
 
 /**
- * Hook to update settings categories for the current user.
+ * Hook to update settings categories for the current session.
  *
  * Accepts partial updates - only provided categories are sent.
  * Automatically updates the query cache on success.
  */
 export const useUpdateSettings = () => {
 	const queryClient = useQueryClient();
-	const userName = useAppStore((state) => state.userName);
+	const sessionId = useAppStore((state) => state.sessionId);
 
 	return useMutation({
 		mutationFn: async (variables: {
@@ -54,7 +54,7 @@ export const useUpdateSettings = () => {
 			const { roomId, data: submittedData } = variables;
 
 			// Optimistically update the cache with the submitted data
-			const queryKey = ["settings", roomId, userName];
+			const queryKey = ["settings", roomId, sessionId];
 			queryClient.setQueryData(
 				queryKey,
 				(old: SettingsResponse | undefined) => {

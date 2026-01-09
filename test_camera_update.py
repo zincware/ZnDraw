@@ -1,7 +1,9 @@
 """Test script to update camera from Python and observe frontend changes."""
+
+import time
+
 from zndraw import ZnDraw
 from zndraw.geometries import Camera
-import time
 
 # Connect to the server
 vis = ZnDraw(url="http://127.0.0.1:5000")

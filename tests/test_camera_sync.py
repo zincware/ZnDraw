@@ -83,7 +83,9 @@ def test_programmatic_camera_control(server):
     assert retrieved.fov == 45.0
 
 
-def test_camera_defaults_endpoint_returns_pydantic_defaults(server, get_jwt_auth_headers):
+def test_camera_defaults_endpoint_returns_pydantic_defaults(
+    server, get_jwt_auth_headers
+):
     """GET /api/schema/geometries/defaults returns Camera defaults from Pydantic."""
     headers = get_jwt_auth_headers(server)
 

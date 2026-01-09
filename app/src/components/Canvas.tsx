@@ -182,7 +182,6 @@ function MyScene() {
 	const attachToCamera = useAppStore((state) => state.attachToCamera);
 	const snackbar = useAppStore((state) => state.snackbar);
 	const hideSnackbar = useAppStore((state) => state.hideSnackbar);
-	const mode = useAppStore((state) => state.mode);
 	const theme = useTheme();
 
 	// Track frame load time when not playing
@@ -201,12 +200,11 @@ function MyScene() {
 	const orbitControlsRef = useRef<OrbitControlsImpl>(null);
 
 	// Fetch settings (for lighting, pathtracing - NOT for camera anymore)
-	const { data: settingsResponse, isLoading: settingsLoading } = useSettings(
-		roomId || "",
-	);
+	// Settings are per-session, so query key uses sessionId (stable for entire session)
+	const { data: settingsResponse } = useSettings(roomId || "");
 
 	// Connection state - needed to re-register session on socket reconnect
-	const connected = useAppStore((state) => state.connected);
+	const connected = useAppStore((state) => state.isConnected);
 
 	// Register session on mount AND on socket reconnect
 	// MUST be before loading check to avoid circular dependency
@@ -273,7 +271,7 @@ function MyScene() {
 	}, [sessionId, sessionCameraData]);
 
 	// Return early with loading state while settings or session camera are loading
-	if (settingsLoading || !settingsResponse || !sessionCameraData) {
+	if (!settingsResponse || !sessionCameraData) {
 		// Show error state on timeout
 		if (sessionCameraTimeout) {
 			return (

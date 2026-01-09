@@ -41,12 +41,25 @@ export default function Camera({
 
 	const { roomId, geometries, attachedCameraKey, curveRefs } = useAppStore();
 
+	// Initialize with actual data to avoid flicker on first render
 	const [computedPosition, setComputedPosition] = useState<THREE.Vector3>(
-		new THREE.Vector3(0, 0, 10),
+		() => {
+			if (Array.isArray(data.position)) {
+				return new THREE.Vector3(
+					data.position[0],
+					data.position[1],
+					data.position[2],
+				);
+			}
+			return new THREE.Vector3(0, 0, 10);
+		},
 	);
-	const [computedTarget, setComputedTarget] = useState<THREE.Vector3>(
-		new THREE.Vector3(0, 0, 0),
-	);
+	const [computedTarget, setComputedTarget] = useState<THREE.Vector3>(() => {
+		if (Array.isArray(data.target)) {
+			return new THREE.Vector3(data.target[0], data.target[1], data.target[2]);
+		}
+		return new THREE.Vector3(0, 0, 0);
+	});
 
 	const isAttached = attachedCameraKey === geometryKey;
 

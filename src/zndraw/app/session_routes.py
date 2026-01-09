@@ -11,7 +11,7 @@ import logging
 
 from flask import Blueprint, current_app, request
 
-from zndraw.auth import get_current_user, require_auth
+from zndraw.auth import require_auth
 from zndraw.geometries import Camera
 from zndraw.server import socketio
 
@@ -50,10 +50,12 @@ def list_sessions(room_id: str):
     for session_id in session_ids:
         # Get alias if set
         alias = r.get(keys.session_alias(session_id))
-        sessions.append({
-            "session_id": session_id,
-            "alias": alias,
-        })
+        sessions.append(
+            {
+                "session_id": session_id,
+                "alias": alias,
+            }
+        )
 
     log.debug(f"list_sessions: room={room_id}, count={len(sessions)}")
     return {"sessions": sessions}, 200
@@ -322,12 +324,11 @@ def get_session_settings(room_id: str, session_id: str):
     if session_decoded:
         return {"settings": session_decoded}, 200
 
-    # Fall back to room settings (from settings service)
-    user_name = get_current_user()
+    # Fall back to session settings (from settings service)
     settings_service = current_app.extensions["settings_service"]
-    room_settings = settings_service.get_all(room_id, user_name)
+    session_settings_data = settings_service.get_all(room_id, session_id)
 
-    return {"settings": room_settings}, 200
+    return {"settings": session_settings_data}, 200
 
 
 @session_bp.route(
