@@ -106,7 +106,13 @@ def execute_job_for_worker(
         # Worker IDs use format "celery:{task_id}" for tracking purposes.
         # Usernames don't allow colons (Redis key delimiter), so sanitize here.
         user_name = worker_id.replace(":", "-")
-        vis = ZnDraw(room=room, url=server_url, user=user_name)
+        # Use for_job_execution to create instance with auto_pickup_jobs=False
+        # This prevents cascading job pickup from temporary instances
+        vis = ZnDraw.for_job_execution(
+            url=server_url,
+            room=room,
+            user=user_name,
+        )
 
         # Step 3: Get extension class from registry or built-ins
         if extension_registry is not None:
