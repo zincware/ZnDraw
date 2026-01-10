@@ -66,6 +66,8 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 	// Track retry attempts for stale token recovery
 	const authRetryCountRef = useRef(0);
+	// Guard against concurrent auth recovery (multiple connect_error events)
+	const isRecoveringAuthRef = useRef(false);
 
 	useEffect(() => {
 		// Capture current room context for cleanup comparison
@@ -651,50 +653,62 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 					err.message.includes("User not found"));
 
 			if (isAuthError) {
-				// Check if we've exceeded max retries
-				if (authRetryCountRef.current >= MAX_AUTH_RETRIES) {
-					console.error(
-						`Max authentication retries (${MAX_AUTH_RETRIES}) exceeded. Please refresh the page.`,
-					);
-					// TODO: Show user-friendly error message
+				// Prevent concurrent auth recovery - socket.io may emit multiple
+				// connect_error events before the first recovery completes
+				if (isRecoveringAuthRef.current) {
+					console.log("[onConnectError] Auth recovery already in progress, skipping");
 					return;
 				}
+				isRecoveringAuthRef.current = true;
 
-				authRetryCountRef.current += 1;
-				const retryAttempt = authRetryCountRef.current;
-
-				// Calculate exponential backoff delay: 1s, 2s, 4s
-				const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryAttempt - 1);
-
-				const { logout, login, getUsername } = await import("../utils/auth");
-
-				// Clear stale authentication data
-				logout();
-
-				// Wait for exponential backoff delay
-				await new Promise((resolve) => setTimeout(resolve, delay));
-
-				// Force a new login
 				try {
-					const loginData = await login();
-
-					// Update store with new username
-					const newUsername = getUsername();
-					if (newUsername) {
-						setUserName(newUsername);
+					// Check if we've exceeded max retries
+					if (authRetryCountRef.current >= MAX_AUTH_RETRIES) {
+						console.error(
+							`Max authentication retries (${MAX_AUTH_RETRIES}) exceeded. Please refresh the page.`,
+						);
+						// TODO: Show user-friendly error message
+						return;
 					}
 
-					// Reset retry count on successful login
-					authRetryCountRef.current = 0;
+					authRetryCountRef.current += 1;
+					const retryAttempt = authRetryCountRef.current;
 
-					// Reconnect socket with new credentials
-					socket.connect();
-				} catch (loginError) {
-					console.error(
-						`Re-login failed (attempt ${retryAttempt}/${MAX_AUTH_RETRIES}):`,
-						loginError,
-					);
-					// Will retry on next connect_error event if under max retries
+					// Calculate exponential backoff delay: 1s, 2s, 4s
+					const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryAttempt - 1);
+
+					const { logout, login, getUsernameFromToken } = await import("../utils/auth");
+
+					// Clear stale authentication data
+					logout();
+
+					// Wait for exponential backoff delay
+					await new Promise((resolve) => setTimeout(resolve, delay));
+
+					// Force a new login
+					try {
+						await login();
+
+						// Update store with new username
+						const newUsername = getUsernameFromToken();
+						if (newUsername) {
+							setUserName(newUsername);
+						}
+
+						// Reset retry count on successful login
+						authRetryCountRef.current = 0;
+
+						// Reconnect socket with new credentials
+						socket.connect();
+					} catch (loginError) {
+						console.error(
+							`Re-login failed (attempt ${retryAttempt}/${MAX_AUTH_RETRIES}):`,
+							loginError,
+						);
+						// Will retry on next connect_error event if under max retries
+					}
+				} finally {
+					isRecoveringAuthRef.current = false;
 				}
 			}
 		}
