@@ -13,6 +13,26 @@ Always review, if the new code will be a workaround or a proper solution before 
 DO NOT IMPLEMENT WORKAROUNDS!
 Remove deprecated code instead of just marking it as deprecated!
 
+### Handling Default Values
+
+**Principle: Single Source of Truth**
+All default values (e.g., `camera`, `particles`) must be defined exclusively within the **Pydantic model**. Do not scatter fallback logic throughout the codebase.
+
+**Anti-Pattern (Hardcoded Fallbacks)**
+Do not perform null checks combined with hardcoded literals.
+
+```js
+camera.near = sessionCameraData.near ?? 0.1;
+```
+
+**Best Practice (Schema-Driven)**
+Rely entirely on the schema to populate default values during initialization. Ensure the data model is fully validated before usage.
+
+```js
+camera.near = sessionCameraData.near;
+```
+
+
 # Context7
 Always use context7 when I need code generation, setup or configuration steps, or
 library/API documentation. This means you should automatically use the Context7 MCP
