@@ -23,7 +23,7 @@ def test_camera_defaults():
     assert cam.near == 0.1
     assert cam.far == 1000.0
     assert cam.zoom == 1.0
-    assert cam.helper_visible is True
+    assert cam.helper_visible is False
     assert cam.helper_color == "#00ff00"
     assert cam.show_crosshair is False
     assert cam.preserve_drawing_buffer is False

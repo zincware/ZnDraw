@@ -137,38 +137,45 @@ class Camera(BaseModel):
     fov: float = Field(
         default=75.0,
         description="Field of view in degrees (perspective only)",
-        gt=0,
-        lt=180,
+        ge=1,
+        le=179,
         json_schema_extra={"format": "range", "step": 1},
     )
 
     near: float = Field(
         default=0.1,
         description="Near clipping plane",
-        gt=0,
+        ge=0.01,
+        le=100,
+        json_schema_extra={"format": "range", "step": 0.01},
     )
 
     far: float = Field(
         default=1000.0,
         description="Far clipping plane",
-        gt=0,
+        ge=1,
+        le=10000,
+        json_schema_extra={"format": "range", "step": 1},
     )
 
     zoom: float = Field(
         default=1.0,
         description="Camera zoom factor",
-        gt=0,
+        ge=0.1,
+        le=10,
+        json_schema_extra={"format": "range", "step": 0.1},
     )
 
     # Visual helper settings
     helper_visible: bool = Field(
-        default=True, description="Show camera helper (cone visualization)"
+        default=False, description="Show camera helper (cone visualization)"
     )
 
     helper_color: str = Field(
         default="#00ff00",
         description="Color of the camera helper",
         json_schema_extra={
+            "format": "color",
             "x-custom-type": "color-picker",
             "x-features": ["color-picker"],
         },
@@ -188,7 +195,13 @@ class Camera(BaseModel):
     material: t.Any = Field(default=None, description="Not applicable for cameras")
 
     color: str = Field(
-        default="#00ff00", description="Camera helper color (visualization only)"
+        default="#00ff00",
+        description="Camera helper color (visualization only)",
+        json_schema_extra={
+            "format": "color",
+            "x-custom-type": "color-picker",
+            "x-features": ["color-picker"],
+        },
     )
 
     @field_validator("far")

@@ -49,6 +49,9 @@ class Bond(BaseGeometry):
     radius: float = Field(
         default=1,
         description="Bond radius.",
+        ge=0.1,
+        le=10,
+        json_schema_extra={"format": "range", "step": 0.1},
     )
 
     resolution: int = Field(
@@ -56,12 +59,15 @@ class Bond(BaseGeometry):
         ge=4,
         le=64,
         description="Bond geometry resolution (number of segments). Higher values = smoother bond.",
+        json_schema_extra={"format": "range", "step": 1},
     )
 
     scale: float = Field(
         default=1.0,
         ge=0.0,
+        le=10,
         description="Uniform scale factor applied to bond radius.",
+        json_schema_extra={"format": "range", "step": 0.1},
     )
 
     opacity: float = Field(
@@ -69,6 +75,7 @@ class Bond(BaseGeometry):
         ge=0.0,
         le=1.0,
         description="Bond opacity, between 0 (transparent) and 1 (opaque).",
+        json_schema_extra={"format": "range", "step": 0.01},
     )
 
     bond_order_mode: t.Literal["parallel", "ignore"] = Field(
@@ -79,7 +86,9 @@ class Bond(BaseGeometry):
     bond_order_offset: float = Field(
         default=3,
         ge=0.0,
+        le=10,
         description="Spacing between parallel cylinders in parallel mode, as fraction of bond radius.",
+        json_schema_extra={"format": "range", "step": 0.1},
     )
 
     bond_order_radius_scale: dict[float, float] = Field(

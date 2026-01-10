@@ -31,6 +31,7 @@ class Sphere(BaseGeometry):
         ge=4,
         le=64,
         description="Sphere geometry resolution (number of segments).",
+        json_schema_extra={"format": "range", "step": 1},
     )
 
     scale: ScaleProp = Field(
@@ -47,6 +48,7 @@ class Sphere(BaseGeometry):
         ge=0.0,
         le=1.0,
         description="Sphere opacity, between 0 (transparent) and 1 (opaque).",
+        json_schema_extra={"format": "range", "step": 0.01},
     )
 
     selecting: InteractionSettings = Field(

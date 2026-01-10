@@ -1,7 +1,11 @@
 import { useEffect, useCallback, useRef } from "react";
 import { useAppStore } from "../store";
 import { useParams } from "react-router-dom";
-import { ensureAuthenticated, getUserRole, getUsernameFromToken } from "../utils/auth";
+import {
+	ensureAuthenticated,
+	getUserRole,
+	getUsernameFromToken,
+} from "../utils/auth";
 
 /**
  * Hook to handle REST-based initialization before socket connection.

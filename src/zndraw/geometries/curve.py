@@ -24,7 +24,9 @@ class CurveMarker(BaseModel):
     size: float = Field(
         default=0.1,
         description="Size of the markers",
-        gt=0,
+        ge=0.01,
+        le=1,
+        json_schema_extra={"format": "range", "step": 0.01},
     )
     color: str = Field(
         default="default",
@@ -44,6 +46,7 @@ class CurveMarker(BaseModel):
         description="Opacity of the markers",
         ge=0,
         le=1,
+        json_schema_extra={"format": "range", "step": 0.01},
     )
     selecting: InteractionSettings = Field(
         default=InteractionSettings(color="#FF6A00", opacity=0.5),
@@ -98,12 +101,16 @@ class Curve(BaseGeometry):
         default=50,
         description="Number of divisions along the curve",
         ge=1,
+        le=200,
+        json_schema_extra={"format": "range", "step": 1},
     )
 
     thickness: float = Field(
         default=2.0,
         description="Thickness of the line (not implemented in Three.js LineBasicMaterial)",
-        gt=0,
+        ge=0.5,
+        le=10,
+        json_schema_extra={"format": "range", "step": 0.5},
     )
 
     marker: CurveMarker = Field(

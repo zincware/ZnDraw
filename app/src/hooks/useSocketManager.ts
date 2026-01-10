@@ -656,7 +656,9 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 				// Prevent concurrent auth recovery - socket.io may emit multiple
 				// connect_error events before the first recovery completes
 				if (isRecoveringAuthRef.current) {
-					console.log("[onConnectError] Auth recovery already in progress, skipping");
+					console.log(
+						"[onConnectError] Auth recovery already in progress, skipping",
+					);
 					return;
 				}
 				isRecoveringAuthRef.current = true;
@@ -677,7 +679,9 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 					// Calculate exponential backoff delay: 1s, 2s, 4s
 					const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryAttempt - 1);
 
-					const { logout, login, getUsernameFromToken } = await import("../utils/auth");
+					const { logout, login, getUsernameFromToken } = await import(
+						"../utils/auth"
+					);
 
 					// Clear stale authentication data
 					logout();
