@@ -196,7 +196,9 @@ def test_vis_list_geometries(server):
     assert constraints_geom.material == MeshBasicMaterial(wireframe=True)
 
     # Verify session camera geometry exists
-    session_cam_keys = [k for k in vis.geometries.keys() if k.startswith("cam:session:")]
+    session_cam_keys = [
+        k for k in vis.geometries.keys() if k.startswith("cam:session:")
+    ]
     assert len(session_cam_keys) == 1
     session_cam = vis.geometries[session_cam_keys[0]]
     assert isinstance(session_cam, Camera)

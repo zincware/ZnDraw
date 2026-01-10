@@ -112,7 +112,9 @@ class SocketManager:
             return
 
         # This is an auto-reconnect - need to re-join room and re-register
-        log.info("Auto-reconnect detected, re-joining room and re-registering extensions")
+        log.info(
+            "Auto-reconnect detected, re-joining room and re-registering extensions"
+        )
 
         # Re-join room to get new session
         room_id = self.zndraw.room
@@ -121,7 +123,9 @@ class SocketManager:
         )
 
         if response.get("status") != "ok":
-            log.error(f"Failed to re-join room after reconnect: {response.get('message')}")
+            log.error(
+                f"Failed to re-join room after reconnect: {response.get('message')}"
+            )
             return
 
         # Update session ID
