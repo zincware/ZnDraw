@@ -9,6 +9,7 @@ Note: Python clients do NOT appear in vis.sessions - only frontend browsers.
 from collections.abc import Mapping
 
 from zndraw.geometries import Camera
+from zndraw.settings import RoomConfig
 
 
 class FrontendSession:
@@ -32,6 +33,11 @@ class FrontendSession:
     >>> cam.position = (10, 10, 10)
     >>> # Save back (syncs to Redis and frontend)
     >>> session.camera = cam
+    >>>
+    >>> # Get settings (fetches from Redis)
+    >>> settings = session.settings
+    >>> settings.studio_lighting.key_light = 1.5
+    >>> # Auto-saves on attribute change via callback
     """
 
     def __init__(self, vis: "ZnDraw", session_id: str):
@@ -68,27 +74,56 @@ class FrontendSession:
         """
         self._vis.api.set_session_camera(self.session_id, value)
 
+    def _make_settings_callback(self, category: str):
+        """Create a callback for auto-saving settings on attribute change."""
+
+        def callback(data: dict) -> None:
+            self._vis.api.set_session_settings(self.session_id, {category: data})
+
+        return callback
+
     @property
-    def settings(self) -> dict:
+    def settings(self) -> RoomConfig:
         """Get session-scoped rendering settings.
+
+        Returns a RoomConfig Pydantic model with validation. Modifying attributes
+        automatically syncs to the backend via callbacks.
 
         Returns
         -------
-        dict
-            Settings dictionary with camera_type, lighting, etc.
+        RoomConfig
+            Settings model with studio_lighting, pathtracing, property_inspector.
+
+        Examples
+        --------
+        >>> settings = session.settings
+        >>> settings.studio_lighting.key_light = 1.5  # Auto-saves
+        >>> settings.pathtracing.enabled = True  # Auto-saves
         """
-        return self._vis.api.get_session_settings(self.session_id)
+        data = self._vis.api.get_session_settings(self.session_id)
+        config = RoomConfig.model_validate(data)
+
+        # Attach callbacks to each sub-setting for auto-save
+        config.studio_lighting.callback = self._make_settings_callback(
+            "studio_lighting"
+        )
+        config.pathtracing.callback = self._make_settings_callback("pathtracing")
+        config.property_inspector.callback = self._make_settings_callback(
+            "property_inspector"
+        )
+
+        return config
 
     @settings.setter
-    def settings(self, value: dict) -> None:
+    def settings(self, value: RoomConfig) -> None:
         """Set session-scoped rendering settings.
 
         Parameters
         ----------
-        value : dict
-            Settings dictionary to set.
+        value : RoomConfig
+            Settings model to set (validated via Pydantic).
         """
-        self._vis.api.set_session_settings(self.session_id, value)
+        self._vis.api.set_session_settings(self.session_id, value.model_dump())
 
     def __repr__(self) -> str:
         return f"FrontendSession({self.session_id!r})"

@@ -1,7 +1,7 @@
 /**
  * Settings hooks for managing session settings per room.
  *
- * Settings are per-session, per-room (identified via X-Session-ID header).
+ * Settings are per-session, per-room (identified via session ID in URL path).
  * Each browser window/tab has its own settings.
  */
 
@@ -25,7 +25,8 @@ export const useSettings = (roomId: string) => {
 	return useQuery({
 		queryKey: ["settings", roomId, sessionId],
 		queryFn: async () => {
-			return await getSettings(roomId);
+			if (!sessionId) throw new Error("No session ID");
+			return await getSettings(roomId, sessionId);
 		},
 		staleTime: Infinity, // Settings don't change often, rely on socket invalidation
 		enabled: !!roomId && !!sessionId,
@@ -47,8 +48,9 @@ export const useUpdateSettings = () => {
 			roomId: string;
 			data: Record<string, any>;
 		}) => {
+			if (!sessionId) throw new Error("No session ID");
 			const { roomId, data } = variables;
-			return await updateSettings(roomId, data);
+			return await updateSettings(roomId, sessionId, data);
 		},
 		onSuccess: (_, variables) => {
 			const { roomId, data: submittedData } = variables;

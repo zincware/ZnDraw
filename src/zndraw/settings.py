@@ -10,7 +10,7 @@ HSLColor = t.Tuple[float, float, float]
 class SettingsBase(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
-    callback: SkipJsonSchema[t.Callable[[], None] | None] = Field(
+    callback: SkipJsonSchema[t.Callable[[dict], None] | None] = Field(
         default=None,
         exclude=True,  # 🚀 excludes from model_dump and schema
         repr=False,

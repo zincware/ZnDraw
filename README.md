@@ -101,7 +101,7 @@ vis.step        # Current frame index
 vis.figures     # Plotly figures
 vis.bookmarks   # Saved frame annotations
 vis.geometries  # 3D geometry overlays (dict-like)
-vis.settings    # Room configuration
+vis.sessions    # Session configuration
 ```
 
 ## Geometries

@@ -23,7 +23,6 @@ class SocketManager:
         self.sio.on("frame_update", self._on_frame_update)
         self.sio.on("selection:update", self._on_selection_update)
         self.sio.on("room:update", self._on_room_update)
-        self.sio.on("invalidate", self._on_invalidate)
         self.sio.on("job:assigned", self._on_job_assigned)
         self.sio.on("frame_selection:update", self._on_frame_selection_update)
         self.sio.on("bookmarks:invalidate", self._on_bookmarks_invalidate)
@@ -364,11 +363,6 @@ class SocketManager:
             # Cleanup: disconnect temporary instance
             if hasattr(temp_vis, "socket") and temp_vis.socket:
                 temp_vis.socket.disconnect()
-
-    def _on_invalidate(self, data: dict):
-        if data["category"] == "settings":
-            # Clear entire settings cache to refetch on next access
-            self.zndraw._settings.clear()
 
     def _on_frames_invalidate(self, data: dict):
         log.debug(f"Received cache invalidation event: {data}")

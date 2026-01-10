@@ -121,7 +121,6 @@ def create_app(config: "ZnDrawConfig | None" = None) -> Flask:
         media,
         rooms,
         session_bp,
-        settings_bp,
         tasks,  # noqa: F401
         utility,
         workers,
@@ -140,7 +139,6 @@ def create_app(config: "ZnDrawConfig | None" = None) -> Flask:
     app.register_blueprint(filesystem_bp)
     app.register_blueprint(locks)
     app.register_blueprint(workers)
-    app.register_blueprint(settings_bp)
     app.register_blueprint(session_bp)
 
     # Configure Celery based on Redis availability

@@ -1,7 +1,7 @@
 """Session API routes.
 
 REST endpoints for frontend session management.
-Sessions represent browser windows/tabs with independent camera and settings.
+Sessions represent browser windows/tabs with independent cameras and settings.
 
 Note: Python clients do NOT appear in sessions - only frontend browsers.
 """
@@ -14,6 +14,7 @@ from flask import Blueprint, current_app, request
 from zndraw.auth import require_auth
 from zndraw.geometries import Camera
 from zndraw.server import socketio
+from zndraw.settings import RoomConfig
 
 from .constants import SocketEvents
 from .redis_keys import RoomKeys
@@ -158,9 +159,7 @@ def set_session_camera(room_id: str, session_id: str):
 def get_session_settings(room_id: str, session_id: str):
     """Get settings for a session.
 
-    Session settings inherit from room settings, with session-specific
-    overrides merged on top. If no session overrides exist, returns
-    the room settings.
+    Returns both the JSON schema and current data for all settings categories.
 
     Parameters
     ----------
@@ -172,33 +171,15 @@ def get_session_settings(room_id: str, session_id: str):
     Returns
     -------
     dict
-        {"settings": dict}
+        {"schema": RoomConfig schema, "data": all settings data}
     """
-    r = current_app.extensions["redis"]
-    keys = RoomKeys(room_id)
-
-    # Verify session exists
-    if not r.sismember(keys.frontend_sessions(), session_id):
-        return {"error": f"Session '{session_id}' not found"}, 404
-
-    # Get session-specific overrides
-    session_settings = r.hgetall(keys.session_settings(session_id))
-    session_decoded = {}
-    for k, v in session_settings.items():
-        try:
-            session_decoded[k] = json.loads(v)
-        except (json.JSONDecodeError, TypeError):
-            session_decoded[k] = v
-
-    # If session has overrides, return them
-    if session_decoded:
-        return {"settings": session_decoded}, 200
-
-    # Fall back to session settings (from settings service)
     settings_service = current_app.extensions["settings_service"]
-    session_settings_data = settings_service.get_all(room_id, session_id)
 
-    return {"settings": session_settings_data}, 200
+    data = settings_service.get_all(room_id, session_id)
+    schema = RoomConfig.model_json_schema()
+
+    log.debug(f"get_session_settings: room={room_id}, session={session_id}")
+    return {"schema": schema, "data": data}, 200
 
 
 @session_bp.route(
@@ -207,7 +188,9 @@ def get_session_settings(room_id: str, session_id: str):
 )
 @require_auth
 def set_session_settings(room_id: str, session_id: str):
-    """Set settings for a session.
+    """Update settings for a session.
+
+    Accepts partial updates - only provided categories are updated.
 
     Parameters
     ----------
@@ -218,30 +201,29 @@ def set_session_settings(room_id: str, session_id: str):
 
     Request Body
     ------------
-    JSON object with settings data.
+    JSON object with category keys and settings data values, e.g.:
+    {"studio_lighting": {"key_light": 0.8}}
 
     Returns
     -------
     dict
         {"status": "success"}
     """
-    r = current_app.extensions["redis"]
-    keys = RoomKeys(room_id)
-
-    # Verify session exists
-    if not r.sismember(keys.frontend_sessions(), session_id):
-        return {"error": f"Session '{session_id}' not found"}, 404
-
     json_data = request.json
     if json_data is None:
         return {"error": "Request body must be JSON"}, 400
 
-    # Store settings as JSON strings
-    key = keys.session_settings(session_id)
-    for k, v in json_data.items():
-        r.hset(key, k, json.dumps(v))
+    # Validate categories
+    valid_categories = set(RoomConfig.model_fields.keys())
+    provided_categories = set(json_data.keys())
+    invalid = provided_categories - valid_categories
+    if invalid:
+        return {"error": f"Unknown settings categories: {invalid}"}, 400
 
-    # Emit invalidate event
+    settings_service = current_app.extensions["settings_service"]
+    settings_service.update_all(room_id, session_id, json_data)
+
+    # Emit invalidate event to notify clients
     socketio.emit(
         SocketEvents.INVALIDATE,
         {
@@ -249,7 +231,7 @@ def set_session_settings(room_id: str, session_id: str):
             "category": "settings",
             "roomId": room_id,
         },
-        to=f"session:{session_id}",
+        to=f"room:{room_id}",
     )
 
     log.debug(f"set_session_settings: room={room_id}, session={session_id}")

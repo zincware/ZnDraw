@@ -505,7 +505,7 @@ via settings:
 .. code:: python
 
     # Enable properties in the inspector
-    vis.settings.property_inspector.enabled_properties = [
+    vis.sessions["<sessionId>"].settings.property_inspector.enabled_properties = [
         "calc.energy",
         "calc.forces",
     ]

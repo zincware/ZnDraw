@@ -587,17 +587,21 @@ export interface SettingsResponse {
 
 export const getSettings = async (
 	roomId: string,
+	sessionId: string,
 ): Promise<SettingsResponse> => {
-	const { data } = await apiClient.get(`/api/rooms/${roomId}/settings`);
+	const { data } = await apiClient.get(
+		`/api/rooms/${roomId}/sessions/${sessionId}/settings`,
+	);
 	return data;
 };
 
 export const updateSettings = async (
 	roomId: string,
+	sessionId: string,
 	settingsData: Record<string, any>,
 ): Promise<{ status: string }> => {
 	const { data } = await apiClient.put(
-		`/api/rooms/${roomId}/settings`,
+		`/api/rooms/${roomId}/sessions/${sessionId}/settings`,
 		settingsData,
 	);
 	return data;

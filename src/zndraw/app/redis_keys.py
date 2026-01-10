@@ -325,23 +325,6 @@ class RoomKeys:
         """Active selection group name."""
         return f"room:{self.room_id}:active_selection_group"
 
-    def settings(self, username: str) -> str:
-        """User-specific settings for this room (DEPRECATED).
-
-        Use session_settings() for session-scoped settings instead.
-
-        Parameters
-        ----------
-        username : str
-            Username
-
-        Returns
-        -------
-        str
-            Redis key for user settings hash
-        """
-        return f"room:{self.room_id}:settings:{username}"
-
     def session_cameras(self) -> str:
         """Session camera state hash (session_id -> camera JSON).
 

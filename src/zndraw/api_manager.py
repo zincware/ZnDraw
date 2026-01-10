@@ -600,10 +600,17 @@ class APIManager:
         -------
         dict
             {"schema": RoomConfig schema, "data": all settings data}
+
+        Raises
+        ------
+        ValueError
+            If session_id is not set.
         """
+        if not self.session_id:
+            raise ValueError("session_id is required for get_settings")
         headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/settings",
+            f"{self.url}/api/rooms/{self.room}/sessions/{self.session_id}/settings",
             headers=headers,
             timeout=10,
         )
@@ -616,11 +623,18 @@ class APIManager:
         Parameters
         ----------
         data : dict
-            Settings data keyed by category, e.g. {"camera": {...}}
+            Settings data keyed by category, e.g. {"studio_lighting": {...}}
+
+        Raises
+        ------
+        ValueError
+            If session_id is not set.
         """
+        if not self.session_id:
+            raise ValueError("session_id is required for update_settings")
         headers = self._get_headers()
         response = requests.put(
-            f"{self.url}/api/rooms/{self.room}/settings",
+            f"{self.url}/api/rooms/{self.room}/sessions/{self.session_id}/settings",
             json=data,
             headers=headers,
             timeout=10,
@@ -1711,7 +1725,7 @@ class APIManager:
         Raises
         ------
         requests.HTTPError
-            If session not found (404).
+            If request fails.
         """
         headers = self._get_headers()
         response = requests.get(
@@ -1720,7 +1734,7 @@ class APIManager:
             timeout=10.0,
         )
         response.raise_for_status()
-        return response.json().get("settings", {})
+        return response.json().get("data", {})
 
     def set_session_settings(self, session_id: str, settings: dict) -> None:
         """Set settings for a frontend session.
@@ -1735,7 +1749,7 @@ class APIManager:
         Raises
         ------
         requests.HTTPError
-            If session not found (404).
+            If request fails.
         """
         headers = self._get_headers()
         response = requests.put(

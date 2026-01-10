@@ -14,11 +14,6 @@ def test_step_sync(server, s22):
     assert vis2.step == 7
 
 
-# Note: test_settings_sync was removed because vis.settings is no longer
-# part of the Python client API. Settings are now managed via HTTP API only,
-# and camera settings are accessed via session.camera.
-
-
 def test_bookmarks_sync(server, s22):
     vis1 = ZnDraw(url=server, room="testroom", user="u1")
     vis1.extend(s22)

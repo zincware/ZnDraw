@@ -70,9 +70,12 @@ def test_lazy_loading_empty_room(server, connect_room):
     # Geometries might contain default schemas even for empty room
     assert isinstance(geometries_data["geometries"], dict)
 
-    # Step 9: Fetch user settings (all categories)
+    # Step 9: Fetch session settings (all categories)
+    session_id = conn.session_id
     response = requests.get(
-        f"{server}/api/rooms/{room}/settings", headers=headers, timeout=10
+        f"{server}/api/rooms/{room}/sessions/{session_id}/settings",
+        headers=headers,
+        timeout=10,
     )
     assert response.status_code == 200
     settings_data = response.json()
@@ -144,6 +147,7 @@ def test_lazy_loading_auth_required(server, connect_room):
 
     # Join room via socket (keep connection alive)
     conn = connect_room(room, user="test-auth-user")
+    session_id = conn.session_id
 
     # Try to access endpoints without auth - should fail with 401
     endpoints = [
@@ -152,7 +156,7 @@ def test_lazy_loading_auth_required(server, connect_room):
         f"/api/rooms/{room}/frame-selection",
         f"/api/rooms/{room}/step",
         f"/api/rooms/{room}/geometries",
-        f"/api/rooms/{room}/settings",
+        f"/api/rooms/{room}/sessions/{session_id}/settings",
     ]
 
     for endpoint in endpoints:
@@ -245,6 +249,7 @@ def test_parallel_lazy_loading(server, s22, connect_room):
     # Join room via socket (keep connection alive)
     conn = connect_room(room, user="user2")
     headers = conn.headers
+    session_id = conn.session_id
 
     # Define all endpoints to fetch
     endpoints = [
@@ -254,7 +259,7 @@ def test_parallel_lazy_loading(server, s22, connect_room):
         f"{server}/api/rooms/{room}/step",
         f"{server}/api/rooms/{room}/bookmarks",
         f"{server}/api/rooms/{room}/geometries",
-        f"{server}/api/rooms/{room}/settings",
+        f"{server}/api/rooms/{room}/sessions/{session_id}/settings",
     ]
 
     # Fetch all endpoints in parallel

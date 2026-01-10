@@ -252,15 +252,15 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		}
 
 		function onInvalidate(data: any) {
-			const { roomId, userName, category, extension } = data;
+			const { roomId, userName, category, extension, sessionId } = data;
 			// Invalidate extension data queries (for modifiers, analysis, selections)
 			queryClient.invalidateQueries({
 				queryKey: ["extensionData", roomId, userName, category, extension],
 			});
-			// Invalidate settings queries (consolidated endpoint)
-			if (category === "settings") {
+			// Invalidate settings queries (per-session)
+			if (category === "settings" && sessionId) {
 				queryClient.invalidateQueries({
-					queryKey: ["settings", roomId, userName],
+					queryKey: ["settings", roomId, sessionId],
 				});
 			}
 		}
