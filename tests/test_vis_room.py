@@ -1,5 +1,6 @@
 import pytest
 import requests
+import uuid
 
 from zndraw.zndraw import ZnDraw
 
@@ -239,3 +240,33 @@ def test_lock_acquisition_broadcasts_with_iso_timestamp(server, s22):
 
     # Verify frames were added
     assert len(vis) == len(s22)
+
+
+def test_python_creates_no_session_camera(server):
+    """Test that a Python (ZnDraw) client does NOT create a session camera."""
+    vis = ZnDraw(url=server, room=str(uuid.uuid4()), user=str(uuid.uuid4()))
+    assert len([x for x in vis.geometries if x.startswith("cam:")]) == 0
+
+
+def test_frontend_creates_one_session_camera(server, connect_room):
+    """Test that a frontend client creates exactly ONE session camera."""
+    room_id = str(uuid.uuid4())
+
+    # Join as frontend (connect_room uses clientType: "frontend")
+    c1 = connect_room(room_id)
+
+    vis = ZnDraw(url=server, room=room_id, user=str(uuid.uuid4()))
+    assert len([x for x in vis.geometries if x.startswith("cam:")]) == 1
+
+    # join again as another frontend client
+    c2 = connect_room(room_id)
+    assert len([x for x in vis.geometries if x.startswith("cam:")]) == 2
+
+    c2.sio.disconnect()
+    c2.sio.sleep(0.1)
+    assert len([x for x in vis.geometries if x.startswith("cam:")]) == 1
+
+    c1.sio.disconnect()
+    c1.sio.sleep(0.1)
+    assert len([x for x in vis.geometries if x.startswith("cam:")]) == 0
+

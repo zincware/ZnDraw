@@ -799,13 +799,11 @@ def handle_room_join(data):
     client_service = current_app.extensions["client_service"]
     client_service.update_user_and_room_membership(user_name, room_id)
 
-    # 7. Register as frontend session (only for browser clients)
+    # 7. Register as frontend session and create camera (only for browser clients)
     room_keys = RoomKeys(room_id)
     if client_type == "frontend":
         r.sadd(room_keys.frontend_sessions(), session_id)
-
-    # 8. Create session camera geometry
-    create_session_camera(r, room_id, session_id)
+        create_session_camera(r, room_id, session_id)
 
     # 9. Fetch small room data only (geometries fetched via REST)
     room_data = get_room_metadata(r, room_id)
