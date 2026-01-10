@@ -1,6 +1,7 @@
+import uuid
+
 import pytest
 import requests
-import uuid
 
 from zndraw.zndraw import ZnDraw
 
@@ -269,4 +270,3 @@ def test_frontend_creates_one_session_camera(server, connect_room):
     c1.sio.disconnect()
     c1.sio.sleep(0.1)
     assert len([x for x in vis.geometries if x.startswith("cam:")]) == 0
-
