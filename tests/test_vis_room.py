@@ -4,8 +4,10 @@ import requests
 from zndraw.zndraw import ZnDraw
 
 
-def test_rest_create_and_join_room(server, get_jwt_auth_headers):
-    """Test creating and joining a room via REST API."""
+def test_rest_create_and_socket_join_room(server, get_jwt_auth_headers):
+    """Test creating a room via REST API and joining via socket."""
+    import socketio
+
     # Authenticate as admin to see all rooms
     headers = get_jwt_auth_headers(server, "admin")
     response = requests.get(f"{server}/api/rooms", headers=headers)
@@ -16,7 +18,7 @@ def test_rest_create_and_join_room(server, get_jwt_auth_headers):
 
     room = "test-room-1"
 
-    # First, create the room
+    # First, create the room via REST
     create_response = requests.post(
         f"{server}/api/rooms",
         json={"roomId": room},
@@ -28,16 +30,20 @@ def test_rest_create_and_join_room(server, get_jwt_auth_headers):
     assert create_data["roomId"] == room
     assert create_data["created"] is True
 
-    # Then join the room
-    join_response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers
-    )
-    assert join_response.status_code == 200
-    join_data = join_response.json()
-    assert join_data["status"] == "ok"
-    assert join_data["roomId"] == room
-    assert "sessionId" in join_data
-    assert "userName" in join_data
+    # Then join the room via socket room:join
+    jwt_token = headers["Authorization"].replace("Bearer ", "")
+    sio = socketio.Client()
+    sio.connect(server, auth={"token": jwt_token}, wait=True)
+
+    try:
+        join_response = sio.call(
+            "room:join", {"roomId": room, "clientType": "frontend"}
+        )
+        assert join_response["status"] == "ok"
+        assert "sessionId" in join_response
+        assert "roomData" in join_response
+    finally:
+        sio.disconnect()
 
     # list all rooms again to see if the new room is there
     response = requests.get(f"{server}/api/rooms", headers=headers)
@@ -58,24 +64,34 @@ def test_rest_create_and_join_room(server, get_jwt_auth_headers):
         assert data["error"] == f"No frames found in room '{room}'"
 
 
-def test_join_nonexistent_room_fails(server, get_jwt_auth_headers):
-    """Test that joining a non-existent room returns 404."""
+def test_socket_join_nonexistent_room_fails(server, get_jwt_auth_headers):
+    """Test that joining a non-existent room via socket returns 404."""
+    import socketio
+
     room = "nonexistent-room"
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=get_jwt_auth_headers(server)
-    )
-    assert response.status_code == 404
-    data = response.json()
-    assert "error" in data
-    assert room in data["error"]
+    headers = get_jwt_auth_headers(server)
+    jwt_token = headers["Authorization"].replace("Bearer ", "")
+
+    sio = socketio.Client()
+    sio.connect(server, auth={"token": jwt_token}, wait=True)
+
+    try:
+        response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
+        assert response["status"] == "error"
+        assert response["code"] == 404
+        assert "not found" in response["message"].lower()
+    finally:
+        sio.disconnect()
 
 
-def test_join_existing_room(server, get_jwt_auth_headers):
-    """Test joining an existing room."""
+def test_socket_join_existing_room(server, get_jwt_auth_headers):
+    """Test joining an existing room via socket."""
+    import socketio
+
     room = "test-room-1"
     headers = get_jwt_auth_headers(server)
 
-    # Create the room first
+    # Create the room first via REST
     create_response = requests.post(
         f"{server}/api/rooms",
         json={"roomId": room},
@@ -83,26 +99,31 @@ def test_join_existing_room(server, get_jwt_auth_headers):
     )
     assert create_response.status_code == 201
 
-    # Join the existing room with the same user
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "ok"
-    assert data["roomId"] == room
-    assert "sessionId" in data
-    assert "userName" in data
+    # Join the existing room with the same user via socket
+    jwt_token = headers["Authorization"].replace("Bearer ", "")
+    sio = socketio.Client()
+    sio.connect(server, auth={"token": jwt_token}, wait=True)
+
+    try:
+        response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
+        assert response["status"] == "ok"
+        assert "sessionId" in response
+        assert "roomData" in response
+    finally:
+        sio.disconnect()
 
     # Join with a different user
     headers2 = get_jwt_auth_headers(server, "user2")
-    response2 = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers2
-    )
-    assert response2.status_code == 200
-    data2 = response2.json()
-    assert data2["status"] == "ok"
-    assert data2["roomId"] == room
+    jwt_token2 = headers2["Authorization"].replace("Bearer ", "")
+    sio2 = socketio.Client()
+    sio2.connect(server, auth={"token": jwt_token2}, wait=True)
+
+    try:
+        response2 = sio2.call("room:join", {"roomId": room, "clientType": "frontend"})
+        assert response2["status"] == "ok"
+        assert "sessionId" in response2
+    finally:
+        sio2.disconnect()
 
 
 def test_create_room_with_copy_from(server, s22, get_jwt_auth_headers):
@@ -140,16 +161,23 @@ def test_create_room_with_copy_from(server, s22, get_jwt_auth_headers):
     assert data["frameCount"] == 0  # Empty room
 
 
-def test_join_room_invalid_name(server, get_jwt_auth_headers):
+def test_create_room_invalid_name(server, get_jwt_auth_headers):
+    """Test that creating a room with invalid name fails."""
     room = "invalid:room"
+    headers = get_jwt_auth_headers(server)
+
+    # Creating a room with ':' in name should fail
     response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=get_jwt_auth_headers(server)
+        f"{server}/api/rooms",
+        json={"roomId": room},
+        headers=headers,
     )
     assert response.status_code == 400
     data = response.json()
     assert "error" in data
-    assert data["error"] == "Room ID cannot contain ':' character"
+    assert ":" in data["error"]
 
+    # ZnDraw client should also fail
     with pytest.raises(RuntimeError):
         _ = ZnDraw(url=server, room=room, user="user1")
 

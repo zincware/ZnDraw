@@ -1,8 +1,7 @@
 """Integration tests for lazy room data loading.
 
-Tests that all REST endpoints for room data work correctly after the join
-response was changed to be minimal. This ensures the lazy loading refactoring
-maintains data consistency and handles edge cases properly.
+Tests that all REST endpoints for room data work correctly after joining a room.
+Room join is done via socket (room:join event), and data is fetched via REST.
 """
 
 import pytest
@@ -11,27 +10,13 @@ import requests
 from zndraw.zndraw import ZnDraw
 
 
-def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
+def test_lazy_loading_empty_room(server, connect_room):
     """Test lazy loading endpoints with an empty room."""
     room = "test-lazy-empty"
-    headers = get_jwt_auth_headers(server)
 
-    # Step 1: Create room first
-    create_response = requests.post(
-        f"{server}/api/rooms", json={"roomId": room}, headers=headers, timeout=10
-    )
-    assert create_response.status_code == 201
-
-    # Step 2: Join room (minimal response)
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers, timeout=10
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "ok"
-    assert data["roomId"] == room
-    assert "sessionId" in data
-    assert "userName" in data
+    # Join room via socket (keep connection alive)
+    conn = connect_room(room, user="test-lazy-user")
+    headers = conn.headers
 
     # Step 3: Fetch room info
     response = requests.get(f"{server}/api/rooms/{room}", headers=headers, timeout=10)
@@ -99,10 +84,9 @@ def test_lazy_loading_empty_room(server, get_jwt_auth_headers):
     assert "studio_lighting" in settings_data["data"]
 
 
-def test_lazy_loading_with_data(server, s22, get_jwt_auth_headers):
+def test_lazy_loading_with_data(server, s22, connect_room):
     """Test lazy loading endpoints with a room that has data."""
     room = "test-lazy-with-data"
-    headers = get_jwt_auth_headers(server)
 
     # Setup: Create room with frames (ZnDraw auto-creates room)
     vis = ZnDraw(url=server, room=room, user="user1")
@@ -111,14 +95,9 @@ def test_lazy_loading_with_data(server, s22, get_jwt_auth_headers):
     # Add a bookmark
     vis.bookmarks[2] = "Frame 2"
 
-    # Step 1: Join room as different user (room already created by ZnDraw)
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers, timeout=10
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "ok"
-    assert data["roomId"] == room
+    # Join room as different user via socket (keep connection alive)
+    conn = connect_room(room, user="user2")
+    headers = conn.headers
 
     # Step 2: Fetch room info
     response = requests.get(f"{server}/api/rooms/{room}", headers=headers, timeout=10)
@@ -159,22 +138,12 @@ def test_lazy_loading_with_data(server, s22, get_jwt_auth_headers):
     assert isinstance(geometries_data["geometries"], dict)
 
 
-def test_lazy_loading_auth_required(server, get_jwt_auth_headers):
+def test_lazy_loading_auth_required(server, connect_room):
     """Test that all lazy loading endpoints require authentication."""
     room = "test-lazy-auth"
-    headers = get_jwt_auth_headers(server)
 
-    # Create room first
-    create_response = requests.post(
-        f"{server}/api/rooms", json={"roomId": room}, headers=headers, timeout=10
-    )
-    assert create_response.status_code == 201
-
-    # Join room
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers, timeout=10
-    )
-    assert response.status_code == 200
+    # Join room via socket (keep connection alive)
+    conn = connect_room(room, user="test-auth-user")
 
     # Try to access endpoints without auth - should fail with 401
     endpoints = [
@@ -262,23 +231,20 @@ def test_step_clamping_with_deleted_frames(server, s22, get_jwt_auth_headers):
     assert data["totalFrames"] == 5
 
 
-def test_parallel_lazy_loading(server, s22, get_jwt_auth_headers):
+def test_parallel_lazy_loading(server, s22, connect_room):
     """Test that all lazy loading endpoints can be called in parallel."""
     import concurrent.futures
 
     room = "test-parallel-loading"
-    headers = get_jwt_auth_headers(server)
 
     # Setup: Create room with data
     vis = ZnDraw(url=server, room=room, user="user1")
     vis.extend(s22[:3])
     vis.bookmarks[1] = "Parallel test"
 
-    # Join room
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers, timeout=10
-    )
-    assert response.status_code == 200
+    # Join room via socket (keep connection alive)
+    conn = connect_room(room, user="user2")
+    headers = conn.headers
 
     # Define all endpoints to fetch
     endpoints = [

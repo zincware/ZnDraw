@@ -80,9 +80,12 @@ def test_register_with_empty_username_creates_anonymous_guest(server):
 
 
 def test_join_room_with_jwt_succeeds(server, get_jwt_auth_headers):
-    """Test joining a room with valid JWT token."""
+    """Test joining a room via socket with valid JWT token."""
+    import socketio
+
     # Login to get JWT
     headers = get_jwt_auth_headers(server, "test-user")
+    jwt_token = headers["Authorization"].replace("Bearer ", "")
 
     # Create room first
     room = "test-room"
@@ -93,54 +96,53 @@ def test_join_room_with_jwt_succeeds(server, get_jwt_auth_headers):
     )
     assert create_response.status_code == 201
 
-    # Join room with JWT
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join",
-        json={},
-        headers=headers,
-    )
+    # Connect socket and join room
+    sio = socketio.Client()
+    sio.connect(server, auth={"token": jwt_token}, wait=True)
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "ok"
-    assert data["roomId"] == room
+    try:
+        response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
+        assert response["status"] == "ok"
+        assert "sessionId" in response
+        assert "roomData" in response
+    finally:
+        sio.disconnect()
 
 
 def test_join_room_without_jwt_fails(server):
-    """Test that joining a room without JWT token fails with 401."""
-    room = "test-room"
-    response = requests.post(f"{server}/api/rooms/{room}/join", json={})
+    """Test that socket connection without JWT token fails."""
+    import socketio
+    from socketio.exceptions import ConnectionError as SocketIOConnectionError
 
-    assert response.status_code == 401
-    data = response.json()
-    assert "error" in data
+    sio = socketio.Client()
+
+    # Try to connect without auth token
+    with pytest.raises(SocketIOConnectionError):
+        sio.connect(server, wait=True)
 
 
 def test_join_room_with_invalid_jwt_fails(server):
-    """Test that joining a room with invalid JWT token fails with 401."""
-    room = "test-room"
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join",
-        json={},
-        headers={"Authorization": "Bearer invalid-token-here"},
-    )
+    """Test that socket connection with invalid JWT token fails."""
+    import socketio
+    from socketio.exceptions import ConnectionError as SocketIOConnectionError
 
-    assert response.status_code == 401
-    data = response.json()
-    assert "error" in data
+    sio = socketio.Client()
+
+    # Try to connect with invalid token
+    with pytest.raises(SocketIOConnectionError):
+        sio.connect(server, auth={"token": "invalid-token-here"}, wait=True)
 
 
 def test_join_room_with_malformed_auth_header_fails(server):
-    """Test that malformed Authorization header fails."""
-    room = "test-room"
+    """Test that socket connection without proper token fails."""
+    import socketio
+    from socketio.exceptions import ConnectionError as SocketIOConnectionError
 
-    # Missing 'Bearer' prefix
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join",
-        json={},
-        headers={"Authorization": "just-a-token"},
-    )
-    assert response.status_code == 401
+    sio = socketio.Client()
+
+    # Try to connect with empty auth (no token key)
+    with pytest.raises(SocketIOConnectionError):
+        sio.connect(server, auth={}, wait=True)
 
 
 def test_websocket_connection_with_jwt_succeeds(server):
@@ -287,17 +289,19 @@ def test_login_without_registration_fails(server):
 
 def test_join_room_updates_redis_room_users(server, redis_client, get_jwt_auth_headers):
     """Test that joining a room adds user to room's user set in Redis."""
+    import socketio
+
     # Login and get headers
     headers = get_jwt_auth_headers(server, "room-joiner")
+    jwt_token = headers["Authorization"].replace("Bearer ", "")
 
     # Extract username from token (decode without verification)
     import jwt as pyjwt
 
-    token = headers["Authorization"].split(" ")[1]
-    payload = pyjwt.decode(token, options={"verify_signature": False})
+    payload = pyjwt.decode(jwt_token, options={"verify_signature": False})
     user_name = payload["sub"]
 
-    # Create room first, then join
+    # Create room first
     room = "redis-room-test"
     create_response = requests.post(
         f"{server}/api/rooms",
@@ -306,39 +310,46 @@ def test_join_room_updates_redis_room_users(server, redis_client, get_jwt_auth_h
     )
     assert create_response.status_code == 201
 
-    # Join room
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join",
-        json={},
-        headers=headers,
-    )
-    assert response.status_code == 200
+    # Join room via socket
+    sio = socketio.Client()
+    sio.connect(server, auth={"token": jwt_token}, wait=True)
 
-    # Verify user is in room's user set
-    room_users_key = f"room:{room}:users"
-    assert redis_client.sismember(room_users_key, user_name) == 1
+    try:
+        response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
+        assert response["status"] == "ok"
+
+        # Verify user is in room's user set
+        room_users_key = f"room:{room}:users"
+        assert redis_client.sismember(room_users_key, user_name) == 1
+    finally:
+        sio.disconnect()
 
 
 def test_join_nonexistent_room_fails(server, get_jwt_auth_headers):
-    """Test that joining a non-existent room returns 404.
+    """Test that joining a non-existent room via socket returns 404.
 
     Room creation and room joining are separate operations.
     Use POST /api/rooms to create a room first.
     """
+    import socketio
+
     headers = get_jwt_auth_headers(server, "test-user")
+    jwt_token = headers["Authorization"].replace("Bearer ", "")
 
-    # Try to join a room that doesn't exist
-    room = "nonexistent-room-12345"
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join",
-        json={},
-        headers=headers,
-    )
+    # Connect socket
+    sio = socketio.Client()
+    sio.connect(server, auth={"token": jwt_token}, wait=True)
 
-    assert response.status_code == 404
-    data = response.json()
-    assert "error" in data
-    assert room in data["error"]
+    try:
+        # Try to join a room that doesn't exist
+        room = "nonexistent-room-12345"
+        response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
+
+        assert response["status"] == "error"
+        assert response["code"] == 404
+        assert "not found" in response["message"].lower()
+    finally:
+        sio.disconnect()
 
 
 def test_explicit_room_creation(server, get_jwt_auth_headers):
@@ -385,8 +396,11 @@ def test_explicit_room_creation_duplicate_fails(server, get_jwt_auth_headers):
 
 
 def test_join_after_explicit_creation(server, get_jwt_auth_headers):
-    """Test joining a room after explicit creation without allowCreate."""
+    """Test joining a room via socket after explicit creation."""
+    import socketio
+
     headers = get_jwt_auth_headers(server, "test-user")
+    jwt_token = headers["Authorization"].replace("Bearer ", "")
 
     room = "join-after-create-test"
 
@@ -398,13 +412,13 @@ def test_join_after_explicit_creation(server, get_jwt_auth_headers):
     )
     assert response1.status_code == 201
 
-    # Join without allowCreate - should succeed since room exists
-    response2 = requests.post(
-        f"{server}/api/rooms/{room}/join",
-        json={},  # No allowCreate needed
-        headers=headers,
-    )
-    assert response2.status_code == 200
-    data = response2.json()
-    assert data["status"] == "ok"
-    assert data["roomId"] == room
+    # Join via socket - should succeed since room exists
+    sio = socketio.Client()
+    sio.connect(server, auth={"token": jwt_token}, wait=True)
+
+    try:
+        response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
+        assert response["status"] == "ok"
+        assert "sessionId" in response
+    finally:
+        sio.disconnect()

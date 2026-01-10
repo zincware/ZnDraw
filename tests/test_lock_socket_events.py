@@ -7,49 +7,23 @@ import requests
 import socketio
 
 
-def _create_and_join_room(server, room, auth_headers):
-    """Helper to create a room and join it, returning session_id."""
-    # Create the room first
-    create_response = requests.post(
-        f"{server}/api/rooms",
-        json={"roomId": room},
-        headers=auth_headers,
-    )
-    assert create_response.status_code == 201
-
-    # Join the room
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
-    )
-    assert response.status_code == 200
-    return response.json()["sessionId"]
-
-
 @pytest.fixture
-def socketio_client():
-    """Create a Socket.IO client for testing."""
+def authenticated_session(server, connect_room):
+    """Create and join a room with persistent socket connection.
+
+    Uses connect_room to keep socket alive during test (prevents lock cleanup).
+    Returns server, room, session_id, auth_headers, socketio_client, user_name.
+    """
+    user_name = "test-user"
+    conn = connect_room("test-lock-socket", user=user_name)
+
+    # Create additional socketio client for event listening
     client = socketio.Client()
-    yield client
+
+    yield server, conn.room_id, conn.session_id, conn.headers, client, user_name
+
     if client.connected:
         client.disconnect()
-
-
-@pytest.fixture
-def authenticated_session(server, get_jwt_auth_headers):
-    """Create and join a room, return server, room, session_id, auth_headers, socketio_client."""
-    room = "test-lock-socket"
-    user_name = "test-user"
-
-    # Get auth headers
-    auth_headers = get_jwt_auth_headers(server, user_name)
-
-    # Create and join room
-    session_id = _create_and_join_room(server, room, auth_headers)
-
-    # Create socketio client
-    client = socketio.Client()
-
-    return server, room, session_id, auth_headers, client, user_name
 
 
 def test_lock_acquire_emits_lock_update(authenticated_session):
@@ -312,7 +286,9 @@ def test_lock_events_for_different_targets(authenticated_session):
     sio_client.disconnect()
 
 
-def test_multiple_clients_receive_lock_events(server, get_jwt_auth_headers):
+def test_multiple_clients_receive_lock_events(
+    server, get_jwt_auth_headers, create_and_join_room
+):
     """Test that multiple clients in the same room receive lock:update events."""
     room = "test-multi-client"
     user1_name = "user1"
@@ -320,13 +296,10 @@ def test_multiple_clients_receive_lock_events(server, get_jwt_auth_headers):
 
     # User 1 creates and joins room
     user1_headers = get_jwt_auth_headers(server, user1_name)
-    user1_session = _create_and_join_room(server, room, user1_headers)
+    user1_session = create_and_join_room(server, room, user1_headers)
 
-    # User 2 joins existing room (listener)
+    # User 2 joins existing room (listener) via socket
     user2_headers = get_jwt_auth_headers(server, user2_name)
-    requests.post(f"{server}/api/rooms/{room}/join", json={}, headers=user2_headers)
-
-    # Create socketio client for user 2 (listener)
     user2_events = []
 
     def on_lock_update(data):
@@ -337,7 +310,7 @@ def test_multiple_clients_receive_lock_events(server, get_jwt_auth_headers):
     sio_client.connect(
         server, auth={"token": user2_headers["Authorization"].split(" ")[1]}
     )
-    sio_client.emit("join:room", {"roomId": room})
+    sio_client.call("room:join", {"roomId": room, "clientType": "frontend"})
 
     # Give socket time to connect
     time.sleep(0.5)

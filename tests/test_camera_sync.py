@@ -5,11 +5,11 @@ Tests socket events for camera state updates and programmatic control.
 
 import json
 
-import pytest
 import redis
 import requests
 
 from zndraw import ZnDraw
+from zndraw.app.redis_keys import RoomKeys
 from zndraw.geometries import Camera
 
 
@@ -19,21 +19,13 @@ def _create_frontend_session(room_id: str, session_id: str) -> None:
     r.sadd(f"room:{room_id}:frontend_sessions", session_id)
 
 
-def test_camera_state_stored_in_redis(server, get_jwt_auth_headers):
+def test_camera_state_stored_in_redis(server, connect_room):
     """Camera state updates from frontend are stored in Redis."""
     room = "test-camera-redis"
-    headers = get_jwt_auth_headers(server)
 
-    # Create room
-    requests.post(
-        f"{server}/api/rooms", json={"roomId": room}, headers=headers, timeout=10
-    )
-
-    # Join and register session
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers, timeout=10
-    )
-    session_id = response.json()["sessionId"]
+    # Create room and join via socket (keep connection alive)
+    conn = connect_room(room, user="test-camera-user")
+    session_id = conn.session_id
     _create_frontend_session(room, session_id)
 
     # Set camera via REST API (simulates what socket event does)
@@ -42,16 +34,17 @@ def test_camera_state_stored_in_redis(server, get_jwt_auth_headers):
         "target": [1.0, 2.0, 3.0],
         "fov": 60.0,
     }
-    requests.put(
+    response = requests.put(
         f"{server}/api/rooms/{room}/sessions/{session_id}/camera",
-        headers=headers,
+        headers=conn.headers,
         json=camera_data,
         timeout=10,
     )
+    assert response.status_code == 200
 
     # Verify directly in Redis
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
-    stored = r.hget(f"room:{room}:session_cameras", session_id)
+    stored = r.hget(RoomKeys(room).session_cameras(), session_id)
 
     assert stored is not None
     stored_data = json.loads(stored)

@@ -15,6 +15,7 @@ class SocketManager:
     def __init__(self, zndraw_instance: "ZnDraw"):
         self.zndraw = zndraw_instance
         self.sio = socketio.Client()
+        self._initial_connect_done = False
         self._register_handlers()
 
     def _register_handlers(self):
@@ -34,23 +35,63 @@ class SocketManager:
         self.sio.on("filesystem:load", self._on_filesystem_load)
 
     def connect(self):
-        """Connect to server with JWT authentication."""
+        """Connect to server with JWT authentication and join room."""
         if self.sio.connected:
             print("Already connected.")
             return
-        # Connect with JWT token and sessionId for authentication
+        # Connect with JWT token only (sessionId is created by room:join)
         self.sio.connect(
             self.zndraw.url,
-            auth={
-                "token": self.zndraw.api.jwt_token,
-                "sessionId": self.zndraw.api.session_id,
-            },
+            auth={"token": self.zndraw.api.jwt_token},
             wait=True,
         )
+
+        # Join room and get sessionId + room data
+        room_id = self.zndraw.room
+        response = self.sio.call(
+            "room:join", {"roomId": room_id, "clientType": "python"}
+        )
+
+        # Handle room not found - create it first
+        if response.get("code") == 404:
+            self.zndraw.api.create_room(
+                description=self.zndraw.description,
+                copy_from=self.zndraw.copy_from,
+            )
+            # Retry join after creation
+            response = self.sio.call(
+                "room:join", {"roomId": room_id, "clientType": "python"}
+            )
+
+        if response.get("status") != "ok":
+            raise RuntimeError(f"Failed to join room: {response.get('message')}")
+
+        # Store sessionId for subsequent operations
+        self.zndraw.api.session_id = response["sessionId"]
+
+        # Initialize room data from socket response
+        room_data = response.get("roomData", {})
+        self.zndraw._len = room_data.get("frameCount", 0)
+        self.zndraw._step = room_data.get("currentStep", 0)
+        self.zndraw._frame_selection = frozenset(room_data.get("frameSelection") or [])
+        self.zndraw._bookmarks = room_data.get("bookmarks", {})
+
+        # Fetch geometries via REST (can be large)
+        geometries = self.zndraw.api.get_geometries()
+        if geometries is not None:
+            self.zndraw._geometries = geometries
+
+        # Re-register extensions after session is established
+        self._register_extensions_after_join()
+
+        # Mark initial connection as done - subsequent connects are reconnects
+        self._initial_connect_done = True
 
     def disconnect(self):
         if self.sio.connected:
             self.sio.disconnect()
+            # Reset flag so next connect() goes through full flow
+            self._initial_connect_done = False
             print("Disconnected.")
 
     @property
@@ -58,9 +99,43 @@ class SocketManager:
         return self.sio.connected
 
     def _on_connect(self):
-        """Handle connection to server."""
+        """Handle socket connection event.
+
+        For initial connection, connect() handles room:join and extension
+        registration. For auto-reconnects (e.g., after network issues),
+        we need to re-join the room and re-register extensions here.
+        """
         log.debug("Connected to server")
 
+        # On initial connect, connect() handles everything
+        if not self._initial_connect_done:
+            return
+
+        # This is an auto-reconnect - need to re-join room and re-register
+        log.info("Auto-reconnect detected, re-joining room and re-registering extensions")
+
+        # Re-join room to get new session
+        room_id = self.zndraw.room
+        response = self.sio.call(
+            "room:join", {"roomId": room_id, "clientType": "python"}
+        )
+
+        if response.get("status") != "ok":
+            log.error(f"Failed to re-join room after reconnect: {response.get('message')}")
+            return
+
+        # Update session ID
+        self.zndraw.api.session_id = response["sessionId"]
+
+        # Re-register extensions
+        self._register_extensions_after_join()
+
+    def _register_extensions_after_join(self):
+        """Re-register extensions after session is established.
+
+        Called from connect() after room:join succeeds and session_id is set.
+        This ensures the session exists before attempting to register extensions.
+        """
         # Re-register any extensions that were registered before connection
         # Process public extensions
         for name, ext in self.zndraw._public_extensions.items():

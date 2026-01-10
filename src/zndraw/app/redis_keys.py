@@ -301,6 +301,10 @@ class RoomKeys:
         """Bookmarks hash (frame_index -> label)."""
         return f"room:{self.room_id}:bookmarks"
 
+    def users(self) -> str:
+        """Set of usernames currently in this room."""
+        return f"room:{self.room_id}:users"
+
     def geometries(self) -> str:
         """Geometries hash."""
         return f"room:{self.room_id}:geometries"
@@ -367,33 +371,6 @@ class RoomKeys:
             Redis key for session settings hash
         """
         return f"room:{self.room_id}:session_settings:{session_id}"
-
-    def aliases(self) -> str:
-        """Session aliases hash (alias -> session_id).
-
-        Maps user-defined aliases to session IDs for stable Python access.
-
-        Returns
-        -------
-        str
-            Redis key for aliases hash
-        """
-        return f"room:{self.room_id}:aliases"
-
-    def session_alias(self, session_id: str) -> str:
-        """Reverse mapping from session_id to alias.
-
-        Parameters
-        ----------
-        session_id : str
-            The session identifier
-
-        Returns
-        -------
-        str
-            Redis key for session's alias
-        """
-        return f"room:{self.room_id}:session:{session_id}:alias"
 
     def frontend_sessions(self) -> str:
         """Set of frontend session IDs in this room.
@@ -583,7 +560,6 @@ class RoomKeys:
             self.jobs_inactive(),
             self.jobs_by_time(),
             self.session_cameras(),
-            self.aliases(),
             self.frontend_sessions(),
         ]
 

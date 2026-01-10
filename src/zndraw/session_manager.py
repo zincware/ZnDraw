@@ -39,31 +39,6 @@ class FrontendSession:
         self.session_id = session_id
 
     @property
-    def alias(self) -> str | None:
-        """User-defined alias for this session.
-
-        Aliases provide stable access to sessions across reconnects.
-        Set from frontend via URL parameter (?alias=projector) or UI.
-
-        Returns
-        -------
-        str or None
-            The alias, or None if not set.
-        """
-        return self._vis.api.get_session_alias(self.session_id)
-
-    @alias.setter
-    def alias(self, value: str | None) -> None:
-        """Set alias for stable access.
-
-        Parameters
-        ----------
-        value : str or None
-            The alias to set, or None to remove.
-        """
-        self._vis.api.set_session_alias(self.session_id, value)
-
-    @property
     def camera(self) -> Camera:
         """Get camera state (fetches from Redis).
 
@@ -116,8 +91,7 @@ class FrontendSession:
         self._vis.api.set_session_settings(self.session_id, value)
 
     def __repr__(self) -> str:
-        alias_str = f" (alias={self.alias!r})" if self.alias else ""
-        return f"FrontendSession({self.session_id!r}{alias_str})"
+        return f"FrontendSession({self.session_id!r})"
 
 
 class FrontendSessions(Mapping):
@@ -128,7 +102,6 @@ class FrontendSessions(Mapping):
 
     Supports:
     - Dict access: vis.sessions["abc-123"]
-    - Alias lookup: vis.sessions.get(alias="projector")
     - Iteration: for session in vis.sessions.values()
     - Length: len(vis.sessions)
 
@@ -142,11 +115,6 @@ class FrontendSessions(Mapping):
     >>> # List all sessions
     >>> for sid, session in vis.sessions.items():
     ...     print(f"{sid}: {session.camera.position}")
-
-    >>> # Access by alias
-    >>> projector = vis.sessions.get(alias="projector")
-    >>> if projector:
-    ...     projector.camera.position = (10, 10, 10)
     """
 
     def __init__(self, vis: "ZnDraw"):
@@ -193,17 +161,13 @@ class FrontendSessions(Mapping):
         """Iterate over session IDs."""
         return iter(self._get_frontend_session_ids())
 
-    def get(
-        self, session_id: str | None = None, *, alias: str | None = None
-    ) -> FrontendSession | None:
-        """Get session by ID or alias.
+    def get(self, session_id: str | None = None) -> FrontendSession | None:
+        """Get session by ID.
 
         Parameters
         ----------
         session_id : str, optional
-            Direct session ID lookup.
-        alias : str, optional
-            Lookup by user-defined alias.
+            Session ID lookup.
 
         Returns
         -------
@@ -212,16 +176,8 @@ class FrontendSessions(Mapping):
 
         Examples
         --------
-        >>> # Lookup by session ID
         >>> session = vis.sessions.get("abc-123")
-
-        >>> # Lookup by alias
-        >>> projector = vis.sessions.get(alias="projector")
         """
-        if alias is not None:
-            session_id = self._vis.api.get_session_by_alias(alias)
-            if session_id is None:
-                return None
         if session_id is None:
             return None
         try:

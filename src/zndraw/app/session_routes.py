@@ -28,8 +28,6 @@ session_bp = Blueprint("sessions", __name__)
 def list_sessions(room_id: str):
     """List all frontend sessions in a room.
 
-    Returns session IDs and their aliases (if set).
-
     Parameters
     ----------
     room_id : str
@@ -38,7 +36,7 @@ def list_sessions(room_id: str):
     Returns
     -------
     dict
-        {"sessions": [{"session_id": str, "alias": str | None}, ...]}
+        {"sessions": [{"session_id": str}, ...]}
     """
     r = current_app.extensions["redis"]
     keys = RoomKeys(room_id)
@@ -46,16 +44,7 @@ def list_sessions(room_id: str):
     # Get all frontend session IDs
     session_ids = r.smembers(keys.frontend_sessions())
 
-    sessions = []
-    for session_id in session_ids:
-        # Get alias if set
-        alias = r.get(keys.session_alias(session_id))
-        sessions.append(
-            {
-                "session_id": session_id,
-                "alias": alias,
-            }
-        )
+    sessions = [{"session_id": session_id} for session_id in session_ids]
 
     log.debug(f"list_sessions: room={room_id}, count={len(sessions)}")
     return {"sessions": sessions}, 200
@@ -159,125 +148,6 @@ def set_session_camera(room_id: str, session_id: str):
 
     log.debug(f"set_session_camera: room={room_id}, session={session_id}")
     return {"status": "success"}, 200
-
-
-@session_bp.route(
-    "/api/rooms/<string:room_id>/sessions/<string:session_id>/alias",
-    methods=["GET"],
-)
-@require_auth
-def get_session_alias(room_id: str, session_id: str):
-    """Get alias for a session.
-
-    Parameters
-    ----------
-    room_id : str
-        Room identifier.
-    session_id : str
-        Session identifier.
-
-    Returns
-    -------
-    dict
-        {"alias": str | None}
-    """
-    r = current_app.extensions["redis"]
-    keys = RoomKeys(room_id)
-
-    # Verify session exists
-    if not r.sismember(keys.frontend_sessions(), session_id):
-        return {"error": f"Session '{session_id}' not found"}, 404
-
-    alias = r.get(keys.session_alias(session_id))
-    return {"alias": alias}, 200
-
-
-@session_bp.route(
-    "/api/rooms/<string:room_id>/sessions/<string:session_id>/alias",
-    methods=["PUT"],
-)
-@require_auth
-def set_session_alias(room_id: str, session_id: str):
-    """Set alias for a session.
-
-    If the alias is already used by another session, it will be reassigned.
-
-    Parameters
-    ----------
-    room_id : str
-        Room identifier.
-    session_id : str
-        Session identifier.
-
-    Request Body
-    ------------
-    {"alias": str | None}
-
-    Returns
-    -------
-    dict
-        {"status": "success"}
-    """
-    r = current_app.extensions["redis"]
-    keys = RoomKeys(room_id)
-
-    # Verify session exists
-    if not r.sismember(keys.frontend_sessions(), session_id):
-        return {"error": f"Session '{session_id}' not found"}, 404
-
-    json_data = request.json
-    if json_data is None:
-        return {"error": "Request body must be JSON"}, 400
-
-    new_alias = json_data.get("alias")
-
-    # Remove old alias if exists
-    old_alias = r.get(keys.session_alias(session_id))
-    if old_alias:
-        r.hdel(keys.aliases(), old_alias)
-        r.delete(keys.session_alias(session_id))
-
-    if new_alias:
-        # Check if alias is used by another session and remove that mapping
-        existing_session = r.hget(keys.aliases(), new_alias)
-        if existing_session and existing_session != session_id:
-            r.delete(keys.session_alias(existing_session))
-
-        # Set new alias
-        r.hset(keys.aliases(), new_alias, session_id)
-        r.set(keys.session_alias(session_id), new_alias)
-
-    log.debug(
-        f"set_session_alias: room={room_id}, session={session_id}, alias={new_alias}"
-    )
-    return {"status": "success"}, 200
-
-
-@session_bp.route(
-    "/api/rooms/<string:room_id>/sessions/by-alias/<string:alias>",
-    methods=["GET"],
-)
-@require_auth
-def get_session_by_alias(room_id: str, alias: str):
-    """Get session ID by alias.
-
-    Parameters
-    ----------
-    room_id : str
-        Room identifier.
-    alias : str
-        Session alias.
-
-    Returns
-    -------
-    dict
-        {"session_id": str | None}
-    """
-    r = current_app.extensions["redis"]
-    keys = RoomKeys(room_id)
-
-    session_id = r.hget(keys.aliases(), alias)
-    return {"session_id": session_id}, 200
 
 
 @session_bp.route(

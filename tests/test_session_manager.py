@@ -145,32 +145,6 @@ def test_session_camera_set(server):
     assert retrieved_cam.fov == 60.0
 
 
-def test_session_alias_get_none(server):
-    """session.alias returns None when not set."""
-    room = "test-session-alias-none"
-    vis = ZnDraw(url=server, room=room, user="tester")
-
-    session_id = "alias-none-session"
-    _create_frontend_session(room, session_id)
-
-    session = vis.sessions[session_id]
-    assert session.alias is None
-
-
-def test_session_alias_set(server):
-    """Setting session.alias stores the alias."""
-    room = "test-session-alias-set"
-    vis = ZnDraw(url=server, room=room, user="tester")
-
-    session_id = "alias-set-session"
-    _create_frontend_session(room, session_id)
-
-    session = vis.sessions[session_id]
-    session.alias = "projector"
-
-    assert session.alias == "projector"
-
-
 def test_sessions_get_by_id(server):
     """vis.sessions.get(session_id) returns session or None."""
     room = "test-sessions-get"
@@ -189,33 +163,6 @@ def test_sessions_get_by_id(server):
     assert missing is None
 
 
-def test_sessions_get_by_alias(server):
-    """vis.sessions.get(alias='x') looks up by alias."""
-    room = "test-sessions-get-alias"
-    vis = ZnDraw(url=server, room=room, user="tester")
-
-    session_id = "aliased-session"
-    _create_frontend_session(room, session_id)
-
-    # Set alias
-    session = vis.sessions[session_id]
-    session.alias = "main-display"
-
-    # Lookup by alias
-    found = vis.sessions.get(alias="main-display")
-    assert found is not None
-    assert found.session_id == session_id
-
-
-def test_sessions_get_by_alias_not_found(server):
-    """vis.sessions.get(alias='x') returns None if not found."""
-    room = "test-sessions-get-alias-missing"
-    vis = ZnDraw(url=server, room=room, user="tester")
-
-    found = vis.sessions.get(alias="nonexistent-alias")
-    assert found is None
-
-
 def test_session_repr(server):
     """FrontendSession has meaningful repr."""
     room = "test-session-repr"
@@ -226,16 +173,9 @@ def test_session_repr(server):
 
     session = vis.sessions[session_id]
 
-    # Without alias
     repr_str = repr(session)
     assert "FrontendSession" in repr_str
     assert session_id in repr_str
-
-    # With alias
-    session.alias = "test-alias"
-    repr_str = repr(session)
-    assert "alias=" in repr_str
-    assert "test-alias" in repr_str
 
 
 def test_sessions_repr(server):

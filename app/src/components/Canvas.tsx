@@ -18,7 +18,7 @@ import {
 	useCameraControls,
 	type ControlsState,
 } from "../hooks/useCameraControls";
-import { useCameraSync, registerSession } from "../hooks/useCameraSync";
+import { useCameraSync } from "../hooks/useCameraSync";
 import { useGeometryCameraSync } from "../hooks/useGeometryCameraSync";
 
 // Import our new, self-contained components
@@ -202,21 +202,6 @@ function MyScene() {
 	// Fetch settings (for lighting, pathtracing - NOT for camera anymore)
 	// Settings are per-session, so query key uses sessionId (stable for entire session)
 	const { data: settingsResponse } = useSettings(roomId || "");
-
-	// Connection state - needed to re-register session on socket reconnect
-	const connected = useAppStore((state) => state.isConnected);
-
-	// Register session on mount AND on socket reconnect
-	// MUST be before loading check to avoid circular dependency
-	// Session camera is created when session:register is called on backend
-	// Re-registers when socket reconnects to ensure the new socket joins session room
-	useEffect(() => {
-		if (sessionId && connected) {
-			const urlParams = new URLSearchParams(window.location.search);
-			const alias = urlParams.get("alias");
-			registerSession(sessionId, alias);
-		}
-	}, [sessionId, connected]);
 
 	// Initialize attachedCameraKey to session camera when it becomes available
 	// This ensures one camera is always active (radio button behavior)

@@ -138,7 +138,7 @@ def test_rest_delete_geometry(joined_room, get_jwt_auth_headers):
     # Use ZnDraw client which handles lock acquisition automatically
     vis = ZnDraw(url=server, room=room, user="test-geom-delete")
 
-    # Delete all geometries
+    # Delete all default geometries
     del vis.geometries["particles"]
     del vis.geometries["bonds"]
     del vis.geometries["curve"]
@@ -146,11 +146,13 @@ def test_rest_delete_geometry(joined_room, get_jwt_auth_headers):
     del vis.geometries["floor"]
     del vis.geometries["constraints-fixed-atoms"]
 
-    # Verify no geometries remain
+    # Verify only session cameras remain (they are per-session, not deleted with shared geometries)
     response = requests.get(f"{server}/api/rooms/{room}/geometries", headers=headers)
     assert response.status_code == 200
     data = response.json()
-    assert data == {"geometries": {}}  # Empty dict when no geometries
+    remaining_keys = list(data["geometries"].keys())
+    # Only session camera geometries should remain
+    assert all(k.startswith("cam:session:") for k in remaining_keys)
 
 
 def test_rest_delete_unknown_geometry(joined_room):
@@ -164,11 +166,12 @@ def test_rest_delete_unknown_geometry(joined_room):
 
 
 def test_vis_list_geometries(server):
-    from zndraw.geometries import Cell, Curve, Floor
+    from zndraw.geometries import Camera, Cell, Curve, Floor
     from zndraw.materials import MeshBasicMaterial
 
     vis = ZnDraw(url=server, room="test-room-vis-list-geom", user="tester")
-    assert len(vis.geometries) == 6
+    # 6 default geometries + 1 session camera
+    assert len(vis.geometries) == 7
 
     # Check default geometries match what's created in room_service.py
     assert vis.geometries["particles"] == Sphere(
@@ -191,6 +194,12 @@ def test_vis_list_geometries(server):
     assert constraints_geom.scale == [(0.71, 0.71, 0.71)]
     assert constraints_geom.active is True
     assert constraints_geom.material == MeshBasicMaterial(wireframe=True)
+
+    # Verify session camera geometry exists
+    session_cam_keys = [k for k in vis.geometries.keys() if k.startswith("cam:session:")]
+    assert len(session_cam_keys) == 1
+    session_cam = vis.geometries[session_cam_keys[0]]
+    assert isinstance(session_cam, Camera)
 
 
 def test_vis_add_update_delete_geometry(server):

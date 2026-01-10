@@ -463,58 +463,6 @@ export const createRoom = async (
 	return data;
 };
 
-export interface JoinRoomRequest {
-	template?: string;
-}
-
-export interface JoinRoomResponse {
-	status: string;
-	userName: string;
-	sessionId: string; // Session ID for this browser tab
-	roomId: string;
-}
-
-export const joinRoom = async (
-	roomId: string,
-	request: JoinRoomRequest,
-	signal?: AbortSignal,
-): Promise<JoinRoomResponse> => {
-	const { data } = await apiClient.post(`/api/rooms/${roomId}/join`, request, {
-		signal,
-	});
-	return data;
-};
-
-/**
- * Join a room, creating it first if it doesn't exist.
- * This is the recommended way to join rooms from the frontend.
- */
-export const joinOrCreateRoom = async (
-	roomId: string,
-	options?: { template?: string; description?: string; copyFrom?: string },
-	signal?: AbortSignal,
-): Promise<JoinRoomResponse> => {
-	try {
-		// Try to join existing room first
-		return await joinRoom(roomId, { template: options?.template }, signal);
-	} catch (error: any) {
-		// If room doesn't exist (404), create it then join
-		if (error.response?.status === 404) {
-			await createRoom(
-				{
-					roomId,
-					description: options?.description,
-					copyFrom: options?.copyFrom ?? options?.template,
-				},
-				signal,
-			);
-			// Now join the newly created room
-			return await joinRoom(roomId, {}, signal);
-		}
-		throw error;
-	}
-};
-
 export interface RoomInfo {
 	id: string;
 	description: string | null;
@@ -1489,7 +1437,6 @@ export const releaseLock = async (
  */
 export interface SessionInfo {
 	session_id: string;
-	alias: string | null;
 }
 
 /**
@@ -1554,58 +1501,4 @@ export const setSessionCamera = async (
 		camera,
 	);
 	return data;
-};
-
-/**
- * Get alias for a session.
- *
- * @param roomId - Room identifier
- * @param sessionId - Session identifier
- * @returns Promise with alias (or null)
- */
-export const getSessionAlias = async (
-	roomId: string,
-	sessionId: string,
-): Promise<string | null> => {
-	const { data } = await apiClient.get(
-		`/api/rooms/${roomId}/sessions/${sessionId}/alias`,
-	);
-	return data.alias;
-};
-
-/**
- * Set alias for a session.
- *
- * @param roomId - Room identifier
- * @param sessionId - Session identifier
- * @param alias - Alias to set (or null to remove)
- * @returns Promise with success status
- */
-export const setSessionAlias = async (
-	roomId: string,
-	sessionId: string,
-	alias: string | null,
-): Promise<{ status: string }> => {
-	const { data } = await apiClient.put(
-		`/api/rooms/${roomId}/sessions/${sessionId}/alias`,
-		{ alias },
-	);
-	return data;
-};
-
-/**
- * Get session ID by alias.
- *
- * @param roomId - Room identifier
- * @param alias - Session alias
- * @returns Promise with session ID (or null)
- */
-export const getSessionByAlias = async (
-	roomId: string,
-	alias: string,
-): Promise<string | null> => {
-	const { data } = await apiClient.get(
-		`/api/rooms/${roomId}/sessions/by-alias/${alias}`,
-	);
-	return data.session_id;
 };

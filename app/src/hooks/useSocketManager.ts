@@ -10,6 +10,7 @@ import {
 	getAllBookmarks,
 	getServerVersion,
 	getGlobalSettings,
+	createRoom,
 } from "../myapi/client";
 import { convertBookmarkKeys } from "../utils/bookmarks";
 import {
@@ -18,6 +19,7 @@ import {
 } from "../utils/versionCompatibility";
 import { useRoomsStore } from "../roomsStore";
 import { ensureAuthenticated } from "../utils/auth";
+import { setLastVisitedRoom } from "../utils/roomTracking";
 
 const MAX_AUTH_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
@@ -40,7 +42,9 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		roomId: appStoreRoomId,
 		userName,
 		setUserName,
+		setSessionId,
 		setGeometries,
+		setGeometrySchemas,
 		updateGeometry,
 		removeGeometry,
 		setActiveCurveForDrawing,
@@ -114,38 +118,95 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 				}
 
 				// Join appropriate room based on page
-				// IMPORTANT: Wait for join to complete before setting connected
-				// This ensures session:register runs AFTER the backend has processed join:room
 				if (isOverview) {
 					socket.emit("join:overview");
 					setConnected(true);
 				} else if (roomId) {
-					// Wait for join:room to complete using socket.io acknowledgment
-					socket.emit("join:room", { roomId }, async (response: any) => {
+					// Handle room:join response
+					const handleJoinResponse = async (response: any) => {
+						if (response.status !== "ok") {
+							console.error("Failed to join room:", response.message);
+							return;
+						}
+
 						// Reset chat unread count when entering a room
 						useAppStore.getState().resetChatUnread();
 
-						// Wait for sessionId to be available from REST /join API
-						// This coordinates the socket join:room with REST /join
-						let sessionId = useAppStore.getState().sessionId;
-						let attempts = 0;
-						const maxAttempts = 50; // 5 seconds max wait
-						while (!sessionId && attempts < maxAttempts) {
-							await new Promise((r) => setTimeout(r, 100));
-							sessionId = useAppStore.getState().sessionId;
-							attempts++;
+						// Store session ID from socket response
+						const { sessionId, roomData } = response;
+						setSessionId(sessionId);
+
+						// Track room visit for localStorage persistence
+						setLastVisitedRoom(roomId);
+
+						// Set small data from socket response
+						setFrameCount(roomData.frameCount);
+						setCurrentFrame(roomData.currentStep);
+						setFrameSelection(roomData.frameSelection);
+						setGeometrySchemas(roomData.geometrySchemas);
+
+						// Set selections
+						if (roomData.selections) {
+							setSelections(roomData.selections.selections || {});
+							setSelectionGroups(roomData.selections.groups || []);
+							setActiveSelectionGroup(roomData.selections.activeGroup || null);
 						}
 
-						// Register session if sessionId is available
-						if (sessionId) {
-							const urlParams = new URLSearchParams(window.location.search);
-							const alias = urlParams.get("alias");
-							socket.emit("session:register", { sessionId, alias });
+						// Set bookmarks with number keys
+						if (roomData.bookmarks) {
+							const bookmarksWithNumberKeys = convertBookmarkKeys(
+								roomData.bookmarks,
+							);
+							setBookmarks(bookmarksWithNumberKeys);
 						}
 
-						// Only set connected after join:room is processed by backend
+						// Fetch geometries via REST (can be large)
+						try {
+							const geometriesResponse = await listGeometries(roomId);
+							setGeometries(geometriesResponse.geometries || {});
+						} catch (error) {
+							console.error("Error fetching geometries:", error);
+						}
+
+						// Only set connected after all data is loaded
 						setConnected(true);
-					});
+					};
+
+					// Emit room:join event (frontend clients send clientType)
+					socket.emit(
+						"room:join",
+						{ roomId, clientType: "frontend" },
+						async (response: any) => {
+							// Handle room not found - create it first
+							if (response.code === 404) {
+								const template = new URLSearchParams(
+									window.location.search,
+								).get("template");
+								try {
+									await createRoom({
+										roomId,
+										copyFrom: template ?? undefined,
+									});
+								} catch (error: any) {
+									// 409 = room already exists = success (race condition)
+									if (error.response?.status !== 409) {
+										console.error("Failed to create room:", error);
+										return;
+									}
+								}
+
+								// Retry join after creation
+								socket.emit(
+									"room:join",
+									{ roomId, clientType: "frontend" },
+									handleJoinResponse,
+								);
+								return;
+							}
+
+							handleJoinResponse(response);
+						},
+					);
 				} else {
 					setConnected(true);
 				}
@@ -705,7 +766,9 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		setSelectionGroups,
 		setActiveSelectionGroup,
 		setFrameSelection,
+		setSessionId,
 		setGeometries,
+		setGeometrySchemas,
 		updateGeometry,
 		removeGeometry,
 		setActiveCurveForDrawing,

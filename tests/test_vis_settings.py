@@ -1,5 +1,3 @@
-import time
-
 import requests
 
 from zndraw.settings import RoomConfig
@@ -49,14 +47,14 @@ def test_settings_endpoint_returns_schema_and_defaults(
     assert data["data"]["pathtracing"]["enabled"] == default_config.pathtracing.enabled
 
 
-def test_settings_endpoint_partial_update(server, join_room_and_get_headers):
+def test_settings_endpoint_partial_update(server, connect_room):
     """PUT /api/rooms/{room_id}/settings supports partial updates."""
     room_id = "test-settings-partial"
-    headers = join_room_and_get_headers(server, room_id, "test-user")
+    conn = connect_room(room_id, user="test-user")
 
     # Get initial defaults
     response = requests.get(
-        f"{server}/api/rooms/{room_id}/settings", headers=headers, timeout=10
+        f"{server}/api/rooms/{room_id}/settings", headers=conn.headers, timeout=10
     )
     assert response.status_code == 200
     initial = response.json()["data"]
@@ -65,7 +63,7 @@ def test_settings_endpoint_partial_update(server, join_room_and_get_headers):
     # Update only studio_lighting.key_light
     response = requests.put(
         f"{server}/api/rooms/{room_id}/settings",
-        headers=headers,
+        headers=conn.headers,
         json={"studio_lighting": {"key_light": 1.5}},
         timeout=10,
     )
@@ -73,7 +71,7 @@ def test_settings_endpoint_partial_update(server, join_room_and_get_headers):
 
     # Verify the updated field changed
     response = requests.get(
-        f"{server}/api/rooms/{room_id}/settings", headers=headers, timeout=10
+        f"{server}/api/rooms/{room_id}/settings", headers=conn.headers, timeout=10
     )
     assert response.status_code == 200
     updated = response.json()["data"]

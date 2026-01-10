@@ -5,15 +5,40 @@ import subprocess
 import time
 import typing as t
 import uuid
+from dataclasses import dataclass
 
 import ase.collections
 import ase.io
 import eventlet  # noqa - eventlet must be installed for flask-socketio to start a production server
 import pytest
 import redis
+import requests
+import socketio
 import znh5md
 
 from zndraw.start_celery import run_celery_worker
+
+
+@dataclass
+class RoomConnection:
+    """Active connection to a room with authentication.
+
+    Attributes
+    ----------
+    sio
+        The connected socket.io client.
+    headers
+        HTTP headers with Authorization and X-Session-ID for REST calls.
+    room_id
+        The room identifier.
+    session_id
+        The session identifier assigned by the server.
+    """
+
+    sio: socketio.Client
+    headers: dict
+    room_id: str
+    session_id: str
 
 
 def _get_free_port() -> int:
@@ -89,66 +114,121 @@ def _get_jwt_auth_headers(server_url: str, user_name: str | None = None) -> dict
     return {"Authorization": f"Bearer {data['token']}"}
 
 
+def _create_and_join_room(server: str, room: str, auth_headers: dict) -> str:
+    """Create a room and join it via socket, returning session_id.
+
+    Parameters
+    ----------
+    server
+        The base URL of the server.
+    room
+        The room ID to create and join.
+    auth_headers
+        Headers dict containing Authorization header.
+
+    Returns
+    -------
+    str
+        The session_id from the room:join response.
+    """
+    import socketio
+
+    jwt_token = auth_headers["Authorization"].replace("Bearer ", "")
+
+    sio = socketio.Client()
+    sio.connect(server, auth={"token": jwt_token}, wait=True)
+
+    try:
+        response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
+
+        # Handle room not found - create it first
+        if response.get("code") == 404:
+            create_response = requests.post(
+                f"{server}/api/rooms",
+                json={"roomId": room},
+                headers=auth_headers,
+            )
+            if create_response.status_code not in (200, 201, 409):
+                raise RuntimeError(
+                    f"Failed to create room {room}: {create_response.text}"
+                )
+
+            response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
+
+        if response.get("status") != "ok":
+            raise RuntimeError(f"Failed to join room {room}: {response.get('message')}")
+
+        return response["sessionId"]
+    finally:
+        sio.disconnect()
+
+
 def _join_room_and_get_headers(
     server: str, room_id: str, user: str = "test-user"
 ) -> dict:
-    """Join a room and return auth headers with session ID.
+    """Join a room and return auth headers with session ID."""
+    auth_headers = _get_jwt_auth_headers(server, user)
+    session_id = _create_and_join_room(server, room_id, auth_headers)
+    return {**auth_headers, "X-Session-ID": session_id}
 
-    Creates the room first if it doesn't exist.
+
+def _create_room_connection(
+    server: str, room_id: str, user: str = "test-user"
+) -> RoomConnection:
+    """Create a room connection that stays connected.
+
+    The caller is responsible for disconnecting the socket.
 
     Parameters
     ----------
     server
         The base URL of the server.
     room_id
-        The room to join.
+        The room identifier.
     user
-        The username to authenticate as.
+        Username for authentication.
 
     Returns
     -------
-    dict
-        Headers dict containing Authorization and X-Session-ID.
-
-    Raises
-    ------
-    RuntimeError
-        If room join fails.
+    RoomConnection
+        Active connection with socket, headers, and session info.
     """
-    import requests
-
     auth_headers = _get_jwt_auth_headers(server, user)
+    jwt_token = auth_headers["Authorization"].replace("Bearer ", "")
 
-    # Try to join existing room first
-    response = requests.post(
-        f"{server}/api/rooms/{room_id}/join",
-        json={},
-        headers=auth_headers,
-    )
+    sio = socketio.Client()
+    sio.connect(server, auth={"token": jwt_token}, wait=True)
 
-    # If room doesn't exist (404), create it then join
-    if response.status_code == 404:
+    response = sio.call("room:join", {"roomId": room_id, "clientType": "frontend"})
+
+    # Handle room not found - create it first
+    if response.get("code") == 404:
         create_response = requests.post(
             f"{server}/api/rooms",
             json={"roomId": room_id},
             headers=auth_headers,
         )
-        if create_response.status_code not in (200, 201):
+        if create_response.status_code not in (200, 201, 409):
+            sio.disconnect()
             raise RuntimeError(
                 f"Failed to create room {room_id}: {create_response.text}"
             )
 
-        # Now join the newly created room
-        response = requests.post(
-            f"{server}/api/rooms/{room_id}/join",
-            json={},
-            headers=auth_headers,
-        )
+        response = sio.call("room:join", {"roomId": room_id, "clientType": "frontend"})
 
-    if response.status_code != 200:
-        raise RuntimeError(f"Failed to join room {room_id}: {response.text}")
-    session_id = response.json()["sessionId"]
-    return {**auth_headers, "X-Session-ID": session_id}
+    if response.get("status") != "ok":
+        sio.disconnect()
+        raise RuntimeError(f"Failed to join room {room_id}: {response.get('message')}")
+
+    session_id = response["sessionId"]
+    headers = {**auth_headers, "X-Session-ID": session_id}
+
+    return RoomConnection(
+        sio=sio,
+        headers=headers,
+        room_id=room_id,
+        session_id=session_id,
+    )
 
 
 @pytest.fixture
@@ -170,9 +250,44 @@ def get_jwt_auth_headers():
 
 
 @pytest.fixture
+def create_and_join_room():
+    """Fixture that provides the create_and_join_room function."""
+    return _create_and_join_room
+
+
+@pytest.fixture
 def join_room_and_get_headers():
     """Fixture that provides the join_room_and_get_headers function."""
     return _join_room_and_get_headers
+
+
+@pytest.fixture
+def connect_room(server):
+    """Factory for room connections with automatic cleanup.
+
+    Creates room connections that stay alive for the test duration.
+    All connections are automatically disconnected after the test.
+
+    Usage
+    -----
+    def test_something(connect_room):
+        conn = connect_room("my-room")
+        # conn.headers, conn.sio, conn.room_id, conn.session_id available
+        # No cleanup needed - fixture handles it
+    """
+    connections: list[RoomConnection] = []
+
+    def create(room_id: str, user: str = "test-user") -> RoomConnection:
+        conn = _create_room_connection(server, room_id, user)
+        connections.append(conn)
+        return conn
+
+    yield create
+
+    # Automatic cleanup after test
+    for conn in connections:
+        if conn.sio.connected:
+            conn.sio.disconnect()
 
 
 @pytest.fixture
@@ -394,16 +509,19 @@ def s22_json_db(s22, tmp_path) -> str:
 
 @pytest.fixture
 def joined_room(server, request):
-    """Join a room and return tuple of (server_url, room_name).
+    """Create a room and return tuple of (server_url, room_name).
 
     Room name is automatically generated from test function name.
     If test name is "test_foo_bar", room will be "test-foo-bar".
 
+    Note: SessionId is created via socket room:join when needed.
+    This fixture just ensures the room exists.
+
     Example:
         def test_my_feature(joined_room):
             server, room = joined_room
-            # Room is already joined, ready to use
-            response = requests.get(f"{server}/api/rooms/{room}/geometries")
+            # Room exists, use _join_room_and_get_headers for sessionId
+            headers = _join_room_and_get_headers(server, room)
     """
     import requests
 
@@ -411,7 +529,7 @@ def joined_room(server, request):
     test_name = request.node.name
     room = test_name.replace("_", "-")
 
-    # Create the room first, then join
+    # Create the room
     auth_headers = _get_jwt_auth_headers(server)
     create_response = requests.post(
         f"{server}/api/rooms",
@@ -421,13 +539,5 @@ def joined_room(server, request):
     assert create_response.status_code in (200, 201, 409), (
         f"Failed to create room {room}"
     )
-
-    # Join the room with JWT authentication
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join",
-        json={},
-        headers=auth_headers,
-    )
-    assert response.status_code == 200, f"Failed to join room {room}"
 
     return server, room

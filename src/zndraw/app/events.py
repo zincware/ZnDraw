@@ -119,9 +119,83 @@ def delete_session_camera(r, room: str, session_id: str) -> None:
         log.debug(f"Session camera {camera_key} not found (already deleted)")
 
 
+def get_room_metadata(r, room_id: str) -> dict:
+    """Fetch small room data for initialization.
+
+    NOTE: Geometries are fetched via REST (can be very large).
+
+    Parameters
+    ----------
+    r : Redis
+        Redis client
+    room_id : str
+        Room identifier
+
+    Returns
+    -------
+    dict
+        Room metadata including frame count, step, settings, selections, bookmarks
+    """
+    from zndraw.geometries import geometries as geometry_classes
+    from zndraw.settings import RoomConfig
+
+    room_keys = RoomKeys(room_id)
+
+    # Essential room state
+    frame_count = r.zcard(room_keys.trajectory_indices())
+    current_step = r.get(room_keys.current_frame())
+    locked = r.exists(room_keys.locked())
+
+    # Settings from Pydantic defaults
+    room_config = RoomConfig()
+
+    # Geometry schemas for form generation
+    geometry_schemas = {
+        name: model.model_json_schema() for name, model in geometry_classes.items()
+    }
+
+    # Selections
+    selections_raw = r.hgetall(room_keys.selections())
+    selections = {k: json.loads(v) for k, v in selections_raw.items()}
+
+    # Selection groups
+    groups_raw = r.hgetall(room_keys.selection_groups())
+    groups = {k: json.loads(v) for k, v in groups_raw.items()}
+
+    # Active group
+    active_group = r.get(room_keys.active_selection_group())
+
+    # Frame selection
+    frame_selection_raw = r.get(room_keys.frame_selection())
+    frame_selection = json.loads(frame_selection_raw) if frame_selection_raw else []
+
+    # Bookmarks
+    bookmarks_raw = r.hgetall(room_keys.bookmarks())
+    bookmarks = {int(k): v for k, v in bookmarks_raw.items()}
+
+    return {
+        "frameCount": frame_count,
+        "currentStep": int(current_step) if current_step else 0,
+        "locked": bool(locked),
+        "settings": room_config.model_dump(),
+        "settingsSchema": RoomConfig.model_json_schema(),
+        "geometrySchemas": geometry_schemas,
+        "selections": {
+            "selections": selections,
+            "groups": groups,
+            "activeGroup": active_group,
+        },
+        "frameSelection": frame_selection,
+        "bookmarks": bookmarks,
+    }
+
+
 @socketio.on("connect")
 def handle_connect(auth):
     """Handle socket connection with JWT authentication.
+
+    SessionId is NOT required at connect time - it is created later in room:join.
+    This handler only validates JWT and sets up user mapping.
 
     Auth payload
     ------------
@@ -138,19 +212,6 @@ def handle_connect(auth):
 
     # Get JWT token from auth
     token = auth.get("token") if auth else None
-    if "sessionId" not in auth:
-        log.critical(f"Client {sid} connected without sessionId in auth")
-    else:
-        session_id = auth.get("sessionId")
-        if session_id is None:
-            log.critical(f"Client {sid} connected with null sessionId")
-        else:
-            # Bidirectional mapping for session cleanup:
-            # session_id → sid (used for skip_sid in emit)
-            r.set(SessionKeys.session_to_sid(session_id), sid)
-            # sid → session_id (used for cleanup on disconnect)
-            session_keys = SessionKeys(sid)
-            r.set(session_keys.session_id(), session_id)
     if not token:
         log.warning(f"Client {sid} connected without JWT token")
         raise ConnectionRefusedError("Authentication token required")
@@ -252,12 +313,6 @@ def handle_disconnect(*args, **kwargs):
 
             # Delete session settings
             r.delete(room_keys.session_settings(session_id))
-
-            # Clean up alias mappings
-            alias = r.get(room_keys.session_alias(session_id))
-            if alias:
-                r.hdel(room_keys.aliases(), alias)
-                r.delete(room_keys.session_alias(session_id))
 
             log.debug(f"Cleaned up frontend session data for {session_id}")
 
@@ -675,51 +730,132 @@ def handle_leave_overview():
     return {"status": "left", "room": "overview:public"}
 
 
-@socketio.on("join:room")
-def handle_join_room(data):
-    """Client joining specific room page - join room:<room_id> and leave overview:public."""
+@socketio.on("room:join")
+def handle_room_join(data):
+    """Join room and get initialization data (small payload only).
+
+    This is the primary entry point for joining a room. It creates a session,
+    joins socket rooms, and returns all small initialization data.
+    Geometries are fetched separately via REST (can be very large).
+
+    Request
+    -------
+    {
+        "roomId": str,  # Room to join
+        "clientType": str  # "frontend" or "python" (defaults to "python")
+    }
+
+    Response (success)
+    ------------------
+    {
+        "status": "ok",
+        "sessionId": str,
+        "cameraKey": str,  # cam:session:<sessionId>
+        "roomData": {...}  # Small data only, geometries via REST
+    }
+
+    Response (error)
+    ----------------
+    {
+        "status": "error",
+        "code": 404,
+        "message": "Room not found"
+    }
+    """
+    import uuid
+
     from flask_socketio import join_room, leave_room
 
     sid = request.sid
+    r = current_app.extensions["redis"]
+    room_service = current_app.extensions["room_service"]
     room_id = data.get("roomId")
+    client_type = data.get("clientType")  # "frontend" or "python"
 
     if not room_id:
-        return {"status": "error", "message": "roomId required"}
+        return {"status": "error", "code": 400, "message": "roomId required"}
 
-    # Get userName from sid
-    r = current_app.extensions["redis"]
+    if not client_type or client_type not in ("frontend", "python"):
+        return {
+            "status": "error",
+            "code": 400,
+            "message": "clientType required ('frontend' or 'python')",
+        }
+
+    # Get userName from sid (must be authenticated via handle_connect)
     user_name = get_user_name_from_sid(sid)
-
     if not user_name:
         log.error(f"Cannot join room: userName not found for sid {sid}")
-        return {"status": "error", "message": "User not found"}
+        return {"status": "error", "code": 401, "message": "User not found"}
 
-    # Leave overview if joined
+    # Check room exists (creation is separate via POST /api/rooms)
+    if not room_service.room_exists(room_id):
+        log.debug(f"Room {room_id} not found for user {user_name}")
+        return {"status": "error", "code": 404, "message": "Room not found"}
+
+    # 1. Create sessionId
+    session_id = str(uuid.uuid4())
+
+    # 2. Store SID ↔ sessionId bidirectional mapping
+    r.set(SessionKeys.session_to_sid(session_id), sid)
+    session_keys = SessionKeys(sid)
+    r.set(session_keys.session_id(), session_id)
+
+    # 3. Store session data for route validation (lock routes, etc.)
+    session_data = {
+        "userId": user_name,
+        "roomId": room_id,
+        "createdAt": utc_now_iso(),
+    }
+    r.set(SessionKeys.session_data(session_id), json.dumps(session_data))
+
+    # 4. Leave overview if joined, then join room-specific rooms
     leave_room("overview:public")
-
-    # Join specific room (Flask-SocketIO level)
     join_room(f"room:{room_id}")
+    join_room(f"session:{session_id}")
 
-    # Update Redis to track which room this user is in
-    user_keys = UserKeys(user_name)
-    r.hset(user_keys.hash_key(), "currentRoom", room_id)
+    # 5. Update user's current room, add to room membership, and track visit
+    client_service = current_app.extensions["client_service"]
+    client_service.update_user_and_room_membership(user_name, room_id)
 
-    # Send current progress trackers to joining client
+    # 7. Register as frontend session (only for browser clients)
     room_keys = RoomKeys(room_id)
+    if client_type == "frontend":
+        r.sadd(room_keys.frontend_sessions(), session_id)
+
+    # 8. Create session camera geometry
+    create_session_camera(r, room_id, session_id)
+
+    # 9. Fetch small room data only (geometries fetched via REST)
+    room_data = get_room_metadata(r, room_id)
+
+    # 10. Notify room that a new user joined
+    users_in_room = client_service.get_room_users(room_id)
+    emit(
+        "room_clients_update",
+        {"clients": list(users_in_room)},
+        to=f"room:{room_id}",
+    )
+
+    # 11. Send current progress trackers to joining client
     progress_data = r.hgetall(room_keys.progress())
-
-    # Convert Redis data to client format
-    progress_trackers = {}
-    for progress_id, progress_json in progress_data.items():
-        progress_dict = json.loads(progress_json)
-        progress_trackers[progress_id] = progress_dict
-
-    # Emit progress trackers to joining client only
-    if progress_trackers:
+    if progress_data:
+        progress_trackers = {
+            progress_id: json.loads(progress_json)
+            for progress_id, progress_json in progress_data.items()
+        }
         emit("progress:initial", {"progressTrackers": progress_trackers}, to=sid)
 
-    log.debug(f"User {sid} (userName: {user_name}) joined room:{room_id}")
-    return {"status": "joined", "room": f"room:{room_id}"}
+    log.info(
+        f"User {user_name} joined room {room_id} with session {session_id} (sid: {sid})"
+    )
+
+    return {
+        "status": "ok",
+        "sessionId": session_id,
+        "cameraKey": get_session_camera_key(session_id),
+        "roomData": room_data,
+    }
 
 
 @socketio.on("leave:room")
@@ -826,67 +962,6 @@ def handle_camera_state_update(data):
     # This prevents feedback loops when OrbitControls updates
 
     return {"success": True}
-
-
-@socketio.on("session:register")
-def handle_session_register(data):
-    """Register a frontend session when browser connects.
-
-    Called after socket connects. Adds session to frontend_sessions set.
-    Creates a session camera geometry (cam:session:<id>) for the user's viewport.
-    Optionally processes alias from URL parameter.
-
-    Payload
-    -------
-    {
-        "sessionId": str,
-        "alias": str | None  # From URL ?alias=projector
-    }
-    """
-    sid = request.sid
-    r = current_app.extensions["redis"]
-    room = get_project_room_from_session(sid)
-
-    if not room:
-        return {"success": False, "error": "Client has not joined a room."}
-
-    session_id = data.get("sessionId")
-    if not session_id:
-        return {"success": False, "error": "sessionId required"}
-
-    keys = RoomKeys(room)
-
-    # Register as frontend session
-    r.sadd(keys.frontend_sessions(), session_id)
-
-    # Join session-specific room for targeted updates
-    from flask_socketio import join_room
-
-    join_room(f"session:{session_id}")
-
-    # Create session camera geometry
-    create_session_camera(r, room, session_id)
-
-    # Process alias if provided (from URL parameter)
-    alias = data.get("alias")
-    if alias:
-        # Remove existing alias mapping if this alias was used elsewhere
-        existing_session = r.hget(keys.aliases(), alias)
-        if existing_session and existing_session != session_id:
-            r.delete(keys.session_alias(existing_session))
-
-        # Set new alias
-        r.hset(keys.aliases(), alias, session_id)
-        r.set(keys.session_alias(session_id), alias)
-        log.info(f"Session {session_id} registered with alias '{alias}'")
-    else:
-        log.debug(f"Session {session_id} registered without alias")
-
-    return {
-        "success": True,
-        "sessionId": session_id,
-        "cameraKey": get_session_camera_key(session_id),
-    }
 
 
 @socketio.on("chat:message:edit")

@@ -489,86 +489,12 @@ class ZnDraw(MutableSequence):
         self.role = login_data.get("role", "guest")
         log.info(f"Logged in as {self.user} (role: {self.role})")
 
-        # Step 2: Join room (authenticated with JWT)
-        self.api.join_room(
-            description=self.description,
-            copy_from=self.copy_from,
-        )
-
-        # Create socket manager and connect (with JWT)
+        # Step 2: Create socket manager and connect (with JWT)
+        # Socket manager handles room:join which creates sessionId and returns room data
         self.socket = SocketManager(zndraw_instance=self)
         self.connect()
-
-        # Fetch room data separately via REST endpoints
-        # (join response is now minimal - only returns status, sessionId, userName, roomId, created)
-
-        # Get frame count
-        try:
-            room_info = self.api.get_room_info()
-            self._len = room_info["frameCount"]
-        except requests.HTTPError as e:
-            if e.response.status_code == 404:
-                log.debug(f"Room {self.room} not found or has no frames")
-                self._len = 0
-            else:
-                log.error(f"Failed to fetch room info: {e}")
-                self._len = 0
-        except Exception as e:
-            log.error(f"Unexpected error loading room info: {e}")
-            self._len = 0
-
-        # Get frame selection
-        try:
-            frame_selection = self.api.get_frame_selection()
-            if frame_selection is not None:
-                self._frame_selection = frozenset(frame_selection)
-        except requests.HTTPError as e:
-            if e.response.status_code == 404:
-                log.debug("No frame selection for room")
-            else:
-                log.warning(f"Failed to fetch frame selection: {e}")
-        except Exception as e:
-            log.error(f"Unexpected error loading frame selection: {e}")
-
-        # Get bookmarks
-        try:
-            bookmarks = self.api.get_all_bookmarks()
-            if bookmarks:
-                self._bookmarks = bookmarks
-        except requests.HTTPError as e:
-            if e.response.status_code == 404:
-                log.debug("No bookmarks for room")
-            else:
-                log.warning(f"Failed to fetch bookmarks: {e}")
-        except Exception as e:
-            log.error(f"Unexpected error loading bookmarks: {e}")
-
-        # Get current step
-        try:
-            step_data = self.api.get_step()
-            if step_data.get("step") is not None:
-                self._step = int(step_data["step"])
-        except requests.HTTPError as e:
-            if e.response.status_code == 404:
-                log.debug("No current step set for room")
-            else:
-                log.warning(f"Failed to fetch current step: {e}")
-        except Exception as e:
-            log.error(f"Unexpected error loading current step: {e}")
-
-        # Get geometries (returns dict of {key: {type, data}})
-        try:
-            geometries_response = self.api.list_geometries()
-            # list_geometries now returns full geometry data as dict
-            if isinstance(geometries_response, dict):
-                self._geometries = geometries_response
-        except requests.HTTPError as e:
-            if e.response.status_code == 404:
-                log.debug("No geometries for room")
-            else:
-                log.warning(f"Failed to fetch geometries: {e}")
-        except Exception as e:
-            log.error(f"Unexpected error loading geometries: {e}")
+        # Room data (frameCount, step, frameSelection, bookmarks, geometries)
+        # is initialized by socket_manager.connect() via room:join response
 
     @classmethod
     def for_job_execution(
@@ -667,15 +593,12 @@ class ZnDraw(MutableSequence):
         >>> for sid, session in vis.sessions.items():
         ...     print(f"{sid}: {session.camera.position}")
 
-        >>> # Set alias for stable access
-        >>> vis.sessions["abc-123"].alias = "projector"
-
-        >>> # Access by alias (survives reconnects)
-        >>> proj = vis.sessions.get(alias="projector")
-        >>> if proj:
-        ...     cam = proj.camera
+        >>> # Access session and control camera
+        >>> session = vis.sessions.get("abc-123")
+        >>> if session:
+        ...     cam = session.camera
         ...     cam.position = (10, 10, 10)
-        ...     proj.camera = cam
+        ...     session.camera = cam
         """
         return FrontendSessions(self)
 

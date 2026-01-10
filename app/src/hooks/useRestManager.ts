@@ -1,66 +1,26 @@
-import { useEffect, useMemo, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useAppStore } from "../store";
-import { useParams, useSearchParams } from "react-router-dom";
-import { throttle } from "lodash";
-import { useQueryClient } from "@tanstack/react-query";
-import { joinOrCreateRoom } from "../myapi/client";
+import { useParams } from "react-router-dom";
 import { ensureAuthenticated, getUserRole, getUsername } from "../utils/auth";
-import { setLastVisitedRoom } from "../utils/roomTracking";
-import { useLazyRoomData } from "./useLazyRoomData";
 
+/**
+ * Hook to handle REST-based initialization before socket connection.
+ *
+ * This hook only handles authentication and sets the roomId.
+ * Room join and data fetching is handled by useSocketManager via room:join.
+ */
 export const useRestJoinManager = () => {
-	const {
-		roomId: storeRoomId,
-		userName: storeUserName,
-		setRoomId,
-		setUserName,
-		setUserRole,
-		setSessionId,
-		setCurrentFrame,
-		setFrameCount,
-		setSelections,
-		setSelectionGroups,
-		setActiveSelectionGroup,
-		setFrameSelection,
-		setBookmarks,
-		setGeometries,
-		setGeometrySchemas,
-		setLockMetadata,
-	} = useAppStore();
-	const { roomId: room } = useParams<{
-		roomId: string;
-	}>();
-	const [searchParams] = useSearchParams();
-	const queryClient = useQueryClient();
+	const { setRoomId, setUserName, setUserRole } = useAppStore();
+	const { roomId: room } = useParams<{ roomId: string }>();
+	const hasInitialized = useRef(false);
 
-	const abortControllerRef = useRef<AbortController | null>(null);
-
-	// Lazily load room data after join succeeds
-	// This hook fetches all room data in parallel when roomId is available
-	const {
-		isLoading: isLoadingRoomData,
-		isReady: isRoomDataReady,
-		hasErrors: roomDataHasErrors,
-	} = useLazyRoomData(
-		storeRoomId,
-		!!storeRoomId, // Enable when roomId is set
-	);
-
-	// Log when room data is ready
-	useEffect(() => {
-		if (isRoomDataReady) {
-			// Room data loaded successfully
-		}
-	}, [isRoomDataReady, storeRoomId]);
-
-	const joinRoom = useCallback(async () => {
-		if (!room) {
+	const initialize = useCallback(async () => {
+		if (!room || hasInitialized.current) {
 			return;
 		}
 
-		// Ensure user is authenticated before making REST API calls
-		// This will auto-login if needed and ensure we have a username
 		try {
+			// Ensure user is authenticated before socket connection
 			await ensureAuthenticated();
 
 			// Get user role from JWT (single source of truth)
@@ -68,118 +28,27 @@ export const useRestJoinManager = () => {
 			if (userRole) {
 				setUserRole(userRole);
 			}
+
+			// Get username from auth system
+			const userName = getUsername();
+			if (userName) {
+				setUserName(userName);
+			}
+
+			// Set roomId to trigger socket connection
+			setRoomId(room);
+			hasInitialized.current = true;
 		} catch (error) {
 			console.error("Authentication failed:", error);
-			return;
 		}
-
-		// Get username from auth system (not from URL)
-		const userName = getUsername();
-		if (!userName) {
-			console.error("No username available after authentication");
-			return;
-		}
-
-		// 2. Create a new AbortController for this specific request.
-		const controller = new AbortController();
-		abortControllerRef.current = controller; // Store it in the ref
-
-		// Get template from query parameters
-		const template = searchParams.get("template") ?? undefined;
-
-		try {
-			// Join room, creating it first if it doesn't exist
-			const data = await joinOrCreateRoom(
-				room,
-				{ template, copyFrom: template },
-				controller.signal,
-			);
-
-			// Store session ID for this browser tab
-			if (data.sessionId) {
-				setSessionId(data.sessionId);
-			}
-
-			// Store essential fields only
-			if (data.userName) {
-				setUserName(data.userName);
-			}
-			setRoomId(room);
-
-			// Track room visit for localStorage persistence
-			setLastVisitedRoom(room);
-
-			// Room data will be fetched lazily via useLazyRoomData hook (see above)
-		} catch (error: any) {
-			// 4. Check if the error was due to the request being aborted.
-			if (error instanceof Error && error.name === "AbortError") {
-				// Fetch aborted on unmount or re-run
-			} else if (error.response?.status === 401) {
-				// Handle authentication error (stale token)
-				const { logout, login, getUsername } = await import("../utils/auth");
-
-				logout();
-
-				try {
-					await login();
-
-					// Update store with new username
-					const newUsername = getUsername();
-					if (newUsername) {
-						setUserName(newUsername);
-					}
-
-					// Retry joining the room
-					joinRoom();
-				} catch (loginError) {
-					console.error("Re-login failed:", loginError);
-				}
-			} else {
-				console.error("Error joining room:", error);
-			}
-		} finally {
-			// Clean up the ref if the controller for this fetch is the current one
-			if (abortControllerRef.current === controller) {
-				abortControllerRef.current = null;
-			}
-		}
-	}, [
-		room,
-		searchParams,
-		queryClient,
-		setRoomId,
-		setUserName,
-		setUserRole,
-		setSessionId,
-		setCurrentFrame,
-		setFrameCount,
-		setSelections,
-		setSelectionGroups,
-		setActiveSelectionGroup,
-		setFrameSelection,
-		setBookmarks,
-		setGeometries,
-		setGeometrySchemas,
-		setLockMetadata,
-	]);
-
-	const throttledJoin = useMemo(
-		() => throttle(joinRoom, 10000, { leading: true, trailing: false }),
-		[joinRoom],
-	);
+	}, [room, setRoomId, setUserName, setUserRole]);
 
 	useEffect(() => {
-		throttledJoin();
+		initialize();
 
 		return () => {
-			abortControllerRef.current?.abort(); // Abort the fetch
-			throttledJoin.cancel(); // Cancel any pending throttled execution
+			// Reset on unmount for clean re-initialization
+			hasInitialized.current = false;
 		};
-	}, [room, throttledJoin]);
-
-	return {
-		isLoadingRoomData,
-		isRoomDataReady,
-		roomDataHasErrors,
-	};
+	}, [initialize]);
 };

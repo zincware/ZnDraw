@@ -154,16 +154,3 @@ export function useCameraSync(
 
 	return { syncCamera };
 }
-
-/**
- * Register this session with the backend (called once on mount).
- *
- * @param sessionId - Session identifier
- * @param alias - Optional alias from URL parameter
- */
-export function registerSession(sessionId: string, alias?: string | null) {
-	socket.emit("session:register", {
-		sessionId,
-		alias: alias || null,
-	});
-}
