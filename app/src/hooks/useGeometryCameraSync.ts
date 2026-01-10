@@ -3,9 +3,6 @@
  *
  * When attached to a Camera geometry with XYZ (direct coordinate) position/target,
  * user interactions via OrbitControls update the geometry data.
- *
- * With session cameras, there's always an attached camera - either the user's
- * session camera (cam:session:<id>) or a camera they explicitly switched to.
  */
 
 import { useCallback, useEffect, useRef, useMemo } from "react";
@@ -34,17 +31,12 @@ export function useGeometryCameraSync({
 	controlsState,
 }: UseGeometryCameraSyncProps) {
 	const roomId = useAppStore((state) => state.roomId);
-	const sessionId = useAppStore((state) => state.sessionId);
 	const geometries = useAppStore((state) => state.geometries);
 	const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
 	const lock = useAppStore((state) => state.lock);
 
 	// Flag to prevent echo-back when geometry update triggers camera update
 	const isUpdatingGeometryRef = useRef(false);
-
-	// Derive the effective camera key - use attached or fall back to session camera
-	const sessionCameraKey = sessionId ? `cam:session:${sessionId}` : null;
-	const effectiveCameraKey = attachedCameraKey || sessionCameraKey;
 
 	// Ref for latest persist function (avoids stale closure)
 	const persistRef = useRef<
@@ -53,9 +45,9 @@ export function useGeometryCameraSync({
 
 	// Update persist function ref
 	persistRef.current = async (position: number[], target: number[]) => {
-		if (!roomId || !effectiveCameraKey) return;
+		if (!roomId || !attachedCameraKey) return;
 
-		const cameraGeometry = geometries[effectiveCameraKey];
+		const cameraGeometry = geometries[attachedCameraKey];
 		if (!cameraGeometry || cameraGeometry.type !== "Camera") return;
 
 		// Build updated data, preserving CurveAttachments
@@ -82,7 +74,7 @@ export function useGeometryCameraSync({
 			isUpdatingGeometryRef.current = true;
 			await createGeometry(
 				roomId,
-				effectiveCameraKey,
+				attachedCameraKey,
 				"Camera",
 				updatedData,
 				lock?.token,
@@ -123,7 +115,7 @@ export function useGeometryCameraSync({
 	const syncToGeometry = useCallback(() => {
 		const controls = controlsRef.current;
 		if (!camera || !controls) return;
-		if (!effectiveCameraKey) return;
+		if (!attachedCameraKey) return;
 
 		// Skip if nothing is editable
 		if (!controlsState.positionEditable && !controlsState.targetEditable)
@@ -139,7 +131,7 @@ export function useGeometryCameraSync({
 	}, [
 		camera,
 		controlsRef,
-		effectiveCameraKey,
+		attachedCameraKey,
 		controlsState.positionEditable,
 		controlsState.targetEditable,
 		debouncedPersist,
