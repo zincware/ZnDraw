@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -166,6 +166,7 @@ function CameraSyncIntegration({
 function MyScene() {
 	const roomId = useAppStore((state) => state.roomId);
 	const sessionId = useAppStore((state) => state.sessionId);
+	const isConnected = useAppStore((state) => state.isConnected);
 	const geometries = useAppStore((state) => state.geometries);
 	const activeCurveForDrawing = useAppStore(
 		(state) => state.activeCurveForDrawing,
@@ -237,8 +238,10 @@ function MyScene() {
 		return () => clearTimeout(timer);
 	}, [sessionId, sessionCameraData]);
 
-	// Return early with loading state while settings or session camera are loading
-	if (!settingsResponse || !sessionCameraData) {
+	// Return early with loading state until fully connected and data is ready
+	// Gate on: 1) isConnected (socket connected), 2) sessionId (room joined),
+	// 3) settingsResponse (settings loaded), 4) sessionCameraData (camera geometry loaded)
+	if (!isConnected || !sessionId || !settingsResponse || !sessionCameraData) {
 		// Show error state on timeout
 		if (sessionCameraTimeout) {
 			return (

@@ -40,7 +40,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		setActiveSelectionGroup,
 		setBookmarks,
 		roomId: appStoreRoomId,
-		userName,
 		setUserName,
 		setSessionId,
 		setGeometries,
@@ -68,6 +67,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 	const authRetryCountRef = useRef(0);
 
 	useEffect(() => {
+		// Capture current room context for cleanup comparison
+		const effectRoomId = roomId;
+		const effectIsOverview = isOverview;
+
 		/**
 		 * Factory function for creating consistent invalidate handlers.
 		 * Ensures uniform error handling across all handlers.
@@ -218,6 +221,9 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		}
 		function onDisconnect() {
 			setConnected(false);
+			// NOTE: Do NOT clear sessionId here - onDisconnect fires during temporary
+			// reconnects (e.g., when userName changes). SessionId is only cleared
+			// in the cleanup function when actually leaving a room.
 		}
 
 		function onFrameUpdate(data: any) {
@@ -727,6 +733,17 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 				socket.emit("leave:room", { roomId });
 			}
 
+			// Only clear sessionId if we're actually leaving a room
+			// Compare the room context from when effect was created with current store values
+			const currentState = useAppStore.getState();
+			const isLeavingRoom =
+				effectRoomId !== currentState.roomId ||
+				effectIsOverview !== options.isOverview;
+
+			if (isLeavingRoom) {
+				setSessionId(null);
+			}
+
 			socket.off("connect", onConnect);
 			socket.off("disconnect", onDisconnect);
 			socket.off("frame_update", onFrameUpdate);
@@ -754,7 +771,8 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		};
 	}, [
 		roomId,
-		userName,
+		// NOTE: userName intentionally NOT included - socket auth uses token from localStorage
+		// Having userName here caused infinite re-runs when onConnectError created new users
 		isOverview,
 		setConnected,
 		setFrameCount,
