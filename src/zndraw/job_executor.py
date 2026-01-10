@@ -102,12 +102,7 @@ def execute_job_for_worker(
             f"Worker {worker_id} fetched job {job_id}: {category}/{extension} in room {room}"
         )
 
-        # Step 2: Create ZnDraw instance in target room
-        # Worker IDs use format "celery:{task_id}" for tracking purposes.
-        # Usernames don't allow colons (Redis key delimiter), so sanitize here.
         user_name = worker_id.replace(":", "-")
-        # Use for_job_execution to create instance with auto_pickup_jobs=False
-        # This prevents cascading job pickup from temporary instances
         vis = ZnDraw.for_job_execution(
             url=server_url,
             room=room,

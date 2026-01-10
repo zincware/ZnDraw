@@ -99,8 +99,6 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 				setActiveCurveForDrawing(key);
 			}
 		} else if (geometryType === "Camera") {
-			// Radio button behavior: can only switch, not deselect
-			// Clicking the already-active camera does nothing
 			if (attachedCameraKey !== key) {
 				attachToCamera(key);
 			}

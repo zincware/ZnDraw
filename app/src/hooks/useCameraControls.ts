@@ -15,17 +15,6 @@ export interface ControlsState {
 /**
  * Hook to determine camera control states based on camera attachments.
  *
- * OrbitControls behavior:
- * - Rotate: orbits camera around target (changes position only)
- * - Pan: moves both camera and target together (changes both)
- * - Zoom: dollies camera in/out (changes position only)
- *
- * Control states based on position/target mode:
- * - Both XYZ: full controls, sync changes to geometry
- * - Position Curve, Target XYZ: no controls (all ops change position which is locked)
- * - Position XYZ, Target Curve: rotate+zoom only (pan changes target which is locked)
- * - Both Curve: no controls (fully constrained cinematic mode)
- *
  * @param attachedCameraKey - The key of the currently attached camera geometry
  * @param geometries - All geometries in the scene
  * @returns Control state configuration for OrbitControls

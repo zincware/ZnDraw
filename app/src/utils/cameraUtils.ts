@@ -126,17 +126,3 @@ export interface SessionCameraState {
 	far: number;
 	zoom: number;
 }
-
-/**
- * Create a default session camera state.
- */
-export function createDefaultCameraState(): SessionCameraState {
-	return {
-		position: [0, 5, 10],
-		target: [0, 0, 0],
-		fov: 75,
-		near: 0.1,
-		far: 1000,
-		zoom: 1,
-	};
-}

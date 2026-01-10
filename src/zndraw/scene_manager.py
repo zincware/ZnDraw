@@ -80,7 +80,6 @@ class Geometries(MutableMapping):
     def __setitem__(self, key: str, value: BaseModel) -> None:
         from zndraw.geometries import geometries
 
-        # Validate key is not using reserved prefixes
         for prefix in RESERVED_KEY_PREFIXES:
             if key.startswith(prefix):
                 raise ValueError(

@@ -41,7 +41,6 @@ export default function Camera({
 
 	const { roomId, geometries, attachedCameraKey, curveRefs } = useAppStore();
 
-	// Initialize with actual data to avoid flicker on first render
 	const [computedPosition, setComputedPosition] = useState<THREE.Vector3>(
 		() => {
 			if (Array.isArray(data.position)) {

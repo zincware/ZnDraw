@@ -192,17 +192,7 @@ def get_room_metadata(r, room_id: str) -> dict:
 
 @socketio.on("connect")
 def handle_connect(auth):
-    """Handle socket connection with JWT authentication.
-
-    SessionId is NOT required at connect time - it is created later in room:join.
-    This handler only validates JWT and sets up user mapping.
-
-    Auth payload
-    ------------
-    {
-        "token": "jwt-token-string"
-    }
-    """
+    """Handle socket connection with JWT authentication."""
     from flask_socketio import ConnectionRefusedError, join_room
 
     from zndraw.auth import AuthError, decode_jwt_token
@@ -323,16 +313,7 @@ def handle_disconnect(*args, **kwargs):
     # The user may reconnect and rejoin the same room
     # Only when a user explicitly joins a different room do we remove them from the old room
 
-    if room_name:
-        # Notify room that a user has disconnected (but not left)
-        client_service = current_app.extensions["client_service"]
-        users_in_room = client_service.get_room_users(room_name)
-        emit(
-            "room_clients_update",
-            {"clients": list(users_in_room)},
-            to=f"room:{room_name}",
-        )
-    else:
+    if not room_name:
         log.info(f"User {user_name} disconnected (was not in a room)")
 
     # --- Lock Cleanup Logic ---
@@ -829,15 +810,7 @@ def handle_room_join(data):
     # 9. Fetch small room data only (geometries fetched via REST)
     room_data = get_room_metadata(r, room_id)
 
-    # 10. Notify room that a new user joined
-    users_in_room = client_service.get_room_users(room_id)
-    emit(
-        "room_clients_update",
-        {"clients": list(users_in_room)},
-        to=f"room:{room_id}",
-    )
-
-    # 11. Send current progress trackers to joining client
+    # 10. Send current progress trackers to joining client
     progress_data = r.hgetall(room_keys.progress())
     if progress_data:
         progress_trackers = {

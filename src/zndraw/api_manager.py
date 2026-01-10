@@ -1623,10 +1623,6 @@ class APIManager:
         response.raise_for_status()
         return response.json()
 
-    # ========================================================================
-    # Session/Camera API Methods
-    # ========================================================================
-
     def list_frontend_sessions(self) -> list[str]:
         """List all frontend (browser) sessions in this room.
 

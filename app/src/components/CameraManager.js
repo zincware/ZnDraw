@@ -27,9 +27,8 @@ function CameraManager({ sessionCameraData }) {
 	useEffect(() => {
 		if (!sessionCameraData) return;
 
-		// Always update projection properties (near/far/fov)
-		camera.near = sessionCameraData.near ?? 0.1;
-		camera.far = sessionCameraData.far ?? 1000;
+		camera.near = sessionCameraData.near;
+		camera.far = sessionCameraData.far;
 
 		if (camera.isPerspectiveCamera && sessionCameraData.fov) {
 			camera.fov = sessionCameraData.fov;

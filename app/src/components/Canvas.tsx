@@ -87,8 +87,6 @@ function CameraSyncIntegration({
 		if (isUpdatingGeometry.current) return;
 
 		if (!attachedCameraKey) {
-			// Not attached to any camera - OrbitControls.target stays as-is
-			// This preserves the target from when we were attached
 			return;
 		}
 
@@ -151,9 +149,7 @@ function CameraSyncIntegration({
 		if (!controls) return;
 
 		const handleChange = () => {
-			// Sync to session camera (for Python access)
 			syncCamera();
-			// Sync to Camera geometry (if attached and editable)
 			syncToGeometry();
 		};
 
@@ -168,7 +164,6 @@ function CameraSyncIntegration({
 
 // The main scene component
 function MyScene() {
-	// Use individual selectors to prevent unnecessary re-renders
 	const roomId = useAppStore((state) => state.roomId);
 	const sessionId = useAppStore((state) => state.sessionId);
 	const geometries = useAppStore((state) => state.geometries);
@@ -184,29 +179,16 @@ function MyScene() {
 	const hideSnackbar = useAppStore((state) => state.hideSnackbar);
 	const theme = useTheme();
 
-	// Track frame load time when not playing
 	useFrameLoadTime();
 
-	// Derive session camera key
 	const sessionCameraKey = sessionId ? `cam:session:${sessionId}` : null;
 
-	// Get the effective camera - attached camera or session camera
-	const effectiveCameraKey = attachedCameraKey || sessionCameraKey;
+	const cameraControls = useCameraControls(attachedCameraKey, geometries);
 
-	// Get camera control states based on effective camera
-	const cameraControls = useCameraControls(effectiveCameraKey, geometries);
-
-	// Ref for OrbitControls (used by camera sync)
 	const orbitControlsRef = useRef<OrbitControlsImpl>(null);
 
-	// Fetch settings (for lighting, pathtracing - NOT for camera anymore)
-	// Settings are per-session, so query key uses sessionId (stable for entire session)
 	const { data: settingsResponse } = useSettings(roomId || "");
-
-	// Initialize attachedCameraKey to session camera when it becomes available
-	// This ensures one camera is always active (radio button behavior)
 	useEffect(() => {
-		// Only set if not already set and session camera exists
 		if (
 			!attachedCameraKey &&
 			sessionCameraKey &&
@@ -309,13 +291,11 @@ function MyScene() {
 	const pathtracingSettings = settingsResponse.data.pathtracing;
 	const pathtracingEnabled = pathtracingSettings.enabled === true;
 
-	// Get camera settings from session camera geometry
 	const cameraPosition = sessionCameraData.position as [number, number, number];
-	const cameraFov = sessionCameraData.fov ?? 75;
-	const cameraType = sessionCameraData.camera_type ?? "PerspectiveCamera";
-	const preserveDrawingBuffer =
-		sessionCameraData.preserve_drawing_buffer ?? false;
-	const showCrosshair = sessionCameraData.show_crosshair ?? false;
+	const cameraFov = sessionCameraData.fov;
+	const cameraType = sessionCameraData.camera_type;
+	const preserveDrawingBuffer = sessionCameraData.preserve_drawing_buffer;
+	const showCrosshair = sessionCameraData.show_crosshair;
 
 	const backgroundColor =
 		studioLightingSettings.background_color === "default"
