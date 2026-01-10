@@ -114,15 +114,3 @@ export function resolvePosition(
 	console.warn("Invalid position type:", position);
 	return [0, 0, 0];
 }
-
-/**
- * Session camera state as received from/sent to backend.
- */
-export interface SessionCameraState {
-	position: PositionType;
-	target: PositionType;
-	fov: number;
-	near: number;
-	far: number;
-	zoom: number;
-}

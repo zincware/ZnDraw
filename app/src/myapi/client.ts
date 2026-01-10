@@ -242,7 +242,7 @@ export const createGeometry = async (
 		return data;
 	}
 
-	// Session cameras don't need lock acquisition - they're per-user viewport state
+	// Session cameras (cam:session:*) don't need lock acquisition - they're per-user viewport state
 	// Backend only checks forbid=["room:locked"], not trajectory:meta lock
 	if (key.startsWith("cam:session:")) {
 		const { data } = await apiClient.post(
@@ -1444,22 +1444,6 @@ export interface SessionInfo {
 }
 
 /**
- * Session camera state.
- */
-export interface SessionCameraState {
-	position:
-		| [number, number, number]
-		| { type: string; geometry_key: string; progress: number };
-	target:
-		| [number, number, number]
-		| { type: string; geometry_key: string; progress: number };
-	fov: number;
-	near: number;
-	far: number;
-	zoom: number;
-}
-
-/**
  * List all frontend sessions in a room.
  *
  * @param roomId - Room identifier
@@ -1468,41 +1452,4 @@ export interface SessionCameraState {
 export const listSessions = async (roomId: string): Promise<SessionInfo[]> => {
 	const { data } = await apiClient.get(`/api/rooms/${roomId}/sessions`);
 	return data.sessions;
-};
-
-/**
- * Get camera state for a session.
- *
- * @param roomId - Room identifier
- * @param sessionId - Session identifier
- * @returns Promise with camera state
- */
-export const getSessionCamera = async (
-	roomId: string,
-	sessionId: string,
-): Promise<SessionCameraState> => {
-	const { data } = await apiClient.get(
-		`/api/rooms/${roomId}/sessions/${sessionId}/camera`,
-	);
-	return data.camera;
-};
-
-/**
- * Set camera state for a session (programmatic control).
- *
- * @param roomId - Room identifier
- * @param sessionId - Session identifier
- * @param camera - Camera state to set
- * @returns Promise with success status
- */
-export const setSessionCamera = async (
-	roomId: string,
-	sessionId: string,
-	camera: SessionCameraState,
-): Promise<{ status: string }> => {
-	const { data } = await apiClient.put(
-		`/api/rooms/${roomId}/sessions/${sessionId}/camera`,
-		camera,
-	);
-	return data;
 };

@@ -298,9 +298,6 @@ def handle_disconnect(*args, **kwargs):
             # Delete session camera geometry
             delete_session_camera(r, room_name, session_id)
 
-            # Delete session camera state (legacy, can be removed later)
-            r.hdel(room_keys.session_cameras(), session_id)
-
             # Delete session settings
             r.delete(room_keys.session_settings(session_id))
 
@@ -883,56 +880,6 @@ def handle_chat_message_create(data):
     except Exception as e:
         log.error(f"Failed to create chat message: {e}")
         return {"success": False, "error": str(e)}
-
-
-@socketio.on(SocketEvents.CAMERA_STATE_UPDATE)
-def handle_camera_state_update(data):
-    """Update session camera state when OrbitControls changes.
-
-    Stores in session_cameras hash, NOT in geometries.
-    Does NOT broadcast - prevents feedback loop.
-
-    Payload
-    -------
-    {
-        "sessionId": str,
-        "position": [x, y, z],
-        "target": [x, y, z],
-        "fov": float,
-        "near": float,
-        "far": float,
-        "zoom": float
-    }
-    """
-    sid = request.sid
-    r = current_app.extensions["redis"]
-    room = get_project_room_from_session(sid)
-
-    if not room:
-        return {"success": False, "error": "Client has not joined a room."}
-
-    session_id = data.get("sessionId")
-    if not session_id:
-        return {"success": False, "error": "sessionId required"}
-
-    keys = RoomKeys(room)
-
-    # Build camera state from provided data (direct coordinates only)
-    camera_state = {
-        "position": tuple(data.get("position", [0, 5, 10])),
-        "target": tuple(data.get("target", [0, 0, 0])),
-        "fov": data.get("fov", 75.0),
-        "near": data.get("near", 0.1),
-        "far": data.get("far", 1000.0),
-        "zoom": data.get("zoom", 1.0),
-    }
-
-    r.hset(keys.session_cameras(), session_id, json.dumps(camera_state))
-
-    # NO broadcast - frontend is the source of truth for interactive mode
-    # This prevents feedback loops when OrbitControls updates
-
-    return {"success": True}
 
 
 @socketio.on("chat:message:edit")

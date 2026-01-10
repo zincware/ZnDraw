@@ -8,44 +8,11 @@
  * ZnDraw room configuration combining all settings sections.
  */
 export interface RoomConfig {
-	camera?: Camera;
 	pathtracing?: PathTracing;
 	property_inspector?: PropertyInspector;
 	studio_lighting?: StudioLighting;
 	[property: string]: any;
 }
-
-/**
- * Defines the camera projection and user interaction controls.
- */
-export interface Camera {
-	/**
-	 * Camera projection type
-	 */
-	camera?: CameraEnum;
-	/**
-	 * Camera far rendering plane
-	 */
-	far_plane?: number;
-	/**
-	 * Camera near rendering plane
-	 */
-	near_plane?: number;
-	/**
-	 * Enable screenshot capture (WARNING: reduces rendering performance)
-	 */
-	preserve_drawing_buffer?: boolean;
-	/**
-	 * Show a crosshair at the camera's focal point
-	 */
-	show_crosshair?: boolean;
-	[property: string]: any;
-}
-
-/**
- * Camera projection type
- */
-export type CameraEnum = "PerspectiveCamera" | "OrthographicCamera";
 
 /**
  * GPU Path Tracing settings for high-quality physically-based rendering.

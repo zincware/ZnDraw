@@ -325,19 +325,6 @@ class RoomKeys:
         """Active selection group name."""
         return f"room:{self.room_id}:active_selection_group"
 
-    def session_cameras(self) -> str:
-        """Session camera state hash (session_id -> camera JSON).
-
-        Stores live camera viewport state for each frontend session.
-        This is separate from vis.geometries - session cameras are ephemeral.
-
-        Returns
-        -------
-        str
-            Redis key for session cameras hash
-        """
-        return f"room:{self.room_id}:session_cameras"
-
     def session_settings(self, session_id: str) -> str:
         """Session-scoped rendering settings.
 
@@ -542,7 +529,6 @@ class RoomKeys:
             self.jobs_active(),
             self.jobs_inactive(),
             self.jobs_by_time(),
-            self.session_cameras(),
             self.frontend_sessions(),
         ]
 

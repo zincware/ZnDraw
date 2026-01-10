@@ -1,50 +1,5 @@
 {
 	"$defs": {
-		"Camera": {
-			"description": "Defines the camera projection and user interaction controls.",
-			"properties": {
-				"camera": {
-					"$ref": "#/$defs/CameraEnum",
-					"default": "PerspectiveCamera",
-					"description": "Camera projection type"
-				},
-				"near_plane": {
-					"default": 0.1,
-					"description": "Camera near rendering plane",
-					"maximum": 100,
-					"minimum": 0,
-					"title": "Near Plane",
-					"type": "number"
-				},
-				"far_plane": {
-					"default": 300,
-					"description": "Camera far rendering plane",
-					"maximum": 1000,
-					"minimum": 1,
-					"title": "Far Plane",
-					"type": "number"
-				},
-				"show_crosshair": {
-					"default": false,
-					"description": "Show a crosshair at the camera's focal point",
-					"title": "Show Crosshair",
-					"type": "boolean"
-				},
-				"preserve_drawing_buffer": {
-					"default": false,
-					"description": "Enable screenshot capture (WARNING: reduces rendering performance)",
-					"title": "Preserve Drawing Buffer",
-					"type": "boolean"
-				}
-			},
-			"title": "Camera",
-			"type": "object"
-		},
-		"CameraEnum": {
-			"enum": ["PerspectiveCamera", "OrthographicCamera"],
-			"title": "CameraEnum",
-			"type": "string"
-		},
 		"EnvironmentPreset": {
 			"enum": [
 				"none",
@@ -74,6 +29,7 @@
 				"min_samples": {
 					"default": 1,
 					"description": "Minimum samples before displaying result",
+					"format": "range",
 					"minimum": 1,
 					"title": "Min Samples",
 					"type": "integer"
@@ -81,6 +37,7 @@
 				"samples": {
 					"default": 256,
 					"description": "Maximum samples to render",
+					"format": "range",
 					"maximum": 10000,
 					"minimum": 1,
 					"title": "Samples",
@@ -89,6 +46,7 @@
 				"bounces": {
 					"default": 3,
 					"description": "Number of light bounces for global illumination",
+					"format": "range",
 					"maximum": 32,
 					"minimum": 1,
 					"title": "Bounces",
@@ -97,6 +55,7 @@
 				"tiles": {
 					"default": 1,
 					"description": "Rendering tile count (higher = less memory, slower)",
+					"format": "range",
 					"maximum": 8,
 					"minimum": 1,
 					"title": "Tiles",
@@ -110,16 +69,20 @@
 				"environment_intensity": {
 					"default": 1.0,
 					"description": "Environment map brightness multiplier",
+					"format": "range",
 					"maximum": 10.0,
 					"minimum": 0.0,
+					"step": 0.1,
 					"title": "Environment Intensity",
 					"type": "number"
 				},
 				"environment_blur": {
 					"default": 0.0,
 					"description": "Environment background blur amount",
+					"format": "range",
 					"maximum": 1.0,
 					"minimum": 0.0,
+					"step": 0.01,
 					"title": "Environment Blur",
 					"type": "number"
 				},
@@ -142,7 +105,8 @@
 						"type": "string"
 					},
 					"title": "Enabled Properties",
-					"type": "array"
+					"type": "array",
+					"x-custom-type": "property-inspector"
 				}
 			},
 			"title": "PropertyInspector",
@@ -154,46 +118,57 @@
 				"background_color": {
 					"default": "default",
 					"description": "Neutral background color of the scene",
+					"format": "color",
 					"title": "Background Color",
 					"type": "string"
 				},
 				"key_light": {
 					"default": 0.7,
 					"description": "Intensity of the main light attached to the camera",
+					"format": "range",
 					"maximum": 3.0,
 					"minimum": 0.0,
+					"step": 0.01,
 					"title": "Key Light",
 					"type": "number"
 				},
 				"fill_light": {
 					"default": 0.4,
 					"description": "Intensity of the soft global light that lifts shadows",
+					"format": "range",
 					"maximum": 3.0,
 					"minimum": 0.0,
+					"step": 0.01,
 					"title": "Fill Light",
 					"type": "number"
 				},
 				"rim_light": {
 					"default": 0.5,
 					"description": "Intensity of the back light that creates highlights",
+					"format": "range",
 					"maximum": 5.0,
 					"minimum": 0.0,
+					"step": 0.01,
 					"title": "Rim Light",
 					"type": "number"
 				},
 				"hemisphere_light": {
 					"default": 0.3,
 					"description": "Intensity of the ambient light from above",
+					"format": "range",
 					"maximum": 3.0,
 					"minimum": 0.0,
+					"step": 0.01,
 					"title": "Hemisphere Light",
 					"type": "number"
 				},
 				"ambient_light": {
 					"default": 0.35,
 					"description": "Intensity of the ambient light that fills the scene",
+					"format": "range",
 					"maximum": 3.0,
 					"minimum": 0.0,
+					"step": 0.01,
 					"title": "Ambient Light",
 					"type": "number"
 				},
@@ -210,47 +185,14 @@
 	},
 	"description": "ZnDraw room configuration combining all settings sections.",
 	"properties": {
-		"camera": {
-			"$ref": "#/$defs/Camera",
-			"default": {
-				"camera": "PerspectiveCamera",
-				"near_plane": 0.1,
-				"far_plane": 300.0,
-				"show_crosshair": false,
-				"preserve_drawing_buffer": false
-			}
-		},
 		"studio_lighting": {
-			"$ref": "#/$defs/StudioLighting",
-			"default": {
-				"background_color": "default",
-				"key_light": 0.7,
-				"fill_light": 0.4,
-				"rim_light": 0.5,
-				"hemisphere_light": 0.3,
-				"ambient_light": 0.35,
-				"contact_shadow": false
-			}
+			"$ref": "#/$defs/StudioLighting"
 		},
 		"property_inspector": {
-			"$ref": "#/$defs/PropertyInspector",
-			"default": {
-				"enabled_properties": []
-			}
+			"$ref": "#/$defs/PropertyInspector"
 		},
 		"pathtracing": {
-			"$ref": "#/$defs/PathTracing",
-			"default": {
-				"enabled": false,
-				"min_samples": 1,
-				"samples": 256,
-				"bounces": 3,
-				"tiles": 1,
-				"environment_preset": "studio",
-				"environment_intensity": 1.0,
-				"environment_blur": 0.0,
-				"environment_background": false
-			}
+			"$ref": "#/$defs/PathTracing"
 		}
 	},
 	"title": "RoomConfig",

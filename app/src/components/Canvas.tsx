@@ -13,7 +13,6 @@ import {
 	useCameraControls,
 	type ControlsState,
 } from "../hooks/useCameraControls";
-import { useCameraSync } from "../hooks/useCameraSync";
 import { useGeometryCameraSync } from "../hooks/useGeometryCameraSync";
 
 // Import our new, self-contained components
@@ -45,10 +44,12 @@ import { useFrameLoadTime } from "../hooks/useFrameLoadTime";
  * Component for integrating camera sync inside the Canvas.
  * Must be a child of Canvas to use useThree.
  *
- * Handles three types of sync:
- * 1. Session camera sync (useCameraSync) - for Python client camera access
- * 2. Geometry camera sync (useGeometryCameraSync) - for updating Camera geometry from OrbitControls
- * 3. Geometry-to-controls sync - syncing OrbitControls.target when attached to geometry camera
+ * Handles two types of sync:
+ * 1. Geometry camera sync (useGeometryCameraSync) - for updating Camera geometry from OrbitControls
+ * 2. Geometry-to-controls sync - syncing OrbitControls.target when attached to geometry camera
+ *
+ * Note: Session cameras are now regular geometries. Python clients access them via
+ * the geometry system, which broadcasts INVALIDATE_GEOMETRY to sync changes.
  */
 function CameraSyncIntegration({
 	controlsRef,
@@ -61,9 +62,6 @@ function CameraSyncIntegration({
 	const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
 	const geometries = useAppStore((state) => state.geometries);
 	const curveRefs = useAppStore((state) => state.curveRefs);
-
-	// Session camera sync (for Python client access)
-	const { syncCamera } = useCameraSync(camera, controlsRef);
 
 	// Geometry camera sync (for updating Camera geometry from OrbitControls)
 	const { syncToGeometry, isUpdatingGeometry } = useGeometryCameraSync({
@@ -144,7 +142,6 @@ function CameraSyncIntegration({
 		if (!controls) return;
 
 		const handleChange = () => {
-			syncCamera();
 			syncToGeometry();
 		};
 
@@ -152,7 +149,7 @@ function CameraSyncIntegration({
 		return () => {
 			controls.removeEventListener("change", handleChange);
 		};
-	}, [controlsRef, syncCamera, syncToGeometry]);
+	}, [controlsRef, syncToGeometry]);
 
 	return null;
 }

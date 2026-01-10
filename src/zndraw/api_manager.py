@@ -1655,60 +1655,6 @@ class APIManager:
         sessions = response.json().get("sessions", [])
         return [s["session_id"] for s in sessions]
 
-    def get_session_camera(self, session_id: str) -> "Camera":
-        """Get camera state for a frontend session.
-
-        Parameters
-        ----------
-        session_id : str
-            Session identifier.
-
-        Returns
-        -------
-        Camera
-            The camera Pydantic model.
-
-        Raises
-        ------
-        requests.HTTPError
-            If session not found (404).
-        """
-        from zndraw.geometries import Camera
-
-        headers = self._get_headers()
-        response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/sessions/{session_id}/camera",
-            headers=headers,
-            timeout=10.0,
-        )
-        response.raise_for_status()
-        camera_data = response.json().get("camera", {})
-        return Camera.model_validate(camera_data)
-
-    def set_session_camera(self, session_id: str, camera: "Camera") -> None:
-        """Set camera state for a frontend session.
-
-        Parameters
-        ----------
-        session_id : str
-            Session identifier.
-        camera : Camera
-            The camera model to set.
-
-        Raises
-        ------
-        requests.HTTPError
-            If session not found (404) or invalid camera data.
-        """
-        headers = self._get_headers()
-        response = requests.put(
-            f"{self.url}/api/rooms/{self.room}/sessions/{session_id}/camera",
-            json=camera.model_dump(),
-            headers=headers,
-            timeout=10.0,
-        )
-        response.raise_for_status()
-
     def get_session_settings(self, session_id: str) -> dict:
         """Get settings for a frontend session.
 

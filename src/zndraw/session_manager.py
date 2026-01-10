@@ -4,12 +4,18 @@ Provides Python API to access and control frontend sessions (browser windows).
 Each frontend session has its own camera viewport state and rendering settings.
 
 Note: Python clients do NOT appear in vis.sessions - only frontend browsers.
+Note: Session cameras are stored as geometries with key 'cam:session:{session_id}'.
 """
 
 from collections.abc import Mapping
 
 from zndraw.geometries import Camera
 from zndraw.settings import RoomConfig
+
+
+def get_session_camera_key(session_id: str) -> str:
+    """Get the geometry key for a session camera."""
+    return f"cam:session:{session_id}"
 
 
 class FrontendSession:
@@ -28,10 +34,10 @@ class FrontendSession:
     Examples
     --------
     >>> session = vis.sessions["abc-123"]
-    >>> # Get camera (fetches from Redis)
+    >>> # Get camera via geometries
     >>> cam = session.camera
     >>> cam.position = (10, 10, 10)
-    >>> # Save back (syncs to Redis and frontend)
+    >>> # Save back (syncs to Redis and frontend via geometry system)
     >>> session.camera = cam
     >>>
     >>> # Get settings (fetches from Redis)
@@ -45,8 +51,13 @@ class FrontendSession:
         self.session_id = session_id
 
     @property
+    def camera_key(self) -> str:
+        """Get the geometry key for this session's camera."""
+        return get_session_camera_key(self.session_id)
+
+    @property
     def camera(self) -> Camera:
-        """Get camera state (fetches from Redis).
+        """Get camera state via geometry system.
 
         Returns the Camera Pydantic model directly. Modify and set back to sync.
 
@@ -59,20 +70,22 @@ class FrontendSession:
         --------
         >>> cam = session.camera
         >>> cam.position = (10, 10, 10)
-        >>> session.camera = cam  # Sync to frontend
+        >>> session.camera = cam  # Sync to frontend via geometry system
         """
-        return self._vis.api.get_session_camera(self.session_id)
+        return self._vis.geometries[self.camera_key]
 
     @camera.setter
     def camera(self, value: Camera) -> None:
-        """Set camera state (syncs to Redis and notifies frontend).
+        """Set camera state via geometry system.
+
+        Syncs to Redis and broadcasts INVALIDATE_GEOMETRY to notify frontend.
 
         Parameters
         ----------
         value : Camera
             The camera model to set.
         """
-        self._vis.api.set_session_camera(self.session_id, value)
+        self._vis.geometries[self.camera_key] = value
 
     def _make_settings_callback(self, category: str):
         """Create a callback for auto-saving settings on attribute change."""

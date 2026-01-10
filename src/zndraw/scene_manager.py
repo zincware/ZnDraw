@@ -18,9 +18,6 @@ from zndraw.geometries import (
 if t.TYPE_CHECKING:
     from zndraw import ZnDraw
 
-# Reserved geometry key prefixes (system-generated keys)
-RESERVED_KEY_PREFIXES = ["cam:session:"]
-
 
 class Geometries(MutableMapping):
     def __init__(self, zndraw_instance: "ZnDraw") -> None:
@@ -80,16 +77,11 @@ class Geometries(MutableMapping):
     def __setitem__(self, key: str, value: BaseModel) -> None:
         from zndraw.geometries import geometries
 
-        for prefix in RESERVED_KEY_PREFIXES:
-            if key.startswith(prefix):
-                raise ValueError(
-                    f"Geometry key cannot start with reserved prefix '{prefix}'"
-                )
-
         geometry_type = type(value).__name__
         if geometry_type not in geometries:
             raise ValueError(f"Unknown geometry type: {geometry_type}")
         self.vis._geometries[key] = {"type": geometry_type, "data": value.model_dump()}
+        # Backend validates reserved key prefixes (e.g., cam:session:*)
         self.vis.api.set_geometry(
             data=value.model_dump(), key=key, geometry_type=geometry_type
         )
