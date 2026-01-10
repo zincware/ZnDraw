@@ -10,7 +10,7 @@ import {
 	Typography,
 	Alert,
 } from "@mui/material";
-import { changePassword, getUsername } from "../utils/auth";
+import { changePassword, getUsernameFromToken } from "../utils/auth";
 import { useAppStore } from "../store";
 
 interface UserProfileDialogProps {
@@ -88,7 +88,7 @@ export default function UserProfileDialog({
 			<DialogContent>
 				<Box sx={{ pt: 1, display: "flex", flexDirection: "column", gap: 2 }}>
 					<Typography variant="body2" color="text.secondary">
-						Username: <strong>{getUsername()}</strong>
+						Username: <strong>{getUsernameFromToken()}</strong>
 					</Typography>
 
 					{error && (

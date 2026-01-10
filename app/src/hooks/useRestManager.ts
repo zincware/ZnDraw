@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef } from "react";
 import { useAppStore } from "../store";
 import { useParams } from "react-router-dom";
-import { ensureAuthenticated, getUserRole, getUsername } from "../utils/auth";
+import { ensureAuthenticated, getUserRole, getUsernameFromToken } from "../utils/auth";
 
 /**
  * Hook to handle REST-based initialization before socket connection.
@@ -30,7 +30,7 @@ export const useRestJoinManager = () => {
 			}
 
 			// Get username from auth system
-			const userName = getUsername();
+			const userName = getUsernameFromToken();
 			if (userName) {
 				setUserName(userName);
 			}

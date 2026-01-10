@@ -10,7 +10,7 @@ import {
 	Typography,
 	Alert,
 } from "@mui/material";
-import { registerUser, getUsername } from "../utils/auth";
+import { registerUser, getUsernameFromToken } from "../utils/auth";
 import { useAppStore } from "../store";
 
 interface RegisterDialogProps {
@@ -96,7 +96,7 @@ export default function RegisterDialog({ open, onClose }: RegisterDialogProps) {
 			<DialogContent>
 				<Box sx={{ pt: 1, display: "flex", flexDirection: "column", gap: 2 }}>
 					<Typography variant="body2" color="text.secondary">
-						Current temporary username: <strong>{getUsername()}</strong>
+						Current temporary username: <strong>{getUsernameFromToken()}</strong>
 					</Typography>
 					<Typography variant="body2" color="text.secondary">
 						Choose a permanent username and password to register your account.
