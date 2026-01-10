@@ -37,6 +37,14 @@ export interface Progress {
 	progress: number | null; // 0-100 for progress bar, null for spinner
 }
 
+/**
+ * Error state for room initialization failures
+ */
+export interface InitializationError {
+	message: string;
+	details?: string;
+}
+
 interface AppState {
 	// Connection & Room
 	roomId: string | null;
@@ -45,6 +53,7 @@ interface AppState {
 	sessionId: string | null; // Session ID from /join response (identifies this browser tab)
 	isConnected: boolean;
 	isLoading: boolean;
+	initializationError: InitializationError | null; // Error during room initialization
 	currentFrame: number;
 	frameCount: number;
 	skipFrames: number;
@@ -121,6 +130,7 @@ interface AppState {
 	setUserRole: (role: UserRole) => void;
 	setSessionId: (sessionId: string | null) => void;
 	setConnected: (status: boolean) => void;
+	setInitializationError: (error: InitializationError | null) => void;
 	setCurrentFrame: (frame: number) => void;
 	setFrameCount: (count: number) => void;
 	setLoading: (loading: boolean) => void;
@@ -267,6 +277,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	userRole: null,
 	sessionId: null, // Will be set after /join
 	isConnected: false,
+	initializationError: null,
 	currentFrame: 0,
 	frameCount: 0,
 	isLoading: false,
@@ -330,6 +341,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	// Actions
 	setConnected: (status) => set({ isConnected: status }),
+	setInitializationError: (error) => set({ initializationError: error }),
 	setRoomId: (roomId) => set({ roomId }),
 	setUserName: (userName) => set({ userName }),
 	setUserRole: (role) => set({ userRole: role }),

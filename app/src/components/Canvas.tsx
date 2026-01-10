@@ -1,19 +1,14 @@
 import * as THREE from "three";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useAppStore, getActiveCurves, selectPreferredCurve } from "../store";
 import { useSettings } from "../hooks/useSettings";
 import { useTheme } from "@mui/material/styles";
-import {
-	Snackbar,
-	Alert,
-	Box as MuiBox,
-	CircularProgress,
-	Typography,
-	Button,
-} from "@mui/material";
+import { Snackbar, Alert } from "@mui/material";
+import { CanvasLoadingState } from "./CanvasLoadingState";
+import { CanvasErrorState } from "./CanvasErrorState";
 import {
 	useCameraControls,
 	type ControlsState,
@@ -167,6 +162,7 @@ function MyScene() {
 	const roomId = useAppStore((state) => state.roomId);
 	const sessionId = useAppStore((state) => state.sessionId);
 	const isConnected = useAppStore((state) => state.isConnected);
+	const initializationError = useAppStore((state) => state.initializationError);
 	const geometries = useAppStore((state) => state.geometries);
 	const activeCurveForDrawing = useAppStore(
 		(state) => state.activeCurveForDrawing,
@@ -220,73 +216,16 @@ function MyScene() {
 	const sessionCamera = sessionCameraKey ? geometries[sessionCameraKey] : null;
 	const sessionCameraData = sessionCamera?.data;
 
-	// Timeout state for session camera initialization
-	const [sessionCameraTimeout, setSessionCameraTimeout] = useState(false);
-
-	// Timeout effect: show error if session camera doesn't appear within 10 seconds
-	useEffect(() => {
-		// Reset timeout state when sessionId changes (e.g., reconnect)
-		setSessionCameraTimeout(false);
-
-		// Don't start timer if no sessionId or camera already exists
-		if (!sessionId || sessionCameraData) return;
-
-		const timer = setTimeout(() => {
-			setSessionCameraTimeout(true);
-		}, 10000); // 10 second timeout
-
-		return () => clearTimeout(timer);
-	}, [sessionId, sessionCameraData]);
+	// Show error state if initialization failed
+	if (initializationError) {
+		return <CanvasErrorState error={initializationError} />;
+	}
 
 	// Return early with loading state until fully connected and data is ready
 	// Gate on: 1) isConnected (socket connected), 2) sessionId (room joined),
 	// 3) settingsResponse (settings loaded), 4) sessionCameraData (camera geometry loaded)
 	if (!isConnected || !sessionId || !settingsResponse || !sessionCameraData) {
-		// Show error state on timeout
-		if (sessionCameraTimeout) {
-			return (
-				<MuiBox
-					sx={{
-						width: "100%",
-						height: "calc(100vh - 64px)",
-						display: "flex",
-						flexDirection: "column",
-						alignItems: "center",
-						justifyContent: "center",
-						bgcolor: theme.palette.background.default,
-						gap: 2,
-					}}
-				>
-					<Typography variant="h6" color="error">
-						Failed to initialize camera session
-					</Typography>
-					<Typography variant="body2" color="text.secondary">
-						The connection to the server may have been interrupted.
-					</Typography>
-					<Button
-						variant="contained"
-						onClick={() => window.location.reload()}
-						sx={{ mt: 2 }}
-					>
-						Refresh Page
-					</Button>
-				</MuiBox>
-			);
-		}
-		return (
-			<MuiBox
-				sx={{
-					width: "100%",
-					height: "calc(100vh - 64px)",
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					bgcolor: theme.palette.background.default,
-				}}
-			>
-				<CircularProgress />
-			</MuiBox>
-		);
+		return <CanvasLoadingState />;
 	}
 
 	// Backend always returns defaults, so these are guaranteed to exist

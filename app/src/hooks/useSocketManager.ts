@@ -32,6 +32,7 @@ interface SocketManagerOptions {
 export const useSocketManager = (options: SocketManagerOptions = {}) => {
 	const {
 		setConnected,
+		setInitializationError,
 		setFrameCount,
 		setCurrentFrame,
 		setFrameSelection,
@@ -93,6 +94,9 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		}
 
 		async function onConnect() {
+			// Clear any previous initialization error on new connection
+			setInitializationError(null);
+
 			try {
 				// Fetch server version and global settings
 				const { version: serverVersion } = await getServerVersion();
@@ -129,6 +133,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 					const handleJoinResponse = async (response: any) => {
 						if (response.status !== "ok") {
 							console.error("Failed to join room:", response.message);
+							setInitializationError({
+								message: "Failed to join room",
+								details: response.message || "Server rejected the connection",
+							});
 							return;
 						}
 
@@ -164,15 +172,25 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 						}
 
 						// Fetch geometries via REST (can be large)
+						// This is critical - if it fails, we cannot show the scene
 						try {
 							const geometriesResponse = await listGeometries(roomId);
 							setGeometries(geometriesResponse.geometries || {});
+							// Clear any previous error and mark as connected
+							setInitializationError(null);
+							setConnected(true);
 						} catch (error) {
 							console.error("Error fetching geometries:", error);
+							// Set error state - don't call setConnected(true)
+							setInitializationError({
+								message: "Failed to load scene data",
+								details:
+									error instanceof Error
+										? error.message
+										: "Could not fetch geometries from server",
+							});
+							return; // Don't proceed - UI will show error state
 						}
-
-						// Only set connected after all data is loaded
-						setConnected(true);
 					};
 
 					// Emit room:join event (frontend clients send clientType)
@@ -775,6 +793,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		// Having userName here caused infinite re-runs when onConnectError created new users
 		isOverview,
 		setConnected,
+		setInitializationError,
 		setFrameCount,
 		setCurrentFrame,
 		setPlaying,
