@@ -514,6 +514,70 @@ become clickable chips that navigate to the referenced frame:
 Clicking a frame reference chip navigates directly to that frame.
 
 
+Markdown & Code Blocks
+^^^^^^^^^^^^^^^^^^^^^^
+
+Chat messages support full Markdown rendering including:
+
+- **Text formatting**: ``**bold**``, ``*italic*``, ``~~strikethrough~~``
+- **Lists**: Ordered and unordered lists
+- **Links**: ``[text](url)``
+- **LaTeX math**: Inline ``$E = mc^2$`` or block ``$$\sum_{i=1}^n x_i$$``
+- **Code blocks**: Syntax-highlighted code with language specification
+
+.. code:: python
+
+    vis.log("""
+    ## Results Summary
+
+    The simulation converged after **1000 steps**.
+
+    Energy: $E = -42.5$ eV
+
+    ```python
+    for atom in atoms:
+        print(atom.symbol)
+    ```
+    """)
+
+
+Progress Bars
+^^^^^^^^^^^^^
+
+.. image:: /_static/screenshots/lightmode/chat_progress.png
+   :class: only-light
+   :alt: Chat with progress bars
+
+.. image:: /_static/screenshots/darkmode/chat_progress.png
+   :class: only-dark
+   :alt: Chat with progress bars
+
+Display progress bars in chat using the ``progress`` code block syntax:
+
+.. code:: python
+
+    vis.log("""
+    ```progress
+    description: Processing frames
+    value: 75
+    max: 100
+    color: success
+    ```
+    """)
+
+**Parameters:**
+
+- ``value``: Current progress value. If omitted, shows an indeterminate spinner.
+- ``min``: Minimum value (default: ``0``)
+- ``max``: Maximum value (default: ``100``)
+- ``description``: Label text displayed above the progress bar
+- ``color``: MUI color - ``primary``, ``secondary``, ``success``, ``error``, ``warning``, ``info`` (default: ``primary``)
+
+The progress bar displays the percentage and the current value relative to max.
+For long-running operations, consider using the :meth:`~zndraw.ZnDraw.progress_tracker`
+context manager instead, which provides real-time updates.
+
+
 Property Inspector
 ------------------
 
