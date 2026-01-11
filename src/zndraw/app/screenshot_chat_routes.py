@@ -14,21 +14,9 @@ from zndraw.server import socketio
 
 from .chat_utils import create_message, get_message, update_message
 from .constants import SocketEvents
-from .redis_keys import RoomKeys, SessionKeys
+from .redis_keys import RoomKeys
 
 log = logging.getLogger(__name__)
-
-
-def _get_caller_sid() -> str | None:
-    """Get socket sid of the caller from their session ID header.
-
-    Used to exclude the caller from socket broadcasts (skip_sid).
-    """
-    session_id = request.headers.get("X-Session-ID")
-    if not session_id:
-        return None
-    r = current_app.extensions["redis"]
-    return r.get(SessionKeys.session_to_sid(session_id))
 
 
 media = Blueprint("media", __name__)
@@ -165,12 +153,11 @@ def create_chat_message(room_id: str):
     user_name = get_current_user()
     message = create_message(r, room_id, user_name, content)
 
-    # Broadcast to room (skip caller to avoid UI flicker)
+    # Broadcast to room - message appearing confirms it was saved
     socketio.emit(
         SocketEvents.CHAT_MESSAGE_NEW,
         message,
         to=f"room:{room_id}",
-        skip_sid=_get_caller_sid(),
     )
 
     return {"success": True, "message": message}, 201
@@ -206,12 +193,11 @@ def edit_chat_message(room_id: str, message_id: str):
 
     updated = update_message(r, room_id, message_id, content)
 
-    # Broadcast to room (skip caller to avoid UI flicker)
+    # Broadcast to room - message appearing confirms it was saved
     socketio.emit(
         SocketEvents.CHAT_MESSAGE_UPDATED,
         updated,
         to=f"room:{room_id}",
-        skip_sid=_get_caller_sid(),
     )
 
     return {"success": True, "message": updated}, 200

@@ -13,21 +13,8 @@ from zndraw.geometries import geometries as geometry_classes
 from zndraw.server import socketio
 
 from .constants import SocketEvents
-from .redis_keys import RoomKeys, SessionKeys
+from .redis_keys import RoomKeys
 from .route_utils import requires_lock
-
-
-def _get_caller_sid() -> str | None:
-    """Get socket sid of the caller from their session ID header.
-
-    Used to exclude the caller from socket broadcasts (skip_sid).
-    """
-    session_id = request.headers.get("X-Session-ID")
-    if not session_id:
-        return None
-    r = current_app.extensions["redis"]
-    return r.get(SessionKeys.session_to_sid(session_id))
-
 
 log = logging.getLogger(__name__)
 
@@ -403,12 +390,11 @@ def update_frame_selection(room_id: str):
     # Store frame selection
     r.set(keys.frame_selection(), json.dumps(indices))
 
-    # Broadcast to room (skip caller to avoid UI flicker)
+    # Broadcast to room - update appearing confirms it was saved
     socketio.emit(
         SocketEvents.FRAME_SELECTION_UPDATE,
         {"indices": indices},
         to=f"room:{room_id}",
-        skip_sid=_get_caller_sid(),
     )
 
     return {"success": True}, 200
