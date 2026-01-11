@@ -78,6 +78,7 @@ class Plane(BaseGeometry):
         ge=0.0,
         le=1.0,
         description="Plane opacity, between 0 (transparent) and 1 (opaque).",
+        json_schema_extra={"format": "range", "step": 0.01},
     )
 
     double_sided: bool = Field(

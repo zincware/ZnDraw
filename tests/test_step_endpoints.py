@@ -5,56 +5,35 @@ import redis
 import requests
 
 
-def _create_and_join_room(server, room, auth_headers):
-    """Helper to create a room and join it, returning session_id."""
-    # Create the room first
-    create_response = requests.post(
-        f"{server}/api/rooms",
-        json={"roomId": room},
-        headers=auth_headers,
-    )
-    assert create_response.status_code == 201
-
-    # Join the room
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
-    )
-    assert response.status_code == 200
-    return response.json()["sessionId"]
-
-
 @pytest.fixture
-def room_with_step_lock(server, get_jwt_auth_headers):
-    """Create a room, join it, acquire step lock, and return server, room, session_id, auth_headers, lock_token."""
-    room = "test-step-lock-room"
+def room_with_step_lock(server, connect_room):
+    """Create a room, join it, acquire step lock, and yield connection info.
 
-    # Get auth headers
-    auth_headers = get_jwt_auth_headers(server, "test-user")
-
-    # Create and join room
-    session_id = _create_and_join_room(server, room, auth_headers)
+    Uses connect_room to keep socket alive during test (prevents lock cleanup).
+    """
+    conn = connect_room("test-step-lock-room")
 
     # Acquire lock for step
     response = requests.post(
-        f"{server}/api/rooms/{room}/locks/step/acquire",
+        f"{server}/api/rooms/{conn.room_id}/locks/step/acquire",
         json={"msg": "testing step lock"},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
     lock_data = response.json()
     assert lock_data["success"] is True
     lock_token = lock_data["lockToken"]
 
-    return server, room, session_id, auth_headers, lock_token
+    yield server, conn.room_id, conn.session_id, conn.headers, lock_token
 
 
-def test_get_step_without_auth(server, get_jwt_auth_headers):
+def test_get_step_without_auth(server, get_jwt_auth_headers, create_and_join_room):
     """Test that GET /step returns data for existing room."""
     room = "test-get-step"
     auth_headers = get_jwt_auth_headers(server)
 
     # Create room first
-    _create_and_join_room(server, room, auth_headers)
+    create_and_join_room(server, room, auth_headers)
 
     # Get step with authentication
     response = requests.get(f"{server}/api/rooms/{room}/step", headers=auth_headers)
@@ -67,13 +46,13 @@ def test_get_step_without_auth(server, get_jwt_auth_headers):
     assert isinstance(data["totalFrames"], int)
 
 
-def test_put_step_without_lock(server, get_jwt_auth_headers):
+def test_put_step_without_lock(server, get_jwt_auth_headers, create_and_join_room):
     """Test that PUT /step fails when lock is not held."""
     room = "test-put-step-no-lock"
     auth_headers = get_jwt_auth_headers(server, "test-user")
 
     # Create and join room
-    session_id = _create_and_join_room(server, room, auth_headers)
+    session_id = create_and_join_room(server, room, auth_headers)
 
     # Try to set step without acquiring lock first
     response = requests.put(
@@ -142,13 +121,15 @@ def test_put_step_invalid_type(room_with_step_lock):
     assert "Invalid step value" in data["error"]
 
 
-def test_put_step_missing_session_id(server, get_jwt_auth_headers):
+def test_put_step_missing_session_id(
+    server, get_jwt_auth_headers, create_and_join_room
+):
     """Test that PUT /step rejects requests without X-Session-ID header."""
     room = "test-missing-session"
     auth_headers = get_jwt_auth_headers(server, "test-user")
 
     # Create room
-    _create_and_join_room(server, room, auth_headers)
+    create_and_join_room(server, room, auth_headers)
 
     # Try to set step without session ID header
     response = requests.put(
@@ -162,13 +143,15 @@ def test_put_step_missing_session_id(server, get_jwt_auth_headers):
     assert "X-Session-ID" in data["error"]
 
 
-def test_put_step_invalid_session_id(server, get_jwt_auth_headers):
+def test_put_step_invalid_session_id(
+    server, get_jwt_auth_headers, create_and_join_room
+):
     """Test that PUT /step rejects requests with invalid session ID."""
     room = "test-invalid-session"
     auth_headers = get_jwt_auth_headers(server, "test-user")
 
     # Create room
-    _create_and_join_room(server, room, auth_headers)
+    create_and_join_room(server, room, auth_headers)
 
     # Try to set step with invalid session ID
     response = requests.put(
@@ -202,13 +185,13 @@ def test_put_step_continuous_updates(room_with_step_lock):
     assert response.json()["step"] == 40
 
 
-def test_put_step_after_lock_expiry(server, get_jwt_auth_headers):
+def test_put_step_after_lock_expiry(server, get_jwt_auth_headers, create_and_join_room):
     """Test that PUT /step fails after lock expires."""
     room = "test-lock-expiry"
     auth_headers = get_jwt_auth_headers(server, "test-user")
 
     # Create and join room
-    session_id = _create_and_join_room(server, room, auth_headers)
+    session_id = create_and_join_room(server, room, auth_headers)
 
     # Acquire lock
     response = requests.post(
@@ -236,13 +219,15 @@ def test_put_step_after_lock_expiry(server, get_jwt_auth_headers):
     assert "Lock not held" in data["error"]
 
 
-def test_put_step_session_user_mismatch(server, get_jwt_auth_headers):
+def test_put_step_session_user_mismatch(
+    server, get_jwt_auth_headers, create_and_join_room
+):
     """Test that PUT /step rejects requests where session doesn't match JWT user."""
     room = "test-session-mismatch"
 
     # User 1 creates room and joins
     user1_headers = get_jwt_auth_headers(server, "user1")
-    session_id = _create_and_join_room(server, room, user1_headers)
+    session_id = create_and_join_room(server, room, user1_headers)
 
     # User 2 gets auth token
     user2_headers = get_jwt_auth_headers(server, "user2")
@@ -259,34 +244,27 @@ def test_put_step_session_user_mismatch(server, get_jwt_auth_headers):
     assert "Session/user mismatch" in data["error"]
 
 
-def test_put_step_different_session_same_user(server, get_jwt_auth_headers):
+def test_put_step_different_session_same_user(server, connect_room):
     """Test that different session from same user can't use another session's lock."""
-    room = "test-different-session"
-    auth_headers = get_jwt_auth_headers(server, "test-user")
-
     # Session 1: Create room, join and acquire lock
-    session1_id = _create_and_join_room(server, room, auth_headers)
+    conn1 = connect_room("test-different-session")
 
     response = requests.post(
-        f"{server}/api/rooms/{room}/locks/step/acquire",
+        f"{server}/api/rooms/{conn1.room_id}/locks/step/acquire",
         json={"msg": "session 1 lock"},
-        headers={**auth_headers, "X-Session-ID": session1_id},
+        headers=conn1.headers,
     )
     assert response.status_code == 200
     assert response.json()["success"] is True
 
     # Session 2: Same user joins in a different session (simulating another browser tab)
-    response2 = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
-    )
-    assert response2.status_code == 200
-    session2_id = response2.json()["sessionId"]
+    conn2 = connect_room("test-different-session")
 
     # Session 2 tries to set step (should fail - session doesn't hold lock)
     response = requests.put(
-        f"{server}/api/rooms/{room}/step",
+        f"{server}/api/rooms/{conn1.room_id}/step",
         json={"step": 10},
-        headers={**auth_headers, "X-Session-ID": session2_id},
+        headers=conn2.headers,
     )
 
     assert response.status_code == 403
@@ -294,126 +272,109 @@ def test_put_step_different_session_same_user(server, get_jwt_auth_headers):
     assert "Session does not hold the lock" in data["error"]
 
 
-def test_atomic_pattern_acquire_set_release(server, get_jwt_auth_headers):
+def test_atomic_pattern_acquire_set_release(server, connect_room):
     """Test atomic update pattern: acquire lock → set step → release lock."""
-    room = "test-atomic-pattern"
-    auth_headers = get_jwt_auth_headers(server, "test-user")
-
-    # Create and join room
-    session_id = _create_and_join_room(server, room, auth_headers)
+    conn = connect_room("test-atomic-pattern")
 
     # 1. Acquire lock
     response = requests.post(
-        f"{server}/api/rooms/{room}/locks/step/acquire",
+        f"{server}/api/rooms/{conn.room_id}/locks/step/acquire",
         json={"msg": "atomic update"},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
     lock_token = response.json()["lockToken"]
 
     # 2. Set step
     response = requests.put(
-        f"{server}/api/rooms/{room}/step",
+        f"{server}/api/rooms/{conn.room_id}/step",
         json={"step": 99},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
     assert response.json()["step"] == 99
 
     # 3. Release lock
     response = requests.post(
-        f"{server}/api/rooms/{room}/locks/step/release",
+        f"{server}/api/rooms/{conn.room_id}/locks/step/release",
         json={"lockToken": lock_token},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
 
     # Verify step was set
-    response = requests.get(f"{server}/api/rooms/{room}/step", headers=auth_headers)
+    response = requests.get(
+        f"{server}/api/rooms/{conn.room_id}/step", headers=conn.headers
+    )
     assert response.status_code == 200
     assert response.json()["step"] == 99
 
 
-def test_step_lock_independence_from_trajectory_lock(server, get_jwt_auth_headers):
+def test_step_lock_independence_from_trajectory_lock(server, connect_room):
     """Test that step lock is independent from trajectory:meta lock."""
-    room = "test-lock-independence"
-    auth_headers = get_jwt_auth_headers(server, "test-user")
-
-    # Create and join room
-    session_id = _create_and_join_room(server, room, auth_headers)
+    conn = connect_room("test-lock-independence")
 
     # Acquire trajectory:meta lock
     response = requests.post(
-        f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
+        f"{server}/api/rooms/{conn.room_id}/locks/trajectory:meta/acquire",
         json={"msg": "trajectory lock"},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
 
     # Try to set step without step lock (should fail)
     response = requests.put(
-        f"{server}/api/rooms/{room}/step",
+        f"{server}/api/rooms/{conn.room_id}/step",
         json={"step": 50},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 423
     assert "Lock not held" in response.json()["error"]
 
     # Now acquire step lock
     response = requests.post(
-        f"{server}/api/rooms/{room}/locks/step/acquire",
+        f"{server}/api/rooms/{conn.room_id}/locks/step/acquire",
         json={"msg": "step lock"},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
 
     # Now setting step should work
     response = requests.put(
-        f"{server}/api/rooms/{room}/step",
+        f"{server}/api/rooms/{conn.room_id}/step",
         json={"step": 50},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
     assert response.json()["step"] == 50
 
 
-def test_step_update_emits_frame_update_event(server, get_jwt_auth_headers):
+def test_step_update_emits_frame_update_event(server, connect_room):
     """Test that updating step emits frame_update socket event to other clients."""
     import time
 
-    import socketio
-
     room = "test-frame-update-event"
 
-    # Setup user 1 - create room and join
-    user1_headers = get_jwt_auth_headers(server, "user1")
-    user1_session = _create_and_join_room(server, room, user1_headers)
+    # Setup user 1 - create room and join (socket stays connected for lock)
+    conn1 = connect_room(room, user="user1")
 
-    # Setup user 2 (observer) - join existing room
-    user2_headers = get_jwt_auth_headers(server, "user2")
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=user2_headers
-    )
-    assert response.status_code == 200
-    user2_token = user2_headers["Authorization"].split(" ")[1]
+    # Setup user 2 (observer) - join existing room via socket
+    conn2 = connect_room(room, user="user2")
 
-    # User 2 connects via socket and tracks frame_update events
-    sio_client = socketio.Client()
+    # User 2 tracks frame_update events
     received_events = []
 
     def on_frame_update(data):
         received_events.append(data)
 
-    sio_client.on("frame_update", on_frame_update)
-    sio_client.connect(server, auth={"token": user2_token})
-    sio_client.emit("join:room", {"roomId": room})
-    time.sleep(0.5)
+    conn2.sio.on("frame_update", on_frame_update)
+    time.sleep(0.3)
 
     # User 1 acquires lock and updates step
     response = requests.post(
         f"{server}/api/rooms/{room}/locks/step/acquire",
         json={"msg": "updating step"},
-        headers={**user1_headers, "X-Session-ID": user1_session},
+        headers=conn1.headers,
     )
     assert response.status_code == 200
 
@@ -421,7 +382,7 @@ def test_step_update_emits_frame_update_event(server, get_jwt_auth_headers):
     response = requests.put(
         f"{server}/api/rooms/{room}/step",
         json={"step": 99},
-        headers={**user1_headers, "X-Session-ID": user1_session},
+        headers=conn1.headers,
     )
     assert response.status_code == 200
 
@@ -433,10 +394,8 @@ def test_step_update_emits_frame_update_event(server, get_jwt_auth_headers):
     event = received_events[0]
     assert event["frame"] == 99
 
-    sio_client.disconnect()
 
-
-def test_put_step_out_of_bounds(server, s22_xyz, get_jwt_auth_headers):
+def test_put_step_out_of_bounds(server, s22_xyz, connect_room):
     """Test that PUT /step rejects step values beyond frame count."""
     import ase
     import ase.io
@@ -444,7 +403,6 @@ def test_put_step_out_of_bounds(server, s22_xyz, get_jwt_auth_headers):
     import zndraw
 
     room = "test-step-out-of-bounds"
-    auth_headers = get_jwt_auth_headers(server, "test-user")
 
     # Create room with known number of frames via ZnDraw (handles create+join)
     vis = zndraw.ZnDraw(url=server, room=room, user="test-user")
@@ -453,18 +411,14 @@ def test_put_step_out_of_bounds(server, s22_xyz, get_jwt_auth_headers):
         if isinstance(atoms, ase.Atoms):  # Type guard for type checker
             vis.append(atoms)  # s22 has 22 structures (indices 0-21)
 
-    # Join room to get session ID
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
-    )
-    assert response.status_code == 200
-    session_id = response.json()["sessionId"]
+    # Join room with socket that stays connected (for lock)
+    conn = connect_room(room)
 
     # Acquire lock
     response = requests.post(
         f"{server}/api/rooms/{room}/locks/step/acquire",
         json={"msg": "testing out of bounds"},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
 
@@ -472,7 +426,7 @@ def test_put_step_out_of_bounds(server, s22_xyz, get_jwt_auth_headers):
     response = requests.put(
         f"{server}/api/rooms/{room}/step",
         json={"step": 21},  # Last valid index
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
     assert response.json()["step"] == 21
@@ -481,7 +435,7 @@ def test_put_step_out_of_bounds(server, s22_xyz, get_jwt_auth_headers):
     response = requests.put(
         f"{server}/api/rooms/{room}/step",
         json={"step": 22},  # One beyond last index
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 400
     data = response.json()
@@ -493,66 +447,60 @@ def test_put_step_out_of_bounds(server, s22_xyz, get_jwt_auth_headers):
     response = requests.put(
         f"{server}/api/rooms/{room}/step",
         json={"step": 999999999},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 400
     data = response.json()
     assert "out of range" in data["error"]
 
 
-def test_put_step_empty_room(server, get_jwt_auth_headers):
+def test_put_step_empty_room(server, connect_room):
     """Test that PUT /step in empty room (0 frames) allows any step value (no validation)."""
-    room = "test-step-empty-room"
-    auth_headers = get_jwt_auth_headers(server, "test-user")
-
-    # Create and join empty room
-    session_id = _create_and_join_room(server, room, auth_headers)
+    conn = connect_room("test-step-empty-room")
 
     # Verify room is empty
-    response = requests.get(f"{server}/api/rooms/{room}/step", headers=auth_headers)
+    response = requests.get(
+        f"{server}/api/rooms/{conn.room_id}/step", headers=conn.headers
+    )
     assert response.status_code == 200
     assert response.json()["totalFrames"] == 0
 
     # Acquire lock
     response = requests.post(
-        f"{server}/api/rooms/{room}/locks/step/acquire",
+        f"{server}/api/rooms/{conn.room_id}/locks/step/acquire",
         json={"msg": "testing empty room"},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
 
     # Set step 0 in empty room (should succeed - no validation when empty)
     response = requests.put(
-        f"{server}/api/rooms/{room}/step",
+        f"{server}/api/rooms/{conn.room_id}/step",
         json={"step": 0},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
     assert response.json()["step"] == 0
 
     # Should also allow arbitrary steps in empty room
     response = requests.put(
-        f"{server}/api/rooms/{room}/step",
+        f"{server}/api/rooms/{conn.room_id}/step",
         json={"step": 999},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
     assert response.json()["step"] == 999
 
 
-def test_acquire_lock_idempotent_same_session(server, get_jwt_auth_headers):
+def test_acquire_lock_idempotent_same_session(server, connect_room):
     """Test that acquiring a lock twice from the same session returns success (idempotent)."""
-    room = "test-idempotent-acquire"
-    auth_headers = get_jwt_auth_headers(server, "test-user")
-
-    # Create and join room
-    session_id = _create_and_join_room(server, room, auth_headers)
+    conn = connect_room("test-idempotent-acquire")
 
     # First acquire
     response1 = requests.post(
-        f"{server}/api/rooms/{room}/locks/step/acquire",
+        f"{server}/api/rooms/{conn.room_id}/locks/step/acquire",
         json={"msg": "first acquire"},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response1.status_code == 200
     data1 = response1.json()
@@ -562,9 +510,9 @@ def test_acquire_lock_idempotent_same_session(server, get_jwt_auth_headers):
 
     # Second acquire (same session) - should succeed and return same token
     response2 = requests.post(
-        f"{server}/api/rooms/{room}/locks/step/acquire",
+        f"{server}/api/rooms/{conn.room_id}/locks/step/acquire",
         json={"msg": "second acquire"},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response2.status_code == 200
     data2 = response2.json()
@@ -573,34 +521,27 @@ def test_acquire_lock_idempotent_same_session(server, get_jwt_auth_headers):
     assert data2["lockToken"] == token1  # Same token returned
 
 
-def test_acquire_lock_different_session_same_user_fails(server, get_jwt_auth_headers):
+def test_acquire_lock_different_session_same_user_fails(server, connect_room):
     """Test that different session from same user cannot acquire lock held by another session."""
-    room = "test-diff-session-acquire"
-    auth_headers = get_jwt_auth_headers(server, "test-user")
-
     # Session 1: Create room, join and acquire lock
-    session1_id = _create_and_join_room(server, room, auth_headers)
+    conn1 = connect_room("test-diff-session-acquire")
 
     response = requests.post(
-        f"{server}/api/rooms/{room}/locks/step/acquire",
+        f"{server}/api/rooms/{conn1.room_id}/locks/step/acquire",
         json={"msg": "session 1 lock"},
-        headers={**auth_headers, "X-Session-ID": session1_id},
+        headers=conn1.headers,
     )
     assert response.status_code == 200
     assert response.json()["success"] is True
 
     # Session 2: Same user joins in a different session (simulating another browser tab)
-    response2 = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
-    )
-    assert response2.status_code == 200
-    session2_id = response2.json()["sessionId"]
+    conn2 = connect_room("test-diff-session-acquire")
 
     # Session 2 tries to acquire lock (should fail - different session holds it)
     response = requests.post(
-        f"{server}/api/rooms/{room}/locks/step/acquire",
+        f"{server}/api/rooms/{conn1.room_id}/locks/step/acquire",
         json={"msg": "session 2 trying"},
-        headers={**auth_headers, "X-Session-ID": session2_id},
+        headers=conn2.headers,
     )
     assert response.status_code == 423  # Locked
     data = response.json()

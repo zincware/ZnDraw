@@ -158,25 +158,30 @@ class APIManager:
         ------
         KeyError, IndexError, ValueError, TypeError, PermissionError
             Based on the error type returned by the API
+        requests.HTTPError
+            If JSON parsing fails or error type is not recognized
         """
         try:
             error_data = response.json()
-            error_type = error_data.get("type", "")
-            error_msg = error_data.get("error", response.text)
+        except requests.exceptions.JSONDecodeError:
+            response.raise_for_status()
+            return
+        error_type = error_data.get("type", "")
+        error_msg = error_data.get("error", response.text)
 
-            exception_map = {
-                "KeyError": KeyError,
-                "IndexError": IndexError,
-                "ValueError": ValueError,
-                "TypeError": TypeError,
-                "PermissionError": PermissionError,
-            }
+        exception_map = {
+            "KeyError": KeyError,
+            "IndexError": IndexError,
+            "ValueError": ValueError,
+            "TypeError": TypeError,
+            "PermissionError": PermissionError,
+        }
 
-            if error_type in exception_map:
-                raise exception_map[error_type](error_msg)
-        except ValueError:
-            # JSON decode failed, let raise_for_status handle it
-            pass
+        if error_type in exception_map:
+            raise exception_map[error_type](error_msg)
+
+        # Unknown error type - raise generic HTTP error
+        response.raise_for_status()
 
     def get_version(self) -> str:
         """Get the server version.
@@ -242,60 +247,6 @@ class APIManager:
             )
 
         return response.json()
-
-    def join_room(
-        self,
-        description: str | None = None,
-        copy_from: str | None = None,
-    ) -> dict:
-        """Join a room, creating it first if it doesn't exist.
-
-        Parameters
-        ----------
-        description : str | None
-            Optional description for the room (only used if room is created)
-        copy_from : str | None
-            Optional room ID to copy frames and settings from (only used if room is created)
-
-        Returns
-        -------
-        dict
-            Room information (userName, sessionId, roomId)
-        """
-        headers = {}
-        if self.jwt_token:
-            headers["Authorization"] = f"Bearer {self.jwt_token}"
-
-        # Try to join existing room first
-        response = requests.post(
-            f"{self.url}/api/rooms/{self.room}/join",
-            json={},
-            headers=headers,
-            timeout=10.0,
-        )
-
-        # If room doesn't exist (404), create it then join
-        if response.status_code == 404:
-            log.info(f"Room '{self.room}' doesn't exist, creating it...")
-            self.create_room(description=description, copy_from=copy_from)
-
-            # Now join the newly created room
-            response = requests.post(
-                f"{self.url}/api/rooms/{self.room}/join",
-                json={},
-                headers=headers,
-                timeout=10.0,
-            )
-
-        if response.status_code != 200:
-            raise RuntimeError(
-                f"Failed to join room '{self.room}': {response.status_code} {response.text}"
-            )
-
-        data = response.json()
-        # Store session ID for subsequent requests
-        self.session_id = data.get("sessionId")
-        return data
 
     def get_job(self, job_id: str) -> dict:
         """Get job details via REST API.
@@ -654,10 +605,17 @@ class APIManager:
         -------
         dict
             {"schema": RoomConfig schema, "data": all settings data}
+
+        Raises
+        ------
+        ValueError
+            If session_id is not set.
         """
+        if not self.session_id:
+            raise ValueError("session_id is required for get_settings")
         headers = self._get_headers()
         response = requests.get(
-            f"{self.url}/api/rooms/{self.room}/settings",
+            f"{self.url}/api/rooms/{self.room}/sessions/{self.session_id}/settings",
             headers=headers,
             timeout=10,
         )
@@ -670,11 +628,18 @@ class APIManager:
         Parameters
         ----------
         data : dict
-            Settings data keyed by category, e.g. {"camera": {...}}
+            Settings data keyed by category, e.g. {"studio_lighting": {...}}
+
+        Raises
+        ------
+        ValueError
+            If session_id is not set.
         """
+        if not self.session_id:
+            raise ValueError("session_id is required for update_settings")
         headers = self._get_headers()
         response = requests.put(
-            f"{self.url}/api/rooms/{self.room}/settings",
+            f"{self.url}/api/rooms/{self.room}/sessions/{self.session_id}/settings",
             json=data,
             headers=headers,
             timeout=10,
@@ -768,6 +733,8 @@ class APIManager:
                 headers=headers,
                 timeout=10.0,
             )
+            if response.status_code == 400:
+                self._raise_for_error_type(response)
             response.raise_for_status()
 
     def get_geometry(self, key: str) -> dict | None:
@@ -810,6 +777,8 @@ class APIManager:
                 error_type = response_data.get("type", None)
                 if error_type == "KeyError":
                     raise KeyError(error)
+                if error_type == "PermissionError":
+                    raise PermissionError(error)
             response.raise_for_status()
 
     def list_geometries(self) -> dict:
@@ -1674,3 +1643,72 @@ class APIManager:
         response = requests.delete(url, headers=self._get_headers(), timeout=10.0)
         response.raise_for_status()
         return response.json()
+
+    def list_frontend_sessions(self) -> list[str]:
+        """List all frontend (browser) sessions in this room.
+
+        Returns
+        -------
+        list[str]
+            List of session IDs for frontend sessions.
+        """
+        headers = self._get_headers()
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/sessions",
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        sessions = response.json().get("sessions", [])
+        return [s["session_id"] for s in sessions]
+
+    def get_session_settings(self, session_id: str) -> dict:
+        """Get settings for a frontend session.
+
+        Parameters
+        ----------
+        session_id : str
+            Session identifier.
+
+        Returns
+        -------
+        dict
+            Settings dictionary.
+
+        Raises
+        ------
+        requests.HTTPError
+            If request fails.
+        """
+        headers = self._get_headers()
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/sessions/{session_id}/settings",
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return response.json().get("data", {})
+
+    def set_session_settings(self, session_id: str, settings: dict) -> None:
+        """Set settings for a frontend session.
+
+        Parameters
+        ----------
+        session_id : str
+            Session identifier.
+        settings : dict
+            Settings dictionary to set.
+
+        Raises
+        ------
+        requests.HTTPError
+            If request fails.
+        """
+        headers = self._get_headers()
+        response = requests.put(
+            f"{self.url}/api/rooms/{self.room}/sessions/{session_id}/settings",
+            json=settings,
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()

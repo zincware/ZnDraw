@@ -8,7 +8,7 @@ import logging
 
 from redis import Redis
 
-from zndraw.app.redis_keys import UserKeys
+from zndraw.app.redis_keys import RoomKeys, UserKeys
 
 log = logging.getLogger(__name__)
 
@@ -42,18 +42,6 @@ class ClientService:
         self.r.hset(keys.hash_key(), "currentRoom", room_id)
         log.info(f"User {user_name} updated room to {room_id}")
 
-    def add_user_to_room(self, room_id: str, user_name: str) -> None:
-        """Add user to room's user set.
-
-        Parameters
-        ----------
-        room_id : str
-            Room identifier
-        user_name : str
-            User name
-        """
-        self.r.sadd(f"room:{room_id}:users", user_name)
-
     def remove_user_from_room(self, room_id: str, user_name: str) -> None:
         """Remove user from room's user set.
 
@@ -64,7 +52,7 @@ class ClientService:
         user_name : str
             User name
         """
-        self.r.srem(f"room:{room_id}:users", user_name)
+        self.r.srem(RoomKeys(room_id).users(), user_name)
 
     def get_room_users(self, room_id: str) -> set[str]:
         """Get all userNames currently in a room.
@@ -79,7 +67,7 @@ class ClientService:
         set[str]
             Set of userNames
         """
-        members = self.r.smembers(f"room:{room_id}:users")
+        members = self.r.smembers(RoomKeys(room_id).users())
         return {m.decode() if isinstance(m, bytes) else m for m in members}
 
     def update_user_and_room_membership(self, user_name: str, room_id: str) -> None:
@@ -97,7 +85,7 @@ class ClientService:
         keys = UserKeys(user_name)
         pipe = self.r.pipeline()
         pipe.hset(keys.hash_key(), "currentRoom", room_id)
-        pipe.sadd(f"room:{room_id}:users", user_name)
+        pipe.sadd(RoomKeys(room_id).users(), user_name)
         pipe.sadd(keys.visited_rooms(), room_id)
         pipe.execute()
         log.info(f"User {user_name} joined room {room_id}")

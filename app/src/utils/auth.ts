@@ -154,14 +154,6 @@ export function getToken(): string | null {
 }
 
 /**
- * Get username from JWT token (single source of truth).
- * @deprecated Use getUsernameFromToken() for clarity
- */
-export function getUsername(): string | null {
-	return getUsernameFromToken();
-}
-
-/**
  * Clear stored authentication data.
  */
 export function logout(): void {

@@ -72,7 +72,7 @@ export default function Sphere({
 	pathtracingEnabled?: boolean;
 }) {
 	// Use individual selectors to prevent unnecessary re-renders (CRITICAL for performance)
-	const geometrySchemas = useAppStore((state) => state.geometrySchemas);
+	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 	const currentFrame = useAppStore((state) => state.currentFrame);
 	const frameCount = useAppStore((state) => state.frameCount);
 	const roomId = useAppStore((state) => state.roomId);
@@ -110,7 +110,7 @@ export default function Sphere({
 	const fullData = getGeometryWithDefaults<SphereData>(
 		data,
 		"Sphere",
-		geometrySchemas,
+		geometryDefaults,
 	);
 
 	const {

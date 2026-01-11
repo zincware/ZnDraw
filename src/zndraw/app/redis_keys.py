@@ -301,6 +301,10 @@ class RoomKeys:
         """Bookmarks hash (frame_index -> label)."""
         return f"room:{self.room_id}:bookmarks"
 
+    def users(self) -> str:
+        """Set of usernames currently in this room."""
+        return f"room:{self.room_id}:users"
+
     def geometries(self) -> str:
         """Geometries hash."""
         return f"room:{self.room_id}:geometries"
@@ -321,20 +325,34 @@ class RoomKeys:
         """Active selection group name."""
         return f"room:{self.room_id}:active_selection_group"
 
-    def settings(self, username: str) -> str:
-        """User-specific settings for this room.
+    def session_settings(self, session_id: str) -> str:
+        """Session-scoped rendering settings.
+
+        Replaces user-scoped settings to allow different settings per browser window.
 
         Parameters
         ----------
-        username : str
-            Username
+        session_id : str
+            The session identifier
 
         Returns
         -------
         str
-            Redis key for user settings hash
+            Redis key for session settings hash
         """
-        return f"room:{self.room_id}:settings:{username}"
+        return f"room:{self.room_id}:session_settings:{session_id}"
+
+    def frontend_sessions(self) -> str:
+        """Set of frontend session IDs in this room.
+
+        Tracks which sessions are frontend (browser) vs Python clients.
+
+        Returns
+        -------
+        str
+            Redis key for frontend sessions set
+        """
+        return f"room:{self.room_id}:frontend_sessions"
 
     def trajectory_indices(self) -> str:
         """Trajectory indices sorted set."""
@@ -483,7 +501,7 @@ class RoomKeys:
         """Return all static room keys (keys without dynamic parameters).
 
         Use this for bulk deletion. Does not include parameterized keys like
-        settings(username), lock(target), chat_message(id), etc.
+        settings(username), lock(target), chat_message(id), session_settings(id), etc.
 
         Returns
         -------
@@ -511,6 +529,7 @@ class RoomKeys:
             self.jobs_active(),
             self.jobs_inactive(),
             self.jobs_by_time(),
+            self.frontend_sessions(),
         ]
 
 

@@ -242,6 +242,16 @@ export const createGeometry = async (
 		return data;
 	}
 
+	// Session cameras (cam:session:*) don't need lock acquisition - they're per-user viewport state
+	// Backend only checks forbid=["room:locked"], not trajectory:meta lock
+	if (key.startsWith("cam:session:")) {
+		const { data } = await apiClient.post(
+			`/api/rooms/${roomId}/geometries`,
+			requestBody,
+		);
+		return data;
+	}
+
 	// Otherwise, auto-acquire lock, perform operation, and release
 	return withAutoLock(
 		roomId,
@@ -442,58 +452,6 @@ export const createRoom = async (
 	return data;
 };
 
-export interface JoinRoomRequest {
-	template?: string;
-}
-
-export interface JoinRoomResponse {
-	status: string;
-	userName: string;
-	sessionId: string; // Session ID for this browser tab
-	roomId: string;
-}
-
-export const joinRoom = async (
-	roomId: string,
-	request: JoinRoomRequest,
-	signal?: AbortSignal,
-): Promise<JoinRoomResponse> => {
-	const { data } = await apiClient.post(`/api/rooms/${roomId}/join`, request, {
-		signal,
-	});
-	return data;
-};
-
-/**
- * Join a room, creating it first if it doesn't exist.
- * This is the recommended way to join rooms from the frontend.
- */
-export const joinOrCreateRoom = async (
-	roomId: string,
-	options?: { template?: string; description?: string; copyFrom?: string },
-	signal?: AbortSignal,
-): Promise<JoinRoomResponse> => {
-	try {
-		// Try to join existing room first
-		return await joinRoom(roomId, { template: options?.template }, signal);
-	} catch (error: any) {
-		// If room doesn't exist (404), create it then join
-		if (error.response?.status === 404) {
-			await createRoom(
-				{
-					roomId,
-					description: options?.description,
-					copyFrom: options?.copyFrom ?? options?.template,
-				},
-				signal,
-			);
-			// Now join the newly created room
-			return await joinRoom(roomId, {}, signal);
-		}
-		throw error;
-	}
-};
-
 export interface RoomInfo {
 	id: string;
 	description: string | null;
@@ -618,17 +576,21 @@ export interface SettingsResponse {
 
 export const getSettings = async (
 	roomId: string,
+	sessionId: string,
 ): Promise<SettingsResponse> => {
-	const { data } = await apiClient.get(`/api/rooms/${roomId}/settings`);
+	const { data } = await apiClient.get(
+		`/api/rooms/${roomId}/sessions/${sessionId}/settings`,
+	);
 	return data;
 };
 
 export const updateSettings = async (
 	roomId: string,
+	sessionId: string,
 	settingsData: Record<string, any>,
 ): Promise<{ status: string }> => {
 	const { data } = await apiClient.put(
-		`/api/rooms/${roomId}/settings`,
+		`/api/rooms/${roomId}/sessions/${sessionId}/settings`,
 		settingsData,
 	);
 	return data;
@@ -1459,4 +1421,24 @@ export const releaseLock = async (
 		{ lockToken },
 	);
 	return data;
+};
+
+// ==================== Session API ====================
+
+/**
+ * Session information returned from list endpoint.
+ */
+export interface SessionInfo {
+	session_id: string;
+}
+
+/**
+ * List all frontend sessions in a room.
+ *
+ * @param roomId - Room identifier
+ * @returns Promise with array of session info
+ */
+export const listSessions = async (roomId: string): Promise<SessionInfo[]> => {
+	const { data } = await apiClient.get(`/api/rooms/${roomId}/sessions`);
+	return data.sessions;
 };

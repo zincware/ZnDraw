@@ -38,6 +38,9 @@ class Arrow(BaseGeometry):
     radius: float = Field(
         default=1.0,
         description="Arrow shaft radius.",
+        ge=0.1,
+        le=10,
+        json_schema_extra={"format": "range", "step": 0.1},
     )
 
     scale: ScaleProp = Field(
@@ -54,6 +57,7 @@ class Arrow(BaseGeometry):
         ge=4,
         le=64,
         description="Arrow geometry resolution (number of segments).",
+        json_schema_extra={"format": "range", "step": 1},
     )
 
     opacity: float = Field(
@@ -61,6 +65,7 @@ class Arrow(BaseGeometry):
         ge=0.0,
         le=1.0,
         description="Arrow opacity, between 0 (transparent) and 1 (opaque).",
+        json_schema_extra={"format": "range", "step": 0.01},
     )
 
     selecting: InteractionSettings = Field(

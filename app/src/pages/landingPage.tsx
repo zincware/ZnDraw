@@ -50,7 +50,7 @@ import AddPlotButton from "../components/AddPlotButton";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { LAYOUT_CONSTANTS } from "../constants/layout";
 import {
-	getUsername,
+	getUsernameFromToken,
 	logout as authLogout,
 	login as authLogin,
 	getUserRole,
@@ -402,7 +402,7 @@ export default function MainPage() {
 				>
 					<MenuItem disabled>
 						<ListItemText
-							primary={getUsername() || "Guest"}
+							primary={getUsernameFromToken() || "Guest"}
 							secondary={
 								getUserRole() === "admin"
 									? "Admin"

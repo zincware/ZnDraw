@@ -37,6 +37,14 @@ export interface Progress {
 	progress: number | null; // 0-100 for progress bar, null for spinner
 }
 
+/**
+ * Error state for room initialization failures
+ */
+export interface InitializationError {
+	message: string;
+	details?: string;
+}
+
 interface AppState {
 	// Connection & Room
 	roomId: string | null;
@@ -45,6 +53,7 @@ interface AppState {
 	sessionId: string | null; // Session ID from /join response (identifies this browser tab)
 	isConnected: boolean;
 	isLoading: boolean;
+	initializationError: InitializationError | null; // Error during room initialization
 	currentFrame: number;
 	frameCount: number;
 	skipFrames: number;
@@ -57,7 +66,8 @@ interface AppState {
 	playing: boolean;
 	chatOpen: boolean;
 	geometries: Record<string, any>; // Store geometries by their IDs
-	geometrySchemas: Record<string, any>; // Pydantic schemas with defaults for each geometry type
+	geometrySchemas: Record<string, any>; // Pydantic JSON schemas for form generation
+	geometryDefaults: Record<string, any>; // Pydantic default values for each geometry type
 	geometryUpdateSources: Record<string, "local" | "remote">; // Track update source per geometry
 	mode: "view" | "drawing" | "editing"; // Current interaction mode
 	transformMode: "translate" | "rotate" | "scale"; // Transform mode within editing mode
@@ -121,6 +131,7 @@ interface AppState {
 	setUserRole: (role: UserRole) => void;
 	setSessionId: (sessionId: string | null) => void;
 	setConnected: (status: boolean) => void;
+	setInitializationError: (error: InitializationError | null) => void;
 	setCurrentFrame: (frame: number) => void;
 	setFrameCount: (count: number) => void;
 	setLoading: (loading: boolean) => void;
@@ -139,6 +150,7 @@ interface AppState {
 	setChatOpen: (open: boolean) => void;
 	setGeometries: (geometries: Record<string, any>) => void;
 	setGeometrySchemas: (schemas: Record<string, any>) => void;
+	setGeometryDefaults: (defaults: Record<string, any>) => void;
 	updateGeometry: (
 		key: string,
 		geometry: any,
@@ -206,7 +218,6 @@ interface AppState {
 	setLastFrameChangeTime: (time: number | null) => void;
 	setActiveCurveForDrawing: (key: string | null) => void;
 	attachToCamera: (cameraKey: string) => void;
-	detachFromCamera: () => void;
 	registerCurveRef: (key: string, curve: THREE.CatmullRomCurve3) => void;
 	unregisterCurveRef: (key: string) => void;
 	requestPathtracingUpdate: () => void; // Signal that pathtracer needs to update its scene
@@ -268,6 +279,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	userRole: null,
 	sessionId: null, // Will be set after /join
 	isConnected: false,
+	initializationError: null,
 	currentFrame: 0,
 	frameCount: 0,
 	isLoading: false,
@@ -282,6 +294,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	chatOpen: false,
 	geometries: {},
 	geometrySchemas: {},
+	geometryDefaults: {},
 	geometryUpdateSources: {},
 	mode: "view",
 	transformMode: "translate",
@@ -331,6 +344,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	// Actions
 	setConnected: (status) => set({ isConnected: status }),
+	setInitializationError: (error) => set({ initializationError: error }),
 	setRoomId: (roomId) => set({ roomId }),
 	setUserName: (userName) => set({ userName }),
 	setUserRole: (role) => set({ userRole: role }),
@@ -403,6 +417,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	setChatOpen: (open) => set({ chatOpen: open }),
 	setGeometries: (geometries) => set({ geometries: geometries }),
 	setGeometrySchemas: (schemas) => set({ geometrySchemas: schemas }),
+	setGeometryDefaults: (defaults) => set({ geometryDefaults: defaults }),
 	updateGeometry: (
 		key: string,
 		geometry: any,
@@ -1030,10 +1045,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 		}
 
 		set({ attachedCameraKey: cameraKey });
-	},
-
-	detachFromCamera: () => {
-		set({ attachedCameraKey: null });
 	},
 
 	registerCurveRef: (key, curve) => {

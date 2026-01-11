@@ -564,7 +564,7 @@ def test_worker_fail_job(server, get_jwt_auth_headers):
 
 
 def test_delete_job(server, get_jwt_auth_headers):
-    room = "testroom"
+    room = "test-delete-job-room"
     user = "testuser"
     mod = ModifierExtension
 

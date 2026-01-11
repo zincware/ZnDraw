@@ -81,6 +81,7 @@ class Geometries(MutableMapping):
         if geometry_type not in geometries:
             raise ValueError(f"Unknown geometry type: {geometry_type}")
         self.vis._geometries[key] = {"type": geometry_type, "data": value.model_dump()}
+        # Backend validates reserved key prefixes (e.g., cam:session:*)
         self.vis.api.set_geometry(
             data=value.model_dump(), key=key, geometry_type=geometry_type
         )
@@ -88,6 +89,14 @@ class Geometries(MutableMapping):
     def __delitem__(self, key: str) -> None:
         if key not in self.vis._geometries:
             raise KeyError(f"Geometry with key '{key}' does not exist")
+
+        geometry = self.vis._geometries[key]
+        if geometry.get("data", {}).get("protected", False):
+            raise PermissionError(
+                f"Cannot delete protected geometry '{key}'. "
+                "Set 'protected=False' on the geometry first to allow deletion."
+            )
+
         del self.vis._geometries[key]
         self.vis.api.del_geometry(key=key)
 

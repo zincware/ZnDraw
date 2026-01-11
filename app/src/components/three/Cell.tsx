@@ -22,13 +22,13 @@ export const Cell = ({ data }: { data: CellData }) => {
 	const frameCount = useAppStore((state) => state.frameCount);
 	const roomId = useAppStore((state) => state.roomId);
 	const userName = useAppStore((state) => state.userName);
-	const geometrySchemas = useAppStore((state) => state.geometrySchemas);
+	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
 	// Merge with defaults from Pydantic (single source of truth)
 	const fullData = getGeometryWithDefaults<CellData>(
 		data,
 		"Cell",
-		geometrySchemas,
+		geometryDefaults,
 	);
 
 	const [displayedVertices, setDisplayedVertices] = useState<

@@ -1,6 +1,5 @@
 import contextlib
 import dataclasses
-import functools
 import logging
 import time
 import typing as t
@@ -34,7 +33,7 @@ from zndraw.lock import ZnDrawLock
 from zndraw.metadata_manager import RoomMetadata
 from zndraw.scene_manager import Geometries
 from zndraw.server_manager import find_running_server
-from zndraw.settings import RoomConfig
+from zndraw.session_manager import FrontendSessions
 from zndraw.socket_manager import SocketManager
 from zndraw.utils import update_colors_and_radii
 from zndraw.version_utils import validate_server_version
@@ -422,7 +421,6 @@ class ZnDraw(MutableSequence):
 
     _step: int = 0
     _len: int | None = 0  # None means cache invalidated, fetch from server
-    _settings: dict = dataclasses.field(default_factory=dict, init=False)
     _public_extensions: dict[str, _ExtensionStore] = dataclasses.field(
         default_factory=dict, init=False
     )
@@ -491,86 +489,12 @@ class ZnDraw(MutableSequence):
         self.role = login_data.get("role", "guest")
         log.info(f"Logged in as {self.user} (role: {self.role})")
 
-        # Step 2: Join room (authenticated with JWT)
-        self.api.join_room(
-            description=self.description,
-            copy_from=self.copy_from,
-        )
-
-        # Create socket manager and connect (with JWT)
+        # Step 2: Create socket manager and connect (with JWT)
+        # Socket manager handles room:join which creates sessionId and returns room data
         self.socket = SocketManager(zndraw_instance=self)
         self.connect()
-
-        # Fetch room data separately via REST endpoints
-        # (join response is now minimal - only returns status, sessionId, userName, roomId, created)
-
-        # Get frame count
-        try:
-            room_info = self.api.get_room_info()
-            self._len = room_info["frameCount"]
-        except requests.HTTPError as e:
-            if e.response.status_code == 404:
-                log.debug(f"Room {self.room} not found or has no frames")
-                self._len = 0
-            else:
-                log.error(f"Failed to fetch room info: {e}")
-                self._len = 0
-        except Exception as e:
-            log.error(f"Unexpected error loading room info: {e}")
-            self._len = 0
-
-        # Get frame selection
-        try:
-            frame_selection = self.api.get_frame_selection()
-            if frame_selection is not None:
-                self._frame_selection = frozenset(frame_selection)
-        except requests.HTTPError as e:
-            if e.response.status_code == 404:
-                log.debug("No frame selection for room")
-            else:
-                log.warning(f"Failed to fetch frame selection: {e}")
-        except Exception as e:
-            log.error(f"Unexpected error loading frame selection: {e}")
-
-        # Get bookmarks
-        try:
-            bookmarks = self.api.get_all_bookmarks()
-            if bookmarks:
-                self._bookmarks = bookmarks
-        except requests.HTTPError as e:
-            if e.response.status_code == 404:
-                log.debug("No bookmarks for room")
-            else:
-                log.warning(f"Failed to fetch bookmarks: {e}")
-        except Exception as e:
-            log.error(f"Unexpected error loading bookmarks: {e}")
-
-        # Get current step
-        try:
-            step_data = self.api.get_step()
-            if step_data.get("step") is not None:
-                self._step = int(step_data["step"])
-        except requests.HTTPError as e:
-            if e.response.status_code == 404:
-                log.debug("No current step set for room")
-            else:
-                log.warning(f"Failed to fetch current step: {e}")
-        except Exception as e:
-            log.error(f"Unexpected error loading current step: {e}")
-
-        # Get geometries (returns dict of {key: {type, data}})
-        try:
-            geometries_response = self.api.list_geometries()
-            # list_geometries now returns full geometry data as dict
-            if isinstance(geometries_response, dict):
-                self._geometries = geometries_response
-        except requests.HTTPError as e:
-            if e.response.status_code == 404:
-                log.debug("No geometries for room")
-            else:
-                log.warning(f"Failed to fetch geometries: {e}")
-        except Exception as e:
-            log.error(f"Unexpected error loading geometries: {e}")
+        # Room data (frameCount, step, frameSelection, bookmarks, geometries)
+        # is initialized by socket_manager.connect() via room:join response
 
     @classmethod
     def for_job_execution(
@@ -648,6 +572,35 @@ class ZnDraw(MutableSequence):
     @property
     def geometries(self) -> Geometries:
         return Geometries(self)
+
+    @property
+    def sessions(self) -> FrontendSessions:
+        """Active browser windows in this room.
+
+        Dict-like access to frontend sessions.
+        Each session has .camera and .settings properties.
+
+        Note: Python clients do NOT appear here.
+
+        Returns
+        -------
+        FrontendSessions
+            A Mapping interface to frontend sessions.
+
+        Examples
+        --------
+        >>> # List all sessions
+        >>> for sid, session in vis.sessions.items():
+        ...     print(f"{sid}: {session.camera.position}")
+
+        >>> # Access session and control camera
+        >>> session = vis.sessions.get("abc-123")
+        >>> if session:
+        ...     cam = session.camera
+        ...     cam.position = (10, 10, 10)
+        ...     session.camera = cam
+        """
+        return FrontendSessions(self)
 
     @property
     def figures(self) -> Figures:
@@ -952,12 +905,20 @@ class ZnDraw(MutableSequence):
     def _replace_frame(self, frame_id: int, data: dict):
         """Internal replace - does NOT acquire lock."""
         self._upload_frames("replace", data, frame_id=frame_id)
+        # Clear caches synchronously to avoid race with socket event
+        if self.cache is not None:
+            self.cache.pop(frame_id, None)
+        self._bookmarks.clear()  # Replacing a bookmarked frame removes its bookmark
 
     def _insert_frame(self, index: int, data: dict):
         """Internal insert - does NOT acquire lock."""
         result = self._upload_frames("insert", data, insert_position=index)
         # Use server response to set exact frame count (avoids race condition)
         self._len = result["length"]
+        # Clear caches synchronously to avoid race with socket event
+        if self.cache is not None:
+            self.cache.invalidate_from(index)
+        self._bookmarks.clear()  # Bookmarks shift after insert
 
     def __len__(self) -> int:
         """Return number of frames in the trajectory.
@@ -1274,6 +1235,13 @@ class ZnDraw(MutableSequence):
                     )
                 # Use server response to set exact frame count (avoids race condition)
                 self._len = result["length"]
+                # Clear caches synchronously to avoid race with socket event
+                if self.cache is not None:
+                    if isinstance(index, slice):
+                        self.cache.invalidate_from(start)
+                    else:  # list
+                        self.cache.invalidate_from(min(normalized_indices))
+                self._bookmarks.clear()  # Replaced frames may have had bookmarks
         else:
             raise TypeError(
                 f"Index must be int, slice, or list, not {type(index).__name__}"
@@ -1308,6 +1276,16 @@ class ZnDraw(MutableSequence):
             result = self.api.delete_frames(index)
             # Use server response to set exact frame count (avoids race condition)
             self._len = result["length"]
+            # Clear caches synchronously to avoid race with socket event
+            if self.cache is not None:
+                if isinstance(index, int):
+                    self.cache.invalidate_from(index)
+                elif isinstance(index, list):
+                    self.cache.invalidate_from(min(index))
+                else:  # slice
+                    start, _, _ = index.indices(length)
+                    self.cache.invalidate_from(start)
+            self._bookmarks.clear()  # Bookmarks may be removed or shifted
 
     def _prepare_atoms(self, atoms: ase.Atoms) -> None:
         """Prepare atoms for upload: add connectivity if needed, update colors and radii.
@@ -1548,29 +1526,6 @@ class ZnDraw(MutableSequence):
                     )
 
         log.info(f"Successfully uploaded {total_frames} frames")
-
-    @property
-    def settings(self) -> RoomConfig:
-        """Access room-level settings configuration."""
-
-        def callback_fn(data: dict, category: str) -> None:
-            self.api.update_settings({category: data})
-
-        if not self._settings:
-            response = self.api.get_settings()
-            data = response.get("data", {})
-            for category, field_info in RoomConfig.model_fields.items():
-                if field_info.default_factory is None:
-                    continue  # Skip non-settings fields like 'callback'
-                category_data = data.get(category, {})
-                # Use default_factory to get the class and instantiate with data
-                category_instance = field_info.default_factory(**category_data)
-                category_instance.callback = functools.partial(
-                    callback_fn, category=category
-                )
-                self._settings[category] = category_instance
-
-        return RoomConfig(**self._settings)
 
     def register_extension(
         self,

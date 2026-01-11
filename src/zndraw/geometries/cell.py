@@ -31,7 +31,9 @@ class Cell(BaseGeometry):
     thickness: float = Field(
         default=2.0,
         ge=0.0,
+        le=10,
         description="Line thickness for the cell vectors.",
+        json_schema_extra={"format": "range", "step": 0.5},
     )
 
     material: t.Literal[

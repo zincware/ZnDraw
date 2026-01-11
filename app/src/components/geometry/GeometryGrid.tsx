@@ -44,7 +44,6 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 	);
 	const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
 	const attachToCamera = useAppStore((state) => state.attachToCamera);
-	const detachFromCamera = useAppStore((state) => state.detachFromCamera);
 	const { setMode, setSelectedKey, searchFilter, setSearchFilter } =
 		useGeometryStore();
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -100,10 +99,7 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 				setActiveCurveForDrawing(key);
 			}
 		} else if (geometryType === "Camera") {
-			// Toggle camera attachment
-			if (attachedCameraKey === key) {
-				detachFromCamera();
-			} else {
+			if (attachedCameraKey !== key) {
 				attachToCamera(key);
 			}
 		}
@@ -145,7 +141,7 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 						? "Deselect this curve for drawing"
 						: "Select this curve for drawing"
 					: isSelected
-						? "Detach from this camera"
+						? "Currently attached to this camera"
 						: "Attach to this camera";
 
 				return (

@@ -5,22 +5,15 @@ import requests
 from zndraw import ZnDraw
 
 
-def test_rest_get_chat_messages_empty(server, get_jwt_auth_headers):
+def test_rest_get_chat_messages_empty(
+    server, get_jwt_auth_headers, create_and_join_room
+):
     """Test fetching messages from an empty room"""
     room = "test-chat-room"
     headers = get_jwt_auth_headers(server)
 
-    # Create room first
-    create_response = requests.post(
-        f"{server}/api/rooms", json={"roomId": room}, headers=headers
-    )
-    assert create_response.status_code == 201
-
-    # Join room
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=headers
-    )
-    assert response.status_code == 200
+    # Create room and join via socket
+    create_and_join_room(server, room, headers)
 
     # Fetch chat messages
     response = requests.get(f"{server}/api/rooms/{room}/chat/messages")

@@ -102,11 +102,13 @@ def execute_job_for_worker(
             f"Worker {worker_id} fetched job {job_id}: {category}/{extension} in room {room}"
         )
 
-        # Step 2: Create ZnDraw instance in target room
-        # Worker IDs use format "celery:{task_id}" for tracking purposes.
-        # Usernames don't allow colons (Redis key delimiter), so sanitize here.
-        user_name = worker_id.replace(":", "-")
-        vis = ZnDraw(room=room, url=server_url, user=user_name)
+        # Prefix with 'w' to ensure valid username (socket IDs can start with '_')
+        user_name = "w" + worker_id.replace(":", "-")
+        vis = ZnDraw.for_job_execution(
+            url=server_url,
+            room=room,
+            user=user_name,
+        )
 
         # Step 3: Get extension class from registry or built-ins
         if extension_registry is not None:

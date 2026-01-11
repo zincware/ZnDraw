@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import { useThree } from "@react-three/fiber";
 import { useAppStore } from "../../store";
+import { isCurveAttachment, PositionType } from "../../utils/cameraUtils";
 
 interface CameraData {
-	// Curve references (always used)
-	position_curve_key: string;
-	position_progress: number;
-	target_curve_key: string;
-	target_progress: number;
+	// Position and target can be either direct coordinates or CurveAttachment
+	position: PositionType;
+	target: PositionType;
 
 	// Camera properties
 	up: [number, number, number];
@@ -38,35 +37,93 @@ export default function Camera({
 
 	const { roomId, geometries, attachedCameraKey, curveRefs } = useAppStore();
 
-	const [computedPosition, setComputedPosition] = useState<THREE.Vector3>(
-		new THREE.Vector3(0, 0, 10),
+	/**
+	 * Resolve initial position from data.
+	 * For arrays: use directly. For CurveAttachment: try to resolve from geometry data.
+	 * Backend always provides valid data, so fallback cases should not occur.
+	 */
+	const resolveInitialPosition = (
+		positionData: PositionType,
+	): THREE.Vector3 => {
+		if (Array.isArray(positionData)) {
+			return new THREE.Vector3(
+				positionData[0],
+				positionData[1],
+				positionData[2],
+			);
+		}
+		// CurveAttachment - resolve from geometry data
+		if (isCurveAttachment(positionData)) {
+			const curveGeometry = geometries[positionData.geometry_key];
+			if (
+				curveGeometry?.type === "Curve" &&
+				curveGeometry.data?.position?.[0]
+			) {
+				const [x, y, z] = curveGeometry.data.position[0];
+				return new THREE.Vector3(x, y, z);
+			}
+		}
+		// Backend should always provide valid data - this indicates a bug
+		console.error("Camera: received invalid position data from backend");
+		throw new Error("Invalid camera position data");
+	};
+
+	const [computedPosition, setComputedPosition] = useState<THREE.Vector3>(() =>
+		resolveInitialPosition(data.position),
 	);
-	const [computedTarget, setComputedTarget] = useState<THREE.Vector3>(
-		new THREE.Vector3(0, 0, 0),
+	const [computedTarget, setComputedTarget] = useState<THREE.Vector3>(() =>
+		resolveInitialPosition(data.target),
 	);
 
 	const isAttached = attachedCameraKey === geometryKey;
 
+	// Extract curve info from position/target (either direct coords or CurveAttachment)
+	const positionCurveKey = isCurveAttachment(data.position)
+		? data.position.geometry_key
+		: null;
+	const positionProgress = isCurveAttachment(data.position)
+		? data.position.progress
+		: 0;
+	const targetCurveKey = isCurveAttachment(data.target)
+		? data.target.geometry_key
+		: null;
+	const targetProgress = isCurveAttachment(data.target)
+		? data.target.progress
+		: 0;
+
 	// Get curve refs from store (shared with Curve components)
-	const positionCurveKey = data.position_curve_key || null;
-	const targetCurveKey = data.target_curve_key || null;
 	const positionCurve = positionCurveKey
 		? curveRefs[positionCurveKey]
 		: undefined;
 	const targetCurve = targetCurveKey ? curveRefs[targetCurveKey] : undefined;
 
 	/**
-	 * Helper: Compute 3D point from curve key + progress
-	 * Handles both multi-point curves (via THREE.js curve object) and single-point curves (direct read)
+	 * Helper: Resolve position from either direct coordinates or CurveAttachment.
+	 * Returns null if CurveAttachment cannot be resolved (curve not loaded yet).
+	 * Backend always provides valid data, so null indicates a timing issue, not invalid data.
 	 */
-	const computePointFromCurve = (
+	const resolvePositionToVector = (
+		positionData: PositionType,
 		curveKey: string | null,
 		curve: THREE.CatmullRomCurve3 | undefined,
 		progress: number,
-		fallback: THREE.Vector3,
-	): THREE.Vector3 => {
+	): THREE.Vector3 | null => {
+		// Direct coordinates - just use them
+		if (Array.isArray(positionData)) {
+			return new THREE.Vector3(
+				positionData[0],
+				positionData[1],
+				positionData[2],
+			);
+		}
+
+		// CurveAttachment - resolve via curve
 		if (!curveKey) {
-			return fallback;
+			// Invalid CurveAttachment (no geometry_key) - backend bug
+			console.error(
+				`Camera ${geometryKey}: CurveAttachment missing geometry_key`,
+			);
+			return null;
 		}
 
 		if (curve) {
@@ -82,44 +139,50 @@ export default function Camera({
 				const [x, y, z] = curveGeometry.data.position[0];
 				return new THREE.Vector3(x, y, z);
 			} else {
-				console.warn(
-					`Camera ${geometryKey}: curve key '${curveKey}' not found or invalid`,
-				);
-				return fallback;
+				// Curve not loaded yet - will be resolved when geometry loads
+				return null;
 			}
 		}
 	};
 
-	// Compute position from curve
+	// Compute position (from direct coords or curve)
 	useEffect(() => {
-		const point = computePointFromCurve(
+		const point = resolvePositionToVector(
+			data.position,
 			positionCurveKey,
 			positionCurve,
-			data.position_progress,
-			new THREE.Vector3(0, 0, 10),
+			positionProgress,
 		);
-		setComputedPosition(point);
+		// Only update if resolution succeeded (null = curve not loaded yet)
+		if (point !== null) {
+			setComputedPosition(point);
+		}
 	}, [
+		data.position,
 		positionCurve,
 		positionCurveKey,
-		data.position_progress,
+		positionProgress,
 		geometries,
 		geometryKey,
 	]);
 
-	// Compute target from curve
+	// Compute target (from direct coords or curve)
 	useEffect(() => {
-		const point = computePointFromCurve(
+		const point = resolvePositionToVector(
+			data.target,
 			targetCurveKey,
 			targetCurve,
-			data.target_progress,
-			new THREE.Vector3(0, 0, 0),
+			targetProgress,
 		);
-		setComputedTarget(point);
+		// Only update if resolution succeeded (null = curve not loaded yet)
+		if (point !== null) {
+			setComputedTarget(point);
+		}
 	}, [
+		data.target,
 		targetCurve,
 		targetCurveKey,
-		data.target_progress,
+		targetProgress,
 		geometries,
 		geometryKey,
 	]);

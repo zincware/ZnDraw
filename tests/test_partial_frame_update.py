@@ -13,32 +13,30 @@ from zndraw import ZnDraw
 
 
 @pytest.fixture
-def room_with_frames_and_lock(server, s22, get_jwt_auth_headers):
-    """Create a room with frames and acquire a lock for editing."""
+def room_with_frames_and_lock(server, s22, connect_room):
+    """Create a room with frames and acquire a lock for editing.
+
+    Uses connect_room to keep socket alive during test (prevents lock cleanup).
+    """
     room = "partial-update-test"
 
     # Create room and add frames via ZnDraw
     vis = ZnDraw(url=server, room=room, user="test-user")
     vis.extend(s22[:3])  # Add first 3 frames
 
-    # Get auth headers and join room
-    auth_headers = get_jwt_auth_headers(server, "test-user")
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
-    )
-    assert response.status_code == 200
-    session_id = response.json()["sessionId"]
+    # Join room with socket that stays connected (for lock)
+    conn = connect_room(room)
 
     # Acquire lock for trajectory:meta
     response = requests.post(
         f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
         json={"msg": "testing partial update"},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
     assert response.json()["success"] is True
 
-    return server, room, session_id, auth_headers, vis
+    yield server, room, conn.session_id, conn.headers, vis
 
 
 def _get_numpy_dtype_string(arr: np.ndarray) -> str:
@@ -286,7 +284,9 @@ def test_partial_update_empty_body(room_with_frames_and_lock):
     assert "No keys provided" in result["error"]
 
 
-def test_partial_update_requires_lock(server, s22, get_jwt_auth_headers):
+def test_partial_update_requires_lock(
+    server, s22, get_jwt_auth_headers, create_and_join_room
+):
     """Test that partial update requires trajectory:meta lock."""
     room = "partial-update-no-lock"
 
@@ -294,13 +294,9 @@ def test_partial_update_requires_lock(server, s22, get_jwt_auth_headers):
     vis = ZnDraw(url=server, room=room, user="test-user")
     vis.extend(s22[:1])
 
-    # Get auth headers and join room (but don't acquire lock)
+    # Get auth headers and join room via socket (but don't acquire lock)
     auth_headers = get_jwt_auth_headers(server, "test-user")
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
-    )
-    assert response.status_code == 200
-    session_id = response.json()["sessionId"]
+    session_id = create_and_join_room(server, room, auth_headers)
 
     # Try to update without lock
     new_positions = np.array([[0, 0, 0]], dtype=np.float64)
@@ -455,31 +451,15 @@ def test_partial_update_preserves_other_data(room_with_frames_and_lock):
     )
 
 
-def test_partial_update_empty_room(server, get_jwt_auth_headers):
+def test_partial_update_empty_room(server, connect_room):
     """Test that partial update returns 404 for empty room (no frames)."""
-    room = "partial-update-empty-room"
-
-    # Create room without adding frames
-    auth_headers = get_jwt_auth_headers(server, "test-user")
-
-    # Create room first
-    create_response = requests.post(
-        f"{server}/api/rooms", json={"roomId": room}, headers=auth_headers
-    )
-    assert create_response.status_code == 201
-
-    # Join room
-    response = requests.post(
-        f"{server}/api/rooms/{room}/join", json={}, headers=auth_headers
-    )
-    assert response.status_code == 200
-    session_id = response.json()["sessionId"]
+    conn = connect_room("partial-update-empty-room")
 
     # Acquire lock
     response = requests.post(
-        f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
+        f"{server}/api/rooms/{conn.room_id}/locks/trajectory:meta/acquire",
         json={"msg": "testing empty room"},
-        headers={**auth_headers, "X-Session-ID": session_id},
+        headers=conn.headers,
     )
     assert response.status_code == 200
 
@@ -488,11 +468,10 @@ def test_partial_update_empty_room(server, get_jwt_auth_headers):
     update_data = _encode_numpy_for_msgpack({"arrays.positions": new_positions})
 
     response = requests.patch(
-        f"{server}/api/rooms/{room}/frames/0/partial",
+        f"{server}/api/rooms/{conn.room_id}/frames/0/partial",
         data=update_data,
         headers={
-            **auth_headers,
-            "X-Session-ID": session_id,
+            **conn.headers,
             "Content-Type": "application/msgpack",
         },
     )

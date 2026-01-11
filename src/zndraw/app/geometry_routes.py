@@ -20,6 +20,28 @@ log = logging.getLogger(__name__)
 
 geometries = Blueprint("geometries", __name__)
 
+# Reserved geometry key prefixes (system-generated keys)
+RESERVED_KEY_PREFIXES = ["cam:session:"]
+
+
+def validate_geometry_key(key: str) -> tuple[bool, str | None]:
+    """Validate geometry key is not using reserved prefixes.
+
+    Parameters
+    ----------
+    key : str
+        The geometry key to validate.
+
+    Returns
+    -------
+    tuple[bool, str | None]
+        (is_valid, error_message) - error_message is None if valid.
+    """
+    for prefix in RESERVED_KEY_PREFIXES:
+        if key.startswith(prefix):
+            return False, f"Geometry key cannot start with reserved prefix '{prefix}'"
+    return True, None
+
 
 @geometries.route("/api/rooms/<string:room_id>/geometries", methods=["POST"])
 @requires_lock(forbid=["room:locked"])
@@ -62,6 +84,14 @@ def create_geometry(room_id: str, session_id: str, user_id: str):
     r = current_app.extensions["redis"]
     keys = RoomKeys(room_id)
     existing_geometry_json = r.hget(keys.geometries(), key)
+
+    # Only validate reserved prefixes for NEW geometries, not updates
+    # This allows updates to existing session cameras (cam:session:*) while
+    # preventing users from creating new geometries with reserved prefixes
+    if not existing_geometry_json:
+        key_valid, key_error = validate_geometry_key(key)
+        if not key_valid:
+            return {"error": key_error, "type": "ValueError"}, 400
 
     if existing_geometry_json:
         existing_geometry = json.loads(existing_geometry_json)
@@ -144,12 +174,23 @@ def delete_geometry(room_id: str, key: str, session_id: str, user_id: str):
 
     r = current_app.extensions["redis"]
     keys = RoomKeys(room_id)
-    response = r.hdel(keys.geometries(), key)
-    if response == 0:
+
+    # Check if geometry exists and is protected
+    geometry_json = r.hget(keys.geometries(), key)
+    if not geometry_json:
         return {
             "error": f"Geometry with key '{key}' does not exist",
             "type": "KeyError",
         }, 404
+
+    geometry_data = json.loads(geometry_json)
+    if geometry_data.get("data", {}).get("protected", False):
+        return {
+            "error": f"Cannot delete protected geometry '{key}'",
+            "type": "PermissionError",
+        }, 403
+
+    r.hdel(keys.geometries(), key)
 
     socketio.emit(
         SocketEvents.INVALIDATE_GEOMETRY,

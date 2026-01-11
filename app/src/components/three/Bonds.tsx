@@ -144,13 +144,13 @@ export default function Bonds({
 	geometryKey: string;
 	pathtracingEnabled?: boolean;
 }) {
-	const geometrySchemas = useAppStore((state) => state.geometrySchemas);
+	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
 	// Merge with defaults from Pydantic (single source of truth)
 	const fullData = getGeometryWithDefaults<BondData>(
 		data,
 		"Bond",
-		geometrySchemas,
+		geometryDefaults,
 	);
 
 	const {

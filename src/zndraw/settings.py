@@ -10,7 +10,7 @@ HSLColor = t.Tuple[float, float, float]
 class SettingsBase(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
-    callback: SkipJsonSchema[t.Callable[[], None] | None] = Field(
+    callback: SkipJsonSchema[t.Callable[[dict], None] | None] = Field(
         default=None,
         exclude=True,  # 🚀 excludes from model_dump and schema
         repr=False,
@@ -26,16 +26,6 @@ class SettingsBase(BaseModel):
                 {k: v for k, v in new_data.items() if k != "callback"}
             )
         return v
-
-
-class Controls(str, enum.Enum):
-    OrbitControls = "OrbitControls"
-    TrackballControls = "TrackballControls"
-
-
-class CameraEnum(str, enum.Enum):
-    PerspectiveCamera = "PerspectiveCamera"
-    OrthographicCamera = "OrthographicCamera"
 
 
 class EnvironmentPreset(str, enum.Enum):
@@ -110,31 +100,6 @@ class PropertyInspector(SettingsBase):
     )
 
 
-class Camera(SettingsBase):
-    """Defines the camera projection and user interaction controls."""
-
-    model_config = ConfigDict(validate_assignment=True, populate_by_name=True)
-
-    camera_type: CameraEnum = Field(
-        default=CameraEnum.PerspectiveCamera,
-        alias="camera",
-        description="Camera projection type",
-    )
-    near_plane: float = Field(
-        default=0.1, ge=0, le=100, description="Camera near rendering plane"
-    )
-    far_plane: float = Field(
-        default=300, ge=1, le=1000, description="Camera far rendering plane"
-    )
-    show_crosshair: bool = Field(
-        default=False, description="Show a crosshair at the camera's focal point"
-    )
-    preserve_drawing_buffer: bool = Field(
-        default=False,
-        description="Enable screenshot capture (WARNING: reduces rendering performance)",
-    )
-
-
 class PathTracing(SettingsBase):
     """GPU Path Tracing settings for high-quality physically-based rendering."""
 
@@ -202,7 +167,6 @@ class RoomConfig(SettingsBase):
 
     model_config = ConfigDict(validate_assignment=True, populate_by_name=True)
 
-    camera: Camera = Field(default_factory=Camera)
     studio_lighting: StudioLighting = Field(default_factory=StudioLighting)
     property_inspector: PropertyInspector = Field(default_factory=PropertyInspector)
     pathtracing: PathTracing = Field(default_factory=PathTracing)

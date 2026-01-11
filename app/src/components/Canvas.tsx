@@ -1,17 +1,19 @@
 import * as THREE from "three";
-import { useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
+import { useEffect, useRef, type RefObject } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useAppStore, getActiveCurves, selectPreferredCurve } from "../store";
 import { useSettings } from "../hooks/useSettings";
 import { useTheme } from "@mui/material/styles";
+import { Snackbar, Alert } from "@mui/material";
+import { CanvasLoadingState } from "./CanvasLoadingState";
+import { CanvasErrorState } from "./CanvasErrorState";
 import {
-	Snackbar,
-	Alert,
-	Box as MuiBox,
-	CircularProgress,
-} from "@mui/material";
-import { useCameraControls } from "../hooks/useCameraControls";
+	useCameraControls,
+	type ControlsState,
+} from "../hooks/useCameraControls";
+import { useGeometryCameraSync } from "../hooks/useGeometryCameraSync";
 
 // Import our new, self-contained components
 import { Cell } from "./three/Cell";
@@ -38,11 +40,114 @@ import { PathTracingRenderer } from "./PathTracingRenderer";
 import { GeometryErrorBoundary } from "./three/GeometryErrorBoundary";
 import { useFrameLoadTime } from "../hooks/useFrameLoadTime";
 
+/**
+ * Component for integrating camera sync inside the Canvas.
+ * Must be a child of Canvas to use useThree.
+ *
+ * Handles two types of sync:
+ * 1. Geometry camera sync (useGeometryCameraSync) - for updating Camera geometry from OrbitControls
+ * 2. Geometry-to-controls sync - syncing OrbitControls.target when attached to geometry camera
+ *
+ * Note: Session cameras are now regular geometries. Python clients access them via
+ * the geometry system, which broadcasts INVALIDATE_GEOMETRY to sync changes.
+ */
+function CameraSyncIntegration({
+	controlsRef,
+	controlsState,
+}: {
+	controlsRef: RefObject<OrbitControlsImpl | null>;
+	controlsState: ControlsState;
+}) {
+	const { camera } = useThree();
+	const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
+	const geometries = useAppStore((state) => state.geometries);
+	const curveRefs = useAppStore((state) => state.curveRefs);
+
+	// Geometry camera sync (for updating Camera geometry from OrbitControls)
+	const { syncToGeometry, isEchoBack } = useGeometryCameraSync({
+		camera,
+		controlsRef,
+		controlsState,
+	});
+
+	// Sync OrbitControls.target when attached to a geometry camera
+	// This ensures OrbitControls knows the correct target when controls are enabled
+	useEffect(() => {
+		const controls = controlsRef.current;
+		if (!controls) return;
+
+		if (!attachedCameraKey) {
+			return;
+		}
+
+		const cameraGeometry = geometries[attachedCameraKey];
+		if (!cameraGeometry || cameraGeometry.type !== "Camera") return;
+
+		const geomData = cameraGeometry.data;
+		if (!geomData) return;
+
+		// Skip if this is an echo-back of our own update (value-based detection)
+		if (isEchoBack(geomData)) return;
+
+		const targetData = geomData.target;
+		if (!targetData) return;
+
+		// Resolve target (either direct coords or CurveAttachment)
+		let targetPosition: [number, number, number] | null = null;
+
+		if (Array.isArray(targetData) && targetData.length === 3) {
+			// Direct coordinates
+			targetPosition = targetData as [number, number, number];
+		} else if (
+			targetData &&
+			typeof targetData === "object" &&
+			targetData.type === "curve_attachment"
+		) {
+			// CurveAttachment - resolve via curve
+			const curveKey = targetData.geometry_key;
+			const progress = targetData.progress || 0;
+			const curve = curveRefs[curveKey];
+
+			if (curve) {
+				const point = curve.getPointAt(progress);
+				targetPosition = [point.x, point.y, point.z];
+			}
+		}
+
+		if (targetPosition) {
+			controls.target.set(
+				targetPosition[0],
+				targetPosition[1],
+				targetPosition[2],
+			);
+			controls.update();
+		}
+	}, [attachedCameraKey, geometries, curveRefs, controlsRef, isEchoBack]);
+
+	// Attach onChange to controls imperatively
+	useEffect(() => {
+		const controls = controlsRef.current;
+		if (!controls) return;
+
+		const handleChange = () => {
+			syncToGeometry();
+		};
+
+		controls.addEventListener("change", handleChange);
+		return () => {
+			controls.removeEventListener("change", handleChange);
+		};
+	}, [controlsRef, syncToGeometry]);
+
+	return null;
+}
+
 // The main scene component
 function MyScene() {
-	// Use individual selectors to prevent unnecessary re-renders
 	const roomId = useAppStore((state) => state.roomId);
-	const userName = useAppStore((state) => state.userName);
+	const sessionId = useAppStore((state) => state.sessionId);
+	const isConnected = useAppStore((state) => state.isConnected);
+	const initializationError = useAppStore((state) => state.initializationError);
 	const geometries = useAppStore((state) => state.geometries);
 	const activeCurveForDrawing = useAppStore(
 		(state) => state.activeCurveForDrawing,
@@ -51,21 +156,29 @@ function MyScene() {
 		(state) => state.setActiveCurveForDrawing,
 	);
 	const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
+	const attachToCamera = useAppStore((state) => state.attachToCamera);
 	const snackbar = useAppStore((state) => state.snackbar);
 	const hideSnackbar = useAppStore((state) => state.hideSnackbar);
-	const mode = useAppStore((state) => state.mode);
 	const theme = useTheme();
 
-	// Track frame load time when not playing
 	useFrameLoadTime();
 
-	// Get camera control states based on attached camera
+	const sessionCameraKey = sessionId ? `cam:session:${sessionId}` : null;
+
 	const cameraControls = useCameraControls(attachedCameraKey, geometries);
 
-	// Fetch all settings in one call
-	const { data: settingsResponse, isLoading: settingsLoading } = useSettings(
-		roomId || "",
-	);
+	const orbitControlsRef = useRef<OrbitControlsImpl | null>(null);
+
+	const { data: settingsResponse } = useSettings(roomId || "");
+	useEffect(() => {
+		if (
+			!attachedCameraKey &&
+			sessionCameraKey &&
+			geometries[sessionCameraKey]
+		) {
+			attachToCamera(sessionCameraKey);
+		}
+	}, [attachedCameraKey, sessionCameraKey, geometries, attachToCamera]);
 
 	// Auto-select default curve on startup
 	useEffect(() => {
@@ -84,29 +197,32 @@ function MyScene() {
 		setActiveCurveForDrawing(defaultCurve);
 	}, [geometries, activeCurveForDrawing, setActiveCurveForDrawing]);
 
-	// Return early with loading state while settings are loading
-	if (settingsLoading || !settingsResponse) {
-		return (
-			<MuiBox
-				sx={{
-					width: "100%",
-					height: "calc(100vh - 64px)",
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					bgcolor: theme.palette.background.default,
-				}}
-			>
-				<CircularProgress />
-			</MuiBox>
-		);
+	// Get session camera geometry data
+	const sessionCamera = sessionCameraKey ? geometries[sessionCameraKey] : null;
+	const sessionCameraData = sessionCamera?.data;
+
+	// Show error state if initialization failed
+	if (initializationError) {
+		return <CanvasErrorState error={initializationError} />;
+	}
+
+	// Return early with loading state until fully connected and data is ready
+	// Gate on: 1) isConnected (socket connected), 2) sessionId (room joined),
+	// 3) settingsResponse (settings loaded), 4) sessionCameraData (camera geometry loaded)
+	if (!isConnected || !sessionId || !settingsResponse || !sessionCameraData) {
+		return <CanvasLoadingState />;
 	}
 
 	// Backend always returns defaults, so these are guaranteed to exist
 	const studioLightingSettings = settingsResponse.data.studio_lighting;
-	const cameraSettings = settingsResponse.data.camera;
 	const pathtracingSettings = settingsResponse.data.pathtracing;
 	const pathtracingEnabled = pathtracingSettings.enabled === true;
+
+	const cameraPosition = sessionCameraData.position as [number, number, number];
+	const cameraFov = sessionCameraData.fov;
+	const cameraType = sessionCameraData.camera_type;
+	const preserveDrawingBuffer = sessionCameraData.preserve_drawing_buffer;
+	const showCrosshair = sessionCameraData.show_crosshair;
 
 	const backgroundColor =
 		studioLightingSettings.background_color === "default"
@@ -118,23 +234,24 @@ function MyScene() {
 			<Canvas
 				// Add a key that changes when the camera type changes.
 				// This will force React to re-create the Canvas and its camera.
-				key={cameraSettings.camera}
+				key={cameraType}
 				shadows
-				// We REMOVE the dynamic near/far properties from here.
-				// The initial position and fov are still useful.
-				camera={{ position: [-10, 10, 30], fov: 50 }}
+				// Use session camera position from geometry
+				camera={{
+					position: cameraPosition,
+					fov: cameraFov,
+				}}
 				gl={{
 					antialias: true,
 					toneMapping: THREE.ACESFilmicToneMapping,
-					preserveDrawingBuffer:
-						cameraSettings.preserve_drawing_buffer === true,
+					preserveDrawingBuffer: preserveDrawingBuffer,
 				}}
 				style={{ background: backgroundColor }}
-				// The orthographic prop still sets the initial camera type.
-				orthographic={cameraSettings.camera === "OrthographicCamera"}
+				// The orthographic prop sets the initial camera type.
+				orthographic={cameraType === "OrthographicCamera"}
 			>
 				{/* Place the CameraManager here, inside the Canvas */}
-				<CameraManager settings={cameraSettings} />
+				<CameraManager sessionCameraData={sessionCameraData} />
 
 				{/* Wrap scene in PathTracingRenderer */}
 				<PathTracingRenderer settings={pathtracingSettings}>
@@ -246,7 +363,7 @@ function MyScene() {
 								return null;
 							}
 						})}
-					{cameraSettings.show_crosshair && <Crosshair />}
+					{showCrosshair && <Crosshair />}
 					<VirtualCanvas />
 
 					{/* Multi-geometry transform controls for editing mode */}
@@ -261,12 +378,19 @@ function MyScene() {
         )} */}
 
 				<OrbitControls
+					ref={orbitControlsRef}
 					enableDamping={false}
 					makeDefault
 					enabled={cameraControls.enabled}
 					enablePan={cameraControls.enablePan}
 					enableRotate={cameraControls.enableRotate}
 					enableZoom={cameraControls.enableZoom}
+				/>
+
+				{/* Camera sync integration for Python-side camera access and geometry sync */}
+				<CameraSyncIntegration
+					controlsRef={orbitControlsRef}
+					controlsState={cameraControls}
 				/>
 			</Canvas>
 			{/* Info boxes and drawing/editing indicators rendered outside Canvas, in DOM */}

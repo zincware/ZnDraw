@@ -268,33 +268,60 @@ Camera Control
    :class: only-dark
    :alt: Camera with curve attachment
 
-Control the camera programmatically with curves for smooth animations:
+Control the camera programmatically. Cameras can use direct coordinates for static positions
+or ``CurveAttachment`` to follow curve paths for animations:
 
 .. code:: python
 
     from zndraw.geometries import Camera, Curve
+    from zndraw.transformations import CurveAttachment
 
-    # Define camera path
+    # Static camera with direct coordinates
+    vis.geometries["camera"] = Camera(
+        position=(0, 5, 10),
+        target=(0, 0, 0),
+        fov=60
+    )
+
+    # Animated camera following curves
     vis.geometries["cam_path"] = Curve(
         position=[(25, 15, 25), (30, 20, 15), (25, 15, 5)],
         color="#3498db"
     )
-
-    # Define target path
     vis.geometries["target_path"] = Curve(
         position=[(10, 10, 10), (12, 10, 10), (10, 10, 10)],
         color="#e74c3c"
     )
 
-    # Create camera following curves
     vis.geometries["camera"] = Camera(
-        position_curve_key="cam_path",
-        target_curve_key="target_path",
-        position_progress=0.5,
-        target_progress=0.5,
+        position=CurveAttachment(geometry_key="cam_path", progress=0.5),
+        target=CurveAttachment(geometry_key="target_path", progress=0.5),
         fov=60,
-        helper_visible=True
+        helper_visible=True,
+        helper_color="#00ff00"
     )
+
+You can mix direct coordinates with ``CurveAttachment``:
+
+.. code:: python
+
+    # Camera follows curve but always looks at origin
+    vis.geometries["camera"] = Camera(
+        position=CurveAttachment(geometry_key="flight_path", progress=0.0),
+        target=(0, 0, 0),  # Fixed target
+        fov=60
+    )
+
+Camera parameters:
+
+- ``position``: Direct ``(x, y, z)`` coordinates or ``CurveAttachment``
+- ``target``: Direct ``(x, y, z)`` coordinates or ``CurveAttachment``
+- ``fov``: Field of view in degrees (1-179, default 75)
+- ``camera_type``: ``CameraType.PERSPECTIVE`` or ``CameraType.ORTHOGRAPHIC``
+- ``helper_visible``: Show camera cone visualization
+- ``helper_color``: Color of the helper (hex or named)
+- ``near``, ``far``: Clipping planes
+- ``zoom``: Camera zoom factor
 
 
 Drawing Mode
@@ -505,7 +532,7 @@ via settings:
 .. code:: python
 
     # Enable properties in the inspector
-    vis.settings.property_inspector.enabled_properties = [
+    vis.sessions["<sessionId>"].settings.property_inspector.enabled_properties = [
         "calc.energy",
         "calc.forces",
     ]
@@ -519,6 +546,39 @@ Properties are automatically categorized based on their shape:
 
 - **Global**: Scalar values or arrays not matching particle count
 - **Per-particle**: Arrays with first dimension equal to particle count
+
+
+Browser Sessions
+----------------
+
+Access connected browser windows via ``vis.sessions``. Each frontend session
+has its own camera and rendering settings:
+
+.. code:: python
+
+    # List all connected browser sessions
+    for session_id in vis.sessions:
+        print(session_id)
+
+    # Access a specific session
+    session = vis.sessions["abc-123"]
+
+    # Get/set camera for that browser window
+    cam = session.camera
+    print(cam.position, cam.target)
+
+    # Update camera position
+    from zndraw.geometries import Camera
+    session.camera = Camera(position=(10, 5, 10), target=(0, 0, 0), fov=60)
+
+    # Access session settings
+    settings = session.settings
+    settings.studio_lighting.key_light = 1.5  # Auto-saves to backend
+
+.. note::
+
+    Only frontend browser windows appear in ``vis.sessions``.
+    Python API clients do not create entries here.
 
 
 Progress Tracking

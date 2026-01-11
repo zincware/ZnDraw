@@ -59,11 +59,17 @@ class InteractionSettings(BaseModel):
     color: str = Field(
         default="#FF6600",
         json_schema_extra={
+            "format": "color",
             "x-custom-type": "dynamic-enum",
             "x-features": ["color-picker", "dynamic-atom-props", "free-solo"],
         },
     )
-    opacity: float = Field(default=1.0, ge=0.0, le=1.0)
+    opacity: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={"format": "range", "step": 0.01},
+    )
 
 
 class BaseGeometry(BaseModel):
@@ -82,6 +88,11 @@ class BaseGeometry(BaseModel):
     active: bool = Field(
         default=True,
         description="Whether this geometry should be rendered.",
+    )
+
+    protected: bool = Field(
+        default=False,
+        description="Whether this geometry is protected from deletion.",
     )
 
     position: PositionProp = Field(

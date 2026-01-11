@@ -814,12 +814,13 @@ def test_partial_key_retrieval(server):
 #     assert not client.sio.connected
 
 
-def test_rest_endpoint_append_returns_length(server, join_room_and_get_headers):
+def test_rest_endpoint_append_returns_length(server, connect_room):
     """Test that the append endpoint returns the correct length."""
     import requests
 
     room = "test-rest-append"
-    headers = join_room_and_get_headers(server, room)
+    conn = connect_room(room)
+    headers = conn.headers
 
     # Acquire lock for trajectory:meta
     lock_response = requests.post(
@@ -862,13 +863,14 @@ def test_rest_endpoint_append_returns_length(server, join_room_and_get_headers):
         )
 
 
-def test_rest_endpoint_extend_returns_length(server, join_room_and_get_headers):
+def test_rest_endpoint_extend_returns_length(server, connect_room):
     """Test that the extend endpoint returns the correct length."""
     import msgpack
     import requests
 
     room = "test-rest-extend"
-    headers = join_room_and_get_headers(server, room)
+    conn = connect_room(room)
+    headers = conn.headers
 
     # Acquire lock for trajectory:meta
     lock_response = requests.post(
@@ -915,13 +917,14 @@ def test_rest_endpoint_extend_returns_length(server, join_room_and_get_headers):
         )
 
 
-def test_rest_endpoint_insert_returns_length(server, join_room_and_get_headers):
+def test_rest_endpoint_insert_returns_length(server, connect_room):
     """Test that the insert endpoint returns the correct length."""
     import msgpack
     import requests
 
     room = "test-rest-insert"
-    headers = join_room_and_get_headers(server, room)
+    conn = connect_room(room)
+    headers = conn.headers
 
     # Acquire lock for trajectory:meta
     lock_response = requests.post(
@@ -964,13 +967,14 @@ def test_rest_endpoint_insert_returns_length(server, join_room_and_get_headers):
         )
 
 
-def test_rest_endpoint_delete_returns_length(server, join_room_and_get_headers):
+def test_rest_endpoint_delete_returns_length(server, connect_room):
     """Test that the delete endpoint returns the correct length."""
     import msgpack
     import requests
 
     room = "test-rest-delete"
-    headers = join_room_and_get_headers(server, room)
+    conn = connect_room(room)
+    headers = conn.headers
 
     # Acquire lock for trajectory:meta
     lock_response = requests.post(
@@ -1012,15 +1016,14 @@ def test_rest_endpoint_delete_returns_length(server, join_room_and_get_headers):
         )
 
 
-def test_rest_endpoint_bulk_replace_indices_returns_length(
-    server, join_room_and_get_headers
-):
+def test_rest_endpoint_bulk_replace_indices_returns_length(server, connect_room):
     """Test that bulk replace with indices returns the correct length."""
     import msgpack
     import requests
 
     room = "test-rest-bulk-replace-indices"
-    headers = join_room_and_get_headers(server, room)
+    conn = connect_room(room)
+    headers = conn.headers
 
     # Acquire lock for trajectory:meta
     lock_response = requests.post(
@@ -1064,15 +1067,14 @@ def test_rest_endpoint_bulk_replace_indices_returns_length(
         )
 
 
-def test_rest_endpoint_bulk_replace_slice_returns_length(
-    server, join_room_and_get_headers
-):
+def test_rest_endpoint_bulk_replace_slice_returns_length(server, connect_room):
     """Test that bulk replace with slice returns the correct length."""
     import msgpack
     import requests
 
     room = "test-rest-bulk-replace-slice"
-    headers = join_room_and_get_headers(server, room)
+    conn = connect_room(room)
+    headers = conn.headers
 
     # Acquire lock for trajectory:meta
     lock_response = requests.post(

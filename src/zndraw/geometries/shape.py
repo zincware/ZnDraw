@@ -85,6 +85,7 @@ class Shape(BaseGeometry):
         ge=0.0,
         le=1.0,
         description="Shape opacity.",
+        json_schema_extra={"format": "range", "step": 0.01},
     )
 
     selecting: InteractionSettings = Field(

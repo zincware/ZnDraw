@@ -10,6 +10,7 @@ import {
 	getAllBookmarks,
 	getServerVersion,
 	getGlobalSettings,
+	createRoom,
 } from "../myapi/client";
 import { convertBookmarkKeys } from "../utils/bookmarks";
 import {
@@ -18,6 +19,7 @@ import {
 } from "../utils/versionCompatibility";
 import { useRoomsStore } from "../roomsStore";
 import { ensureAuthenticated } from "../utils/auth";
+import { setLastVisitedRoom } from "../utils/roomTracking";
 
 const MAX_AUTH_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
@@ -30,6 +32,7 @@ interface SocketManagerOptions {
 export const useSocketManager = (options: SocketManagerOptions = {}) => {
 	const {
 		setConnected,
+		setInitializationError,
 		setFrameCount,
 		setCurrentFrame,
 		setFrameSelection,
@@ -38,9 +41,11 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		setActiveSelectionGroup,
 		setBookmarks,
 		roomId: appStoreRoomId,
-		userName,
 		setUserName,
+		setSessionId,
 		setGeometries,
+		setGeometrySchemas,
+		setGeometryDefaults,
 		updateGeometry,
 		removeGeometry,
 		setActiveCurveForDrawing,
@@ -62,8 +67,14 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 	// Track retry attempts for stale token recovery
 	const authRetryCountRef = useRef(0);
+	// Guard against concurrent auth recovery (multiple connect_error events)
+	const isRecoveringAuthRef = useRef(false);
 
 	useEffect(() => {
+		// Capture current room context for cleanup comparison
+		const effectRoomId = roomId;
+		const effectIsOverview = isOverview;
+
 		/**
 		 * Factory function for creating consistent invalidate handlers.
 		 * Ensures uniform error handling across all handlers.
@@ -86,6 +97,9 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		}
 
 		async function onConnect() {
+			// Clear any previous initialization error on new connection
+			setInitializationError(null);
+
 			try {
 				// Fetch server version and global settings
 				const { version: serverVersion } = await getServerVersion();
@@ -116,13 +130,111 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 				// Join appropriate room based on page
 				if (isOverview) {
 					socket.emit("join:overview");
+					setConnected(true);
 				} else if (roomId) {
-					socket.emit("join:room", { roomId });
-					// Reset chat unread count when entering a room
-					useAppStore.getState().resetChatUnread();
-				}
+					// Handle room:join response
+					const handleJoinResponse = async (response: any) => {
+						if (response.status !== "ok") {
+							console.error("Failed to join room:", response.message);
+							setInitializationError({
+								message: "Failed to join room",
+								details: response.message || "Server rejected the connection",
+							});
+							return;
+						}
 
-				setConnected(true);
+						// Reset chat unread count when entering a room
+						useAppStore.getState().resetChatUnread();
+
+						// Store session ID from socket response
+						const { sessionId, roomData } = response;
+						setSessionId(sessionId);
+
+						// Track room visit for localStorage persistence
+						setLastVisitedRoom(roomId);
+
+						// Set small data from socket response
+						setFrameCount(roomData.frameCount);
+						setCurrentFrame(roomData.currentStep);
+						setFrameSelection(roomData.frameSelection);
+						setGeometrySchemas(roomData.geometrySchemas);
+						setGeometryDefaults(roomData.geometryDefaults);
+
+						// Set selections
+						if (roomData.selections) {
+							setSelections(roomData.selections.selections || {});
+							setSelectionGroups(roomData.selections.groups || []);
+							setActiveSelectionGroup(roomData.selections.activeGroup || null);
+						}
+
+						// Set bookmarks with number keys
+						if (roomData.bookmarks) {
+							const bookmarksWithNumberKeys = convertBookmarkKeys(
+								roomData.bookmarks,
+							);
+							setBookmarks(bookmarksWithNumberKeys);
+						}
+
+						// Fetch geometries via REST (can be large)
+						// This is critical - if it fails, we cannot show the scene
+						try {
+							const geometriesResponse = await listGeometries(roomId);
+							setGeometries(geometriesResponse.geometries || {});
+							// Clear any previous error and mark as connected
+							setInitializationError(null);
+							setConnected(true);
+						} catch (error) {
+							console.error("Error fetching geometries:", error);
+							// Set error state - don't call setConnected(true)
+							setInitializationError({
+								message: "Failed to load scene data",
+								details:
+									error instanceof Error
+										? error.message
+										: "Could not fetch geometries from server",
+							});
+							return; // Don't proceed - UI will show error state
+						}
+					};
+
+					// Emit room:join event (frontend clients send clientType)
+					socket.emit(
+						"room:join",
+						{ roomId, clientType: "frontend" },
+						async (response: any) => {
+							// Handle room not found - create it first
+							if (response.code === 404) {
+								const template = new URLSearchParams(
+									window.location.search,
+								).get("template");
+								try {
+									await createRoom({
+										roomId,
+										copyFrom: template ?? undefined,
+									});
+								} catch (error: any) {
+									// 409 = room already exists = success (race condition)
+									if (error.response?.status !== 409) {
+										console.error("Failed to create room:", error);
+										return;
+									}
+								}
+
+								// Retry join after creation
+								socket.emit(
+									"room:join",
+									{ roomId, clientType: "frontend" },
+									handleJoinResponse,
+								);
+								return;
+							}
+
+							handleJoinResponse(response);
+						},
+					);
+				} else {
+					setConnected(true);
+				}
 			} catch (error) {
 				console.error("Error checking version compatibility:", error);
 				// Still connect even if version check fails
@@ -131,6 +243,9 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		}
 		function onDisconnect() {
 			setConnected(false);
+			// NOTE: Do NOT clear sessionId here - onDisconnect fires during temporary
+			// reconnects (e.g., when userName changes). SessionId is only cleared
+			// in the cleanup function when actually leaving a room.
 		}
 
 		function onFrameUpdate(data: any) {
@@ -141,15 +256,15 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		}
 
 		function onInvalidate(data: any) {
-			const { roomId, userName, category, extension } = data;
+			const { roomId, userName, category, extension, sessionId } = data;
 			// Invalidate extension data queries (for modifiers, analysis, selections)
 			queryClient.invalidateQueries({
 				queryKey: ["extensionData", roomId, userName, category, extension],
 			});
-			// Invalidate settings queries (consolidated endpoint)
-			if (category === "settings") {
+			// Invalidate settings queries (per-session)
+			if (category === "settings" && sessionId) {
 				queryClient.invalidateQueries({
-					queryKey: ["settings", roomId, userName],
+					queryKey: ["settings", roomId, sessionId],
 				});
 			}
 		}
@@ -531,53 +646,75 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		async function onConnectError(err: any) {
 			console.error("Socket connection error:", err);
 
-			// Handle "Client not registered" error (stale token in localStorage)
+			// Handle authentication errors (stale token in localStorage)
 			// This happens when Redis is flushed but localStorage still has old token
-			if (err.message && err.message.includes("Client not registered")) {
-				// Check if we've exceeded max retries
-				if (authRetryCountRef.current >= MAX_AUTH_RETRIES) {
-					console.error(
-						`Max authentication retries (${MAX_AUTH_RETRIES}) exceeded. Please refresh the page.`,
+			// Handles both "Client not registered" and "User not found" errors
+			const isAuthError =
+				err.message &&
+				(err.message.includes("Client not registered") ||
+					err.message.includes("User not found"));
+
+			if (isAuthError) {
+				// Prevent concurrent auth recovery - socket.io may emit multiple
+				// connect_error events before the first recovery completes
+				if (isRecoveringAuthRef.current) {
+					console.log(
+						"[onConnectError] Auth recovery already in progress, skipping",
 					);
-					// TODO: Show user-friendly error message
 					return;
 				}
+				isRecoveringAuthRef.current = true;
 
-				authRetryCountRef.current += 1;
-				const retryAttempt = authRetryCountRef.current;
-
-				// Calculate exponential backoff delay: 1s, 2s, 4s
-				const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryAttempt - 1);
-
-				const { logout, login, getUsername } = await import("../utils/auth");
-
-				// Clear stale authentication data
-				logout();
-
-				// Wait for exponential backoff delay
-				await new Promise((resolve) => setTimeout(resolve, delay));
-
-				// Force a new login
 				try {
-					const loginData = await login();
-
-					// Update store with new username
-					const newUsername = getUsername();
-					if (newUsername) {
-						setUserName(newUsername);
+					// Check if we've exceeded max retries
+					if (authRetryCountRef.current >= MAX_AUTH_RETRIES) {
+						console.error(
+							`Max authentication retries (${MAX_AUTH_RETRIES}) exceeded. Please refresh the page.`,
+						);
+						// TODO: Show user-friendly error message
+						return;
 					}
 
-					// Reset retry count on successful login
-					authRetryCountRef.current = 0;
+					authRetryCountRef.current += 1;
+					const retryAttempt = authRetryCountRef.current;
 
-					// Reconnect socket with new credentials
-					socket.connect();
-				} catch (loginError) {
-					console.error(
-						`Re-login failed (attempt ${retryAttempt}/${MAX_AUTH_RETRIES}):`,
-						loginError,
+					// Calculate exponential backoff delay: 1s, 2s, 4s
+					const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryAttempt - 1);
+
+					const { logout, login, getUsernameFromToken } = await import(
+						"../utils/auth"
 					);
-					// Will retry on next connect_error event if under max retries
+
+					// Clear stale authentication data
+					logout();
+
+					// Wait for exponential backoff delay
+					await new Promise((resolve) => setTimeout(resolve, delay));
+
+					// Force a new login
+					try {
+						await login();
+
+						// Update store with new username
+						const newUsername = getUsernameFromToken();
+						if (newUsername) {
+							setUserName(newUsername);
+						}
+
+						// Reset retry count on successful login
+						authRetryCountRef.current = 0;
+
+						// Reconnect socket with new credentials
+						socket.connect();
+					} catch (loginError) {
+						console.error(
+							`Re-login failed (attempt ${retryAttempt}/${MAX_AUTH_RETRIES}):`,
+							loginError,
+						);
+						// Will retry on next connect_error event if under max retries
+					}
+				} finally {
+					isRecoveringAuthRef.current = false;
 				}
 			}
 		}
@@ -634,6 +771,17 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 				socket.emit("leave:room", { roomId });
 			}
 
+			// Only clear sessionId if we're actually leaving a room
+			// Compare the room context from when effect was created with current store values
+			const currentState = useAppStore.getState();
+			const isLeavingRoom =
+				effectRoomId !== currentState.roomId ||
+				effectIsOverview !== options.isOverview;
+
+			if (isLeavingRoom) {
+				setSessionId(null);
+			}
+
 			socket.off("connect", onConnect);
 			socket.off("disconnect", onDisconnect);
 			socket.off("frame_update", onFrameUpdate);
@@ -661,9 +809,11 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		};
 	}, [
 		roomId,
-		userName,
+		// NOTE: userName intentionally NOT included - socket auth uses token from localStorage
+		// Having userName here caused infinite re-runs when onConnectError created new users
 		isOverview,
 		setConnected,
+		setInitializationError,
 		setFrameCount,
 		setCurrentFrame,
 		setPlaying,
@@ -673,7 +823,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		setSelectionGroups,
 		setActiveSelectionGroup,
 		setFrameSelection,
+		setSessionId,
 		setGeometries,
+		setGeometrySchemas,
+		setGeometryDefaults,
 		updateGeometry,
 		removeGeometry,
 		setActiveCurveForDrawing,

@@ -1,7 +1,8 @@
-"""User settings management per room.
+"""Session settings management per room.
 
-This service handles user-specific settings in rooms.
-Settings are stored per user per room to allow personalized configurations.
+This service handles session-specific settings in rooms.
+Settings are stored per session per room to allow different configurations
+per browser window/tab.
 """
 
 import json
@@ -12,10 +13,10 @@ from zndraw.settings import RoomConfig
 
 
 class SettingsService:
-    """Handles user settings in rooms.
+    """Handles session settings in rooms.
 
-    Settings are stored per user per room, allowing each user
-    to have their own personalized configuration in each room.
+    Settings are stored per session per room, allowing each browser
+    window/tab to have its own configuration.
 
     Parameters
     ----------
@@ -26,25 +27,25 @@ class SettingsService:
     def __init__(self, redis_client: Redis):
         self.r = redis_client
 
-    def _get_settings_key(self, room_id: str, user_name: str) -> str:
-        return f"room:{room_id}:user:{user_name}:settings"
+    def _get_settings_key(self, room_id: str, session_id: str) -> str:
+        return f"room:{room_id}:session_settings:{session_id}"
 
-    def get_all(self, room_id: str, user_name: str) -> dict[str, dict]:
-        """Get all settings categories for a user.
+    def get_all(self, room_id: str, session_id: str) -> dict[str, dict]:
+        """Get all settings categories for a session.
 
         Parameters
         ----------
         room_id : str
             Room identifier
-        user_name : str
-            Username
+        session_id : str
+            Session identifier
 
         Returns
         -------
         dict[str, dict]
             All settings data with defaults applied for missing categories
         """
-        settings_key = self._get_settings_key(room_id, user_name)
+        settings_key = self._get_settings_key(room_id, session_id)
         stored: dict[bytes, bytes] = self.r.hgetall(settings_key)  # type: ignore
 
         # Build result with defaults for each category (skip inherited callback field)
@@ -67,19 +68,19 @@ class SettingsService:
                 )
         return result
 
-    def update_all(self, room_id: str, user_name: str, data: dict[str, dict]) -> None:
-        """Update multiple settings categories for a user.
+    def update_all(self, room_id: str, session_id: str, data: dict[str, dict]) -> None:
+        """Update multiple settings categories for a session.
 
         Parameters
         ----------
         room_id : str
             Room identifier
-        user_name : str
-            Username
+        session_id : str
+            Session identifier
         data : dict[str, dict]
             Settings data to store, keyed by category name
         """
-        settings_key = self._get_settings_key(room_id, user_name)
+        settings_key = self._get_settings_key(room_id, session_id)
         mapping = {category: json.dumps(values) for category, values in data.items()}
         if mapping:
             self.r.hset(settings_key, mapping=mapping)
