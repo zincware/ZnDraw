@@ -161,22 +161,23 @@ class APIManager:
         """
         try:
             error_data = response.json()
-            error_type = error_data.get("type", "")
-            error_msg = error_data.get("error", response.text)
-
-            exception_map = {
-                "KeyError": KeyError,
-                "IndexError": IndexError,
-                "ValueError": ValueError,
-                "TypeError": TypeError,
-                "PermissionError": PermissionError,
-            }
-
-            if error_type in exception_map:
-                raise exception_map[error_type](error_msg)
-        except ValueError:
+        except requests.exceptions.JSONDecodeError:
             # JSON decode failed, let raise_for_status handle it
-            pass
+            return
+
+        error_type = error_data.get("type", "")
+        error_msg = error_data.get("error", response.text)
+
+        exception_map = {
+            "KeyError": KeyError,
+            "IndexError": IndexError,
+            "ValueError": ValueError,
+            "TypeError": TypeError,
+            "PermissionError": PermissionError,
+        }
+
+        if error_type in exception_map:
+            raise exception_map[error_type](error_msg)
 
     def get_version(self) -> str:
         """Get the server version.
@@ -728,6 +729,8 @@ class APIManager:
                 headers=headers,
                 timeout=10.0,
             )
+            if response.status_code == 400:
+                self._raise_for_error_type(response)
             response.raise_for_status()
 
     def get_geometry(self, key: str) -> dict | None:
