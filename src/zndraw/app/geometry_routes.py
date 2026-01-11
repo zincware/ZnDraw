@@ -13,8 +13,21 @@ from zndraw.geometries import geometries as geometry_classes
 from zndraw.server import socketio
 
 from .constants import SocketEvents
-from .redis_keys import RoomKeys
+from .redis_keys import RoomKeys, SessionKeys
 from .route_utils import requires_lock
+
+
+def _get_caller_sid() -> str | None:
+    """Get socket sid of the caller from their session ID header.
+
+    Used to exclude the caller from socket broadcasts (skip_sid).
+    """
+    session_id = request.headers.get("X-Session-ID")
+    if not session_id:
+        return None
+    r = current_app.extensions["redis"]
+    return r.get(SessionKeys.session_to_sid(session_id))
+
 
 log = logging.getLogger(__name__)
 
@@ -365,6 +378,40 @@ def get_frame_selection(room_id: str):
     return {
         "frameSelection": json.loads(frame_selection) if frame_selection else None
     }, 200
+
+
+@geometries.route("/api/rooms/<string:room_id>/frame-selection", methods=["PUT"])
+@require_auth
+def update_frame_selection(room_id: str):
+    """Update frame selection for the room.
+
+    Body: {"indices": [0, 1, 5, 10]}
+
+    Broadcasts frame_selection:update to other clients.
+    """
+    r = current_app.extensions["redis"]
+    keys = RoomKeys(room_id)
+    data = request.get_json()
+
+    indices = data.get("indices", [])
+    if not isinstance(indices, list):
+        return {"error": "indices must be a list"}, 400
+
+    if not all(isinstance(idx, int) and idx >= 0 for idx in indices):
+        return {"error": "All indices must be non-negative integers"}, 400
+
+    # Store frame selection
+    r.set(keys.frame_selection(), json.dumps(indices))
+
+    # Broadcast to room (skip caller to avoid UI flicker)
+    socketio.emit(
+        SocketEvents.FRAME_SELECTION_UPDATE,
+        {"indices": indices},
+        to=f"room:{room_id}",
+        skip_sid=_get_caller_sid(),
+    )
+
+    return {"success": True}, 200
 
 
 @geometries.route(
