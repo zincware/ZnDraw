@@ -144,7 +144,8 @@ interface AppState {
 	) => void; // set all groups
 	setActiveSelectionGroup: (groupName: string | null) => void; // set active group
 	loadSelectionGroup: (groupName: string) => void; // load a group
-	setFrameSelection: (selection: number[] | null) => void;
+	setFrameSelection: (selection: number[] | null) => void; // local state only (for socket)
+	updateFrameSelection: (selection: number[] | null) => void; // local + API (for user actions)
 	setFrameSelectionEnabled: (enabled: boolean) => void;
 	setBookmarks: (bookmark: Record<number, string> | null) => void;
 	setPlaying: (playing: boolean) => void;
@@ -409,7 +410,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 		});
 	},
 
-	setFrameSelection: (frame_selection) => {
+	// For socket broadcasts - local state only, no API call
+	setFrameSelection: (frame_selection) =>
+		set({ frame_selection: frame_selection }),
+
+	// For user-initiated changes - local state + API call
+	updateFrameSelection: (frame_selection) => {
 		const roomId = get().roomId;
 		if (!roomId) return;
 

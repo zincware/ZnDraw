@@ -443,7 +443,9 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 	const updateSelectionForGeometry = useAppStore(
 		(state) => state.updateSelectionForGeometry,
 	);
-	const setFrameSelection = useAppStore((state) => state.setFrameSelection);
+	const updateFrameSelection = useAppStore(
+		(state) => state.updateFrameSelection,
+	);
 	const currentFrame = useAppStore((state) => state.currentFrame);
 	const frame_selection = useAppStore((state) => state.frame_selection);
 	const selections = useAppStore((state) => state.selections);
@@ -619,7 +621,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 
 			// Apply frame selection - replace with newly selected frames
 			if (selectedFrames.length > 0) {
-				setFrameSelection(selectedFrames);
+				updateFrameSelection(selectedFrames);
 			}
 
 			// Send each geometry selection to server
@@ -627,12 +629,12 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 				updateSelectionForGeometry(geometryName, indices);
 			});
 		},
-		[setFrameSelection, updateSelectionForGeometry],
+		[updateFrameSelection, updateSelectionForGeometry],
 	);
 
 	const onPlotDeselect = useCallback(() => {
-		setFrameSelection([]);
-	}, [setFrameSelection]);
+		updateFrameSelection([]);
+	}, [updateFrameSelection]);
 
 	// ===== EFFECT: Initialize/Update Plotly Chart =====
 	useEffect(() => {
