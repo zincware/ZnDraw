@@ -759,3 +759,39 @@ def test_chat_frame_reference(server, page, capture, bmim_bf4, request):
     capture.light()
     capture.toggle()
     capture.dark()
+
+
+def test_chat_progress(server, page, capture, bmim_bf4, request):
+    """Capture chat with progress bar examples."""
+    vis = ZnDraw(url=server, room=request.node.name)
+    vis.append(bmim_bf4)
+
+    # Show determinate progress bar
+    vis.log(
+        "Processing simulation data:\n\n"
+        "```progress\n"
+        "description: Analyzing frames\n"
+        "value: 75\n"
+        "max: 100\n"
+        "color: success\n"
+        "```"
+    )
+
+    # Show indeterminate progress spinner
+    vis.log(
+        "Waiting for calculation:\n\n"
+        "```progress\n"
+        "description: Optimizing geometry...\n"
+        "color: primary\n"
+        "```"
+    )
+
+    page.goto(f"{server}/room/{request.node.name}")
+    page.wait_for_timeout(1000)
+
+    page.get_by_role("button", name="toggle chat").click()
+    page.wait_for_timeout(500)
+
+    capture.light()
+    capture.toggle()
+    capture.dark()

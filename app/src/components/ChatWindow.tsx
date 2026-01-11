@@ -9,6 +9,7 @@ import {
 	Typography,
 	Paper,
 	CircularProgress,
+	LinearProgress,
 	Divider,
 	useMediaQuery,
 } from "@mui/material";
@@ -53,6 +54,125 @@ interface ChatWindowProps {
 
 const markdownPlugins = [remarkMath, remarkFrameLink];
 const htmlPlugins = [rehypeKatex];
+
+type ProgressColor =
+	| "primary"
+	| "secondary"
+	| "success"
+	| "error"
+	| "warning"
+	| "info";
+
+interface ProgressConfig {
+	value?: number;
+	min: number;
+	max: number;
+	description?: string;
+	color: ProgressColor;
+}
+
+const parseProgressConfig = (content: string): ProgressConfig => {
+	const config: ProgressConfig = {
+		min: 0,
+		max: 100,
+		color: "primary",
+	};
+
+	const lines = content.trim().split("\n");
+	for (const line of lines) {
+		const colonIndex = line.indexOf(":");
+		if (colonIndex === -1) continue;
+
+		const key = line.substring(0, colonIndex).trim().toLowerCase();
+		const rawValue = line.substring(colonIndex + 1).trim();
+
+		switch (key) {
+			case "value": {
+				const numValue = parseFloat(rawValue);
+				if (!Number.isNaN(numValue)) config.value = numValue;
+				break;
+			}
+			case "min": {
+				const minValue = parseFloat(rawValue);
+				if (!Number.isNaN(minValue)) config.min = minValue;
+				break;
+			}
+			case "max": {
+				const maxValue = parseFloat(rawValue);
+				if (!Number.isNaN(maxValue)) config.max = maxValue;
+				break;
+			}
+			case "description":
+				config.description = rawValue;
+				break;
+			case "color": {
+				const validColors: ProgressColor[] = [
+					"primary",
+					"secondary",
+					"success",
+					"error",
+					"warning",
+					"info",
+				];
+				if (validColors.includes(rawValue as ProgressColor)) {
+					config.color = rawValue as ProgressColor;
+				}
+				break;
+			}
+		}
+	}
+
+	return config;
+};
+
+const ProgressRenderer = ({ content }: { content: string }) => {
+	const config = parseProgressConfig(content);
+
+	const percentage =
+		config.value !== undefined
+			? ((config.value - config.min) / (config.max - config.min)) * 100
+			: null;
+
+	return (
+		<Box sx={{ my: 1, display: "flex", flexDirection: "column", gap: 0.5 }}>
+			{config.description && (
+				<Typography variant="body2" color="text.secondary">
+					{config.description}
+				</Typography>
+			)}
+			{percentage !== null ? (
+				<>
+					<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+						<LinearProgress
+							variant="determinate"
+							value={Math.min(100, Math.max(0, percentage))}
+							color={config.color}
+							sx={{ height: 6, borderRadius: 3, flexGrow: 1 }}
+						/>
+						<Typography
+							variant="caption"
+							color="text.secondary"
+							sx={{ minWidth: 40, textAlign: "right" }}
+						>
+							{Math.round(percentage)}%
+						</Typography>
+					</Box>
+					<Typography variant="caption" color="text.secondary">
+						{config.value} / {config.max}
+						{config.min !== 0 && ` (min: ${config.min})`}
+					</Typography>
+				</>
+			) : (
+				<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+					<CircularProgress size={20} color={config.color} />
+					<Typography variant="caption" color="text.secondary">
+						In progress...
+					</Typography>
+				</Box>
+			)}
+		</Box>
+	);
+};
 
 const MemoizedMarkdown = memo(ReactMarkdown);
 
@@ -407,6 +527,16 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 															const match = /language-(\w+)/.exec(
 																className || "",
 															);
+															const language = match?.[1];
+															const content = String(children).replace(
+																/\n$/,
+																"",
+															);
+
+															if (language === "progress") {
+																return <ProgressRenderer content={content} />;
+															}
+
 															return match ? (
 																<SyntaxHighlighter
 																	style={
@@ -418,11 +548,11 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 																					[key: string]: React.CSSProperties;
 																				})
 																	}
-																	language={match[1]}
+																	language={language}
 																	PreTag="div"
 																	{...props}
 																>
-																	{String(children).replace(/\n$/, "")}
+																	{content}
 																</SyntaxHighlighter>
 															) : (
 																<code className={className} {...props}>
@@ -672,6 +802,16 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 															const match = /language-(\w+)/.exec(
 																className || "",
 															);
+															const language = match?.[1];
+															const content = String(children).replace(
+																/\n$/,
+																"",
+															);
+
+															if (language === "progress") {
+																return <ProgressRenderer content={content} />;
+															}
+
 															return match ? (
 																<SyntaxHighlighter
 																	style={
@@ -683,11 +823,11 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 																					[key: string]: React.CSSProperties;
 																				})
 																	}
-																	language={match[1]}
+																	language={language}
 																	PreTag="div"
 																	{...props}
 																>
-																	{String(children).replace(/\n$/, "")}
+																	{content}
 																</SyntaxHighlighter>
 															) : (
 																<code className={className} {...props}>
@@ -696,24 +836,12 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 															);
 														},
 
-														// 👇 map frameLink directly
 														frameLink: ({ frame }: { frame: number }) => {
-															// Destructure 'frame' directly from props
 															if (typeof frame === "number") {
 																return <FrameReference frame={frame} />;
 															}
-															// Optional: return a fallback if frame is missing for some reason
 															return null;
 														},
-
-														// fallback for real links
-														// a({ node, children, ...props }) {
-														//   return (
-														//     <a {...props} style={{ color: "#1976d2" }}>
-														//       {children}
-														//     </a>
-														//   );
-														// },
 													} as Record<string, React.ComponentType<any>>
 												}
 											>
