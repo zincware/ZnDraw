@@ -1,20 +1,13 @@
 """Integration tests for Python client session management API.
 
 Tests vis.sessions access to frontend browser sessions.
-Note: Frontend sessions must be simulated by adding to Redis.
+Uses connect_room fixture to create real frontend sessions with camera geometry.
 """
 
 import pytest
-import redis
 
 from zndraw import ZnDraw
 from zndraw.geometries import Camera
-
-
-def _create_frontend_session(room_id: str, session_id: str) -> None:
-    """Simulate a frontend session by adding to Redis."""
-    r = redis.Redis(host="localhost", port=6379, decode_responses=True)
-    r.sadd(f"room:{room_id}:frontend_sessions", session_id)
 
 
 def test_sessions_empty_without_frontend(server):
@@ -26,29 +19,26 @@ def test_sessions_empty_without_frontend(server):
     assert list(vis.sessions) == []
 
 
-def test_sessions_lists_frontend_session(server):
+def test_sessions_lists_frontend_session(server, connect_room):
     """vis.sessions lists registered frontend sessions."""
     room = "test-sessions-list"
     vis = ZnDraw(url=server, room=room, user="tester")
 
-    # Simulate frontend session
-    session_id = "frontend-abc-123"
-    _create_frontend_session(room, session_id)
+    conn = connect_room(room, user="frontend-user")
 
     assert len(vis.sessions) == 1
-    assert session_id in vis.sessions
+    assert conn.session_id in vis.sessions
 
 
-def test_sessions_getitem(server):
+def test_sessions_getitem(server, connect_room):
     """vis.sessions[session_id] returns FrontendSession."""
     room = "test-sessions-getitem"
     vis = ZnDraw(url=server, room=room, user="tester")
 
-    session_id = "frontend-getitem-123"
-    _create_frontend_session(room, session_id)
+    conn = connect_room(room, user="frontend-user")
 
-    session = vis.sessions[session_id]
-    assert session.session_id == session_id
+    session = vis.sessions[conn.session_id]
+    assert session.session_id == conn.session_id
 
 
 def test_sessions_getitem_not_found(server):
@@ -60,15 +50,14 @@ def test_sessions_getitem_not_found(server):
         _ = vis.sessions["nonexistent-session"]
 
 
-def test_sessions_iteration(server):
+def test_sessions_iteration(server, connect_room):
     """Iteration over vis.sessions yields session IDs."""
     room = "test-sessions-iteration"
     vis = ZnDraw(url=server, room=room, user="tester")
 
-    # Create multiple sessions
-    session_ids = ["session-a", "session-b", "session-c"]
-    for sid in session_ids:
-        _create_frontend_session(room, sid)
+    # Create multiple frontend sessions
+    conns = [connect_room(room, user=f"user-{i}") for i in range(3)]
+    session_ids = [c.session_id for c in conns]
 
     # Iterate and collect
     found_ids = list(vis.sessions)
@@ -77,42 +66,38 @@ def test_sessions_iteration(server):
         assert sid in found_ids
 
 
-def test_sessions_values(server):
+def test_sessions_values(server, connect_room):
     """vis.sessions.values() yields FrontendSession objects."""
     room = "test-sessions-values"
     vis = ZnDraw(url=server, room=room, user="tester")
 
-    session_id = "session-values"
-    _create_frontend_session(room, session_id)
+    conn = connect_room(room, user="frontend-user")
 
     sessions = list(vis.sessions.values())
     assert len(sessions) == 1
-    assert sessions[0].session_id == session_id
+    assert sessions[0].session_id == conn.session_id
 
 
-def test_sessions_items(server):
+def test_sessions_items(server, connect_room):
     """vis.sessions.items() yields (id, FrontendSession) pairs."""
     room = "test-sessions-items"
-    vis = ZnDraw(url=server, room=room, user="tester")
 
-    session_id = "session-items"
-    _create_frontend_session(room, session_id)
+    vis = ZnDraw(url=server, room=room, user="tester")
+    conn = connect_room(room, user="frontend-user")
 
     items = list(vis.sessions.items())
     assert len(items) == 1
-    assert items[0][0] == session_id
-    assert items[0][1].session_id == session_id
+    assert items[0][0] == conn.session_id
+    assert items[0][1].session_id == conn.session_id
 
 
-def test_session_camera_get_default(server):
+def test_session_camera_get_default(server, connect_room):
     """session.camera returns default Camera when not set."""
     room = "test-session-camera-default"
     vis = ZnDraw(url=server, room=room, user="tester")
 
-    session_id = "camera-default-session"
-    _create_frontend_session(room, session_id)
-
-    session = vis.sessions[session_id]
+    conn = connect_room(room, user="frontend-user")
+    session = vis.sessions[conn.session_id]
     cam = session.camera
 
     assert isinstance(cam, Camera)
@@ -120,15 +105,13 @@ def test_session_camera_get_default(server):
     assert cam.position == (0.0, 5.0, 10.0)
 
 
-def test_session_camera_set(server):
+def test_session_camera_set(server, connect_room):
     """Setting session.camera updates the camera."""
     room = "test-session-camera-set"
     vis = ZnDraw(url=server, room=room, user="tester")
+    conn = connect_room(room, user="frontend-user")
 
-    session_id = "camera-set-session"
-    _create_frontend_session(room, session_id)
-
-    session = vis.sessions[session_id]
+    session = vis.sessions[conn.session_id]
 
     # Set new camera
     new_cam = Camera(
@@ -145,37 +128,32 @@ def test_session_camera_set(server):
     assert retrieved_cam.fov == 60.0
 
 
-def test_sessions_get_by_id(server):
+def test_sessions_get_by_id(server, connect_room):
     """vis.sessions.get(session_id) returns session or None."""
     room = "test-sessions-get"
     vis = ZnDraw(url=server, room=room, user="tester")
-
-    session_id = "get-session"
-    _create_frontend_session(room, session_id)
+    conn = connect_room(room, user="frontend-user")
 
     # Found
-    session = vis.sessions.get(session_id)
+    session = vis.sessions.get(conn.session_id)
     assert session is not None
-    assert session.session_id == session_id
+    assert session.session_id == conn.session_id
 
     # Not found
     missing = vis.sessions.get("nonexistent")
     assert missing is None
 
 
-def test_session_repr(server):
+def test_session_repr(server, connect_room):
     """FrontendSession has meaningful repr."""
     room = "test-session-repr"
     vis = ZnDraw(url=server, room=room, user="tester")
-
-    session_id = "repr-session"
-    _create_frontend_session(room, session_id)
-
-    session = vis.sessions[session_id]
+    conn = connect_room(room, user="frontend-user")
+    session = vis.sessions[conn.session_id]
 
     repr_str = repr(session)
     assert "FrontendSession" in repr_str
-    assert session_id in repr_str
+    assert conn.session_id in repr_str
 
 
 def test_sessions_repr(server):
@@ -187,17 +165,17 @@ def test_sessions_repr(server):
     assert "FrontendSessions" in repr_str
 
 
-def test_multiple_sessions_independent_cameras(server):
+def test_multiple_sessions_independent_cameras(server, connect_room):
     """Different sessions have independent camera states."""
     room = "test-multi-camera"
     vis = ZnDraw(url=server, room=room, user="tester")
 
-    # Create two sessions
-    _create_frontend_session(room, "session-a")
-    _create_frontend_session(room, "session-b")
+    # Create two frontend sessions
+    conn_a = connect_room(room, user="user-a")
+    conn_b = connect_room(room, user="user-b")
 
-    session_a = vis.sessions["session-a"]
-    session_b = vis.sessions["session-b"]
+    session_a = vis.sessions[conn_a.session_id]
+    session_b = vis.sessions[conn_b.session_id]
 
     # Set different cameras
     session_a.camera = Camera(fov=60.0, position=(1.0, 1.0, 1.0))
