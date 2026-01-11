@@ -170,8 +170,8 @@ def test_vis_list_geometries(server):
     from zndraw.materials import MeshBasicMaterial
 
     vis = ZnDraw(url=server, room="test-room-vis-list-geom", user="tester")
-    # 6 default geometries + 1 session camera
-    assert len(vis.geometries) == 7
+    # 6 default geometries
+    assert len(vis.geometries) == 6
 
     # Check default geometries match what's created in room_service.py
     assert vis.geometries["particles"] == Sphere(
