@@ -255,6 +255,11 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			setCurrentFrame(frame);
 		}
 
+		function onActiveCameraUpdate(data: { active_camera: string }) {
+			const { setAttachedCameraKey } = useAppStore.getState();
+			setAttachedCameraKey(data.active_camera);
+		}
+
 		function onInvalidate(data: any) {
 			const { roomId, userName, category, extension, sessionId } = data;
 			// Invalidate extension data queries (for modifiers, analysis, selections)
@@ -724,6 +729,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		socket.on("connect", onConnect);
 		socket.on("connect_error", onConnectError);
 		socket.on("frame_update", onFrameUpdate);
+		socket.on("active_camera:update", onActiveCameraUpdate);
 		socket.on("invalidate", onInvalidate);
 		socket.on("invalidate:schema", onSchemaInvalidate);
 		socket.on("frame_selection:update", onFrameSelectionUpdate);
@@ -785,6 +791,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			socket.off("connect", onConnect);
 			socket.off("disconnect", onDisconnect);
 			socket.off("frame_update", onFrameUpdate);
+			socket.off("active_camera:update", onActiveCameraUpdate);
 			socket.off("invalidate", onInvalidate);
 			socket.off("invalidate:schema", onSchemaInvalidate);
 			socket.off("frame_selection:update", onFrameSelectionUpdate);

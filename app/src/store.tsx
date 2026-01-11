@@ -13,7 +13,7 @@ import {
 	releaseLock,
 	partialUpdateFrame,
 } from "./myapi/client";
-import type { UserRole } from "./utils/auth";
+import { getToken, type UserRole } from "./utils/auth";
 
 /**
  * Lock state for a specific target
@@ -218,6 +218,7 @@ interface AppState {
 	setLastFrameChangeTime: (time: number | null) => void;
 	setActiveCurveForDrawing: (key: string | null) => void;
 	attachToCamera: (cameraKey: string) => void;
+	setAttachedCameraKey: (cameraKey: string) => void;
 	registerCurveRef: (key: string, curve: THREE.CatmullRomCurve3) => void;
 	unregisterCurveRef: (key: string) => void;
 	requestPathtracingUpdate: () => void; // Signal that pathtracer needs to update its scene
@@ -1033,7 +1034,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	},
 
 	attachToCamera: (cameraKey) => {
-		const { geometries } = get();
+		const { geometries, roomId, sessionId } = get();
 		const camera = geometries[cameraKey];
 
 		// Validate camera exists and is a Camera type
@@ -1044,6 +1045,29 @@ export const useAppStore = create<AppState>((set, get) => ({
 			return;
 		}
 
+		set({ attachedCameraKey: cameraKey });
+
+		// Sync to server so Python can read the current value
+		if (roomId && sessionId) {
+			const token = getToken();
+			const headers: Record<string, string> = {
+				"Content-Type": "application/json",
+			};
+			if (token) {
+				headers["Authorization"] = `Bearer ${token}`;
+			}
+			fetch(`/api/rooms/${roomId}/sessions/${sessionId}/active-camera`, {
+				method: "PUT",
+				headers,
+				body: JSON.stringify({ active_camera: cameraKey }),
+			}).catch((error) => {
+				console.error("Failed to sync active camera to server:", error);
+			});
+		}
+	},
+
+	setAttachedCameraKey: (cameraKey) => {
+		// Direct setter for socket handler - no server sync to avoid loops
 		set({ attachedCameraKey: cameraKey });
 	},
 

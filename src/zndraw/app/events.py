@@ -307,6 +307,9 @@ def handle_disconnect(*args, **kwargs):
             # Delete session settings
             r.delete(room_keys.session_settings(session_id))
 
+            # Delete active camera key
+            r.delete(room_keys.session_active_camera(session_id))
+
             log.debug(f"Cleaned up frontend session data for {session_id}")
 
     # Update user's currentSid to empty (user still exists but disconnected)
@@ -807,6 +810,9 @@ def handle_room_join(data):
     if client_type == "frontend":
         r.sadd(room_keys.frontend_sessions(), session_id)
         create_session_camera(r, room_id, session_id)
+        # Set initial active camera to session's own camera
+        session_camera_key = get_session_camera_key(session_id)
+        r.set(room_keys.session_active_camera(session_id), session_camera_key)
 
     # 9. Fetch small room data only (geometries fetched via REST)
     room_data = get_room_metadata(r, room_id)

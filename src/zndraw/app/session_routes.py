@@ -135,3 +135,83 @@ def set_session_settings(room_id: str, session_id: str):
 
     log.debug(f"set_session_settings: room={room_id}, session={session_id}")
     return {"status": "success"}, 200
+
+
+@session_bp.route(
+    "/api/rooms/<string:room_id>/sessions/<string:session_id>/active-camera",
+    methods=["GET"],
+)
+@require_auth
+def get_active_camera(room_id: str, session_id: str):
+    """Get active camera key for a session.
+
+    Parameters
+    ----------
+    room_id : str
+        Room identifier.
+    session_id : str
+        Session identifier.
+
+    Returns
+    -------
+    dict
+        {"active_camera": str}
+    """
+    r = current_app.extensions["redis"]
+    room_keys = RoomKeys(room_id)
+    key = room_keys.session_active_camera(session_id)
+    value = r.get(key)
+
+    log.debug(f"get_active_camera: room={room_id}, session={session_id}, value={value}")
+    return {"active_camera": value}, 200
+
+
+@session_bp.route(
+    "/api/rooms/<string:room_id>/sessions/<string:session_id>/active-camera",
+    methods=["PUT"],
+)
+@require_auth
+def set_active_camera(room_id: str, session_id: str):
+    """Set active camera key for a session.
+
+    Parameters
+    ----------
+    room_id : str
+        Room identifier.
+    session_id : str
+        Session identifier.
+
+    Request Body
+    ------------
+    JSON object with active_camera key, e.g.:
+    {"active_camera": "my_camera"}
+
+    Returns
+    -------
+    dict
+        {"status": "success"}
+    """
+    json_data = request.json
+    if json_data is None:
+        return {"error": "Request body must be JSON"}, 400
+
+    active_camera = json_data.get("active_camera")
+    if active_camera is None:
+        return {"error": "active_camera is required"}, 400
+
+    r = current_app.extensions["redis"]
+    room_keys = RoomKeys(room_id)
+    key = room_keys.session_active_camera(session_id)
+    r.set(key, active_camera)
+
+    # Emit to ONLY this session
+    socketio.emit(
+        SocketEvents.ACTIVE_CAMERA_UPDATE,
+        {"active_camera": active_camera},
+        to=f"session:{session_id}",
+    )
+
+    log.debug(
+        f"set_active_camera: room={room_id}, session={session_id}, camera={active_camera}"
+    )
+    return {"status": "success"}, 200

@@ -342,6 +342,23 @@ class RoomKeys:
         """
         return f"room:{self.room_id}:session_settings:{session_id}"
 
+    def session_active_camera(self, session_id: str) -> str:
+        """Active camera key for a session.
+
+        Stores which camera geometry key the session is viewing through.
+
+        Parameters
+        ----------
+        session_id : str
+            The session identifier
+
+        Returns
+        -------
+        str
+            Redis key for session's active camera
+        """
+        return f"room:{self.room_id}:session:{session_id}:active_camera"
+
     def frontend_sessions(self) -> str:
         """Set of frontend session IDs in this room.
 
