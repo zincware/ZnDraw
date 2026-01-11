@@ -905,12 +905,20 @@ class ZnDraw(MutableSequence):
     def _replace_frame(self, frame_id: int, data: dict):
         """Internal replace - does NOT acquire lock."""
         self._upload_frames("replace", data, frame_id=frame_id)
+        # Clear caches synchronously to avoid race with socket event
+        if self.cache is not None:
+            self.cache.pop(frame_id, None)
+        self._bookmarks.clear()  # Replacing a bookmarked frame removes its bookmark
 
     def _insert_frame(self, index: int, data: dict):
         """Internal insert - does NOT acquire lock."""
         result = self._upload_frames("insert", data, insert_position=index)
         # Use server response to set exact frame count (avoids race condition)
         self._len = result["length"]
+        # Clear caches synchronously to avoid race with socket event
+        if self.cache is not None:
+            self.cache.invalidate_from(index)
+        self._bookmarks.clear()  # Bookmarks shift after insert
 
     def __len__(self) -> int:
         """Return number of frames in the trajectory.
@@ -1227,6 +1235,13 @@ class ZnDraw(MutableSequence):
                     )
                 # Use server response to set exact frame count (avoids race condition)
                 self._len = result["length"]
+                # Clear caches synchronously to avoid race with socket event
+                if self.cache is not None:
+                    if isinstance(index, slice):
+                        self.cache.invalidate_from(start)
+                    else:  # list
+                        self.cache.invalidate_from(min(normalized_indices))
+                self._bookmarks.clear()  # Replaced frames may have had bookmarks
         else:
             raise TypeError(
                 f"Index must be int, slice, or list, not {type(index).__name__}"
@@ -1261,6 +1276,16 @@ class ZnDraw(MutableSequence):
             result = self.api.delete_frames(index)
             # Use server response to set exact frame count (avoids race condition)
             self._len = result["length"]
+            # Clear caches synchronously to avoid race with socket event
+            if self.cache is not None:
+                if isinstance(index, int):
+                    self.cache.invalidate_from(index)
+                elif isinstance(index, list):
+                    self.cache.invalidate_from(min(index))
+                else:  # slice
+                    start, _, _ = index.indices(length)
+                    self.cache.invalidate_from(start)
+            self._bookmarks.clear()  # Bookmarks may be removed or shifted
 
     def _prepare_atoms(self, atoms: ase.Atoms) -> None:
         """Prepare atoms for upload: add connectivity if needed, update colors and radii.
