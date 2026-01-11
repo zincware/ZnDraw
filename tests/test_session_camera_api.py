@@ -7,6 +7,7 @@ They are accessed via the standard geometry endpoints.
 import time
 import uuid
 
+import pytest
 import requests
 
 
@@ -187,7 +188,7 @@ def test_session_camera_updates_are_independent(server, connect_room):
     camera_key_2 = _camera_key(conn2.session_id)
 
     # Update first camera
-    requests.post(
+    r1 = requests.post(
         f"{server}/api/rooms/{room_id}/geometries",
         headers=conn1.headers,
         json={
@@ -197,9 +198,10 @@ def test_session_camera_updates_are_independent(server, connect_room):
         },
         timeout=10,
     )
+    assert r1.status_code == 200
 
     # Update second camera with different values
-    requests.post(
+    r2 = requests.post(
         f"{server}/api/rooms/{room_id}/geometries",
         headers=conn2.headers,
         json={
@@ -209,6 +211,7 @@ def test_session_camera_updates_are_independent(server, connect_room):
         },
         timeout=10,
     )
+    assert r2.status_code == 200
 
     # Verify first camera has its values (not overwritten by second)
     response1 = requests.get(
@@ -263,9 +266,7 @@ def test_session_camera_deleted_on_disconnect(server, connect_room):
         time.sleep(poll_interval)
         elapsed += poll_interval
     else:
-        raise AssertionError(
-            f"Session camera not deleted within {max_wait}s after disconnect"
-        )
+        pytest.fail(f"Session camera not deleted within {max_wait}s after disconnect")
 
     assert response.status_code == 404
 

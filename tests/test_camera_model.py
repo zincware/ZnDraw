@@ -95,7 +95,7 @@ def test_camera_validation_far_positive():
 
 
 def test_camera_validation_fov_range():
-    """Camera fov must be between 0 and 180 (exclusive)."""
+    """Camera fov must be between 1 and 179 (inclusive)."""
     with pytest.raises(ValidationError):
         Camera(fov=0.0)
 

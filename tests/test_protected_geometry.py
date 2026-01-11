@@ -79,7 +79,7 @@ def test_protected_flag_multi_client_sync(server):
         vis2.socket.sio.sleep(poll_interval)
         elapsed += poll_interval
     else:
-        raise AssertionError(
+        pytest.fail(
             f"Geometry 'protected_cam' not synced to client 2 within {max_wait}s"
         )
 

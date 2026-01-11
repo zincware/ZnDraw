@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -55,7 +55,7 @@ function CameraSyncIntegration({
 	controlsRef,
 	controlsState,
 }: {
-	controlsRef: React.RefObject<OrbitControlsImpl | null>;
+	controlsRef: RefObject<OrbitControlsImpl | null>;
 	controlsState: ControlsState;
 }) {
 	const { camera } = useThree();
@@ -167,7 +167,7 @@ function MyScene() {
 
 	const cameraControls = useCameraControls(attachedCameraKey, geometries);
 
-	const orbitControlsRef = useRef<OrbitControlsImpl>(null);
+	const orbitControlsRef = useRef<OrbitControlsImpl | null>(null);
 
 	const { data: settingsResponse } = useSettings(roomId || "");
 	useEffect(() => {
