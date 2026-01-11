@@ -102,7 +102,8 @@ def execute_job_for_worker(
             f"Worker {worker_id} fetched job {job_id}: {category}/{extension} in room {room}"
         )
 
-        user_name = worker_id.replace(":", "-")
+        # Prefix with 'w' to ensure valid username (socket IDs can start with '_')
+        user_name = "w" + worker_id.replace(":", "-")
         vis = ZnDraw.for_job_execution(
             url=server_url,
             room=room,
