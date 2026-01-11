@@ -64,7 +64,7 @@ function CameraSyncIntegration({
 	const curveRefs = useAppStore((state) => state.curveRefs);
 
 	// Geometry camera sync (for updating Camera geometry from OrbitControls)
-	const { syncToGeometry, isUpdatingGeometry } = useGeometryCameraSync({
+	const { syncToGeometry, isEchoBack } = useGeometryCameraSync({
 		camera,
 		controlsRef,
 		controlsState,
@@ -76,9 +76,6 @@ function CameraSyncIntegration({
 		const controls = controlsRef.current;
 		if (!controls) return;
 
-		// Skip if we're currently pushing changes to geometry (prevent loops)
-		if (isUpdatingGeometry.current) return;
-
 		if (!attachedCameraKey) {
 			return;
 		}
@@ -86,7 +83,13 @@ function CameraSyncIntegration({
 		const cameraGeometry = geometries[attachedCameraKey];
 		if (!cameraGeometry || cameraGeometry.type !== "Camera") return;
 
-		const targetData = cameraGeometry.data?.target;
+		const geomData = cameraGeometry.data;
+		if (!geomData) return;
+
+		// Skip if this is an echo-back of our own update (value-based detection)
+		if (isEchoBack(geomData)) return;
+
+		const targetData = geomData.target;
 		if (!targetData) return;
 
 		// Resolve target (either direct coords or CurveAttachment)
@@ -119,13 +122,7 @@ function CameraSyncIntegration({
 			);
 			controls.update();
 		}
-	}, [
-		attachedCameraKey,
-		geometries,
-		curveRefs,
-		controlsRef,
-		isUpdatingGeometry,
-	]);
+	}, [attachedCameraKey, geometries, curveRefs, controlsRef, isEchoBack]);
 
 	// Attach onChange to controls imperatively
 	useEffect(() => {

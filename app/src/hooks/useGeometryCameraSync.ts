@@ -15,6 +15,18 @@ import { isCurveAttachment } from "../utils/cameraUtils";
 import type { ControlsState } from "./useCameraControls";
 
 const DEBOUNCE_MS = 100; // Debounce geometry updates
+const POSITION_EPSILON = 0.0001; // Tolerance for position comparison
+
+/**
+ * Check if two position arrays are approximately equal.
+ */
+function positionsEqual(
+	a: number[] | undefined,
+	b: number[] | undefined,
+): boolean {
+	if (!a || !b || a.length !== b.length) return false;
+	return a.every((v, i) => Math.abs(v - b[i]) < POSITION_EPSILON);
+}
 
 interface UseGeometryCameraSyncProps {
 	camera: ThreeCamera | null;
@@ -35,8 +47,11 @@ export function useGeometryCameraSync({
 	const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
 	const lock = useAppStore((state) => state.lock);
 
-	// Flag to prevent echo-back when geometry update triggers camera update
-	const isUpdatingGeometryRef = useRef(false);
+	// Track last sent values for echo-back detection (value-based, not time-based)
+	const lastSentRef = useRef<{
+		position: number[] | null;
+		target: number[] | null;
+	}>({ position: null, target: null });
 
 	// Ref for latest persist function (avoids stale closure)
 	const persistRef = useRef<
@@ -70,8 +85,13 @@ export function useGeometryCameraSync({
 			updatedData.target = target;
 		}
 
+		// Store what we're sending for echo-back detection
+		lastSentRef.current = {
+			position: updatedData.position as number[] | null,
+			target: updatedData.target as number[] | null,
+		};
+
 		try {
-			isUpdatingGeometryRef.current = true;
 			await createGeometry(
 				roomId,
 				attachedCameraKey,
@@ -84,13 +104,43 @@ export function useGeometryCameraSync({
 				"[GeometryCameraSync] Failed to update camera geometry:",
 				error,
 			);
-		} finally {
-			// Reset flag after a short delay to allow the update to propagate
-			setTimeout(() => {
-				isUpdatingGeometryRef.current = false;
-			}, 50);
+			// Clear last sent on error so next update will proceed
+			lastSentRef.current = { position: null, target: null };
 		}
 	};
+
+	/**
+	 * Check if incoming geometry data matches what we last sent (echo-back detection).
+	 * Returns true if this appears to be our own update echoed back.
+	 */
+	const isEchoBack = useCallback(
+		(geomData: { position?: number[]; target?: number[] }): boolean => {
+			const { position, target } = lastSentRef.current;
+			if (!position && !target) return false;
+
+			// Check if position matches (for array positions only)
+			const positionMatches =
+				!position ||
+				!Array.isArray(geomData.position) ||
+				positionsEqual(position, geomData.position);
+
+			// Check if target matches (for array targets only)
+			const targetMatches =
+				!target ||
+				!Array.isArray(geomData.target) ||
+				positionsEqual(target, geomData.target);
+
+			// If both match, it's likely our echo-back
+			if (positionMatches && targetMatches) {
+				// Clear the tracking after detecting echo-back
+				lastSentRef.current = { position: null, target: null };
+				return true;
+			}
+
+			return false;
+		},
+		[],
+	);
 
 	// Debounced persist
 	const debouncedPersist = useMemo(
@@ -121,9 +171,6 @@ export function useGeometryCameraSync({
 		if (!controlsState.positionEditable && !controlsState.targetEditable)
 			return;
 
-		// Skip if we're in the middle of updating geometry (prevent loops)
-		if (isUpdatingGeometryRef.current) return;
-
 		const position = camera.position.toArray();
 		const target = controls.target.toArray();
 
@@ -137,5 +184,5 @@ export function useGeometryCameraSync({
 		debouncedPersist,
 	]);
 
-	return { syncToGeometry, isUpdatingGeometry: isUpdatingGeometryRef };
+	return { syncToGeometry, isEchoBack };
 }

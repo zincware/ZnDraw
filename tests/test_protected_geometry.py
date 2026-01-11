@@ -68,7 +68,20 @@ def test_protected_flag_multi_client_sync(server):
     vis2 = ZnDraw(url=server, room="room-protected-sync", user="tester2")
 
     vis1.geometries["protected_cam"] = Camera(protected=True)
-    vis2.socket.sio.sleep(0.5)
+
+    # Poll until geometry is synced to client 2 (max 5 seconds)
+    max_wait = 5.0
+    poll_interval = 0.1
+    elapsed = 0.0
+    while elapsed < max_wait:
+        if "protected_cam" in vis2.geometries:
+            break
+        vis2.socket.sio.sleep(poll_interval)
+        elapsed += poll_interval
+    else:
+        raise AssertionError(
+            f"Geometry 'protected_cam' not synced to client 2 within {max_wait}s"
+        )
 
     # Client 2 should see the protected flag
     cam = vis2.geometries["protected_cam"]

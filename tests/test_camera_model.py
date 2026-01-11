@@ -235,3 +235,55 @@ def test_camera_helper_color_schema():
 
     helper_color_schema = schema["properties"]["helper_color"]
     assert helper_color_schema.get("x-custom-type") == "color-picker"
+
+
+def test_camera_deserialization_with_curve_attachment_dict():
+    """Camera should deserialize CurveAttachment from dict (JSON API format).
+
+    This is the critical test for union type handling - when data comes from
+    JSON (frontend or API), CurveAttachment is a dict, not an object.
+    Pydantic must correctly convert it to CurveAttachment.
+    """
+    data = {
+        "position": {
+            "type": "curve_attachment",
+            "geometry_key": "flight_path",
+            "progress": 0.5,
+        },
+        "target": (0.0, 0.0, 0.0),
+        "fov": 60.0,
+    }
+
+    cam = Camera.model_validate(data)
+
+    # Verify position was converted to CurveAttachment (not left as dict)
+    assert isinstance(cam.position, CurveAttachment)
+    assert cam.position.geometry_key == "flight_path"
+    assert cam.position.progress == 0.5
+
+    # Verify target remained as tuple
+    assert isinstance(cam.target, tuple)
+    assert cam.target == (0.0, 0.0, 0.0)
+
+
+def test_camera_deserialization_both_curve_attachments_as_dicts():
+    """Camera should handle both position and target as CurveAttachment dicts."""
+    data = {
+        "position": {
+            "type": "curve_attachment",
+            "geometry_key": "pos_curve",
+            "progress": 0.3,
+        },
+        "target": {
+            "type": "curve_attachment",
+            "geometry_key": "target_curve",
+            "progress": 0.7,
+        },
+    }
+
+    cam = Camera.model_validate(data)
+
+    assert isinstance(cam.position, CurveAttachment)
+    assert cam.position.geometry_key == "pos_curve"
+    assert isinstance(cam.target, CurveAttachment)
+    assert cam.target.geometry_key == "target_curve"

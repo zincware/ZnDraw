@@ -37,24 +37,43 @@ export default function Camera({
 
 	const { roomId, geometries, attachedCameraKey, curveRefs } = useAppStore();
 
-	const [computedPosition, setComputedPosition] = useState<THREE.Vector3>(
-		() => {
-			if (Array.isArray(data.position)) {
-				return new THREE.Vector3(
-					data.position[0],
-					data.position[1],
-					data.position[2],
-				);
-			}
-			return new THREE.Vector3(0, 0, 10);
-		},
-	);
-	const [computedTarget, setComputedTarget] = useState<THREE.Vector3>(() => {
-		if (Array.isArray(data.target)) {
-			return new THREE.Vector3(data.target[0], data.target[1], data.target[2]);
+	/**
+	 * Resolve initial position from data.
+	 * For arrays: use directly. For CurveAttachment: try to resolve from geometry data.
+	 * Backend always provides valid data, so fallback cases should not occur.
+	 */
+	const resolveInitialPosition = (
+		positionData: PositionType,
+	): THREE.Vector3 => {
+		if (Array.isArray(positionData)) {
+			return new THREE.Vector3(
+				positionData[0],
+				positionData[1],
+				positionData[2],
+			);
 		}
-		return new THREE.Vector3(0, 0, 0);
-	});
+		// CurveAttachment - resolve from geometry data
+		if (isCurveAttachment(positionData)) {
+			const curveGeometry = geometries[positionData.geometry_key];
+			if (
+				curveGeometry?.type === "Curve" &&
+				curveGeometry.data?.position?.[0]
+			) {
+				const [x, y, z] = curveGeometry.data.position[0];
+				return new THREE.Vector3(x, y, z);
+			}
+		}
+		// Backend should always provide valid data - this indicates a bug
+		console.error("Camera: received invalid position data from backend");
+		throw new Error("Invalid camera position data");
+	};
+
+	const [computedPosition, setComputedPosition] = useState<THREE.Vector3>(() =>
+		resolveInitialPosition(data.position),
+	);
+	const [computedTarget, setComputedTarget] = useState<THREE.Vector3>(() =>
+		resolveInitialPosition(data.target),
+	);
 
 	const isAttached = attachedCameraKey === geometryKey;
 
@@ -79,15 +98,16 @@ export default function Camera({
 	const targetCurve = targetCurveKey ? curveRefs[targetCurveKey] : undefined;
 
 	/**
-	 * Helper: Resolve position from either direct coordinates or CurveAttachment
+	 * Helper: Resolve position from either direct coordinates or CurveAttachment.
+	 * Returns null if CurveAttachment cannot be resolved (curve not loaded yet).
+	 * Backend always provides valid data, so null indicates a timing issue, not invalid data.
 	 */
 	const resolvePositionToVector = (
 		positionData: PositionType,
 		curveKey: string | null,
 		curve: THREE.CatmullRomCurve3 | undefined,
 		progress: number,
-		fallback: THREE.Vector3,
-	): THREE.Vector3 => {
+	): THREE.Vector3 | null => {
 		// Direct coordinates - just use them
 		if (Array.isArray(positionData)) {
 			return new THREE.Vector3(
@@ -99,7 +119,11 @@ export default function Camera({
 
 		// CurveAttachment - resolve via curve
 		if (!curveKey) {
-			return fallback;
+			// Invalid CurveAttachment (no geometry_key) - backend bug
+			console.error(
+				`Camera ${geometryKey}: CurveAttachment missing geometry_key`,
+			);
+			return null;
 		}
 
 		if (curve) {
@@ -115,10 +139,8 @@ export default function Camera({
 				const [x, y, z] = curveGeometry.data.position[0];
 				return new THREE.Vector3(x, y, z);
 			} else {
-				console.warn(
-					`Camera ${geometryKey}: curve key '${curveKey}' not found or invalid`,
-				);
-				return fallback;
+				// Curve not loaded yet - will be resolved when geometry loads
+				return null;
 			}
 		}
 	};
@@ -130,9 +152,11 @@ export default function Camera({
 			positionCurveKey,
 			positionCurve,
 			positionProgress,
-			new THREE.Vector3(0, 0, 10),
 		);
-		setComputedPosition(point);
+		// Only update if resolution succeeded (null = curve not loaded yet)
+		if (point !== null) {
+			setComputedPosition(point);
+		}
 	}, [
 		data.position,
 		positionCurve,
@@ -149,9 +173,11 @@ export default function Camera({
 			targetCurveKey,
 			targetCurve,
 			targetProgress,
-			new THREE.Vector3(0, 0, 0),
 		);
-		setComputedTarget(point);
+		// Only update if resolution succeeded (null = curve not loaded yet)
+		if (point !== null) {
+			setComputedTarget(point);
+		}
 	}, [
 		data.target,
 		targetCurve,
