@@ -4,6 +4,7 @@ import ase
 
 from zndraw import ZnDraw
 from zndraw.geometries import Arrow, Box, Camera, Curve, Floor, Sphere
+from zndraw.transformations import CurveAttachment
 
 
 def test_overview(server, page, capture, bmim_bf4, request):
@@ -432,10 +433,8 @@ def test_camera(server, page, capture, bmim_bf4, request):
 
     # Create camera attached to curves
     vis.geometries["camera"] = Camera(
-        position_curve_key="cam_pos",
-        target_curve_key="cam_target",
-        position_progress=0.5,
-        target_progress=0.5,
+        position=CurveAttachment(geometry_key="cam_pos", progress=0.5),
+        target=CurveAttachment(geometry_key="cam_target", progress=0.5),
         fov=60,
         helper_visible=True,
         helper_color="#00ff00",
