@@ -141,7 +141,7 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 						? "Deselect this curve for drawing"
 						: "Select this curve for drawing"
 					: isSelected
-						? "Detach from this camera"
+						? "Currently attached to this camera"
 						: "Attach to this camera";
 
 				return (

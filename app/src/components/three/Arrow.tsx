@@ -102,13 +102,13 @@ export default function Arrow({
 	geometryKey: string;
 	pathtracingEnabled?: boolean;
 }) {
-	const geometrySchemas = useAppStore((state) => state.geometrySchemas);
+	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
 	// Merge with defaults from Pydantic (single source of truth)
 	const fullData = getGeometryWithDefaults<ArrowData>(
 		data,
 		"Arrow",
-		geometrySchemas,
+		geometryDefaults,
 	);
 	const {
 		position: positionProp,

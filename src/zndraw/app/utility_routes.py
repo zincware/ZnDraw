@@ -18,7 +18,6 @@ from zndraw.auth import (
     require_admin,
     require_auth,
 )
-from zndraw.geometries import geometries as geometry_classes
 from zndraw.server import socketio
 from zndraw.services.user_service import (
     PasswordValidationError,
@@ -65,25 +64,6 @@ def get_global_settings():
             "enabled": config.simgen_enabled,
         }
     }, 200
-
-
-@utility.route("/api/schema/geometries/defaults")
-def get_geometry_defaults():
-    """Get default values for all geometry types.
-
-    Returns default values from Pydantic models, allowing frontend
-    to use backend-defined defaults without duplication.
-
-    Returns
-    -------
-    dict
-        {geometry_type: {field: default_value, ...}, ...}
-    """
-    defaults = {}
-    for name, model in geometry_classes.items():
-        instance = model()
-        defaults[name] = instance.model_dump()
-    return {"defaults": defaults}, 200
 
 
 @utility.route("/api/tools/rdkit-img", methods=["POST"])

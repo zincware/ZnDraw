@@ -8,7 +8,6 @@ import time
 import uuid
 from contextlib import contextmanager
 
-import pytest
 import requests
 import socketio as sio_lib
 
@@ -357,23 +356,3 @@ def test_list_sessions(server, get_jwt_auth_headers):
 
         session_ids = [s["session_id"] for s in data["sessions"]]
         assert session_id in session_ids
-
-
-def test_geometry_defaults_endpoint(server, get_jwt_auth_headers):
-    """GET /api/schema/geometries/defaults returns Camera defaults."""
-    headers = get_jwt_auth_headers(server)
-
-    response = requests.get(
-        f"{server}/api/schema/geometries/defaults", headers=headers, timeout=10
-    )
-
-    assert response.status_code == 200
-    data = response.json()
-    assert "defaults" in data
-    assert "Camera" in data["defaults"]
-
-    cam_defaults = data["defaults"]["Camera"]
-    assert cam_defaults["fov"] == 75.0
-    assert cam_defaults["near"] == 0.1
-    assert cam_defaults["far"] == 1000.0
-    assert cam_defaults["position"] == [0.0, 5.0, 10.0]

@@ -12,7 +12,7 @@ def test_rest_create_and_socket_join_room(server, get_jwt_auth_headers):
 
     # Authenticate as admin to see all rooms
     headers = get_jwt_auth_headers(server, "admin")
-    response = requests.get(f"{server}/api/rooms", headers=headers)
+    response = requests.get(f"{server}/api/rooms", headers=headers, timeout=10)
     assert response.status_code == 200
     rooms = response.json()
     assert isinstance(rooms, list)
@@ -25,6 +25,7 @@ def test_rest_create_and_socket_join_room(server, get_jwt_auth_headers):
         f"{server}/api/rooms",
         json={"roomId": room},
         headers=headers,
+        timeout=10,
     )
     assert create_response.status_code == 201
     create_data = create_response.json()
@@ -35,11 +36,11 @@ def test_rest_create_and_socket_join_room(server, get_jwt_auth_headers):
     # Then join the room via socket room:join
     jwt_token = headers["Authorization"].replace("Bearer ", "")
     sio = socketio.Client()
-    sio.connect(server, auth={"token": jwt_token}, wait=True)
+    sio.connect(server, auth={"token": jwt_token}, wait=True, wait_timeout=10)
 
     try:
         join_response = sio.call(
-            "room:join", {"roomId": room, "clientType": "frontend"}
+            "room:join", {"roomId": room, "clientType": "frontend"}, timeout=10
         )
         assert join_response["status"] == "ok"
         assert "sessionId" in join_response
@@ -48,7 +49,7 @@ def test_rest_create_and_socket_join_room(server, get_jwt_auth_headers):
         sio.disconnect()
 
     # list all rooms again to see if the new room is there
-    response = requests.get(f"{server}/api/rooms", headers=headers)
+    response = requests.get(f"{server}/api/rooms", headers=headers, timeout=10)
     assert response.status_code == 200
     rooms = response.json()
     assert isinstance(rooms, list)
@@ -58,7 +59,9 @@ def test_rest_create_and_socket_join_room(server, get_jwt_auth_headers):
     # getting any frame will fail with index error
     for frame_idx in [0, 1, -1, 100]:
         response = requests.get(
-            f"{server}/api/rooms/{room}/frames", params={"indices": str(frame_idx)}
+            f"{server}/api/rooms/{room}/frames",
+            params={"indices": str(frame_idx)},
+            timeout=10,
         )
         assert response.status_code == 404
         data = response.json()
@@ -75,10 +78,12 @@ def test_socket_join_nonexistent_room_fails(server, get_jwt_auth_headers):
     jwt_token = headers["Authorization"].replace("Bearer ", "")
 
     sio = socketio.Client()
-    sio.connect(server, auth={"token": jwt_token}, wait=True)
+    sio.connect(server, auth={"token": jwt_token}, wait=True, wait_timeout=10)
 
     try:
-        response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
+        response = sio.call(
+            "room:join", {"roomId": room, "clientType": "frontend"}, timeout=10
+        )
         assert response["status"] == "error"
         assert response["code"] == 404
         assert "not found" in response["message"].lower()
@@ -98,16 +103,19 @@ def test_socket_join_existing_room(server, get_jwt_auth_headers):
         f"{server}/api/rooms",
         json={"roomId": room},
         headers=headers,
+        timeout=10,
     )
     assert create_response.status_code == 201
 
     # Join the existing room with the same user via socket
     jwt_token = headers["Authorization"].replace("Bearer ", "")
     sio = socketio.Client()
-    sio.connect(server, auth={"token": jwt_token}, wait=True)
+    sio.connect(server, auth={"token": jwt_token}, wait=True, wait_timeout=10)
 
     try:
-        response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
+        response = sio.call(
+            "room:join", {"roomId": room, "clientType": "frontend"}, timeout=10
+        )
         assert response["status"] == "ok"
         assert "sessionId" in response
         assert "roomData" in response
@@ -118,10 +126,12 @@ def test_socket_join_existing_room(server, get_jwt_auth_headers):
     headers2 = get_jwt_auth_headers(server, "user2")
     jwt_token2 = headers2["Authorization"].replace("Bearer ", "")
     sio2 = socketio.Client()
-    sio2.connect(server, auth={"token": jwt_token2}, wait=True)
+    sio2.connect(server, auth={"token": jwt_token2}, wait=True, wait_timeout=10)
 
     try:
-        response2 = sio2.call("room:join", {"roomId": room, "clientType": "frontend"})
+        response2 = sio2.call(
+            "room:join", {"roomId": room, "clientType": "frontend"}, timeout=10
+        )
         assert response2["status"] == "ok"
         assert "sessionId" in response2
     finally:
@@ -142,6 +152,7 @@ def test_create_room_with_copy_from(server, s22, get_jwt_auth_headers):
         f"{server}/api/rooms",
         json={"roomId": new_room, "copyFrom": source_room},
         headers=headers,
+        timeout=10,
     )
     assert response.status_code == 201
     data = response.json()
@@ -156,6 +167,7 @@ def test_create_room_with_copy_from(server, s22, get_jwt_auth_headers):
         f"{server}/api/rooms",
         json={"roomId": another_room},
         headers=headers,
+        timeout=10,
     )
     assert response.status_code == 201
     data = response.json()
@@ -173,6 +185,7 @@ def test_create_room_invalid_name(server, get_jwt_auth_headers):
         f"{server}/api/rooms",
         json={"roomId": room},
         headers=headers,
+        timeout=10,
     )
     assert response.status_code == 400
     data = response.json()

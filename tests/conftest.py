@@ -98,14 +98,16 @@ def _get_jwt_auth_headers(server_url: str, user_name: str | None = None) -> dict
 
     # Step 1: Register user (creates in backend)
     register_response = requests.post(
-        f"{server_url}/api/user/register", json={"userName": user_name}
+        f"{server_url}/api/user/register", json={"userName": user_name}, timeout=10
     )
     # 409 = already exists, which is fine (allows reusing usernames in tests)
     if register_response.status_code not in (200, 201, 409):
         raise RuntimeError(f"Registration failed: {register_response.text}")
 
     # Step 2: Login (get JWT)
-    response = requests.post(f"{server_url}/api/login", json={"userName": user_name})
+    response = requests.post(
+        f"{server_url}/api/login", json={"userName": user_name}, timeout=10
+    )
 
     if response.status_code != 200:
         raise RuntimeError(f"Login failed: {response.text}")
@@ -147,6 +149,7 @@ def _create_and_join_room(server: str, room: str, auth_headers: dict) -> str:
                 f"{server}/api/rooms",
                 json={"roomId": room},
                 headers=auth_headers,
+                timeout=10,
             )
             if create_response.status_code not in (200, 201, 409):
                 raise RuntimeError(
@@ -207,6 +210,7 @@ def _create_room_connection(
             f"{server}/api/rooms",
             json={"roomId": room_id},
             headers=auth_headers,
+            timeout=10,
         )
         if create_response.status_code not in (200, 201, 409):
             sio.disconnect()
@@ -535,6 +539,7 @@ def joined_room(server, request):
         f"{server}/api/rooms",
         json={"roomId": room},
         headers=auth_headers,
+        timeout=10,
     )
     assert create_response.status_code in (200, 201, 409), (
         f"Failed to create room {room}"

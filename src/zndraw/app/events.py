@@ -154,6 +154,11 @@ def get_room_metadata(r, room_id: str) -> dict:
         name: model.model_json_schema() for name, model in geometry_classes.items()
     }
 
+    # Geometry defaults from Pydantic models (single source of truth)
+    geometry_defaults = {
+        name: model().model_dump() for name, model in geometry_classes.items()
+    }
+
     # Selections
     selections_raw = r.hgetall(room_keys.selections())
     selections = {k: json.loads(v) for k, v in selections_raw.items()}
@@ -180,6 +185,7 @@ def get_room_metadata(r, room_id: str) -> dict:
         "settings": room_config.model_dump(),
         "settingsSchema": RoomConfig.model_json_schema(),
         "geometrySchemas": geometry_schemas,
+        "geometryDefaults": geometry_defaults,
         "selections": {
             "selections": selections,
             "groups": groups,

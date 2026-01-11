@@ -59,13 +59,13 @@ export default function Curve({
 	data,
 	geometryKey,
 }: { data: CurveData; geometryKey: string }) {
-	const geometrySchemas = useAppStore((state) => state.geometrySchemas);
+	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
 	// Merge with defaults from Pydantic (single source of truth)
 	// Memoize to prevent recreating on every render
 	const fullData = useMemo(
-		() => getGeometryWithDefaults<CurveData>(data, "Curve", geometrySchemas),
-		[data, geometrySchemas],
+		() => getGeometryWithDefaults<CurveData>(data, "Curve", geometryDefaults),
+		[data, geometryDefaults],
 	);
 
 	const {

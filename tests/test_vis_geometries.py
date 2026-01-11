@@ -22,7 +22,9 @@ def test_rest_get_geometries(joined_room, get_jwt_auth_headers):
     headers = get_jwt_auth_headers(server)
 
     # Test listing geometry keys (default geometries include cell, floor, and constraints)
-    response = requests.get(f"{server}/api/rooms/{room}/geometries", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/geometries", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     data = response.json()
     assert "geometries" in data
@@ -36,7 +38,9 @@ def test_rest_get_geometries(joined_room, get_jwt_auth_headers):
     }
 
     # Test getting individual geometry - particles
-    response = requests.get(f"{server}/api/rooms/{room}/geometries/particles")
+    response = requests.get(
+        f"{server}/api/rooms/{room}/geometries/particles", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["key"] == "particles"
@@ -45,7 +49,9 @@ def test_rest_get_geometries(joined_room, get_jwt_auth_headers):
     assert data["geometry"]["data"]["scale"] == [[0.7, 0.7, 0.7]]
 
     # Test getting individual geometry - bonds
-    response = requests.get(f"{server}/api/rooms/{room}/geometries/bonds")
+    response = requests.get(
+        f"{server}/api/rooms/{room}/geometries/bonds", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["key"] == "bonds"
@@ -54,7 +60,9 @@ def test_rest_get_geometries(joined_room, get_jwt_auth_headers):
     assert data["geometry"]["data"]["scale"] == 0.15  # Bond has scalar scale
 
     # Test getting non-existent geometry
-    response = requests.get(f"{server}/api/rooms/{room}/geometries/nonexistent")
+    response = requests.get(
+        f"{server}/api/rooms/{room}/geometries/nonexistent", headers=headers, timeout=10
+    )
     assert response.status_code == 404
 
 
@@ -73,7 +81,9 @@ def test_rest_update_geometries(joined_room):
     vis.geometries["particles"] = new_sphere
 
     # Verify the geometry was updated
-    response = requests.get(f"{server}/api/rooms/{room}/geometries/particles")
+    response = requests.get(
+        f"{server}/api/rooms/{room}/geometries/particles", timeout=10
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["geometry"]["type"] == "Sphere"
@@ -107,7 +117,7 @@ def test_rest_partial_update_geometries(joined_room):
     vis.geometries["curve"] = updated_curve
 
     # Verify the geometry was updated and old data was preserved
-    response = requests.get(f"{server}/api/rooms/{room}/geometries/curve")
+    response = requests.get(f"{server}/api/rooms/{room}/geometries/curve", timeout=10)
     assert response.status_code == 200
     data = response.json()
     assert data["geometry"]["type"] == "Curve"
@@ -147,7 +157,9 @@ def test_rest_delete_geometry(joined_room, get_jwt_auth_headers):
     del vis.geometries["constraints-fixed-atoms"]
 
     # Verify no shared geometries remain (session cameras only exist for frontend clients)
-    response = requests.get(f"{server}/api/rooms/{room}/geometries", headers=headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/geometries", headers=headers, timeout=10
+    )
     assert response.status_code == 200
     data = response.json()
     remaining_keys = list(data["geometries"].keys())
@@ -257,7 +269,7 @@ def test_rest_create_basic_camera(joined_room):
     vis.geometries["camera1"] = camera
 
     # Verify the camera was created
-    response = requests.get(f"{server}/api/rooms/{room}/geometries/camera1")
+    response = requests.get(f"{server}/api/rooms/{room}/geometries/camera1", timeout=10)
     assert response.status_code == 200
     data = response.json()
     assert data["geometry"]["type"] == "Camera"

@@ -108,15 +108,6 @@ function CameraSyncIntegration({
 			if (curve) {
 				const point = curve.getPointAt(progress);
 				targetPosition = [point.x, point.y, point.z];
-			} else {
-				// Fallback: try to get single point from curve geometry
-				const curveGeometry = geometries[curveKey];
-				if (
-					curveGeometry?.type === "Curve" &&
-					curveGeometry.data?.position?.[0]
-				) {
-					targetPosition = curveGeometry.data.position[0];
-				}
 			}
 		}
 

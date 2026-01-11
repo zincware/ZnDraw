@@ -39,6 +39,7 @@ const GeometryForm = () => {
 	const roomId = useAppStore((state) => state.roomId);
 	const geometries = useAppStore((state) => state.geometries);
 	const geometrySchemas = useAppStore((state) => state.geometrySchemas);
+	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 	const userName = null; // we don't want to skip when saving the current userName, so undefined
 	const {
 		mode,
@@ -152,7 +153,7 @@ const GeometryForm = () => {
 			mode === "create" &&
 			keyInput.trim() &&
 			selectedType &&
-			geometrySchemas &&
+			geometryDefaults &&
 			!isLocked
 		) {
 			// Check if the key is already taken
@@ -165,7 +166,7 @@ const GeometryForm = () => {
 			const defaultData = getGeometryWithDefaults(
 				{},
 				selectedType,
-				geometrySchemas,
+				geometryDefaults,
 			);
 			setFormData(defaultData);
 			setIsLocked(true);
@@ -175,7 +176,7 @@ const GeometryForm = () => {
 		mode,
 		keyInput,
 		selectedType,
-		geometrySchemas,
+		geometryDefaults,
 		isLocked,
 		setFormData,
 		isKeyTaken,
@@ -194,8 +195,8 @@ const GeometryForm = () => {
 		setError(null);
 
 		// Immediately apply Pydantic defaults when type is selected
-		if (mode === "create" && geometrySchemas && type) {
-			const defaultData = getGeometryWithDefaults({}, type, geometrySchemas);
+		if (mode === "create" && geometryDefaults && type) {
+			const defaultData = getGeometryWithDefaults({}, type, geometryDefaults);
 			setFormData(defaultData);
 		}
 	};

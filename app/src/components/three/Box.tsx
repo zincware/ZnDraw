@@ -66,13 +66,13 @@ export default function Box({
 	geometryKey: string;
 	pathtracingEnabled?: boolean;
 }) {
-	const geometrySchemas = useAppStore((state) => state.geometrySchemas);
+	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
 	// Merge with defaults from Pydantic (single source of truth)
 	const fullData = getGeometryWithDefaults<BoxData>(
 		data,
 		"Box",
-		geometrySchemas,
+		geometryDefaults,
 	);
 
 	const {

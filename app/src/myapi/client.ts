@@ -304,17 +304,6 @@ export const getGeometrySchemas = async (
 	return data;
 };
 
-/**
- * Get default values for all geometry types from Pydantic models.
- * This allows frontend to use backend-defined defaults without duplication.
- */
-export const getGeometryDefaults = async (): Promise<{
-	defaults: Record<string, any>;
-}> => {
-	const { data } = await apiClient.get("/api/schema/geometries/defaults");
-	return data;
-};
-
 // ==================== Selections API ====================
 
 export interface SelectionsResponse {

@@ -2,11 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import { useThree } from "@react-three/fiber";
 import { useAppStore } from "../../store";
-import {
-	isCurveAttachment,
-	CurveAttachment,
-	PositionType,
-} from "../../utils/cameraUtils";
+import { isCurveAttachment, PositionType } from "../../utils/cameraUtils";
 
 interface CameraData {
 	// Position and target can be either direct coordinates or CurveAttachment

@@ -45,6 +45,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		setSessionId,
 		setGeometries,
 		setGeometrySchemas,
+		setGeometryDefaults,
 		updateGeometry,
 		removeGeometry,
 		setActiveCurveForDrawing,
@@ -157,6 +158,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 						setCurrentFrame(roomData.currentStep);
 						setFrameSelection(roomData.frameSelection);
 						setGeometrySchemas(roomData.geometrySchemas);
+						setGeometryDefaults(roomData.geometryDefaults);
 
 						// Set selections
 						if (roomData.selections) {
@@ -824,6 +826,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		setSessionId,
 		setGeometries,
 		setGeometrySchemas,
+		setGeometryDefaults,
 		updateGeometry,
 		removeGeometry,
 		setActiveCurveForDrawing,
