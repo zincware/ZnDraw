@@ -158,13 +158,14 @@ class APIManager:
         ------
         KeyError, IndexError, ValueError, TypeError, PermissionError
             Based on the error type returned by the API
+        requests.HTTPError
+            If JSON parsing fails or error type is not recognized
         """
         try:
             error_data = response.json()
         except requests.exceptions.JSONDecodeError:
-            # JSON decode failed, let raise_for_status handle it
+            response.raise_for_status()
             return
-
         error_type = error_data.get("type", "")
         error_msg = error_data.get("error", response.text)
 
@@ -178,6 +179,9 @@ class APIManager:
 
         if error_type in exception_map:
             raise exception_map[error_type](error_msg)
+
+        # Unknown error type - raise generic HTTP error
+        response.raise_for_status()
 
     def get_version(self) -> str:
         """Get the server version.
