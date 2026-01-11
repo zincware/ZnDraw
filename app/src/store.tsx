@@ -3,6 +3,7 @@ import { socket } from "./socket";
 import * as THREE from "three";
 import {
 	updateSelection as updateSelectionAPI,
+	updateFrameSelection as updateFrameSelectionAPI,
 	loadSelectionGroup as loadSelectionGroupAPI,
 	setBookmark as setBookmarkAPI,
 	deleteBookmark as deleteBookmarkAPI,
@@ -408,8 +409,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 		});
 	},
 
-	setFrameSelection: (frame_selection) =>
-		set({ frame_selection: frame_selection }),
+	setFrameSelection: (frame_selection) => {
+		const roomId = get().roomId;
+		if (!roomId) return;
+
+		// Optimistic update
+		set({ frame_selection: frame_selection });
+
+		// Update via REST API
+		updateFrameSelectionAPI(roomId, frame_selection || []).catch((error) => {
+			console.error("Failed to update frame selection:", error);
+		});
+	},
 	setFrameSelectionEnabled: (enabled) =>
 		set({ frameSelectionEnabled: enabled }),
 	setBookmarks: (bookmarks) => set({ bookmarks: bookmarks }),

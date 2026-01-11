@@ -478,6 +478,16 @@ export const getFrameSelection = async (
 	return data;
 };
 
+export const updateFrameSelection = async (
+	roomId: string,
+	indices: number[],
+): Promise<{ success: boolean }> => {
+	const { data } = await apiClient.put(`/api/rooms/${roomId}/frame-selection`, {
+		indices,
+	});
+	return data;
+};
+
 export const getCurrentStep = async (
 	roomId: string,
 	signal?: AbortSignal,
