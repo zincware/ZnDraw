@@ -1738,7 +1738,8 @@ class APIManager:
             timeout=10.0,
         )
         response.raise_for_status()
-        return response.json().get("active_camera")
+        # A session should ALWAYS have an "active_camera"
+        return response.json()["active_camera"]
 
     def set_active_camera(self, session_id: str, camera_key: str) -> None:
         """Set active camera for a frontend session.
