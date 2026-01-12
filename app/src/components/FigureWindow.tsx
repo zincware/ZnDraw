@@ -452,10 +452,6 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 	const { setStep } = useStepControl();
 	const { mode } = useColorScheme();
 
-	if (!windowInstance) {
-		return null;
-	}
-
 	// ===== MEMOIZED: Parsed Plotly JSON =====
 	const plotlyJson = useMemo(() => {
 		if (
@@ -619,9 +615,9 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 				}
 			});
 
-			// Apply frame selection - replace with newly selected frames
+			// Apply frame selection - replace with newly selected frames (dedupe to avoid redundant API calls)
 			if (selectedFrames.length > 0) {
-				updateFrameSelection(selectedFrames);
+				updateFrameSelection([...new Set(selectedFrames)]);
 			}
 
 			// Send each geometry selection to server
@@ -633,8 +629,11 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 	);
 
 	const onPlotDeselect = useCallback(() => {
-		updateFrameSelection([]);
-	}, [updateFrameSelection]);
+		// Guard: avoid redundant API calls if already empty
+		if (frame_selection && frame_selection.length > 0) {
+			updateFrameSelection([]);
+		}
+	}, [frame_selection, updateFrameSelection]);
 
 	// ===== EFFECT: Initialize/Update Plotly Chart =====
 	useEffect(() => {
@@ -1131,6 +1130,11 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 			</Box>
 		);
 	}, [figureResponse?.figure?.type, markerVisibility]);
+
+	// ===== EARLY RETURN: Window not found =====
+	if (!windowInstance) {
+		return null;
+	}
 
 	// ===== RENDER: Loading State =====
 	if (isLoading) {

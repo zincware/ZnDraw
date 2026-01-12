@@ -378,7 +378,7 @@ def update_frame_selection(room_id: str):
     """
     r = current_app.extensions["redis"]
     keys = RoomKeys(room_id)
-    data = request.get_json()
+    data = request.get_json() or {}
 
     indices = data.get("indices", [])
     if not isinstance(indices, list):
