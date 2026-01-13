@@ -443,16 +443,14 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 	const updateSelectionForGeometry = useAppStore(
 		(state) => state.updateSelectionForGeometry,
 	);
-	const setFrameSelection = useAppStore((state) => state.setFrameSelection);
+	const updateFrameSelection = useAppStore(
+		(state) => state.updateFrameSelection,
+	);
 	const currentFrame = useAppStore((state) => state.currentFrame);
 	const frame_selection = useAppStore((state) => state.frame_selection);
 	const selections = useAppStore((state) => state.selections);
 	const { setStep } = useStepControl();
 	const { mode } = useColorScheme();
-
-	if (!windowInstance) {
-		return null;
-	}
 
 	// ===== MEMOIZED: Parsed Plotly JSON =====
 	const plotlyJson = useMemo(() => {
@@ -617,9 +615,9 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 				}
 			});
 
-			// Apply frame selection - replace with newly selected frames
+			// Apply frame selection - replace with newly selected frames (dedupe to avoid redundant API calls)
 			if (selectedFrames.length > 0) {
-				setFrameSelection(selectedFrames);
+				updateFrameSelection([...new Set(selectedFrames)]);
 			}
 
 			// Send each geometry selection to server
@@ -627,12 +625,15 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 				updateSelectionForGeometry(geometryName, indices);
 			});
 		},
-		[setFrameSelection, updateSelectionForGeometry],
+		[updateFrameSelection, updateSelectionForGeometry],
 	);
 
 	const onPlotDeselect = useCallback(() => {
-		setFrameSelection([]);
-	}, [setFrameSelection]);
+		// Guard: avoid redundant API calls if already empty
+		if (frame_selection && frame_selection.length > 0) {
+			updateFrameSelection([]);
+		}
+	}, [frame_selection, updateFrameSelection]);
 
 	// ===== EFFECT: Initialize/Update Plotly Chart =====
 	useEffect(() => {
@@ -1129,6 +1130,11 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 			</Box>
 		);
 	}, [figureResponse?.figure?.type, markerVisibility]);
+
+	// ===== EARLY RETURN: Window not found =====
+	if (!windowInstance) {
+		return null;
+	}
 
 	// ===== RENDER: Loading State =====
 	if (isLoading) {

@@ -24,6 +24,7 @@ class SocketEvents:
     CHAT_MESSAGE_NEW = "chat:message:new"
     CHAT_MESSAGE_UPDATED = "chat:message:updated"
     ACTIVE_CAMERA_UPDATE = "active_camera:update"
+    FRAME_SELECTION_UPDATE = "frame_selection:update"
 
 
 class LockConfig:

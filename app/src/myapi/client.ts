@@ -478,6 +478,16 @@ export const getFrameSelection = async (
 	return data;
 };
 
+export const updateFrameSelection = async (
+	roomId: string,
+	indices: number[],
+): Promise<{ success: boolean }> => {
+	const { data } = await apiClient.put(`/api/rooms/${roomId}/frame-selection`, {
+		indices,
+	});
+	return data;
+};
+
 export const getCurrentStep = async (
 	roomId: string,
 	signal?: AbortSignal,
@@ -771,6 +781,38 @@ export const getChatMessages = async (
 
 	const { data } = await apiClient.get(
 		`/api/rooms/${roomId}/chat/messages?${params.toString()}`,
+	);
+	return data;
+};
+
+export interface CreateChatMessageResponse {
+	success: boolean;
+	message: ChatMessage;
+}
+
+export const createChatMessage = async (
+	roomId: string,
+	content: string,
+): Promise<CreateChatMessageResponse> => {
+	const { data } = await apiClient.post(`/api/rooms/${roomId}/chat/messages`, {
+		content,
+	});
+	return data;
+};
+
+export interface EditChatMessageResponse {
+	success: boolean;
+	message: ChatMessage;
+}
+
+export const editChatMessage = async (
+	roomId: string,
+	messageId: string,
+	content: string,
+): Promise<EditChatMessageResponse> => {
+	const { data } = await apiClient.patch(
+		`/api/rooms/${roomId}/chat/messages/${messageId}`,
+		{ content },
 	);
 	return data;
 };

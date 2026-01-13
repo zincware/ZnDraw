@@ -93,18 +93,15 @@ def test_settings_endpoint_partial_update(server, connect_room):
     assert updated["pathtracing"]["enabled"] == initial_pathtracing_enabled
 
 
-def test_settings_endpoint_multiple_categories_update(
-    server, join_room_and_get_headers
-):
+def test_settings_endpoint_multiple_categories_update(server, connect_room):
     """PUT /api/rooms/{room_id}/sessions/{session_id}/settings updates multiple categories."""
-    room_id = "test-settings-multi"
-    headers = join_room_and_get_headers(server, room_id, "test-user")
-    session_id = headers["X-Session-ID"]
+    # Use connect_room to keep socket connected during test (avoids race condition)
+    conn = connect_room("test-settings-multi")
 
     # Update multiple categories (camera is no longer part of settings)
     response = requests.put(
-        f"{server}/api/rooms/{room_id}/sessions/{session_id}/settings",
-        headers=headers,
+        f"{server}/api/rooms/{conn.room_id}/sessions/{conn.session_id}/settings",
+        headers=conn.headers,
         json={
             "studio_lighting": {"key_light": 2.0, "fill_light": 1.0},
             "pathtracing": {"bounces": 5},
@@ -115,8 +112,8 @@ def test_settings_endpoint_multiple_categories_update(
 
     # Verify all updates applied
     response = requests.get(
-        f"{server}/api/rooms/{room_id}/sessions/{session_id}/settings",
-        headers=headers,
+        f"{server}/api/rooms/{conn.room_id}/sessions/{conn.session_id}/settings",
+        headers=conn.headers,
         timeout=10,
     )
     assert response.status_code == 200
