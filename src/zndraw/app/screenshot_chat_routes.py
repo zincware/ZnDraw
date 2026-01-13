@@ -8,12 +8,16 @@ import logging
 
 from flask import Blueprint, current_app, request, send_from_directory
 
+from zndraw.auth import get_current_user, require_auth
 from zndraw.screenshot_manager import ScreenshotManager
 from zndraw.server import socketio
 
+from .chat_utils import create_message, get_message, update_message
+from .constants import SocketEvents
 from .redis_keys import RoomKeys
 
 log = logging.getLogger(__name__)
+
 
 media = Blueprint("media", __name__)
 
@@ -128,6 +132,75 @@ def get_chat_messages(room_id: str):
             "newestTimestamp": newest_timestamp,
         },
     }, 200
+
+
+@media.route("/api/rooms/<string:room_id>/chat/messages", methods=["POST"])
+@require_auth
+def create_chat_message(room_id: str):
+    """Create a new chat message.
+
+    Body: {"content": "message text"}
+
+    Broadcasts chat:message:new to room.
+    """
+    r = current_app.extensions["redis"]
+    data = request.get_json()
+
+    content = data.get("content") if data else None
+    if not content or not isinstance(content, str):
+        return {"error": "Message content is required"}, 400
+
+    user_name = get_current_user()
+    message = create_message(r, room_id, user_name, content)
+
+    # Broadcast to room - message appearing confirms it was saved
+    socketio.emit(
+        SocketEvents.CHAT_MESSAGE_NEW,
+        message,
+        to=f"room:{room_id}",
+    )
+
+    return {"success": True, "message": message}, 201
+
+
+@media.route(
+    "/api/rooms/<string:room_id>/chat/messages/<string:message_id>", methods=["PATCH"]
+)
+@require_auth
+def edit_chat_message(room_id: str, message_id: str):
+    """Edit an existing chat message.
+
+    Body: {"content": "new text"}
+
+    Broadcasts chat:message:updated to room.
+    """
+    r = current_app.extensions["redis"]
+    data = request.get_json()
+
+    content = data.get("content") if data else None
+    if not content or not isinstance(content, str):
+        return {"error": "Message content is required"}, 400
+
+    user_name = get_current_user()
+
+    # Fetch and validate ownership
+    existing = get_message(r, room_id, message_id)
+    if not existing:
+        return {"error": "Message not found"}, 404
+
+    if existing["author"]["id"] != user_name:
+        return {"error": "You can only edit your own messages"}, 403
+
+    updated = update_message(r, room_id, message_id, content)
+
+    # Broadcast to room - message appearing confirms it was saved
+    socketio.emit(
+        SocketEvents.CHAT_MESSAGE_UPDATED,
+        updated,
+        to=f"room:{room_id}",
+    )
+
+    return {"success": True, "message": updated}, 200
 
 
 @media.route("/api/rooms/<string:room_id>/screenshots/upload", methods=["POST"])

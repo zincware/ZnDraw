@@ -1498,6 +1498,90 @@ class APIManager:
         data = response.json()
         return data.get("frameSelection")
 
+    def update_frame_selection(self, indices: list[int]) -> dict:
+        """Update frame selection for the room.
+
+        Parameters
+        ----------
+        indices : list[int]
+            List of frame indices to select
+
+        Returns
+        -------
+        dict
+            {"success": True}
+
+        Raises
+        ------
+        requests.HTTPError
+            If the request fails
+        """
+        headers = self._get_headers()
+        url = f"{self.url}/api/rooms/{self.room}/frame-selection"
+        response = requests.put(
+            url, json={"indices": indices}, headers=headers, timeout=10
+        )
+        response.raise_for_status()
+        return response.json()
+
+    # ========================================================================
+    # Chat API Methods
+    # ========================================================================
+
+    def create_chat_message(self, content: str) -> dict:
+        """Create a new chat message.
+
+        Parameters
+        ----------
+        content : str
+            Message content
+
+        Returns
+        -------
+        dict
+            {"success": True, "message": {...}}
+
+        Raises
+        ------
+        requests.HTTPError
+            If the request fails
+        """
+        headers = self._get_headers()
+        url = f"{self.url}/api/rooms/{self.room}/chat/messages"
+        response = requests.post(
+            url, json={"content": content}, headers=headers, timeout=10
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def edit_chat_message(self, message_id: str, content: str) -> dict:
+        """Edit an existing chat message.
+
+        Parameters
+        ----------
+        message_id : str
+            Message identifier
+        content : str
+            New message content
+
+        Returns
+        -------
+        dict
+            {"success": True, "message": {...}}
+
+        Raises
+        ------
+        requests.HTTPError
+            If message not found (404) or not authorized (403)
+        """
+        headers = self._get_headers()
+        url = f"{self.url}/api/rooms/{self.room}/chat/messages/{message_id}"
+        response = requests.patch(
+            url, json={"content": content}, headers=headers, timeout=10
+        )
+        response.raise_for_status()
+        return response.json()
+
     def get_step(self) -> dict:
         """Get current step/frame for the room.
 

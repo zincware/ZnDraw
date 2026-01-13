@@ -799,17 +799,8 @@ class ZnDraw(MutableSequence):
         if not all(isinstance(idx, int) and 0 <= idx < len(self) for idx in indices):
             raise ValueError("Selection must be an iterable of valid frame indices.")
 
-        if self.socket.sio.connected:
-            response = self.socket.sio.call(
-                "frame_selection:set", {"indices": indices}, timeout=5
-            )
-            if response and not response.get("success", False):
-                raise RuntimeError(
-                    response.get("message", "Failed to set frame selection")
-                )
-            self._frame_selection = frozenset(indices)
-        else:
-            raise RuntimeError("Client is not connected.")
+        self.api.update_frame_selection(indices)
+        self._frame_selection = frozenset(indices)
 
     @property
     def bookmarks(self) -> Bookmarks:
@@ -1724,23 +1715,13 @@ class ZnDraw(MutableSequence):
             f"Filesystem '{name}' registered with {scope} (worker_id: {self._worker_id})."
         )
 
-    def log(self, message: str) -> dict | None:
+    def log(self, message: str) -> dict:
         """Send a chat message to the room."""
-        if not self.socket.sio.connected:
-            raise RuntimeError("Client is not connected.")
-        return self.socket.sio.call(
-            "chat:message:create", {"content": message}, timeout=5
-        )
+        return self.api.create_chat_message(message)
 
-    def edit_message(self, message_id: str, new_content: str) -> dict | None:
+    def edit_message(self, message_id: str, new_content: str) -> dict:
         """Edit an existing chat message."""
-        if not self.socket.sio.connected:
-            raise RuntimeError("Client is not connected.")
-        return self.socket.sio.call(
-            "chat:message:edit",
-            {"messageId": message_id, "content": new_content},
-            timeout=5,
-        )
+        return self.api.edit_chat_message(message_id, new_content)
 
     def get_messages(
         self, limit: int = 30, before: int | None = None, after: int | None = None

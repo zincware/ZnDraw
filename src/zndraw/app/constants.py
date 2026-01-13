@@ -23,6 +23,7 @@ class SocketEvents:
     PROGRESS_COMPLETED = "progress:completed"
     CHAT_MESSAGE_NEW = "chat:message:new"
     CHAT_MESSAGE_UPDATED = "chat:message:updated"
+    FRAME_SELECTION_UPDATE = "frame_selection:update"
 
 
 class LockConfig:

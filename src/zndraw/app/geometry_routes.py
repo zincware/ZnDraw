@@ -367,6 +367,39 @@ def get_frame_selection(room_id: str):
     }, 200
 
 
+@geometries.route("/api/rooms/<string:room_id>/frame-selection", methods=["PUT"])
+@require_auth
+def update_frame_selection(room_id: str):
+    """Update frame selection for the room.
+
+    Body: {"indices": [0, 1, 5, 10]}
+
+    Broadcasts frame_selection:update to other clients.
+    """
+    r = current_app.extensions["redis"]
+    keys = RoomKeys(room_id)
+    data = request.get_json() or {}
+
+    indices = data.get("indices", [])
+    if not isinstance(indices, list):
+        return {"error": "indices must be a list"}, 400
+
+    if not all(isinstance(idx, int) and idx >= 0 for idx in indices):
+        return {"error": "All indices must be non-negative integers"}, 400
+
+    # Store frame selection
+    r.set(keys.frame_selection(), json.dumps(indices))
+
+    # Broadcast to room - update appearing confirms it was saved
+    socketio.emit(
+        SocketEvents.FRAME_SELECTION_UPDATE,
+        {"indices": indices},
+        to=f"room:{room_id}",
+    )
+
+    return {"success": True}, 200
+
+
 @geometries.route(
     "/api/rooms/<string:room_id>/selections/<string:geometry>", methods=["GET"]
 )

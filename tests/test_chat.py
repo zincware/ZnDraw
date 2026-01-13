@@ -1,5 +1,6 @@
 import time
 
+import pytest
 import requests
 
 from zndraw import ZnDraw
@@ -76,11 +77,11 @@ def test_chat_message_edit_unauthorized(server):
     assert response["success"] is True
     message_id = response["message"]["id"]
 
-    # User 2 tries to edit user 1's message
+    # User 2 tries to edit user 1's message - should raise 403 Forbidden
     vis2 = ZnDraw(url=server, room=room, user=user2)
-    response = vis2.edit_message(message_id, "Hacked message")
-    assert response["success"] is False
-    assert "error" in response
+    with pytest.raises(requests.HTTPError) as exc_info:
+        vis2.edit_message(message_id, "Hacked message")
+    assert exc_info.value.response.status_code == 403
 
 
 def test_get_chat_messages_rest(server):
