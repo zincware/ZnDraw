@@ -57,9 +57,10 @@ class FrontendSession:
 
     @property
     def camera(self) -> Camera:
-        """Get camera state via geometry system.
+        """Get the currently active camera.
 
-        Returns the Camera Pydantic model directly. Modify and set back to sync.
+        Returns the Camera that the session is currently viewing through
+        (as set by active_camera). Modify and set back to sync.
 
         Returns
         -------
@@ -70,14 +71,15 @@ class FrontendSession:
         --------
         >>> cam = session.camera
         >>> cam.position = (10, 10, 10)
-        >>> session.camera = cam  # Sync to frontend via geometry system
+        >>> session.camera = cam  # Updates the active camera
         """
-        return self._vis.geometries[self.camera_key]
+        return self._vis.geometries[self.active_camera]
 
     @camera.setter
     def camera(self, value: Camera) -> None:
-        """Set camera state via geometry system.
+        """Set the currently active camera.
 
+        Updates the camera geometry that this session is viewing through.
         Syncs to Redis and broadcasts INVALIDATE_GEOMETRY to notify frontend.
 
         Parameters
@@ -85,7 +87,7 @@ class FrontendSession:
         value : Camera
             The camera model to set.
         """
-        self._vis.geometries[self.camera_key] = value
+        self._vis.geometries[self.active_camera] = value
 
     def _make_settings_callback(self, category: str):
         """Create a callback for auto-saving settings on attribute change."""
@@ -137,6 +139,46 @@ class FrontendSession:
             Settings model to set (validated via Pydantic).
         """
         self._vis.api.set_session_settings(self.session_id, value.model_dump())
+
+    @property
+    def active_camera(self) -> str:
+        """Get the camera key this session is viewing through.
+
+        Returns
+        -------
+        str
+            The geometry key of the camera being viewed through.
+        """
+        return self._vis.api.get_active_camera(self.session_id)
+
+    @active_camera.setter
+    def active_camera(self, value: str) -> None:
+        """Set the camera key this session should view through.
+
+        Parameters
+        ----------
+        value : str
+            The geometry key of a camera to view through.
+
+        Raises
+        ------
+        KeyError
+            If the camera key doesn't exist in geometries.
+        TypeError
+            If the geometry exists but is not a Camera.
+        """
+        # Validate camera exists
+        if value not in self._vis.geometries:
+            raise KeyError(f"Camera '{value}' not found in geometries")
+
+        # Validate it's actually a Camera type
+        geom = self._vis.geometries[value]
+        if not isinstance(geom, Camera):
+            raise TypeError(
+                f"Geometry '{value}' is not a Camera (got {type(geom).__name__})"
+            )
+
+        self._vis.api.set_active_camera(self.session_id, value)
 
     def __repr__(self) -> str:
         return f"FrontendSession({self.session_id!r})"

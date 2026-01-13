@@ -1796,3 +1796,55 @@ class APIManager:
             timeout=10.0,
         )
         response.raise_for_status()
+
+    def get_active_camera(self, session_id: str) -> str:
+        """Get active camera for a frontend session.
+
+        Parameters
+        ----------
+        session_id : str
+            Session identifier.
+
+        Returns
+        -------
+        str
+            Camera geometry key this session is viewing through.
+
+        Raises
+        ------
+        requests.HTTPError
+            If request fails.
+        """
+        headers = self._get_headers()
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/sessions/{session_id}/active-camera",
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        # A session should ALWAYS have an "active_camera"
+        return response.json()["active_camera"]
+
+    def set_active_camera(self, session_id: str, camera_key: str) -> None:
+        """Set active camera for a frontend session.
+
+        Parameters
+        ----------
+        session_id : str
+            Session identifier.
+        camera_key : str
+            Camera geometry key to view through.
+
+        Raises
+        ------
+        requests.HTTPError
+            If request fails.
+        """
+        headers = self._get_headers()
+        response = requests.put(
+            f"{self.url}/api/rooms/{self.room}/sessions/{session_id}/active-camera",
+            json={"active_camera": camera_key},
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
