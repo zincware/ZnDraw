@@ -11,9 +11,12 @@ import json
 import logging
 import re
 
+import ase
+from asebytes import encode
 from redis import Redis  # type: ignore
 
 from zndraw.app.redis_keys import GlobalIndexKeys, RoomKeys
+from zndraw.utils import update_colors_and_radii
 
 log = logging.getLogger(__name__)
 
@@ -109,14 +112,13 @@ class RoomService:
 
         if copy_from:
             return self._create_room_from_copy(room_id, copy_from, description)
-        return self._create_empty_room(room_id, user_name, description)
+        return self._create_empty_room(room_id, description)
 
-    def _create_empty_room(
-        self, room_id: str, user_name: str, description: str | None = None
-    ) -> dict:
-        """Create empty room with defaults.
+    def _create_empty_room(self, room_id: str, description: str | None = None) -> dict:
+        """Create empty room with one empty frame.
 
         Uses Redis pipeline for atomic multi-operation setup.
+        Creates one empty frame with `ase.Atoms()` so the room is immediately usable.
 
         Note: User-specific settings are NOT initialized here (YAGNI).
         Settings will be initialized lazily when first accessed.
@@ -125,17 +127,16 @@ class RoomService:
         ----------
         room_id : str
             Unique room identifier
-        user_name : str
-            Username creating the room
         description : str | None
             Optional room description
 
         Returns
         -------
         dict
-            {"created": True, "frameCount": 0}
+            {"created": True, "frameCount": 1}
         """
         from zndraw.app.redis_keys import GlobalIndexKeys
+        from zndraw.app.route_utils import get_storage
 
         keys = RoomKeys(room_id)
         pipe = self.r.pipeline()
@@ -154,11 +155,26 @@ class RoomService:
         # Create default geometries
         self._initialize_default_geometries_pipeline(room_id, pipe)
 
+        # Create one empty frame so the room is immediately usable
+        # This matches expected behavior: len(vis) = 1 and vis.atoms = ase.Atoms()
+        empty_atoms = ase.Atoms()
+        update_colors_and_radii(empty_atoms)
+        encoded_frame = encode(empty_atoms)
+
+        # Get storage and append the empty frame
+        storage = get_storage(room_id)
+        physical_index = len(storage)
+        storage.append(encoded_frame)
+
+        # Add frame mapping to trajectory_indices
+        frame_key = f"{room_id}:{physical_index}"
+        pipe.zadd(keys.trajectory_indices(), {frame_key: 0.0})
+
         # Execute all operations atomically
         pipe.execute()
 
-        log.info(f"Created empty room '{room_id}'")
-        return {"created": True, "frameCount": 0}
+        log.info(f"Created empty room '{room_id}' with one empty frame")
+        return {"created": True, "frameCount": 1}
 
     def _create_room_from_copy(
         self, room_id: str, source_room: str, description: str | None = None
