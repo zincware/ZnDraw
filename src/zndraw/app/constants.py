@@ -12,7 +12,7 @@ class SocketEvents:
     LEN_FRAMES = "len_frames"
     FRAME_UPDATE = "frame_update"
     INVALIDATE_GEOMETRY = "geometry:invalidate "
-    INVALIDATE_FIGURE = "invalidate:figure"
+    INVALIDATE_FIGURE = "figure:invalidate"
     INVALIDATE_SELECTION = "invalidate:selection"
     INVALIDATE_SELECTION_GROUPS = "invalidate:selection_groups"
     INVALIDATE_BOOKMARK = "bookmarks:invalidate"

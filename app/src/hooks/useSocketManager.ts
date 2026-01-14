@@ -738,7 +738,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		socket.on("chat:message:new", onChatMessageNew);
 		socket.on("chat:message:updated", onChatMessageUpdated);
 		socket.on("geometry:invalidate ", onGeometriesInvalidate);
-		socket.on("invalidate:figure", onFiguresInvalidate);
+		socket.on("figure:invalidate", onFiguresInvalidate);
 		socket.on("invalidate:selection", onSelectionsInvalidate);
 		socket.on("invalidate:selection_groups", onSelectionGroupsInvalidate);
 		socket.on("room:update", onRoomUpdate);
@@ -800,7 +800,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			socket.off("chat:message:new", onChatMessageNew);
 			socket.off("chat:message:updated", onChatMessageUpdated);
 			socket.off("geometry:invalidate ", onGeometriesInvalidate);
-			socket.off("invalidate:figure", onFiguresInvalidate);
+			socket.off("figure:invalidate", onFiguresInvalidate);
 			socket.off("invalidate:selection", onSelectionsInvalidate);
 			socket.off("invalidate:selection_groups", onSelectionGroupsInvalidate);
 			socket.off("room:update", onRoomUpdate);
