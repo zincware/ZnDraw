@@ -5,6 +5,8 @@ import typing as t
 
 import socketio
 
+from zndraw.app.constants import SocketEvents
+
 if t.TYPE_CHECKING:
     from zndraw.zndraw import ZnDraw
 
@@ -20,18 +22,20 @@ class SocketManager:
 
     def _register_handlers(self):
         self.sio.on("connect", self._on_connect)
-        self.sio.on("frame_update", self._on_frame_update)
-        self.sio.on("selection:update", self._on_selection_update)
-        self.sio.on("room:update", self._on_room_update)
-        self.sio.on("job:assigned", self._on_job_assigned)
-        self.sio.on("frame_selection:update", self._on_frame_selection_update)
-        self.sio.on("bookmarks:invalidate", self._on_bookmarks_invalidate)
-        self.sio.on("frames:invalidate", self._on_frames_invalidate)
-        self.sio.on("invalidate:geometry", self._on_geometry_invalidate)
-        self.sio.on("invalidate:figure", self._on_figure_invalidate)
-        self.sio.on("filesystem:list", self._on_filesystem_list)
-        self.sio.on("filesystem:metadata", self._on_filesystem_metadata)
-        self.sio.on("filesystem:load", self._on_filesystem_load)
+        self.sio.on(SocketEvents.FRAME_UPDATE, self._on_frame_update)
+        self.sio.on(SocketEvents.SELECTION_UPDATE, self._on_selection_update)
+        self.sio.on(SocketEvents.ROOM_UPDATE, self._on_room_update)
+        self.sio.on(SocketEvents.JOB_ASSIGNED, self._on_job_assigned)
+        self.sio.on(
+            SocketEvents.FRAME_SELECTION_UPDATE, self._on_frame_selection_update
+        )
+        self.sio.on(SocketEvents.INVALIDATE_BOOKMARK, self._on_bookmarks_invalidate)
+        self.sio.on(SocketEvents.INVALIDATE_FRAMES, self._on_frames_invalidate)
+        self.sio.on(SocketEvents.INVALIDATE_GEOMETRY, self._on_geometry_invalidate)
+        self.sio.on(SocketEvents.INVALIDATE_FIGURE, self._on_figure_invalidate)
+        self.sio.on(SocketEvents.FILESYSTEM_LIST, self._on_filesystem_list)
+        self.sio.on(SocketEvents.FILESYSTEM_METADATA, self._on_filesystem_metadata)
+        self.sio.on(SocketEvents.FILESYSTEM_LOAD, self._on_filesystem_load)
 
     def connect(self):
         """Connect to server with JWT authentication and join room."""

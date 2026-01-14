@@ -16,7 +16,11 @@ class SocketEvents:
     INVALIDATE_SELECTION = "invalidate:selection"
     INVALIDATE_SELECTION_GROUPS = "invalidate:selection_groups"
     INVALIDATE_BOOKMARK = "bookmarks:invalidate"
+    INVALIDATE_FRAMES = "frames:invalidate"
     FILESYSTEMS_UPDATE = "filesystems:update"
+    FILESYSTEM_LIST = "filesystem:list"
+    FILESYSTEM_METADATA = "filesystem:metadata"
+    FILESYSTEM_LOAD = "filesystem:load"
     ROOM_DELETE = "room:delete"
     ROOM_UPDATE = "room:update"
     PROGRESS_UPDATED = "progress:updated"
@@ -24,6 +28,7 @@ class SocketEvents:
     CHAT_MESSAGE_NEW = "chat:message:new"
     CHAT_MESSAGE_UPDATED = "chat:message:updated"
     ACTIVE_CAMERA_UPDATE = "active_camera:update"
+    SELECTION_UPDATE = "selection:update"
     FRAME_SELECTION_UPDATE = "frame_selection:update"
 
 
