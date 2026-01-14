@@ -735,8 +735,8 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		socket.on("frame-selection:update", onFrameSelectionUpdate);
 		socket.on("bookmarks:invalidate", onBookmarksInvalidate);
 		socket.on("frames:invalidate", onFramesInvalidate);
-		socket.on("chat:message:new", onChatMessageNew);
-		socket.on("chat:message:updated", onChatMessageUpdated);
+		socket.on("chat:new", onChatMessageNew);
+		socket.on("chat:update", onChatMessageUpdated);
 		socket.on("geometry:invalidate ", onGeometriesInvalidate);
 		socket.on("figure:invalidate", onFiguresInvalidate);
 		socket.on("selection:invalidate", onSelectionsInvalidate);
@@ -797,8 +797,8 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			socket.off("frame-selection:update", onFrameSelectionUpdate);
 			socket.off("bookmarks:invalidate", onBookmarksInvalidate);
 			socket.off("frames:invalidate", onFramesInvalidate);
-			socket.off("chat:message:new", onChatMessageNew);
-			socket.off("chat:message:updated", onChatMessageUpdated);
+			socket.off("chat:new", onChatMessageNew);
+			socket.off("chat:update", onChatMessageUpdated);
 			socket.off("geometry:invalidate ", onGeometriesInvalidate);
 			socket.off("figure:invalidate", onFiguresInvalidate);
 			socket.off("selection:invalidate", onSelectionsInvalidate);

@@ -141,7 +141,7 @@ def create_chat_message(room_id: str):
 
     Body: {"content": "message text"}
 
-    Broadcasts chat:message:new to room.
+    Broadcasts chat:new to room.
     """
     r = current_app.extensions["redis"]
     data = request.get_json()
@@ -172,7 +172,7 @@ def edit_chat_message(room_id: str, message_id: str):
 
     Body: {"content": "new text"}
 
-    Broadcasts chat:message:updated to room.
+    Broadcasts chat:update to room.
     """
     r = current_app.extensions["redis"]
     data = request.get_json()
