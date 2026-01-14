@@ -10,7 +10,7 @@ class SocketEvents:
     INVALIDATE_SCHEMA = "schema:invalidate"
     REGISTER_EXTENSION = "register:extension"
     LEN_FRAMES = "len_frames"
-    FRAME_UPDATE = "frame_update"
+    FRAME_UPDATE = "frame:update"
     INVALIDATE_GEOMETRY = "geometry:invalidate "
     INVALIDATE_FIGURE = "figure:invalidate"
     INVALIDATE_SELECTION = "selection:invalidate"

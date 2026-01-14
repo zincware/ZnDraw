@@ -728,7 +728,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		socket.on("disconnect", onDisconnect);
 		socket.on("connect", onConnect);
 		socket.on("connect_error", onConnectError);
-		socket.on("frame_update", onFrameUpdate);
+		socket.on("frame:update", onFrameUpdate);
 		socket.on("active_camera:update", onActiveCameraUpdate);
 		socket.on("invalidate", onInvalidate);
 		socket.on("schema:invalidate", onSchemaInvalidate);
@@ -790,7 +790,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 			socket.off("connect", onConnect);
 			socket.off("disconnect", onDisconnect);
-			socket.off("frame_update", onFrameUpdate);
+			socket.off("frame:update", onFrameUpdate);
 			socket.off("active_camera:update", onActiveCameraUpdate);
 			socket.off("invalidate", onInvalidate);
 			socket.off("schema:invalidate", onSchemaInvalidate);
