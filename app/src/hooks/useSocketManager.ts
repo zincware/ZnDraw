@@ -740,7 +740,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		socket.on("geometry:invalidate ", onGeometriesInvalidate);
 		socket.on("figure:invalidate", onFiguresInvalidate);
 		socket.on("selection:invalidate", onSelectionsInvalidate);
-		socket.on("invalidate:selection_groups", onSelectionGroupsInvalidate);
+		socket.on("selection-groups:invalidate", onSelectionGroupsInvalidate);
 		socket.on("room:update", onRoomUpdate);
 		socket.on("room:delete", onRoomDelete);
 		socket.on("lock:update", onLockUpdate);
@@ -802,7 +802,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			socket.off("geometry:invalidate ", onGeometriesInvalidate);
 			socket.off("figure:invalidate", onFiguresInvalidate);
 			socket.off("selection:invalidate", onSelectionsInvalidate);
-			socket.off("invalidate:selection_groups", onSelectionGroupsInvalidate);
+			socket.off("selection-groups:invalidate", onSelectionGroupsInvalidate);
 			socket.off("room:update", onRoomUpdate);
 			socket.off("room:delete", onRoomDelete);
 			socket.off("lock:update", onLockUpdate);

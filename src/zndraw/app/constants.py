@@ -14,7 +14,7 @@ class SocketEvents:
     INVALIDATE_GEOMETRY = "geometry:invalidate "
     INVALIDATE_FIGURE = "figure:invalidate"
     INVALIDATE_SELECTION = "selection:invalidate"
-    INVALIDATE_SELECTION_GROUPS = "invalidate:selection_groups"
+    INVALIDATE_SELECTION_GROUPS = "selection-groups:invalidate"
     INVALIDATE_BOOKMARK = "bookmarks:invalidate"
     INVALIDATE_FRAMES = "frames:invalidate"
     FILESYSTEMS_UPDATE = "filesystems:update"
