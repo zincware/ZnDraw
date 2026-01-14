@@ -662,7 +662,7 @@ def handle_disconnect(*args, **kwargs):
     r.delete(session_keys.username())
 
 
-@socketio.on("join:overview")
+@socketio.on("overview:join")
 def handle_join_overview():
     """Client joining /rooms page - join overview:public room."""
     from flask_socketio import join_room
@@ -673,7 +673,7 @@ def handle_join_overview():
     return {"status": "joined", "room": "overview:public"}
 
 
-@socketio.on("leave:overview")
+@socketio.on("overview:leave")
 def handle_leave_overview():
     """Client leaving /rooms page - leave overview:public room."""
     from flask_socketio import leave_room

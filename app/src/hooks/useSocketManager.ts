@@ -129,7 +129,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 				// Join appropriate room based on page
 				if (isOverview) {
-					socket.emit("join:overview");
+					socket.emit("overview:join");
 					setConnected(true);
 				} else if (roomId) {
 					// Handle room:join response
@@ -772,7 +772,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		return () => {
 			// Leave room on cleanup
 			if (isOverview) {
-				socket.emit("leave:overview");
+				socket.emit("overview:leave");
 			} else if (roomId) {
 				socket.emit("leave:room", { roomId });
 			}
