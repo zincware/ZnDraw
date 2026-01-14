@@ -3,7 +3,9 @@
 import pytest
 import redis
 import requests
+
 from zndraw.app.constants import SocketEvents
+
 
 @pytest.fixture
 def room_with_step_lock(server, connect_room):
