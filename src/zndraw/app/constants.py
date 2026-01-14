@@ -27,7 +27,7 @@ class SocketEvents:
     PROGRESS_COMPLETED = "progress:completed"
     CHAT_MESSAGE_NEW = "chat:message:new"
     CHAT_MESSAGE_UPDATED = "chat:message:updated"
-    ACTIVE_CAMERA_UPDATE = "active_camera:update"
+    ACTIVE_CAMERA_UPDATE = "active-camera:update"
     SELECTION_UPDATE = "selection:update"
     FRAME_SELECTION_UPDATE = "frame-selection:update"
 
