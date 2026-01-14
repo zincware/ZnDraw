@@ -68,6 +68,46 @@ def calculate_adaptive_resolution(num_particles: int) -> int:
 
 
 @shared_task
+def create_workspace(
+    room: str,
+    server_url: str,
+) -> None:
+    """Create an empty workspace room with one empty frame.
+
+    This is used when zndraw is started without any file argument.
+    Creates a room with a single empty ase.Atoms() so the UI is
+    immediately usable without a loading spinner.
+
+    Parameters
+    ----------
+    room
+        Room name for the workspace
+    server_url
+        Server URL to connect to
+    """
+    import ase
+
+    from zndraw import ZnDraw
+    from zndraw.server_manager import wait_for_server_ready
+
+    # Wait for server to be ready
+    if not wait_for_server_ready(server_url, timeout=30.0):
+        log.error(f"Server at {server_url} not ready after 30 seconds")
+        raise RuntimeError(f"Server at {server_url} not ready after 30 seconds")
+
+    vis = ZnDraw(
+        room=room,
+        url=server_url,
+        user="workspace",
+        description="Empty workspace",
+    )
+
+    # Add one empty frame
+    vis.extend([ase.Atoms()])
+    vis.log("✓ Empty workspace created")
+
+
+@shared_task
 def read_file(
     file: str,
     room: str,

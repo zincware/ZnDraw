@@ -13,13 +13,6 @@ import pytest
 from zndraw.services.room_service import RoomService
 
 
-@pytest.fixture
-def room_service_with_app(app, redis_client):
-    """Create RoomService with Flask app context for storage access."""
-    with app.app_context():
-        yield RoomService(redis_client)
-
-
 def test_room_exists_returns_false_for_new_room(redis_client):
     """Test room_exists returns False for nonexistent room."""
     service = RoomService(redis_client)
@@ -33,92 +26,53 @@ def test_room_exists_returns_true_for_existing_room(redis_client):
     assert service.room_exists("test") is True
 
 
-def test_create_empty_room(app, redis_client):
-    """Test creating an empty room with one empty frame."""
-    with app.app_context():
-        service = RoomService(redis_client)
-        result = service.create_room("test", "user1")
+def test_create_empty_room(redis_client):
+    """Test creating an empty room with defaults."""
+    service = RoomService(redis_client)
+    result = service.create_room("test", "user1")
 
-        assert result["created"] is True
-        assert result["frameCount"] == 1
-        assert redis_client.exists("room:test:current_frame") > 0
-        # Verify default geometries created
-        assert redis_client.exists("room:test:geometries") > 0
-        # Verify trajectory has one frame
-        assert redis_client.zcard("room:test:trajectory:indices") == 1
+    assert result["created"] is True
+    assert result["frameCount"] == 0
+    assert redis_client.exists("room:test:current_frame") > 0
+    # Verify default geometries created
+    assert redis_client.exists("room:test:geometries") > 0
 
 
-def test_create_empty_room_with_description(app, redis_client):
+def test_create_empty_room_with_description(redis_client):
     """Test creating room with description."""
-    with app.app_context():
-        service = RoomService(redis_client)
-        result = service.create_room("test", "user1", description="Test Room")
+    service = RoomService(redis_client)
+    result = service.create_room("test", "user1", description="Test Room")
 
-        assert result["created"] is True
-        assert redis_client.get("room:test:description") == "Test Room"
+    assert result["created"] is True
+    assert redis_client.get("room:test:description") == "Test Room"
 
 
-def test_create_empty_room_initializes_metadata(app, redis_client):
+def test_create_empty_room_initializes_metadata(redis_client):
     """Test room creation initializes all required metadata."""
-    with app.app_context():
-        service = RoomService(redis_client)
-        service.create_room("test", "user1")
+    service = RoomService(redis_client)
+    service.create_room("test", "user1")
 
-        assert redis_client.get("room:test:current_frame") == "0"
-        assert redis_client.get("room:test:locked") == "0"
+    assert redis_client.get("room:test:current_frame") == "0"
+    assert redis_client.get("room:test:locked") == "0"
 
 
-def test_create_empty_room_creates_default_geometries(app, redis_client):
+def test_create_empty_room_creates_default_geometries(redis_client):
     """Test room creation creates all default geometries."""
-    with app.app_context():
-        service = RoomService(redis_client)
-        service.create_room("test", "user1")
+    service = RoomService(redis_client)
+    service.create_room("test", "user1")
 
-        geometries = redis_client.hgetall("room:test:geometries")
-        assert "particles" in geometries
-        assert "bonds" in geometries
-        assert "curve" in geometries
-        assert "cell" in geometries
-        assert "floor" in geometries
+    geometries = redis_client.hgetall("room:test:geometries")
+    assert "particles" in geometries
+    assert "bonds" in geometries
+    assert "curve" in geometries
+    assert "cell" in geometries
+    assert "floor" in geometries
 
-        # Verify geometry structure
-        particles = json.loads(geometries["particles"])
-        assert "type" in particles
-        assert "data" in particles
-        assert particles["type"] == "Sphere"
-
-
-def test_create_empty_room_creates_empty_frame(app, redis_client):
-    """Test room creation creates one empty frame with ase.Atoms()."""
-    import uuid
-
-    from zndraw.app.route_utils import get_storage
-
-    # Use unique room ID to avoid storage conflicts with other tests
-    unique_room = f"test-empty-frame-{uuid.uuid4().hex[:8]}"
-
-    with app.app_context():
-        service = RoomService(redis_client)
-
-        # Get storage and record initial length
-        storage = get_storage(unique_room)
-        initial_len = len(storage)
-
-        service.create_room(unique_room, "user1")
-
-        # Verify exactly one frame was added
-        assert len(storage) == initial_len + 1
-
-        # Verify frame data is empty atoms (no positions)
-        frame_data = storage.get(initial_len)
-        # Empty atoms should have no arrays.positions key or empty positions
-        positions_key = b"arrays.positions"
-        if positions_key in frame_data:
-            import msgpack
-            import msgpack_numpy as m
-
-            positions = msgpack.unpackb(frame_data[positions_key], object_hook=m.decode)
-            assert len(positions) == 0
+    # Verify geometry structure
+    particles = json.loads(geometries["particles"])
+    assert "type" in particles
+    assert "data" in particles
+    assert particles["type"] == "Sphere"
 
 
 @pytest.mark.parametrize(
@@ -130,15 +84,12 @@ def test_create_empty_room_creates_empty_frame(app, redis_client):
         ("room#hash", "invalid characters"),
     ],
 )
-def test_create_room_validates_room_id(
-    app, redis_client, invalid_room_id, expected_error
-):
+def test_create_room_validates_room_id(redis_client, invalid_room_id, expected_error):
     """Test room ID validation rejects invalid characters."""
-    with app.app_context():
-        service = RoomService(redis_client)
+    service = RoomService(redis_client)
 
-        with pytest.raises(ValueError, match=expected_error):
-            service.create_room(invalid_room_id, "user1")
+    with pytest.raises(ValueError, match=expected_error):
+        service.create_room(invalid_room_id, "user1")
 
 
 @pytest.mark.parametrize(
@@ -155,13 +106,12 @@ def test_create_room_validates_room_id(
         "data.structure.h5",
     ],
 )
-def test_create_room_accepts_valid_room_ids(app, redis_client, valid_room_id):
+def test_create_room_accepts_valid_room_ids(redis_client, valid_room_id):
     """Test room ID validation accepts valid characters."""
-    with app.app_context():
-        service = RoomService(redis_client)
-        result = service.create_room(valid_room_id, "user1")
+    service = RoomService(redis_client)
+    result = service.create_room(valid_room_id, "user1")
 
-        assert result["created"] is True
+    assert result["created"] is True
 
 
 def test_create_room_from_copy(redis_client):
@@ -276,26 +226,25 @@ def test_get_current_frame_positive_values(redis_client):
         assert service.get_current_frame("test") == value
 
 
-def test_create_room_uses_pipeline(app, redis_client, monkeypatch):
+def test_create_room_uses_pipeline(redis_client, monkeypatch):
     """Test room creation uses Redis pipeline for atomic operations."""
-    with app.app_context():
-        service = RoomService(redis_client)
+    service = RoomService(redis_client)
 
-        # Track pipeline usage
-        pipeline_created = []
-        original_pipeline = redis_client.pipeline
+    # Track pipeline usage
+    pipeline_created = []
+    original_pipeline = redis_client.pipeline
 
-        def mock_pipeline(*args, **kwargs):
-            pipe = original_pipeline(*args, **kwargs)
-            pipeline_created.append(pipe)
-            return pipe
+    def mock_pipeline(*args, **kwargs):
+        pipe = original_pipeline(*args, **kwargs)
+        pipeline_created.append(pipe)
+        return pipe
 
-        monkeypatch.setattr(redis_client, "pipeline", mock_pipeline)
+    monkeypatch.setattr(redis_client, "pipeline", mock_pipeline)
 
-        service.create_room("test", "user1")
+    service.create_room("test", "user1")
 
-        # Verify pipeline was used
-        assert len(pipeline_created) > 0
+    # Verify pipeline was used
+    assert len(pipeline_created) > 0
 
 
 def test_create_room_from_copy_uses_pipeline(redis_client, monkeypatch):
