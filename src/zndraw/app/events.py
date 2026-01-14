@@ -805,7 +805,7 @@ def handle_room_join(data):
     }
 
 
-@socketio.on("leave:room")
+@socketio.on("room:leave")
 def handle_leave_room(data):
     """Client leaving specific room page - leave room:<room_id>."""
     from flask_socketio import leave_room

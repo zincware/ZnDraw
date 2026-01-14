@@ -774,7 +774,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			if (isOverview) {
 				socket.emit("overview:leave");
 			} else if (roomId) {
-				socket.emit("leave:room", { roomId });
+				socket.emit("room:leave", { roomId });
 			}
 
 			// Only clear sessionId if we're actually leaving a room
