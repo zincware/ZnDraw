@@ -1,13 +1,16 @@
 """Room templates for initializing rooms with predefined content.
 
-Templates are functions that take a ZnDraw-like writer and populate it.
+Templates are functions that take a RoomWriter and populate it with atoms.
 Template names are reserved and cannot be used as room IDs.
 """
 
+import logging
 from collections.abc import Callable
 from typing import Protocol
 
 import ase
+
+log = logging.getLogger(__name__)
 
 
 class RoomWriter(Protocol):
@@ -32,6 +35,8 @@ def register_template(name: str):
     """
 
     def decorator(func: Callable[[RoomWriter], None]):
+        if name in TEMPLATES:
+            log.warning(f"Template '{name}' is being overwritten")
         TEMPLATES[name] = func
         return func
 

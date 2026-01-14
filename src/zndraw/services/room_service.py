@@ -11,6 +11,7 @@ import json
 import logging
 import re
 
+import ase
 from redis import Redis  # type: ignore
 
 from zndraw.app.redis_keys import GlobalIndexKeys, RoomKeys
@@ -401,6 +402,9 @@ class RoomService:
         tuple[bool, str | None]
             (True, None) if valid, (False, error_message) if invalid
         """
+        if not room_id:
+            return False, "Room ID cannot be empty"
+
         if ":" in room_id:
             return False, "Room ID cannot contain ':' character"
 
@@ -434,6 +438,105 @@ class RoomService:
 
         writer = _RoomWriter(room_id, self.r)
         TEMPLATES[template_name](writer)
+
+    def create_room_auto(
+        self, room_id: str, user_name: str, copy_from: str | None = None
+    ) -> dict:
+        """Auto-create room for frontend clients with template or copy logic.
+
+        This consolidates the room auto-creation logic:
+        1. If room exists, return early (no error)
+        2. Validate room_id
+        3. If copy_from is a template name → create + apply template
+        4. If copy_from is a room ID → copy from that room
+        5. If no copy_from → check default_room, else use "empty" template
+
+        Parameters
+        ----------
+        room_id : str
+            Room identifier to create
+        user_name : str
+            Username creating the room
+        copy_from : str | None
+            Template name (e.g., "empty", "water") or existing room ID to copy from
+
+        Returns
+        -------
+        dict
+            Result with keys:
+            - "created": bool - True if room was created, False if already existed
+            - "source": str | None - Template or room ID used as source
+            - "error": str | None - Error message if creation failed
+            - "code": int | None - HTTP-like error code if creation failed
+        """
+        # Room already exists - return early (idempotent)
+        if self.room_exists(room_id):
+            return {"created": False, "source": None, "error": None, "code": None}
+
+        # Validate room_id before creating
+        valid, error = self.is_valid_room_id(room_id)
+        if not valid:
+            return {"created": False, "source": None, "error": error, "code": 400}
+
+        # Determine source and create room
+        if copy_from:
+            if copy_from in TEMPLATES:
+                # Template name (e.g., "empty", "water")
+                self.create_room(room_id, user_name)
+                self.apply_template(room_id, copy_from)
+                log.info(f"Auto-created room '{room_id}' from template '{copy_from}'")
+                return {
+                    "created": True,
+                    "source": f"template:{copy_from}",
+                    "error": None,
+                    "code": None,
+                }
+            else:
+                # Existing room ID
+                if not self.room_exists(copy_from):
+                    return {
+                        "created": False,
+                        "source": None,
+                        "error": f"Source room '{copy_from}' not found",
+                        "code": 404,
+                    }
+                self.create_room(room_id, user_name, copy_from=copy_from)
+                log.info(f"Auto-created room '{room_id}' from room '{copy_from}'")
+                return {
+                    "created": True,
+                    "source": f"room:{copy_from}",
+                    "error": None,
+                    "code": None,
+                }
+        else:
+            # No copy_from → check default_room, fallback to "empty" template
+            default_room = self.r.get("default_room")
+            if (
+                default_room
+                and default_room != room_id
+                and self.room_exists(default_room)
+            ):
+                self.create_room(room_id, user_name, copy_from=default_room)
+                log.info(
+                    f"Auto-created room '{room_id}' from default room '{default_room}'"
+                )
+                return {
+                    "created": True,
+                    "source": f"room:{default_room}",
+                    "error": None,
+                    "code": None,
+                }
+            else:
+                # Fallback to "empty" template
+                self.create_room(room_id, user_name)
+                self.apply_template(room_id, "empty")
+                log.info(f"Auto-created empty room '{room_id}'")
+                return {
+                    "created": True,
+                    "source": "template:empty",
+                    "error": None,
+                    "code": None,
+                }
 
     def delete_room(self, room_id: str) -> bool:
         """Delete a room and all its data.
@@ -494,7 +597,7 @@ class _RoomWriter:
         """
         self.extend([atoms])
 
-    def extend(self, frames: list) -> None:
+    def extend(self, frames: list[ase.Atoms]) -> None:
         """Extend with multiple frames.
 
         Parameters
