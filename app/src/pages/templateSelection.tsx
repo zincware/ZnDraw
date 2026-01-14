@@ -123,8 +123,8 @@ export default function TemplateSelectionPage() {
 					await duplicateRoom(templateRoomId, { newRoomId });
 					navigate(`/rooms/${newRoomId}`);
 				} else {
-					console.log("[Startup] Creating empty room:", newRoomId);
-					navigate(`/rooms/${newRoomId}?template=empty`);
+					console.log("[Startup] Creating default room:", newRoomId);
+					navigate(`/rooms/${newRoomId}`);
 				}
 			} catch (err) {
 				setError(err instanceof Error ? err.message : "Unknown error");

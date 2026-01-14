@@ -692,11 +692,15 @@ def handle_room_join(data):
     joins socket rooms, and returns all small initialization data.
     Geometries are fetched separately via REST (can be very large).
 
+    For frontend clients: If the room doesn't exist, it will be auto-created
+    using either the specified template (copyFrom) or the "empty" template.
+
     Request
     -------
     {
         "roomId": str,  # Room to join
-        "clientType": str  # "frontend" or "python" (defaults to "python")
+        "clientType": str,  # "frontend" or "python"
+        "copyFrom": str | None  # Template name or room ID to copy from
     }
 
     Response (success)
@@ -720,11 +724,14 @@ def handle_room_join(data):
 
     from flask_socketio import join_room, leave_room
 
+    from zndraw.room_templates import TEMPLATES
+
     sid = request.sid
     r = current_app.extensions["redis"]
     room_service = current_app.extensions["room_service"]
     room_id = data.get("roomId")
     client_type = data.get("clientType")  # "frontend" or "python"
+    copy_from = data.get("copyFrom")  # Template name or room ID to copy from
 
     if not room_id:
         return {"status": "error", "code": 400, "message": "roomId required"}
@@ -742,10 +749,54 @@ def handle_room_join(data):
         log.error(f"Cannot join room: userName not found for sid {sid}")
         return {"status": "error", "code": 401, "message": "User not found"}
 
-    # Check room exists (creation is separate via POST /api/rooms)
+    # Check room exists - frontend clients auto-create rooms
     if not room_service.room_exists(room_id):
-        log.debug(f"Room {room_id} not found for user {user_name}")
-        return {"status": "error", "code": 404, "message": "Room not found"}
+        if client_type == "frontend":
+            # Auto-create room for frontend clients
+            if copy_from:
+                if copy_from in TEMPLATES:
+                    # Apply template (e.g., "empty", "water")
+                    room_service.create_room(room_id, user_name)
+                    room_service.apply_template(room_id, copy_from)
+                    log.info(f"Auto-created room {room_id} from template {copy_from}")
+                else:
+                    # Copy from existing room
+                    try:
+                        room_service.create_room(
+                            room_id, user_name, copy_from=copy_from
+                        )
+                        log.info(f"Auto-created room {room_id} from room {copy_from}")
+                    except ValueError as e:
+                        return {"status": "error", "code": 404, "message": str(e)}
+            else:
+                # No template specified → check for default room first
+                default_room = r.get("default_room")
+                if default_room and default_room != room_id:
+                    # Copy from default room (template room)
+                    try:
+                        room_service.create_room(
+                            room_id, user_name, copy_from=default_room
+                        )
+                        log.info(
+                            f"Auto-created room {room_id} from default room {default_room}"
+                        )
+                    except ValueError as e:
+                        # Default room doesn't exist anymore, fall back to empty
+                        log.warning(
+                            f"Default room {default_room} not found, creating empty: {e}"
+                        )
+                        room_service.create_room(room_id, user_name)
+                        room_service.apply_template(room_id, "empty")
+                        log.info(f"Auto-created empty room {room_id}")
+                else:
+                    # No default room → use "empty" template
+                    room_service.create_room(room_id, user_name)
+                    room_service.apply_template(room_id, "empty")
+                    log.info(f"Auto-created empty room {room_id}")
+        else:
+            # Python clients must create rooms explicitly
+            log.debug(f"Room {room_id} not found for Python client {user_name}")
+            return {"status": "error", "code": 404, "message": "Room not found"}
 
     # 1. Create sessionId
     session_id = str(uuid.uuid4())

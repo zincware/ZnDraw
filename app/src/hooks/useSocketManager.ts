@@ -10,7 +10,6 @@ import {
 	getAllBookmarks,
 	getServerVersion,
 	getGlobalSettings,
-	createRoom,
 } from "../myapi/client";
 import { convertBookmarkKeys } from "../utils/bookmarks";
 import {
@@ -197,40 +196,21 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 						}
 					};
 
-					// Emit room:join event (frontend clients send clientType)
+					// Get template from URL if present
+					const template = new URLSearchParams(window.location.search).get(
+						"template",
+					);
+
+					// Emit room:join event - frontend clients auto-create rooms
+					// with the specified template (or "empty" by default)
 					socket.emit(
 						"room:join",
-						{ roomId, clientType: "frontend" },
-						async (response: any) => {
-							// Handle room not found - create it first
-							if (response.code === 404) {
-								const template = new URLSearchParams(
-									window.location.search,
-								).get("template");
-								try {
-									await createRoom({
-										roomId,
-										copyFrom: template ?? undefined,
-									});
-								} catch (error: any) {
-									// 409 = room already exists = success (race condition)
-									if (error.response?.status !== 409) {
-										console.error("Failed to create room:", error);
-										return;
-									}
-								}
-
-								// Retry join after creation
-								socket.emit(
-									"room:join",
-									{ roomId, clientType: "frontend" },
-									handleJoinResponse,
-								);
-								return;
-							}
-
-							handleJoinResponse(response);
+						{
+							roomId,
+							clientType: "frontend",
+							copyFrom: template ?? undefined,
 						},
+						handleJoinResponse,
 					);
 				} else {
 					setConnected(true);

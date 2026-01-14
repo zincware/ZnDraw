@@ -14,6 +14,7 @@ import re
 from redis import Redis  # type: ignore
 
 from zndraw.app.redis_keys import GlobalIndexKeys, RoomKeys
+from zndraw.room_templates import TEMPLATES, get_template_names
 
 log = logging.getLogger(__name__)
 
@@ -97,15 +98,13 @@ class RoomService:
         Raises
         ------
         ValueError
-            If room_id contains invalid characters or copy_from room doesn't exist
+            If room_id contains invalid characters, is reserved, or copy_from
+            room doesn't exist
         """
-        # Validate room ID
-        if ":" in room_id:
-            raise ValueError("Room ID cannot contain ':' character")
-
-        # Reject any non-string/int room IDs (allow alphanumeric, underscores, hyphens, and dots)
-        if not re.match(r"^[a-zA-Z0-9_\-\.]+$", room_id):
-            raise ValueError("Room ID contains invalid characters")
+        # Validate room ID using is_valid_room_id()
+        valid, error = self.is_valid_room_id(room_id)
+        if not valid:
+            raise ValueError(error)
 
         if copy_from:
             return self._create_room_from_copy(room_id, copy_from, description)
@@ -389,6 +388,53 @@ class RoomService:
             log.error(f"Invalid step value in Redis for room {room_id}: {step} - {e}")
             return 0
 
+    def is_valid_room_id(self, room_id: str) -> tuple[bool, str | None]:
+        """Check if a room ID is valid.
+
+        Parameters
+        ----------
+        room_id : str
+            Room identifier to validate
+
+        Returns
+        -------
+        tuple[bool, str | None]
+            (True, None) if valid, (False, error_message) if invalid
+        """
+        if ":" in room_id:
+            return False, "Room ID cannot contain ':' character"
+
+        if not re.match(r"^[a-zA-Z0-9_\-\.]+$", room_id):
+            return False, "Room ID contains invalid characters"
+
+        if room_id in TEMPLATES:
+            return False, f"Room ID '{room_id}' is reserved (template name)"
+
+        return True, None
+
+    def apply_template(self, room_id: str, template_name: str) -> None:
+        """Apply a template to populate a room with initial frames.
+
+        Parameters
+        ----------
+        room_id : str
+            Room to populate
+        template_name : str
+            Template name (e.g., "empty", "water")
+
+        Raises
+        ------
+        ValueError
+            If template name is not found
+        """
+        if template_name not in TEMPLATES:
+            raise ValueError(
+                f"Template '{template_name}' not found. Available: {get_template_names()}"
+            )
+
+        writer = _RoomWriter(room_id, self.r)
+        TEMPLATES[template_name](writer)
+
     def delete_room(self, room_id: str) -> bool:
         """Delete a room and all its data.
 
@@ -418,3 +464,56 @@ class RoomService:
 
         log.info(f"Deleted room '{room_id}' and removed from index")
         return True
+
+
+class _RoomWriter:
+    """Minimal interface for templates to write to a room's storage.
+
+    This class provides an append/extend interface that templates use to
+    add frames to a room without going through the full ZnDraw client.
+
+    Parameters
+    ----------
+    room_id : str
+        Room identifier
+    redis_client : Redis
+        Redis client instance
+    """
+
+    def __init__(self, room_id: str, redis_client: Redis):
+        self.room_id = room_id
+        self.r = redis_client
+
+    def append(self, atoms) -> None:
+        """Append a single frame.
+
+        Parameters
+        ----------
+        atoms : ase.Atoms
+            Atoms object to append
+        """
+        self.extend([atoms])
+
+    def extend(self, frames: list) -> None:
+        """Extend with multiple frames.
+
+        Parameters
+        ----------
+        frames : list[ase.Atoms]
+            List of Atoms objects to add
+        """
+        from asebytes import encode
+
+        from zndraw.app.frame_index_manager import FrameIndexManager
+        from zndraw.app.redis_keys import RoomKeys
+        from zndraw.app.route_utils import get_storage
+
+        room_keys = RoomKeys(self.room_id)
+        storage = get_storage(self.room_id)
+        manager = FrameIndexManager(self.r, room_keys.trajectory_indices())
+
+        for atoms in frames:
+            encoded = encode(atoms)
+            physical_index = len(storage)
+            storage.extend([encoded])
+            manager.append(f"{self.room_id}:{physical_index}")

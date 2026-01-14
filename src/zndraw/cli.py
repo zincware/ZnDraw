@@ -7,7 +7,7 @@ import webbrowser
 import typer
 
 from zndraw import __version__
-from zndraw.app.tasks import create_workspace, read_file
+from zndraw.app.tasks import read_file
 from zndraw.config import (
     LMDBStorageConfig,
     MongoDBStorageConfig,
@@ -545,14 +545,11 @@ def main(
             )
             make_default = False
     else:
-        # No file provided - create empty workspace with one empty frame
+        # No file provided - just set room name for browser URL
+        # Room will be auto-created with "empty" template when frontend joins
         workspace_room = f"workspace-{uuid.uuid4().hex[:8]}"
         first_room = workspace_room
-        typer.echo(f"Creating empty workspace: {workspace_room}")
-        create_workspace.delay(
-            room=workspace_room,
-            server_url=config.server_url,
-        )
+        typer.echo(f"Starting empty workspace: {workspace_room}")
 
     # Open browser if requested
     if browser:
