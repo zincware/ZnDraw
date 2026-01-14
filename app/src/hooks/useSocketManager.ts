@@ -731,7 +731,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		socket.on("frame_update", onFrameUpdate);
 		socket.on("active_camera:update", onActiveCameraUpdate);
 		socket.on("invalidate", onInvalidate);
-		socket.on("invalidate:schema", onSchemaInvalidate);
+		socket.on("schema:invalidate", onSchemaInvalidate);
 		socket.on("frame_selection:update", onFrameSelectionUpdate);
 		socket.on("bookmarks:invalidate", onBookmarksInvalidate);
 		socket.on("frames:invalidate", onFramesInvalidate);
@@ -793,7 +793,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			socket.off("frame_update", onFrameUpdate);
 			socket.off("active_camera:update", onActiveCameraUpdate);
 			socket.off("invalidate", onInvalidate);
-			socket.off("invalidate:schema", onSchemaInvalidate);
+			socket.off("schema:invalidate", onSchemaInvalidate);
 			socket.off("frame_selection:update", onFrameSelectionUpdate);
 			socket.off("bookmarks:invalidate", onBookmarksInvalidate);
 			socket.off("frames:invalidate", onFramesInvalidate);

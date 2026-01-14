@@ -7,7 +7,7 @@ class SocketEvents:
     JOB_ASSIGNED = "job:assigned"  # Server sends job to specific worker
     JOB_STATE_CHANGED = "job:state_changed"  # Job state updates to room
     INVALIDATE = "invalidate"
-    INVALIDATE_SCHEMA = "invalidate:schema"
+    INVALIDATE_SCHEMA = "schema:invalidate"
     REGISTER_EXTENSION = "register:extension"
     LEN_FRAMES = "len_frames"
     FRAME_UPDATE = "frame_update"
