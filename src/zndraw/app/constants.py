@@ -29,7 +29,7 @@ class SocketEvents:
     CHAT_MESSAGE_UPDATED = "chat:message:updated"
     ACTIVE_CAMERA_UPDATE = "active_camera:update"
     SELECTION_UPDATE = "selection:update"
-    FRAME_SELECTION_UPDATE = "frame_selection:update"
+    FRAME_SELECTION_UPDATE = "frame-selection:update"
 
 
 class LockConfig:
