@@ -791,7 +791,7 @@ def handle_room_join(data):
             progress_id: json.loads(progress_json)
             for progress_id, progress_json in progress_data.items()
         }
-        emit("progress:initial", {"progressTrackers": progress_trackers}, to=sid)
+        emit("progress:init", {"progressTrackers": progress_trackers}, to=sid)
 
     log.info(
         f"User {user_name} joined room {room_id} with session {session_id} (sid: {sid})"

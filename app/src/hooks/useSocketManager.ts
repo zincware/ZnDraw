@@ -744,10 +744,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		socket.on("room:update", onRoomUpdate);
 		socket.on("room:delete", onRoomDelete);
 		socket.on("lock:update", onLockUpdate);
-		socket.on("progress:initial", onProgressInitial);
-		socket.on("progress:started", onProgressStarted);
-		socket.on("progress:updated", onProgressUpdate);
-		socket.on("progress:completed", onProgressComplete);
+		socket.on("progress:init", onProgressInitial);
+		socket.on("progress:start", onProgressStarted);
+		socket.on("progress:update", onProgressUpdate);
+		socket.on("progress:complete", onProgressComplete);
 
 		// Ensure user is authenticated before connecting socket
 		// This will auto-login with a server-generated username if no token exists
@@ -806,10 +806,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			socket.off("room:update", onRoomUpdate);
 			socket.off("room:delete", onRoomDelete);
 			socket.off("lock:update", onLockUpdate);
-			socket.off("progress:initial", onProgressInitial);
-			socket.off("progress:started", onProgressStarted);
-			socket.off("progress:updated", onProgressUpdate);
-			socket.off("progress:completed", onProgressComplete);
+			socket.off("progress:init", onProgressInitial);
+			socket.off("progress:start", onProgressStarted);
+			socket.off("progress:update", onProgressUpdate);
+			socket.off("progress:complete", onProgressComplete);
 
 			// Disconnect socket when component unmounts to ensure clean reconnection
 			socket.disconnect();
