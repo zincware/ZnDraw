@@ -4,8 +4,8 @@
 class SocketEvents:
     """Socket.IO event names."""
 
-    JOB_ASSIGNED = "job:assigned"  # Server sends job to specific worker
-    JOB_STATE_CHANGED = "job:state_changed"  # Job state updates to room
+    JOB_ASSIGNED = "job:assign"  # Server sends job to specific worker
+    JOB_STATE_CHANGED = "job:update"  # Job state updates to room
     INVALIDATE = "invalidate"
     INVALIDATE_SCHEMA = "schema:invalidate"
     REGISTER_EXTENSION = "register:extension"

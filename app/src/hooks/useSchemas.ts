@@ -206,11 +206,11 @@ export const useJobs = (room: string) => {
 		};
 
 		// Register socket listener
-		socket.on("job:state_changed", handleJobStateChanged);
+		socket.on("job:update", handleJobStateChanged);
 
 		// Cleanup on unmount
 		return () => {
-			socket.off("job:state_changed", handleJobStateChanged);
+			socket.off("job:update", handleJobStateChanged);
 		};
 	}, [room, refetch]);
 

@@ -396,7 +396,7 @@ def handle_disconnect(*args, **kwargs):
 
                 # Only fail jobs that are assigned or processing (not already completed/failed)
                 if current_status in [JobStatus.ASSIGNED, JobStatus.PROCESSING]:
-                    # Fail the job (automatically emits job:state_changed with error metadata)
+                    # Fail the job (automatically emits job:update with error metadata)
                     JobManager.fail_job(
                         r,
                         job_id,

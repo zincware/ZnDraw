@@ -254,7 +254,7 @@ class SocketManager:
             self.zndraw._figures.pop(key, None)
 
     def _on_job_assigned(self, data: dict):
-        """Handle job:assigned socket event.
+        """Handle job:assign socket event.
 
         New workflow (REST-based):
         1. Receive socket notification with jobId
@@ -271,7 +271,7 @@ class SocketManager:
         job_id = data.get("jobId")
 
         if not job_id:
-            log.error("Received job:assigned event without jobId")
+            log.error("Received job:assign event without jobId")
             return
 
         if not self.zndraw.auto_pickup_jobs:
