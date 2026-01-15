@@ -211,7 +211,22 @@ def check_lock(
             if target is not None:
                 # Resolve dynamic target if callable
                 if callable(target):
-                    actual_target = target(request, kwargs)
+                    try:
+                        actual_target = target(request, kwargs)
+                    except (AttributeError, TypeError, ValueError, KeyError) as e:
+                        log.warning(
+                            f"Failed to resolve dynamic lock target in room "
+                            f"{room_id}: {e}"
+                        )
+                        return (
+                            jsonify(
+                                {
+                                    "error": f"Invalid or missing request body for "
+                                    f"dynamic target: {e}"
+                                }
+                            ),
+                            400,
+                        )
                 else:
                     actual_target = target
 

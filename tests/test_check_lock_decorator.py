@@ -11,7 +11,7 @@ import requests
 
 
 @pytest.fixture
-def room_with_lock(server, get_jwt_auth_headers, connect_room):
+def room_with_lock(server, connect_room):
     """Create a room, join it, acquire a lock, and return connection info."""
     room = "test-lock-room"
 

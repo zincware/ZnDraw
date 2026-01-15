@@ -35,6 +35,7 @@ def room_with_frames_and_lock(server, s22, connect_room):
         f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
         json={"msg": "testing partial update"},
         headers=conn.headers,
+        timeout=10,
     )
     assert response.status_code == 200
     assert response.json()["success"] is True
@@ -138,6 +139,7 @@ def test_partial_update_positions(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -186,6 +188,7 @@ def test_partial_update_without_lock_proceeds(room_with_frames_no_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -212,6 +215,7 @@ def test_partial_update_info(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -260,6 +264,7 @@ def test_partial_update_multiple_keys(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -284,6 +289,7 @@ def test_partial_update_invalid_frame_index(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 404
@@ -311,6 +317,7 @@ def test_partial_update_negative_frame_index(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     # Flask's <int:frame_id> doesn't match negative numbers, returns 405
@@ -332,6 +339,7 @@ def test_partial_update_empty_body(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 400
@@ -353,6 +361,7 @@ def test_partial_update_blocked_by_other_session_lock(server, s22, connect_room)
         f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
         json={"msg": "user1 lock"},
         headers=conn1.headers,
+        timeout=10,
     )
     assert response.status_code == 200
 
@@ -370,6 +379,7 @@ def test_partial_update_blocked_by_other_session_lock(server, s22, connect_room)
             **conn2.headers,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 423  # Locked by another session
@@ -398,6 +408,7 @@ def test_partial_update_requires_session_id(server, s22, get_jwt_auth_headers):
             **auth_headers,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 400
@@ -429,6 +440,7 @@ def test_partial_update_different_frame(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -480,6 +492,7 @@ def test_partial_update_preserves_other_data(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -526,6 +539,7 @@ def test_partial_update_empty_room(server, connect_room):
             **conn.headers,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 404
@@ -548,6 +562,7 @@ def test_partial_update_malformed_msgpack(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 400
