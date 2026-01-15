@@ -1,3 +1,4 @@
+import React, { useState, useEffect, Suspense } from "react";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -44,7 +45,6 @@ import DropOverlay from "../components/DropOverlay";
 import ProgressNotifications from "../components/ProgressNotifications";
 import { useAppStore } from "../store";
 import { useRestJoinManager } from "../hooks/useRestManager";
-import React, { useState, useEffect, Suspense } from "react";
 import { useColorScheme } from "@mui/material/styles";
 import { useLocation, useNavigate } from "react-router-dom";
 import WindowManager from "../components/WindowManager";
