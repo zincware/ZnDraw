@@ -206,7 +206,7 @@ def delete_geometry(room_id: str, key: str, session_id: str, user_id: str):
 @geometries.route("/api/rooms/<string:room_id>/geometries", methods=["GET"])
 @require_auth
 def list_geometries(room_id: str):
-    """Get all geometries with their full data.
+    """Get all geometries with full data, plus type metadata (schemas/defaults).
 
     Returns:
         {
@@ -214,23 +214,39 @@ def list_geometries(room_id: str):
                 "particles": {"type": "Sphere", "data": {...}},
                 "bonds": {"type": "Bond", "data": {...}},
                 ...
+            },
+            "types": {
+                "schemas": {
+                    "Sphere": {...},  // JSON schema
+                    "Arrow": {...},
+                    ...
+                },
+                "defaults": {
+                    "Sphere": {...},  // Pydantic model defaults
+                    "Arrow": {...},
+                    ...
+                }
             }
         }
     """
     r = current_app.extensions["redis"]
     keys = RoomKeys(room_id)
     geometries_raw = r.hgetall(keys.geometries())
-    geometries = {k: json.loads(v) for k, v in geometries_raw.items()}
-    return {"geometries": geometries}, 200
+    geometries_data = {k: json.loads(v) for k, v in geometries_raw.items()}
 
-
-@geometries.route("/api/rooms/<string:room_id>/geometries/schemas", methods=["GET"])
-def list_geometry_schemas(room_id: str):
-    """Return JSON schemas for all geometry types for form generation."""
+    # Generate schemas and defaults from Pydantic models (single source of truth)
     schemas = {
         name: model.model_json_schema() for name, model in geometry_classes.items()
     }
-    return {"schemas": schemas}, 200
+    defaults = {name: model().model_dump() for name, model in geometry_classes.items()}
+
+    return {
+        "geometries": geometries_data,
+        "types": {
+            "schemas": schemas,
+            "defaults": defaults,
+        },
+    }, 200
 
 
 # -------------#

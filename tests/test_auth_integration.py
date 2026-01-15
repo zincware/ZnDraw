@@ -104,7 +104,9 @@ def test_join_room_with_jwt_succeeds(server, get_jwt_auth_headers):
         response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
         assert response["status"] == "ok"
         assert "sessionId" in response
-        assert "roomData" in response
+        assert "frameCount" in response
+        assert "step" in response
+        assert "locked" in response
     finally:
         sio.disconnect()
 

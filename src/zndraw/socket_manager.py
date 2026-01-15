@@ -73,17 +73,23 @@ class SocketManager:
         # Store sessionId for subsequent operations
         self.zndraw.api.session_id = response["sessionId"]
 
-        # Initialize room data from socket response
-        room_data = response.get("roomData", {})
-        self.zndraw._len = room_data.get("frameCount", 0)
-        self.zndraw._step = room_data.get("currentStep", 0)
-        self.zndraw._frame_selection = frozenset(room_data.get("frameSelection") or [])
-        self.zndraw._bookmarks = room_data.get("bookmarks", {})
+        # Initialize minimal room data from socket response
+        self.zndraw._len = response.get("frameCount", 0)
+        self.zndraw._step = response.get("step", 0)
 
-        # Fetch geometries via REST (can be large)
+        # Fetch additional data via REST
+        # Geometries (includes schemas/defaults)
         geometries = self.zndraw.api.get_geometries()
         if geometries is not None:
             self.zndraw._geometries = geometries
+
+        # Frame selection
+        frame_selection = self.zndraw.api.get_frame_selection()
+        self.zndraw._frame_selection = frozenset(frame_selection or [])
+
+        # Bookmarks
+        bookmarks = self.zndraw.api.get_all_bookmarks()
+        self.zndraw._bookmarks = bookmarks
 
         # Re-register extensions after session is established
         self._register_extensions_after_join()
@@ -132,8 +138,10 @@ class SocketManager:
             )
             return
 
-        # Update session ID
+        # Update session ID and minimal state
         self.zndraw.api.session_id = response["sessionId"]
+        self.zndraw._len = response.get("frameCount", 0)
+        self.zndraw._step = response.get("step", 0)
 
         # Re-register extensions
         self._register_extensions_after_join()

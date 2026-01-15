@@ -20,10 +20,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { JsonForms } from "@jsonforms/react";
 import { materialCells } from "@jsonforms/material-renderers";
 import { useGeometryStore } from "../../stores/geometryStore";
-import {
-	useGeometrySchemas,
-	useCreateGeometry,
-} from "../../hooks/useGeometries";
+import { useCreateGeometry } from "../../hooks/useGeometries";
 import { useAppStore } from "../../store";
 import { useFrameKeys } from "../../hooks/useSchemas";
 import { customRenderers, injectDynamicEnums } from "../../utils/jsonforms";
@@ -60,12 +57,7 @@ const GeometryForm = () => {
 	const isInitializedRef = useRef(false);
 	const isSyncingFromZustandRef = useRef(false); // Skip auto-save during external sync
 
-	// Fetch geometry schemas
-	const {
-		data: schemasData,
-		isLoading: isLoadingSchemas,
-		isError: isSchemasError,
-	} = useGeometrySchemas(roomId);
+	// Geometry schemas come from Zustand store (populated during connection)
 
 	// Fetch frame keys for dynamic enums
 	const { data: metadata, isLoading: isLoadingMetadata } = useFrameKeys(
@@ -81,13 +73,10 @@ const GeometryForm = () => {
 	// Create geometry mutation
 	const { mutate: createGeometry, isPending: isCreating } = useCreateGeometry();
 
-	// Extract schemas from the response
-	const schemas = useMemo(() => {
-		if (!schemasData?.schemas) return {};
-		return schemasData.schemas;
-	}, [schemasData]);
-
-	const schemaOptions = useMemo(() => Object.keys(schemas), [schemas]);
+	const schemaOptions = useMemo(
+		() => Object.keys(geometrySchemas),
+		[geometrySchemas],
+	);
 
 	// Initialize form data for edit mode using Zustand store (single source of truth)
 	useEffect(() => {
@@ -276,11 +265,15 @@ const GeometryForm = () => {
 
 	// Create dynamic schema with injected metadata and geometries
 	const currentSchema = useMemo(() => {
-		if (!selectedType || !schemas[selectedType]) return null;
-		return injectDynamicEnums(schemas[selectedType], metadata, geometries);
-	}, [selectedType, schemas, metadata, geometries]);
+		if (!selectedType || !geometrySchemas[selectedType]) return null;
+		return injectDynamicEnums(
+			geometrySchemas[selectedType],
+			metadata,
+			geometries,
+		);
+	}, [selectedType, geometrySchemas, metadata, geometries]);
 
-	if (isLoadingSchemas || isLoadingMetadata) {
+	if (isLoadingMetadata) {
 		return (
 			<Box
 				sx={{
@@ -291,17 +284,6 @@ const GeometryForm = () => {
 				}}
 			>
 				<CircularProgress />
-			</Box>
-		);
-	}
-
-	if (isSchemasError) {
-		return (
-			<Box sx={{ p: 2 }}>
-				<Typography color="error">Failed to load geometry schemas.</Typography>
-				<Button onClick={handleCancel} sx={{ mt: 2 }}>
-					Back to List
-				</Button>
 			</Box>
 		);
 	}
