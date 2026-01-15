@@ -7,6 +7,7 @@ following DRY principles and reducing code duplication.
 import functools
 import json
 import logging
+import typing as t
 
 from flask import current_app, jsonify, request
 
@@ -61,72 +62,85 @@ def get_storage(room_id: str) -> StorageBackend:
     return STORAGE[room_id]
 
 
-def requires_lock(target: str | None = None, forbid: list[str] | None = None):
-    """Decorator to validate locks for protected operations.
+LockTargetType = str | t.Callable[[t.Any, dict], str] | None
 
-    This decorator enforces BOTH temporary coordination locks AND permanent
-    authorization locks in a single, unified check.
+
+def check_lock(
+    target: LockTargetType = None,
+    forbid: list[str] | None = None,
+):
+    """Check for blocking locks before operation. Does NOT require holding lock.
+
+    This decorator checks if an intentional lock blocks the operation, but does
+    NOT require the caller to hold the lock. If no lock exists, the operation
+    proceeds (FIFO ordering handles concurrency). Only blocks if ANOTHER session
+    holds a lock on the target.
 
     Parameters
     ----------
-    target : str | None, optional
-        Temporary lock target that the caller must hold.
-        Examples: "trajectory:meta", "step"
-        These are session-based locks with TTL for coordinating concurrent clients.
-        If None, no lock verification is performed (only auth + forbid checks).
+    target : str | Callable | None, optional
+        Lock target to check. Can be:
+        - str: Static target like "trajectory:meta", "bookmarks"
+        - Callable: Function(request, kwargs) -> str for dynamic targets
+          like "geometry:{key}" where key comes from request
+        - None: No target lock check (only forbid + global lock checks)
+
+        If a lock exists for this target held by a DIFFERENT session -> 423 Locked
+        If no lock exists OR same session holds it -> proceed
         Default: None
 
     forbid : list[str] | None, optional
-        List of permanent lock states that must NOT be active.
+        List of permanent lock states that block the operation.
         Examples: ["room:locked"]
-        These are persistent admin locks with no TTL.
-        Default: None (no forbidden states checked)
+        These return 403 Forbidden (not 423 Locked).
+        Default: None
 
     Execution Order
     ---------------
-    1. Check forbidden permanent states (e.g., room:locked) → 403 if violated
-    2. Authenticate user via JWT → 401 if invalid
-    3. Validate session ID → 400 if missing, 401 if invalid
-    4. Verify temporary lock is held (if target specified) → 423 if not held
-    5. Execute route handler
+    1. Check forbidden permanent states (e.g., room:locked) -> 403 if violated
+    2. Authenticate user via JWT -> 401 if invalid
+    3. Validate session ID -> 400 if missing, 401 if invalid
+    4. Check global lock -> 423 if held by other session
+    5. Check target lock -> 423 if held by other session
+    6. Execute route handler (FIFO handles ordering)
 
     Returns
     -------
     function
-        Decorated function that validates all locks before execution
+        Decorated function that checks locks before execution
 
     Examples
     --------
-    >>> # Requires trajectory lock AND room must not be locked
-    >>> @requires_lock(target="trajectory:meta", forbid=["room:locked"])
-    >>> def delete_frames(room_id: str, session_id: str, user_id: str):
+    >>> # Proceed unless blocked by trajectory lock or room locked
+    >>> @check_lock(target="trajectory:meta", forbid=["room:locked"])
+    >>> def append_frame(room_id: str, session_id: str, user_id: str):
     ...     pass
 
-    >>> # Only checks room lock, no coordination lock needed (atomic operation)
-    >>> @requires_lock(forbid=["room:locked"])
-    >>> def set_bookmark(room_id: str, index: int, session_id: str, user_id: str):
+    >>> # Per-geometry lock check with dynamic target
+    >>> @check_lock(
+    ...     target=lambda req, kw: f"geometry:{req.json.get('key')}",
+    ...     forbid=["room:locked"]
+    ... )
+    >>> def create_geometry(room_id: str, session_id: str, user_id: str):
     ...     pass
 
-    >>> # Requires step lock, room CAN be locked (just navigation)
-    >>> @requires_lock(target="step")
-    >>> def update_step(room_id: str, session_id: str, user_id: str):
+    >>> # Only check room lock, no specific target
+    >>> @check_lock(forbid=["room:locked"])
+    >>> def set_bookmark(room_id: str, session_id: str, user_id: str):
     ...     pass
     """
 
     def decorator(f):
         @functools.wraps(f)
         def wrapped(*args, **kwargs):
-            # Extract room_id from route parameters
             room_id = kwargs.get("room_id")
             if not room_id:
                 return jsonify({"error": "room_id required"}), 400
 
-            log.info(f"@requires_lock({target}, forbid={forbid}) - room: {room_id}")
-
             r = current_app.extensions["redis"]
             keys = RoomKeys(room_id)
 
-            # ===== 1. CHECK FORBIDDEN PERMANENT STATES FIRST =====
+            # ===== 1. CHECK FORBIDDEN PERMANENT STATES -> 403 =====
             if forbid:
                 for forbidden_state in forbid:
                     if forbidden_state == "room:locked":
@@ -135,28 +149,27 @@ def requires_lock(target: str | None = None, forbid: list[str] | None = None):
                             locked_by = r.get(keys.locked_by())
                             error_msg = "Room is locked and cannot be modified"
                             if locked_by:
-                                error_msg = f"Room is locked by admin '{locked_by}' and cannot be modified"
+                                error_msg = (
+                                    f"Room is locked by admin '{locked_by}' "
+                                    "and cannot be modified"
+                                )
                             log.warning(
-                                f"Forbidden state violated: {forbidden_state} in room {room_id}"
+                                f"Forbidden state violated: {forbidden_state} "
+                                f"in room {room_id}"
                             )
                             return jsonify({"error": error_msg}), 403
-                    # Future: Add other forbidden states here
-                    # elif forbidden_state == "room:archived":
-                    #     ...
 
-            # ===== 2. AUTHENTICATE USER VIA JWT (existing logic) =====
+            # ===== 2. AUTHENTICATE USER VIA JWT -> 401 =====
             try:
                 user_id = get_current_user()
             except AuthError as e:
                 log.warning(f"JWT auth failed: {e.message}")
                 return jsonify({"error": e.message}), e.status_code
 
-            # ===== 3. VALIDATE SESSION ID (existing logic) =====
+            # ===== 3. VALIDATE SESSION ID -> 400/401 =====
             session_id = request.headers.get("X-Session-ID")
             if not session_id:
-                log.warning(
-                    f"X-Session-ID header missing for {target} in room {room_id}"
-                )
+                log.warning(f"X-Session-ID header missing in room {room_id}")
                 return jsonify({"error": "X-Session-ID header required"}), 400
 
             session_key = SessionKeys.session_data(session_id)
@@ -171,32 +184,65 @@ def requires_lock(target: str | None = None, forbid: list[str] | None = None):
             except json.JSONDecodeError:
                 return jsonify({"error": "Invalid session data"}), 500
 
-            # Verify session belongs to authenticated user
             if session_user != user_id:
                 return jsonify({"error": "Session/user mismatch"}), 403
 
-            # ===== 4. VERIFY TEMPORARY LOCK IS HELD (if target specified) =====
+            # ===== 4. CHECK GLOBAL LOCK -> 423 if held by other session =====
+            global_lock_str = r.get(keys.lock("global"))
+            if global_lock_str:
+                try:
+                    global_lock_data = json.loads(global_lock_str)
+                    if global_lock_data.get("sessionId") != session_id:
+                        holder = global_lock_data.get("userId", "unknown")
+                        log.info(
+                            f"Global lock blocks operation in room {room_id} "
+                            f"(held by {holder})"
+                        )
+                        return (
+                            jsonify(
+                                {"error": "Room is globally locked", "holder": holder}
+                            ),
+                            423,
+                        )
+                except json.JSONDecodeError:
+                    log.warning(f"Invalid global lock data in room {room_id}")
+
+            # ===== 5. CHECK TARGET LOCK -> 423 if held by other session =====
             if target is not None:
-                lock_key = get_lock_key(room_id, target)
+                # Resolve dynamic target if callable
+                if callable(target):
+                    actual_target = target(request, kwargs)
+                else:
+                    actual_target = target
+
+                lock_key = keys.lock(actual_target)
                 lock_data_str = r.get(lock_key)
 
-                if not lock_data_str:
-                    return jsonify({"error": f"Lock not held for {target}"}), 423
+                if lock_data_str:
+                    try:
+                        lock_data = json.loads(lock_data_str)
+                        if lock_data.get("sessionId") != session_id:
+                            holder = lock_data.get("userId", "unknown")
+                            log.info(
+                                f"Lock '{actual_target}' blocks operation in room "
+                                f"{room_id} (held by {holder})"
+                            )
+                            return (
+                                jsonify(
+                                    {
+                                        "error": f"Resource locked by {holder}",
+                                        "target": actual_target,
+                                        "holder": holder,
+                                    }
+                                ),
+                                423,
+                            )
+                    except json.JSONDecodeError:
+                        log.warning(
+                            f"Invalid lock data for '{actual_target}' in room {room_id}"
+                        )
 
-                try:
-                    lock_data = json.loads(lock_data_str)
-                except json.JSONDecodeError:
-                    return jsonify({"error": "Invalid lock data"}), 500
-
-                # Verify session holds the lock (only check sessionId, not token)
-                if lock_data.get("sessionId") != session_id:
-                    log.warning(
-                        f"Lock validation failed: {target} in room {room_id} "
-                        f"- session {session_id} does not hold lock (held by {lock_data.get('sessionId')})"
-                    )
-                    return jsonify({"error": "Session does not hold the lock"}), 403
-
-            # ===== 5. INJECT VALIDATED PARAMETERS =====
+            # ===== 6. INJECT VALIDATED PARAMETERS AND PROCEED =====
             kwargs["session_id"] = session_id
             kwargs["user_id"] = user_id
 

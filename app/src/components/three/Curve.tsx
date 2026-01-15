@@ -109,7 +109,6 @@ export default function Curve({
 	const currentFrame = useAppStore((state) => state.currentFrame);
 	const frameCount = useAppStore((state) => state.frameCount);
 	const roomId = useAppStore((state) => state.roomId);
-	const lock = useAppStore((state) => state.lock);
 	const mode = useAppStore((state) => state.mode);
 	const drawingIsValid = useAppStore((state) => state.drawingIsValid);
 	const drawingPointerPosition = useAppStore(
@@ -764,17 +763,12 @@ export default function Curve({
 		}
 
 		try {
-			await createGeometry(
-				roomId,
-				geometryKey,
-				"Curve",
-				currentGeometry.data,
-				lock?.token,
-			);
+			// No lock token needed - server handles via @check_lock
+			await createGeometry(roomId, geometryKey, "Curve", currentGeometry.data);
 		} catch (error: any) {
 			console.error(`[Curve] Failed to persist ${geometryKey}:`, error);
 		}
-	}, [roomId, geometryKey, geometries, lock]);
+	}, [roomId, geometryKey, geometries]);
 
 	// Memoize debounced persist function to avoid recreation on every render
 	const debouncedPersist = useMemo(

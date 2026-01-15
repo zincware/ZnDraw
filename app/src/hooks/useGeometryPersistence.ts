@@ -36,19 +36,18 @@ export function useGeometryPersistence(
 
 		// Get fresh data from store
 		const currentGeometries = useAppStore.getState().geometries;
-		const currentLock = useAppStore.getState().lock;
 		const currentGeometry = currentGeometries[geometryKey];
 		if (!currentGeometry || !currentGeometry.data) return;
 
 		if (!isDirtyRef.current) return;
 
 		try {
+			// No lock token needed - server handles via @check_lock
 			await createGeometry(
 				roomId,
 				geometryKey,
 				geometryType,
 				currentGeometry.data,
-				currentLock?.token,
 			);
 			isDirtyRef.current = false;
 		} catch (error: unknown) {

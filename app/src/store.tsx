@@ -972,17 +972,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 			}));
 
 			try {
-				// Create geometry on backend using current lock
-				const { lock } = get();
-				await createGeometry(
-					roomId,
-					"curve",
-					"Curve",
-					{
-						position: [],
-					},
-					lock?.token,
-				);
+				// Create geometry on backend - no lock needed, server handles via @check_lock
+				await createGeometry(roomId, "curve", "Curve", {
+					position: [],
+				});
 
 				// Fetch the validated geometry from backend to get defaults/transformations
 				// (socket event won't reach us due to skip_sid)

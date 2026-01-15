@@ -45,7 +45,6 @@ export function useGeometryCameraSync({
 	const roomId = useAppStore((state) => state.roomId);
 	const geometries = useAppStore((state) => state.geometries);
 	const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
-	const lock = useAppStore((state) => state.lock);
 
 	// Track last sent values for echo-back detection (value-based, not time-based)
 	const lastSentRef = useRef<{
@@ -92,13 +91,8 @@ export function useGeometryCameraSync({
 		};
 
 		try {
-			await createGeometry(
-				roomId,
-				attachedCameraKey,
-				"Camera",
-				updatedData,
-				lock?.token,
-			);
+			// No lock token needed - server handles via @check_lock
+			await createGeometry(roomId, attachedCameraKey, "Camera", updatedData);
 		} catch (error) {
 			console.error(
 				"[GeometryCameraSync] Failed to update camera geometry:",
