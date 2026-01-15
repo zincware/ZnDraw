@@ -13,6 +13,7 @@ import {
 	getServerVersion,
 	getGlobalSettings,
 	createRoom,
+	getLockStatus,
 } from "../myapi/client";
 import {
 	checkVersionCompatibility,
@@ -158,10 +159,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 						setFrameCount(frameCount);
 						setCurrentFrame(step);
 
-						// Set lock state if room is locked
-						if (locked) {
-							setLockMetadata({ locked: true });
-						}
+						// Note: `locked` from join response is the ADMIN room lock,
+						// not trajectory:meta lock. Admin lock is fetched via roomDetail query.
+						// lockMetadata (trajectory:meta) is updated via lock:update socket events.
+						// Do NOT set lockMetadata here - it caused stale "Someone: using this room".
 
 						// === CRITICAL: Fetch render-blocking data via REST ===
 						// Both calls run in parallel - we need both to render the scene
@@ -198,12 +199,17 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 						// === SECONDARY: Fetch non-blocking data after setConnected ===
 						// These can fail without breaking the UI
 						try {
-							const [selectionsResponse, bookmarksResponse, frameSelResponse] =
-								await Promise.all([
-									getAllSelections(roomId),
-									getAllBookmarks(roomId),
-									getFrameSelection(roomId),
-								]);
+							const [
+								selectionsResponse,
+								bookmarksResponse,
+								frameSelResponse,
+								lockStatusResponse,
+							] = await Promise.all([
+								getAllSelections(roomId),
+								getAllBookmarks(roomId),
+								getFrameSelection(roomId),
+								getLockStatus(roomId, "trajectory:meta"),
+							]);
 
 							// Set selections
 							setSelections(selectionsResponse.selections || {});
@@ -215,6 +221,17 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 							// Set frame selection
 							setFrameSelection(frameSelResponse.frameSelection);
+
+							// Set trajectory:meta lock status (for edit/drawing modes)
+							if (lockStatusResponse.locked) {
+								setLockMetadata({
+									locked: true,
+									holder: lockStatusResponse.holder,
+									userName: lockStatusResponse.metadata?.userName,
+									msg: lockStatusResponse.metadata?.msg,
+									timestamp: lockStatusResponse.metadata?.timestamp,
+								});
+							}
 						} catch (error) {
 							console.error("Error fetching secondary data:", error);
 							// Non-critical - don't fail initialization
