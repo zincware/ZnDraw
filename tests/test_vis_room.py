@@ -70,7 +70,11 @@ def test_rest_create_and_socket_join_room(server, get_jwt_auth_headers):
 
 
 def test_socket_join_nonexistent_room_fails(server, get_jwt_auth_headers):
-    """Test that joining a non-existent room via socket returns 404."""
+    """Test that joining a non-existent room via socket returns 404.
+
+    Note: Frontend clients auto-create rooms, so this test uses clientType: "python"
+    to test the behavior for Python SDK clients which require explicit room creation.
+    """
     import socketio
 
     room = "nonexistent-room"
@@ -82,7 +86,7 @@ def test_socket_join_nonexistent_room_fails(server, get_jwt_auth_headers):
 
     try:
         response = sio.call(
-            "room:join", {"roomId": room, "clientType": "frontend"}, timeout=10
+            "room:join", {"roomId": room, "clientType": "python"}, timeout=10
         )
         assert response["status"] == "error"
         assert response["code"] == 404
