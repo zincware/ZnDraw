@@ -15,11 +15,11 @@ def test_camera_defaults():
     """Camera() should have correct default values."""
     cam = Camera()
 
-    assert cam.position == (0.0, 5.0, 10.0)
+    assert cam.position == (-10.0, 10.0, 30.0)
     assert cam.target == (0.0, 0.0, 0.0)
     assert cam.up == (0.0, 1.0, 0.0)
     assert cam.camera_type == CameraType.PERSPECTIVE
-    assert cam.fov == 75.0
+    assert cam.fov == 50.0
     assert cam.near == 0.1
     assert cam.far == 1000.0
     assert cam.zoom == 1.0
