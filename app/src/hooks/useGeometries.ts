@@ -4,7 +4,6 @@ import {
 	getGeometry,
 	createGeometry,
 	deleteGeometry,
-	getGeometrySchemas,
 	GeometryListResponse,
 	GeometryResponse,
 } from "../myapi/client";
@@ -30,18 +29,6 @@ export const useGeometry = (roomId: string | null, key: string | null) => {
 		queryFn: () => getGeometry(roomId!, key!),
 		enabled: !!roomId && !!key,
 		staleTime: 30000,
-	});
-};
-
-/**
- * Hook to fetch geometry schemas
- */
-export const useGeometrySchemas = (roomId: string | null) => {
-	return useQuery<{ schemas: Record<string, any> }>({
-		queryKey: ["geometries", roomId, "schemas"],
-		queryFn: () => getGeometrySchemas(roomId!),
-		enabled: !!roomId,
-		staleTime: 300000, // 5 minutes (schemas don't change often)
 	});
 };
 

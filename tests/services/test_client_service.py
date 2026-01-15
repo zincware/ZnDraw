@@ -12,74 +12,6 @@ from zndraw.app.redis_keys import RoomKeys, UserKeys
 from zndraw.services.client_service import ClientService
 
 
-def test_update_user_room(redis_client):
-    """Test updating user's current room."""
-    service = ClientService(redis_client)
-    keys = UserKeys("alice")
-    service.update_user_room("alice", "physics-lab")
-
-    assert redis_client.hget(keys.hash_key(), "currentRoom") == "physics-lab"
-
-
-def test_update_user_room_creates_user_hash(redis_client):
-    """Test updating user room creates user hash if it doesn't exist."""
-    service = ClientService(redis_client)
-    keys = UserKeys("new-user")
-    service.update_user_room("new-user", "room1")
-
-    assert redis_client.exists(keys.hash_key()) > 0
-    assert redis_client.hget(keys.hash_key(), "currentRoom") == "room1"
-
-
-def test_update_user_room_overwrites_previous(redis_client):
-    """Test updating user room overwrites previous value."""
-    service = ClientService(redis_client)
-    keys = UserKeys("bob")
-    service.update_user_room("bob", "room1")
-    service.update_user_room("bob", "room2")
-
-    assert redis_client.hget(keys.hash_key(), "currentRoom") == "room2"
-
-
-def test_update_user_room_multiple_users(redis_client):
-    """Test updating rooms for multiple users independently."""
-    service = ClientService(redis_client)
-    service.update_user_room("alice", "room1")
-    service.update_user_room("bob", "room2")
-    service.update_user_room("charlie", "room1")
-
-    assert redis_client.hget(UserKeys("alice").hash_key(), "currentRoom") == "room1"
-    assert redis_client.hget(UserKeys("bob").hash_key(), "currentRoom") == "room2"
-    assert redis_client.hget(UserKeys("charlie").hash_key(), "currentRoom") == "room1"
-
-
-def test_update_user_room_empty_room_name(redis_client):
-    """Test updating with empty room name."""
-    service = ClientService(redis_client)
-    keys = UserKeys("alice")
-    service.update_user_room("alice", "")
-
-    assert redis_client.hget(keys.hash_key(), "currentRoom") == ""
-
-
-def test_update_user_room_special_characters(redis_client):
-    """Test room names with special characters."""
-    service = ClientService(redis_client)
-    special_rooms = [
-        "room-with-dashes",
-        "room_with_underscores",
-        "room.with.dots",
-        "room:with:colons",
-        "room/with/slashes",
-    ]
-
-    for i, room_name in enumerate(special_rooms):
-        user_name = f"user{i}"
-        keys = UserKeys(user_name)
-        service.update_user_room(user_name, room_name)
-        assert redis_client.hget(keys.hash_key(), "currentRoom") == room_name
-
-
 def test_remove_user_from_room(redis_client):
     """Test removing user from room's user set."""
     service = ClientService(redis_client)
@@ -186,14 +118,14 @@ def test_get_room_users_multiple_users(redis_client, user_names):
 
 
 def test_update_user_and_room_membership(redis_client):
-    """Test atomic update of user room and room membership."""
+    """Test atomic update of room membership and visit tracking."""
     service = ClientService(redis_client)
     keys = UserKeys("alice")
     service.update_user_and_room_membership("alice", "physics-lab")
 
-    # Verify both operations completed
-    assert redis_client.hget(keys.hash_key(), "currentRoom") == "physics-lab"
+    # Verify room membership and visit tracking
     assert redis_client.sismember(RoomKeys("physics-lab").users(), "alice")
+    assert redis_client.sismember(keys.visited_rooms(), "physics-lab")
 
 
 def test_update_user_and_room_membership_uses_pipeline(redis_client, monkeypatch):
@@ -226,24 +158,25 @@ def test_update_user_and_room_membership_multiple_times(redis_client):
     service.update_user_and_room_membership("alice", "room2")
     service.update_user_and_room_membership("alice", "room3")
 
-    # User's current room should be room3 (last one)
-    assert redis_client.hget(keys.hash_key(), "currentRoom") == "room3"
-
     # User should be in all room sets
     assert redis_client.sismember(RoomKeys("room1").users(), "alice")
     assert redis_client.sismember(RoomKeys("room2").users(), "alice")
     assert redis_client.sismember(RoomKeys("room3").users(), "alice")
 
+    # User should have visited all rooms
+    assert redis_client.sismember(keys.visited_rooms(), "room1")
+    assert redis_client.sismember(keys.visited_rooms(), "room2")
+    assert redis_client.sismember(keys.visited_rooms(), "room3")
+
 
 def test_update_user_and_room_membership_same_room_twice(redis_client):
     """Test updating user to same room twice is idempotent."""
     service = ClientService(redis_client)
-    keys = UserKeys("alice")
 
     service.update_user_and_room_membership("alice", "room1")
     service.update_user_and_room_membership("alice", "room1")
 
-    assert redis_client.hget(keys.hash_key(), "currentRoom") == "room1"
+    # User should only appear once in room set (set semantics)
     assert redis_client.scard(RoomKeys("room1").users()) == 1
 
 
@@ -299,17 +232,6 @@ def test_room_isolation(redis_client):
     assert service.get_room_users("room2") == {"bob"}
 
 
-def test_redis_key_format_user(redis_client):
-    """Test that user data uses correct Redis key format."""
-    service = ClientService(redis_client)
-    keys = UserKeys("alice")
-    service.update_user_room("alice", "room1")
-
-    # Should use users:data:{username} format
-    assert redis_client.exists(keys.hash_key())
-    assert not redis_client.exists("client:alice")
-
-
 def test_redis_key_format_room(redis_client):
     """Test that room user sets use correct Redis key format."""
     service = ClientService(redis_client)
@@ -332,22 +254,6 @@ def test_concurrent_room_updates(redis_client):
     # All operations should succeed independently
     assert service.get_room_users("room1") == {"alice", "charlie"}
     assert service.get_room_users("room2") == {"bob", "david"}
-
-
-def test_user_room_consistency(redis_client):
-    """Test consistency between user's currentRoom and room membership."""
-    service = ClientService(redis_client)
-    keys = UserKeys("alice")
-
-    # Use atomic update
-    service.update_user_and_room_membership("alice", "room1")
-
-    # Both should be consistent
-    current_room = redis_client.hget(keys.hash_key(), "currentRoom")
-    is_member = redis_client.sismember(RoomKeys(current_room).users(), "alice")
-
-    assert current_room == "room1"
-    assert is_member
 
 
 def test_remove_all_users_from_room(redis_client):
@@ -384,17 +290,16 @@ def test_remove_all_users_from_room(redis_client):
 def test_special_characters_in_username(redis_client, user_name):
     """Test usernames with various special characters."""
     service = ClientService(redis_client)
-    keys = UserKeys(user_name)
     room_keys = RoomKeys("room1")
 
-    redis_client.sadd(room_keys.users(), user_name)
+    # Add user to room via service
+    service.update_user_and_room_membership(user_name, "room1")
     assert redis_client.sismember(room_keys.users(), user_name)
 
-    service.update_user_room(user_name, "room1")
-    assert redis_client.hget(keys.hash_key(), "currentRoom") == "room1"
-
+    # Verify get_room_users works with special characters
     users = service.get_room_users("room1")
     assert user_name in users
 
+    # Verify remove works with special characters
     service.remove_user_from_room("room1", user_name)
     assert not redis_client.sismember(room_keys.users(), user_name)

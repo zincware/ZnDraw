@@ -19,39 +19,6 @@ log = logging.getLogger(__name__)
 TOKEN_EXPIRY_SECONDS = 10
 
 
-def _get_len() -> dict:
-    sid = request.sid
-    r = current_app.extensions["redis"]
-    room = get_project_room_from_session(sid)
-
-    if not room:
-        return {"success": False, "error": "Client has not joined a room."}
-
-    try:
-        keys = RoomKeys(room)
-        # Count is the number of entries in the mapping (logical frames)
-        frame_count = r.zcard(keys.trajectory_indices())
-        return {"success": True, "count": frame_count}
-    except Exception as e:
-        log.error(f"Failed to get frame count: {e}")
-        return {"success": False, "error": "Failed to get frame count"}
-
-
-# --- Helper Functions ---
-def get_project_room_from_session(sid: str) -> t.Optional[str]:
-    """Finds the project room a user has joined from Redis."""
-    r = current_app.extensions["redis"]
-    # Get userName from sid
-    session_keys = SessionKeys(sid)
-    user_name = r.get(session_keys.username())
-    if not user_name:
-        return None
-    # Get room from user data
-    user_keys = UserKeys(user_name)
-    room_name = r.hget(user_keys.hash_key(), "currentRoom")
-    return room_name if room_name else None
-
-
 def get_user_name_from_sid(sid: str) -> t.Optional[str]:
     """Gets the userName for a given Socket.IO sid."""
     r = current_app.extensions["redis"]
@@ -119,83 +86,6 @@ def delete_session_camera(r, room: str, session_id: str) -> None:
         log.debug(f"Session camera {camera_key} not found (already deleted)")
 
 
-def get_room_metadata(r, room_id: str) -> dict:
-    """Fetch small room data for initialization.
-
-    NOTE: Geometries are fetched via REST (can be very large).
-
-    Parameters
-    ----------
-    r : Redis
-        Redis client
-    room_id : str
-        Room identifier
-
-    Returns
-    -------
-    dict
-        Room metadata including frame count, step, settings, selections, bookmarks
-    """
-    from zndraw.geometries import geometries as geometry_classes
-    from zndraw.settings import RoomConfig
-
-    room_keys = RoomKeys(room_id)
-
-    # Essential room state
-    frame_count = r.zcard(room_keys.trajectory_indices())
-    current_step = r.get(room_keys.current_frame())
-    locked = r.exists(room_keys.locked())
-
-    # Settings from Pydantic defaults
-    room_config = RoomConfig()
-
-    # Geometry schemas for form generation
-    geometry_schemas = {
-        name: model.model_json_schema() for name, model in geometry_classes.items()
-    }
-
-    # Geometry defaults from Pydantic models (single source of truth)
-    geometry_defaults = {
-        name: model().model_dump() for name, model in geometry_classes.items()
-    }
-
-    # Selections
-    selections_raw = r.hgetall(room_keys.selections())
-    selections = {k: json.loads(v) for k, v in selections_raw.items()}
-
-    # Selection groups
-    groups_raw = r.hgetall(room_keys.selection_groups())
-    groups = {k: json.loads(v) for k, v in groups_raw.items()}
-
-    # Active group
-    active_group = r.get(room_keys.active_selection_group())
-
-    # Frame selection
-    frame_selection_raw = r.get(room_keys.frame_selection())
-    frame_selection = json.loads(frame_selection_raw) if frame_selection_raw else []
-
-    # Bookmarks
-    bookmarks_raw = r.hgetall(room_keys.bookmarks())
-    bookmarks = {int(k): v for k, v in bookmarks_raw.items()}
-
-    return {
-        "frameCount": frame_count,
-        "currentStep": int(current_step) if current_step else 0,
-        "locked": bool(locked),
-        "settings": room_config.model_dump(),
-        "settingsSchema": RoomConfig.model_json_schema(),
-        "geometrySchemas": geometry_schemas,
-        "geometryDefaults": geometry_defaults,
-        "selections": {
-            "selections": selections,
-            "groups": groups,
-            "activeGroup": active_group,
-        },
-        "frameSelection": frame_selection,
-        "bookmarks": bookmarks,
-    }
-
-
 @socketio.on("connect")
 def handle_connect(auth):
     """Handle socket connection with JWT authentication."""
@@ -242,16 +132,9 @@ def handle_connect(auth):
     r.set(session_keys.username(), user_name)
     r.set(session_keys.role(), user_role)  # Store role for this session
 
-    # Get user's current room (if any)
-    current_room = r.hget(user_keys.hash_key(), "currentRoom")
-
-    if current_room:
-        # Rejoin room after reconnection
-        join_room(f"room:{current_room}")
-        join_room(f"user:{user_name}")
-        log.info(f"User {user_name} reconnected to room {current_room} (sid: {sid})")
-    else:
-        log.info(f"User {user_name} connected but not in any room yet (sid: {sid})")
+    # Join user-specific room for user-targeted events (e.g., extension notifications)
+    join_room(f"user:{user_name}")
+    log.info(f"User {user_name} connected (sid: {sid})")
 
     # Increment connected users metric
     connected_users.inc()
@@ -280,14 +163,17 @@ def handle_disconnect(*args, **kwargs):
         log.info(f"Client disconnected: {sid} (no userName found)")
         return
 
-    # Get user data
-    user_keys = UserKeys(user_name)
-    room_name = r.hget(user_keys.hash_key(), "currentRoom")
-
-    log.info(f"User disconnected: sid={sid}, user={user_name}, room={room_name}")
-
-    # Clean up session→sid bidirectional mapping (prevents memory leak)
+    # Get session_id and room from session data (before cleanup)
     session_id = r.get(session_keys.session_id())
+    room_name = None
+    if session_id:
+        session_data_raw = r.get(SessionKeys.session_data(session_id))
+        if session_data_raw:
+            session_data = json.loads(session_data_raw)
+            room_name = session_data.get("roomId")
+
+    user_keys = UserKeys(user_name)
+    log.info(f"User disconnected: sid={sid}, user={user_name}, room={room_name}")
     if session_id:
         # Remove session_id→sid mapping
         r.delete(SessionKeys.session_to_sid(session_id))
@@ -686,11 +572,11 @@ def handle_leave_overview():
 
 @socketio.on("room:join")
 def handle_room_join(data):
-    """Join room and get initialization data (small payload only).
+    """Join room and get minimal initialization data.
 
     This is the primary entry point for joining a room. It creates a session,
-    joins socket rooms, and returns all small initialization data.
-    Geometries are fetched separately via REST (can be very large).
+    joins socket rooms, and returns minimal state. Additional data (geometries,
+    settings, selections, etc.) is fetched via REST endpoints.
 
     Room creation is handled separately via POST /api/rooms.
 
@@ -707,7 +593,9 @@ def handle_room_join(data):
         "status": "ok",
         "sessionId": str,
         "cameraKey": str,  # cam:session:<sessionId>
-        "roomData": {...}  # Small data only, geometries via REST
+        "step": int,       # Current frame index
+        "frameCount": int, # Total number of frames
+        "locked": bool     # Whether room is locked
     }
 
     Response (error)
@@ -774,7 +662,7 @@ def handle_room_join(data):
     client_service = current_app.extensions["client_service"]
     client_service.update_user_and_room_membership(user_name, room_id)
 
-    # 7. Register as frontend session and create camera (only for browser clients)
+    # 6. Register as frontend session and create camera (only for browser clients)
     room_keys = RoomKeys(room_id)
     if client_type == "frontend":
         r.sadd(room_keys.frontend_sessions(), session_id)
@@ -783,10 +671,12 @@ def handle_room_join(data):
         session_camera_key = get_session_camera_key(session_id)
         r.set(room_keys.session_active_camera(session_id), session_camera_key)
 
-    # 9. Fetch small room data only (geometries fetched via REST)
-    room_data = get_room_metadata(r, room_id)
+    # 7. Get minimal room state (geometries, settings, etc. fetched via REST)
+    frame_count = r.zcard(room_keys.trajectory_indices())
+    current_step = r.get(room_keys.current_frame())
+    locked = r.exists(room_keys.locked())
 
-    # 10. Send current progress trackers to joining client
+    # 8. Send current progress trackers to joining client
     progress_data = r.hgetall(room_keys.progress())
     if progress_data:
         progress_trackers = {
@@ -803,7 +693,9 @@ def handle_room_join(data):
         "status": "ok",
         "sessionId": session_id,
         "cameraKey": get_session_camera_key(session_id),
-        "roomData": room_data,
+        "step": int(current_step) if current_step else 0,
+        "frameCount": frame_count,
+        "locked": bool(locked),
     }
 
 

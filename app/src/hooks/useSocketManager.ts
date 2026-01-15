@@ -8,11 +8,12 @@ import {
 	getGeometry,
 	getAllSelections,
 	getAllBookmarks,
+	getFrameSelection,
+	getSettings,
 	getServerVersion,
 	getGlobalSettings,
 	createRoom,
 } from "../myapi/client";
-import { convertBookmarkKeys } from "../utils/bookmarks";
 import {
 	checkVersionCompatibility,
 	getClientVersion,
@@ -146,54 +147,77 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 						// Reset chat unread count when entering a room
 						useAppStore.getState().resetChatUnread();
 
-						// Store session ID from socket response
-						const { sessionId, roomData } = response;
+						// Extract minimal data from socket response
+						const { sessionId, step, frameCount, locked } = response;
 						setSessionId(sessionId);
 
 						// Track room visit for localStorage persistence
 						setLastVisitedRoom(roomId);
 
-						// Set small data from socket response
-						setFrameCount(roomData.frameCount);
-						setCurrentFrame(roomData.currentStep);
-						setFrameSelection(roomData.frameSelection);
-						setGeometrySchemas(roomData.geometrySchemas);
-						setGeometryDefaults(roomData.geometryDefaults);
+						// Set minimal state from socket response
+						setFrameCount(frameCount);
+						setCurrentFrame(step);
 
-						// Set selections
-						if (roomData.selections) {
-							setSelections(roomData.selections.selections || {});
-							setSelectionGroups(roomData.selections.groups || []);
-							setActiveSelectionGroup(roomData.selections.activeGroup || null);
+						// Set lock state if room is locked
+						if (locked) {
+							setLockMetadata({ locked: true });
 						}
 
-						// Set bookmarks with number keys
-						if (roomData.bookmarks) {
-							const bookmarksWithNumberKeys = convertBookmarkKeys(
-								roomData.bookmarks,
-							);
-							setBookmarks(bookmarksWithNumberKeys);
-						}
-
-						// Fetch geometries via REST (can be large)
-						// This is critical - if it fails, we cannot show the scene
+						// === CRITICAL: Fetch render-blocking data via REST ===
+						// Both calls run in parallel - we need both to render the scene
 						try {
-							const geometriesResponse = await listGeometries(roomId);
+							const [geometriesResponse] = await Promise.all([
+								listGeometries(roomId),
+								// Use fetchQuery to fetch AND cache settings in one step
+								queryClient.fetchQuery({
+									queryKey: ["settings", roomId, sessionId],
+									queryFn: () => getSettings(roomId, sessionId),
+								}),
+							]);
+
+							// Set geometries and type metadata (schemas + defaults)
 							setGeometries(geometriesResponse.geometries || {});
+							setGeometrySchemas(geometriesResponse.types?.schemas || {});
+							setGeometryDefaults(geometriesResponse.types?.defaults || {});
+
 							// Clear any previous error and mark as connected
 							setInitializationError(null);
 							setConnected(true);
 						} catch (error) {
-							console.error("Error fetching geometries:", error);
-							// Set error state - don't call setConnected(true)
+							console.error("Error fetching critical data:", error);
 							setInitializationError({
 								message: "Failed to load scene data",
 								details:
 									error instanceof Error
 										? error.message
-										: "Could not fetch geometries from server",
+										: "Could not fetch critical data from server",
 							});
 							return; // Don't proceed - UI will show error state
+						}
+
+						// === SECONDARY: Fetch non-blocking data after setConnected ===
+						// These can fail without breaking the UI
+						try {
+							const [selectionsResponse, bookmarksResponse, frameSelResponse] =
+								await Promise.all([
+									getAllSelections(roomId),
+									getAllBookmarks(roomId),
+									getFrameSelection(roomId),
+								]);
+
+							// Set selections
+							setSelections(selectionsResponse.selections || {});
+							setSelectionGroups(selectionsResponse.groups || {});
+							setActiveSelectionGroup(selectionsResponse.activeGroup || null);
+
+							// Set bookmarks
+							setBookmarks(bookmarksResponse.bookmarks || {});
+
+							// Set frame selection
+							setFrameSelection(frameSelResponse.frameSelection);
+						} catch (error) {
+							console.error("Error fetching secondary data:", error);
+							// Non-critical - don't fail initialization
 						}
 					};
 
@@ -296,8 +320,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		const onBookmarksInvalidate = createInvalidateHandler(
 			getAllBookmarks,
 			(response) => {
-				const bookmarksWithNumberKeys = convertBookmarkKeys(response.bookmarks);
-				setBookmarks(bookmarksWithNumberKeys);
+				setBookmarks(response.bookmarks || {});
 			},
 			"bookmarks",
 		);
