@@ -12,9 +12,12 @@ import logging
 import re
 
 import ase
+from asebytes import encode
 from redis import Redis  # type: ignore
 
+from zndraw.app.frame_index_manager import FrameIndexManager
 from zndraw.app.redis_keys import GlobalIndexKeys, RoomKeys
+from zndraw.app.route_utils import get_storage
 from zndraw.room_templates import TEMPLATES, get_template_names
 
 log = logging.getLogger(__name__)
@@ -605,12 +608,6 @@ class _RoomWriter:
         frames : list[ase.Atoms]
             List of Atoms objects to add
         """
-        from asebytes import encode
-
-        from zndraw.app.frame_index_manager import FrameIndexManager
-        from zndraw.app.redis_keys import RoomKeys
-        from zndraw.app.route_utils import get_storage
-
         room_keys = RoomKeys(self.room_id)
         storage = get_storage(self.room_id)
         manager = FrameIndexManager(self.r, room_keys.trajectory_indices())

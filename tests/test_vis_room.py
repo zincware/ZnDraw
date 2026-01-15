@@ -2,6 +2,7 @@ import uuid
 
 import pytest
 import requests
+import socketio
 
 from zndraw.zndraw import ZnDraw
 
@@ -140,6 +141,51 @@ def test_socket_join_existing_room(server, get_jwt_auth_headers):
         assert "sessionId" in response2
     finally:
         sio2.disconnect()
+
+
+def test_frontend_auto_creates_room_with_empty_template(server, get_jwt_auth_headers):
+    """Test that frontend clients auto-create rooms with the empty template.
+
+    When a frontend client joins a nonexistent room, the server should:
+    1. Auto-create the room with the "empty" template
+    2. The room should have exactly 1 frame (empty ase.Atoms)
+    """
+    room = f"auto-create-{uuid.uuid4().hex[:8]}"
+    headers = get_jwt_auth_headers(server)
+    jwt_token = headers["Authorization"].replace("Bearer ", "")
+
+    # Verify room doesn't exist via REST
+    check_response = requests.get(
+        f"{server}/api/rooms/{room}",
+        headers=headers,
+        timeout=10,
+    )
+    assert check_response.status_code == 404
+
+    # Frontend joins nonexistent room - should auto-create
+    sio = socketio.Client()
+    sio.connect(server, auth={"token": jwt_token}, wait=True, wait_timeout=10)
+
+    try:
+        response = sio.call(
+            "room:join", {"roomId": room, "clientType": "frontend"}, timeout=10
+        )
+
+        # Room should be created and join should succeed
+        assert response["status"] == "ok"
+        assert "sessionId" in response
+        assert "roomData" in response
+
+        # Verify room now exists and has exactly 1 frame (from "empty" template)
+        room_response = requests.get(
+            f"{server}/api/rooms/{room}",
+            headers=headers,
+            timeout=10,
+        )
+        assert room_response.status_code == 200
+        assert room_response.json()["frameCount"] == 1
+    finally:
+        sio.disconnect()
 
 
 def test_create_room_with_copy_from(server, s22, get_jwt_auth_headers):
