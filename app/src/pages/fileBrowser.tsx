@@ -142,8 +142,9 @@ export default function FileBrowserPage() {
 				showSnackbar(`File loading queued in room: ${data.room}`, "success");
 				setLoadDialog({ open: false, file: null });
 
-				// Navigate directly to the room
-				navigate(`/rooms/${data.room}`);
+				// Navigate to room with template=none so it starts with 0 frames
+				// The extension will append the loaded frames
+				navigate(`/rooms/${data.room}?template=none`);
 			}
 		},
 		onError: (error: any) => {
