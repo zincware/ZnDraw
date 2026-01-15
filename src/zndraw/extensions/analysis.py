@@ -1,8 +1,6 @@
 import typing as t
 
 import numpy as np
-import pandas as pd
-import plotly.express as px
 from pydantic import Field
 
 from zndraw.extensions.abc import Category, Extension
@@ -31,6 +29,9 @@ class DihedralAngle(Analysis):
 
         Requires exactly 4 atoms to be selected in the 3D view.
         """
+        import pandas as pd
+        import plotly.express as px
+
         atoms_lst = vis[:]
         dihedral_angles = []
 
@@ -122,6 +123,9 @@ class Properties1D(Analysis):
         - meta.interactions schema to enable frame selection/hovering
         - lasso dragmode for flexible selection
         """
+        import pandas as pd
+        import plotly.express as px
+
         properties = vis.get(slice(None, None, None), keys=[self.value])
         df = pd.DataFrame(properties)
 
@@ -212,6 +216,9 @@ class Properties2D(Analysis):
         Supports special 'step' property to use frame indices.
         All other properties are retrieved from frame data.
         """
+        import pandas as pd
+        import plotly.express as px
+
         # Determine which properties to fetch (exclude 'step')
         keys_to_fetch = []
         for prop in [self.x_data, self.y_data, self.color]:
@@ -320,6 +327,9 @@ class ForceCorrelation(Analysis):
         Maps particle indices to the 'particles' geometry for interactive
         particle selection in the 3D view.
         """
+        import pandas as pd
+        import plotly.express as px
+
         step = vis.step
 
         # Get property data for current frame only
