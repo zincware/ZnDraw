@@ -128,7 +128,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 				// Join appropriate room based on page
 				if (isOverview) {
-					socket.emit("join:overview");
+					socket.emit("overview:join");
 					setConnected(true);
 				} else if (roomId) {
 					// Handle room:join response
@@ -708,26 +708,26 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		socket.on("disconnect", onDisconnect);
 		socket.on("connect", onConnect);
 		socket.on("connect_error", onConnectError);
-		socket.on("frame_update", onFrameUpdate);
-		socket.on("active_camera:update", onActiveCameraUpdate);
+		socket.on("frame:update", onFrameUpdate);
+		socket.on("active-camera:update", onActiveCameraUpdate);
 		socket.on("invalidate", onInvalidate);
-		socket.on("invalidate:schema", onSchemaInvalidate);
-		socket.on("frame_selection:update", onFrameSelectionUpdate);
+		socket.on("schema:invalidate", onSchemaInvalidate);
+		socket.on("frame-selection:update", onFrameSelectionUpdate);
 		socket.on("bookmarks:invalidate", onBookmarksInvalidate);
 		socket.on("frames:invalidate", onFramesInvalidate);
-		socket.on("chat:message:new", onChatMessageNew);
-		socket.on("chat:message:updated", onChatMessageUpdated);
-		socket.on("invalidate:geometry", onGeometriesInvalidate);
-		socket.on("invalidate:figure", onFiguresInvalidate);
-		socket.on("invalidate:selection", onSelectionsInvalidate);
-		socket.on("invalidate:selection_groups", onSelectionGroupsInvalidate);
+		socket.on("chat:new", onChatMessageNew);
+		socket.on("chat:update", onChatMessageUpdated);
+		socket.on("geometry:invalidate", onGeometriesInvalidate);
+		socket.on("figure:invalidate", onFiguresInvalidate);
+		socket.on("selection:invalidate", onSelectionsInvalidate);
+		socket.on("selection-groups:invalidate", onSelectionGroupsInvalidate);
 		socket.on("room:update", onRoomUpdate);
 		socket.on("room:delete", onRoomDelete);
 		socket.on("lock:update", onLockUpdate);
-		socket.on("progress:initial", onProgressInitial);
-		socket.on("progress:started", onProgressStarted);
-		socket.on("progress:updated", onProgressUpdate);
-		socket.on("progress:completed", onProgressComplete);
+		socket.on("progress:init", onProgressInitial);
+		socket.on("progress:start", onProgressStarted);
+		socket.on("progress:update", onProgressUpdate);
+		socket.on("progress:complete", onProgressComplete);
 
 		// Ensure user is authenticated before connecting socket
 		// This will auto-login with a server-generated username if no token exists
@@ -752,9 +752,9 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		return () => {
 			// Leave room on cleanup
 			if (isOverview) {
-				socket.emit("leave:overview");
+				socket.emit("overview:leave");
 			} else if (roomId) {
-				socket.emit("leave:room", { roomId });
+				socket.emit("room:leave", { roomId });
 			}
 
 			// Only clear sessionId if we're actually leaving a room
@@ -770,26 +770,26 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 			socket.off("connect", onConnect);
 			socket.off("disconnect", onDisconnect);
-			socket.off("frame_update", onFrameUpdate);
-			socket.off("active_camera:update", onActiveCameraUpdate);
+			socket.off("frame:update", onFrameUpdate);
+			socket.off("active-camera:update", onActiveCameraUpdate);
 			socket.off("invalidate", onInvalidate);
-			socket.off("invalidate:schema", onSchemaInvalidate);
-			socket.off("frame_selection:update", onFrameSelectionUpdate);
+			socket.off("schema:invalidate", onSchemaInvalidate);
+			socket.off("frame-selection:update", onFrameSelectionUpdate);
 			socket.off("bookmarks:invalidate", onBookmarksInvalidate);
 			socket.off("frames:invalidate", onFramesInvalidate);
-			socket.off("chat:message:new", onChatMessageNew);
-			socket.off("chat:message:updated", onChatMessageUpdated);
-			socket.off("invalidate:geometry", onGeometriesInvalidate);
-			socket.off("invalidate:figure", onFiguresInvalidate);
-			socket.off("invalidate:selection", onSelectionsInvalidate);
-			socket.off("invalidate:selection_groups", onSelectionGroupsInvalidate);
+			socket.off("chat:new", onChatMessageNew);
+			socket.off("chat:update", onChatMessageUpdated);
+			socket.off("geometry:invalidate", onGeometriesInvalidate);
+			socket.off("figure:invalidate", onFiguresInvalidate);
+			socket.off("selection:invalidate", onSelectionsInvalidate);
+			socket.off("selection-groups:invalidate", onSelectionGroupsInvalidate);
 			socket.off("room:update", onRoomUpdate);
 			socket.off("room:delete", onRoomDelete);
 			socket.off("lock:update", onLockUpdate);
-			socket.off("progress:initial", onProgressInitial);
-			socket.off("progress:started", onProgressStarted);
-			socket.off("progress:updated", onProgressUpdate);
-			socket.off("progress:completed", onProgressComplete);
+			socket.off("progress:init", onProgressInitial);
+			socket.off("progress:start", onProgressStarted);
+			socket.off("progress:update", onProgressUpdate);
+			socket.off("progress:complete", onProgressComplete);
 
 			// Disconnect socket when component unmounts to ensure clean reconnection
 			socket.disconnect();

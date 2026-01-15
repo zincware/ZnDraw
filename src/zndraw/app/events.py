@@ -396,7 +396,7 @@ def handle_disconnect(*args, **kwargs):
 
                 # Only fail jobs that are assigned or processing (not already completed/failed)
                 if current_status in [JobStatus.ASSIGNED, JobStatus.PROCESSING]:
-                    # Fail the job (automatically emits job:state_changed with error metadata)
+                    # Fail the job (automatically emits job:update with error metadata)
                     JobManager.fail_job(
                         r,
                         job_id,
@@ -662,7 +662,7 @@ def handle_disconnect(*args, **kwargs):
     r.delete(session_keys.username())
 
 
-@socketio.on("join:overview")
+@socketio.on("overview:join")
 def handle_join_overview():
     """Client joining /rooms page - join overview:public room."""
     from flask_socketio import join_room
@@ -673,7 +673,7 @@ def handle_join_overview():
     return {"status": "joined", "room": "overview:public"}
 
 
-@socketio.on("leave:overview")
+@socketio.on("overview:leave")
 def handle_leave_overview():
     """Client leaving /rooms page - leave overview:public room."""
     from flask_socketio import leave_room
@@ -807,7 +807,7 @@ def handle_room_join(data):
             progress_id: json.loads(progress_json)
             for progress_id, progress_json in progress_data.items()
         }
-        emit("progress:initial", {"progressTrackers": progress_trackers}, to=sid)
+        emit("progress:init", {"progressTrackers": progress_trackers}, to=sid)
 
     log.info(
         f"User {user_name} joined room {room_id} with session {session_id} (sid: {sid})"
@@ -821,7 +821,7 @@ def handle_room_join(data):
     }
 
 
-@socketio.on("leave:room")
+@socketio.on("room:leave")
 def handle_leave_room(data):
     """Client leaving specific room page - leave room:<room_id>."""
     from flask_socketio import leave_room

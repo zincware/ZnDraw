@@ -374,7 +374,7 @@ def update_frame_selection(room_id: str):
 
     Body: {"indices": [0, 1, 5, 10]}
 
-    Broadcasts frame_selection:update to other clients.
+    Broadcasts frame-selection:update to other clients.
     """
     r = current_app.extensions["redis"]
     keys = RoomKeys(room_id)

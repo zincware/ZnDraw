@@ -23,7 +23,7 @@ def _emit_job_state_changed(
     status: str,
     metadata: dict | None = None,
 ) -> None:
-    """Emit job:state_changed event to all clients in a room.
+    """Emit job:update event to all clients in a room.
 
     Parameters
     ----------
@@ -59,11 +59,9 @@ def _emit_job_state_changed(
             to=f"room:{room_id}",
             namespace="/",
         )
-        log.debug(
-            f"Emitted job:state_changed to room {room_id} for job {job_id}: {status}"
-        )
+        log.debug(f"Emitted job:update to room {room_id} for job {job_id}: {status}")
     except Exception as e:
-        log.error(f"Failed to emit job:state_changed to room {room_id}: {e}")
+        log.error(f"Failed to emit job:update to room {room_id}: {e}")
 
 
 @dataclass

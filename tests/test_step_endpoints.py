@@ -4,6 +4,8 @@ import pytest
 import redis
 import requests
 
+from zndraw.app.constants import SocketEvents
+
 
 @pytest.fixture
 def room_with_step_lock(server, connect_room):
@@ -367,7 +369,7 @@ def test_step_update_emits_frame_update_event(server, connect_room):
     def on_frame_update(data):
         received_events.append(data)
 
-    conn2.sio.on("frame_update", on_frame_update)
+    conn2.sio.on(SocketEvents.FRAME_UPDATE, on_frame_update)
     time.sleep(0.3)
 
     # User 1 acquires lock and updates step

@@ -203,7 +203,7 @@ def assign_pending_jobs_for_extension(
             )
             continue
 
-        # Update job status to ASSIGNED (automatically emits job:state_changed)
+        # Update job status to ASSIGNED (automatically emits job:update)
         success = JobManager.assign_job(
             redis_client, job_id, current_worker_id, socketio=socketio
         )
@@ -216,7 +216,7 @@ def assign_pending_jobs_for_extension(
             )
             continue
 
-        # Emit job:assigned to specific worker (just the ID, worker will fetch details)
+        # Emit job:assign to specific worker (just the ID, worker will fetch details)
         _emit_job_assigned(socketio, current_worker_id, job_id)
 
         assignments_made += 1
@@ -228,7 +228,7 @@ def assign_pending_jobs_for_extension(
 
 
 def _emit_job_assigned(socketio, worker_id: str, job_id: str) -> None:
-    """Emit job:assigned event to a specific worker.
+    """Emit job:assign event to a specific worker.
 
     Only sends the job ID - worker must fetch full job details via GET /api/jobs/{job_id}.
     This follows REST principles: Socket for notification, REST API for data.
@@ -253,6 +253,6 @@ def _emit_job_assigned(socketio, worker_id: str, job_id: str) -> None:
             to=worker_id,
             namespace="/",
         )
-        log.debug(f"Emitted job:assigned to worker {worker_id} for job {job_id}")
+        log.debug(f"Emitted job:assign to worker {worker_id} for job {job_id}")
     except Exception as e:
-        log.error(f"Failed to emit job:assigned to worker {worker_id}: {e}")
+        log.error(f"Failed to emit job:assign to worker {worker_id}: {e}")
