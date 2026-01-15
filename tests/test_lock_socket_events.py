@@ -61,6 +61,14 @@ def test_idempotent_acquire_emits_refresh_event(authenticated_session):
     """Test that re-acquiring a lock (idempotent) emits lock:update with action=refreshed."""
     server, room, session_id, auth_headers, sio, user_name = authenticated_session
 
+    # Track received events
+    received_events = []
+
+    def on_lock_update(data):
+        received_events.append(data)
+
+    sio.on("lock:update", on_lock_update)
+
     # Acquire lock first
     response = requests.post(
         f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
@@ -71,13 +79,9 @@ def test_idempotent_acquire_emits_refresh_event(authenticated_session):
     lock_token = response.json()["lockToken"]
     assert response.json()["refreshed"] is False  # First acquire
 
-    # Track received events (after initial acquire)
-    received_events = []
-
-    def on_lock_update(data):
-        received_events.append(data)
-
-    sio.on("lock:update", on_lock_update)
+    # Wait for acquire event, then clear it
+    time.sleep(0.5)
+    received_events.clear()
 
     # Re-acquire lock (idempotent) with new message
     response = requests.post(
@@ -107,7 +111,15 @@ def test_idempotent_acquire_emits_refresh_event(authenticated_session):
 
 def test_lock_release_emits_lock_update(authenticated_session):
     """Test that releasing a lock emits lock:update event with action=released."""
-    server, room, session_id, auth_headers, sio, user_name = authenticated_session
+    server, room, session_id, auth_headers, sio, _ = authenticated_session
+
+    # Track received events
+    received_events = []
+
+    def on_lock_update(data):
+        received_events.append(data)
+
+    sio.on("lock:update", on_lock_update)
 
     # Acquire lock first
     response = requests.post(
@@ -118,13 +130,9 @@ def test_lock_release_emits_lock_update(authenticated_session):
     assert response.status_code == 200
     lock_token = response.json()["lockToken"]
 
-    # Track received events (after initial acquire)
-    received_events = []
-
-    def on_lock_update(data):
-        received_events.append(data)
-
-    sio.on("lock:update", on_lock_update)
+    # Wait for acquire event, then clear it
+    time.sleep(0.5)
+    received_events.clear()
 
     # Release lock
     response = requests.post(
