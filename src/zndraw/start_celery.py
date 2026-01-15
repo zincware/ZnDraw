@@ -2,14 +2,15 @@
 
 import os
 import platform
-import subprocess
 import typing as t
+
+from eventlet.green.subprocess import subprocess_orig
 
 if t.TYPE_CHECKING:
     from zndraw.config import ZnDrawConfig
 
 
-def run_celery_worker(config: "ZnDrawConfig") -> subprocess.Popen:
+def run_celery_worker(config: "ZnDrawConfig") -> subprocess_orig.Popen:
     """Run a celery worker with proper configuration.
 
     Serializes the config to environment variables using the pydantic-settings
@@ -23,7 +24,7 @@ def run_celery_worker(config: "ZnDrawConfig") -> subprocess.Popen:
 
     Returns
     -------
-    subprocess.Popen
+    subprocess_orig.Popen
         Running celery worker process.
     """
     from zndraw.config import LMDBStorageConfig, MongoDBStorageConfig
@@ -79,7 +80,7 @@ def run_celery_worker(config: "ZnDrawConfig") -> subprocess.Popen:
     if config.admin_password is not None:
         my_env["ZNDRAW_ADMIN_PASSWORD"] = config.admin_password.get_secret_value()
 
-    worker = subprocess.Popen(
+    worker = subprocess_orig.Popen(
         # eventlet worker - use zndraw_cli.celery for proper monkey patching
         [
             "celery",
