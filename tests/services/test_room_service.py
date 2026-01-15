@@ -13,6 +13,9 @@ import pytest
 from zndraw.room_templates import TEMPLATES
 from zndraw.services.room_service import RoomService
 
+# Note: Tests use list(TEMPLATES.keys()) for parametrization to ensure
+# all template names are automatically tested as reserved room IDs
+
 
 def test_room_exists_returns_false_for_new_room(redis_client):
     """Test room_exists returns False for nonexistent room."""

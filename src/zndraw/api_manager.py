@@ -215,8 +215,7 @@ class APIManager:
         copy_from : str | None
             Optional room ID to copy frames and settings from
         template : str | None
-            Template to use: "empty", "water", "ethanol", "benzene", or "none".
-            Use "none" for truly empty room (0 frames).
+            Template to use: "empty" (1 empty frame) or "none" (0 frames).
 
         Returns
         -------

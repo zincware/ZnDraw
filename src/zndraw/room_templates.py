@@ -1,28 +1,20 @@
 """Room templates for initializing rooms with predefined content.
 
-Templates are functions that take a RoomWriter and populate it with atoms.
+Templates are functions that take a writer object and populate it with atoms.
 Template names are reserved and cannot be used as room IDs.
 """
 
 import logging
 from collections.abc import Callable
-from typing import Protocol
+from typing import Any
 
 import ase
 
 log = logging.getLogger(__name__)
 
 
-class RoomWriter(Protocol):
-    """Protocol for objects that can receive atoms frames."""
-
-    def append(self, atoms: ase.Atoms) -> None: ...
-
-    def extend(self, frames: list[ase.Atoms]) -> None: ...
-
-
 # Registry of all templates
-TEMPLATES: dict[str, Callable[[RoomWriter], None]] = {}
+TEMPLATES: dict[str, Callable[[Any], None]] = {}
 
 
 def register_template(name: str):
@@ -34,7 +26,7 @@ def register_template(name: str):
         Template name (will be reserved and cannot be used as room ID)
     """
 
-    def decorator(func: Callable[[RoomWriter], None]):
+    def decorator(func: Callable[[Any], None]):
         if name in TEMPLATES:
             log.warning(f"Template '{name}' is being overwritten")
         TEMPLATES[name] = func
@@ -43,16 +35,11 @@ def register_template(name: str):
     return decorator
 
 
-def get_template_names() -> list[str]:
-    """Return list of all reserved template names."""
-    return list(TEMPLATES.keys())
-
-
 # --- Built-in Templates ---
 
 
 @register_template("none")
-def none_template(vis: RoomWriter) -> None:
+def none_template(vis: Any) -> None:
     """Truly empty room with 0 frames.
 
     Used by Python clients that will upload their own data.
@@ -61,30 +48,6 @@ def none_template(vis: RoomWriter) -> None:
 
 
 @register_template("empty")
-def empty(vis: RoomWriter) -> None:
+def empty_template(vis: Any) -> None:
     """Empty room with single empty atoms frame."""
     vis.append(ase.Atoms())
-
-
-@register_template("water")
-def water(vis: RoomWriter) -> None:
-    """Room with a water molecule."""
-    from ase.build import molecule
-
-    vis.append(molecule("H2O"))
-
-
-@register_template("ethanol")
-def ethanol(vis: RoomWriter) -> None:
-    """Room with an ethanol molecule."""
-    from ase.build import molecule
-
-    vis.append(molecule("CH3CH2OH"))
-
-
-@register_template("benzene")
-def benzene(vis: RoomWriter) -> None:
-    """Room with a benzene molecule."""
-    from ase.build import molecule
-
-    vis.append(molecule("C6H6"))

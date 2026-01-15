@@ -17,7 +17,7 @@ from redis import Redis  # type: ignore
 
 from zndraw.app.frame_index_manager import FrameIndexManager
 from zndraw.app.redis_keys import GlobalIndexKeys, RoomKeys
-from zndraw.room_templates import TEMPLATES, get_template_names
+from zndraw.room_templates import TEMPLATES
 from zndraw.storage import StorageBackend
 
 log = logging.getLogger(__name__)
@@ -429,7 +429,7 @@ class RoomService:
         room_id : str
             Room to populate
         template_name : str
-            Template name (e.g., "empty", "water", "none")
+            Template name: "empty" (1 frame) or "none" (0 frames)
         storage : StorageBackend
             Storage backend for frame data
 
@@ -440,7 +440,7 @@ class RoomService:
         """
         if template_name not in TEMPLATES:
             raise ValueError(
-                f"Template '{template_name}' not found. Available: {get_template_names()}"
+                f"Template '{template_name}' not found. Available: {list(TEMPLATES.keys())}"
             )
 
         writer = _RoomWriter(room_id, self.r, storage)
@@ -486,7 +486,7 @@ class RoomService:
         copy_from : str | None
             Optional source room to copy from (takes precedence)
         template : str | None
-            Optional template name (e.g., "empty", "water", "none")
+            Optional template name: "empty" (1 frame) or "none" (0 frames)
 
         Returns
         -------
