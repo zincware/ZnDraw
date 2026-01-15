@@ -435,6 +435,7 @@ export interface CreateRoomRequest {
 	roomId: string;
 	description?: string;
 	copyFrom?: string;
+	template?: string;
 }
 
 export interface CreateRoomResponse {

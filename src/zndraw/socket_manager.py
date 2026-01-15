@@ -60,6 +60,7 @@ class SocketManager:
             self.zndraw.api.create_room(
                 description=self.zndraw.description,
                 copy_from=self.zndraw.copy_from,
+                template="none",  # Python client will upload its own data
             )
             # Retry join after creation
             response = self.sio.call(

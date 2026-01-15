@@ -1,6 +1,7 @@
 import os
 import secrets
 import sys
+import uuid
 import webbrowser
 
 import typer
@@ -543,6 +544,12 @@ def main(
                 make_default=make_default,
             )
             make_default = False
+    else:
+        # No file provided - just set room name for browser URL
+        # Room will be auto-created with "empty" template when frontend joins
+        workspace_room = f"workspace-{uuid.uuid4().hex[:8]}"
+        first_room = workspace_room
+        typer.echo(f"Starting empty workspace: {workspace_room}")
 
     # Open browser if requested
     if browser:

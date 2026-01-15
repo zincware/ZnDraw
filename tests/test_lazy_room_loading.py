@@ -23,7 +23,7 @@ def test_lazy_loading_empty_room(server, connect_room):
     assert response.status_code == 200
     room_info = response.json()
     assert room_info["id"] == room
-    assert room_info["frameCount"] == 0
+    assert room_info["frameCount"] == 0  # Test fixture uses template="none"
     assert room_info["locked"] is False
 
     # Step 4: Fetch selections

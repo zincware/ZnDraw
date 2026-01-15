@@ -197,30 +197,38 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 						}
 					};
 
-					// Emit room:join event (frontend clients send clientType)
+					// Emit room:join event
 					socket.emit(
 						"room:join",
 						{ roomId, clientType: "frontend" },
 						async (response: any) => {
-							// Handle room not found - create it first
+							// Handle 404 - room doesn't exist, create it via REST API
 							if (response.code === 404) {
-								const template = new URLSearchParams(
+								// Check for explicit template in URL, otherwise let server decide
+								// Server will use: copyFrom > template > default_room > "empty"
+								const urlTemplate = new URLSearchParams(
 									window.location.search,
 								).get("template");
 								try {
 									await createRoom({
 										roomId,
-										copyFrom: template ?? undefined,
+										template: urlTemplate ?? undefined,
 									});
 								} catch (error: any) {
-									// 409 = room already exists = success (race condition)
+									// 409 Conflict = room created by another client, continue
 									if (error.response?.status !== 409) {
 										console.error("Failed to create room:", error);
+										setInitializationError({
+											message: "Failed to create room",
+											details:
+												error instanceof Error
+													? error.message
+													: "Could not create room on server",
+										});
 										return;
 									}
 								}
-
-								// Retry join after creation
+								// Retry join after room creation
 								socket.emit(
 									"room:join",
 									{ roomId, clientType: "frontend" },
@@ -228,7 +236,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 								);
 								return;
 							}
-
 							handleJoinResponse(response);
 						},
 					);

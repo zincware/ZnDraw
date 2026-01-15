@@ -2,14 +2,13 @@ import uuid
 
 import pytest
 import requests
+import socketio
 
 from zndraw.zndraw import ZnDraw
 
 
 def test_rest_create_and_socket_join_room(server, get_jwt_auth_headers):
     """Test creating a room via REST API and joining via socket."""
-    import socketio
-
     # Authenticate as admin to see all rooms
     headers = get_jwt_auth_headers(server, "admin")
     response = requests.get(f"{server}/api/rooms", headers=headers, timeout=10)
@@ -20,10 +19,10 @@ def test_rest_create_and_socket_join_room(server, get_jwt_auth_headers):
 
     room = "test-room-1"
 
-    # First, create the room via REST
+    # First, create the room via REST with template="none" for truly empty room (0 frames)
     create_response = requests.post(
         f"{server}/api/rooms",
-        json={"roomId": room},
+        json={"roomId": room, "template": "none"},
         headers=headers,
         timeout=10,
     )
@@ -71,8 +70,6 @@ def test_rest_create_and_socket_join_room(server, get_jwt_auth_headers):
 
 def test_socket_join_nonexistent_room_fails(server, get_jwt_auth_headers):
     """Test that joining a non-existent room via socket returns 404."""
-    import socketio
-
     room = "nonexistent-room"
     headers = get_jwt_auth_headers(server)
     jwt_token = headers["Authorization"].replace("Bearer ", "")
@@ -93,8 +90,6 @@ def test_socket_join_nonexistent_room_fails(server, get_jwt_auth_headers):
 
 def test_socket_join_existing_room(server, get_jwt_auth_headers):
     """Test joining an existing room via socket."""
-    import socketio
-
     room = "test-room-1"
     headers = get_jwt_auth_headers(server)
 
@@ -138,6 +133,59 @@ def test_socket_join_existing_room(server, get_jwt_auth_headers):
         sio2.disconnect()
 
 
+def test_room_creation_with_template(server, get_jwt_auth_headers):
+    """Test that rooms can be created with a template via REST API.
+
+    This tests the frontend's room creation flow:
+    1. Socket join returns 404 for nonexistent room
+    2. REST API creates room with template
+    3. Room has correct frame count from template
+    """
+    room = f"template-room-{uuid.uuid4().hex[:8]}"
+    headers = get_jwt_auth_headers(server)
+    jwt_token = headers["Authorization"].replace("Bearer ", "")
+
+    # Verify room doesn't exist via REST
+    check_response = requests.get(
+        f"{server}/api/rooms/{room}",
+        headers=headers,
+        timeout=10,
+    )
+    assert check_response.status_code == 404
+
+    # Socket join should return 404 for nonexistent room
+    sio = socketio.Client()
+    sio.connect(server, auth={"token": jwt_token}, wait=True, wait_timeout=10)
+
+    try:
+        response = sio.call(
+            "room:join", {"roomId": room, "clientType": "frontend"}, timeout=10
+        )
+        assert response["status"] == "error"
+        assert response["code"] == 404
+
+        # Create room via REST API with "empty" template
+        create_response = requests.post(
+            f"{server}/api/rooms",
+            json={"roomId": room, "template": "empty"},
+            headers=headers,
+            timeout=10,
+        )
+        assert create_response.status_code == 201
+        assert create_response.json()["frameCount"] == 1
+
+        # Now socket join should succeed
+        response = sio.call(
+            "room:join", {"roomId": room, "clientType": "frontend"}, timeout=10
+        )
+        assert response["status"] == "ok"
+        assert "sessionId" in response
+        assert "roomData" in response
+        assert response["roomData"]["frameCount"] == 1
+    finally:
+        sio.disconnect()
+
+
 def test_create_room_with_copy_from(server, s22, get_jwt_auth_headers):
     """Test creating a room by copying from an existing room."""
     # create a source room with some frames
@@ -161,7 +209,7 @@ def test_create_room_with_copy_from(server, s22, get_jwt_auth_headers):
     assert data["frameCount"] == 3  # Should have copied 3 frames
     assert data["created"] is True
 
-    # Create another room without copying
+    # Create another room without copying (uses "empty" template fallback = 1 frame)
     another_room = "test-room-2"
     response = requests.post(
         f"{server}/api/rooms",
@@ -172,7 +220,7 @@ def test_create_room_with_copy_from(server, s22, get_jwt_auth_headers):
     assert response.status_code == 201
     data = response.json()
     assert data["status"] == "ok"
-    assert data["frameCount"] == 0  # Empty room
+    assert data["frameCount"] == 1  # Fallback to "empty" template
 
 
 def test_create_room_invalid_name(server, get_jwt_auth_headers):

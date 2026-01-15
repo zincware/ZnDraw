@@ -92,8 +92,9 @@ export function useDragAndDrop(): UseDragAndDropReturn {
 						// Invalidate queries to refresh room list
 						queryClient.invalidateQueries({ queryKey: ["rooms"] });
 
-						// Navigate to the new room
-						window.location.href = `/rooms/${response.room}`;
+						// Navigate to room with template=none so it starts with 0 frames
+						// The extension will append the uploaded frames
+						window.location.href = `/rooms/${response.room}?template=none`;
 					}
 				} catch (error: any) {
 					console.error("Upload error:", error);

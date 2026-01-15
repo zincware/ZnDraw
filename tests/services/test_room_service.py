@@ -10,7 +10,11 @@ import json
 
 import pytest
 
+from zndraw.room_templates import TEMPLATES
 from zndraw.services.room_service import RoomService
+
+# Note: Tests use list(TEMPLATES.keys()) for parametrization to ensure
+# all template names are automatically tested as reserved room IDs
 
 
 def test_room_exists_returns_false_for_new_room(redis_client):
@@ -269,3 +273,64 @@ def test_create_room_from_copy_uses_pipeline(redis_client, monkeypatch):
 
     # Verify pipeline was used
     assert len(pipeline_created) > 0
+
+
+# --- Tests for is_valid_room_id() ---
+
+
+@pytest.mark.parametrize("reserved_name", list(TEMPLATES.keys()))
+def test_is_valid_room_id_rejects_template_names(redis_client, reserved_name):
+    """Template names are not valid room IDs."""
+    service = RoomService(redis_client)
+    valid, error = service.is_valid_room_id(reserved_name)
+    assert valid is False
+    assert "reserved" in error
+
+
+@pytest.mark.parametrize("valid_name", ["my-room", "test123", "some_room"])
+def test_is_valid_room_id_accepts_normal_names(redis_client, valid_name):
+    """Normal room names are valid."""
+    service = RoomService(redis_client)
+    valid, error = service.is_valid_room_id(valid_name)
+    assert valid is True
+    assert error is None
+
+
+def test_is_valid_room_id_rejects_colons(redis_client):
+    """Room IDs with colons are invalid."""
+    service = RoomService(redis_client)
+    valid, error = service.is_valid_room_id("room:with:colons")
+    assert valid is False
+    assert "':'" in error
+
+
+def test_is_valid_room_id_rejects_special_chars(redis_client):
+    """Room IDs with special characters are invalid."""
+    service = RoomService(redis_client)
+    valid, error = service.is_valid_room_id("room@special")
+    assert valid is False
+    assert "invalid characters" in error
+
+
+# --- Tests for create_room() rejecting reserved names ---
+
+
+@pytest.mark.parametrize("reserved_name", list(TEMPLATES.keys()))
+def test_create_room_rejects_reserved_names(redis_client, reserved_name):
+    """Creating a room with a reserved (template) name raises ValueError."""
+    service = RoomService(redis_client)
+
+    with pytest.raises(ValueError, match="reserved"):
+        service.create_room(reserved_name, "user1")
+
+
+# --- Tests for apply_template() ---
+
+
+def test_apply_template_unknown_raises(redis_client):
+    """Applying unknown template raises ValueError."""
+    service = RoomService(redis_client)
+    # Storage is not accessed when template is unknown (error raised before)
+    mock_storage = None  # type: ignore
+    with pytest.raises(ValueError, match="not found"):
+        service.apply_template("test-room", "nonexistent", mock_storage)

@@ -11,7 +11,7 @@ import uuid
 from flask import Blueprint, current_app, request
 
 from zndraw.app.constants import SocketEvents
-from zndraw.auth import require_admin, require_auth
+from zndraw.auth import get_current_user, require_admin, require_auth
 from zndraw.extensions.analysis import analysis
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
@@ -24,6 +24,7 @@ from .room_manager import emit_room_update
 from .route_utils import (
     emit_bookmarks_invalidate,
     get_lock_key,
+    get_storage,
     requires_lock,
 )
 
@@ -149,8 +150,16 @@ def create_room():
     {
         "roomId": "my-room",           // Required
         "description": "...",          // Optional
-        "copyFrom": "source-room"      // Optional - copy data from existing room
+        "copyFrom": "source-room",     // Optional - copy data from existing room
+        "template": "empty"            // Optional - apply template (empty, water, etc.)
     }
+
+    Fallback Logic (handled by RoomService.create_room_with_defaults)
+    ------------------------------------------------------------------
+    1. If copyFrom specified → copy from that room
+    2. Else if template specified → use that template (includes "none" for 0 frames)
+    3. Else if admin set default_room → copy from default room
+    4. Else → use "empty" template (1 empty frame)
 
     Response
     --------
@@ -161,16 +170,11 @@ def create_room():
         "created": true
     }
     """
-    from zndraw.auth import get_current_user
-
     data = request.get_json() or {}
     room_id = data.get("roomId")
 
     if not room_id:
         return {"error": "roomId is required"}, 400
-
-    if ":" in room_id:
-        return {"error": "Room ID cannot contain ':' character"}, 400
 
     user_name = get_current_user()
     room_service = current_app.extensions["room_service"]
@@ -180,11 +184,20 @@ def create_room():
 
     description = data.get("description")
     copy_from = data.get("copyFrom")
+    template = data.get("template")
 
     try:
-        result = room_service.create_room(room_id, user_name, description, copy_from)
+        storage = get_storage(room_id)
+        result = room_service.create_room_with_defaults(
+            room_id=room_id,
+            user_name=user_name,
+            storage=storage,
+            description=description,
+            copy_from=copy_from,
+            template=template,
+        )
     except ValueError as e:
-        return {"error": str(e)}, 404
+        return {"error": str(e)}, 400
 
     # Broadcast room creation
     emit_room_update(
@@ -197,7 +210,7 @@ def create_room():
         isDefault=False,
     )
 
-    log.info(f"User {user_name} created room {room_id}")
+    log.info(f"User {user_name} created room {room_id} (source: {result['source']})")
 
     return {
         "status": "ok",

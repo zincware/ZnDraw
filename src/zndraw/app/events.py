@@ -692,11 +692,13 @@ def handle_room_join(data):
     joins socket rooms, and returns all small initialization data.
     Geometries are fetched separately via REST (can be very large).
 
+    Room creation is handled separately via POST /api/rooms.
+
     Request
     -------
     {
         "roomId": str,  # Room to join
-        "clientType": str  # "frontend" or "python" (defaults to "python")
+        "clientType": str  # "frontend" or "python"
     }
 
     Response (success)

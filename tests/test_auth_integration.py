@@ -341,7 +341,6 @@ def test_join_nonexistent_room_fails(server, get_jwt_auth_headers):
     sio.connect(server, auth={"token": jwt_token}, wait=True)
 
     try:
-        # Try to join a room that doesn't exist
         room = "nonexistent-room-12345"
         response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
 

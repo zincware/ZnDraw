@@ -856,3 +856,109 @@ def test_admin_mode_multiple_visited_rooms(
     assert "multi-room-a" in room_ids
     assert "multi-room-b" in room_ids
     assert "multi-room-c" not in room_ids
+
+
+# --- Tests for room creation fallback logic ---
+
+
+def test_create_room_uses_default_room_when_set(server, s22, get_jwt_auth_headers):
+    """Test that creating a room without template uses default_room when set."""
+    # Create a room to use as default, with some frames
+    default_vis = ZnDraw(url=server, room="demo-default", user="admin")
+    default_vis.extend(s22[:3])
+    assert len(default_vis) == 3
+
+    # Set it as the default room
+    r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+    r.set("default_room", "demo-default")
+
+    # Create a new room WITHOUT specifying template or copyFrom
+    headers = get_jwt_auth_headers(server)
+    response = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": "new-room-from-default"},
+        headers=headers,
+        timeout=10,
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["created"] is True
+    # Should have copied 3 frames from default room
+    assert data["frameCount"] == 3
+
+
+def test_create_room_uses_empty_template_when_no_default(server, get_jwt_auth_headers):
+    """Test that creating a room without template uses 'empty' when no default_room."""
+    # Ensure no default room is set
+    r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+    r.delete("default_room")
+
+    # Create a new room WITHOUT specifying template or copyFrom
+    headers = get_jwt_auth_headers(server)
+    response = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": "new-room-no-default"},
+        headers=headers,
+        timeout=10,
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["created"] is True
+    # Should have 1 frame from "empty" template
+    assert data["frameCount"] == 1
+
+
+def test_explicit_template_overrides_default_room(server, s22, get_jwt_auth_headers):
+    """Test that explicit template takes precedence over default_room."""
+    # Create a default room with 5 frames
+    default_vis = ZnDraw(url=server, room="override-default", user="admin")
+    default_vis.extend(s22[:5])
+
+    # Set it as the default room
+    r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+    r.set("default_room", "override-default")
+
+    # Create a new room WITH explicit template
+    headers = get_jwt_auth_headers(server)
+    response = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": "explicit-template-room", "template": "empty"},
+        headers=headers,
+        timeout=10,
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    # Should use explicit "empty" template (1 frame), not default room (5 frames)
+    assert data["frameCount"] == 1
+
+
+def test_explicit_copyfrom_overrides_default_room(server, s22, get_jwt_auth_headers):
+    """Test that explicit copyFrom takes precedence over default_room."""
+    # Create a default room with 3 frames
+    default_vis = ZnDraw(url=server, room="copyfrom-default", user="admin")
+    default_vis.extend(s22[:3])
+
+    # Create a source room with 2 frames
+    source_vis = ZnDraw(url=server, room="explicit-source", user="admin")
+    source_vis.extend(s22[:2])
+
+    # Set default room
+    r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+    r.set("default_room", "copyfrom-default")
+
+    # Create a new room WITH explicit copyFrom
+    headers = get_jwt_auth_headers(server)
+    response = requests.post(
+        f"{server}/api/rooms",
+        json={"roomId": "explicit-copyfrom-room", "copyFrom": "explicit-source"},
+        headers=headers,
+        timeout=10,
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    # Should copy from explicit source (2 frames), not default room (3 frames)
+    assert data["frameCount"] == 2

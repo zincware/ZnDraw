@@ -11,9 +11,14 @@ import json
 import logging
 import re
 
+import ase
+from asebytes import encode
 from redis import Redis  # type: ignore
 
+from zndraw.app.frame_index_manager import FrameIndexManager
 from zndraw.app.redis_keys import GlobalIndexKeys, RoomKeys
+from zndraw.room_templates import TEMPLATES
+from zndraw.storage import StorageBackend
 
 log = logging.getLogger(__name__)
 
@@ -97,15 +102,13 @@ class RoomService:
         Raises
         ------
         ValueError
-            If room_id contains invalid characters or copy_from room doesn't exist
+            If room_id contains invalid characters, is reserved, or copy_from
+            room doesn't exist
         """
-        # Validate room ID
-        if ":" in room_id:
-            raise ValueError("Room ID cannot contain ':' character")
-
-        # Reject any non-string/int room IDs (allow alphanumeric, underscores, hyphens, and dots)
-        if not re.match(r"^[a-zA-Z0-9_\-\.]+$", room_id):
-            raise ValueError("Room ID contains invalid characters")
+        # Validate room ID using is_valid_room_id()
+        valid, error = self.is_valid_room_id(room_id)
+        if not valid:
+            raise ValueError(error)
 
         if copy_from:
             return self._create_room_from_copy(room_id, copy_from, description)
@@ -389,6 +392,150 @@ class RoomService:
             log.error(f"Invalid step value in Redis for room {room_id}: {step} - {e}")
             return 0
 
+    def is_valid_room_id(self, room_id: str) -> tuple[bool, str | None]:
+        """Check if a room ID is valid.
+
+        Parameters
+        ----------
+        room_id : str
+            Room identifier to validate
+
+        Returns
+        -------
+        tuple[bool, str | None]
+            (True, None) if valid, (False, error_message) if invalid
+        """
+        if not room_id:
+            return False, "Room ID cannot be empty"
+
+        if ":" in room_id:
+            return False, "Room ID cannot contain ':' character"
+
+        if not re.match(r"^[a-zA-Z0-9_\-\.]+$", room_id):
+            return False, "Room ID contains invalid characters"
+
+        if room_id in TEMPLATES:
+            return False, f"Room ID '{room_id}' is reserved (template name)"
+
+        return True, None
+
+    def apply_template(
+        self, room_id: str, template_name: str, storage: StorageBackend
+    ) -> None:
+        """Apply a template to populate a room with initial frames.
+
+        Parameters
+        ----------
+        room_id : str
+            Room to populate
+        template_name : str
+            Template name: "empty" (1 frame) or "none" (0 frames)
+        storage : StorageBackend
+            Storage backend for frame data
+
+        Raises
+        ------
+        ValueError
+            If template name is not found
+        """
+        if template_name not in TEMPLATES:
+            raise ValueError(
+                f"Template '{template_name}' not found. Available: {list(TEMPLATES.keys())}"
+            )
+
+        writer = _RoomWriter(room_id, self.r, storage)
+        TEMPLATES[template_name](writer)
+
+    def get_default_room(self) -> str | None:
+        """Get the admin-configured default room.
+
+        Returns
+        -------
+        str | None
+            Default room ID if set, None otherwise
+        """
+        return self.r.get("default_room")
+
+    def create_room_with_defaults(
+        self,
+        room_id: str,
+        user_name: str,
+        storage: StorageBackend,
+        description: str | None = None,
+        copy_from: str | None = None,
+        template: str | None = None,
+    ) -> dict:
+        """Create a room with server-side fallback logic.
+
+        Fallback order:
+        1. If copy_from specified → copy from that room
+        2. Else if template specified → use that template
+        3. Else if default_room is set → copy from default room
+        4. Else → use "empty" template (1 empty frame)
+
+        Parameters
+        ----------
+        room_id : str
+            Unique room identifier
+        user_name : str
+            Username creating the room
+        storage : StorageBackend
+            Storage backend for frame data
+        description : str | None
+            Optional room description
+        copy_from : str | None
+            Optional source room to copy from (takes precedence)
+        template : str | None
+            Optional template name: "empty" (1 frame) or "none" (0 frames)
+
+        Returns
+        -------
+        dict
+            {"created": bool, "frameCount": int, "source": str}
+
+        Raises
+        ------
+        ValueError
+            If room_id is invalid, copy_from doesn't exist, or template not found
+        """
+        # Validate room ID
+        valid, error = self.is_valid_room_id(room_id)
+        if not valid:
+            raise ValueError(error)
+
+        if copy_from:
+            # Explicit copyFrom takes precedence
+            result = self.create_room(room_id, user_name, description, copy_from)
+            result["source"] = f"room:{copy_from}"
+            return result
+
+        if template:
+            # Explicit template takes precedence
+            if template not in TEMPLATES:
+                raise ValueError(
+                    f"Template '{template}' not found. Available: {list(TEMPLATES.keys())}"
+                )
+            result = self.create_room(room_id, user_name, description)
+            self.apply_template(room_id, template, storage)
+            result["frameCount"] = self.get_frame_count(room_id)
+            result["source"] = f"template:{template}"
+            return result
+
+        # No explicit source - check default_room
+        default_room = self.get_default_room()
+        if default_room and self.room_exists(default_room):
+            result = self.create_room(room_id, user_name, description, default_room)
+            result["source"] = f"room:{default_room}"
+            log.info(f"Created room '{room_id}' from default room '{default_room}'")
+            return result
+
+        # Final fallback: empty template
+        result = self.create_room(room_id, user_name, description)
+        self.apply_template(room_id, "empty", storage)
+        result["frameCount"] = self.get_frame_count(room_id)
+        result["source"] = "template:empty"
+        return result
+
     def delete_room(self, room_id: str) -> bool:
         """Delete a room and all its data.
 
@@ -418,3 +565,52 @@ class RoomService:
 
         log.info(f"Deleted room '{room_id}' and removed from index")
         return True
+
+
+class _RoomWriter:
+    """Minimal interface for templates to write to a room's storage.
+
+    This class provides an append/extend interface that templates use to
+    add frames to a room without going through the full ZnDraw client.
+
+    Parameters
+    ----------
+    room_id : str
+        Room identifier
+    redis_client : Redis
+        Redis client instance
+    storage : StorageBackend
+        Storage backend for frame data
+    """
+
+    def __init__(self, room_id: str, redis_client: Redis, storage: StorageBackend):
+        self.room_id = room_id
+        self.r = redis_client
+        self.storage = storage
+
+    def append(self, atoms) -> None:
+        """Append a single frame.
+
+        Parameters
+        ----------
+        atoms : ase.Atoms
+            Atoms object to append
+        """
+        self.extend([atoms])
+
+    def extend(self, frames: list[ase.Atoms]) -> None:
+        """Extend with multiple frames.
+
+        Parameters
+        ----------
+        frames : list[ase.Atoms]
+            List of Atoms objects to add
+        """
+        room_keys = RoomKeys(self.room_id)
+        manager = FrameIndexManager(self.r, room_keys.trajectory_indices())
+
+        for atoms in frames:
+            encoded = encode(atoms)
+            physical_index = len(self.storage)
+            self.storage.extend([encoded])
+            manager.append(f"{self.room_id}:{physical_index}")
