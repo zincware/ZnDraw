@@ -17,7 +17,7 @@ def test_get_template_names():
     assert isinstance(names, list)
 
 
-@pytest.mark.parametrize("name", ["empty", "water", "ethanol", "benzene"])
+@pytest.mark.parametrize("name", list(TEMPLATES.keys()))
 def test_template_is_callable(name):
     """Template functions are callable."""
     assert callable(TEMPLATES[name])
@@ -34,6 +34,14 @@ class MockVis:
 
     def extend(self, frames):
         self.frames.extend(frames)
+
+
+def test_none_template_creates_zero_frames():
+    """None template creates no frames (for Python clients uploading own data)."""
+    vis = MockVis()
+    TEMPLATES["none"](vis)
+
+    assert len(vis.frames) == 0
 
 
 def test_empty_template_creates_empty_atoms():

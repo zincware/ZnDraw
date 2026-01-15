@@ -10,6 +10,7 @@ import json
 
 import pytest
 
+from zndraw.room_templates import TEMPLATES
 from zndraw.services.room_service import RoomService
 
 
@@ -274,7 +275,7 @@ def test_create_room_from_copy_uses_pipeline(redis_client, monkeypatch):
 # --- Tests for is_valid_room_id() ---
 
 
-@pytest.mark.parametrize("reserved_name", ["empty", "water", "ethanol", "benzene"])
+@pytest.mark.parametrize("reserved_name", list(TEMPLATES.keys()))
 def test_is_valid_room_id_rejects_template_names(redis_client, reserved_name):
     """Template names are not valid room IDs."""
     service = RoomService(redis_client)
@@ -311,7 +312,7 @@ def test_is_valid_room_id_rejects_special_chars(redis_client):
 # --- Tests for create_room() rejecting reserved names ---
 
 
-@pytest.mark.parametrize("reserved_name", ["empty", "water", "ethanol", "benzene"])
+@pytest.mark.parametrize("reserved_name", list(TEMPLATES.keys()))
 def test_create_room_rejects_reserved_names(redis_client, reserved_name):
     """Creating a room with a reserved (template) name raises ValueError."""
     service = RoomService(redis_client)
