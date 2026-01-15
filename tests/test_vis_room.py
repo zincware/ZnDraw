@@ -43,7 +43,7 @@ def test_rest_create_and_socket_join_room(server, get_jwt_auth_headers):
         )
         assert join_response["status"] == "ok"
         assert "sessionId" in join_response
-        assert "roomData" in join_response
+        assert "frameCount" in join_response
     finally:
         sio.disconnect()
 
@@ -113,7 +113,7 @@ def test_socket_join_existing_room(server, get_jwt_auth_headers):
         )
         assert response["status"] == "ok"
         assert "sessionId" in response
-        assert "roomData" in response
+        assert "frameCount" in response
     finally:
         sio.disconnect()
 
@@ -180,8 +180,7 @@ def test_room_creation_with_template(server, get_jwt_auth_headers):
         )
         assert response["status"] == "ok"
         assert "sessionId" in response
-        assert "roomData" in response
-        assert response["roomData"]["frameCount"] == 1
+        assert response["frameCount"] == 1
     finally:
         sio.disconnect()
 
