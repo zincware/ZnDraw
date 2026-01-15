@@ -116,6 +116,40 @@ def _get_jwt_auth_headers(server_url: str, user_name: str | None = None) -> dict
     return {"Authorization": f"Bearer {data['token']}"}
 
 
+def _create_room_via_rest(
+    server: str, room_id: str, auth_headers: dict, template: str = "none"
+) -> None:
+    """Create a room via REST API.
+
+    Parameters
+    ----------
+    server
+        The base URL of the server.
+    room_id
+        The room ID to create.
+    auth_headers
+        Headers dict containing Authorization header.
+    template
+        Template name. Defaults to "none" for 0 frames (test isolation).
+        Use "empty" for 1 frame with empty ase.Atoms.
+
+    Raises
+    ------
+    RuntimeError
+        If room creation fails (except 409 Conflict which is ignored).
+    """
+    payload = {"roomId": room_id, "template": template}
+
+    response = requests.post(
+        f"{server}/api/rooms",
+        json=payload,
+        headers=auth_headers,
+        timeout=10,
+    )
+    if response.status_code not in (200, 201, 409):
+        raise RuntimeError(f"Failed to create room {room_id}: {response.text}")
+
+
 def _create_and_join_room(server: str, room: str, auth_headers: dict) -> str:
     """Create a room and join it via socket, returning session_id.
 
@@ -140,15 +174,7 @@ def _create_and_join_room(server: str, room: str, auth_headers: dict) -> str:
 
     jwt_token = auth_headers["Authorization"].replace("Bearer ", "")
 
-    # Create room via REST API first (ensures 0 frames, no template applied)
-    create_response = requests.post(
-        f"{server}/api/rooms",
-        json={"roomId": room},
-        headers=auth_headers,
-        timeout=10,
-    )
-    if create_response.status_code not in (200, 201, 409):
-        raise RuntimeError(f"Failed to create room {room}: {create_response.text}")
+    _create_room_via_rest(server, room, auth_headers)
 
     sio = socketio.Client()
     sio.connect(server, auth={"token": jwt_token}, wait=True)
@@ -199,15 +225,7 @@ def _create_room_connection(
     auth_headers = _get_jwt_auth_headers(server, user)
     jwt_token = auth_headers["Authorization"].replace("Bearer ", "")
 
-    # Create room via REST API first (ensures 0 frames, no template applied)
-    create_response = requests.post(
-        f"{server}/api/rooms",
-        json={"roomId": room_id},
-        headers=auth_headers,
-        timeout=10,
-    )
-    if create_response.status_code not in (200, 201, 409):
-        raise RuntimeError(f"Failed to create room {room_id}: {create_response.text}")
+    _create_room_via_rest(server, room_id, auth_headers)
 
     sio = socketio.Client()
     sio.connect(server, auth={"token": jwt_token}, wait=True)

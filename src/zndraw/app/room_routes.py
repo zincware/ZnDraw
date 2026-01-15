@@ -11,7 +11,7 @@ import uuid
 from flask import Blueprint, current_app, request
 
 from zndraw.app.constants import SocketEvents
-from zndraw.auth import require_admin, require_auth
+from zndraw.auth import get_current_user, require_admin, require_auth
 from zndraw.extensions.analysis import analysis
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
@@ -24,6 +24,7 @@ from .room_manager import emit_room_update
 from .route_utils import (
     emit_bookmarks_invalidate,
     get_lock_key,
+    get_storage,
     requires_lock,
 )
 
@@ -153,8 +154,8 @@ def create_room():
         "template": "empty"            // Optional - apply template (empty, water, etc.)
     }
 
-    Fallback Logic
-    --------------
+    Fallback Logic (handled by RoomService.create_room_with_defaults)
+    ------------------------------------------------------------------
     1. If copyFrom specified → copy from that room
     2. Else if template specified → use that template (includes "none" for 0 frames)
     3. Else if admin set default_room → copy from default room
@@ -169,9 +170,6 @@ def create_room():
         "created": true
     }
     """
-    from zndraw.auth import get_current_user
-    from zndraw.room_templates import TEMPLATES
-
     data = request.get_json() or {}
     room_id = data.get("roomId")
 
@@ -181,11 +179,6 @@ def create_room():
     user_name = get_current_user()
     room_service = current_app.extensions["room_service"]
 
-    # Validate room_id
-    valid, error = room_service.is_valid_room_id(room_id)
-    if not valid:
-        return {"error": error}, 400
-
     if room_service.room_exists(room_id):
         return {"error": f"Room '{room_id}' already exists"}, 409
 
@@ -193,38 +186,16 @@ def create_room():
     copy_from = data.get("copyFrom")
     template = data.get("template")
 
-    redis_client = current_app.extensions["redis"]
-
     try:
-        if copy_from:
-            # Explicit copyFrom takes precedence
-            result = room_service.create_room(
-                room_id, user_name, description, copy_from
-            )
-        elif template:
-            # Explicit template takes precedence
-            if template not in TEMPLATES:
-                return {
-                    "error": f"Template '{template}' not found. "
-                    f"Available: {list(TEMPLATES.keys())}"
-                }, 400
-            result = room_service.create_room(room_id, user_name, description)
-            room_service.apply_template(room_id, template)
-            result["frameCount"] = room_service.get_frame_count(room_id)
-        else:
-            # No explicit source - check default_room
-            default_room = redis_client.get("default_room")
-            if default_room and room_service.room_exists(default_room):
-                # Copy from admin-configured default room
-                result = room_service.create_room(
-                    room_id, user_name, description, default_room
-                )
-                log.info(f"Created room '{room_id}' from default room '{default_room}'")
-            else:
-                # Final fallback: empty template
-                result = room_service.create_room(room_id, user_name, description)
-                room_service.apply_template(room_id, "empty")
-                result["frameCount"] = room_service.get_frame_count(room_id)
+        storage = get_storage(room_id)
+        result = room_service.create_room_with_defaults(
+            room_id=room_id,
+            user_name=user_name,
+            storage=storage,
+            description=description,
+            copy_from=copy_from,
+            template=template,
+        )
     except ValueError as e:
         return {"error": str(e)}, 400
 
@@ -239,7 +210,7 @@ def create_room():
         isDefault=False,
     )
 
-    log.info(f"User {user_name} created room {room_id}")
+    log.info(f"User {user_name} created room {room_id} (source: {result['source']})")
 
     return {
         "status": "ok",

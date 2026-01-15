@@ -326,5 +326,7 @@ def test_create_room_rejects_reserved_names(redis_client, reserved_name):
 def test_apply_template_unknown_raises(redis_client):
     """Applying unknown template raises ValueError."""
     service = RoomService(redis_client)
+    # Storage is not accessed when template is unknown (error raised before)
+    mock_storage = None  # type: ignore
     with pytest.raises(ValueError, match="not found"):
-        service.apply_template("test-room", "nonexistent")
+        service.apply_template("test-room", "nonexistent", mock_storage)
