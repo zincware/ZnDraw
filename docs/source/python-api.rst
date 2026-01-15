@@ -360,7 +360,7 @@ Camera parameters:
 
 - ``position``: Direct ``(x, y, z)`` coordinates or ``CurveAttachment``
 - ``target``: Direct ``(x, y, z)`` coordinates or ``CurveAttachment``
-- ``fov``: Field of view in degrees (1-179, default 75)
+- ``fov``: Field of view in degrees (1-179, default 50)
 - ``camera_type``: ``CameraType.PERSPECTIVE`` or ``CameraType.ORTHOGRAPHIC``
 - ``helper_visible``: Show camera cone visualization
 - ``helper_color``: Color of the helper (hex or named)
