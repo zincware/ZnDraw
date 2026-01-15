@@ -204,6 +204,7 @@ class APIManager:
         self,
         description: str | None = None,
         copy_from: str | None = None,
+        template: str | None = None,
     ) -> dict:
         """Create a new room.
 
@@ -213,6 +214,9 @@ class APIManager:
             Optional description for the room
         copy_from : str | None
             Optional room ID to copy frames and settings from
+        template : str | None
+            Template to use: "empty", "water", "ethanol", "benzene", or "none".
+            Use "none" for truly empty room (0 frames).
 
         Returns
         -------
@@ -230,6 +234,8 @@ class APIManager:
             payload["description"] = description
         if copy_from is not None:
             payload["copyFrom"] = copy_from
+        if template is not None:
+            payload["template"] = template
 
         headers = {}
         if self.jwt_token:

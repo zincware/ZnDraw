@@ -51,6 +51,15 @@ def get_template_names() -> list[str]:
 # --- Built-in Templates ---
 
 
+@register_template("none")
+def none_template(vis: RoomWriter) -> None:
+    """Truly empty room with 0 frames.
+
+    Used by Python clients that will upload their own data.
+    """
+    pass  # No frames added
+
+
 @register_template("empty")
 def empty(vis: RoomWriter) -> None:
     """Empty room with single empty atoms frame."""

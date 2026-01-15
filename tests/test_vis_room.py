@@ -71,11 +71,7 @@ def test_rest_create_and_socket_join_room(server, get_jwt_auth_headers):
 
 
 def test_socket_join_nonexistent_room_fails(server, get_jwt_auth_headers):
-    """Test that joining a non-existent room via socket returns 404.
-
-    Note: Frontend clients auto-create rooms, so this test uses clientType: "python"
-    to test the behavior for Python SDK clients which require explicit room creation.
-    """
+    """Test that joining a non-existent room via socket returns 404."""
     import socketio
 
     room = "nonexistent-room"
@@ -87,7 +83,7 @@ def test_socket_join_nonexistent_room_fails(server, get_jwt_auth_headers):
 
     try:
         response = sio.call(
-            "room:join", {"roomId": room, "clientType": "python"}, timeout=10
+            "room:join", {"roomId": room, "clientType": "frontend"}, timeout=10
         )
         assert response["status"] == "error"
         assert response["code"] == 404
@@ -143,14 +139,15 @@ def test_socket_join_existing_room(server, get_jwt_auth_headers):
         sio2.disconnect()
 
 
-def test_frontend_auto_creates_room_with_empty_template(server, get_jwt_auth_headers):
-    """Test that frontend clients auto-create rooms with the empty template.
+def test_room_creation_with_template(server, get_jwt_auth_headers):
+    """Test that rooms can be created with a template via REST API.
 
-    When a frontend client joins a nonexistent room, the server should:
-    1. Auto-create the room with the "empty" template
-    2. The room should have exactly 1 frame (empty ase.Atoms)
+    This tests the frontend's room creation flow:
+    1. Socket join returns 404 for nonexistent room
+    2. REST API creates room with template
+    3. Room has correct frame count from template
     """
-    room = f"auto-create-{uuid.uuid4().hex[:8]}"
+    room = f"template-room-{uuid.uuid4().hex[:8]}"
     headers = get_jwt_auth_headers(server)
     jwt_token = headers["Authorization"].replace("Bearer ", "")
 
@@ -162,7 +159,7 @@ def test_frontend_auto_creates_room_with_empty_template(server, get_jwt_auth_hea
     )
     assert check_response.status_code == 404
 
-    # Frontend joins nonexistent room - should auto-create
+    # Socket join should return 404 for nonexistent room
     sio = socketio.Client()
     sio.connect(server, auth={"token": jwt_token}, wait=True, wait_timeout=10)
 
@@ -170,20 +167,27 @@ def test_frontend_auto_creates_room_with_empty_template(server, get_jwt_auth_hea
         response = sio.call(
             "room:join", {"roomId": room, "clientType": "frontend"}, timeout=10
         )
+        assert response["status"] == "error"
+        assert response["code"] == 404
 
-        # Room should be created and join should succeed
-        assert response["status"] == "ok"
-        assert "sessionId" in response
-        assert "roomData" in response
-
-        # Verify room now exists and has exactly 1 frame (from "empty" template)
-        room_response = requests.get(
-            f"{server}/api/rooms/{room}",
+        # Create room via REST API with "empty" template
+        create_response = requests.post(
+            f"{server}/api/rooms",
+            json={"roomId": room, "template": "empty"},
             headers=headers,
             timeout=10,
         )
-        assert room_response.status_code == 200
-        assert room_response.json()["frameCount"] == 1
+        assert create_response.status_code == 201
+        assert create_response.json()["frameCount"] == 1
+
+        # Now socket join should succeed
+        response = sio.call(
+            "room:join", {"roomId": room, "clientType": "frontend"}, timeout=10
+        )
+        assert response["status"] == "ok"
+        assert "sessionId" in response
+        assert "roomData" in response
+        assert response["roomData"]["frameCount"] == 1
     finally:
         sio.disconnect()
 

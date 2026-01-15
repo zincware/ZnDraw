@@ -692,15 +692,13 @@ def handle_room_join(data):
     joins socket rooms, and returns all small initialization data.
     Geometries are fetched separately via REST (can be very large).
 
-    For frontend clients: If the room doesn't exist, it will be auto-created
-    using either the specified template (copyFrom) or the "empty" template.
+    Room creation is handled separately via POST /api/rooms.
 
     Request
     -------
     {
         "roomId": str,  # Room to join
-        "clientType": str,  # "frontend" or "python"
-        "copyFrom": str | None  # Template name or room ID to copy from
+        "clientType": str  # "frontend" or "python"
     }
 
     Response (success)
@@ -729,7 +727,6 @@ def handle_room_join(data):
     room_service = current_app.extensions["room_service"]
     room_id = data.get("roomId")
     client_type = data.get("clientType")  # "frontend" or "python"
-    copy_from = data.get("copyFrom")  # Template name or room ID to copy from
 
     if not room_id:
         return {"status": "error", "code": 400, "message": "roomId required"}
@@ -747,21 +744,10 @@ def handle_room_join(data):
         log.error(f"Cannot join room: userName not found for sid {sid}")
         return {"status": "error", "code": 401, "message": "User not found"}
 
-    # Handle room creation/existence
-    if client_type == "frontend":
-        # Frontend clients auto-create rooms via create_room_auto()
-        result = room_service.create_room_auto(room_id, user_name, copy_from)
-        if result["error"]:
-            return {
-                "status": "error",
-                "code": result["code"],
-                "message": result["error"],
-            }
-    else:
-        # Python clients must have an existing room
-        if not room_service.room_exists(room_id):
-            log.debug(f"Room {room_id} not found for Python client {user_name}")
-            return {"status": "error", "code": 404, "message": "Room not found"}
+    # Check room exists (creation is separate via POST /api/rooms)
+    if not room_service.room_exists(room_id):
+        log.debug(f"Room {room_id} not found for user {user_name}")
+        return {"status": "error", "code": 404, "message": "Room not found"}
 
     # 1. Create sessionId
     session_id = str(uuid.uuid4())

@@ -330,9 +330,6 @@ def test_join_nonexistent_room_fails(server, get_jwt_auth_headers):
 
     Room creation and room joining are separate operations.
     Use POST /api/rooms to create a room first.
-
-    Note: Frontend clients auto-create rooms, so this test uses clientType: "python"
-    to test the behavior for Python SDK clients which require explicit room creation.
     """
     import socketio
 
@@ -344,9 +341,8 @@ def test_join_nonexistent_room_fails(server, get_jwt_auth_headers):
     sio.connect(server, auth={"token": jwt_token}, wait=True)
 
     try:
-        # Try to join a room that doesn't exist (Python clients don't auto-create)
         room = "nonexistent-room-12345"
-        response = sio.call("room:join", {"roomId": room, "clientType": "python"})
+        response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
 
         assert response["status"] == "error"
         assert response["code"] == 404

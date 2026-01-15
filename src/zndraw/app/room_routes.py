@@ -149,8 +149,16 @@ def create_room():
     {
         "roomId": "my-room",           // Required
         "description": "...",          // Optional
-        "copyFrom": "source-room"      // Optional - copy data from existing room
+        "copyFrom": "source-room",     // Optional - copy data from existing room
+        "template": "empty"            // Optional - apply template (empty, water, etc.)
     }
+
+    Fallback Logic
+    --------------
+    1. If copyFrom specified → copy from that room
+    2. Else if template specified → use that template (includes "none" for 0 frames)
+    3. Else if admin set default_room → copy from default room
+    4. Else → use "empty" template (1 empty frame)
 
     Response
     --------
@@ -162,6 +170,7 @@ def create_room():
     }
     """
     from zndraw.auth import get_current_user
+    from zndraw.room_templates import TEMPLATES
 
     data = request.get_json() or {}
     room_id = data.get("roomId")
@@ -169,22 +178,55 @@ def create_room():
     if not room_id:
         return {"error": "roomId is required"}, 400
 
-    if ":" in room_id:
-        return {"error": "Room ID cannot contain ':' character"}, 400
-
     user_name = get_current_user()
     room_service = current_app.extensions["room_service"]
+
+    # Validate room_id
+    valid, error = room_service.is_valid_room_id(room_id)
+    if not valid:
+        return {"error": error}, 400
 
     if room_service.room_exists(room_id):
         return {"error": f"Room '{room_id}' already exists"}, 409
 
     description = data.get("description")
     copy_from = data.get("copyFrom")
+    template = data.get("template")
+
+    redis_client = current_app.extensions["redis"]
 
     try:
-        result = room_service.create_room(room_id, user_name, description, copy_from)
+        if copy_from:
+            # Explicit copyFrom takes precedence
+            result = room_service.create_room(
+                room_id, user_name, description, copy_from
+            )
+        elif template:
+            # Explicit template takes precedence
+            if template not in TEMPLATES:
+                return {
+                    "error": f"Template '{template}' not found. "
+                    f"Available: {list(TEMPLATES.keys())}"
+                }, 400
+            result = room_service.create_room(room_id, user_name, description)
+            room_service.apply_template(room_id, template)
+            result["frameCount"] = room_service.get_frame_count(room_id)
+        else:
+            # No explicit source - check default_room
+            default_room = redis_client.get("default_room")
+            if default_room and room_service.room_exists(default_room):
+                # Copy from admin-configured default room
+                result = room_service.create_room(
+                    room_id, user_name, description, default_room
+                )
+                log.info(f"Created room '{room_id}' from default room '{default_room}'")
+            else:
+                # Final fallback: empty template
+                result = room_service.create_room(room_id, user_name, description)
+                room_service.apply_template(room_id, "empty")
+                result["frameCount"] = room_service.get_frame_count(room_id)
     except ValueError as e:
-        return {"error": str(e)}, 404
+        return {"error": str(e)}, 400
 
     # Broadcast room creation
     emit_room_update(
