@@ -11,26 +11,19 @@ import socketio
 def authenticated_session(server, connect_room):
     """Create and join a room with persistent socket connection.
 
-    Uses connect_room to keep socket alive during test (prevents lock cleanup).
-    Returns server, room, session_id, auth_headers, socketio_client, user_name.
+    Uses connect_room which provides a properly connected and room-joined socket.
+    Returns server, room, session_id, auth_headers, sio (from conn), user_name.
     """
     user_name = "test-user"
     conn = connect_room("test-lock-socket", user=user_name)
 
-    # Create additional socketio client for event listening
-    client = socketio.Client()
-
-    yield server, conn.room_id, conn.session_id, conn.headers, client, user_name
-
-    if client.connected:
-        client.disconnect()
+    yield server, conn.room_id, conn.session_id, conn.headers, conn.sio, user_name
+    # Cleanup handled by connect_room fixture
 
 
 def test_lock_acquire_emits_lock_update(authenticated_session):
     """Test that acquiring a lock emits lock:update event with action=acquired."""
-    server, room, session_id, auth_headers, sio_client, user_name = (
-        authenticated_session
-    )
+    server, room, session_id, auth_headers, sio, user_name = authenticated_session
 
     # Track received events
     received_events = []
@@ -38,16 +31,7 @@ def test_lock_acquire_emits_lock_update(authenticated_session):
     def on_lock_update(data):
         received_events.append(data)
 
-    sio_client.on("lock:update", on_lock_update)
-
-    # Connect to socket
-    sio_client.connect(
-        server, auth={"token": auth_headers["Authorization"].split(" ")[1]}
-    )
-    sio_client.emit("join:room", {"roomId": room})
-
-    # Give socket time to connect and join room
-    time.sleep(0.5)
+    sio.on("lock:update", on_lock_update)
 
     # Acquire lock
     response = requests.post(
@@ -70,16 +54,12 @@ def test_lock_acquire_emits_lock_update(authenticated_session):
     assert event["holder"] == user_name
     assert event["message"] == "Creating test geometry"
     assert event["timestamp"] is not None
-    assert event["sessionId"] == session_id  # Session ID should be included
-
-    sio_client.disconnect()
+    assert event["sessionId"] == session_id
 
 
 def test_idempotent_acquire_emits_refresh_event(authenticated_session):
     """Test that re-acquiring a lock (idempotent) emits lock:update with action=refreshed."""
-    server, room, session_id, auth_headers, sio_client, user_name = (
-        authenticated_session
-    )
+    server, room, session_id, auth_headers, sio, user_name = authenticated_session
 
     # Acquire lock first
     response = requests.post(
@@ -97,16 +77,7 @@ def test_idempotent_acquire_emits_refresh_event(authenticated_session):
     def on_lock_update(data):
         received_events.append(data)
 
-    sio_client.on("lock:update", on_lock_update)
-
-    # Connect to socket
-    sio_client.connect(
-        server, auth={"token": auth_headers["Authorization"].split(" ")[1]}
-    )
-    sio_client.emit("join:room", {"roomId": room})
-
-    # Give socket time to connect
-    time.sleep(0.5)
+    sio.on("lock:update", on_lock_update)
 
     # Re-acquire lock (idempotent) with new message
     response = requests.post(
@@ -133,14 +104,10 @@ def test_idempotent_acquire_emits_refresh_event(authenticated_session):
     assert event["timestamp"] is not None
     assert event["sessionId"] == session_id
 
-    sio_client.disconnect()
-
 
 def test_lock_release_emits_lock_update(authenticated_session):
     """Test that releasing a lock emits lock:update event with action=released."""
-    server, room, session_id, auth_headers, sio_client, user_name = (
-        authenticated_session
-    )
+    server, room, session_id, auth_headers, sio, user_name = authenticated_session
 
     # Acquire lock first
     response = requests.post(
@@ -157,16 +124,7 @@ def test_lock_release_emits_lock_update(authenticated_session):
     def on_lock_update(data):
         received_events.append(data)
 
-    sio_client.on("lock:update", on_lock_update)
-
-    # Connect to socket
-    sio_client.connect(
-        server, auth={"token": auth_headers["Authorization"].split(" ")[1]}
-    )
-    sio_client.emit("join:room", {"roomId": room})
-
-    # Give socket time to connect
-    time.sleep(0.5)
+    sio.on("lock:update", on_lock_update)
 
     # Release lock
     response = requests.post(
@@ -191,14 +149,10 @@ def test_lock_release_emits_lock_update(authenticated_session):
     assert event["timestamp"] is None
     assert event["sessionId"] == session_id
 
-    sio_client.disconnect()
-
 
 def test_lock_acquire_without_message(authenticated_session):
     """Test that acquiring a lock without a message still emits lock:update."""
-    server, room, session_id, auth_headers, sio_client, user_name = (
-        authenticated_session
-    )
+    server, room, session_id, auth_headers, sio, user_name = authenticated_session
 
     # Track received events
     received_events = []
@@ -206,16 +160,7 @@ def test_lock_acquire_without_message(authenticated_session):
     def on_lock_update(data):
         received_events.append(data)
 
-    sio_client.on("lock:update", on_lock_update)
-
-    # Connect to socket
-    sio_client.connect(
-        server, auth={"token": auth_headers["Authorization"].split(" ")[1]}
-    )
-    sio_client.emit("join:room", {"roomId": room})
-
-    # Give socket time to connect
-    time.sleep(0.5)
+    sio.on("lock:update", on_lock_update)
 
     # Acquire lock without message
     response = requests.post(
@@ -239,14 +184,10 @@ def test_lock_acquire_without_message(authenticated_session):
     assert event["message"] is None
     assert event["timestamp"] is None
 
-    sio_client.disconnect()
-
 
 def test_lock_events_for_different_targets(authenticated_session):
     """Test that lock events work for different lock targets."""
-    server, room, session_id, auth_headers, sio_client, user_name = (
-        authenticated_session
-    )
+    server, room, session_id, auth_headers, sio, user_name = authenticated_session
 
     # Track received events
     received_events = []
@@ -254,16 +195,7 @@ def test_lock_events_for_different_targets(authenticated_session):
     def on_lock_update(data):
         received_events.append(data)
 
-    sio_client.on("lock:update", on_lock_update)
-
-    # Connect to socket
-    sio_client.connect(
-        server, auth={"token": auth_headers["Authorization"].split(" ")[1]}
-    )
-    sio_client.emit("join:room", {"roomId": room})
-
-    # Give socket time to connect
-    time.sleep(0.5)
+    sio.on("lock:update", on_lock_update)
 
     # Acquire lock for custom target
     response = requests.post(
@@ -282,8 +214,6 @@ def test_lock_events_for_different_targets(authenticated_session):
     assert event["target"] == "geometry:selection"
     assert event["action"] == "acquired"
     assert event["holder"] == user_name
-
-    sio_client.disconnect()
 
 
 def test_multiple_clients_receive_lock_events(
@@ -338,9 +268,7 @@ def test_multiple_clients_receive_lock_events(
 
 def test_lock_event_includes_session_id_for_filtering(authenticated_session):
     """Test that lock:update events include sessionId so clients can filter their own events."""
-    server, room, session_id, auth_headers, sio_client, user_name = (
-        authenticated_session
-    )
+    server, room, session_id, auth_headers, sio, user_name = authenticated_session
 
     # Track all received events
     received_events = []
@@ -348,14 +276,7 @@ def test_lock_event_includes_session_id_for_filtering(authenticated_session):
     def on_lock_update(data):
         received_events.append(data)
 
-    sio_client.on("lock:update", on_lock_update)
-
-    # Connect to socket
-    sio_client.connect(
-        server, auth={"token": auth_headers["Authorization"].split(" ")[1]}
-    )
-    sio_client.emit("join:room", {"roomId": room})
-    time.sleep(0.5)
+    sio.on("lock:update", on_lock_update)
 
     # Acquire lock
     response = requests.post(
@@ -414,5 +335,3 @@ def test_lock_event_includes_session_id_for_filtering(authenticated_session):
     release_event = received_events[0]
     assert release_event["action"] == "released"
     assert release_event["sessionId"] == session_id
-
-    sio_client.disconnect()

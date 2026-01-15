@@ -19,39 +19,6 @@ log = logging.getLogger(__name__)
 TOKEN_EXPIRY_SECONDS = 10
 
 
-def _get_len() -> dict:
-    sid = request.sid
-    r = current_app.extensions["redis"]
-    room = get_project_room_from_session(sid)
-
-    if not room:
-        return {"success": False, "error": "Client has not joined a room."}
-
-    try:
-        keys = RoomKeys(room)
-        # Count is the number of entries in the mapping (logical frames)
-        frame_count = r.zcard(keys.trajectory_indices())
-        return {"success": True, "count": frame_count}
-    except Exception as e:
-        log.error(f"Failed to get frame count: {e}")
-        return {"success": False, "error": "Failed to get frame count"}
-
-
-# --- Helper Functions ---
-def get_project_room_from_session(sid: str) -> t.Optional[str]:
-    """Finds the project room a user has joined from Redis."""
-    r = current_app.extensions["redis"]
-    # Get userName from sid
-    session_keys = SessionKeys(sid)
-    user_name = r.get(session_keys.username())
-    if not user_name:
-        return None
-    # Get room from user data
-    user_keys = UserKeys(user_name)
-    room_name = r.hget(user_keys.hash_key(), "currentRoom")
-    return room_name if room_name else None
-
-
 def get_user_name_from_sid(sid: str) -> t.Optional[str]:
     """Gets the userName for a given Socket.IO sid."""
     r = current_app.extensions["redis"]
@@ -242,16 +209,9 @@ def handle_connect(auth):
     r.set(session_keys.username(), user_name)
     r.set(session_keys.role(), user_role)  # Store role for this session
 
-    # Get user's current room (if any)
-    current_room = r.hget(user_keys.hash_key(), "currentRoom")
-
-    if current_room:
-        # Rejoin room after reconnection
-        join_room(f"room:{current_room}")
-        join_room(f"user:{user_name}")
-        log.info(f"User {user_name} reconnected to room {current_room} (sid: {sid})")
-    else:
-        log.info(f"User {user_name} connected but not in any room yet (sid: {sid})")
+    # Join user-specific room for user-targeted events (e.g., extension notifications)
+    join_room(f"user:{user_name}")
+    log.info(f"User {user_name} connected (sid: {sid})")
 
     # Increment connected users metric
     connected_users.inc()
@@ -280,14 +240,17 @@ def handle_disconnect(*args, **kwargs):
         log.info(f"Client disconnected: {sid} (no userName found)")
         return
 
-    # Get user data
-    user_keys = UserKeys(user_name)
-    room_name = r.hget(user_keys.hash_key(), "currentRoom")
-
-    log.info(f"User disconnected: sid={sid}, user={user_name}, room={room_name}")
-
-    # Clean up session→sid bidirectional mapping (prevents memory leak)
+    # Get session_id and room from session data (before cleanup)
     session_id = r.get(session_keys.session_id())
+    room_name = None
+    if session_id:
+        session_data_raw = r.get(SessionKeys.session_data(session_id))
+        if session_data_raw:
+            session_data = json.loads(session_data_raw)
+            room_name = session_data.get("roomId")
+
+    user_keys = UserKeys(user_name)
+    log.info(f"User disconnected: sid={sid}, user={user_name}, room={room_name}")
     if session_id:
         # Remove session_id→sid mapping
         r.delete(SessionKeys.session_to_sid(session_id))
