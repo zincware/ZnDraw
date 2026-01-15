@@ -1,8 +1,6 @@
 import typing as t
 
 import numpy as np
-import pandas as pd
-import plotly.express as px
 from pydantic import Field
 
 from zndraw.extensions.abc import Category, Extension
@@ -15,6 +13,80 @@ class Analysis(Extension):
     """The base class for all analysis extensions."""
 
     category: t.ClassVar[Category] = Category.ANALYSIS
+
+
+class Distance(Analysis):
+    """Distance analysis with interactive frame selection.
+
+    Calculates distances between 2 selected atoms across all frames.
+    Creates an interactive plot with bidirectional synchronization:
+    - Clicking/selecting points in the plot sets the frame
+    - Frame changes in the 3D view highlight corresponding points in the plot
+    """
+
+    def run(self, vis: "ZnDraw") -> None:
+        """Create interactive distance plot.
+
+        Requires exactly 2 atoms to be selected in the 3D view.
+        """
+        import pandas as pd
+        import plotly.express as px
+
+        atoms_lst = vis[:]
+        distances = []
+
+        selection = list(vis.selection)
+
+        if len(selection) != 2:
+            raise ValueError("Please select exactly 2 atoms")
+
+        for atoms in atoms_lst:
+            distances.append(atoms.get_distance(selection[0], selection[1], mic=True))
+
+        df = pd.DataFrame({"step": list(range(len(atoms_lst))), "distance": distances})
+
+        fig = px.scatter(
+            df,
+            x="step",
+            y="distance",
+            labels={"step": "Frame", "distance": "Distance (Å)"},
+            title="Distance Over Time",
+        )
+
+        # Add line trace for visual continuity
+        fig.add_scatter(
+            x=df["step"],
+            y=df["distance"],
+            mode="lines",
+            name="trend",
+            line=dict(color="rgba(0, 0, 0, 0.1)"),
+            hoverinfo="skip",
+            showlegend=False,
+        )
+
+        meta_step = np.arange(len(atoms_lst))
+
+        # Set up customdata and interactions schema
+        fig.update_traces(
+            customdata=np.stack([meta_step], axis=-1),
+            selector=dict(mode="markers"),
+            meta={
+                "interactions": [
+                    {
+                        "click": "step",
+                        "select": "step",
+                        "hover": "step",
+                    }
+                ]
+            },
+        )
+
+        fig.update_layout(
+            dragmode="lasso",
+            hovermode="closest",
+        )
+
+        vis.figures["Distance"] = fig
 
 
 class DihedralAngle(Analysis):
@@ -31,6 +103,9 @@ class DihedralAngle(Analysis):
 
         Requires exactly 4 atoms to be selected in the 3D view.
         """
+        import pandas as pd
+        import plotly.express as px
+
         atoms_lst = vis[:]
         dihedral_angles = []
 
@@ -122,6 +197,9 @@ class Properties1D(Analysis):
         - meta.interactions schema to enable frame selection/hovering
         - lasso dragmode for flexible selection
         """
+        import pandas as pd
+        import plotly.express as px
+
         properties = vis.get(slice(None, None, None), keys=[self.value])
         df = pd.DataFrame(properties)
 
@@ -212,6 +290,9 @@ class Properties2D(Analysis):
         Supports special 'step' property to use frame indices.
         All other properties are retrieved from frame data.
         """
+        import pandas as pd
+        import plotly.express as px
+
         # Determine which properties to fetch (exclude 'step')
         keys_to_fetch = []
         for prop in [self.x_data, self.y_data, self.color]:
@@ -320,6 +401,9 @@ class ForceCorrelation(Analysis):
         Maps particle indices to the 'particles' geometry for interactive
         particle selection in the 3D view.
         """
+        import pandas as pd
+        import plotly.express as px
+
         step = vis.step
 
         # Get property data for current frame only
@@ -395,6 +479,7 @@ class ForceCorrelation(Analysis):
 
 
 analysis: dict[str, t.Type[Analysis]] = {
+    "Distance": Distance,
     "DihedralAngle": DihedralAngle,
     "Properties1D": Properties1D,
     "Properties2D": Properties2D,
