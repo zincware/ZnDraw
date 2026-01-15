@@ -415,7 +415,9 @@ def test_check_lock_global_lock_blocks_all(server, connect_room):
 
     assert response.status_code == 423
     data = response.json()
-    assert "globally locked" in data["error"].lower() or "global" in data["error"].lower()
+    assert (
+        "globally locked" in data["error"].lower() or "global" in data["error"].lower()
+    )
 
 
 def test_check_lock_global_lock_allows_same_session(server, connect_room):
