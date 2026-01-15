@@ -2,13 +2,15 @@
 // Based on https://github.com/epam/ketcher/blob/master/example/src/App.tsx
 
 import { withJsonFormsControlProps } from "@jsonforms/react";
-import { Box, Button, TextField } from "@mui/material";
+import { Box, Button, TextField, CircularProgress } from "@mui/material";
 import { rankWith, schemaMatches, type ControlProps } from "@jsonforms/core";
-import { useState, useEffect } from "react";
-import SmilesEditDialog from "./SmilesEditDialog";
+import { useState, useEffect, lazy, Suspense } from "react";
 import MoleculePreview from "../shared/MoleculePreview";
 import FormLabelWithHelp from "../shared/FormLabelWithHelp";
 import { LAYOUT_CONSTANTS } from "../../constants/layout";
+
+// Lazy load Ketcher editor - only loaded when user clicks "Draw"
+const SmilesEditDialog = lazy(() => import("./SmilesEditDialog"));
 
 /**
  * Custom SMILES editor component using Ketcher for molecular structure editing.
@@ -95,14 +97,32 @@ const CustomSmilesEditor = ({
 				</Box>
 			)}
 
-			{/* Ketcher Editor Dialog */}
-			<SmilesEditDialog
-				open={dialogOpen}
-				initialSmiles={currentSmiles}
-				title="Molecular Structure Editor"
-				onSave={handleSaveEdit}
-				onCancel={() => setDialogOpen(false)}
-			/>
+			{/* Ketcher Editor Dialog - lazy loaded only when opened */}
+			{dialogOpen && (
+				<Suspense
+					fallback={
+						<Box
+							sx={{
+								position: "fixed",
+								top: "50%",
+								left: "50%",
+								transform: "translate(-50%, -50%)",
+								zIndex: 9999,
+							}}
+						>
+							<CircularProgress />
+						</Box>
+					}
+				>
+					<SmilesEditDialog
+						open={dialogOpen}
+						initialSmiles={currentSmiles}
+						title="Molecular Structure Editor"
+						onSave={handleSaveEdit}
+						onCancel={() => setDialogOpen(false)}
+					/>
+				</Suspense>
+			)}
 		</Box>
 	);
 };

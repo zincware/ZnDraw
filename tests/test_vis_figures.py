@@ -6,7 +6,7 @@ import pytest
 import requests
 
 from zndraw import ZnDraw
-from zndraw.extensions.analysis import Properties2D
+from zndraw.extensions.analysis import Distance, Properties2D
 
 # --- Test Data ---
 # Dummy figure data for testing purposes.
@@ -377,3 +377,67 @@ def test_properties_2d_with_step(server, celery_worker):
     # When fix_aspect_ratio is True, scaleanchor should be set
     assert fig_dict["layout"]["yaxis"].get("scaleanchor") == "x"
     assert fig_dict["layout"]["yaxis"].get("scaleratio") == 1
+
+
+def test_distance_analysis(server, celery_worker):
+    """Test Distance analysis extension via vis.run()."""
+    vis = ZnDraw(url=server, room="test-distance-analysis", user="tester")
+
+    # Create test data: H2 molecule with increasing bond length
+    atoms_list = []
+    num_frames = 10
+    for i in range(num_frames):
+        bond_length = 0.74 + i * 0.05
+        atoms = ase.Atoms("H2", positions=[[0, 0, 0], [0, 0, bond_length]])
+        atoms_list.append(atoms)
+
+    vis.extend(atoms_list)
+
+    # Select the two atoms
+    vis.selection = [0, 1]
+
+    # Run Distance analysis
+    analysis = Distance()
+    job = vis.run(analysis)
+
+    # Wait for celery worker to process the job
+    job.wait(timeout=30)
+
+    # Verify figure was created
+    assert "Distance" in vis.figures
+    fig = vis.figures["Distance"]
+    assert isinstance(fig, go.Figure)
+
+    # Verify figure data
+    fig_dict = fig.to_dict()
+    assert "data" in fig_dict
+    assert len(fig_dict["data"]) > 0
+
+    # Verify customdata and interactions metadata exist
+    scatter_trace = fig_dict["data"][0]
+    assert "customdata" in scatter_trace
+    assert len(scatter_trace["customdata"]) > 0
+    assert "meta" in scatter_trace
+    assert "interactions" in scatter_trace["meta"]
+
+
+def test_distance_analysis_wrong_selection(server, celery_worker):
+    """Test Distance analysis with incorrect number of selected atoms."""
+    vis = ZnDraw(url=server, room="test-distance-wrong-selection", user="tester")
+
+    atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [0, 1, 0]])
+    vis.extend([atoms])
+
+    # Select wrong number of atoms (3 instead of 2)
+    vis.selection = [0, 1, 2]
+
+    # Run Distance analysis - should fail
+    analysis = Distance()
+    job = vis.run(analysis)
+
+    # Wait for job to complete (fails are also terminal states)
+    job.wait(timeout=30)
+
+    # Verify job failed
+    assert job.is_failed()
+    assert "Distance" not in vis.figures

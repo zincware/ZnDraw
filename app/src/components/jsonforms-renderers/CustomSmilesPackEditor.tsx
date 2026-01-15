@@ -3,7 +3,14 @@
 
 import { withJsonFormsControlProps } from "@jsonforms/react";
 import { rankWith, schemaMatches, type ControlProps } from "@jsonforms/core";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import {
+	useState,
+	useEffect,
+	useCallback,
+	useMemo,
+	lazy,
+	Suspense,
+} from "react";
 import {
 	Box,
 	Button,
@@ -12,6 +19,7 @@ import {
 	Alert,
 	Typography,
 	Paper,
+	CircularProgress,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -22,9 +30,11 @@ import {
 	GridRowsProp,
 	GridRowModel,
 } from "@mui/x-data-grid";
-import SmilesEditDialog from "./SmilesEditDialog";
 import MoleculePreview from "../shared/MoleculePreview";
 import FormLabelWithHelp from "../shared/FormLabelWithHelp";
+
+// Lazy load Ketcher editor - only loaded when user opens edit dialog
+const SmilesEditDialog = lazy(() => import("./SmilesEditDialog"));
 
 interface MoleculeRow {
 	id: number;
@@ -343,17 +353,35 @@ const CustomSmilesPackEditor = ({
 				)}
 			</Paper>
 
-			{/* Edit Dialog */}
-			<SmilesEditDialog
-				open={editDialogOpen}
-				initialSmiles={editingMolecule?.smiles || ""}
-				title={`Edit Molecule ${editingMolecule ? molecules.findIndex((m) => m.id === editingMolecule.id) + 1 : ""}`}
-				onSave={handleSaveEdit}
-				onCancel={() => {
-					setEditDialogOpen(false);
-					setEditingMolecule(null);
-				}}
-			/>
+			{/* Edit Dialog - lazy loaded only when opened */}
+			{editDialogOpen && (
+				<Suspense
+					fallback={
+						<Box
+							sx={{
+								position: "fixed",
+								top: "50%",
+								left: "50%",
+								transform: "translate(-50%, -50%)",
+								zIndex: 9999,
+							}}
+						>
+							<CircularProgress />
+						</Box>
+					}
+				>
+					<SmilesEditDialog
+						open={editDialogOpen}
+						initialSmiles={editingMolecule?.smiles || ""}
+						title={`Edit Molecule ${editingMolecule ? molecules.findIndex((m) => m.id === editingMolecule.id) + 1 : ""}`}
+						onSave={handleSaveEdit}
+						onCancel={() => {
+							setEditDialogOpen(false);
+							setEditingMolecule(null);
+						}}
+					/>
+				</Suspense>
+			)}
 		</Box>
 	);
 };

@@ -37,6 +37,33 @@ export default defineConfig({
 		commonjsOptions: {
 			transformMixedEsModules: true,
 		},
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					// Heavy 3D rendering - loaded when entering a room
+					three: ["three", "@react-three/fiber", "@react-three/drei"],
+					// Chemistry editor - loaded only when opening Ketcher
+					ketcher: ["ketcher-react", "ketcher-core", "ketcher-standalone"],
+					// Charting library - loaded when viewing plots
+					plotly: ["plotly.js", "plotly.js-dist-min"],
+					// UI framework - used everywhere, but cacheable
+					mui: [
+						"@mui/material",
+						"@mui/icons-material",
+						"@mui/x-data-grid",
+						"@mui/x-tree-view",
+					],
+					// React ecosystem - stable, highly cacheable
+					vendor: [
+						"react",
+						"react-dom",
+						"react-router-dom",
+						"@tanstack/react-query",
+						"zustand",
+					],
+				},
+			},
+		},
 	},
 	root: "./src",
 	publicDir: "public",

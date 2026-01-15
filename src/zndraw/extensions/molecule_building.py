@@ -1,6 +1,5 @@
 """Extensions requiring the molify package."""
 
-import molify
 from pydantic import BaseModel, Field
 
 from zndraw.extensions.abc import Category, Extension
@@ -19,9 +18,14 @@ class AddFromSMILES(Extension):
     )
 
     def run(self, vis, **kwargs):
+        import molify
+
         atoms = molify.smiles2atoms(self.smiles)
         vis.append(atoms)
-        vis.log(f"Added molecule from SMILES: {self.smiles}")
+        vis.log(f"""Added molecule {self.smiles}
+```smiles
+{self.smiles}
+```""")
         vis.step = len(vis) - 1
 
 
@@ -49,6 +53,8 @@ class PackBox(Extension):
     density: float = Field(1.0, ge=0.0)
 
     def run(self, vis, **kwargs):
+        import molify
+
         conformers = [
             molify.smiles2conformers(mol.smiles, numConfs=mol.count)
             for mol in self.molecules

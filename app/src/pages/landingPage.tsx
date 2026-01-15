@@ -1,3 +1,4 @@
+import React, { useState, useEffect, Suspense } from "react";
 import Box from "@mui/material/Box";
 import AppBar from "@mui/material/AppBar";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -6,6 +7,7 @@ import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Badge from "@mui/material/Badge";
+import CircularProgress from "@mui/material/CircularProgress";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
@@ -36,13 +38,13 @@ import { useSocketManager } from "../hooks/useSocketManager";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useDragAndDrop } from "../hooks/useDragAndDrop";
 import MyScene from "../components/Canvas";
-import ChatWindow from "../components/ChatWindow";
+// Lazy load ChatWindow - markdown/syntax highlighting only loads when chat is opened
+const ChatWindow = React.lazy(() => import("../components/ChatWindow"));
 import ConnectionDialog from "../components/ConnectionDialog";
 import DropOverlay from "../components/DropOverlay";
 import ProgressNotifications from "../components/ProgressNotifications";
 import { useAppStore } from "../store";
 import { useRestJoinManager } from "../hooks/useRestManager";
-import React, { useState, useEffect } from "react";
 import { useColorScheme } from "@mui/material/styles";
 import { useLocation, useNavigate } from "react-router-dom";
 import WindowManager from "../components/WindowManager";
@@ -523,8 +525,26 @@ export default function MainPage() {
 				{/* Progress bar spans full width outside the drag boundary */}
 				<FrameProgressBar />
 
-				{/* Chat Window */}
-				<ChatWindow open={chatOpen} onClose={() => setChatOpen(false)} />
+				{/* Chat Window - lazy loaded */}
+				{chatOpen && (
+					<Suspense
+						fallback={
+							<Box
+								sx={{
+									position: "fixed",
+									top: "50%",
+									left: "50%",
+									transform: "translate(-50%, -50%)",
+									zIndex: 9999,
+								}}
+							>
+								<CircularProgress />
+							</Box>
+						}
+					>
+						<ChatWindow open={chatOpen} onClose={() => setChatOpen(false)} />
+					</Suspense>
+				)}
 			</Box>
 
 			<ConnectionDialog
