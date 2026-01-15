@@ -321,6 +321,7 @@ def test_frontend_creates_one_session_camera(server, connect_room):
 
     # join again as another frontend client
     c2 = connect_room(room_id)
+    c2.sio.sleep(0.1)  # Allow time for geometry:invalidate event to propagate
     assert len([x for x in vis.geometries if x.startswith("cam:")]) == 2
 
     c2.sio.disconnect()
