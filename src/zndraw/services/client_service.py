@@ -17,7 +17,7 @@ class ClientService:
     """Handles client session metadata in Redis.
 
     JWT authentication is handled separately by auth.py.
-    This service focuses on storing client metadata like currentRoom.
+    This service manages room membership and visit tracking.
 
     Parameters
     ----------
@@ -27,20 +27,6 @@ class ClientService:
 
     def __init__(self, redis_client: Redis):
         self.r = redis_client
-
-    def update_user_room(self, user_name: str, room_id: str) -> None:
-        """Update user's current room in Redis.
-
-        Parameters
-        ----------
-        user_name : str
-            User name (from JWT sub claim)
-        room_id : str
-            Room the user is joining
-        """
-        keys = UserKeys(user_name)
-        self.r.hset(keys.hash_key(), "currentRoom", room_id)
-        log.info(f"User {user_name} updated room to {room_id}")
 
     def remove_user_from_room(self, room_id: str, user_name: str) -> None:
         """Remove user from room's user set.
@@ -71,7 +57,7 @@ class ClientService:
         return {m.decode() if isinstance(m, bytes) else m for m in members}
 
     def update_user_and_room_membership(self, user_name: str, room_id: str) -> None:
-        """Update user room, add to room membership, and track visit atomically.
+        """Add user to room membership and track visit atomically.
 
         Uses Redis pipeline for atomic operations.
 
@@ -84,7 +70,6 @@ class ClientService:
         """
         keys = UserKeys(user_name)
         pipe = self.r.pipeline()
-        pipe.hset(keys.hash_key(), "currentRoom", room_id)
         pipe.sadd(RoomKeys(room_id).users(), user_name)
         pipe.sadd(keys.visited_rooms(), room_id)
         pipe.execute()
