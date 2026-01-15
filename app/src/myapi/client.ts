@@ -295,15 +295,6 @@ export const deleteGeometry = async (
 	);
 };
 
-export const getGeometrySchemas = async (
-	roomId: string,
-): Promise<{ schemas: Record<string, any> }> => {
-	const { data } = await apiClient.get(
-		`/api/rooms/${roomId}/geometries/schemas`,
-	);
-	return data;
-};
-
 // ==================== Selections API ====================
 
 export interface SelectionsResponse {
