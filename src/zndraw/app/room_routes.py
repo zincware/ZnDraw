@@ -950,7 +950,7 @@ def create_progress(room_id):
 
         # Broadcast to room
         socketio.emit(
-            "progress:started",
+            "progress:start",
             {"progressId": progress_id, "roomId": room_id, "description": description},
             to=f"room:{room_id}",
         )

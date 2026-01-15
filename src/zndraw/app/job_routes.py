@@ -156,7 +156,7 @@ def delete_job(room_id: str, job_id: str):
 def get_job_details(job_id: str):
     """Get full job details for a worker to execute.
 
-    This endpoint is called by workers after receiving a job:assigned socket event.
+    This endpoint is called by workers after receiving a job:assign socket event.
     Returns all information needed to execute the job.
 
     Returns
@@ -204,7 +204,7 @@ def update_job_status(room_id: str, job_id: str):
     """Update a job's status (processing, completed, or failed).
 
     Called by workers during job lifecycle:
-    1. Worker receives job:assigned event with jobId
+    1. Worker receives job:assign event with jobId
     2. Worker fetches job via GET /api/jobs/{jobId}
     3. Worker calls PUT with status='processing' (ASSIGNED → PROCESSING)
     4. Worker executes job
@@ -261,7 +261,7 @@ def update_job_status(room_id: str, job_id: str):
             )
             return {"error": "Worker ID does not match job's assigned worker"}, 400
 
-        # Update job status to processing (automatically emits job:state_changed)
+        # Update job status to processing (automatically emits job:update)
         success = JobManager.start_processing(
             redis_client, job_id, worker_id, socketio=socketio
         )
@@ -290,7 +290,7 @@ def update_job_status(room_id: str, job_id: str):
             )
             return {"error": "Worker ID does not match job's worker"}, 400
 
-        # Mark job as completed (automatically emits job:state_changed)
+        # Mark job as completed (automatically emits job:update)
         success = JobManager.complete_job(redis_client, job_id, socketio=socketio)
         if not success:
             log.error(f"Failed to mark job {job_id} as completed")
@@ -318,7 +318,7 @@ def update_job_status(room_id: str, job_id: str):
             return {"error": "Worker ID does not match job's worker"}, 400
 
         error = data.get("error", "Unknown error")
-        # Mark job as failed (automatically emits job:state_changed with error metadata)
+        # Mark job as failed (automatically emits job:update with error metadata)
         success = JobManager.fail_job(redis_client, job_id, error, socketio=socketio)
         if not success:
             return {"error": "Failed to mark job as failed"}, 400
