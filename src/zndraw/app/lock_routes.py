@@ -184,8 +184,12 @@ def acquire_lock(room_id, target):
                     lock_holder = "corrupted lock data"
                 elif existing_lock.get("sessionId") == session_id:
                     # If same session holds the lock, refresh it (idempotent acquire)
-                    # Refresh TTL
+                    # Refresh lock TTL
                     r.expire(lock_key, int(ttl))
+
+                    # Refresh session_locks tracking set TTL (critical for disconnect cleanup)
+                    session_locks_key = SessionKeys.session_locks(session_id)
+                    r.expire(session_locks_key, int(ttl))
 
                     # Update metadata if msg provided
                     timestamp = None
