@@ -15,7 +15,7 @@ import CodeIcon from "@mui/icons-material/Code";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import BrushIcon from "@mui/icons-material/Brush";
-import EditIcon from "@mui/icons-material/Edit";
+import OpenWithIcon from "@mui/icons-material/OpenWith";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LoginIcon from "@mui/icons-material/Login";
@@ -276,8 +276,8 @@ export default function MainPage() {
 						<Tooltip
 							title={
 								interactionMode === "drawing"
-									? "Disable drawing mode"
-									: "Enable drawing mode"
+									? "Disable drawing mode (X)"
+									: "Enable drawing mode (X)"
 							}
 						>
 							<IconButton
@@ -320,7 +320,7 @@ export default function MainPage() {
 											: "transparent",
 								}}
 							>
-								<EditIcon />
+								<OpenWithIcon />
 							</IconButton>
 						</Tooltip>
 						<Tooltip
