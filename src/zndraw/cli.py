@@ -54,6 +54,11 @@ def daemonize(log_file: str = "zndraw.log") -> None:
     # Create a new session and become session leader
     os.setsid()
 
+    # Reinitialize eventlet hub after fork - kqueue file descriptors don't survive fork
+    import eventlet.hubs
+
+    eventlet.hubs.use_hub()
+
     # Redirect standard file descriptors
     sys.stdout.flush()
     sys.stderr.flush()
