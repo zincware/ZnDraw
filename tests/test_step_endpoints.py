@@ -24,6 +24,7 @@ def room_with_step_lock(server, connect_room):
         f"{server}/api/rooms/{conn.room_id}/locks/step/acquire",
         json={"msg": "testing step lock"},
         headers=conn.headers,
+        timeout=10,
     )
     assert response.status_code == 200
     lock_data = response.json()
@@ -42,7 +43,9 @@ def test_get_step_without_auth(server, get_jwt_auth_headers, create_and_join_roo
     create_and_join_room(server, room, auth_headers)
 
     # Get step with authentication
-    response = requests.get(f"{server}/api/rooms/{room}/step", headers=auth_headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/step", headers=auth_headers, timeout=10
+    )
     assert response.status_code == 200
     data = response.json()
     assert "step" in data
@@ -68,6 +71,7 @@ def test_put_step_without_lock(server, get_jwt_auth_headers, create_and_join_roo
         f"{server}/api/rooms/{room}/step",
         json={"step": 42},
         headers={**auth_headers, "X-Session-ID": session_id},
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -85,6 +89,7 @@ def test_put_step_with_lock(room_with_step_lock):
         f"{server}/api/rooms/{room}/step",
         json={"step": 42},
         headers={**auth_headers, "X-Session-ID": session_id},
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -93,7 +98,9 @@ def test_put_step_with_lock(room_with_step_lock):
     assert data["step"] == 42
 
     # Verify step was updated
-    response = requests.get(f"{server}/api/rooms/{room}/step", headers=auth_headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/step", headers=auth_headers, timeout=10
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["step"] == 42
@@ -110,6 +117,7 @@ def test_put_step_negative_value(server, get_jwt_auth_headers, create_and_join_r
         f"{server}/api/rooms/{room}/step",
         json={"step": -1},
         headers={**auth_headers, "X-Session-ID": session_id},
+        timeout=10,
     )
 
     assert response.status_code == 400
@@ -128,6 +136,7 @@ def test_put_step_invalid_type(server, get_jwt_auth_headers, create_and_join_roo
         f"{server}/api/rooms/{room}/step",
         json={"step": "not-a-number"},
         headers={**auth_headers, "X-Session-ID": session_id},
+        timeout=10,
     )
 
     assert response.status_code == 400
@@ -150,6 +159,7 @@ def test_put_step_missing_session_id(
         f"{server}/api/rooms/{room}/step",
         json={"step": 10},
         headers=auth_headers,  # Missing X-Session-ID
+        timeout=10,
     )
 
     assert response.status_code == 400
@@ -172,6 +182,7 @@ def test_put_step_invalid_session_id(
         f"{server}/api/rooms/{room}/step",
         json={"step": 10},
         headers={**auth_headers, "X-Session-ID": "invalid-session-id-12345"},
+        timeout=10,
     )
 
     assert response.status_code == 401
@@ -193,12 +204,15 @@ def test_put_step_continuous_updates(
             f"{server}/api/rooms/{room}/step",
             json={"step": step},
             headers={**auth_headers, "X-Session-ID": session_id},
+            timeout=10,
         )
         assert response.status_code == 200
         assert response.json()["step"] == step
 
     # Verify final step
-    response = requests.get(f"{server}/api/rooms/{room}/step", headers=auth_headers)
+    response = requests.get(
+        f"{server}/api/rooms/{room}/step", headers=auth_headers, timeout=10
+    )
     assert response.status_code == 200
     assert response.json()["step"] == 40
 
@@ -219,6 +233,7 @@ def test_put_step_after_lock_expiry(server, get_jwt_auth_headers, create_and_joi
         f"{server}/api/rooms/{room}/locks/step/acquire",
         json={"msg": "testing expiry"},
         headers={**auth_headers, "X-Session-ID": session_id},
+        timeout=10,
     )
     assert response.status_code == 200
 
@@ -232,6 +247,7 @@ def test_put_step_after_lock_expiry(server, get_jwt_auth_headers, create_and_joi
         f"{server}/api/rooms/{room}/step",
         json={"step": 10},
         headers={**auth_headers, "X-Session-ID": session_id},
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -256,6 +272,7 @@ def test_put_step_session_user_mismatch(
         f"{server}/api/rooms/{room}/step",
         json={"step": 10},
         headers={**user2_headers, "X-Session-ID": session_id},
+        timeout=10,
     )
 
     assert response.status_code == 403
@@ -272,6 +289,7 @@ def test_put_step_blocked_by_other_session_lock(server, connect_room):
         f"{server}/api/rooms/{conn1.room_id}/locks/step/acquire",
         json={"msg": "session 1 lock"},
         headers=conn1.headers,
+        timeout=10,
     )
     assert response.status_code == 200
     assert response.json()["success"] is True
@@ -284,6 +302,7 @@ def test_put_step_blocked_by_other_session_lock(server, connect_room):
         f"{server}/api/rooms/{conn1.room_id}/step",
         json={"step": 10},
         headers=conn2.headers,
+        timeout=10,
     )
 
     assert response.status_code == 423
@@ -300,6 +319,7 @@ def test_atomic_pattern_acquire_set_release(server, connect_room):
         f"{server}/api/rooms/{conn.room_id}/locks/step/acquire",
         json={"msg": "atomic update"},
         headers=conn.headers,
+        timeout=10,
     )
     assert response.status_code == 200
     lock_token = response.json()["lockToken"]
@@ -309,6 +329,7 @@ def test_atomic_pattern_acquire_set_release(server, connect_room):
         f"{server}/api/rooms/{conn.room_id}/step",
         json={"step": 99},
         headers=conn.headers,
+        timeout=10,
     )
     assert response.status_code == 200
     assert response.json()["step"] == 99
@@ -318,12 +339,13 @@ def test_atomic_pattern_acquire_set_release(server, connect_room):
         f"{server}/api/rooms/{conn.room_id}/locks/step/release",
         json={"lockToken": lock_token},
         headers=conn.headers,
+        timeout=10,
     )
     assert response.status_code == 200
 
     # Verify step was set
     response = requests.get(
-        f"{server}/api/rooms/{conn.room_id}/step", headers=conn.headers
+        f"{server}/api/rooms/{conn.room_id}/step", headers=conn.headers, timeout=10
     )
     assert response.status_code == 200
     assert response.json()["step"] == 99
@@ -341,6 +363,7 @@ def test_step_lock_independence_from_trajectory_lock(server, connect_room):
         f"{server}/api/rooms/{conn.room_id}/locks/trajectory:meta/acquire",
         json={"msg": "trajectory lock"},
         headers=conn.headers,
+        timeout=10,
     )
     assert response.status_code == 200
 
@@ -349,6 +372,7 @@ def test_step_lock_independence_from_trajectory_lock(server, connect_room):
         f"{server}/api/rooms/{conn.room_id}/step",
         json={"step": 50},
         headers=conn.headers,
+        timeout=10,
     )
     assert response.status_code == 200
     assert response.json()["step"] == 50
@@ -380,6 +404,7 @@ def test_step_update_emits_frame_update_event(server, connect_room):
         f"{server}/api/rooms/{room}/step",
         json={"step": 99},
         headers=conn1.headers,
+        timeout=10,
     )
     assert response.status_code == 200
 
@@ -416,6 +441,7 @@ def test_put_step_out_of_bounds(server, s22_xyz, connect_room):
         f"{server}/api/rooms/{room}/step",
         json={"step": 21},  # Last valid index
         headers=conn.headers,
+        timeout=10,
     )
     assert response.status_code == 200
     assert response.json()["step"] == 21
@@ -425,6 +451,7 @@ def test_put_step_out_of_bounds(server, s22_xyz, connect_room):
         f"{server}/api/rooms/{room}/step",
         json={"step": 22},  # One beyond last index
         headers=conn.headers,
+        timeout=10,
     )
     assert response.status_code == 400
     data = response.json()
@@ -437,6 +464,7 @@ def test_put_step_out_of_bounds(server, s22_xyz, connect_room):
         f"{server}/api/rooms/{room}/step",
         json={"step": 999999999},
         headers=conn.headers,
+        timeout=10,
     )
     assert response.status_code == 400
     data = response.json()
@@ -449,7 +477,7 @@ def test_put_step_empty_room(server, connect_room):
 
     # Verify room is empty
     response = requests.get(
-        f"{server}/api/rooms/{conn.room_id}/step", headers=conn.headers
+        f"{server}/api/rooms/{conn.room_id}/step", headers=conn.headers, timeout=10
     )
     assert response.status_code == 200
     assert response.json()["totalFrames"] == 0
@@ -459,6 +487,7 @@ def test_put_step_empty_room(server, connect_room):
         f"{server}/api/rooms/{conn.room_id}/step",
         json={"step": 0},
         headers=conn.headers,
+        timeout=10,
     )
     assert response.status_code == 200
     assert response.json()["step"] == 0
@@ -468,6 +497,7 @@ def test_put_step_empty_room(server, connect_room):
         f"{server}/api/rooms/{conn.room_id}/step",
         json={"step": 999},
         headers=conn.headers,
+        timeout=10,
     )
     assert response.status_code == 200
     assert response.json()["step"] == 999
@@ -482,6 +512,7 @@ def test_acquire_lock_idempotent_same_session(server, connect_room):
         f"{server}/api/rooms/{conn.room_id}/locks/step/acquire",
         json={"msg": "first acquire"},
         headers=conn.headers,
+        timeout=10,
     )
     assert response1.status_code == 200
     data1 = response1.json()
@@ -494,6 +525,7 @@ def test_acquire_lock_idempotent_same_session(server, connect_room):
         f"{server}/api/rooms/{conn.room_id}/locks/step/acquire",
         json={"msg": "second acquire"},
         headers=conn.headers,
+        timeout=10,
     )
     assert response2.status_code == 200
     data2 = response2.json()
@@ -511,6 +543,7 @@ def test_acquire_lock_different_session_same_user_fails(server, connect_room):
         f"{server}/api/rooms/{conn1.room_id}/locks/step/acquire",
         json={"msg": "session 1 lock"},
         headers=conn1.headers,
+        timeout=10,
     )
     assert response.status_code == 200
     assert response.json()["success"] is True
@@ -523,6 +556,7 @@ def test_acquire_lock_different_session_same_user_fails(server, connect_room):
         f"{server}/api/rooms/{conn1.room_id}/locks/step/acquire",
         json={"msg": "session 2 trying"},
         headers=conn2.headers,
+        timeout=10,
     )
     assert response.status_code == 423  # Locked
     data = response.json()
