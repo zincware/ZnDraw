@@ -35,9 +35,9 @@ def test_session_camera_created_on_join(server, connect_room):
 
     # Verify default values
     cam_data = data["geometry"]["data"]
-    assert cam_data["position"] == [0.0, 5.0, 10.0]
+    assert cam_data["position"] == [-10.0, 10.0, 30.0]
     assert cam_data["target"] == [0.0, 0.0, 0.0]
-    assert cam_data["fov"] == 75.0
+    assert cam_data["fov"] == 50.0
     assert cam_data["near"] == 0.1
     assert cam_data["far"] == 1000.0
     # Session cameras are protected by default

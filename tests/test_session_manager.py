@@ -101,8 +101,8 @@ def test_session_camera_get_default(server, connect_room):
     cam = session.camera
 
     assert isinstance(cam, Camera)
-    assert cam.fov == 75.0
-    assert cam.position == (0.0, 5.0, 10.0)
+    assert cam.fov == 50.0
+    assert cam.position == (-10.0, 10.0, 30.0)
 
 
 def test_session_camera_set(server, connect_room):
