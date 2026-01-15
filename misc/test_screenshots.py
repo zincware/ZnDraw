@@ -342,7 +342,9 @@ def test_molecule_builder_editor(server, page, capture, request):
     # Open Ketcher editor (lazy loaded)
     page.get_by_role("button", name="Draw", exact=True).click()
     # Wait for the Ketcher dialog to appear
-    page.get_by_role("dialog", name="Molecular Structure Editor").wait_for(state="visible")
+    page.get_by_role("dialog", name="Molecular Structure Editor").wait_for(
+        state="visible"
+    )
     page.wait_for_timeout(1000)  # Extra delay for molecule canvas to render
 
     capture.light()
@@ -350,7 +352,9 @@ def test_molecule_builder_editor(server, page, capture, request):
 
     # Reopen Ketcher editor for dark mode (dialog closes on theme toggle)
     page.get_by_role("button", name="Draw", exact=True).click()
-    page.get_by_role("dialog", name="Molecular Structure Editor").wait_for(state="visible")
+    page.get_by_role("dialog", name="Molecular Structure Editor").wait_for(
+        state="visible"
+    )
     page.wait_for_timeout(1000)
 
     capture.dark()

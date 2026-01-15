@@ -171,4 +171,3 @@ Click a virtual marker to insert a new control point at that position.
    Only geometries with static positions (number arrays) can be edited.
    Geometries using dynamic positions (string references like ``"arrays.positions"``)
    cannot be transformed interactively.
-
