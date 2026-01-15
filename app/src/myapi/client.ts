@@ -94,7 +94,7 @@ apiClient.interceptors.request.use((config) => {
 
 	// Add session ID header if available (optional - only needed for specific endpoints)
 	// SessionId is required for:
-	// - Endpoints with @requires_lock (frame uploads, geometry operations)
+	// - Endpoints with @check_lock (frame uploads, geometry operations)
 	// - Worker registration
 	// Most GET endpoints only need JWT auth
 	const sessionId = useAppStore.getState().sessionId;
@@ -201,6 +201,10 @@ export interface GeometryResponse {
 
 export interface GeometryListResponse {
 	geometries: Record<string, GeometryData>;
+	types?: {
+		schemas: Record<string, any>;
+		defaults: Record<string, any>;
+	};
 }
 
 export const listGeometries = async (
@@ -225,74 +229,47 @@ export const createGeometry = async (
 	key: string,
 	geometryType: string,
 	geometryData: Record<string, any>,
-	lockToken?: string,
 ): Promise<{ status: string }> => {
-	const requestBody = {
-		key,
-		type: geometryType,
-		data: geometryData,
-	};
-
-	// If lockToken is provided (from edit mode), client has lock so perform operation directly
-	if (lockToken) {
-		const { data } = await apiClient.post(
-			`/api/rooms/${roomId}/geometries`,
-			requestBody,
-		);
+	try {
+		const { data } = await apiClient.post(`/api/rooms/${roomId}/geometries`, {
+			key,
+			type: geometryType,
+			data: geometryData,
+		});
 		return data;
+	} catch (error: any) {
+		if (error.response?.status === 423) {
+			useAppStore
+				.getState()
+				.showSnackbar(
+					"Cannot create geometry - resource is locked by another user",
+					"warning",
+				);
+		}
+		throw error;
 	}
-
-	// Session cameras (cam:session:*) don't need lock acquisition - they're per-user viewport state
-	// Backend only checks forbid=["room:locked"], not trajectory:meta lock
-	if (key.startsWith("cam:session:")) {
-		const { data } = await apiClient.post(
-			`/api/rooms/${roomId}/geometries`,
-			requestBody,
-		);
-		return data;
-	}
-
-	// Otherwise, auto-acquire lock, perform operation, and release
-	return withAutoLock(
-		roomId,
-		"trajectory:meta",
-		async (_autoLockToken) => {
-			const { data } = await apiClient.post(
-				`/api/rooms/${roomId}/geometries`,
-				requestBody,
-			);
-			return data;
-		},
-		`Creating geometry: ${key}`,
-	);
 };
 
 export const deleteGeometry = async (
 	roomId: string,
 	key: string,
-	lockToken?: string,
 ): Promise<{ status: string }> => {
-	// If lockToken is provided (from edit mode), client has lock so perform operation directly
-	if (lockToken) {
+	try {
 		const { data } = await apiClient.delete(
 			`/api/rooms/${roomId}/geometries/${key}`,
 		);
 		return data;
+	} catch (error: any) {
+		if (error.response?.status === 423) {
+			useAppStore
+				.getState()
+				.showSnackbar(
+					"Cannot delete geometry - resource is locked by another user",
+					"warning",
+				);
+		}
+		throw error;
 	}
-
-	// Otherwise, auto-acquire lock, perform operation, and release
-	return withAutoLock(
-		roomId,
-		"trajectory:meta",
-		async (_autoLockToken) => {
-			// Session ID is automatically added by interceptor, server validates session holds lock
-			const { data } = await apiClient.delete(
-				`/api/rooms/${roomId}/geometries/${key}`,
-			);
-			return data;
-		},
-		`Deleting geometry: ${key}`,
-	);
 };
 
 // ==================== Selections API ====================
@@ -1354,56 +1331,6 @@ export interface LockReleaseResponse {
 	success: boolean;
 	error?: string;
 }
-
-/**
- * Execute an operation with automatic lock acquire/release.
- *
- * This helper acquires a lock, executes the operation with the lock token,
- * and ensures the lock is released even if the operation fails.
- * Shows a snackbar notification if lock acquisition fails.
- *
- * @param roomId - Room identifier
- * @param target - Lock target (e.g., "trajectory:meta")
- * @param operation - Async function that receives the lock token and performs the operation
- * @param msg - Optional message describing the lock purpose
- * @returns Promise with the operation result
- * @throws Error if lock acquisition fails or operation fails
- */
-export const withAutoLock = async <T>(
-	roomId: string,
-	target: string,
-	operation: (lockToken: string) => Promise<T>,
-	msg?: string,
-): Promise<T> => {
-	// 1. Acquire lock (snackbar shown by acquireLock on failure)
-	const acquireResponse = await acquireLock(roomId, target, msg);
-
-	if (!acquireResponse.success || !acquireResponse.lockToken) {
-		const errorMsg = acquireResponse.error || "Failed to acquire lock";
-		throw new Error(errorMsg);
-	}
-
-	const lockToken = acquireResponse.lockToken;
-
-	try {
-		// 2. Execute operation with lock token
-		const result = await operation(lockToken);
-
-		// 3. Release lock on success
-		await releaseLock(roomId, target, lockToken);
-
-		return result;
-	} catch (error) {
-		// 3. Release lock on failure
-		try {
-			await releaseLock(roomId, target, lockToken);
-		} catch (releaseError) {
-			console.error("Failed to release lock after error:", releaseError);
-		}
-
-		throw error;
-	}
-};
 
 /**
  * Acquire a lock for a specific target in a room.

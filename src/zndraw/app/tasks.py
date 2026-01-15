@@ -258,19 +258,21 @@ def read_file(
                 log.info(
                     f"Processing frames from {file_path} in batches of {batch_size}"
                 )
+                with vis.get_lock(msg="Uploading frames"):
+                    for batch in batch_generator(frame_iterator, batch_size):
+                        # Track max particle count
+                        for atoms in batch:
+                            max_particles = max(max_particles, len(atoms))
+                        vis._extend(batch)
+                        loaded_frame_count += len(batch)
 
-                for batch in batch_generator(frame_iterator, batch_size):
-                    # Track max particle count
-                    for atoms in batch:
-                        max_particles = max(max_particles, len(atoms))
-                    vis.extend(batch)
-                    loaded_frame_count += len(batch)
-
-                    # Update task progress if we know total frames
-                    if total_expected_frames and total_expected_frames > 0:
-                        progress = (loaded_frame_count / total_expected_frames) * 100
-                        # Cap at 99 until complete (will auto-complete on context exit)
-                        task_desc.update(progress=min(progress, 99))
+                        # Update task progress if we know total frames
+                        if total_expected_frames and total_expected_frames > 0:
+                            progress = (
+                                loaded_frame_count / total_expected_frames
+                            ) * 100
+                            # Cap at 99 until complete (will auto-complete on context exit)
+                            task_desc.update(progress=min(progress, 99))
 
     except Exception as e:
         # Log the full exception for better debugging

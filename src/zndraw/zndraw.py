@@ -1448,6 +1448,10 @@ class ZnDraw(MutableSequence):
         >>> vis.local.show_progress = False
         >>> vis.extend([atoms for _ in range(1000)])
         """
+        with self.get_lock(msg="Uploading frames"):
+            self._extend(atoms_list)
+
+    def _extend(self, atoms_list: t.Iterable[ase.Atoms]):
         # Convert all atoms to dicts
         dicts = []
         for atoms in atoms_list:
@@ -1473,48 +1477,46 @@ class ZnDraw(MutableSequence):
         )
 
         # Upload chunks with progress bar - acquire lock once for entire extend
-        with self.get_lock(msg="Uploading frames"):
-            with self._progress_bar(
-                total_bytes, total_frames, num_chunks
-            ) as update_progress:
-                bytes_uploaded = 0
-                frames_uploaded = 0
 
-                for chunk_idx, (chunk, chunk_size) in enumerate(
-                    zip(chunks, chunk_sizes)
-                ):
-                    # Upload this chunk with retry logic
-                    for attempt in range(self.local.max_retries + 1):
-                        try:
-                            self._extend_frames(chunk)
-                            break  # Success
-                        except (ConnectionError, IOError, TimeoutError, OSError) as e:
-                            # Only retry network-related exceptions
-                            if attempt == self.local.max_retries:
-                                # Final attempt failed
-                                log.error(
-                                    f"Failed to upload chunk {chunk_idx + 1}/{num_chunks} "
-                                    f"after {self.local.max_retries} retries: {e}"
-                                )
-                                raise
-                            else:
-                                # Retry with backoff
-                                delay = self.local.retry_delay * (2**attempt)
-                                log.warning(
-                                    f"Chunk {chunk_idx + 1}/{num_chunks} failed (attempt {attempt + 1}), "
-                                    f"retrying in {delay:.1f}s: {e}"
-                                )
-                                time.sleep(delay)
+        with self._progress_bar(
+            total_bytes, total_frames, num_chunks
+        ) as update_progress:
+            bytes_uploaded = 0
+            frames_uploaded = 0
 
-                    # Update progress
-                    bytes_uploaded += chunk_size
-                    frames_uploaded += len(chunk)
-                    update_progress(bytes_uploaded, frames_uploaded)
+            for chunk_idx, (chunk, chunk_size) in enumerate(zip(chunks, chunk_sizes)):
+                # Upload this chunk with retry logic
+                for attempt in range(self.local.max_retries + 1):
+                    try:
+                        self._extend_frames(chunk)
+                        break  # Success
+                    except (ConnectionError, IOError, TimeoutError, OSError) as e:
+                        # Only retry network-related exceptions
+                        if attempt == self.local.max_retries:
+                            # Final attempt failed
+                            log.error(
+                                f"Failed to upload chunk {chunk_idx + 1}/{num_chunks} "
+                                f"after {self.local.max_retries} retries: {e}"
+                            )
+                            raise
+                        else:
+                            # Retry with backoff
+                            delay = self.local.retry_delay * (2**attempt)
+                            log.warning(
+                                f"Chunk {chunk_idx + 1}/{num_chunks} failed (attempt {attempt + 1}), "
+                                f"retrying in {delay:.1f}s: {e}"
+                            )
+                            time.sleep(delay)
 
-                    log.debug(
-                        f"Uploaded chunk {chunk_idx + 1}/{num_chunks}: "
-                        f"{len(chunk)} frames, {chunk_size / 1024:.1f} KB"
-                    )
+                # Update progress
+                bytes_uploaded += chunk_size
+                frames_uploaded += len(chunk)
+                update_progress(bytes_uploaded, frames_uploaded)
+
+                log.debug(
+                    f"Uploaded chunk {chunk_idx + 1}/{num_chunks}: "
+                    f"{len(chunk)} frames, {chunk_size / 1024:.1f} KB"
+                )
 
         log.info(f"Successfully uploaded {total_frames} frames")
 

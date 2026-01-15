@@ -210,6 +210,8 @@ def handle_disconnect(*args, **kwargs):
 
     # --- Lock Cleanup Logic ---
     if session_id:
+        from .route_utils import emit_lock_update
+
         session_locks_key = SessionKeys.session_locks(session_id)
         lock_keys = r.smembers(session_locks_key)
 
@@ -226,6 +228,39 @@ def handle_disconnect(*args, **kwargs):
                     else lock_key + b":metadata"
                 )
                 r.delete(metadata_key)
+
+                # Parse lock_key to extract room_id and target
+                # Format: room:{room_id}:lock:{target}
+                try:
+                    parts = (
+                        lock_key.split(":")
+                        if isinstance(lock_key, str)
+                        else lock_key.decode().split(":")
+                    )
+                    if len(parts) >= 4 and parts[0] == "room" and parts[2] == "lock":
+                        lock_room_id = parts[1]
+                        lock_target = ":".join(
+                            parts[3:]
+                        )  # Handle targets like "trajectory:meta"
+
+                        # Emit lock release event so frontends update their UI
+                        emit_lock_update(
+                            room_id=lock_room_id,
+                            target=lock_target,
+                            action="released",
+                            user_name=None,
+                            message=None,
+                            timestamp=None,
+                            session_id=session_id,
+                        )
+                        log.debug(
+                            f"Emitted lock:update (released) for '{lock_target}' in room '{lock_room_id}'"
+                        )
+                except Exception as e:
+                    log.warning(
+                        f"Failed to parse/emit lock release for '{lock_key}': {e}"
+                    )
+
                 log.debug(f"Cleaned up orphaned lock '{lock_key}'")
 
             # Delete the session locks set itself

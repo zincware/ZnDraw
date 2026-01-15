@@ -2,6 +2,9 @@
 
 This endpoint allows updating specific keys (e.g., arrays.positions) within a frame
 without having to send the entire frame data.
+
+With @check_lock, operations proceed if no lock exists (FIFO ordering).
+Only blocks when ANOTHER session holds a lock on the target.
 """
 
 import msgpack
@@ -32,9 +35,28 @@ def room_with_frames_and_lock(server, s22, connect_room):
         f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
         json={"msg": "testing partial update"},
         headers=conn.headers,
+        timeout=10,
     )
     assert response.status_code == 200
     assert response.json()["success"] is True
+
+    yield server, room, conn.session_id, conn.headers, vis
+
+
+@pytest.fixture
+def room_with_frames_no_lock(server, s22, connect_room):
+    """Create a room with frames but NO lock (for testing FIFO behavior).
+
+    Uses connect_room to keep socket alive during test.
+    """
+    room = "partial-update-no-lock-test"
+
+    # Create room and add frames via ZnDraw
+    vis = ZnDraw(url=server, room=room, user="test-user")
+    vis.extend(s22[:3])  # Add first 3 frames
+
+    # Join room with socket that stays connected
+    conn = connect_room(room)
 
     yield server, room, conn.session_id, conn.headers, vis
 
@@ -117,6 +139,7 @@ def test_partial_update_positions(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -138,6 +161,41 @@ def test_partial_update_positions(room_with_frames_and_lock):
     )
 
 
+def test_partial_update_without_lock_proceeds(room_with_frames_no_lock):
+    """Test that partial update succeeds without lock (FIFO ordering).
+
+    With @check_lock, operations proceed if no lock exists.
+    """
+    server, room, session_id, auth_headers, vis = room_with_frames_no_lock
+
+    # Get original positions for frame 0
+    original_atoms = vis[0]
+    original_positions = original_atoms.positions.copy()
+
+    # Create new positions
+    new_positions = original_positions + np.array([1.0, 2.0, 3.0])
+    new_positions = new_positions.astype(np.float64)
+
+    # Encode the update
+    update_data = _encode_numpy_for_msgpack({"arrays.positions": new_positions})
+
+    # Send partial update WITHOUT lock - should succeed with @check_lock
+    response = requests.patch(
+        f"{server}/api/rooms/{room}/frames/0/partial",
+        data=update_data,
+        headers={
+            **auth_headers,
+            "X-Session-ID": session_id,
+            "Content-Type": "application/msgpack",
+        },
+        timeout=10,
+    )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["success"] is True
+
+
 def test_partial_update_info(room_with_frames_and_lock):
     """Test that partial update successfully modifies info data."""
     server, room, session_id, auth_headers, vis = room_with_frames_and_lock
@@ -157,6 +215,7 @@ def test_partial_update_info(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -205,6 +264,7 @@ def test_partial_update_multiple_keys(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -229,6 +289,7 @@ def test_partial_update_invalid_frame_index(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 404
@@ -256,6 +317,7 @@ def test_partial_update_negative_frame_index(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     # Flask's <int:frame_id> doesn't match negative numbers, returns 405
@@ -277,6 +339,7 @@ def test_partial_update_empty_body(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 400
@@ -284,21 +347,28 @@ def test_partial_update_empty_body(room_with_frames_and_lock):
     assert "No keys provided" in result["error"]
 
 
-def test_partial_update_requires_lock(
-    server, s22, get_jwt_auth_headers, create_and_join_room
-):
-    """Test that partial update requires trajectory:meta lock."""
-    room = "partial-update-no-lock"
+def test_partial_update_blocked_by_other_session_lock(server, s22, connect_room):
+    """Test that partial update is blocked when another session holds the lock."""
+    room = "partial-update-blocked"
 
     # Create room and add frames
     vis = ZnDraw(url=server, room=room, user="test-user")
     vis.extend(s22[:1])
 
-    # Get auth headers and join room via socket (but don't acquire lock)
-    auth_headers = get_jwt_auth_headers(server, "test-user")
-    session_id = create_and_join_room(server, room, auth_headers)
+    # Session 1 joins and acquires lock
+    conn1 = connect_room(room, user="user1")
+    response = requests.post(
+        f"{server}/api/rooms/{room}/locks/trajectory:meta/acquire",
+        json={"msg": "user1 lock"},
+        headers=conn1.headers,
+        timeout=10,
+    )
+    assert response.status_code == 200
 
-    # Try to update without lock
+    # Session 2 joins (different user)
+    conn2 = connect_room(room, user="user2")
+
+    # Session 2 tries to update - should be blocked
     new_positions = np.array([[0, 0, 0]], dtype=np.float64)
     update_data = _encode_numpy_for_msgpack({"arrays.positions": new_positions})
 
@@ -306,15 +376,15 @@ def test_partial_update_requires_lock(
         f"{server}/api/rooms/{room}/frames/0/partial",
         data=update_data,
         headers={
-            **auth_headers,
-            "X-Session-ID": session_id,
+            **conn2.headers,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
-    assert response.status_code == 423  # Locked - lock not held
+    assert response.status_code == 423  # Locked by another session
     result = response.json()
-    assert "Lock not held" in result["error"]
+    assert "locked" in result["error"].lower() or "user1" in result["error"]
 
 
 def test_partial_update_requires_session_id(server, s22, get_jwt_auth_headers):
@@ -338,6 +408,7 @@ def test_partial_update_requires_session_id(server, s22, get_jwt_auth_headers):
             **auth_headers,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 400
@@ -369,6 +440,7 @@ def test_partial_update_different_frame(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -420,6 +492,7 @@ def test_partial_update_preserves_other_data(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -455,15 +528,7 @@ def test_partial_update_empty_room(server, connect_room):
     """Test that partial update returns 404 for empty room (no frames)."""
     conn = connect_room("partial-update-empty-room")
 
-    # Acquire lock
-    response = requests.post(
-        f"{server}/api/rooms/{conn.room_id}/locks/trajectory:meta/acquire",
-        json={"msg": "testing empty room"},
-        headers=conn.headers,
-    )
-    assert response.status_code == 200
-
-    # Try to update frame 0 in empty room
+    # Try to update frame 0 in empty room (no lock needed, FIFO)
     new_positions = np.array([[0, 0, 0]], dtype=np.float64)
     update_data = _encode_numpy_for_msgpack({"arrays.positions": new_positions})
 
@@ -474,6 +539,7 @@ def test_partial_update_empty_room(server, connect_room):
             **conn.headers,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 404
@@ -496,6 +562,7 @@ def test_partial_update_malformed_msgpack(room_with_frames_and_lock):
             "X-Session-ID": session_id,
             "Content-Type": "application/msgpack",
         },
+        timeout=10,
     )
 
     assert response.status_code == 400

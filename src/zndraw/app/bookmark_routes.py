@@ -11,7 +11,7 @@ from zndraw.server import socketio
 
 from .constants import SocketEvents
 from .redis_keys import RoomKeys
-from .route_utils import requires_lock
+from .route_utils import check_lock
 
 log = logging.getLogger(__name__)
 
@@ -59,12 +59,11 @@ def get_bookmark(room_id: str, index: int):
 
 
 @bookmarks.route("/api/rooms/<string:room_id>/bookmarks/<int:index>", methods=["PUT"])
-@requires_lock(forbid=["room:locked"])
+@check_lock(target="bookmarks", forbid=["room:locked"])
 def set_bookmark(room_id: str, index: int, session_id: str, user_id: str):
     """Set or update a bookmark at a specific frame index.
 
-    Checks that room is not locked (enforced by @requires_lock decorator).
-    No coordination lock required - this is an atomic operation.
+    Checks that room is not locked and no other session holds a bookmark lock.
 
     Headers:
         X-Session-ID: Session ID from /join
@@ -107,12 +106,11 @@ def set_bookmark(room_id: str, index: int, session_id: str, user_id: str):
 @bookmarks.route(
     "/api/rooms/<string:room_id>/bookmarks/<int:index>", methods=["DELETE"]
 )
-@requires_lock(forbid=["room:locked"])
+@check_lock(target="bookmarks", forbid=["room:locked"])
 def delete_bookmark(room_id: str, index: int, session_id: str, user_id: str):
     """Delete a bookmark at a specific frame index.
 
-    Checks that room is not locked (enforced by @requires_lock decorator).
-    No coordination lock required - this is an atomic operation.
+    Checks that room is not locked and no other session holds a bookmark lock.
 
     Headers:
         X-Session-ID: Session ID from /join
