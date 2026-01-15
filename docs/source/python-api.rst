@@ -246,6 +246,50 @@ Add 3D geometries to the scene using ``vis.geometries``:
 Available materials: ``MeshPhysicalMaterial_matt`` (default), ``MeshPhysicalMaterial_glass``,
 ``MeshPhysicalMaterial_shiny``, ``MeshToonMaterial``, ``MeshStandardMaterial_metallic``, and more.
 
+
+Curve Customization
+^^^^^^^^^^^^^^^^^^^
+
+Curves use CatmullRom spline interpolation between control points. Customize the curve
+appearance with additional parameters:
+
+.. code:: python
+
+    from zndraw.geometries import Curve, CurveMarker
+
+    vis.geometries["curve"] = Curve(
+        position=[(-6, 0, -6), (-3, 4, -3), (0, 0, 0), (3, 4, 3), (6, 0, 6)],
+        color="#2ecc71",
+        divisions=100,  # Interpolation smoothness (1-200, default 50)
+        thickness=3.0,  # Line thickness (0.5-10, default 2.0)
+        marker=CurveMarker(
+            enabled=True,    # Show control point markers
+            size=0.15,       # Marker size (0.01-1.0)
+            color="default", # Use curve color, or specify hex
+            opacity=1.0,     # Marker opacity (0-1)
+        ),
+        virtual_marker=CurveMarker(
+            enabled=True,    # Show markers between control points
+            size=0.1,        # Smaller than main markers
+            opacity=0.5,     # Semi-transparent
+        ),
+    )
+
+**Marker Settings:**
+
+- ``marker``: Settings for control point markers (the main editable points)
+- ``virtual_marker``: Settings for markers between control points (shown in editing mode,
+  click to insert new control point)
+
+Both marker types support:
+
+- ``enabled``: Show or hide markers
+- ``size``: Marker size (0.01 to 1.0)
+- ``color``: Hex color or ``"default"`` to use curve color
+- ``opacity``: Transparency (0 = invisible, 1 = opaque)
+- ``selecting``: Appearance when selected (color, opacity)
+- ``hovering``: Appearance when hovered (color, opacity)
+
 Manage geometries through the UI panel:
 
 .. image:: /_static/screenshots/lightmode/geometry_viewer.png
@@ -335,7 +379,77 @@ Drawing Mode
    :class: only-dark
    :alt: Drawing mode
 
-Draw geometries interactively in the UI.
+Draw curve control points interactively in the 3D view.
+
+**Entering Drawing Mode:**
+
+1. Press ``X`` to enter drawing mode (from view mode)
+2. A drawing marker appears at your cursor position
+3. Click to add control points to the active curve
+4. Press ``X`` again to exit and return to view mode
+
+The drawing marker shows where a new point will be added. It turns red when
+the cursor is over an invalid position.
+
+.. note::
+
+   Drawing mode only works with Curve geometries that have static positions.
+   See :doc:`keyboard-shortcuts` for the complete list of keyboard controls.
+
+
+Editing Mode
+^^^^^^^^^^^^
+
+.. image:: /_static/screenshots/lightmode/editing_mode.png
+   :class: only-light
+   :alt: Editing mode
+
+.. image:: /_static/screenshots/darkmode/editing_mode.png
+   :class: only-dark
+   :alt: Editing mode
+
+Transform geometries interactively using translate, rotate, and scale controls.
+
+**Entering Editing Mode:**
+
+1. Press ``E`` to enter editing mode (from view mode)
+2. Select geometry instances by clicking on them
+3. Use the transform gizmo to manipulate selected objects
+4. Press ``T`` to cycle between translate, rotate, and scale modes
+5. Hold ``X``, ``Y``, or ``Z`` to constrain movement to a single axis
+6. Press ``S`` to save changes
+7. Press ``E`` again to exit and return to view mode
+
+.. image:: /_static/screenshots/lightmode/editing_axis_constraint.png
+   :class: only-light
+   :alt: Axis constraint indicator
+
+.. image:: /_static/screenshots/darkmode/editing_axis_constraint.png
+   :class: only-dark
+   :alt: Axis constraint indicator
+
+When holding an axis key, a colored chip indicates the active constraint
+(red for X, green for Y, blue for Z).
+
+**Editing Curves:**
+
+.. image:: /_static/screenshots/lightmode/curve_editing.png
+   :class: only-light
+   :alt: Curve editing with virtual markers
+
+.. image:: /_static/screenshots/darkmode/curve_editing.png
+   :class: only-dark
+   :alt: Curve editing with virtual markers
+
+In editing mode, curves display virtual markers between control points.
+Click a virtual marker to insert a new control point at that position.
+Use ``Delete`` or ``Backspace`` to remove selected markers.
+
+.. note::
+
+   Only geometries with static positions (number arrays) can be edited.
+   Geometries using dynamic positions (e.g., ``"arrays.positions"``) cannot
+   be transformed interactively. See :doc:`keyboard-shortcuts` for all controls.
 
 
 Dynamic Properties
@@ -581,6 +695,14 @@ context manager instead, which provides real-time updates.
 Molecule Structures
 ^^^^^^^^^^^^^^^^^^^
 
+.. image:: /_static/screenshots/lightmode/chat_smiles.png
+   :class: only-light
+   :alt: Chat with SMILES molecule rendering
+
+.. image:: /_static/screenshots/darkmode/chat_smiles.png
+   :class: only-dark
+   :alt: Chat with SMILES molecule rendering
+
 Display molecule structures in chat using SMILES notation with the ``smiles`` code block syntax:
 
 .. code:: python
@@ -690,6 +812,14 @@ The progress bar appears in the UI with the current message and completion perce
 Lock Mechanism
 --------------
 
+.. image:: /_static/screenshots/lightmode/locked_room.png
+   :class: only-light
+   :alt: Locked room indicator
+
+.. image:: /_static/screenshots/darkmode/locked_room.png
+   :class: only-dark
+   :alt: Locked room indicator
+
 Use ``vis.get_lock()`` for safe batch operations that prevent concurrent modifications:
 
 .. code:: python
@@ -703,9 +833,10 @@ Use ``vis.get_lock()`` for safe batch operations that prevent concurrent modific
     with vis.get_lock(target="step"):
         vis.step = 42
 
-While a lock is held, other clients see a locked indicator and cannot modify the locked resources.
-This is useful when uploading large trajectories or performing multi-step operations
-that should not be interrupted.
+While a lock is held, other clients see a locked indicator (shown above) and cannot
+modify the locked resources. The lock message is displayed in the UI so users know
+what operation is in progress. This is useful when uploading large trajectories or
+performing multi-step operations that should not be interrupted.
 
 
 Custom Extensions

@@ -339,12 +339,20 @@ def test_molecule_builder_editor(server, page, capture, request):
     page.get_by_placeholder("Enter SMILES notation").fill("CC(N)C(=O)O")
     page.wait_for_timeout(500)
 
-    # Open Ketcher editor
+    # Open Ketcher editor (lazy loaded)
     page.get_by_role("button", name="Draw", exact=True).click()
-    page.wait_for_timeout(1500)
+    # Wait for the Ketcher dialog to appear
+    page.get_by_role("dialog", name="Molecular Structure Editor").wait_for(state="visible")
+    page.wait_for_timeout(1000)  # Extra delay for molecule canvas to render
 
     capture.light()
     capture.toggle()
+
+    # Reopen Ketcher editor for dark mode (dialog closes on theme toggle)
+    page.get_by_role("button", name="Draw", exact=True).click()
+    page.get_by_role("dialog", name="Molecular Structure Editor").wait_for(state="visible")
+    page.wait_for_timeout(1000)
+
     capture.dark()
 
 
@@ -791,6 +799,131 @@ def test_chat_progress(server, page, capture, bmim_bf4, request):
 
     page.get_by_role("button", name="toggle chat").click()
     page.wait_for_timeout(500)
+
+    capture.light()
+    capture.toggle()
+    capture.dark()
+
+
+def test_editing_mode(server, page, capture, request):
+    """Capture editing mode with transform controls and editing indicator."""
+    vis = ZnDraw(url=server, room=request.node.name)
+    vis.append(ase.Atoms())
+
+    # Add geometries to edit
+    vis.geometries["box"] = Box(
+        position=[(0, 2, 0)],
+        size=[(4, 4, 4)],
+        color=["#3498db"],
+    )
+    vis.geometries["sphere"] = Sphere(
+        position=[(8, 2, 0)],
+        radius=[2.0],
+        color=["#e74c3c"],
+    )
+
+    # Select both geometries to show transform controls
+    vis.selections["box"] = [0]
+    vis.selections["sphere"] = [0]
+
+    page.goto(f"{server}/room/{request.node.name}")
+    page.wait_for_timeout(1500)
+
+    # Enter editing mode
+    page.keyboard.press("e")
+    page.wait_for_timeout(500)
+
+    capture.light()
+    capture.toggle()
+    capture.dark()
+
+
+def test_editing_axis_constraint(server, page, capture, request):
+    """Capture editing mode with axis constraint indicator."""
+    vis = ZnDraw(url=server, room=request.node.name)
+    vis.append(ase.Atoms())
+
+    vis.geometries["box"] = Box(
+        position=[(0, 2, 0)],
+        size=[(4, 4, 4)],
+        color=["#3498db"],
+    )
+
+    # Select the box to show transform controls
+    vis.selections["box"] = [0]
+
+    page.goto(f"{server}/room/{request.node.name}")
+    page.wait_for_timeout(1500)
+
+    # Enter editing mode
+    page.keyboard.press("e")
+    page.wait_for_timeout(500)
+
+    # Hold X key to show axis constraint (using keydown without keyup)
+    page.keyboard.down("x")
+    page.wait_for_timeout(300)
+
+    capture.light()
+
+    page.keyboard.up("x")
+    capture.toggle()
+
+    # Re-hold X for dark mode capture
+    page.keyboard.down("x")
+    page.wait_for_timeout(300)
+    capture.dark()
+    page.keyboard.up("x")
+
+
+def test_curve_editing(server, page, capture, request):
+    """Capture curve in editing mode showing virtual markers."""
+    vis = ZnDraw(url=server, room=request.node.name)
+    vis.append(ase.Atoms())
+
+    # Add a curve with visible markers
+    vis.geometries["curve"] = Curve(
+        position=[
+            (-6, 0, -6),
+            (-3, 4, -3),
+            (0, 0, 0),
+            (3, 4, 3),
+            (6, 0, 6),
+        ],
+        color="#2ecc71",
+        marker={"enabled": True, "size": 0.15, "opacity": 1.0},
+        virtual_marker={"enabled": True, "size": 0.1, "opacity": 0.6},
+    )
+
+    # Select the two peak control points to show transform controls
+    vis.selections["curve"] = [1, 3]
+
+    page.goto(f"{server}/room/{request.node.name}")
+    page.wait_for_timeout(1500)
+
+    # Enter editing mode to show virtual markers
+    page.keyboard.press("e")
+    page.wait_for_timeout(500)
+
+    capture.light()
+    capture.toggle()
+    capture.dark()
+
+
+def test_chat_smiles(server, page, capture, bmim_bf4, request):
+    """Capture chat with SMILES molecule rendering."""
+    vis = ZnDraw(url=server, room=request.node.name)
+    vis.append(bmim_bf4)
+
+    # Send messages with SMILES code blocks
+    vis.log("Here's ethanol:\n\n```smiles\nCCO\n```")
+    vis.log("And here's caffeine:\n\n```smiles\nCN1C=NC2=C1C(=O)N(C(=O)N2C)C\n```")
+
+    page.goto(f"{server}/room/{request.node.name}")
+    page.wait_for_timeout(1500)
+
+    # Open chat panel
+    page.get_by_role("button", name="toggle chat").click()
+    page.wait_for_timeout(1000)
 
     capture.light()
     capture.toggle()

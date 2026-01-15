@@ -4,7 +4,7 @@ Developer Guide
 This guide provides an in-depth overview of ZnDraw's architecture, focusing on how communication works between the server, Python client, and web client. Understanding these patterns is essential for contributing to ZnDraw or building extensions.
 
 Architecture Overview
---------------------
+---------------------
 
 ZnDraw implements a sophisticated real-time communication system that enables collaborative visualization and manipulation of molecular structures. The system consists of three main components that communicate through WebSocket connections and a shared data layer.
 
@@ -48,7 +48,7 @@ Core Communication Patterns
 ---------------------------
 
 ZnSocket Communication Layer
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ZnSocket provides the foundation for real-time data synchronization. It implements a Redis-compatible API that automatically synchronizes data structures between Python and JavaScript clients.
 
@@ -117,7 +117,7 @@ ZnDraw uses a token-based room system to isolate data between different sessions
         DS -.->|copy on first access| BS
 
 Data Structure Organization
---------------------------
+---------------------------
 
 Frame Storage with znsocket.List
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -154,7 +154,7 @@ Molecular structures are stored as frames in a ``znsocket.List``, where each fra
 
 
 Configuration Management
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 The configuration system uses nested ``znsocket.Dict`` structures to organize different categories of settings.
 
@@ -259,7 +259,7 @@ User interactions in the web interface can trigger actions in the Python client,
         WC->>UI: Display analysis results
 
 Callback System Implementation
------------------------------
+------------------------------
 
 Web Client Refresh Handlers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -283,7 +283,7 @@ The web client sets up refresh callbacks for each data type to maintain real-tim
     });
 
 Python Client Queue Processing
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The Python client runs a background thread that continuously monitors for changes and processes modifier queues.
 
