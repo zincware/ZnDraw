@@ -404,7 +404,12 @@ export const getAllBookmarks = async (
 	roomId: string,
 ): Promise<BookmarksResponse> => {
 	const { data } = await apiClient.get(`/api/rooms/${roomId}/bookmarks`);
-	return data;
+	// Convert string keys to number keys (JSON serializes number keys as strings)
+	const bookmarks: Record<number, string> = {};
+	for (const [key, value] of Object.entries(data.bookmarks || {})) {
+		bookmarks[parseInt(key, 10)] = value as string;
+	}
+	return { bookmarks };
 };
 
 export const setBookmark = async (
