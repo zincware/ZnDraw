@@ -22,10 +22,10 @@ from .frame_index_manager import FrameIndexManager
 from .redis_keys import GlobalIndexKeys, RoomKeys, SessionKeys
 from .room_manager import emit_room_update
 from .route_utils import (
+    check_lock,
     emit_bookmarks_invalidate,
     get_lock_key,
     get_storage,
-    requires_lock,
 )
 
 log = logging.getLogger(__name__)
@@ -632,14 +632,14 @@ def duplicate_room(room_id):
 
 
 @rooms.route("/api/rooms/<string:room_id>/renormalize", methods=["POST"])
-@requires_lock(target="trajectory:meta", forbid=["room:locked"])
+@check_lock(target="trajectory:meta", forbid=["room:locked"])
 def renormalize_frame_indices(room_id: str, session_id: str, user_id: str):
     """Renormalize frame indices to contiguous integers starting from 0.
 
     This is an O(N) operation that should be called infrequently when
     precision drift becomes an issue (e.g., scores too close together).
 
-    Requires trajectory:meta lock (enforced by @requires_lock decorator).
+    Proceeds unless another session holds trajectory:meta lock or room is locked.
 
     Headers
     -------
@@ -831,22 +831,22 @@ def get_step(room_id: str):
 
 
 @rooms.route("/api/rooms/<string:room_id>/step", methods=["PUT"])
-@requires_lock(target="step")
+@check_lock(target="step")
 def update_step(room_id: str, session_id: str, user_id: str):
     """Set current step/frame for a room.
 
-    Requires holding the 'step' lock for the room. Used for both:
-    - Atomic updates: acquire lock → PUT step → release lock
-    - Continuous updates: acquire lock → PUT step × N → release lock
+    Proceeds unless another session holds the 'step' lock. Used for both:
+    - Simple updates: PUT step (no lock needed unless coordinating)
+    - Continuous updates with lock: acquire lock → PUT step × N → release lock
 
     Parameters
     ----------
     room_id : str
         Room identifier
     session_id : str
-        Session ID (injected by @requires_lock decorator)
+        Session ID (injected by @check_lock decorator)
     user_id : str
-        User ID (injected by @requires_lock decorator)
+        User ID (injected by @check_lock decorator)
 
     Request Body
     ------------
@@ -868,7 +868,7 @@ def update_step(room_id: str, session_id: str, user_id: str):
     403
         Session/user mismatch
     423
-        Lock not held for target="step"
+        Step lock held by another session
 
     Example response:
         {
@@ -908,8 +908,6 @@ def update_step(room_id: str, session_id: str, user_id: str):
 
     # Get socket ID for this session to skip emitting to the sender
     sid = redis_client.get(SessionKeys.session_to_sid(session_id))
-    if sid:
-        sid = sid.decode() if isinstance(sid, bytes) else sid
 
     # Emit frame update for live updates (skip the session that made the change)
     socketio.emit(

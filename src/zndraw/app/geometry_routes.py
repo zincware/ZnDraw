@@ -14,7 +14,7 @@ from zndraw.server import socketio
 
 from .constants import SocketEvents
 from .redis_keys import RoomKeys
-from .route_utils import requires_lock
+from .route_utils import check_lock
 
 log = logging.getLogger(__name__)
 
@@ -43,13 +43,19 @@ def validate_geometry_key(key: str) -> tuple[bool, str | None]:
     return True, None
 
 
+def _get_geometry_key(req, kwargs) -> str:
+    """Extract geometry key from request body for per-geometry lock check."""
+    data = req.get_json() or {}
+    return f"geometry:{data.get('key', 'unknown')}"
+
+
 @geometries.route("/api/rooms/<string:room_id>/geometries", methods=["POST"])
-@requires_lock(forbid=["room:locked"])
+@check_lock(target=_get_geometry_key, forbid=["room:locked"])
 def create_geometry(room_id: str, session_id: str, user_id: str):
     """Create or update a geometry in the room.
 
-    Checks that room is not locked (enforced by @requires_lock decorator).
-    No coordination lock required - this is an atomic operation.
+    Checks that room is not locked and no other session holds a lock for this
+    geometry key.
 
     Headers:
         X-Session-ID: Session ID from /join
@@ -61,8 +67,7 @@ def create_geometry(room_id: str, session_id: str, user_id: str):
             "data": {...}  // geometry-specific data
         }
     """
-    # session_id, user_id, lock_token are injected by @requires_lock decorator
-    # No need to manually authenticate or validate lock
+    # session_id, user_id are injected by @check_lock decorator
 
     data = request.get_json() or {}
     key = data.get("key")
@@ -160,17 +165,17 @@ def get_geometry(room_id: str, key: str):
 @geometries.route(
     "/api/rooms/<string:room_id>/geometries/<string:key>", methods=["DELETE"]
 )
-@requires_lock(forbid=["room:locked"])
+@check_lock(target=lambda req, kw: f"geometry:{kw['key']}", forbid=["room:locked"])
 def delete_geometry(room_id: str, key: str, session_id: str, user_id: str):
     """Delete a geometry from the room.
 
-    Checks that room is not locked (enforced by @requires_lock decorator).
-    No coordination lock required - this is an atomic operation.
+    Checks that room is not locked and no other session holds a lock for this
+    geometry key.
 
     Headers:
         X-Session-ID: Session ID from /join
     """
-    # session_id and user_id are injected by @requires_lock decorator
+    # session_id and user_id are injected by @check_lock decorator
 
     r = current_app.extensions["redis"]
     keys = RoomKeys(room_id)
@@ -254,8 +259,14 @@ def list_geometries(room_id: str):
 # -------------#
 
 
+def _get_figure_key(req, kwargs) -> str:
+    """Extract figure key from request body for per-figure lock check."""
+    data = req.get_json() or {}
+    return f"figure:{data.get('key', 'unknown')}"
+
+
 @geometries.route("/api/rooms/<string:room_id>/figures", methods=["POST"])
-@requires_lock(forbid=["room:locked"])
+@check_lock(target=_get_figure_key, forbid=["room:locked"])
 def create_figure(room_id: str, session_id: str, user_id: str):
     data = request.get_json() or {}
     key = data.get("key")
@@ -296,7 +307,7 @@ def get_figure(room_id: str, key: str):
 @geometries.route(
     "/api/rooms/<string:room_id>/figures/<string:key>", methods=["DELETE"]
 )
-@requires_lock(forbid=["room:locked"])
+@check_lock(target=lambda req, kw: f"figure:{kw['key']}", forbid=["room:locked"])
 def delete_figure(room_id: str, key: str, session_id: str, user_id: str):
     r = current_app.extensions["redis"]
     keys = RoomKeys(room_id)

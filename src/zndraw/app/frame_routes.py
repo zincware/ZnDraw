@@ -15,6 +15,7 @@ from flask import Blueprint, Response, current_app, request
 from .frame_index_manager import FrameIndexManager
 from .redis_keys import RoomKeys
 from .route_utils import (
+    check_lock,
     emit_bookmarks_invalidate,
     emit_frames_invalidate,
     emit_len_frames_update,
@@ -23,7 +24,6 @@ from .route_utils import (
     get_storage,
     parse_frame_mapping,
     remove_bookmark_at_index,
-    requires_lock,
     shift_bookmarks_on_delete,
     shift_bookmarks_on_insert,
 )
@@ -331,7 +331,7 @@ def get_frame_metadata(room_id: str, frame_id: int):
 
 
 @frames.route("/api/rooms/<string:room_id>/frames", methods=["DELETE"])
-@requires_lock(target="trajectory:meta", forbid=["room:locked"])
+@check_lock(target="trajectory:meta", forbid=["room:locked"])
 def delete_frames_batch(room_id: str, session_id: str, user_id: str):
     """Deletes frames using either a single frame_id, indices, or slice parameters from query params."""
     r = current_app.extensions["redis"]
@@ -467,7 +467,7 @@ def delete_frames_batch(room_id: str, session_id: str, user_id: str):
 
 
 @frames.route("/api/rooms/<string:room_id>/frames", methods=["POST"])
-@requires_lock(target="trajectory:meta", forbid=["room:locked"])
+@check_lock(target="trajectory:meta", forbid=["room:locked"])
 def append_frame(room_id: str, session_id: str, user_id: str):
     """Handles frame operations (append, extend, replace, insert) based on action query parameter."""
     r = current_app.extensions["redis"]
@@ -720,7 +720,7 @@ def append_frame(room_id: str, session_id: str, user_id: str):
 
 
 @frames.route("/api/rooms/<string:room_id>/frames/bulk", methods=["PATCH"])
-@requires_lock(target="trajectory:meta", forbid=["room:locked"])
+@check_lock(target="trajectory:meta", forbid=["room:locked"])
 def bulk_replace_frames(room_id: str, session_id: str, user_id: str):
     """
     Bulk replace frames using either a slice (start/stop) or a list of indices.
@@ -907,7 +907,7 @@ def bulk_replace_frames(room_id: str, session_id: str, user_id: str):
 @frames.route(
     "/api/rooms/<string:room_id>/frames/<int:frame_id>/partial", methods=["PATCH"]
 )
-@requires_lock(target="trajectory:meta", forbid=["room:locked"])
+@check_lock(target="trajectory:meta", forbid=["room:locked"])
 def partial_update_frame(room_id: str, frame_id: int, session_id: str, user_id: str):
     """Partially update a frame by merging new data with existing frame data.
 

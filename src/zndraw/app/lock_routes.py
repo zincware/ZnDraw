@@ -76,6 +76,30 @@ def acquire_lock(room_id, target):
     if session_user != user_name:
         return jsonify({"success": False, "error": "Session/user mismatch"}), 403
 
+    # Check global lock - block acquiring any other lock if global lock is held by another session
+    if target != "global":
+        global_lock_key = get_lock_key(room_id, "global")
+        global_lock_str = r.get(global_lock_key)
+        if global_lock_str:
+            try:
+                global_lock_data = json.loads(global_lock_str)
+                if global_lock_data.get("sessionId") != session_id:
+                    holder = global_lock_data.get("userId", "unknown")
+                    log.info(
+                        f"Cannot acquire lock '{target}' - room {room_id} is globally locked by {holder}"
+                    )
+                    return (
+                        jsonify(
+                            {
+                                "success": False,
+                                "error": f"Cannot acquire lock - room is globally locked by {holder}",
+                            }
+                        ),
+                        423,
+                    )
+            except json.JSONDecodeError:
+                log.warning(f"Invalid global lock data in room {room_id}")
+
     # Use default TTL from config
     ttl = LockConfig.DEFAULT_TTL
     refresh_interval = LockConfig.DEFAULT_REFRESH_INTERVAL

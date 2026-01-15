@@ -1,4 +1,8 @@
-"""Tests for step/frame REST endpoints with lock-based access control."""
+"""Tests for step/frame REST endpoints with lock-based access control.
+
+The @check_lock decorator allows operations to proceed when no lock exists (FIFO ordering).
+Only blocks when ANOTHER session holds a lock on the target.
+"""
 
 import pytest
 import redis
@@ -49,23 +53,27 @@ def test_get_step_without_auth(server, get_jwt_auth_headers, create_and_join_roo
 
 
 def test_put_step_without_lock(server, get_jwt_auth_headers, create_and_join_room):
-    """Test that PUT /step fails when lock is not held."""
+    """Test that PUT /step succeeds when no lock is held (FIFO ordering).
+
+    With @check_lock, operations proceed if no lock exists.
+    """
     room = "test-put-step-no-lock"
     auth_headers = get_jwt_auth_headers(server, "test-user")
 
     # Create and join room
     session_id = create_and_join_room(server, room, auth_headers)
 
-    # Try to set step without acquiring lock first
+    # Set step without acquiring lock first - should succeed with @check_lock
     response = requests.put(
         f"{server}/api/rooms/{room}/step",
         json={"step": 42},
         headers={**auth_headers, "X-Session-ID": session_id},
     )
 
-    assert response.status_code == 423  # Locked - lock not held
+    assert response.status_code == 200
     data = response.json()
-    assert "Lock not held" in data["error"]
+    assert data["success"] is True
+    assert data["step"] == 42
 
 
 def test_put_step_with_lock(room_with_step_lock):
@@ -91,9 +99,11 @@ def test_put_step_with_lock(room_with_step_lock):
     assert data["step"] == 42
 
 
-def test_put_step_negative_value(room_with_step_lock):
+def test_put_step_negative_value(server, get_jwt_auth_headers, create_and_join_room):
     """Test that PUT /step rejects negative step values."""
-    server, room, session_id, auth_headers, lock_token = room_with_step_lock
+    room = "test-step-negative"
+    auth_headers = get_jwt_auth_headers(server, "test-user")
+    session_id = create_and_join_room(server, room, auth_headers)
 
     # Try to set negative step
     response = requests.put(
@@ -107,9 +117,11 @@ def test_put_step_negative_value(room_with_step_lock):
     assert "non-negative" in data["error"]
 
 
-def test_put_step_invalid_type(room_with_step_lock):
+def test_put_step_invalid_type(server, get_jwt_auth_headers, create_and_join_room):
     """Test that PUT /step rejects non-integer step values."""
-    server, room, session_id, auth_headers, lock_token = room_with_step_lock
+    room = "test-step-invalid-type"
+    auth_headers = get_jwt_auth_headers(server, "test-user")
+    session_id = create_and_join_room(server, room, auth_headers)
 
     # Try to set step with invalid type (string)
     response = requests.put(
@@ -167,9 +179,13 @@ def test_put_step_invalid_session_id(
     assert "Invalid or expired session" in data["error"]
 
 
-def test_put_step_continuous_updates(room_with_step_lock):
-    """Test continuous step updates while holding lock (presentation mode)."""
-    server, room, session_id, auth_headers, lock_token = room_with_step_lock
+def test_put_step_continuous_updates(
+    server, get_jwt_auth_headers, create_and_join_room
+):
+    """Test continuous step updates without lock (FIFO ordering)."""
+    room = "test-step-continuous"
+    auth_headers = get_jwt_auth_headers(server, "test-user")
+    session_id = create_and_join_room(server, room, auth_headers)
 
     # Simulate continuous updates (like dragging a slider)
     for step in [0, 10, 20, 30, 40]:
@@ -188,7 +204,10 @@ def test_put_step_continuous_updates(room_with_step_lock):
 
 
 def test_put_step_after_lock_expiry(server, get_jwt_auth_headers, create_and_join_room):
-    """Test that PUT /step fails after lock expires."""
+    """Test that PUT /step succeeds after lock expires.
+
+    With @check_lock, if no lock exists, operations proceed (FIFO ordering).
+    """
     room = "test-lock-expiry"
     auth_headers = get_jwt_auth_headers(server, "test-user")
 
@@ -202,23 +221,21 @@ def test_put_step_after_lock_expiry(server, get_jwt_auth_headers, create_and_joi
         headers={**auth_headers, "X-Session-ID": session_id},
     )
     assert response.status_code == 200
-    response.json()["lockToken"]  # Verify token is returned
 
     # Manually expire the lock in Redis (simulate TTL expiry)
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
     lock_key = f"room:{room}:lock:step"
     r.delete(lock_key)
 
-    # Try to set step after lock expired
+    # Set step after lock expired - should succeed with @check_lock
     response = requests.put(
         f"{server}/api/rooms/{room}/step",
         json={"step": 10},
         headers={**auth_headers, "X-Session-ID": session_id},
     )
 
-    assert response.status_code == 423  # Locked - lock not held
-    data = response.json()
-    assert "Lock not held" in data["error"]
+    assert response.status_code == 200
+    assert response.json()["step"] == 10
 
 
 def test_put_step_session_user_mismatch(
@@ -246,8 +263,8 @@ def test_put_step_session_user_mismatch(
     assert "Session/user mismatch" in data["error"]
 
 
-def test_put_step_different_session_same_user(server, connect_room):
-    """Test that different session from same user can't use another session's lock."""
+def test_put_step_blocked_by_other_session_lock(server, connect_room):
+    """Test that different session cannot update step when another holds the lock."""
     # Session 1: Create room, join and acquire lock
     conn1 = connect_room("test-different-session")
 
@@ -262,20 +279,20 @@ def test_put_step_different_session_same_user(server, connect_room):
     # Session 2: Same user joins in a different session (simulating another browser tab)
     conn2 = connect_room("test-different-session")
 
-    # Session 2 tries to set step (should fail - session doesn't hold lock)
+    # Session 2 tries to set step - should be blocked by session 1's lock
     response = requests.put(
         f"{server}/api/rooms/{conn1.room_id}/step",
         json={"step": 10},
         headers=conn2.headers,
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 423
     data = response.json()
-    assert "Session does not hold the lock" in data["error"]
+    assert "locked" in data["error"].lower() or "test-user" in data["error"]
 
 
 def test_atomic_pattern_acquire_set_release(server, connect_room):
-    """Test atomic update pattern: acquire lock → set step → release lock."""
+    """Test atomic update pattern: acquire lock -> set step -> release lock."""
     conn = connect_room("test-atomic-pattern")
 
     # 1. Acquire lock
@@ -313,10 +330,13 @@ def test_atomic_pattern_acquire_set_release(server, connect_room):
 
 
 def test_step_lock_independence_from_trajectory_lock(server, connect_room):
-    """Test that step lock is independent from trajectory:meta lock."""
+    """Test that step operations are independent of trajectory:meta lock.
+
+    With @check_lock, step operations check for 'step' lock, not trajectory:meta.
+    """
     conn = connect_room("test-lock-independence")
 
-    # Acquire trajectory:meta lock
+    # Acquire trajectory:meta lock (but NOT step lock)
     response = requests.post(
         f"{server}/api/rooms/{conn.room_id}/locks/trajectory:meta/acquire",
         json={"msg": "trajectory lock"},
@@ -324,24 +344,7 @@ def test_step_lock_independence_from_trajectory_lock(server, connect_room):
     )
     assert response.status_code == 200
 
-    # Try to set step without step lock (should fail)
-    response = requests.put(
-        f"{server}/api/rooms/{conn.room_id}/step",
-        json={"step": 50},
-        headers=conn.headers,
-    )
-    assert response.status_code == 423
-    assert "Lock not held" in response.json()["error"]
-
-    # Now acquire step lock
-    response = requests.post(
-        f"{server}/api/rooms/{conn.room_id}/locks/step/acquire",
-        json={"msg": "step lock"},
-        headers=conn.headers,
-    )
-    assert response.status_code == 200
-
-    # Now setting step should work
+    # Setting step should succeed (no step lock held, FIFO ordering)
     response = requests.put(
         f"{server}/api/rooms/{conn.room_id}/step",
         json={"step": 50},
@@ -372,15 +375,7 @@ def test_step_update_emits_frame_update_event(server, connect_room):
     conn2.sio.on(SocketEvents.FRAME_UPDATE, on_frame_update)
     time.sleep(0.3)
 
-    # User 1 acquires lock and updates step
-    response = requests.post(
-        f"{server}/api/rooms/{room}/locks/step/acquire",
-        json={"msg": "updating step"},
-        headers=conn1.headers,
-    )
-    assert response.status_code == 200
-
-    # User 1 updates step
+    # User 1 updates step (no lock needed with @check_lock)
     response = requests.put(
         f"{server}/api/rooms/{room}/step",
         json={"step": 99},
@@ -415,14 +410,6 @@ def test_put_step_out_of_bounds(server, s22_xyz, connect_room):
 
     # Join room with socket that stays connected (for lock)
     conn = connect_room(room)
-
-    # Acquire lock
-    response = requests.post(
-        f"{server}/api/rooms/{room}/locks/step/acquire",
-        json={"msg": "testing out of bounds"},
-        headers=conn.headers,
-    )
-    assert response.status_code == 200
 
     # Test step at upper boundary (should succeed)
     response = requests.put(
@@ -466,14 +453,6 @@ def test_put_step_empty_room(server, connect_room):
     )
     assert response.status_code == 200
     assert response.json()["totalFrames"] == 0
-
-    # Acquire lock
-    response = requests.post(
-        f"{server}/api/rooms/{conn.room_id}/locks/step/acquire",
-        json={"msg": "testing empty room"},
-        headers=conn.headers,
-    )
-    assert response.status_code == 200
 
     # Set step 0 in empty room (should succeed - no validation when empty)
     response = requests.put(

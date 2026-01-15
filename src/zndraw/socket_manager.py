@@ -230,7 +230,8 @@ class SocketManager:
                     self.zndraw._bookmarks[index] = label
             except Exception as e:
                 # Check for 404 - bookmark was deleted
-                if hasattr(e, "response") and e.response.status_code == 404:
+                response = getattr(e, "response", None)
+                if response is not None and response.status_code == 404:
                     self.zndraw._bookmarks.pop(index, None)
                 else:
                     log.error("Failed to fetch bookmark %s: %s", index, e)
