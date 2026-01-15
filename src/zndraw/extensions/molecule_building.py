@@ -22,7 +22,10 @@ class AddFromSMILES(Extension):
 
         atoms = molify.smiles2atoms(self.smiles)
         vis.append(atoms)
-        vis.log(f"Added molecule ```smiles \n {self.smiles}```")
+        vis.log(f"""Added molecule {self.smiles}
+```smiles
+{self.smiles}
+```""")
         vis.step = len(vis) - 1
 
 
