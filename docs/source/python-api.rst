@@ -578,6 +578,22 @@ For long-running operations, consider using the :meth:`~zndraw.ZnDraw.progress_t
 context manager instead, which provides real-time updates.
 
 
+Molecule Structures
+^^^^^^^^^^^^^^^^^^^
+
+Display molecule structures in chat using SMILES notation with the ``smiles`` code block syntax:
+
+.. code:: python
+
+    vis.log("""
+    ```smiles
+    CCO
+    ```
+    """)
+
+The SMILES string is rendered as a 2D molecule structure image using RDKit.
+
+
 Property Inspector
 ------------------
 

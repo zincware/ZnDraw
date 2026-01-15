@@ -40,6 +40,7 @@ import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { FrameReference } from "./FrameReference";
 import { useColorScheme, useTheme } from "@mui/material/styles";
 import { LAYOUT_CONSTANTS } from "../constants/layout";
+import { MoleculePreview } from "./shared/MoleculePreview";
 
 import "katex/dist/katex.min.css";
 
@@ -170,6 +171,20 @@ const ProgressRenderer = ({ content }: { content: string }) => {
 					</Typography>
 				</Box>
 			)}
+		</Box>
+	);
+};
+
+const SmilesRenderer = ({ content }: { content: string }) => {
+	const smiles = content.trim();
+
+	if (!smiles) {
+		return null;
+	}
+
+	return (
+		<Box sx={{ my: 1 }}>
+			<MoleculePreview smiles={smiles} size="medium" throttleMs={0} />
 		</Box>
 	);
 };
@@ -537,6 +552,10 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 																return <ProgressRenderer content={content} />;
 															}
 
+															if (language === "smiles") {
+																return <SmilesRenderer content={content} />;
+															}
+
 															return match ? (
 																<SyntaxHighlighter
 																	style={
@@ -810,6 +829,10 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 
 															if (language === "progress") {
 																return <ProgressRenderer content={content} />;
+															}
+
+															if (language === "smiles") {
+																return <SmilesRenderer content={content} />;
 															}
 
 															return match ? (
