@@ -166,8 +166,4 @@ When holding an axis key, a colored chip appears indicating the active constrain
 In editing mode, curves display virtual markers between control points.
 Click a virtual marker to insert a new control point at that position.
 
-.. note::
 
-   Only geometries with static positions (number arrays) can be edited.
-   Geometries using dynamic positions (string references like ``"arrays.positions"``)
-   cannot be transformed interactively.

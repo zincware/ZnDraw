@@ -428,8 +428,7 @@ Transform geometries interactively using translate, rotate, and scale controls.
    :class: only-dark
    :alt: Axis constraint indicator
 
-When holding an axis key, a colored chip indicates the active constraint
-(red for X, green for Y, blue for Z).
+When holding an axis key, a colored chip indicates the active constraint.
 
 **Editing Curves:**
 
@@ -447,9 +446,7 @@ Use ``Delete`` or ``Backspace`` to remove selected markers.
 
 .. note::
 
-   Only geometries with static positions (number arrays) can be edited.
-   Geometries using dynamic positions (e.g., ``"arrays.positions"``) cannot
-   be transformed interactively. See :doc:`keyboard-shortcuts` for all controls.
+   See :doc:`keyboard-shortcuts` for all controls.
 
 
 Dynamic Properties
@@ -486,7 +483,7 @@ Instead of specifying fixed coordinates, use string references to atom arrays:
         radius=0.1,
     )
 
-Available dynamic property references:
+Available dynamic property references are computed from the ``atoms.info``, ``atoms.arrays``, and if available, ``atoms.calc.results`` dictionaries:
 
 - ``arrays.positions`` - Atom positions
 - ``arrays.numbers`` - Atomic numbers
@@ -578,6 +575,10 @@ Build molecules from SMILES strings using the molecule builder:
 .. image:: /_static/screenshots/darkmode/molecule_builder_editor.png
    :class: only-dark
    :alt: Ketcher molecular editor
+
+.. note::
+
+   The Ketcher editor currently does not support dark mode. See `Ketcher issue #5353 <https://github.com/epam/ketcher/issues/5353>`_ for more information.
 
 
 Chat & Logging
@@ -775,7 +776,7 @@ has its own camera and rendering settings:
 
     # Access session settings
     settings = session.settings
-    settings.studio_lighting.key_light = 1.5  # Auto-saves to backend
+    settings.studio_lighting.key_light = 1.5  # adjust settings
 
 .. note::
 
