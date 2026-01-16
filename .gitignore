@@ -17,3 +17,7 @@ data/
 .DS_Store
 zndraw-data/
 .playwright-mcp/
+
+# Node.js
+node_modules/
+package-lock.json

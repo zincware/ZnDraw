@@ -63,7 +63,7 @@ class Camera(BaseModel):
     Create a static camera with direct coordinates:
 
     >>> Camera(
-    ...     position=(0, 5, 10),
+    ...     position=(-10, 10, 30),
     ...     target=(0, 0, 0),
     ...     fov=60
     ... )
@@ -104,7 +104,7 @@ class Camera(BaseModel):
 
     # Position and target with union type
     position: PositionType = Field(
-        default=(0.0, 5.0, 10.0),
+        default=(-10.0, 10.0, 30.0),
         description="Camera position - direct coordinates or CurveAttachment",
         json_schema_extra={
             "x-custom-type": "position-attachment",
@@ -135,7 +135,7 @@ class Camera(BaseModel):
     )
 
     fov: float = Field(
-        default=75.0,
+        default=50.0,
         description="Field of view in degrees (perspective only)",
         ge=1,
         le=179,
