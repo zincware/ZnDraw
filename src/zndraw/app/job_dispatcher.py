@@ -72,7 +72,7 @@ def get_available_workers(
 
     # Filter workers with sufficient capacity
     available_workers = []
-    for worker_id, capacity in zip(valid_workers, capacities):
+    for worker_id, capacity in zip(valid_workers, capacities, strict=True):
         capacity_val = int(capacity) if capacity else 0
         if capacity_val >= min_capacity:
             available_workers.append(worker_id)

@@ -61,7 +61,7 @@ class WorkerStats:
             capacities = pipe.execute()
 
             for capacity in capacities:
-                # Skip workers without capacity key (likely stale)
+                # Skip workers without capacity key (race condition or expired key)
                 if capacity is None:
                     continue
                 capacity_val = int(capacity)

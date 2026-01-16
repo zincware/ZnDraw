@@ -19,6 +19,9 @@ from .redis_keys import ClusterKeys
 log = logging.getLogger(__name__)
 
 
+_MIN_REFRESH_INTERVAL = 5  # Minimum refresh interval to prevent tight loops
+
+
 @dataclass
 class ClusterHeartbeat:
     """Manages cluster heartbeat for stale worker detection.
@@ -32,18 +35,19 @@ class ClusterHeartbeat:
         Redis client instance
     ttl_seconds : int
         TTL for the heartbeat key in seconds. Default is 60.
-        The refresh interval is automatically set to half this value.
+        The refresh interval is automatically set to half this value (minimum 5s).
     """
 
     redis_client: t.Any
     ttl_seconds: int = 60
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
     _thread: threading.Thread | None = field(default=None, init=False)
+    _start_lock: threading.Lock = field(default_factory=threading.Lock, init=False)
 
     @property
     def refresh_interval(self) -> int:
-        """Refresh interval is half the TTL."""
-        return self.ttl_seconds // 2
+        """Refresh interval is half the TTL, minimum 5 seconds."""
+        return max(self.ttl_seconds // 2, _MIN_REFRESH_INTERVAL)
 
     def start(self) -> float:
         """Start the heartbeat background thread.
@@ -52,40 +56,54 @@ class ClusterHeartbeat:
         creates a new one with the current timestamp. Otherwise, uses the existing
         heartbeat and just starts refreshing it.
 
+        Thread-safe: multiple calls will return the existing heartbeat timestamp
+        if a thread is already running.
+
         Returns
         -------
         float
             The current heartbeat timestamp.
         """
-        # Try to get existing heartbeat (another server instance may have set it)
-        existing = self.redis_client.get(ClusterKeys.HEARTBEAT)
+        with self._start_lock:
+            # Check if already running
+            if self._thread is not None and self._thread.is_alive():
+                timestamp = self.redis_client.get(ClusterKeys.HEARTBEAT)
+                return float(timestamp) if timestamp else time.time()
 
-        if existing is None:
-            # No heartbeat exists - this means either:
-            # 1. First startup ever
-            # 2. All servers were down for longer than TTL
-            timestamp = time.time()
-            self.redis_client.set(ClusterKeys.HEARTBEAT, timestamp, ex=self.ttl_seconds)
-            log.debug(
-                f"Cluster heartbeat initialized: {timestamp} "
-                f"(TTL: {self.ttl_seconds}s, refresh: {self.refresh_interval}s)"
+            # Reset stop event for potential restart after stop()
+            self._stop_event.clear()
+
+            # Try to get existing heartbeat (another server instance may have set it)
+            existing = self.redis_client.get(ClusterKeys.HEARTBEAT)
+
+            if existing is None:
+                # No heartbeat exists - this means either:
+                # 1. First startup ever
+                # 2. All servers were down for longer than TTL
+                timestamp = time.time()
+                self.redis_client.set(
+                    ClusterKeys.HEARTBEAT, timestamp, ex=self.ttl_seconds
+                )
+                log.debug(
+                    f"Cluster heartbeat initialized: {timestamp} "
+                    f"(TTL: {self.ttl_seconds}s, refresh: {self.refresh_interval}s)"
+                )
+            else:
+                timestamp = float(existing)
+                # Refresh the TTL to keep it alive
+                self.redis_client.expire(ClusterKeys.HEARTBEAT, self.ttl_seconds)
+                log.debug(
+                    f"Using existing cluster heartbeat: {timestamp} "
+                    f"(TTL: {self.ttl_seconds}s)"
+                )
+
+            # Start refresh thread
+            self._thread = threading.Thread(
+                target=self._refresh_loop, daemon=True, name="cluster-heartbeat"
             )
-        else:
-            timestamp = float(existing)
-            # Refresh the TTL to keep it alive
-            self.redis_client.expire(ClusterKeys.HEARTBEAT, self.ttl_seconds)
-            log.debug(
-                f"Using existing cluster heartbeat: {timestamp} "
-                f"(TTL: {self.ttl_seconds}s)"
-            )
+            self._thread.start()
 
-        # Start refresh thread
-        self._thread = threading.Thread(
-            target=self._refresh_loop, daemon=True, name="cluster-heartbeat"
-        )
-        self._thread.start()
-
-        return timestamp
+            return timestamp
 
     def stop(self) -> None:
         """Stop the heartbeat refresh thread."""

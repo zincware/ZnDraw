@@ -104,7 +104,26 @@ def _cleanup_single_extension_worker(
     extension: str,
     keys: ExtensionKeys,
 ) -> None:
-    """Clean up a single stale extension worker."""
+    """Clean up a single stale extension worker.
+
+    Removes the worker from the extension's worker registry, cleans up
+    reverse lookups, capacity keys, and active jobs tracking.
+
+    Parameters
+    ----------
+    redis_client
+        Redis client instance
+    worker_id : str
+        Socket ID of the stale worker
+    room_id : str | None
+        Room ID for room-scoped extensions, None for global
+    category : str
+        Extension category (modifiers, selections, etc.)
+    extension : str
+        Extension name
+    keys : ExtensionKeys
+        Pre-computed Redis keys for this extension
+    """
     # Remove from workers hash
     redis_client.hdel(keys.workers, worker_id)
 
