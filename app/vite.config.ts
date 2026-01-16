@@ -23,7 +23,7 @@ function getPythonPackageVersion(): string {
 export default defineConfig({
 	plugins: [react()],
 	optimizeDeps: {
-		include: ["ketcher-react", "ketcher-core", "ketcher-standalone"],
+		// Note: ketcher is NOT included here - it's lazy loaded and should not be pre-bundled
 		esbuildOptions: {
 			define: {
 				global: "globalThis",
@@ -34,6 +34,18 @@ export default defineConfig({
 	build: {
 		outDir: "../../src/zndraw/static",
 		emptyOutDir: true,
+		// Disable modulepreload for heavy chunks - they'll load on-demand
+		modulePreload: {
+			resolveDependencies: (filename, deps) => {
+				// Filter out heavy chunks from preload - they should only load when needed
+				return deps.filter(
+					(dep) =>
+						!dep.includes("ketcher") &&
+						!dep.includes("plotly") &&
+						!dep.includes("ChatWindow"),
+				);
+			},
+		},
 		commonjsOptions: {
 			transformMixedEsModules: true,
 		},
@@ -42,8 +54,8 @@ export default defineConfig({
 				manualChunks: {
 					// Heavy 3D rendering - loaded when entering a room
 					three: ["three", "@react-three/fiber", "@react-three/drei"],
-					// Chemistry editor - loaded only when opening Ketcher
-					ketcher: ["ketcher-react", "ketcher-core", "ketcher-standalone"],
+					// Note: ketcher is NOT listed here - it's lazy loaded via React.lazy()
+					// and will naturally code-split with SmilesEditDialog
 					// Charting library - loaded when viewing plots
 					plotly: ["plotly.js", "plotly.js-dist-min"],
 					// UI framework - used everywhere, but cacheable
