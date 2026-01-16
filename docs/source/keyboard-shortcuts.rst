@@ -165,5 +165,3 @@ When holding an axis key, a colored chip appears indicating the active constrain
 
 In editing mode, curves display virtual markers between control points.
 Click a virtual marker to insert a new control point at that position.
-
-

@@ -964,3 +964,18 @@ Populate dropdowns at runtime from available data:
 | ``"x-geometry-filter":           | Filter geometries by type                 |
 | "Curve"``                        |                                           |
 +----------------------------------+-------------------------------------------+
+
+
+Custom Filesystems
+------------------
+
+Register any `fsspec <https://filesystem-spec.readthedocs.io/>`_-compatible
+filesystem to browse and load files from the UI:
+
+.. code:: python
+
+    from fsspec.implementations.dirfs import DirFileSystem
+
+    vis.register_filesystem(DirFileSystem(path="."), "local")
+
+All fsspec-compatible filesystems are supported, including S3, GCS, Azure, HDFS, and more.
