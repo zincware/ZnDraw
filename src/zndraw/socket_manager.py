@@ -40,7 +40,7 @@ class SocketManager:
     def connect(self):
         """Connect to server with JWT authentication and join room."""
         if self.sio.connected:
-            print("Already connected.")
+            log.debug("Already connected.")
             return
         # Connect with JWT token only (sessionId is created by room:join)
         self.sio.connect(
@@ -102,7 +102,7 @@ class SocketManager:
             self.sio.disconnect()
             # Reset flag so next connect() goes through full flow
             self._initial_connect_done = False
-            print("Disconnected.")
+            log.debug("Disconnected.")
 
     @property
     def connected(self) -> bool:

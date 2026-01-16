@@ -1568,10 +1568,10 @@ class ZnDraw(MutableSequence):
             "run_kwargs": run_kwargs,
             "extension": extension,
         }
-        print(f"Registered extension '{name}' of category '{extension.category}'.")
+        log.debug(f"Registered extension '{name}' of category '{extension.category}'.")
 
         scope = "global" if public else self.room
-        print(
+        log.debug(
             f"Registering {'global' if public else 'room-scoped'} extension '{name}'..."
         )
 
@@ -1585,7 +1585,7 @@ class ZnDraw(MutableSequence):
         # Store the worker_id assigned by server (server's request.sid)
         if worker_id:
             self._worker_id = worker_id
-        print(
+        log.info(
             f"Extension '{name}' registered with {scope} (worker_id: {self._worker_id})."
         )
 
@@ -1694,10 +1694,10 @@ class ZnDraw(MutableSequence):
             "public": public,
             "name": name,
         }
-        print(f"Registered filesystem '{name}' (type: {fs.__class__.__name__}).")
+        log.info(f"Registered filesystem '{name}' (type: {fs.__class__.__name__}).")
 
         scope = "global" if public else self.room
-        print(
+        log.info(
             f"Registering {'global' if public else 'room-scoped'} filesystem '{name}'..."
         )
 
@@ -1713,7 +1713,7 @@ class ZnDraw(MutableSequence):
         if worker_id:
             self._worker_id = worker_id
 
-        print(
+        log.debug(
             f"Filesystem '{name}' registered with {scope} (worker_id: {self._worker_id})."
         )
 
