@@ -1699,9 +1699,7 @@ class ZnDraw(MutableSequence):
             socket_manager=self.socket,
             public=public,
         )
-        log.debug(
-            f"Filesystem '{name}' registered with {scope} (sid: {self.sid})."
-        )
+        log.debug(f"Filesystem '{name}' registered with {scope} (sid: {self.sid}).")
 
     def log(self, message: str) -> dict:
         """Send a chat message to the room."""
