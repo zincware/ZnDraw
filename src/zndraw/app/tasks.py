@@ -67,6 +67,88 @@ def calculate_adaptive_resolution(num_particles: int) -> int:
         return 6
 
 
+def upload_frames_to_room(
+    vis,
+    frame_iterator,
+    batch_size: int = 10,
+    total_expected_frames: int | None = None,
+    progress_description: str = "Loading frames",
+) -> tuple[int, int]:
+    """Upload frames to a ZnDraw room with progress tracking.
+
+    Parameters
+    ----------
+    vis : ZnDraw
+        Target ZnDraw instance to upload frames to
+    frame_iterator : Iterator[ase.Atoms]
+        Iterator yielding ASE Atoms objects
+    batch_size : int
+        Number of frames per batch
+    total_expected_frames : int | None
+        Expected total frames for progress calculation
+    progress_description : str
+        Description shown in progress tracker
+
+    Returns
+    -------
+    tuple[int, int]
+        (loaded_frame_count, max_particles)
+    """
+    loaded_frame_count = 0
+    max_particles = 0
+
+    with vis.progress_tracker(progress_description) as task:
+        with vis.get_lock(msg="Uploading frames"):
+            for batch in batch_generator(frame_iterator, batch_size):
+                for atoms in batch:
+                    max_particles = max(max_particles, len(atoms))
+                vis._extend(batch)
+                loaded_frame_count += len(batch)
+
+                if total_expected_frames and total_expected_frames > 0:
+                    progress = (loaded_frame_count / total_expected_frames) * 100
+                    task.update(progress=min(progress, 99))
+
+    return loaded_frame_count, max_particles
+
+
+def apply_adaptive_resolution(vis, max_particles: int) -> None:
+    """Apply adaptive resolution based on particle count.
+
+    Reduces sphere resolution for large systems to maintain performance.
+
+    Parameters
+    ----------
+    vis : ZnDraw
+        Target ZnDraw instance
+    max_particles : int
+        Maximum particle count across all frames
+    """
+    if max_particles <= 0:
+        return
+
+    adaptive_resolution = calculate_adaptive_resolution(max_particles)
+    if adaptive_resolution >= 16:
+        return
+
+    try:
+        from zndraw.geometries import Sphere
+
+        current_particles = vis.geometries["particles"]
+        updated_particles = Sphere(
+            **{**current_particles.model_dump(), "resolution": adaptive_resolution}
+        )
+        vis.geometries["particles"] = updated_particles
+        log.info(
+            f"Adaptive resolution: {max_particles} particles -> resolution {adaptive_resolution}"
+        )
+        vis.log(
+            f"Adjusted render quality for {max_particles} particles (resolution: {adaptive_resolution})"
+        )
+    except Exception as e:
+        log.warning(f"Failed to apply adaptive resolution: {e}")
+
+
 @shared_task
 def read_file(
     file: str,
@@ -131,188 +213,120 @@ def read_file(
             f"Reading {slice_info} from {file} (unknown format, attempting with ASE)..."
         )
 
-    # Use vis.lock context manager to lock room during upload
-    # Initialize tracking variables
-    loaded_frame_count = 0  # Track number of frames loaded
-    max_particles = 0  # Track maximum particle count across all frames
+    # Build progress description
+    progress_description = f"Loading {file_path.name}"
+    if slice_info != "all frames":
+        progress_description = f"Loading {file_path.name} ({slice_info})"
 
-    # with vis.lock(msg="Uploading ..."):
-    # TODO: vis._extend() which does extend without acquire/release
-    # so we can do it here?
     try:
-        # Create progress tracker with slice info
-        progress_description_text = f"Loading {file_path.name}"
-        if slice_info != "all frames":
-            progress_description_text = f"Loading {file_path.name} ({slice_info})"
+        frame_iterator = None
+        total_expected_frames = None
 
-        with vis.progress_tracker(progress_description_text) as task_desc:
-            frame_iterator = None
-            total_expected_frames = None  # Will be set if we know the frame count
+        if backend_name == "ZnH5MD":
+            if step is not None and step <= 0:
+                vis.log("❌ Error: Step must be a positive integer (e.g., 1, 2, 5)")
+                raise ValueError("Step must be a positive integer for H5MD files.")
+            io = znh5md.IO(file_path)
+            n_frames = len(io)
 
-            if backend_name == "ZnH5MD":
-                # Use ZnH5MD for H5/H5MD files
-                if step is not None and step <= 0:
-                    vis.log("❌ Error: Step must be a positive integer (e.g., 1, 2, 5)")
-                    raise ValueError("Step must be a positive integer for H5MD files.")
-                io = znh5md.IO(file_path)
-
-                n_frames = len(io)
-
-                # Validate slice parameters against file length
-                if start is not None and start >= n_frames:
-                    vis.log(
-                        f"❌ Error: Start frame ({start}) exceeds file length ({n_frames} frames)"
-                    )
-                    raise ValueError(f"Start frame {start} exceeds file length")
-
-                if stop is not None and stop > n_frames:
-                    vis.log(
-                        f"⚠️ Warning: Stop frame ({stop}) exceeds file length ({n_frames}), using end of file"
-                    )
-
-                s = slice(start, stop, step)
-                # The 'indices' method converts the slice into a (start, stop, step)
-                # tuple of non-negative integers that can be used with islice.
-                _start, _stop, _step = s.indices(n_frames)
-
-                # Calculate expected frames for progress tracking
-                total_expected_frames = (_stop - _start + _step - 1) // _step
-
-                frame_iterator = itertools.islice(io, _start, _stop, _step)
-            elif backend_name == "ASE-DB":
-                # Use ASE database connection for database files
-                # Supports: SQLite (.db), JSON (.json), PostgreSQL, MySQL, ASELMDB (.aselmdb)
-                # Connection strings for PostgreSQL/MySQL: postgresql://..., mysql://...
-                vis.log("Connecting to ASE database...")
-                db = ase.db.connect(file_path)
-                n_rows = db.count()
-                vis.log(f"Database contains {n_rows} structures")
-
-                if n_rows == 0:
-                    vis.log("⚠️ Warning: Database is empty")
-                    return
-
-                # Validate step
-                if step is not None and step <= 0:
-                    vis.log("❌ Error: Step must be a positive integer (e.g., 1, 2, 5)")
-                    raise ValueError(
-                        "Step must be a positive integer for database files."
-                    )
-
-                # Validate and adjust slice parameters
-                # User provides 0-indexed, database uses 1-indexed IDs internally
-                _start = start if start is not None else 0
-                _stop = stop if stop is not None else n_rows
-                _step = step if step is not None else 1
-
-                if _start >= n_rows:
-                    vis.log(
-                        f"❌ Error: Start row ({_start}) exceeds database size ({n_rows} rows)"
-                    )
-                    raise ValueError(f"Start row {_start} exceeds database size")
-
-                if _stop > n_rows:
-                    vis.log(
-                        f"⚠️ Warning: Stop row ({_stop}) exceeds database size ({n_rows}), using end of database"
-                    )
-                    _stop = n_rows
-
-                # Create list of row IDs to retrieve (convert 0-indexed to 1-indexed)
-                # Database IDs are 1-indexed: first row is ID=1
-                selected_ids = list(range(_start + 1, _stop + 1, _step))
-                vis.log(f"Selecting {len(selected_ids)} structures from database")
-
-                # Track expected frames for progress
-                total_expected_frames = len(selected_ids)
-
-                # Create iterator over selected database rows
-                def db_iterator():
-                    for row_id in selected_ids:
-                        try:
-                            row = db.get(id=row_id)
-                            yield row.toatoms()
-                        except KeyError:
-                            # Row ID might not exist (gaps in database)
-                            vis.log(
-                                f"⚠️ Warning: Row ID {row_id} not found in database, skipping"
-                            )
-                            continue
-
-                frame_iterator = db_iterator()
-            else:
-                # Use ASE for all other formats (known and unknown)
-                # --- This logic is correct for ASE's string-based index ---
-                # It properly handles None by creating empty strings, e.g., ":-1:"
-                start_str = str(start) if start is not None else ""
-                stop_str = str(stop) if stop is not None else ""
-                step_str = str(step) if step is not None else ""
-                index_str = f"{start_str}:{stop_str}:{step_str}"
-
-                # Use ase.io.iread() with the correctly formatted index string.
-                # This may fail for unsupported formats, which will be caught below
-                frame_iterator = ase.io.iread(file_path, index=index_str)
-
-            # Now, the batching logic is the same for both file types
-            if frame_iterator:
-                # A simple log message is often better for background tasks.
-                log.debug(
-                    f"Processing frames from {file_path} in batches of {batch_size}"
+            if start is not None and start >= n_frames:
+                vis.log(
+                    f"❌ Error: Start frame ({start}) exceeds file length ({n_frames} frames)"
                 )
-                with vis.get_lock(msg="Uploading frames"):
-                    for batch in batch_generator(frame_iterator, batch_size):
-                        # Track max particle count
-                        for atoms in batch:
-                            max_particles = max(max_particles, len(atoms))
-                        vis._extend(batch)
-                        loaded_frame_count += len(batch)
+                raise ValueError(f"Start frame {start} exceeds file length")
 
-                        # Update task progress if we know total frames
-                        if total_expected_frames and total_expected_frames > 0:
-                            progress = (
-                                loaded_frame_count / total_expected_frames
-                            ) * 100
-                            # Cap at 99 until complete (will auto-complete on context exit)
-                            task_desc.update(progress=min(progress, 99))
+            if stop is not None and stop > n_frames:
+                vis.log(
+                    f"⚠️ Warning: Stop frame ({stop}) exceeds file length ({n_frames}), using end of file"
+                )
+
+            s = slice(start, stop, step)
+            _start, _stop, _step = s.indices(n_frames)
+            total_expected_frames = (_stop - _start + _step - 1) // _step
+            frame_iterator = itertools.islice(io, _start, _stop, _step)
+
+        elif backend_name == "ASE-DB":
+            vis.log("Connecting to ASE database...")
+            db = ase.db.connect(file_path)
+            n_rows = db.count()
+            vis.log(f"Database contains {n_rows} structures")
+
+            if n_rows == 0:
+                vis.log("⚠️ Warning: Database is empty")
+                return
+
+            if step is not None and step <= 0:
+                vis.log("❌ Error: Step must be a positive integer (e.g., 1, 2, 5)")
+                raise ValueError("Step must be a positive integer for database files.")
+
+            _start = start if start is not None else 0
+            _stop = stop if stop is not None else n_rows
+            _step = step if step is not None else 1
+
+            if _start >= n_rows:
+                vis.log(
+                    f"❌ Error: Start row ({_start}) exceeds database size ({n_rows} rows)"
+                )
+                raise ValueError(f"Start row {_start} exceeds database size")
+
+            if _stop > n_rows:
+                vis.log(
+                    f"⚠️ Warning: Stop row ({_stop}) exceeds database size ({n_rows}), using end of database"
+                )
+                _stop = n_rows
+
+            selected_ids = list(range(_start + 1, _stop + 1, _step))
+            vis.log(f"Selecting {len(selected_ids)} structures from database")
+            total_expected_frames = len(selected_ids)
+
+            def db_iterator():
+                for row_id in selected_ids:
+                    try:
+                        row = db.get(id=row_id)
+                        yield row.toatoms()
+                    except KeyError:
+                        vis.log(
+                            f"⚠️ Warning: Row ID {row_id} not found in database, skipping"
+                        )
+                        continue
+
+            frame_iterator = db_iterator()
+
+        else:
+            # Use ASE for all other formats
+            start_str = str(start) if start is not None else ""
+            stop_str = str(stop) if stop is not None else ""
+            step_str = str(step) if step is not None else ""
+            index_str = f"{start_str}:{stop_str}:{step_str}"
+            frame_iterator = ase.io.iread(file_path, index=index_str)
+
+        # Upload frames using shared helper
+        if frame_iterator:
+            log.info(f"Processing frames from {file_path} in batches of {batch_size}")
+            loaded_frame_count, max_particles = upload_frames_to_room(
+                vis,
+                frame_iterator,
+                batch_size=batch_size,
+                total_expected_frames=total_expected_frames,
+                progress_description=progress_description,
+            )
+        else:
+            loaded_frame_count, max_particles = 0, 0
 
     except Exception as e:
-        # Log the full exception for better debugging
         log.exception(f"An error occurred while reading file {file_path}")
         vis.log(f"❌ Error reading file {file_path}: {e}")
-        raise  # Re-raise to exit the context manager properly
+        raise
 
-    # Report success with frame count
+    # Report success
     if slice_info != "all frames":
         vis.log(f"✓ Successfully loaded {loaded_frame_count} frames ({slice_info})")
     else:
         vis.log(f"✓ Successfully loaded {loaded_frame_count} frames")
 
-    # Apply adaptive resolution based on particle count
-    if loaded_frame_count > 0 and max_particles > 0:
-        adaptive_resolution = calculate_adaptive_resolution(max_particles)
-        # Only update if resolution should be reduced
-        if adaptive_resolution < 16:
-            try:
-                from zndraw.geometries import Sphere
-
-                # Get current particles geometry
-                current_particles = vis.geometries["particles"]
-                # Create new Sphere with updated resolution (Pydantic models are frozen)
-                updated_particles = Sphere(
-                    **{
-                        **current_particles.model_dump(),
-                        "resolution": adaptive_resolution,
-                    }
-                )
-                # Write back to server
-                vis.geometries["particles"] = updated_particles
-                log.debug(
-                    f"Adaptive resolution: {max_particles} particles -> resolution {adaptive_resolution}"
-                )
-                vis.log(
-                    f"Adjusted render quality for {max_particles} particles (resolution: {adaptive_resolution})"
-                )
-            except Exception as e:
-                log.warning(f"Failed to apply adaptive resolution: {e}")
+    # Apply adaptive resolution
+    if loaded_frame_count > 0:
+        apply_adaptive_resolution(vis, max_particles)
 
     # Store file metadata
     try:
