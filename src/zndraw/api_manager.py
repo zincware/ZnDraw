@@ -105,7 +105,7 @@ class APIManager:
                     self.jwt_token = data["token"]
                     self.user_name = data["userName"]
                     if attempt > 1:
-                        log.info(f"Login succeeded on attempt {attempt}")
+                        log.debug(f"Login succeeded on attempt {attempt}")
                     return data
                 else:
                     # Server responded but with an error - don't retry

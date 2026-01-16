@@ -160,7 +160,7 @@ class RoomService:
         # Execute all operations atomically
         pipe.execute()
 
-        log.info(f"Created empty room '{room_id}'")
+        log.debug(f"Created empty room '{room_id}'")
         return {"created": True, "frameCount": 0}
 
     def _create_room_from_copy(
@@ -233,7 +233,7 @@ class RoomService:
         # Execute all operations atomically
         pipe.execute()
 
-        log.info(
+        log.debug(
             f"Created room '{room_id}' from '{source_room}' with {len(source_indices)} frames"
         )
         return {"created": True, "frameCount": len(source_indices)}
@@ -526,7 +526,7 @@ class RoomService:
         if default_room and self.room_exists(default_room):
             result = self.create_room(room_id, user_name, description, default_room)
             result["source"] = f"room:{default_room}"
-            log.info(f"Created room '{room_id}' from default room '{default_room}'")
+            log.debug(f"Created room '{room_id}' from default room '{default_room}'")
             return result
 
         # Final fallback: empty template
@@ -563,7 +563,7 @@ class RoomService:
         pipe.delete(*keys.all_static_keys())
         pipe.execute()
 
-        log.info(f"Deleted room '{room_id}' and removed from index")
+        log.debug(f"Deleted room '{room_id}' and removed from index")
         return True
 
 

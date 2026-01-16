@@ -240,7 +240,7 @@ def _handle_guest_login(user_name, user_service, admin_service):
 
     user_service.update_last_login(user_name)
     role = _determine_role(user_name, user_service, admin_service)
-    log.info(f"Issued JWT for guest '{user_name}'")
+    log.debug(f"Issued JWT for guest '{user_name}'")
     return _issue_token(user_name, role)
 
 
@@ -308,11 +308,11 @@ def register_user():
         if password:
             # Register with password (full registration)
             user_service.register_user(user_name, user_name, password)
-            log.info(f"Registered new user '{user_name}' with password")
+            log.debug(f"Registered new user '{user_name}' with password")
         else:
             # Guest registration (no password)
             user_service.ensure_user_exists(user_name)
-            log.info(f"Created guest user '{user_name}'")
+            log.debug(f"Created guest user '{user_name}'")
 
         return {"status": "ok", "userName": user_name}, 201
 
@@ -661,7 +661,7 @@ def exit_app():
 
     if shutdown_token and expected_token and shutdown_token == expected_token:
         # Valid shutdown token from CLI
-        log.info("Server shutdown via CLI with valid token")
+        log.debug("Server shutdown via CLI with valid token")
         socketio.stop()
         return {"success": True}
 
@@ -671,7 +671,7 @@ def exit_app():
         admin_service = current_app.extensions["admin_service"]
 
         if admin_service.is_admin(user_name):
-            log.info(f"Server shutdown by admin user: {user_name}")
+            log.debug(f"Server shutdown by admin user: {user_name}")
             socketio.stop()
             return {"success": True}
         else:

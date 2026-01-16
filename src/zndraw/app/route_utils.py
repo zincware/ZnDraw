@@ -194,7 +194,7 @@ def check_lock(
                     global_lock_data = json.loads(global_lock_str)
                     if global_lock_data.get("sessionId") != session_id:
                         holder = global_lock_data.get("userId", "unknown")
-                        log.info(
+                        log.debug(
                             f"Global lock blocks operation in room {room_id} "
                             f"(held by {holder})"
                         )
@@ -238,7 +238,7 @@ def check_lock(
                         lock_data = json.loads(lock_data_str)
                         if lock_data.get("sessionId") != session_id:
                             holder = lock_data.get("userId", "unknown")
-                            log.info(
+                            log.debug(
                                 f"Lock '{actual_target}' blocks operation in room "
                                 f"{room_id} (held by {holder})"
                             )
@@ -418,7 +418,7 @@ def emit_frames_invalidate(
     if affected_keys is not None:
         data["affectedKeys"] = affected_keys
 
-    log.info(f"Emitting frames:invalidate for room '{room_id}': {data}")
+    log.debug(f"Emitting frames:invalidate for room '{room_id}': {data}")
 
     socketio.emit(
         "frames:invalidate",
@@ -541,7 +541,7 @@ def emit_step_update_on_delete(room_id: str, deleted_indices: list[int]):
         to=f"room:{room_id}",
     )
 
-    log.info(
+    log.debug(
         f"Step adjusted after delete: {current_step} -> {new_step} "
         f"(shift: -{shift}) in room '{room_id}'"
     )
@@ -587,7 +587,7 @@ def emit_step_update_on_insert(room_id: str, insert_position: int):
         to=f"room:{room_id}",
     )
 
-    log.info(
+    log.debug(
         f"Step adjusted after insert: {current_step} -> {new_step} "
         f"(insert at {insert_position}) in room '{room_id}'"
     )

@@ -210,7 +210,7 @@ def create_room():
         isDefault=False,
     )
 
-    log.info(f"User {user_name} created room {room_id} (source: {result['source']})")
+    log.debug(f"User {user_name} created room {room_id} (source: {result['source']})")
 
     return {
         "status": "ok",
@@ -349,7 +349,7 @@ def update_room(room_id):
         emit_room_update(socketio, room_id, **changes)
         log.debug(f"Emitted room:update for room '{room_id}': {changes}")
 
-    log.info(f"Updated room '{room_id}' metadata: {data}")
+    log.debug(f"Updated room '{room_id}' metadata: {data}")
     return {"status": "ok"}, 200
 
 
@@ -384,7 +384,7 @@ def set_default_room():
     if room_id is None:
         # Unset default room
         redis_client.delete("default_room")
-        log.info("Unset default room")
+        log.debug("Unset default room")
 
         # Update previous default room
         if previous_default:
@@ -400,7 +400,7 @@ def set_default_room():
 
         # Set default room
         redis_client.set("default_room", room_id)
-        log.info(f"Set default room to '{room_id}'")
+        log.debug(f"Set default room to '{room_id}'")
 
         # Update previous default room if different
         if previous_default and previous_default != room_id:
@@ -664,7 +664,7 @@ def renormalize_frame_indices(room_id: str, session_id: str, user_id: str):
     manager = FrameIndexManager(redis_client, indices_key)
     count = manager.renormalize()
 
-    log.info(f"Renormalized {count} frame indices for room '{room_id}'")
+    log.debug(f"Renormalized {count} frame indices for room '{room_id}'")
 
     # Emit bookmarks update since logical positions haven't changed
     # but we should still notify clients
@@ -816,7 +816,7 @@ def get_step(room_id: str):
         clamped_frame = max(0, min(current_frame, total_frames - 1))
         if clamped_frame != current_frame:
             # Update Redis to persist the clamped value
-            log.info(
+            log.debug(
                 f"Clamping frame {current_frame} to {clamped_frame} for room {room_id} "
                 f"(total frames: {total_frames})"
             )

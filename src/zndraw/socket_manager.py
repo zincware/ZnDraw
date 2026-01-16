@@ -40,7 +40,7 @@ class SocketManager:
     def connect(self):
         """Connect to server with JWT authentication and join room."""
         if self.sio.connected:
-            print("Already connected.")
+            log.debug("Already connected.")
             return
         # Connect with JWT token only (sessionId is created by room:join)
         self.sio.connect(
@@ -102,7 +102,7 @@ class SocketManager:
             self.sio.disconnect()
             # Reset flag so next connect() goes through full flow
             self._initial_connect_done = False
-            print("Disconnected.")
+            log.debug("Disconnected.")
 
     @property
     def connected(self) -> bool:
@@ -122,7 +122,7 @@ class SocketManager:
             return
 
         # This is an auto-reconnect - need to re-join room and re-register
-        log.info(
+        log.debug(
             "Auto-reconnect detected, re-joining room and re-registering extensions"
         )
 
@@ -285,10 +285,10 @@ class SocketManager:
             return
 
         if not self.zndraw.auto_pickup_jobs:
-            log.info(f"Auto-pickup disabled, ignoring job assignment {job_id}")
+            log.debug(f"Auto-pickup disabled, ignoring job assignment {job_id}")
             return
 
-        log.info(f"Worker {self.zndraw.sid} received job assignment: {job_id}")
+        log.debug(f"Worker {self.zndraw.sid} received job assignment: {job_id}")
 
         # Use shared job executor (same code as Celery workers)
         from zndraw.job_executor import execute_job_for_worker

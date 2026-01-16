@@ -58,7 +58,7 @@ def create_session_camera(r, room: str, session_id: str) -> None:
     geometry_data = {"type": "Camera", "data": camera.model_dump()}
 
     r.hset(keys.geometries(), camera_key, json.dumps(geometry_data))
-    log.info(f"Created session camera: {camera_key}")
+    log.debug(f"Created session camera: {camera_key}")
 
     # Emit geometry invalidation so clients know about the new camera
     socketio.emit(
@@ -75,7 +75,7 @@ def delete_session_camera(r, room: str, session_id: str) -> None:
 
     result = r.hdel(keys.geometries(), camera_key)
     if result > 0:
-        log.info(f"Deleted session camera: {camera_key}")
+        log.debug(f"Deleted session camera: {camera_key}")
         # Emit geometry invalidation
         socketio.emit(
             SocketEvents.INVALIDATE_GEOMETRY,
@@ -134,7 +134,7 @@ def handle_connect(auth):
 
     # Join user-specific room for user-targeted events (e.g., extension notifications)
     join_room(f"user:{user_name}")
-    log.info(f"User {user_name} connected (sid: {sid})")
+    log.debug(f"User {user_name} connected (sid: {sid})")
 
     # Increment connected users metric
     connected_users.inc()
@@ -160,7 +160,7 @@ def handle_disconnect(*args, **kwargs):
     connected_users.dec()
 
     if not user_name:
-        log.info(f"Client disconnected: {sid} (no userName found)")
+        log.debug(f"Client disconnected: {sid} (no userName found)")
         return
 
     # Get session_id and room from session data (before cleanup)
@@ -173,7 +173,7 @@ def handle_disconnect(*args, **kwargs):
             room_name = session_data.get("roomId")
 
     user_keys = UserKeys(user_name)
-    log.info(f"User disconnected: sid={sid}, user={user_name}, room={room_name}")
+    log.debug(f"User disconnected: sid={sid}, user={user_name}, room={room_name}")
     if session_id:
         # Remove session_id→sid mapping
         r.delete(SessionKeys.session_to_sid(session_id))
@@ -206,7 +206,7 @@ def handle_disconnect(*args, **kwargs):
     # Only when a user explicitly joins a different room do we remove them from the old room
 
     if not room_name:
-        log.info(f"User {user_name} disconnected (was not in a room)")
+        log.debug(f"User {user_name} disconnected (was not in a room)")
 
     # --- Lock Cleanup Logic ---
     if session_id:
@@ -216,7 +216,7 @@ def handle_disconnect(*args, **kwargs):
         lock_keys = r.smembers(session_locks_key)
 
         if lock_keys:
-            log.info(
+            log.debug(
                 f"Cleaning up {len(lock_keys)} orphaned lock(s) for session {session_id}"
             )
             for lock_key in lock_keys:
@@ -311,7 +311,7 @@ def handle_disconnect(*args, **kwargs):
                 job_room = job_data.get("room")
                 current_status = job_data.get("status")
 
-                log.info(
+                log.debug(
                     f"Failing job {job_id} ({category}/{extension} in room {job_room}, status: {current_status})"
                 )
 
@@ -324,9 +324,9 @@ def handle_disconnect(*args, **kwargs):
                         f"Worker {worker_id} disconnected while processing job",
                         socketio=socketio,
                     )
-                    log.info(f"Marked job {job_id} as failed due to worker disconnect")
+                    log.debug(f"Marked job {job_id} as failed due to worker disconnect")
                 else:
-                    log.info(f"Job {job_id} has status {current_status}, not failing")
+                    log.debug(f"Job {job_id} has status {current_status}, not failing")
 
                 # Job will be removed from worker set by fail_job()
 
@@ -337,16 +337,16 @@ def handle_disconnect(*args, **kwargs):
 
         # Clean up worker's job set (should be empty after fail_job removes entries)
         r.delete(worker_keys.active_jobs())
-        log.info(f"Cleaned up worker job set for {worker_id}")
+        log.debug(f"Cleaned up worker job set for {worker_id}")
 
     # Clean up worker capacity key
     capacity_key = ExtensionKeys.worker_capacity_key(worker_id)
     r.delete(capacity_key)
-    log.info(f"Cleaned up worker capacity for {worker_id}")
+    log.debug(f"Cleaned up worker capacity for {worker_id}")
 
     # Extension cleanup - workers are tracked by server's sid
     extension_categories = ["modifiers", "selections", "analysis"]
-    log.info(
+    log.debug(
         f"Cleaning up extensions for worker_id={worker_id} (user={user_name}) in room '{room_name}'..."
     )
 
@@ -360,7 +360,7 @@ def handle_disconnect(*args, **kwargs):
         if not worker_extensions:
             continue
 
-        log.info(
+        log.debug(
             f"Worker {worker_id} was providing extensions in '{category}': {worker_extensions}"
         )
 
@@ -384,7 +384,7 @@ def handle_disconnect(*args, **kwargs):
             # Get the hlen result for this extension
             total_remaining = results[i * 2 + 1]
 
-            log.info(
+            log.debug(
                 f"Extension '{ext_name}': {total_remaining} workers remaining after removing {worker_id}."
             )
 
@@ -395,17 +395,17 @@ def handle_disconnect(*args, **kwargs):
 
                 if pending_jobs_count == 0:
                     extensions_to_delete.append(ext_name)
-                    log.info(
+                    log.debug(
                         f"Extension '{ext_name}' marked for deletion: no workers, no pending jobs"
                     )
                 else:
-                    log.info(
+                    log.debug(
                         f"Extension '{ext_name}' kept despite no workers: {pending_jobs_count} pending jobs"
                     )
 
         # If any extensions are now orphaned, delete them and their state sets
         if extensions_to_delete:
-            log.info(
+            log.debug(
                 f"Deleting orphaned extensions in '{category}': {extensions_to_delete}"
             )
             with r.pipeline() as pipe:
@@ -419,12 +419,12 @@ def handle_disconnect(*args, **kwargs):
 
         # Clean up the worker-specific reverse-lookup key
         r.delete(worker_extensions_key)
-        log.info(f"Cleaned up worker-specific extension list: {worker_extensions_key}")
+        log.debug(f"Cleaned up worker-specific extension list: {worker_extensions_key}")
 
         # Notify clients about worker count changes
         # We always invalidate if this worker had any extensions, not just when deleting
         if worker_extensions:
-            log.info(
+            log.debug(
                 f"Invalidating schema for category '{category}' in room '{room_name}' "
                 "due to worker disconnect."
             )
@@ -435,7 +435,7 @@ def handle_disconnect(*args, **kwargs):
             )
 
     # Clean up global (public) extensions
-    log.info(f"Checking for global extensions from worker_id={worker_id}...")
+    log.debug(f"Checking for global extensions from worker_id={worker_id}...")
     for category in extension_categories:
         # Check if this worker registered any global extensions
         global_worker_extensions_key = ExtensionKeys.global_user_extensions_key(
@@ -446,7 +446,7 @@ def handle_disconnect(*args, **kwargs):
         if not global_worker_extensions:
             continue
 
-        log.info(
+        log.debug(
             f"Worker {worker_id} was providing global extensions in '{category}': {global_worker_extensions}"
         )
 
@@ -469,7 +469,7 @@ def handle_disconnect(*args, **kwargs):
         for i, ext_name in enumerate(global_worker_extensions):
             total_remaining = results[i * 2 + 1]
 
-            log.info(
+            log.debug(
                 f"Global extension '{ext_name}': {total_remaining} workers remaining after removing {worker_id}."
             )
 
@@ -480,17 +480,17 @@ def handle_disconnect(*args, **kwargs):
 
                 if pending_jobs_count == 0:
                     global_extensions_to_delete.append(ext_name)
-                    log.info(
+                    log.debug(
                         f"Global extension '{ext_name}' marked for deletion: no workers, no pending jobs"
                     )
                 else:
-                    log.info(
+                    log.debug(
                         f"Global extension '{ext_name}' kept despite no workers: {pending_jobs_count} pending jobs"
                     )
 
         # Delete orphaned global extensions
         if global_extensions_to_delete:
-            log.info(
+            log.debug(
                 f"Deleting orphaned global extensions in '{category}': {global_extensions_to_delete}"
             )
             with r.pipeline() as pipe:
@@ -504,13 +504,13 @@ def handle_disconnect(*args, **kwargs):
 
         # Clean up the worker-specific reverse-lookup key for global extensions
         r.delete(global_worker_extensions_key)
-        log.info(
+        log.debug(
             f"Cleaned up global worker-specific extension list: {global_worker_extensions_key}"
         )
 
         # Notify ALL clients about global extension removal (broadcast globally)
         if global_worker_extensions:
-            log.info(
+            log.debug(
                 f"Broadcasting global schema invalidation for category '{category}' due to worker disconnect"
             )
             socketio.emit(
@@ -526,7 +526,7 @@ def handle_disconnect(*args, **kwargs):
         worker_filesystems = list(r.smembers(worker_filesystems_key))
 
         if worker_filesystems:
-            log.info(
+            log.debug(
                 f"Worker {worker_id} was providing filesystems: {worker_filesystems}"
             )
             for fs_name in worker_filesystems:
@@ -534,13 +534,13 @@ def handle_disconnect(*args, **kwargs):
                 # Delete filesystem metadata and worker reference
                 r.delete(keys.metadata)
                 r.delete(keys.worker)
-                log.info(
+                log.debug(
                     f"Deleted room-scoped filesystem '{fs_name}' for worker {worker_id}"
                 )
 
             # Clean up worker-specific filesystem list
             r.delete(worker_filesystems_key)
-            log.info(
+            log.debug(
                 f"Cleaned up worker-specific filesystem list: {worker_filesystems_key}"
             )
 
@@ -558,7 +558,7 @@ def handle_disconnect(*args, **kwargs):
     global_worker_filesystems = list(r.smembers(global_worker_filesystems_key))
 
     if global_worker_filesystems:
-        log.info(
+        log.debug(
             f"Worker {worker_id} was providing global filesystems: {global_worker_filesystems}"
         )
         for fs_name in global_worker_filesystems:
@@ -566,11 +566,11 @@ def handle_disconnect(*args, **kwargs):
             # Delete filesystem metadata and worker reference
             r.delete(keys.metadata)
             r.delete(keys.worker)
-            log.info(f"Deleted global filesystem '{fs_name}' for worker {worker_id}")
+            log.debug(f"Deleted global filesystem '{fs_name}' for worker {worker_id}")
 
         # Clean up worker-specific filesystem list
         r.delete(global_worker_filesystems_key)
-        log.info(
+        log.debug(
             f"Cleaned up global worker-specific filesystem list: {global_worker_filesystems_key}"
         )
 
@@ -720,7 +720,7 @@ def handle_room_join(data):
         }
         emit("progress:init", {"progressTrackers": progress_trackers}, to=sid)
 
-    log.info(
+    log.debug(
         f"User {user_name} joined room {room_id} with session {session_id} (sid: {sid})"
     )
 

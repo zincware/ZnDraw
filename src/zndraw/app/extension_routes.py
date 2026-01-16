@@ -61,7 +61,7 @@ def _submit_extension_impl(
         # If no "data" key, treat the entire JSON body as data
         data = json_data
 
-    log.info(
+    log.debug(
         f"Extension submit: room={room_id}, category={category}, extension={extension}, "
         f"public={public}, user={user_name}, data={json.dumps(data)}"
     )
@@ -148,7 +148,7 @@ def _submit_extension_impl(
     # Add job to pending queue
     timestamp = utc_now_timestamp()
     redis_client.zadd(keys.pending_jobs, {job_id: timestamp})
-    log.info(f"Added job {job_id} to pending queue for {category}/{extension}")
+    log.debug(f"Added job {job_id} to pending queue for {category}/{extension}")
 
     # Check for available workers and try to assign immediately
     from .job_dispatcher import get_available_workers
@@ -157,7 +157,7 @@ def _submit_extension_impl(
 
     if available_workers:
         # Available worker exists - trigger assignment
-        log.info(
+        log.debug(
             f"Available workers for {category}/{extension}, "
             f"attempting immediate assignment"
         )
@@ -171,14 +171,14 @@ def _submit_extension_impl(
         )
 
         if assigned > 0:
-            log.info(f"Job {job_id} assigned to worker immediately")
+            log.debug(f"Job {job_id} assigned to worker immediately")
             queue_position = 0  # Assigned, not in queue
         else:
             # Still in pending queue - position is number of jobs ahead of this one
             queue_position = redis_client.zcard(keys.pending_jobs) - 1
     else:
         # No available workers - job stays in pending queue
-        log.info(
+        log.debug(
             f"No available workers for {category}/{extension}, "
             f"job {job_id} remains pending"
         )
@@ -204,7 +204,7 @@ def _submit_extension_impl(
         )
 
         if success:
-            log.info(
+            log.debug(
                 f"Assigned job {job_id} to Celery worker {worker_id} and triggered task"
             )
             queue_position = 0  # Assigned, not in queue
@@ -212,7 +212,7 @@ def _submit_extension_impl(
             log.error(f"Failed to assign job {job_id} to Celery worker {worker_id}")
 
     # Notify user
-    log.info(
+    log.debug(
         f"Emitting invalidate for user {user_name}, category {category}, "
         f"extension {extension}, room {room_id} to user:{user_name}"
     )
@@ -272,7 +272,7 @@ def get_extension_data(room_id: str, category: str, extension: str):
     except AuthError as e:
         return {"error": e.message}, e.status_code
 
-    log.info(
+    log.debug(
         f"get_extension_data called with userName={user_name}, category={category}, extension={extension} for room {room_id}"
     )
 

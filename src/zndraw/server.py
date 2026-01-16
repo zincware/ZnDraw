@@ -100,7 +100,10 @@ def create_app(config: "ZnDrawConfig | None" = None) -> Flask:
     logging.basicConfig(
         level=log_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    log.info(f"Logging configured at level: {config.log_level}")
+    log.debug(f"Logging configured at level: {config.log_level}")
+
+    # Log config now that logging is configured
+    config.log_config()
 
     app = Flask(__name__)
 
@@ -181,13 +184,13 @@ def create_app(config: "ZnDrawConfig | None" = None) -> Flask:
 
     # Configure SocketIO with Redis message queue for multi-worker support
     if config.redis_url:
-        log.info(f"Configuring SocketIO with Redis message queue: {config.redis_url}")
+        log.debug(f"Configuring SocketIO with Redis message queue: {config.redis_url}")
         socketio.init_app(app, message_queue=config.redis_url, cors_allowed_origins="*")
     else:
-        log.info("Configuring SocketIO without message queue (single worker mode)")
+        log.debug("Configuring SocketIO without message queue (single worker mode)")
         socketio.init_app(app, cors_allowed_origins="*")
 
     app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {"/metrics": make_wsgi_app()})
-    log.info("Prometheus metrics endpoint enabled at /metrics")
+    log.debug("Prometheus metrics endpoint enabled at /metrics")
 
     return app

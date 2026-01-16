@@ -98,7 +98,7 @@ def execute_job_for_worker(
         extension = job_data["extension"]
         data = job_data["data"]
 
-        log.info(
+        log.debug(
             f"Worker {worker_id} fetched job {job_id}: {category}/{extension} in room {room}"
         )
 
@@ -136,14 +136,14 @@ def execute_job_for_worker(
             worker_id=worker_id,
         )
 
-        log.info(f"Worker {worker_id} starting job {job_id}: {category}/{extension}")
+        log.debug(f"Worker {worker_id} starting job {job_id}: {category}/{extension}")
 
         # Step 5: Execute extension
         try:
             instance = extension_class(**data)
             instance.run(vis, **(run_kwargs or {}))
 
-            log.info(f"Worker {worker_id} completed job {job_id}")
+            log.debug(f"Worker {worker_id} completed job {job_id}")
 
             # Step 6a: Mark as completed
             vis.api.update_job_status(

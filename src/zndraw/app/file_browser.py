@@ -152,7 +152,7 @@ def _find_room_with_exact_file(
         current_stat.st_mtime, tz=timezone.utc
     ).isoformat()
 
-    log.info(
+    log.debug(
         f"Looking for duplicate file: relative_path={relative_path}, size={current_size}, mtime={current_mtime}"
     )
 
@@ -183,10 +183,10 @@ def _find_room_with_exact_file(
             and stored_size == current_size
             and stored_mtime == current_mtime
         ):
-            log.info(f"Found duplicate in room: {room_id}")
+            log.debug(f"Found duplicate in room: {room_id}")
             return room_id
 
-    log.info("No duplicate found")
+    log.debug("No duplicate found")
     return None
 
 
@@ -788,7 +788,7 @@ def create_room_from_existing_file():
         redis_client.set(new_room_keys.description(), description)
     redis_client.set(new_room_keys.locked(), "0")
 
-    log.info(
+    log.debug(
         f"Created room '{new_room}' from '{source_room}' with {frame_count_int} frames"
     )
 

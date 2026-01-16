@@ -150,4 +150,4 @@ def emit_room_delete(socketio: SocketIO, room_id: str):
         SocketEvents.ROOM_DELETE, payload, to=f"room:{room_id}", namespace="/"
     )
 
-    log.info(f"Emitted room:delete for '{room_id}'")
+    log.debug(f"Emitted room:delete for '{room_id}'")

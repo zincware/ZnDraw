@@ -44,10 +44,10 @@ class AdminService:
         self._deployment_mode = bool(admin_username and admin_password)
 
         if self._deployment_mode:
-            log.info("Admin service initialized in DEPLOYMENT mode")
-            log.info(f"Admin username: {admin_username} (password configured)")
+            log.debug("Admin service initialized in DEPLOYMENT mode")
+            log.debug(f"Admin username: {admin_username} (password configured)")
         else:
-            log.info("Admin service initialized in LOCAL mode (all users are admin)")
+            log.debug("Admin service initialized in LOCAL mode (all users are admin)")
 
     def is_deployment_mode(self) -> bool:
         """Check if running in deployment mode.
@@ -118,7 +118,7 @@ class AdminService:
         pipe.set(keys.admin_key(), "1")
         pipe.sadd(GlobalIndexKeys.admins_index(), user_name)
         pipe.execute()
-        log.info(f"Granted admin privileges to user {user_name}")
+        log.debug(f"Granted admin privileges to user {user_name}")
 
     def revoke_admin(self, user_name: str) -> None:
         """Revoke admin privileges from a user.
@@ -133,7 +133,7 @@ class AdminService:
         pipe.delete(keys.admin_key())
         pipe.srem(GlobalIndexKeys.admins_index(), user_name)
         pipe.execute()
-        log.info(f"Revoked admin privileges from user {user_name}")
+        log.debug(f"Revoked admin privileges from user {user_name}")
 
     def is_admin(self, user_name: str) -> bool:
         """Check if a user has admin privileges.

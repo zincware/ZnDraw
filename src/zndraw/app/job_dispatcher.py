@@ -220,7 +220,7 @@ def assign_pending_jobs_for_extension(
         _emit_job_assigned(socketio, current_worker_id, job_id)
 
         assignments_made += 1
-        log.info(
+        log.debug(
             f"Assigned job {job_id} ({category}/{extension}) to worker {current_worker_id}"
         )
 

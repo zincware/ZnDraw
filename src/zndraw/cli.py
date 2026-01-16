@@ -87,6 +87,7 @@ def _build_config(
     file_browser: bool | None,
     file_browser_root: str | None,
     celery: bool,
+    verbose: bool,
 ) -> ZnDrawConfig:
     """Build config from CLI arguments.
 
@@ -143,6 +144,10 @@ def _build_config(
 
     if file_browser_root is not None:
         config_kwargs["file_browser_root"] = file_browser_root
+
+    # Verbose mode sets DEBUG logging
+    if verbose:
+        config_kwargs["log_level"] = "DEBUG"
 
     return ZnDrawConfig(**config_kwargs)
 
@@ -290,11 +295,6 @@ def main(
             err=True,
         )
         raise typer.Exit(1)
-    if verbose:
-        import logging
-
-        logging.basicConfig(level=logging.DEBUG)
-
     # Handle --status flag
     if status:
         server_info = find_running_server(port)
@@ -474,7 +474,8 @@ def main(
 
     # Compute room names upfront (if files provided)
     room_names = get_room_names(path) if path else []
-    typer.echo(f"Rooms: {room_names}" if path else "No files loaded on startup.")
+    if verbose:
+        typer.echo(f"Rooms: {room_names}" if path else "No files loaded on startup.")
 
     # Build configuration from CLI args (overrides env vars via pydantic-settings)
     config = _build_config(
@@ -490,6 +491,7 @@ def main(
         file_browser=file_browser,
         file_browser_root=file_browser_root,
         celery=celery,
+        verbose=verbose,
     )
     set_config(config)
 
@@ -533,7 +535,8 @@ def main(
     if path is not None:
         make_default = True
         for p, room_name in zip(path, room_names):
-            typer.echo(f"Loading file {p} into room {room_name}.")
+            if verbose:
+                typer.echo(f"Loading file {p} into room {room_name}.")
             read_file.delay(
                 file=p,
                 room=room_name,
@@ -549,15 +552,16 @@ def main(
         # Room will be auto-created with "empty" template when frontend joins
         workspace_room = f"workspace-{uuid.uuid4().hex[:8]}"
         first_room = workspace_room
-        typer.echo(f"Starting empty workspace: {workspace_room}")
+        if verbose:
+            typer.echo(f"Starting empty workspace: {workspace_room}")
 
     # Open browser if requested
     if browser:
         if first_room:
             browser_url = f"http://localhost:{config.server_port}/rooms/{first_room}"
-            typer.echo(f"Opening browser at {browser_url}")
         else:
             browser_url = f"http://localhost:{config.server_port}"
+        if verbose:
             typer.echo(f"Opening browser at {browser_url}")
         webbrowser.open(browser_url)
 

@@ -358,7 +358,7 @@ def read_file(
         requests.post(
             f"{server_url}/api/rooms/{room}/metadata", json=metadata
         ).raise_for_status()
-        log.info(f"Stored metadata for room {room}: {metadata}")
+        log.debug(f"Stored metadata for room {room}: {metadata}")
     except Exception as e:
         log.error(f"Failed to store metadata for room {room}: {e}")
         # Don't fail the whole task if metadata storage fails
@@ -373,7 +373,7 @@ def read_file(
                 json={"roomId": room},
                 headers=headers,
             ).raise_for_status()
-            log.info(f"Set room {room} as default")
+            log.debug(f"Set room {room} as default")
         except requests.RequestException as e:
             log.error(f"Failed to set default room {room}: {e}")
             vis.log("Failed to set room as default.")
@@ -391,7 +391,7 @@ def read_file(
                 json={"locked": True},
                 headers=headers,
             ).raise_for_status()
-            log.info(f"Locked template room {room} (admin-locked)")
+            log.debug(f"Locked template room {room} (admin-locked)")
             vis.log("✓ Room locked by admin (template room)")
         except requests.RequestException as e:
             log.error(f"Failed to lock template room {room}: {e}")
@@ -405,7 +405,7 @@ def read_file(
             import os
 
             os.remove(file_path)
-            log.info(f"Cleaned up temporary file: {file_path}")
+            log.debug(f"Cleaned up temporary file: {file_path}")
         except Exception as e:
             log.error(f"Failed to cleanup temp file {file_path}: {e}")
 
@@ -434,7 +434,7 @@ def celery_job_worker(self, job_data: dict, server_url: str):
     worker_id = f"celery:{self.request.id}"
     job_id = job_data.get("id")
 
-    log.info(
+    log.debug(
         f"Celery worker {worker_id} starting job {job_id}: "
         f"{job_data.get('category')}/{job_data.get('extension')} in room {job_data.get('room')}"
     )
@@ -446,7 +446,7 @@ def celery_job_worker(self, job_data: dict, server_url: str):
             server_url=server_url,
             worker_id=worker_id,
         )
-        log.info(f"Celery worker {worker_id} completed job {job_id}")
+        log.debug(f"Celery worker {worker_id} completed job {job_id}")
     except Exception as e:
         log.error(
             f"Celery worker {worker_id} failed to execute job {job_id}: {e}",

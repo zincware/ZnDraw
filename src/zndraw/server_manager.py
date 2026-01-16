@@ -221,7 +221,7 @@ def wait_for_server_ready(
             response = requests.get(f"{url}/health", timeout=2.0)
             if response.status_code == 200:
                 elapsed = time.time() - start_time
-                log.info(f"Server ready after {elapsed:.2f}s ({attempt} attempts)")
+                log.debug(f"Server ready after {elapsed:.2f}s ({attempt} attempts)")
                 return True
         except requests.RequestException:
             pass

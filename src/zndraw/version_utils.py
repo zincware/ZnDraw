@@ -125,8 +125,8 @@ def validate_server_version(api_manager, client_version: str) -> None:
     try:
         server_version = api_manager.get_version()
 
-        log.info(f"Server version: {server_version}")
-        log.info(f"Client version: {client_version}")
+        log.debug(f"Server version: {server_version}")
+        log.debug(f"Client version: {client_version}")
 
         compatible, severity, message = check_version_compatibility(
             client_version, server_version
@@ -140,7 +140,7 @@ def validate_server_version(api_manager, client_version: str) -> None:
             log.warning(message)
             warnings.warn(message, UserWarning, stacklevel=2)
         else:
-            log.info(message)
+            log.debug(message)
 
     except Exception as e:
         if isinstance(e, RuntimeError):

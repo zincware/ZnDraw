@@ -428,7 +428,7 @@ def delete_frames_batch(room_id: str, session_id: str, user_id: str):
             # Batch delete all members at once
             r.zrem(room_keys.trajectory_indices(), *members_to_delete)
 
-        log.info(
+        log.debug(
             f"Deleted {len(frame_indices)} frames from room '{room_id}'. Physical data preserved."
         )
 
@@ -565,7 +565,7 @@ def append_frame(room_id: str, session_id: str, user_id: str):
                 room_id, operation="replace", affected_index=target_frame_id
             )
 
-            log.info(
+            log.debug(
                 f"Replaced frame {target_frame_id} (old: {old_mapping_entry}, new: {room_id}:{new_physical_index}) in room '{room_id}'"
             )
             return {"success": True, "replaced_frame": target_frame_id}
@@ -621,7 +621,7 @@ def append_frame(room_id: str, session_id: str, user_id: str):
             # Get frame count after extend
             length = len(index_manager)
 
-            log.info(
+            log.debug(
                 f"PERFORMANCE: Extended trajectory with {num_frames} frames to room '{room_id}' | "
                 f"Total: {extend_total_time:.4f}s | "
                 f"Positions: {positions_time:.4f}s | "
@@ -678,7 +678,7 @@ def append_frame(room_id: str, session_id: str, user_id: str):
             # Get frame count after insert
             length = len(index_manager)
 
-            log.info(
+            log.debug(
                 f"Inserted frame at position {insert_position} (physical: {new_physical_index}) in room '{room_id}'"
             )
             return {
@@ -827,7 +827,7 @@ def bulk_replace_frames(room_id: str, session_id: str, user_id: str):
             )
 
             length = len(index_manager)
-            log.info(f"Bulk replaced {len(target_indices)} frames in room '{room_id}'")
+            log.debug(f"Bulk replaced {len(target_indices)} frames in room '{room_id}'")
             return {
                 "success": True,
                 "replaced_count": len(target_indices),
@@ -888,7 +888,7 @@ def bulk_replace_frames(room_id: str, session_id: str, user_id: str):
                 room_id, operation="bulk_replace", affected_from=start
             )
 
-            log.info(
+            log.debug(
                 f"Bulk replaced slice [{start}:{stop}] ({old_count} frames) with {new_count} frames in room '{room_id}'"
             )
             return {
@@ -1068,7 +1068,7 @@ def partial_update_frame(room_id: str, frame_id: int, session_id: str, user_id: 
         # Emit frame invalidation for this specific frame
         emit_frames_invalidate(room_id, operation="replace", affected_index=frame_id)
 
-        log.info(
+        log.debug(
             f"Partial update of frame {frame_id} in room '{room_id}': "
             f"updated keys {list(unpacked_data.keys())}"
         )
