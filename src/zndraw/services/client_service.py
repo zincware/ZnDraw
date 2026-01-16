@@ -73,7 +73,7 @@ class ClientService:
         pipe.sadd(RoomKeys(room_id).users(), user_name)
         pipe.sadd(keys.visited_rooms(), room_id)
         pipe.execute()
-        log.info(f"User {user_name} joined room {room_id}")
+        log.debug(f"User {user_name} joined room {room_id}")
 
     def get_visited_rooms(self, user_name: str) -> set[str]:
         """Get all room IDs that a user has visited.

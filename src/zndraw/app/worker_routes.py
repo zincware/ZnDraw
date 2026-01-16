@@ -174,7 +174,7 @@ def register_worker():
             }, 423
 
     scope = "global" if public else f"room {room_id}"
-    log.info(
+    log.debug(
         f"Registering {'global' if public else 'room-scoped'} extension: name={name}, category={category}, worker_id={worker_id}, scope={scope}"
     )
 
@@ -212,7 +212,7 @@ def register_worker():
 
         r.sadd(worker_extensions_key, name)
 
-        log.info(
+        log.debug(
             f"Worker {worker_id} re-registered for extension '{name}' "
             f"in category '{category}', invalidating schema"
         )
@@ -225,7 +225,7 @@ def register_worker():
             r, socketio, ext_room_id, category, name, worker_id
         )
         if assigned > 0:
-            log.info(
+            log.debug(
                 f"Assigned {assigned} pending job(s) to re-registered worker {worker_id}"
             )
 
@@ -276,7 +276,7 @@ def register_worker():
                 to=f"room:{room_id}",
             )
 
-        log.info(
+        log.debug(
             f"Successfully registered new extension '{name}' for worker {worker_id}"
         )
 
@@ -288,7 +288,7 @@ def register_worker():
             r, socketio, ext_room_id, category, name, worker_id
         )
         if assigned > 0:
-            log.info(
+            log.debug(
                 f"Assigned {assigned} pending job(s) to newly registered worker {worker_id}"
             )
 
@@ -414,7 +414,7 @@ def register_filesystem():
             }, 500
 
     scope = "global" if public else f"room {room_id}"
-    log.info(
+    log.debug(
         f"Registering {'global' if public else 'room-scoped'} filesystem: name={name}, type={fs_type}, worker_id={worker_id}, scope={scope}"
     )
 
@@ -439,7 +439,7 @@ def register_filesystem():
             }, 409
 
         # Same worker re-registering - update metadata
-        log.info(
+        log.debug(
             f"Worker {worker_id} re-registered filesystem '{name}', updating metadata"
         )
 
@@ -478,7 +478,7 @@ def register_filesystem():
         if existing_worker is None
         else "Filesystem metadata updated successfully"
     )
-    log.info(f"Filesystem '{name}' registered successfully by worker {worker_id}")
+    log.debug(f"Filesystem '{name}' registered successfully by worker {worker_id}")
 
     return {
         "success": True,

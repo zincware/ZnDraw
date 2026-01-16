@@ -36,11 +36,11 @@ def create_storage(room_id: str, config: StorageConfig) -> StorageBackend:
     """
     match config:
         case InMemoryStorageConfig():
-            log.info(f"Creating in-memory storage for room '{room_id}'")
+            log.debug(f"Creating in-memory storage for room '{room_id}'")
             return InMemoryStorageBackend()
 
         case MongoDBStorageConfig():
-            log.info(
+            log.debug(
                 f"Creating MongoDB storage: uri='{config.get_masked_url()}', "
                 f"database='{config.database}', collection='{room_id}'"
             )
@@ -53,7 +53,7 @@ def create_storage(room_id: str, config: StorageConfig) -> StorageBackend:
         case LMDBStorageConfig():
             db_path = os.path.join(config.path, f"{room_id}.lmdb")
             os.makedirs(config.path, exist_ok=True)
-            log.info(f"Creating LMDB storage at '{db_path}' for room '{room_id}'")
+            log.debug(f"Creating LMDB storage at '{db_path}' for room '{room_id}'")
             return ASEBytesStorageBackend(db_path, map_size=config.map_size)
 
         case _:

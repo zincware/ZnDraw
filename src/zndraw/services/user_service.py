@@ -127,7 +127,7 @@ class UserService:
 
     def __init__(self, redis_client: Redis):
         self.r = redis_client
-        log.info("UserService initialized")
+        log.debug("UserService initialized")
 
     def username_exists(self, user_name: str) -> bool:
         """Check if a username already exists.
@@ -227,7 +227,7 @@ class UserService:
         pipe.sadd(GlobalIndexKeys.users_index(), user_name)
         pipe.execute()
 
-        log.info(f"Created user {user_name}")
+        log.debug(f"Created user {user_name}")
         return True
 
     def ensure_user_exists(self, user_name: str) -> bool:
@@ -264,7 +264,7 @@ class UserService:
         pipe.sadd(GlobalIndexKeys.users_index(), user_name)
         pipe.execute()
 
-        log.info(f"Created guest user {user_name}")
+        log.debug(f"Created guest user {user_name}")
         return True
 
     def register_user(
@@ -322,7 +322,7 @@ class UserService:
             keys = UserKeys(old_user_name)
             self.r.hset(keys.hash_key(), "passwordHash", password_hash)
 
-            log.info(f"User {old_user_name} registered (guest → user)")
+            log.debug(f"User {old_user_name} registered (guest → user)")
             return True
 
         # Different username - create new entry and delete old
@@ -362,7 +362,7 @@ class UserService:
         pipe.delete(old_keys.hash_key())
         pipe.execute()
 
-        log.info(
+        log.debug(
             f"User {old_user_name} registered as {new_user_name} (guest → user, username changed)"
         )
         return True
@@ -440,7 +440,7 @@ class UserService:
         keys = UserKeys(user_name)
         self.r.hset(keys.hash_key(), "passwordHash", password_hash)
 
-        log.info(f"User {user_name} changed password")
+        log.debug(f"User {user_name} changed password")
         return True
 
     def reset_password(self, user_name: str, new_password: str) -> bool:
@@ -476,7 +476,7 @@ class UserService:
         keys = UserKeys(user_name)
         self.r.hset(keys.hash_key(), "passwordHash", password_hash)
 
-        log.info(f"Admin reset password for user {user_name}")
+        log.debug(f"Admin reset password for user {user_name}")
         return True
 
     def update_last_login(self, user_name: str) -> None:
@@ -516,7 +516,7 @@ class UserService:
         pipe.srem(GlobalIndexKeys.admins_index(), user_name)
         pipe.execute()
 
-        log.info(f"User {user_name} deleted")
+        log.debug(f"User {user_name} deleted")
         return True
 
     def list_all_users(self) -> list[dict]:

@@ -79,16 +79,23 @@ def run_celery_worker(config: "ZnDrawConfig") -> subprocess.Popen:
     if config.admin_password is not None:
         my_env["ZNDRAW_ADMIN_PASSWORD"] = config.admin_password.get_secret_value()
 
+    # Build celery command
+    # -q flag suppresses the startup banner (added in Celery 4.0)
+    celery_cmd = [
+        "celery",
+        "-A",
+        "zndraw_cli.celery",
+        "worker",
+        f"--loglevel={config.log_level.lower()}",
+        "--pool=eventlet",
+    ]
+
+    # Add -q flag to suppress banner when not in debug mode
+    if config.log_level.upper() != "DEBUG":
+        celery_cmd.insert(1, "-q")  # -q must come before subcommand
+
     worker = subprocess.Popen(
-        # eventlet worker - use zndraw_cli.celery for proper monkey patching
-        [
-            "celery",
-            "-A",
-            "zndraw_cli.celery",
-            "worker",
-            "--loglevel=info",
-            "--pool=eventlet",
-        ],
+        celery_cmd,
         env=my_env,
     )
     return worker

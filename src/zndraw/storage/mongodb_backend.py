@@ -57,7 +57,7 @@ class MongoDBStorageBackend(StorageBackend):
             self.db = self.client[database]
             self.collection: Collection = self.db[room_id]
 
-            log.info(
+            log.debug(
                 f"Initialized MongoDBStorageBackend: "
                 f"database='{database}', collection='{room_id}'"
             )
@@ -68,7 +68,7 @@ class MongoDBStorageBackend(StorageBackend):
     def close(self) -> None:
         """Close MongoDB connection and release resources."""
         self.client.close()
-        log.info(f"Closed MongoDB connection for room '{self.room_id}'")
+        log.debug(f"Closed MongoDB connection for room '{self.room_id}'")
 
     def get(
         self,

@@ -192,37 +192,37 @@ class ZnDrawConfig(BaseSettings):
 
     def log_config(self) -> None:
         """Log configuration for debugging (excludes sensitive data)."""
-        log.info("=" * 80)
-        log.info("ZnDraw Configuration:")
-        log.info(f"  Redis URL: {self.redis_url or 'None (in-memory mode)'}")
+        log.debug("=" * 80)
+        log.debug("ZnDraw Configuration:")
+        log.debug(f"  Redis URL: {self.redis_url or 'None (in-memory mode)'}")
 
         match self.storage:
             case InMemoryStorageConfig():
-                log.info("  Storage Backend: In-Memory (no persistence)")
+                log.debug("  Storage Backend: In-Memory (no persistence)")
             case MongoDBStorageConfig():
-                log.info("  Storage Backend: MongoDB")
-                log.info(f"    URL: {self.storage.get_masked_url()}")
-                log.info(f"    Database: {self.storage.database}")
+                log.debug("  Storage Backend: MongoDB")
+                log.debug(f"    URL: {self.storage.get_masked_url()}")
+                log.debug(f"    Database: {self.storage.database}")
             case LMDBStorageConfig():
-                log.info("  Storage Backend: LMDB")
-                log.info(f"    Path: {self.storage.path}")
-                log.info(
+                log.debug("  Storage Backend: LMDB")
+                log.debug(f"    Path: {self.storage.path}")
+                log.debug(
                     f"    Map Size: {self.storage.map_size / 1024**3:.2f} GB per room"
                 )
 
-        log.info(f"  Media Path: {self.media_path}")
-        log.info(f"  Server: {self.server_url}")
-        log.info(f"  Log Level: {self.log_level}")
-        log.info(f"  Admin Mode: {'Enabled' if self.admin_username else 'Disabled'}")
-        log.info(f"  Max Upload: {self.max_upload_mb}MB")
-        log.info(f"  SiMGen: {'Enabled' if self.simgen_enabled else 'Disabled'}")
-        log.info(
+        log.debug(f"  Media Path: {self.media_path}")
+        log.debug(f"  Server: {self.server_url}")
+        log.debug(f"  Log Level: {self.log_level}")
+        log.debug(f"  Admin Mode: {'Enabled' if self.admin_username else 'Disabled'}")
+        log.debug(f"  Max Upload: {self.max_upload_mb}MB")
+        log.debug(f"  SiMGen: {'Enabled' if self.simgen_enabled else 'Disabled'}")
+        log.debug(
             f"  File Browser: {'Enabled' if self.file_browser_enabled else 'Disabled'}"
         )
-        log.info(
+        log.debug(
             f"  Lock Template Room: {'Enabled' if self.lock_template_room else 'Disabled'}"
         )
-        log.info("=" * 80)
+        log.debug("=" * 80)
 
 
 # Global config instance (singleton pattern)
@@ -240,7 +240,6 @@ def get_config() -> ZnDrawConfig:
     global _config
     if _config is None:
         _config = ZnDrawConfig()
-        _config.log_config()
     return _config
 
 
@@ -254,7 +253,6 @@ def set_config(config: ZnDrawConfig) -> None:
     """
     global _config
     _config = config
-    _config.log_config()
 
 
 def reload_config() -> ZnDrawConfig:
@@ -269,5 +267,4 @@ def reload_config() -> ZnDrawConfig:
     """
     global _config
     _config = ZnDrawConfig()
-    _config.log_config()
     return _config

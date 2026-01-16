@@ -81,7 +81,7 @@ def create_jwt_token(
     }
 
     token = jwt.encode(payload, secret_key, algorithm=algorithm)
-    log.info(f"Created JWT for user {user_name} with role {role}")
+    log.debug(f"Created JWT for user {user_name} with role {role}")
 
     return token
 

@@ -85,7 +85,7 @@ def acquire_lock(room_id, target):
                 global_lock_data = json.loads(global_lock_str)
                 if global_lock_data.get("sessionId") != session_id:
                     holder = global_lock_data.get("userId", "unknown")
-                    log.info(
+                    log.debug(
                         f"Cannot acquire lock '{target}' - room {room_id} is globally locked by {holder}"
                     )
                     return (
@@ -244,7 +244,7 @@ def acquire_lock(room_id, target):
             )
             lock_holder = "no lock (released)"
 
-        log.info(
+        log.debug(
             f"Lock for '{target}' in room '{room_id}' already held by {lock_holder}, denied for {user_name}"
         )
         return (

@@ -30,7 +30,7 @@ class InMemoryStorageBackend(StorageBackend):
     def __init__(self):
         """Initialize in-memory storage backend."""
         self._frames: list[dict[bytes, bytes]] = []
-        log.info("Initialized InMemoryStorageBackend")
+        log.debug("Initialized InMemoryStorageBackend")
 
     def get(
         self,

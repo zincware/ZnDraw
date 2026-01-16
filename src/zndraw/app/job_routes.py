@@ -45,7 +45,7 @@ def _transition_worker_to_idle(
     extension = job.get("extension")
     job_id = job.get("id")
 
-    log.info(
+    log.debug(
         f"_transition_worker_to_idle called: worker_id={worker_id}, category={category}, extension={extension}, job_id={job_id}"
     )
 
@@ -63,7 +63,7 @@ def _transition_worker_to_idle(
         if success
         else "capacity restored after failure"
     )
-    log.info(f"Worker {worker_id} {status_msg}")
+    log.debug(f"Worker {worker_id} {status_msg}")
 
     # Get all extensions this worker is registered for in this category
     # Try both room-scoped and global extensions
@@ -82,7 +82,7 @@ def _transition_worker_to_idle(
         redis_client.smembers(user_extensions_key_global)
     )
 
-    log.info(
+    log.debug(
         f"Worker {worker_id} registered extensions - room: {registered_extensions_room}, global: {registered_extensions_global}"
     )
 
@@ -95,7 +95,7 @@ def _transition_worker_to_idle(
             redis_client, socketio_instance, room_id, category, ext_name, worker_id
         )
         if assigned > 0:
-            log.info(
+            log.debug(
                 f"Assigned {assigned} pending job(s) from room extension {ext_name} to worker {worker_id}"
             )
             total_assigned += assigned
@@ -108,7 +108,7 @@ def _transition_worker_to_idle(
                 redis_client, socketio_instance, None, category, ext_name, worker_id
             )
             if assigned > 0:
-                log.info(
+                log.debug(
                     f"Assigned {assigned} pending job(s) from global extension {ext_name} to worker {worker_id}"
                 )
                 total_assigned += assigned
@@ -193,7 +193,7 @@ def get_job_details(job_id: str):
         "createdAt": job.get("created_at"),
     }
 
-    log.info(f"Worker fetching job {job_id}: {job['category']}/{job['extension']}")
+    log.debug(f"Worker fetching job {job_id}: {job['category']}/{job['extension']}")
 
     return jsonify(response), 200
 
@@ -235,10 +235,10 @@ def update_job_status(room_id: str, job_id: str):
         log.error(f"Job {job_id} not found in Redis")
         return {"error": "Job not found"}, 404
 
-    log.info(
+    log.debug(
         f"Update job status called: job_id={job_id}, status={status}, worker_id={worker_id}, room_id={room_id}"
     )
-    log.info(
+    log.debug(
         f"Job data: category={job.get('category')}, extension={job.get('extension')}"
     )
 
@@ -268,7 +268,7 @@ def update_job_status(room_id: str, job_id: str):
         if not success:
             return {"error": "Failed to start job processing"}, 400
 
-        log.info(f"Job {job_id} transitioned to processing by worker {worker_id}")
+        log.debug(f"Job {job_id} transitioned to processing by worker {worker_id}")
 
         return {"status": "success"}, 200
 
@@ -295,7 +295,7 @@ def update_job_status(room_id: str, job_id: str):
         if not success:
             log.error(f"Failed to mark job {job_id} as completed")
             return {"error": "Failed to complete job"}, 400
-        log.info(f"Job {job_id} completed in room {room_id}")
+        log.debug(f"Job {job_id} completed in room {room_id}")
 
         worker_success = True
 
@@ -328,11 +328,11 @@ def update_job_status(room_id: str, job_id: str):
 
     # If this is a client worker (not Celery), handle worker state transition
     if worker_id and not worker_id.startswith("celery:"):
-        log.info(f"Transitioning worker {worker_id} to idle")
+        log.debug(f"Transitioning worker {worker_id} to idle")
         _transition_worker_to_idle(
             redis_client, socketio, worker_id, job, room_id, success=worker_success
         )
     else:
-        log.info(f"Skipping worker transition (worker_id={worker_id})")
+        log.debug(f"Skipping worker transition (worker_id={worker_id})")
 
     return {"status": "success"}, 200
