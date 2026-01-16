@@ -140,7 +140,7 @@ def test_update_job_status_to_processing(server, get_jwt_auth_headers):
     # Job is already assigned, transition to processing
     response = requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "processing", "workerId": vis._worker_id},
+        json={"status": "processing", "workerId": vis.sid},
         headers=get_jwt_auth_headers(server, "testuser"),
     )
 
@@ -160,12 +160,12 @@ def test_update_job_status_to_completed(server, get_jwt_auth_headers):
     # Transition: assigned → processing → completed
     requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "processing", "workerId": vis._worker_id},
+        json={"status": "processing", "workerId": vis.sid},
         headers=auth_headers,
     )
     response = requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "completed", "workerId": vis._worker_id},
+        json={"status": "completed", "workerId": vis.sid},
         headers=auth_headers,
     )
 
@@ -186,7 +186,7 @@ def test_update_job_status_to_failed(server, get_jwt_auth_headers):
     # Transition to processing first
     requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "processing", "workerId": vis._worker_id},
+        json={"status": "processing", "workerId": vis.sid},
         headers=auth_headers,
     )
 
@@ -195,7 +195,7 @@ def test_update_job_status_to_failed(server, get_jwt_auth_headers):
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={
             "status": "failed",
-            "workerId": vis._worker_id,
+            "workerId": vis.sid,
             "error": "Something went wrong",
         },
         headers=auth_headers,
@@ -225,7 +225,7 @@ def test_job_refresh(server, get_jwt_auth_headers):
     # Update via API to processing
     requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "processing", "workerId": vis._worker_id},
+        json={"status": "processing", "workerId": vis.sid},
         headers=get_jwt_auth_headers(server, "testuser"),
     )
 
@@ -275,14 +275,14 @@ def test_job_completion_lifecycle(server, get_jwt_auth_headers):
     # Transition to processing
     requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "processing", "workerId": vis._worker_id},
+        json={"status": "processing", "workerId": vis.sid},
         headers=auth_headers,
     )
 
     # Mark as completed (extensions work through side effects, no result needed)
     response = requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "completed", "workerId": vis._worker_id},
+        json={"status": "completed", "workerId": vis.sid},
         headers=auth_headers,
     )
 
