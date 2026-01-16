@@ -178,8 +178,7 @@ class SocketManager:
             provider = fs["provider"]
             self.zndraw.api.register_filesystem(
                 name=name,
-                provider_type=provider.__class__.__name__,
-                root_path=provider.root_path,
+                fs_type=provider.__class__.__name__,
                 socket_manager=self,
                 public=fs["public"],
             )

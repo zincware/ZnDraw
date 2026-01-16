@@ -1578,7 +1578,7 @@ class ZnDraw(MutableSequence):
             socket_manager=self.socket,
             public=public,
         )
-        log.info(f"Extension '{name}' registered with {scope} (worker_id: {self.sid}).")
+        log.info(f"Extension '{name}' registered with {scope} (sid: {self.sid}).")
 
     def run(self, extension: Extension, public: bool | None = None):
         """Run an extension by submitting a job to the server.
@@ -1700,7 +1700,7 @@ class ZnDraw(MutableSequence):
             public=public,
         )
         log.debug(
-            f"Filesystem '{name}' registered with {scope} (worker_id: {self.sid})."
+            f"Filesystem '{name}' registered with {scope} (sid: {self.sid})."
         )
 
     def log(self, message: str) -> dict:
