@@ -682,6 +682,9 @@ def get_room_schema(room_id: str, category: str):
     - queueLength: number of queued tasks for this extension
     - idleWorkers: number of idle workers available
     - progressingWorkers: number of workers currently processing tasks
+
+    This endpoint also performs lazy cleanup of stale workers (workers registered
+    with a previous server instance that has since restarted).
     """
     # Map category strings to the corresponding imported objects
     # Note: "settings" category is now handled by dedicated /settings/ endpoints
@@ -695,6 +698,13 @@ def get_room_schema(room_id: str, category: str):
         return {"error": f"Unknown schema category '{category}'"}
 
     redis_client = current_app.extensions["redis"]
+
+    # Lazy cleanup of stale workers before fetching schemas
+    from .stale_cleanup import cleanup_all_stale_workers_for_category
+
+    cleanup_all_stale_workers_for_category(redis_client, socketio, room_id, category)
+    cleanup_all_stale_workers_for_category(redis_client, socketio, None, category)
+
     # Changed from dict to list to support duplicate names with different public flags
     schema_list = []
 

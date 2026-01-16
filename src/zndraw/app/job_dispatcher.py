@@ -20,6 +20,9 @@ def get_available_workers(
 ) -> list[str]:
     """Get workers with available capacity for this extension.
 
+    Filters out stale workers (registered before the current cluster heartbeat)
+    to avoid dispatching jobs to workers from previous server instances.
+
     Parameters
     ----------
     redis_client
@@ -34,15 +37,34 @@ def get_available_workers(
     list[str]
         Worker IDs with available capacity
     """
-    # Get all workers registered for this extension
-    all_workers = redis_client.hkeys(extension_keys.workers)
+    from .cluster_heartbeat import ClusterHeartbeat
+
+    # Get heartbeat timestamp for stale worker filtering
+    heartbeat_ts = ClusterHeartbeat.get_heartbeat_timestamp(redis_client)
+
+    # Get all workers with their registration timestamps
+    all_workers = redis_client.hgetall(extension_keys.workers)
 
     if not all_workers:
         return []
 
-    # Build pipeline to check capacity for all workers
+    # Filter out stale workers
+    valid_workers = []
+    for worker_id, reg_ts in all_workers.items():
+        if heartbeat_ts is not None and float(reg_ts) < heartbeat_ts:
+            # Worker is stale - skip it
+            log.debug(
+                f"Skipping stale worker {worker_id} (registered before heartbeat)"
+            )
+            continue
+        valid_workers.append(worker_id)
+
+    if not valid_workers:
+        return []
+
+    # Build pipeline to check capacity for valid workers
     pipe = redis_client.pipeline()
-    for worker_id in all_workers:
+    for worker_id in valid_workers:
         capacity_key = ExtensionKeys.worker_capacity_key(worker_id)
         pipe.get(capacity_key)
 
@@ -50,7 +72,7 @@ def get_available_workers(
 
     # Filter workers with sufficient capacity
     available_workers = []
-    for worker_id, capacity in zip(all_workers, capacities):
+    for worker_id, capacity in zip(valid_workers, capacities):
         capacity_val = int(capacity) if capacity else 0
         if capacity_val >= min_capacity:
             available_workers.append(worker_id)

@@ -23,6 +23,9 @@ class WorkerStats:
     def fetch(cls, redis_client: Any, keys: ExtensionKeys) -> "WorkerStats":
         """Fetch current worker statistics from Redis.
 
+        Filters out stale workers (registered before the current cluster heartbeat)
+        to avoid counting workers from previous server instances.
+
         Args:
             redis_client: Redis client instance
             keys: ExtensionKeys with the relevant Redis keys
@@ -30,22 +33,38 @@ class WorkerStats:
         Returns:
             WorkerStats with current counts
         """
-        # Get all workers registered for this extension
-        all_workers = redis_client.hkeys(keys.workers)
+        from .cluster_heartbeat import ClusterHeartbeat
+
+        # Get heartbeat timestamp for stale worker filtering
+        heartbeat_ts = ClusterHeartbeat.get_heartbeat_timestamp(redis_client)
+
+        # Get all workers with their registration timestamps
+        all_workers = redis_client.hgetall(keys.workers)
+
+        # Filter out stale workers
+        valid_workers = []
+        for worker_id, reg_ts in all_workers.items():
+            if heartbeat_ts is not None and float(reg_ts) < heartbeat_ts:
+                # Worker is stale - skip it
+                continue
+            valid_workers.append(worker_id)
 
         # Count idle vs busy workers by checking capacity
         idle_count = 0
         busy_count = 0
 
-        if all_workers:
+        if valid_workers:
             pipe = redis_client.pipeline()
-            for worker_id in all_workers:
+            for worker_id in valid_workers:
                 capacity_key = ExtensionKeys.worker_capacity_key(worker_id)
                 pipe.get(capacity_key)
             capacities = pipe.execute()
 
             for capacity in capacities:
-                capacity_val = int(capacity) if capacity else 0
+                # Skip workers without capacity key (likely stale)
+                if capacity is None:
+                    continue
+                capacity_val = int(capacity)
                 if capacity_val >= 1:
                     idle_count += 1
                 else:

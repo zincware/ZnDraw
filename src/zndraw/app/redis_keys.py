@@ -735,3 +735,13 @@ class GlobalIndexKeys:
             Redis key for the admins index set
         """
         return GlobalIndexKeys.ADMINS_INDEX
+
+
+class ClusterKeys:
+    """Redis keys for cluster-wide state.
+
+    Used for coordinating state across multiple server instances,
+    such as detecting stale workers after server restarts.
+    """
+
+    HEARTBEAT = "cluster:heartbeat"
