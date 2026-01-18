@@ -19,23 +19,27 @@ export const KeyboardShortcutsHandler = () => {
 	const controls = useThree((state) => state.controls) as OrbitControlsImpl;
 	const queryClient = useQueryClient();
 
-	const {
-		currentFrame,
-		selections,
-		geometries,
-		updateSelectionForGeometry,
-		toggleInfoBoxes,
-		mode,
-		enterDrawingMode,
-		exitDrawingMode,
-		enterEditingMode,
-		exitEditingMode,
-		cycleTransformMode,
-		setEditingSelectedAxis,
-		editingSelectedAxis,
-		roomId,
-		saveFrameEdits,
-	} = useAppStore();
+	const currentFrame = useAppStore((state) => state.currentFrame);
+	const selections = useAppStore((state) => state.selections);
+	const geometries = useAppStore((state) => state.geometries);
+	const updateSelectionForGeometry = useAppStore(
+		(state) => state.updateSelectionForGeometry,
+	);
+	const toggleInfoBoxes = useAppStore((state) => state.toggleInfoBoxes);
+	const mode = useAppStore((state) => state.mode);
+	const enterDrawingMode = useAppStore((state) => state.enterDrawingMode);
+	const exitDrawingMode = useAppStore((state) => state.exitDrawingMode);
+	const enterEditingMode = useAppStore((state) => state.enterEditingMode);
+	const exitEditingMode = useAppStore((state) => state.exitEditingMode);
+	const cycleTransformMode = useAppStore((state) => state.cycleTransformMode);
+	const setEditingSelectedAxis = useAppStore(
+		(state) => state.setEditingSelectedAxis,
+	);
+	const editingSelectedAxis = useAppStore(
+		(state) => state.editingSelectedAxis,
+	);
+	const roomId = useAppStore((state) => state.roomId);
+	const saveFrameEdits = useAppStore((state) => state.saveFrameEdits);
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {

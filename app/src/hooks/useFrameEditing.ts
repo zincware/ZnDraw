@@ -46,17 +46,15 @@ export function useFrameEditing(
 	instanceCount: number,
 ) {
 	const queryClient = useQueryClient();
-	const {
-		mode,
-		transformMode,
-		currentFrame,
-		roomId,
-		subscribeToEditing,
-		editingCombinedCentroid,
-		setPendingFrameEdit,
-		incrementEditingFrameDataCount,
-		decrementEditingFrameDataCount,
-	} = useAppStore();
+	const mode = useAppStore((state) => state.mode);
+	const transformMode = useAppStore((state) => state.transformMode);
+	const currentFrame = useAppStore((state) => state.currentFrame);
+	const roomId = useAppStore((state) => state.roomId);
+	const subscribeToEditing = useAppStore((state) => state.subscribeToEditing);
+	const editingCombinedCentroid = useAppStore((state) => state.editingCombinedCentroid);
+	const setPendingFrameEdit = useAppStore((state) => state.setPendingFrameEdit);
+	const incrementEditingFrameDataCount = useAppStore((state) => state.incrementEditingFrameDataCount);
+	const decrementEditingFrameDataCount = useAppStore((state) => state.decrementEditingFrameDataCount);
 
 	const isEditing = mode === "editing";
 

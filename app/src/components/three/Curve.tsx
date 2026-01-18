@@ -54,11 +54,15 @@ interface CurveData {
 /**
  * A component to render a 3D curve using @react-three/drei,
  * with optional markers that can be interactively moved.
+ *
+ * Note: Curves use Line components which are not supported by the GPU pathtracer.
+ * When pathtracingEnabled is true, the entire curve is hidden.
  */
 export default function Curve({
 	data,
 	geometryKey,
-}: { data: CurveData; geometryKey: string }) {
+	pathtracingEnabled = false,
+}: { data: CurveData; geometryKey: string; pathtracingEnabled?: boolean }) {
 	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
 	// Merge with defaults from Pydantic (single source of truth)
@@ -845,6 +849,8 @@ export default function Curve({
 	if (!marker || !virtual_marker) return null;
 	// Don't render if geometry is disabled OR if required keys are not available
 	if (fullData.active === false || !hasRequiredKeys) return null;
+	// Hide curve when pathtracing (Line components not supported by GPU pathtracer)
+	if (pathtracingEnabled) return null;
 
 	// --- Render ---
 	return (

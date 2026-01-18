@@ -32,34 +32,33 @@ interface SocketManagerOptions {
 }
 
 export const useSocketManager = (options: SocketManagerOptions = {}) => {
-	const {
-		setConnected,
-		setInitializationError,
-		setFrameCount,
-		setCurrentFrame,
-		setFrameSelection,
-		setSelections,
-		setSelectionGroups,
-		setActiveSelectionGroup,
-		setBookmarks,
-		roomId: appStoreRoomId,
-		setUserName,
-		setSessionId,
-		setGeometries,
-		setGeometrySchemas,
-		setGeometryDefaults,
-		updateGeometry,
-		removeGeometry,
-		setActiveCurveForDrawing,
-		setServerVersion,
-		setGlobalSettings,
-		setLockMetadata,
-		setProgressTrackers,
-		addProgressTracker,
-		updateProgressTracker,
-		removeProgressTracker,
-		setPlaying,
-	} = useAppStore();
+	// Selector-based subscriptions to avoid re-renders on unrelated state changes
+	const appStoreRoomId = useAppStore((state) => state.roomId);
+	const setConnected = useAppStore((state) => state.setConnected);
+	const setInitializationError = useAppStore((state) => state.setInitializationError);
+	const setFrameCount = useAppStore((state) => state.setFrameCount);
+	const setCurrentFrame = useAppStore((state) => state.setCurrentFrame);
+	const setFrameSelection = useAppStore((state) => state.setFrameSelection);
+	const setSelections = useAppStore((state) => state.setSelections);
+	const setSelectionGroups = useAppStore((state) => state.setSelectionGroups);
+	const setActiveSelectionGroup = useAppStore((state) => state.setActiveSelectionGroup);
+	const setBookmarks = useAppStore((state) => state.setBookmarks);
+	const setUserName = useAppStore((state) => state.setUserName);
+	const setSessionId = useAppStore((state) => state.setSessionId);
+	const setGeometries = useAppStore((state) => state.setGeometries);
+	const setGeometrySchemas = useAppStore((state) => state.setGeometrySchemas);
+	const setGeometryDefaults = useAppStore((state) => state.setGeometryDefaults);
+	const updateGeometry = useAppStore((state) => state.updateGeometry);
+	const removeGeometry = useAppStore((state) => state.removeGeometry);
+	const setActiveCurveForDrawing = useAppStore((state) => state.setActiveCurveForDrawing);
+	const setServerVersion = useAppStore((state) => state.setServerVersion);
+	const setGlobalSettings = useAppStore((state) => state.setGlobalSettings);
+	const setLockMetadata = useAppStore((state) => state.setLockMetadata);
+	const setProgressTrackers = useAppStore((state) => state.setProgressTrackers);
+	const addProgressTracker = useAppStore((state) => state.addProgressTracker);
+	const updateProgressTracker = useAppStore((state) => state.updateProgressTracker);
+	const removeProgressTracker = useAppStore((state) => state.removeProgressTracker);
+	const setPlaying = useAppStore((state) => state.setPlaying);
 	const queryClient = useQueryClient();
 	const { openWindow } = useWindowManagerStore();
 

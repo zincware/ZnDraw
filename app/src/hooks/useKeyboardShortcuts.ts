@@ -3,21 +3,19 @@ import { useAppStore } from "../store";
 import { useStepControl } from "./useStepControl";
 
 export const useKeyboardShortcuts = () => {
-	const {
-		currentFrame,
-		frameCount,
-		frame_selection,
-		frameSelectionEnabled,
-		playing,
-		setPlaying,
-		skipFrames,
-		synchronizedMode,
-		getIsFetching,
-		addBookmark,
-		bookmarks,
-		setFps,
-		setLastFrameChangeTime,
-	} = useAppStore();
+	const currentFrame = useAppStore((state) => state.currentFrame);
+	const frameCount = useAppStore((state) => state.frameCount);
+	const frame_selection = useAppStore((state) => state.frame_selection);
+	const frameSelectionEnabled = useAppStore((state) => state.frameSelectionEnabled);
+	const playing = useAppStore((state) => state.playing);
+	const setPlaying = useAppStore((state) => state.setPlaying);
+	const skipFrames = useAppStore((state) => state.skipFrames);
+	const synchronizedMode = useAppStore((state) => state.synchronizedMode);
+	const getIsFetching = useAppStore((state) => state.getIsFetching);
+	const addBookmark = useAppStore((state) => state.addBookmark);
+	const bookmarks = useAppStore((state) => state.bookmarks);
+	const setFps = useAppStore((state) => state.setFps);
+	const setLastFrameChangeTime = useAppStore((state) => state.setLastFrameChangeTime);
 
 	const { setStep } = useStepControl();
 

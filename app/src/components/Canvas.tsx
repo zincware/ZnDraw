@@ -51,21 +51,27 @@ const PATHTRACING_GEOMETRY_COMPONENTS = {
 	Box: Box,
 	Plane: Plane,
 	Shape: Shape,
+	Curve: Curve,
 } as const;
 
 /**
  * Components that accept geometryKey but NOT pathtracingEnabled.
  */
 const SIMPLE_GEOMETRY_COMPONENTS = {
-	Curve: Curve,
 	Camera: Camera,
 } as const;
 
 /**
- * Components that only accept data prop (no geometryKey).
+ * Components that only accept data prop AND pathtracingEnabled.
+ */
+const DATA_PATHTRACING_GEOMETRY_COMPONENTS = {
+	Cell: Cell,
+} as const;
+
+/**
+ * Components that only accept data prop (no geometryKey, no pathtracingEnabled).
  */
 const DATA_ONLY_GEOMETRY_COMPONENTS = {
-	Cell: Cell,
 	Floor: Floor,
 } as const;
 
@@ -317,6 +323,22 @@ function MyScene() {
 								return (
 									<GeometryErrorBoundary key={name} geometryKey={name}>
 										<Component geometryKey={name} data={config.data} />
+									</GeometryErrorBoundary>
+								);
+							}
+
+							// Check data + pathtracing components (no geometryKey, but pathtracingEnabled)
+							if (type in DATA_PATHTRACING_GEOMETRY_COMPONENTS) {
+								const Component =
+									DATA_PATHTRACING_GEOMETRY_COMPONENTS[
+										type as keyof typeof DATA_PATHTRACING_GEOMETRY_COMPONENTS
+									];
+								return (
+									<GeometryErrorBoundary key={name} geometryKey={name}>
+										<Component
+											data={config.data}
+											pathtracingEnabled={pathtracingEnabled}
+										/>
 									</GeometryErrorBoundary>
 								);
 							}

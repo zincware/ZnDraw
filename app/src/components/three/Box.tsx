@@ -31,10 +31,7 @@ import {
 	_quat2,
 	_color,
 } from "../../utils/threeObjectPools";
-import {
-	convertInstancedMeshToMerged,
-	disposeMesh,
-} from "../../utils/convertInstancedMesh";
+import { usePathtracingMesh } from "../../hooks/usePathtracingMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 import { useFrameKeys } from "../../hooks/useSchemas";
 
@@ -69,10 +66,9 @@ export default function Box({
 	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
 	// Merge with defaults from Pydantic (single source of truth)
-	const fullData = getGeometryWithDefaults<BoxData>(
-		data,
-		"Box",
-		geometryDefaults,
+	const fullData = useMemo(
+		() => getGeometryWithDefaults<BoxData>(data, "Box", geometryDefaults),
+		[data, geometryDefaults],
 	);
 
 	const {
@@ -90,8 +86,13 @@ export default function Box({
 	const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const hoverMeshRef = useRef<THREE.Mesh | null>(null);
-	const mergedMeshRef = useRef<THREE.Mesh | null>(null);
 	const [instanceCount, setInstanceCount] = useState(0);
+
+	// Pathtracing: convert instanced mesh to merged mesh
+	const { mergedMesh, updateMergedMesh } = usePathtracingMesh(
+		mainMeshRef,
+		pathtracingEnabled,
+	);
 
 	// Use individual selectors to prevent unnecessary re-renders
 	const currentFrame = useAppStore((state) => state.currentFrame);
@@ -114,9 +115,6 @@ export default function Box({
 	const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
 	const removeGeometryFetching = useAppStore(
 		(state) => state.removeGeometryFetching,
-	);
-	const requestPathtracingUpdate = useAppStore(
-		(state) => state.requestPathtracingUpdate,
 	);
 
 	// Fetch frame keys to check if required data is available
@@ -445,6 +443,11 @@ export default function Box({
 			mainMesh.computeBoundingBox();
 			mainMesh.computeBoundingSphere();
 
+			// Update pathtracing mesh if enabled
+			if (pathtracingEnabled) {
+				updateMergedMesh();
+			}
+
 			// --- Selection Mesh Update ---
 			if (selecting.enabled && selectionMeshRef.current) {
 				const selectionMesh = selectionMeshRef.current;
@@ -482,7 +485,6 @@ export default function Box({
 			if (instanceCount !== 0) setInstanceCount(0);
 		}
 	}, [
-		data, // Add data to dependencies to ensure updates trigger
 		frameCount, // Watch frameCount to clear boxes when it becomes 0
 		isFetching,
 		hasQueryError,
@@ -500,6 +502,10 @@ export default function Box({
 		validSelectedIndices,
 		selecting,
 		geometryKey,
+		pathtracingEnabled,
+		material,
+		opacity,
+		data,
 	]);
 
 	// Separate effect for hover mesh updates - doesn't trigger data reprocessing
@@ -531,40 +537,6 @@ export default function Box({
 			hoverMesh.visible = false;
 		}
 	}, [hoveredGeometryInstance, instanceCount, hovering, geometryKey]);
-
-	// Convert instanced mesh to merged mesh for path tracing
-	useEffect(() => {
-		if (!pathtracingEnabled) {
-			if (mergedMeshRef.current) {
-				disposeMesh(mergedMeshRef.current);
-				mergedMeshRef.current = null;
-			}
-			return;
-		}
-
-		if (!mainMeshRef.current || instanceCount === 0) return;
-
-		if (mergedMeshRef.current) {
-			disposeMesh(mergedMeshRef.current);
-		}
-
-		const mergedMesh = convertInstancedMeshToMerged(mainMeshRef.current);
-		mergedMeshRef.current = mergedMesh;
-
-		requestPathtracingUpdate();
-
-		return () => {
-			if (mergedMeshRef.current) {
-				disposeMesh(mergedMeshRef.current);
-				mergedMeshRef.current = null;
-			}
-		};
-	}, [
-		pathtracingEnabled,
-		instanceCount,
-		geometryKey,
-		requestPathtracingUpdate,
-	]);
 
 	// Shared geometry for all boxes
 	const mainGeometry = useMemo(() => {
@@ -675,9 +647,7 @@ export default function Box({
 			)}
 
 			{/* Merged mesh - visible when pathtracing */}
-			{pathtracingEnabled && mergedMeshRef.current && (
-				<primitive object={mergedMeshRef.current} />
-			)}
+			{pathtracingEnabled && mergedMesh && <primitive object={mergedMesh} />}
 		</group>
 	);
 }

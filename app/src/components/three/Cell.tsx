@@ -14,7 +14,16 @@ interface CellData {
 	thickness: number;
 }
 
-export const Cell = ({ data }: { data: CellData }) => {
+/**
+ * Renders the periodic cell as line segments.
+ *
+ * Note: Cell uses Line components which are not supported by the GPU pathtracer.
+ * When pathtracingEnabled is true, the cell is hidden.
+ */
+export const Cell = ({
+	data,
+	pathtracingEnabled = false,
+}: { data: CellData; pathtracingEnabled?: boolean }) => {
 	const { mode } = useColorScheme();
 	const theme = useTheme();
 	// Use individual selectors to prevent unnecessary re-renders
@@ -110,6 +119,9 @@ export const Cell = ({ data }: { data: CellData }) => {
 				? theme.palette.primary.dark
 				: theme.palette.primary.light
 			: fullData.color;
+
+	// Hide cell when pathtracing (Line components not supported by GPU pathtracer)
+	if (pathtracingEnabled) return null;
 
 	return (
 		<group>

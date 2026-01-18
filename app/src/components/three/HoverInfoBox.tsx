@@ -12,8 +12,10 @@ import { formatPropertyValue } from "../../utils/propertyFormatting";
  */
 export default function HoverInfoBox() {
 	const theme = useTheme();
-	const { showInfoBoxes, hoveredGeometryInstance, curveLength, mode } =
-		useAppStore();
+	const showInfoBoxes = useAppStore((state) => state.showInfoBoxes);
+	const hoveredGeometryInstance = useAppStore((state) => state.hoveredGeometryInstance);
+	const curveLength = useAppStore((state) => state.curveLength);
+	const mode = useAppStore((state) => state.mode);
 
 	// Extract particle ID from hovered geometry instance
 	const hoveredParticleId =

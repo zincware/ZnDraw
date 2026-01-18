@@ -29,6 +29,7 @@ import {
 	_quat2,
 	_color,
 } from "../../utils/threeObjectPools";
+import { usePathtracingMesh } from "../../hooks/usePathtracingMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 import { useFrameKeys } from "../../hooks/useSchemas";
 
@@ -93,10 +94,9 @@ export default function Shape({
 	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
 	// Merge with defaults from Pydantic (single source of truth)
-	const fullData = getGeometryWithDefaults<ShapeData>(
-		data,
-		"Shape",
-		geometryDefaults,
+	const fullData = useMemo(
+		() => getGeometryWithDefaults<ShapeData>(data, "Shape", geometryDefaults),
+		[data, geometryDefaults],
 	);
 
 	const {
@@ -114,8 +114,13 @@ export default function Shape({
 	const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const hoverMeshRef = useRef<THREE.Mesh | null>(null);
-
 	const [instanceCount, setInstanceCount] = useState(0);
+
+	// Pathtracing: convert instanced mesh to merged mesh
+	const { mergedMesh, updateMergedMesh } = usePathtracingMesh(
+		mainMeshRef,
+		pathtracingEnabled,
+	);
 
 	// Use individual selectors to prevent unnecessary re-renders
 	const currentFrame = useAppStore((state) => state.currentFrame);
@@ -395,6 +400,11 @@ export default function Shape({
 			mainMesh.computeBoundingBox();
 			mainMesh.computeBoundingSphere();
 
+			// Update pathtracing mesh if enabled
+			if (pathtracingEnabled) {
+				updateMergedMesh();
+			}
+
 			// --- Selection Mesh Update ---
 			if (selecting.enabled && selectionMeshRef.current) {
 				const selectionMesh = selectionMeshRef.current;
@@ -429,7 +439,6 @@ export default function Shape({
 			if (instanceCount !== 0) setInstanceCount(0);
 		}
 	}, [
-		data,
 		frameCount, // Watch frameCount to clear shapes when it becomes 0
 		isFetching,
 		positionData,
@@ -444,6 +453,10 @@ export default function Shape({
 		validSelectedIndices,
 		selecting,
 		geometryKey,
+		pathtracingEnabled,
+		material,
+		opacity,
+		data,
 	]);
 
 	// Separate effect for hover mesh updates
@@ -558,6 +571,9 @@ export default function Shape({
 					/>
 				</mesh>
 			)}
+
+			{/* Merged mesh - visible when pathtracing */}
+			{pathtracingEnabled && mergedMesh && <primitive object={mergedMesh} />}
 		</group>
 	);
 }

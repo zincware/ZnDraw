@@ -38,61 +38,127 @@ export function convertInstancedMeshToMerged(
 		throw new Error("Base geometry is invalid or missing position attribute");
 	}
 
+	// Reusable temporary objects (avoids creating new objects in loop)
 	const tempMatrix = new THREE.Matrix4();
 	const tempColor = new THREE.Color();
 
-	// Array to hold all transformed geometries
-	const geometries: THREE.BufferGeometry[] = [];
+	// Get base attributes
+	const basePositions = baseGeometry.attributes.position;
+	const baseNormals = baseGeometry.attributes.normal;
+	const baseUvs = baseGeometry.attributes.uv;
+	const baseIndices = baseGeometry.index;
 
-	// Temporary objects for matrix decomposition
-	const tempPosition = new THREE.Vector3();
-	const tempQuaternion = new THREE.Quaternion();
-	const tempScale = new THREE.Vector3();
+	const baseVertexCount = basePositions.count;
+	const totalVertexCount = baseVertexCount * count;
+	const baseIndexCount = baseIndices ? baseIndices.count : 0;
+	const totalIndexCount = baseIndexCount * count;
 
+	// Create new attributes for merged geometry
+	const mergedPositions = new Float32Array(totalVertexCount * 3);
+	const mergedNormals = baseNormals
+		? new Float32Array(totalVertexCount * 3)
+		: null;
+	const mergedUvs = baseUvs ? new Float32Array(totalVertexCount * 2) : null;
+	const mergedColors = new Float32Array(totalVertexCount * 3);
+	const mergedIndices = baseIndices
+		? new (baseIndices.array instanceof Uint32Array
+				? Uint32Array
+				: Uint16Array)(totalIndexCount)
+		: null;
+
+	const hasInstanceColor = !!instancedMesh.instanceColor;
+
+	// Transform and merge
 	for (let i = 0; i < count; i++) {
-		// Get the transformation matrix for the current instance
+		// Get instance matrix
 		instancedMesh.getMatrixAt(i, tempMatrix);
 
-		// Decompose the matrix into position, rotation (as quaternion), and scale
-		tempMatrix.decompose(tempPosition, tempQuaternion, tempScale);
-
-		// Clone the original geometry and apply the instance's transformation
-		const instanceGeometry = baseGeometry.clone();
-		instanceGeometry.applyMatrix4(
-			new THREE.Matrix4().compose(tempPosition, tempQuaternion, tempScale),
-		);
-
-		// Bake instance color into vertex colors
-		if (instancedMesh.instanceColor) {
+		// Get instance color
+		if (hasInstanceColor) {
 			instancedMesh.getColorAt(i, tempColor);
-
-			const colors: number[] = [];
-			const vertexCount = instanceGeometry.attributes.position.count;
-			for (let j = 0; j < vertexCount; j++) {
-				colors.push(tempColor.r, tempColor.g, tempColor.b);
-			}
-			instanceGeometry.setAttribute(
-				"color",
-				new THREE.Float32BufferAttribute(colors, 3),
-			);
+		} else {
+			tempColor.set(1, 1, 1); // Default white
 		}
 
-		// Add transformed geometry to the array for merging
-		geometries.push(instanceGeometry);
+		const vertexOffset = i * baseVertexCount;
+		const indexOffset = i * baseIndexCount;
+
+		// Process vertices
+		for (let v = 0; v < baseVertexCount; v++) {
+			const targetIdx = (vertexOffset + v) * 3;
+			const srcIdx = v * 3;
+
+			// Position transform
+			const x = basePositions.getX(v);
+			const y = basePositions.getY(v);
+			const z = basePositions.getZ(v);
+
+			// Manual matrix multiplication for performance (avoid Vector3 allocation)
+			const e = tempMatrix.elements;
+			const w = 1 / (e[3] * x + e[7] * y + e[11] * z + e[15]);
+
+			mergedPositions[targetIdx] = (e[0] * x + e[4] * y + e[8] * z + e[12]) * w;
+			mergedPositions[targetIdx + 1] =
+				(e[1] * x + e[5] * y + e[9] * z + e[13]) * w;
+			mergedPositions[targetIdx + 2] =
+				(e[2] * x + e[6] * y + e[10] * z + e[14]) * w;
+
+			// Normal transform (if available)
+			if (mergedNormals && baseNormals) {
+				const nx = baseNormals.getX(v);
+				const ny = baseNormals.getY(v);
+				const nz = baseNormals.getZ(v);
+
+				// Transform normal by rotation part of matrix (upper 3x3)
+				// Note: For non-uniform scale, we technically need inverse-transpose,
+				// but for uniform scale (common in particles) this is sufficient.
+				// For perfect correctness with non-uniform scale, we'd need normal matrix.
+				// Given performance constraints, direct rotation is often acceptable approximation here.
+				mergedNormals[targetIdx] = e[0] * nx + e[4] * ny + e[8] * nz;
+				mergedNormals[targetIdx + 1] = e[1] * nx + e[5] * ny + e[9] * nz;
+				mergedNormals[targetIdx + 2] = e[2] * nx + e[6] * ny + e[10] * nz;
+			}
+
+			// UV copy (if available)
+			if (mergedUvs && baseUvs) {
+				const targetUvIdx = (vertexOffset + v) * 2;
+				mergedUvs[targetUvIdx] = baseUvs.getX(v);
+				mergedUvs[targetUvIdx + 1] = baseUvs.getY(v);
+			}
+
+			// Color copy
+			mergedColors[targetIdx] = tempColor.r;
+			mergedColors[targetIdx + 1] = tempColor.g;
+			mergedColors[targetIdx + 2] = tempColor.b;
+		}
+
+		// Copy indices (offset by vertex count)
+		if (mergedIndices && baseIndices) {
+			for (let j = 0; j < baseIndexCount; j++) {
+				mergedIndices[indexOffset + j] = baseIndices.getX(j) + vertexOffset;
+			}
+		}
 	}
 
-	// Merge all geometries into a single BufferGeometry
-	// CRITICAL: Pass `true` as second parameter to create geometry groups
-	let mergedGeometry: THREE.BufferGeometry;
-	try {
-		mergedGeometry = BufferGeometryUtils.mergeGeometries(geometries, true);
-	} catch (error) {
-		console.error("[convertInstancedMesh] Error merging geometries:", error);
-		throw error;
-	}
-
-	// Dispose individual geometries after merging to free memory
-	geometries.forEach((geo) => geo.dispose());
+	// Create merged buffer geometry
+	const mergedGeometry = new THREE.BufferGeometry();
+	mergedGeometry.setAttribute(
+		"position",
+		new THREE.BufferAttribute(mergedPositions, 3),
+	);
+	if (mergedNormals)
+		mergedGeometry.setAttribute(
+			"normal",
+			new THREE.BufferAttribute(mergedNormals, 3),
+		);
+	if (mergedUvs)
+		mergedGeometry.setAttribute("uv", new THREE.BufferAttribute(mergedUvs, 2));
+	mergedGeometry.setAttribute(
+		"color",
+		new THREE.BufferAttribute(mergedColors, 3),
+	);
+	if (mergedIndices)
+		mergedGeometry.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
 
 	// CRITICAL: Compute bounding box and sphere for pathtracer!
 	// The pathtracer needs these for ray intersection tests

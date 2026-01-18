@@ -66,7 +66,6 @@ export function PathtracingUpdater({ settings }: { settings: PathTracing }) {
 		settings.environment_intensity,
 		settings.environment_blur,
 		settings.environment_background,
-		update,
 	]);
 
 	// This component doesn't render anything
