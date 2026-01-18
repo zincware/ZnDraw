@@ -8,7 +8,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+	defaultOptions: {
+		queries: {
+			staleTime: 30000, // 30 seconds - matches existing hook usage
+			gcTime: 5 * 60 * 1000, // 5 minutes
+		},
+	},
+});
 
 const theme = createTheme({
 	colorSchemes: {

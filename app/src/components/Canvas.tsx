@@ -41,6 +41,35 @@ import { GeometryErrorBoundary } from "./three/GeometryErrorBoundary";
 import { useFrameLoadTime } from "../hooks/useFrameLoadTime";
 
 /**
+ * Component configuration for geometry types.
+ * Components that accept pathtracingEnabled prop.
+ */
+const PATHTRACING_GEOMETRY_COMPONENTS = {
+	Sphere: Sphere,
+	Bond: Bonds,
+	Arrow: Arrow,
+	Box: Box,
+	Plane: Plane,
+	Shape: Shape,
+} as const;
+
+/**
+ * Components that accept geometryKey but NOT pathtracingEnabled.
+ */
+const SIMPLE_GEOMETRY_COMPONENTS = {
+	Curve: Curve,
+	Camera: Camera,
+} as const;
+
+/**
+ * Components that only accept data prop (no geometryKey).
+ */
+const DATA_ONLY_GEOMETRY_COMPONENTS = {
+	Cell: Cell,
+	Floor: Floor,
+} as const;
+
+/**
  * Component for integrating camera sync inside the Canvas.
  * Must be a child of Canvas to use useThree.
  *
@@ -269,99 +298,58 @@ function MyScene() {
 					{/* Keyboard shortcuts for 3D interactions */}
 					<KeyboardShortcutsHandler />
 
-					{/* Render our clean, refactored components */}
-					{/* <Sphere /> */}
+					{/* Render geometry components using component maps */}
 					{Object.entries(geometries)
 						.filter(([_, config]) => config.data?.active !== false)
 						.map(([name, config]) => {
-							if (config.type === "Sphere") {
+							const type = config.type as string;
+
+							// Check pathtracing-enabled components first (most common)
+							if (type in PATHTRACING_GEOMETRY_COMPONENTS) {
+								const Component =
+									PATHTRACING_GEOMETRY_COMPONENTS[
+										type as keyof typeof PATHTRACING_GEOMETRY_COMPONENTS
+									];
 								return (
 									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Sphere
+										<Component
 											geometryKey={name}
 											data={config.data}
 											pathtracingEnabled={pathtracingEnabled}
 										/>
 									</GeometryErrorBoundary>
 								);
-							} else if (config.type === "Bond") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Bonds
-											geometryKey={name}
-											data={config.data}
-											pathtracingEnabled={pathtracingEnabled}
-										/>
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Arrow") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Arrow
-											geometryKey={name}
-											data={config.data}
-											pathtracingEnabled={pathtracingEnabled}
-										/>
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Curve") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Curve geometryKey={name} data={config.data} />
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Camera") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Camera geometryKey={name} data={config.data} />
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Cell") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Cell data={config.data} />
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Floor") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Floor data={config.data} />
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Box") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Box
-											geometryKey={name}
-											data={config.data}
-											pathtracingEnabled={pathtracingEnabled}
-										/>
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Plane") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Plane
-											geometryKey={name}
-											data={config.data}
-											pathtracingEnabled={pathtracingEnabled}
-										/>
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Shape") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Shape
-											geometryKey={name}
-											data={config.data}
-											pathtracingEnabled={pathtracingEnabled}
-										/>
-									</GeometryErrorBoundary>
-								);
-							} else {
-								console.warn(`Unhandled geometry type: ${config.type}`);
-								return null;
 							}
+
+							// Check simple geometry components (geometryKey + data only)
+							if (type in SIMPLE_GEOMETRY_COMPONENTS) {
+								const Component =
+									SIMPLE_GEOMETRY_COMPONENTS[
+										type as keyof typeof SIMPLE_GEOMETRY_COMPONENTS
+									];
+								return (
+									<GeometryErrorBoundary key={name} geometryKey={name}>
+										<Component geometryKey={name} data={config.data} />
+									</GeometryErrorBoundary>
+								);
+							}
+
+							// Check data-only components (no geometryKey)
+							if (type in DATA_ONLY_GEOMETRY_COMPONENTS) {
+								const Component =
+									DATA_ONLY_GEOMETRY_COMPONENTS[
+										type as keyof typeof DATA_ONLY_GEOMETRY_COMPONENTS
+									];
+								return (
+									<GeometryErrorBoundary key={name} geometryKey={name}>
+										<Component data={config.data} />
+									</GeometryErrorBoundary>
+								);
+							}
+
+							// Unknown geometry type
+							console.warn(`Unhandled geometry type: ${type}`);
+							return null;
 						})}
 					{showCrosshair && <Crosshair />}
 					<VirtualCanvas />
