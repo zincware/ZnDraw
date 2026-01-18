@@ -29,7 +29,6 @@ export function PathtracingUpdater({ settings }: { settings: PathTracing }) {
 	// Handle manual update requests (e.g., when switching to individual meshes)
 	useEffect(() => {
 		if (pathtracingNeedsUpdate && update) {
-			console.log("[PathtracingUpdater] Manual update requested");
 			update();
 			clearPathtracingUpdate();
 		}
@@ -44,7 +43,6 @@ export function PathtracingUpdater({ settings }: { settings: PathTracing }) {
 		}
 
 		if (update) {
-			console.log("[PathtracingUpdater] Frame changed, calling update()");
 			update();
 		}
 	}, [currentFrame, update]);
@@ -57,7 +55,6 @@ export function PathtracingUpdater({ settings }: { settings: PathTracing }) {
 		}
 
 		if (update) {
-			console.log("[PathtracingUpdater] Settings changed, calling update()");
 			update();
 		}
 	}, [
