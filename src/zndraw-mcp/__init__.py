@@ -156,14 +156,14 @@ def take_screenshot(
         session = sessions[0]
 
     try:
-        # Capture screenshot
-        image_bytes = session.take_screenshot(timeout=timeout)
+        # Capture screenshot (returns ScreenshotImage with .data attribute)
+        screenshot = session.take_screenshot(timeout=timeout)
 
         # Save to temp file
         with tempfile.NamedTemporaryFile(
             suffix=".png", delete=False, prefix="zndraw_screenshot_"
         ) as f:
-            f.write(image_bytes)
+            f.write(screenshot.data)
             filepath = f.name
 
         return (True, f"Screenshot saved to: {filepath}")

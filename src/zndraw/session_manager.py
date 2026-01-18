@@ -218,7 +218,7 @@ class FrontendSession:
     def __repr__(self) -> str:
         return f"FrontendSession({self.session_id!r})"
 
-    def take_screenshot(self, timeout: float = 10.0) -> bytes:
+    def take_screenshot(self, timeout: float = 10.0) -> ScreenshotImage:
         """Request a screenshot from this browser session.
 
         Uses REST-based communication:

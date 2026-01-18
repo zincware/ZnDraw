@@ -13,6 +13,7 @@ import time
 import uuid
 
 from flask import Blueprint, current_app, request
+from pydantic import BaseModel, Field, ValidationError
 
 from zndraw.auth import get_current_user, require_auth
 from zndraw.server import socketio
@@ -22,6 +23,13 @@ from .constants import SocketEvents
 from .redis_keys import RoomKeys, SessionKeys
 
 log = logging.getLogger(__name__)
+
+
+class ScreenshotRequest(BaseModel):
+    """Request model for screenshot endpoint."""
+
+    timeout: float = Field(default=10.0, ge=0.0, le=60.0)
+
 
 session_bp = Blueprint("sessions", __name__)
 
@@ -275,13 +283,14 @@ def request_screenshot(session_id: str):
     if not r.sismember(room_keys.members(), current_user):
         return {"error": "You are not a member of this room"}, 403
 
-    # Parse optional timeout from request body
-    json_data = request.get_json(silent=True) or {}
-    timeout = json_data.get("timeout", 10)
+    # Parse and validate request body
     try:
-        timeout = min(float(timeout), 60)  # Cap at 60 seconds
-    except (ValueError, TypeError):
-        return {"error": "Invalid timeout value"}, 400
+        request_model = ScreenshotRequest.model_validate(
+            request.get_json(silent=True) or {}
+        )
+    except ValidationError as e:
+        return {"error": e.errors()}, 400
+    timeout = request_model.timeout
 
     # Generate request ID
     request_id = str(uuid.uuid4())
