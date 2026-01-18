@@ -7,10 +7,45 @@ Note: Python clients do NOT appear in vis.sessions - only frontend browsers.
 Note: Session cameras are stored as geometries with key 'cam:session:{session_id}'.
 """
 
+import base64
+import dataclasses
 from collections.abc import Mapping
+from pathlib import Path
 
 from zndraw.geometries import Camera
 from zndraw.settings import RoomConfig
+
+
+@dataclasses.dataclass
+class ScreenshotImage:
+    """Screenshot image with Jupyter notebook display support.
+
+    Attributes
+    ----------
+    data : bytes
+        Raw PNG image data.
+    """
+
+    data: bytes
+
+    def _repr_png_(self) -> bytes:
+        """Jupyter notebook PNG representation."""
+        return self.data
+
+    def _repr_html_(self) -> str:
+        """Jupyter notebook HTML representation with base64 image."""
+        b64 = base64.b64encode(self.data).decode("utf-8")
+        return f'<img src="data:image/png;base64,{b64}" />'
+
+    def save(self, path: str | Path) -> None:
+        """Save screenshot to file.
+
+        Parameters
+        ----------
+        path : str | Path
+            Output file path.
+        """
+        Path(path).write_bytes(self.data)
 
 
 def get_session_camera_key(session_id: str) -> str:
@@ -198,8 +233,8 @@ class FrontendSession:
 
         Returns
         -------
-        bytes
-            PNG image data.
+        ScreenshotImage
+            Screenshot with Jupyter display support.
 
         Raises
         ------
@@ -209,16 +244,17 @@ class FrontendSession:
         Examples
         --------
         >>> session = vis.sessions["abc-123"]
-        >>> image_bytes = session.take_screenshot()
-        >>> with open("screenshot.png", "wb") as f:
-        ...     f.write(image_bytes)
+        >>> img = session.take_screenshot()
+        >>> img  # Displays in Jupyter
+        >>> img.save("screenshot.png")
         """
         # Request screenshot from browser session
         result = self._vis.api.request_screenshot(self.session_id, timeout)
 
         # Download the actual image data
         screenshot_id = result["screenshot_id"]
-        return self._vis.api.download_screenshot(screenshot_id)
+        data = self._vis.api.download_screenshot(screenshot_id)
+        return ScreenshotImage(data=data)
 
 
 class FrontendSessions(Mapping):

@@ -47,7 +47,8 @@ class ScreenshotManager:
 
     def __init__(self, room_id: str, storage_path: str):
         self.room_id = room_id
-        self.screenshot_dir = Path(storage_path) / room_id / "screenshots"
+        # Resolve to absolute path immediately to avoid working directory issues
+        self.screenshot_dir = (Path(storage_path) / room_id / "screenshots").resolve()
         self.screenshot_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_next_id(self) -> int:
