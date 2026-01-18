@@ -39,6 +39,7 @@ import MultiGeometryTransformControls from "./three/MultiGeometryTransformContro
 import { PathTracingRenderer } from "./PathTracingRenderer";
 import { GeometryErrorBoundary } from "./three/GeometryErrorBoundary";
 import { useFrameLoadTime } from "../hooks/useFrameLoadTime";
+import { ScreenshotProvider } from "./three/ScreenshotProvider";
 
 /**
  * Component configuration for geometry types.
@@ -250,7 +251,6 @@ function MyScene() {
 	const cameraPosition = sessionCameraData.position as [number, number, number];
 	const cameraFov = sessionCameraData.fov;
 	const cameraType = sessionCameraData.camera_type;
-	const preserveDrawingBuffer = sessionCameraData.preserve_drawing_buffer;
 	const showCrosshair = sessionCameraData.show_crosshair;
 
 	const backgroundColor =
@@ -273,7 +273,6 @@ function MyScene() {
 				gl={{
 					antialias: true,
 					toneMapping: THREE.ACESFilmicToneMapping,
-					preserveDrawingBuffer: preserveDrawingBuffer,
 				}}
 				style={{ background: backgroundColor }}
 				// The orthographic prop sets the initial camera type.
@@ -281,6 +280,9 @@ function MyScene() {
 			>
 				{/* Place the CameraManager here, inside the Canvas */}
 				<CameraManager sessionCameraData={sessionCameraData} />
+
+				{/* Screenshot capture provider - enables screenshots without preserveDrawingBuffer */}
+				<ScreenshotProvider />
 
 				{/* Wrap scene in PathTracingRenderer */}
 				<PathTracingRenderer settings={pathtracingSettings}>

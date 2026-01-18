@@ -112,6 +112,9 @@ interface AppState {
 	} | null; // Snackbar notification state
 	progressTrackers: Record<string, Progress>; // Active progress trackers keyed by progressId
 
+	// Screenshot capture function registered by ScreenshotProvider
+	screenshotCapture: (() => Promise<Blob>) | null;
+
 	// Frame editing state for dynamic positions
 	pendingFrameEdits: {
 		frameId: number;
@@ -248,6 +251,9 @@ interface AppState {
 	) => void;
 	removeProgressTracker: (progressId: string) => void;
 
+	// Screenshot capture action
+	setScreenshotCapture: (fn: (() => Promise<Blob>) | null) => void;
+
 	// Frame editing actions
 	setPendingFrameEdit: (frameId: number, key: string, data: any) => void;
 	clearPendingFrameEdits: () => void;
@@ -327,6 +333,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 	globalSettings: null,
 	snackbar: null,
 	progressTrackers: {},
+
+	// Screenshot capture function (set by ScreenshotProvider)
+	screenshotCapture: null,
 
 	// Frame editing state
 	pendingFrameEdits: null,
@@ -1144,6 +1153,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 			const { [progressId]: _, ...remainingTrackers } = state.progressTrackers;
 			return { progressTrackers: remainingTrackers };
 		}),
+
+	// Screenshot capture action
+	setScreenshotCapture: (fn) => set({ screenshotCapture: fn }),
 
 	// Frame editing actions
 	setPendingFrameEdit: (frameId, key, data) => {

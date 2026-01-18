@@ -1802,6 +1802,43 @@ class APIManager:
         )
         response.raise_for_status()
 
+    def request_screenshot(self, session_id: str, timeout: float = 10.0) -> dict:
+        """Request a screenshot from a frontend session.
+
+        This triggers a screenshot capture in the browser via Socket.IO.
+        The browser uploads the screenshot, and this method waits for completion.
+
+        Parameters
+        ----------
+        session_id : str
+            Session identifier of the browser to capture.
+        timeout : float
+            Maximum wait time in seconds (default: 10.0).
+
+        Returns
+        -------
+        dict
+            {"screenshot_id": int, "room_id": str}
+
+        Raises
+        ------
+        TimeoutError
+            If no response within timeout.
+        requests.HTTPError
+            If request fails.
+        """
+        headers = self._get_headers()
+        response = requests.post(
+            f"{self.url}/api/sessions/{session_id}/screenshot",
+            json={"timeout": timeout},
+            headers=headers,
+            timeout=timeout + 5.0,  # Add buffer for network latency
+        )
+        if response.status_code == 408:
+            raise TimeoutError("Timeout waiting for screenshot from browser")
+        response.raise_for_status()
+        return response.json()
+
     def get_active_camera(self, session_id: str) -> str:
         """Get active camera for a frontend session.
 

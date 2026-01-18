@@ -37,8 +37,7 @@ import {
 	downloadFrames,
 	listFilesystems,
 } from "../myapi/client";
-import { takeAndUploadScreenshot } from "../utils/screenshot";
-import { useExtensionData } from "../hooks/useSchemas";
+import { downloadScreenshot } from "../utils/screenshot";
 import { useAppStore } from "../store";
 import { useRoomsStore } from "../roomsStore";
 import { socket } from "../socket";
@@ -66,6 +65,7 @@ export default function RoomManagementMenu() {
 	const currentFrame = useAppStore((state) => state.currentFrame);
 	const showSnackbar = useAppStore((state) => state.showSnackbar);
 	const lockMetadata = useAppStore((state) => state.lockMetadata);
+	const screenshotCapture = useAppStore((state) => state.screenshotCapture);
 
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 	const [lockAnchorEl, setLockAnchorEl] = useState<null | HTMLElement>(null);
@@ -81,13 +81,6 @@ export default function RoomManagementMenu() {
 	});
 	const [shutdownDialog, setShutdownDialog] = useState(false);
 	const [screenshotLoading, setScreenshotLoading] = useState(false);
-
-	// Fetch camera settings to check preserve_drawing_buffer
-	const { data: cameraSettings } = useExtensionData(
-		roomId || "",
-		"settings",
-		"camera",
-	);
 
 	// Subscribe to rooms from Zustand store (triggers re-render on changes)
 	const rooms = useRoomsStore((state) => state.roomsArray);
@@ -356,17 +349,8 @@ export default function RoomManagementMenu() {
 	};
 
 	const handleTakeScreenshot = async () => {
-		if (!roomId) {
-			showSnackbar("No room ID available", "error");
-			return;
-		}
-
-		// Check if preserve_drawing_buffer is enabled
-		if (!cameraSettings?.preserve_drawing_buffer) {
-			showSnackbar(
-				"Enable 'preserve_drawing_buffer' in Camera settings first",
-				"error",
-			);
+		if (!screenshotCapture) {
+			showSnackbar("Screenshot capture not available", "error");
 			return;
 		}
 
@@ -374,15 +358,9 @@ export default function RoomManagementMenu() {
 		handleCloseMenu();
 
 		try {
-			const canvas = document.querySelector("canvas");
-
-			if (!canvas) {
-				throw new Error("Canvas element not found");
-			}
-
-			const result = await takeAndUploadScreenshot(canvas, roomId);
-
-			showSnackbar("Screenshot saved successfully", "success");
+			const blob = await screenshotCapture();
+			downloadScreenshot(blob);
+			showSnackbar("Screenshot downloaded", "success");
 		} catch (error) {
 			showSnackbar(
 				`Screenshot failed: ${error instanceof Error ? error.message : "Unknown error"}`,

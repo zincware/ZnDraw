@@ -406,6 +406,21 @@ class RoomKeys:
         """Active progress tracking hash (progressId -> progress data)."""
         return f"room:{self.room_id}:progress"
 
+    def screenshot_request(self, request_id: str) -> str:
+        """Screenshot request status (for programmatic screenshot capture).
+
+        Parameters
+        ----------
+        request_id : str
+            Request identifier
+
+        Returns
+        -------
+        str
+            Redis key for screenshot request status
+        """
+        return f"room:{self.room_id}:screenshot_request:{request_id}"
+
     def frame_selection(self, group: str = "default") -> str:
         """Frame selection for a specific group.
 

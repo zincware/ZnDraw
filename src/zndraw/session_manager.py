@@ -183,6 +183,43 @@ class FrontendSession:
     def __repr__(self) -> str:
         return f"FrontendSession({self.session_id!r})"
 
+    def take_screenshot(self, timeout: float = 10.0) -> bytes:
+        """Request a screenshot from this browser session.
+
+        Uses REST-based communication:
+        1. Request triggers lightweight Socket.IO signal to browser
+        2. Browser captures screenshot and uploads via REST
+        3. This method downloads the result via REST
+
+        Parameters
+        ----------
+        timeout : float
+            Maximum wait time in seconds (default: 10.0).
+
+        Returns
+        -------
+        bytes
+            PNG image data.
+
+        Raises
+        ------
+        TimeoutError
+            If no response within timeout.
+
+        Examples
+        --------
+        >>> session = vis.sessions["abc-123"]
+        >>> image_bytes = session.take_screenshot()
+        >>> with open("screenshot.png", "wb") as f:
+        ...     f.write(image_bytes)
+        """
+        # Request screenshot from browser session
+        result = self._vis.api.request_screenshot(self.session_id, timeout)
+
+        # Download the actual image data
+        screenshot_id = result["screenshot_id"]
+        return self._vis.api.download_screenshot(screenshot_id)
+
 
 class FrontendSessions(Mapping):
     """Collection of frontend sessions, keyed by session_id.
