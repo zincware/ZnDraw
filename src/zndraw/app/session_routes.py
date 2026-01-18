@@ -14,7 +14,7 @@ import uuid
 
 from flask import Blueprint, current_app, request
 
-from zndraw.auth import require_auth
+from zndraw.auth import get_current_user, require_auth
 from zndraw.server import socketio
 from zndraw.settings import RoomConfig
 
@@ -269,6 +269,12 @@ def request_screenshot(session_id: str):
     if not room_id:
         return {"error": "Session has no associated room"}, 400
 
+    # Verify the current user is a member of the room
+    room_keys = RoomKeys(room_id)
+    current_user = get_current_user()
+    if not r.sismember(room_keys.members(), current_user):
+        return {"error": "You are not a member of this room"}, 403
+
     # Parse optional timeout from request body
     json_data = request.get_json(silent=True) or {}
     timeout = json_data.get("timeout", 10)
@@ -281,7 +287,6 @@ def request_screenshot(session_id: str):
     request_id = str(uuid.uuid4())
 
     # Store pending request in Redis with TTL
-    room_keys = RoomKeys(room_id)
     request_key = room_keys.screenshot_request(request_id)
     request_data = {
         "session_id": session_id,

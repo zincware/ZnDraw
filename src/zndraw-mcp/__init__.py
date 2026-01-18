@@ -120,13 +120,16 @@ def take_screenshot(
     """
     import tempfile
 
-    server_info = find_running_server()
-    if server_info is None:
-        return (
-            False,
-            "Cannot take screenshot: No running ZnDraw server found. "
-            "Start a server with 'zndraw' command first.",
-        )
+    # Only check for local server if no explicit URL provided
+    if url is None:
+        server_info = find_running_server()
+        if server_info is None:
+            return (
+                False,
+                "Cannot take screenshot: No running ZnDraw server found. "
+                "Start a server with 'zndraw' command first, or provide an explicit url.",
+            )
+        url = server_info["url"]
 
     vis = ZnDraw(url=url, room=room, user=user, password=password)
 

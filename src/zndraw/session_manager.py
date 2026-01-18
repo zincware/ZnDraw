@@ -240,6 +240,8 @@ class FrontendSession:
         ------
         TimeoutError
             If no response within timeout.
+        requests.HTTPError
+            If the server returns an error response.
 
         Examples
         --------

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Pathtracer } from "@react-three/gpu-pathtracer";
 import { Environment } from "@react-three/drei";
 import type { PathTracing } from "../types/room-config";
@@ -6,7 +7,7 @@ import { PathtracingCaptureProvider } from "./three/PathtracingScreenshotCapture
 
 interface PathTracingRendererProps {
 	settings?: PathTracing;
-	children: React.ReactNode;
+	children: ReactNode;
 }
 
 /**
