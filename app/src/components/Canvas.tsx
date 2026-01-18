@@ -258,11 +258,8 @@ function MyScene() {
 	return (
 		<div style={{ width: "100%", height: "calc(100vh - 64px)" }}>
 			<Canvas
-				// Key changes when camera type OR pathtracing changes.
-				// Pathtracing requires preserveDrawingBuffer which can only be set at context creation.
 				key={`${cameraType}-${pathtracingEnabled}`}
 				shadows
-				// Use session camera position from geometry
 				camera={{
 					position: cameraPosition,
 					fov: cameraFov,
@@ -270,24 +267,14 @@ function MyScene() {
 				gl={{
 					antialias: true,
 					toneMapping: THREE.ACESFilmicToneMapping,
-					// Pathtracing requires preserveDrawingBuffer for screenshot capture.
-					// The pathtracer renders progressively - without this, the buffer clears
-					// before we can capture. Standard mode uses gl.render() before capture instead.
 					preserveDrawingBuffer: pathtracingEnabled,
 				}}
 				style={{ background: backgroundColor }}
-				// The orthographic prop sets the initial camera type.
 				orthographic={cameraType === "OrthographicCamera"}
 			>
-				{/* Place the CameraManager here, inside the Canvas */}
 				<CameraManager sessionCameraData={sessionCameraData} />
-
-				{/* Screenshot capture provider */}
 				<ScreenshotProvider />
-
-				{/* Wrap scene in PathTracingRenderer */}
 				<PathTracingRenderer settings={pathtracingSettings}>
-					{/* Disable studio lighting when pathtracing (environment provides light) */}
 					{!pathtracingEnabled && (
 						<SceneLighting
 							ambient_light={studioLightingSettings.ambient_light}
@@ -298,10 +285,7 @@ function MyScene() {
 						/>
 					)}
 
-					{/* Keyboard shortcuts for 3D interactions */}
 					<KeyboardShortcutsHandler />
-
-					{/* Render geometry components using component maps */}
 					{Object.entries(geometries)
 						.filter(([_, config]) => config.data?.active !== false)
 						.map(([name, config]) => {
@@ -378,13 +362,11 @@ function MyScene() {
 					enableZoom={cameraControls.enableZoom}
 				/>
 
-				{/* Camera sync integration for Python-side camera access and geometry sync */}
 				<CameraSyncIntegration
 					controlsRef={orbitControlsRef}
 					controlsState={cameraControls}
 				/>
 			</Canvas>
-			{/* Info boxes and drawing/editing indicators rendered outside Canvas, in DOM */}
 			<StaticInfoBox />
 			<HoverInfoBox />
 			<DrawingIndicator />
@@ -393,10 +375,5 @@ function MyScene() {
 	);
 }
 
-/**
- * Memoized to prevent re-renders from parent (MainPage) header button clicks.
- * The @react-three/gpu-pathtracer Pathtracer component has a bug where it resets
- * on every re-render due to rest props spread creating new object references.
- * Since MyScene has no props, memo prevents all unnecessary re-renders.
- */
+/** Memoized to prevent pathtracer reset on parent re-renders. */
 export default memo(MyScene);

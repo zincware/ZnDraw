@@ -613,7 +613,6 @@ export default function MainPage() {
 				url="https://slides.com/rokasel/zndrawtutorial-9cc179/fullscreen?style=light"
 			/>
 
-			{/* Global snackbar for notifications */}
 			{snackbar && (
 				<Snackbar
 					open={snackbar.open}

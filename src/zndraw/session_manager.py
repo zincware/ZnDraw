@@ -250,10 +250,7 @@ class FrontendSession:
         >>> img  # Displays in Jupyter
         >>> img.save("screenshot.png")
         """
-        # Request screenshot from browser session
         result = self._vis.api.request_screenshot(self.session_id, timeout)
-
-        # Download the actual image data
         screenshot_id = result["screenshot_id"]
         data = self._vis.api.download_screenshot(screenshot_id)
         return ScreenshotImage(data=data)

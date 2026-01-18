@@ -133,7 +133,6 @@ def take_screenshot(
 
     vis = ZnDraw(url=url, room=room, user=user, password=password)
 
-    # Get available sessions
     sessions = list(vis.sessions.values())
     if not sessions:
         return (
@@ -142,7 +141,6 @@ def take_screenshot(
             "Open ZnDraw in a browser first.",
         )
 
-    # Select session
     if session_id:
         try:
             session = vis.sessions[session_id]
@@ -156,10 +154,7 @@ def take_screenshot(
         session = sessions[0]
 
     try:
-        # Capture screenshot (returns ScreenshotImage with .data attribute)
         screenshot = session.take_screenshot(timeout=timeout)
-
-        # Save to temp file
         with tempfile.NamedTemporaryFile(
             suffix=".png", delete=False, prefix="zndraw_screenshot_"
         ) as f:

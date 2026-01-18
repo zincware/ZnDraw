@@ -264,26 +264,21 @@ def request_screenshot(session_id: str):
     """
     r = current_app.extensions["redis"]
 
-    # Get session data to find the room
     session_key = SessionKeys.session_data(session_id)
     session_data_str = r.get(session_key)
-
     if not session_data_str:
         return {"error": f"Session '{session_id}' not found"}, 404
 
     session_data = json.loads(session_data_str)
     room_id = session_data.get("roomId")
-
     if not room_id:
         return {"error": "Session has no associated room"}, 400
 
-    # Verify the current user is a member of the room
     room_keys = RoomKeys(room_id)
     current_user = get_current_user()
     if not r.sismember(room_keys.members(), current_user):
         return {"error": "You are not a member of this room"}, 403
 
-    # Parse and validate request body
     try:
         request_model = ScreenshotRequest.model_validate(
             request.get_json(silent=True) or {}
@@ -292,10 +287,7 @@ def request_screenshot(session_id: str):
         return {"error": e.errors()}, 400
     timeout = request_model.timeout
 
-    # Generate request ID
     request_id = str(uuid.uuid4())
-
-    # Store pending request in Redis with TTL
     request_key = room_keys.screenshot_request(request_id)
     request_data = {
         "session_id": session_id,
@@ -304,7 +296,6 @@ def request_screenshot(session_id: str):
     }
     r.setex(request_key, 120, json.dumps(request_data))
 
-    # Emit lightweight signal to the browser session
     socketio.emit(
         "screenshot:request",
         {
@@ -316,8 +307,7 @@ def request_screenshot(session_id: str):
 
     log.debug(f"request_screenshot: session={session_id}, request_id={request_id}")
 
-    # Poll for completion
-    poll_interval = 0.1  # 100ms
+    poll_interval = 0.1
     max_polls = int(timeout / poll_interval)
 
     for _ in range(max_polls):
@@ -326,7 +316,6 @@ def request_screenshot(session_id: str):
             data = json.loads(data_str)
             if data.get("status") == "completed":
                 screenshot_id = data.get("screenshot_id")
-                # Clean up the request key
                 r.delete(request_key)
                 return {
                     "screenshot_id": screenshot_id,
@@ -334,6 +323,5 @@ def request_screenshot(session_id: str):
                 }, 200
         time.sleep(poll_interval)
 
-    # Timeout - clean up and return error
     r.delete(request_key)
     return {"error": "Timeout waiting for screenshot"}, 408

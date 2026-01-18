@@ -242,18 +242,14 @@ def upload_screenshot(room_id: str):
         manager = _get_screenshot_manager(room_id)
         screenshot = manager.save(image_data, format, width, height)
 
-        # If this was a programmatic request, mark it as completed
         if request_id:
             r = current_app.extensions["redis"]
             room_keys = RoomKeys(room_id)
             request_key = room_keys.screenshot_request(request_id)
-
-            # Update request status to completed with screenshot ID
             request_data = {
                 "status": "completed",
                 "screenshot_id": screenshot.id,
             }
-            # Keep the same TTL (60s should be enough for the caller to read it)
             r.setex(request_key, 60, json.dumps(request_data))
             log.debug(
                 f"upload_screenshot: marked request {request_id} as completed "
