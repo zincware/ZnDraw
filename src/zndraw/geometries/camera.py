@@ -186,11 +186,6 @@ class Camera(BaseModel):
         default=False, description="Show a crosshair at the screen center"
     )
 
-    preserve_drawing_buffer: bool = Field(
-        default=False,
-        description="Enable screenshot capture (WARNING: reduces rendering performance)",
-    )
-
     # Override material and color (not applicable for cameras)
     material: t.Any = Field(default=None, description="Not applicable for cameras")
 

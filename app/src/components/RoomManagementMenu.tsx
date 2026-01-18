@@ -23,9 +23,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ListIcon from "@mui/icons-material/List";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
-import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import DownloadIcon from "@mui/icons-material/Download";
-import CircularProgress from "@mui/material/CircularProgress";
 import {
 	getRoom,
 	updateRoom,
@@ -37,8 +35,6 @@ import {
 	downloadFrames,
 	listFilesystems,
 } from "../myapi/client";
-import { takeAndUploadScreenshot } from "../utils/screenshot";
-import { useExtensionData } from "../hooks/useSchemas";
 import { useAppStore } from "../store";
 import { useRoomsStore } from "../roomsStore";
 import { socket } from "../socket";
@@ -80,14 +76,6 @@ export default function RoomManagementMenu() {
 		error: null,
 	});
 	const [shutdownDialog, setShutdownDialog] = useState(false);
-	const [screenshotLoading, setScreenshotLoading] = useState(false);
-
-	// Fetch camera settings to check preserve_drawing_buffer
-	const { data: cameraSettings } = useExtensionData(
-		roomId || "",
-		"settings",
-		"camera",
-	);
 
 	// Subscribe to rooms from Zustand store (triggers re-render on changes)
 	const rooms = useRoomsStore((state) => state.roomsArray);
@@ -355,44 +343,6 @@ export default function RoomManagementMenu() {
 		});
 	};
 
-	const handleTakeScreenshot = async () => {
-		if (!roomId) {
-			showSnackbar("No room ID available", "error");
-			return;
-		}
-
-		// Check if preserve_drawing_buffer is enabled
-		if (!cameraSettings?.preserve_drawing_buffer) {
-			showSnackbar(
-				"Enable 'preserve_drawing_buffer' in Camera settings first",
-				"error",
-			);
-			return;
-		}
-
-		setScreenshotLoading(true);
-		handleCloseMenu();
-
-		try {
-			const canvas = document.querySelector("canvas");
-
-			if (!canvas) {
-				throw new Error("Canvas element not found");
-			}
-
-			const result = await takeAndUploadScreenshot(canvas, roomId);
-
-			showSnackbar("Screenshot saved successfully", "success");
-		} catch (error) {
-			showSnackbar(
-				`Screenshot failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-				"error",
-			);
-		} finally {
-			setScreenshotLoading(false);
-		}
-	};
-
 	const handleDownloadCurrentFrame = () => {
 		if (!roomId) return;
 
@@ -535,17 +485,6 @@ export default function RoomManagementMenu() {
 						<ContentCopyIcon />
 					</ListItemIcon>
 					<ListItemText>Duplicate Room</ListItemText>
-				</MenuItem>
-
-				<MenuItem onClick={handleTakeScreenshot} disabled={screenshotLoading}>
-					<ListItemIcon>
-						{screenshotLoading ? (
-							<CircularProgress size={20} />
-						) : (
-							<CameraAltIcon />
-						)}
-					</ListItemIcon>
-					<ListItemText>Take Screenshot</ListItemText>
 				</MenuItem>
 
 				<MenuItem onClick={handleDownloadCurrentFrame}>

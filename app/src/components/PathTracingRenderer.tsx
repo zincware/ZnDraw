@@ -1,11 +1,13 @@
+import type { ReactNode } from "react";
 import { Pathtracer } from "@react-three/gpu-pathtracer";
 import { Environment } from "@react-three/drei";
 import type { PathTracing } from "../types/room-config";
 import { PathtracingUpdater } from "./PathtracingUpdater";
+import { PathtracingCaptureProvider } from "./three/PathtracingScreenshotCapture";
 
 interface PathTracingRendererProps {
 	settings?: PathTracing;
-	children: React.ReactNode;
+	children: ReactNode;
 }
 
 /**
@@ -54,6 +56,9 @@ export function PathTracingRenderer({
 		>
 			{/* Pathtracing updater - watches for scene changes and calls update() */}
 			<PathtracingUpdater settings={settings} />
+
+			{/* Registers pathtracer capture function to store (DRY - ScreenshotProvider handles logic) */}
+			<PathtracingCaptureProvider />
 
 			{/* Environment lighting for path tracing */}
 			{environment_preset !== "none" && (

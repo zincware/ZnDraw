@@ -85,6 +85,95 @@ def upload(path: str) -> tuple[bool, str]:
 
 
 @mcp.tool()
+def take_screenshot(
+    session_id: str | None = None,
+    timeout: float = 10.0,
+    url: str | None = None,
+    room: str = "default",
+    user: str | None = None,
+    password: str | None = None,
+) -> tuple[bool, str]:
+    """Take a screenshot of a ZnDraw browser session.
+
+    Captures the current view from a connected browser and returns the image path.
+    Requires at least one browser session to be connected to ZnDraw.
+
+    Parameters
+    ----------
+    session_id : str, optional
+        Specific session ID to screenshot. If None, uses the first available session.
+    timeout : float, optional
+        Maximum wait time in seconds for the screenshot capture (default: 10.0).
+    url : str, optional
+        ZnDraw server URL. If None, uses the default server.
+    room : str, optional
+        Room name (default: "default").
+    user : str, optional
+        Username for authentication.
+    password : str, optional
+        Password for authentication.
+
+    Returns
+    -------
+    tuple[bool, str]
+        (success, message) - message contains the saved file path on success.
+    """
+    import tempfile
+
+    # Only check for local server if no explicit URL provided
+    if url is None:
+        server_info = find_running_server()
+        if server_info is None:
+            return (
+                False,
+                "Cannot take screenshot: No running ZnDraw server found. "
+                "Start a server with 'zndraw' command first, or provide an explicit url.",
+            )
+        url = server_info["url"]
+
+    vis = ZnDraw(url=url, room=room, user=user, password=password)
+
+    sessions = list(vis.sessions.values())
+    if not sessions:
+        return (
+            False,
+            "Cannot take screenshot: No browser sessions connected. "
+            "Open ZnDraw in a browser first.",
+        )
+
+    if session_id:
+        try:
+            session = vis.sessions[session_id]
+        except KeyError:
+            available = list(vis.sessions.keys())
+            return (
+                False,
+                f"Session '{session_id}' not found. Available sessions: {available}",
+            )
+    else:
+        session = sessions[0]
+
+    try:
+        screenshot = session.take_screenshot(timeout=timeout)
+        with tempfile.NamedTemporaryFile(
+            suffix=".png", delete=False, prefix="zndraw_screenshot_"
+        ) as f:
+            f.write(screenshot.data)
+            filepath = f.name
+
+        return (True, f"Screenshot saved to: {filepath}")
+
+    except TimeoutError:
+        return (
+            False,
+            f"Timeout waiting for screenshot from session {session.session_id}. "
+            "Browser may be unresponsive.",
+        )
+    except Exception as e:
+        return (False, f"Screenshot failed: {str(e)}")
+
+
+@mcp.tool()
 def run_zndraw_script(
     python_code: str,
     url: str | None = None,

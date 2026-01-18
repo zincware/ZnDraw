@@ -6,7 +6,7 @@ Handles screenshot uploads, downloads, metadata, and chat message retrieval.
 import json
 import logging
 
-from flask import Blueprint, current_app, request, send_from_directory
+from flask import Blueprint, current_app, request, send_file
 
 from zndraw.auth import get_current_user, require_auth
 from zndraw.screenshot_manager import ScreenshotManager
@@ -213,6 +213,7 @@ def upload_screenshot(room_id: str):
         - format: png/jpeg/webp
         - width: optional image width
         - height: optional image height
+        - request_id: optional request ID for programmatic screenshot requests
 
     Response:
         JSON with screenshot metadata
@@ -227,6 +228,7 @@ def upload_screenshot(room_id: str):
     format = request.form.get("format", "png")
     width = request.form.get("width", type=int)
     height = request.form.get("height", type=int)
+    request_id = request.form.get("request_id")
 
     try:
         image_data = file.read()
@@ -239,6 +241,20 @@ def upload_screenshot(room_id: str):
 
         manager = _get_screenshot_manager(room_id)
         screenshot = manager.save(image_data, format, width, height)
+
+        if request_id:
+            r = current_app.extensions["redis"]
+            room_keys = RoomKeys(room_id)
+            request_key = room_keys.screenshot_request(request_id)
+            request_data = {
+                "status": "completed",
+                "screenshot_id": screenshot.id,
+            }
+            r.setex(request_key, 60, json.dumps(request_data))
+            log.debug(
+                f"upload_screenshot: marked request {request_id} as completed "
+                f"with screenshot_id {screenshot.id}"
+            )
 
         socketio.emit(
             "screenshot:created",
@@ -318,12 +334,12 @@ def get_screenshot(room_id: str, screenshot_id: int):
             return {"error": "Screenshot not found"}, 404
 
         filepath, metadata = result
-        return send_from_directory(
-            filepath.parent,
-            filepath.name,
+        return send_file(
+            filepath,
             mimetype=f"image/{metadata.format}",
         )
     except Exception as e:
+        log.exception(f"Failed to get screenshot {screenshot_id} for room {room_id}")
         return {"error": f"Failed to get screenshot: {str(e)}"}, 500
 
 
