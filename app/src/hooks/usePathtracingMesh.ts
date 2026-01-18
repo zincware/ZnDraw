@@ -1,4 +1,10 @@
-import { useRef, useEffect, useState, useCallback, type RefObject } from "react";
+import {
+	useRef,
+	useEffect,
+	useState,
+	useCallback,
+	type RefObject,
+} from "react";
 import * as THREE from "three";
 import { useAppStore } from "../store";
 import {

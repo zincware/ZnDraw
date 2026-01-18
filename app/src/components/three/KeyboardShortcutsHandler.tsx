@@ -35,9 +35,7 @@ export const KeyboardShortcutsHandler = () => {
 	const setEditingSelectedAxis = useAppStore(
 		(state) => state.setEditingSelectedAxis,
 	);
-	const editingSelectedAxis = useAppStore(
-		(state) => state.editingSelectedAxis,
-	);
+	const editingSelectedAxis = useAppStore((state) => state.editingSelectedAxis);
 	const roomId = useAppStore((state) => state.roomId);
 	const saveFrameEdits = useAppStore((state) => state.saveFrameEdits);
 

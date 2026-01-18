@@ -68,8 +68,12 @@ export function useGeometryEditing(
 	const transformMode = useAppStore((state) => state.transformMode);
 	const subscribeToEditing = useAppStore((state) => state.subscribeToEditing);
 	const updateGeometry = useAppStore((state) => state.updateGeometry);
-	const updateSelectionForGeometry = useAppStore((state) => state.updateSelectionForGeometry);
-	const editingCombinedCentroid = useAppStore((state) => state.editingCombinedCentroid);
+	const updateSelectionForGeometry = useAppStore(
+		(state) => state.updateSelectionForGeometry,
+	);
+	const editingCombinedCentroid = useAppStore(
+		(state) => state.editingCombinedCentroid,
+	);
 	const geometries = useAppStore((state) => state.geometries);
 
 	const isEditing = mode === "editing";

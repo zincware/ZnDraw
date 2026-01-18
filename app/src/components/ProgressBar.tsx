@@ -37,8 +37,12 @@ const FrameProgressBar = () => {
 	const bookmarks = useAppStore((state) => state.bookmarks);
 	const addBookmark = useAppStore((state) => state.addBookmark);
 	const deleteBookmark = useAppStore((state) => state.deleteBookmark);
-	const frameSelectionEnabled = useAppStore((state) => state.frameSelectionEnabled);
-	const setFrameSelectionEnabled = useAppStore((state) => state.setFrameSelectionEnabled);
+	const frameSelectionEnabled = useAppStore(
+		(state) => state.frameSelectionEnabled,
+	);
+	const setFrameSelectionEnabled = useAppStore(
+		(state) => state.setFrameSelectionEnabled,
+	);
 	const synchronizedMode = useAppStore((state) => state.synchronizedMode);
 	const setSynchronizedMode = useAppStore((state) => state.setSynchronizedMode);
 	const getIsFetching = useAppStore((state) => state.getIsFetching);

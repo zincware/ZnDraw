@@ -51,10 +51,16 @@ export function useFrameEditing(
 	const currentFrame = useAppStore((state) => state.currentFrame);
 	const roomId = useAppStore((state) => state.roomId);
 	const subscribeToEditing = useAppStore((state) => state.subscribeToEditing);
-	const editingCombinedCentroid = useAppStore((state) => state.editingCombinedCentroid);
+	const editingCombinedCentroid = useAppStore(
+		(state) => state.editingCombinedCentroid,
+	);
 	const setPendingFrameEdit = useAppStore((state) => state.setPendingFrameEdit);
-	const incrementEditingFrameDataCount = useAppStore((state) => state.incrementEditingFrameDataCount);
-	const decrementEditingFrameDataCount = useAppStore((state) => state.decrementEditingFrameDataCount);
+	const incrementEditingFrameDataCount = useAppStore(
+		(state) => state.incrementEditingFrameDataCount,
+	);
+	const decrementEditingFrameDataCount = useAppStore(
+		(state) => state.decrementEditingFrameDataCount,
+	);
 
 	const isEditing = mode === "editing";
 

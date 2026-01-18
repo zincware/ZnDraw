@@ -6,7 +6,9 @@ export const useKeyboardShortcuts = () => {
 	const currentFrame = useAppStore((state) => state.currentFrame);
 	const frameCount = useAppStore((state) => state.frameCount);
 	const frame_selection = useAppStore((state) => state.frame_selection);
-	const frameSelectionEnabled = useAppStore((state) => state.frameSelectionEnabled);
+	const frameSelectionEnabled = useAppStore(
+		(state) => state.frameSelectionEnabled,
+	);
 	const playing = useAppStore((state) => state.playing);
 	const setPlaying = useAppStore((state) => state.setPlaying);
 	const skipFrames = useAppStore((state) => state.skipFrames);
@@ -15,7 +17,9 @@ export const useKeyboardShortcuts = () => {
 	const addBookmark = useAppStore((state) => state.addBookmark);
 	const bookmarks = useAppStore((state) => state.bookmarks);
 	const setFps = useAppStore((state) => state.setFps);
-	const setLastFrameChangeTime = useAppStore((state) => state.setLastFrameChangeTime);
+	const setLastFrameChangeTime = useAppStore(
+		(state) => state.setLastFrameChangeTime,
+	);
 
 	const { setStep } = useStepControl();
 

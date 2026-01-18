@@ -44,8 +44,12 @@ export default function SelectionGroupsPanel() {
 	const roomId = useAppStore((state) => state.roomId);
 	const selections = useAppStore((state) => state.selections);
 	const selectionGroups = useAppStore((state) => state.selectionGroups);
-	const activeSelectionGroup = useAppStore((state) => state.activeSelectionGroup);
-	const updateSelectionForGeometry = useAppStore((state) => state.updateSelectionForGeometry);
+	const activeSelectionGroup = useAppStore(
+		(state) => state.activeSelectionGroup,
+	);
+	const updateSelectionForGeometry = useAppStore(
+		(state) => state.updateSelectionForGeometry,
+	);
 	const showSnackbar = useAppStore((state) => state.showSnackbar);
 
 	// Local state
