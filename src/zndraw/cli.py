@@ -559,6 +559,11 @@ def main(
     if browser:
         if first_room:
             browser_url = f"http://localhost:{config.server_port}/rooms/{first_room}"
+            # When loading files, use template=none so browser creates room with 0 frames
+            # This prevents race condition where browser creates "empty" template before
+            # Celery uploads the actual file data
+            if path is not None:
+                browser_url += "?template=none"
         else:
             browser_url = f"http://localhost:{config.server_port}"
         if verbose:

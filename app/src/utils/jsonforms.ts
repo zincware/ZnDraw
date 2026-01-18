@@ -109,11 +109,20 @@ export const injectDynamicEnums = (
 			if (
 				obj["x-custom-type"] === "dynamic-enum" &&
 				Array.isArray(obj["x-features"]) &&
-				obj["x-features"].includes("dynamic-atom-props") &&
-				metadata?.keys
+				obj["x-features"].includes("dynamic-atom-props")
 			) {
-				// Inject the keys from the metadata as enum values
-				obj.enum = metadata.keys;
+				// Built-in array references that are always available
+				const features = obj["x-features"] as string[];
+				const hasColorPicker = features.includes("color-picker");
+
+				// Select appropriate array refs based on field type
+				const arrayRefs = hasColorPicker
+					? ["arrays.colors"]
+					: ["arrays.positions", "arrays.radii", "arrays.colors"];
+
+				// Combine with metadata keys (if available), avoiding duplicates
+				const metadataKeys = metadata?.keys || [];
+				obj.enum = [...new Set([...arrayRefs, ...metadataKeys])];
 			}
 
 			// NEW PATTERN: Check for x-features containing "dynamic-geometries"
