@@ -12,6 +12,8 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
+import Snackbar from "@mui/material/Snackbar";
+import Alert from "@mui/material/Alert";
 import ChatIcon from "@mui/icons-material/Chat";
 import CodeIcon from "@mui/icons-material/Code";
 import LightModeIcon from "@mui/icons-material/LightMode";
@@ -24,6 +26,7 @@ import LoginIcon from "@mui/icons-material/Login";
 import LogoutIcon from "@mui/icons-material/Logout";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
+import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import FrameProgressBar from "../components/ProgressBar";
 import SideBar from "../components/SideBar";
 import RoomManagementMenu from "../components/RoomManagementMenu";
@@ -58,6 +61,7 @@ import {
 	getUserRole,
 } from "../utils/auth";
 import { loadFilesystemFile, loadGlobalFilesystemFile } from "../myapi/client";
+import { downloadScreenshot } from "../utils/screenshot";
 import Link from "@mui/material/Link";
 
 export default function MainPage() {
@@ -90,6 +94,9 @@ export default function MainPage() {
 	const setUserName = useAppStore((state) => state.setUserName);
 	const setUserRole = useAppStore((state) => state.setUserRole);
 	const showSnackbar = useAppStore((state) => state.showSnackbar);
+	const snackbar = useAppStore((state) => state.snackbar);
+	const hideSnackbar = useAppStore((state) => state.hideSnackbar);
+	const screenshotCapture = useAppStore((state) => state.screenshotCapture);
 	const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
 	const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 	const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
@@ -159,6 +166,24 @@ export default function MainPage() {
 
 	// File upload ref for button click
 	const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+	const handleTakeScreenshot = async () => {
+		if (!screenshotCapture) {
+			showSnackbar("Screenshot capture not available", "error");
+			return;
+		}
+
+		try {
+			const blob = await screenshotCapture();
+			downloadScreenshot(blob);
+			showSnackbar("Screenshot downloaded", "success");
+		} catch (error) {
+			showSnackbar(
+				`Screenshot failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+				"error",
+			);
+		}
+	};
 
 	const handleFileUploadClick = () => {
 		fileInputRef.current?.click();
@@ -366,6 +391,16 @@ export default function MainPage() {
 							</IconButton>
 						</Tooltip>
 						<AddPlotButton />
+						<Tooltip title="Take screenshot">
+							<IconButton
+								color="inherit"
+								aria-label="take screenshot"
+								onClick={handleTakeScreenshot}
+								disabled={!screenshotCapture}
+							>
+								<CameraAltIcon />
+							</IconButton>
+						</Tooltip>
 						<Tooltip title="Upload file">
 							<IconButton
 								color="inherit"
@@ -577,6 +612,20 @@ export default function MainPage() {
 				onClose={() => setTutorialDialogOpen(false)}
 				url="https://slides.com/rokasel/zndrawtutorial-9cc179/fullscreen?style=light"
 			/>
+
+			{/* Global snackbar for notifications */}
+			{snackbar && (
+				<Snackbar
+					open={snackbar.open}
+					autoHideDuration={6000}
+					onClose={hideSnackbar}
+					anchorOrigin={{ vertical: "top", horizontal: "center" }}
+				>
+					<Alert severity={snackbar.severity} onClose={hideSnackbar}>
+						{snackbar.message}
+					</Alert>
+				</Snackbar>
+			)}
 
 			{/* Progress notifications */}
 			<ProgressNotifications />

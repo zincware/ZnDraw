@@ -1,17 +1,17 @@
 /**
- * ScreenshotProvider - Provides screenshot capture functionality to the Three.js scene.
+ * ScreenshotProvider - Central screenshot orchestrator.
  *
  * This component:
- * 1. Registers a screenshot capture function in the Zustand store
- * 2. Listens for Socket.IO screenshot:request events for programmatic capture
- * 3. Handles both standard rendering and path-tracing modes
+ * 1. Registers standard-mode capture function (when pathtracing is disabled)
+ * 2. Listens for programmatic screenshot requests from Socket.IO
+ * 3. Routes capture to either standard or pathtracer mode based on pathtracerCapture availability
  *
  * Key design insight: By calling gl.render() immediately before canvas.toBlob(),
  * we ensure the WebGL buffer has content WITHOUT needing preserveDrawingBuffer.
  *
- * Path-tracing mode: When path-tracing is enabled, the canvas already shows
- * the path-traced result (progressive rendering to fullscreen quad).
- * We skip the gl.render() call to preserve the accumulated samples.
+ * DRY design: PathtracingCaptureProvider only registers its capture function to the store.
+ * This component handles ALL common logic (Socket.IO, upload) and routes to the correct
+ * capture function based on what's available.
  */
 import { useCallback, useEffect } from "react";
 import { useThree } from "@react-three/fiber";
@@ -23,27 +23,18 @@ export function ScreenshotProvider() {
 	const setScreenshotCapture = useAppStore(
 		(state) => state.setScreenshotCapture,
 	);
+	const pathtracerCapture = useAppStore((state) => state.pathtracerCapture);
 	const roomId = useAppStore((state) => state.roomId);
-	const settings = useAppStore((state) => state.settings);
-
-	// Check if path tracing is enabled
-	const isPathTracingEnabled = settings?.pathtracing?.enabled === true;
 
 	/**
-	 * Capture screenshot from the WebGL canvas.
+	 * Capture screenshot from the WebGL canvas (standard mode only).
 	 *
-	 * Standard mode: Forces a render before capture to ensure the buffer
-	 * has content, eliminating the need for preserveDrawingBuffer.
-	 *
-	 * Path-tracing mode: Captures the canvas as-is since it already contains
-	 * the accumulated path-traced result.
+	 * Forces a render before capture to ensure the buffer has content,
+	 * eliminating the need for preserveDrawingBuffer.
 	 */
-	const captureScreenshot = useCallback(async (): Promise<Blob> => {
-		// Only force render in standard mode
-		// In path-tracing mode, the canvas already has the accumulated result
-		if (!isPathTracingEnabled) {
-			gl.render(scene, camera);
-		}
+	const captureStandard = useCallback(async (): Promise<Blob> => {
+		// Force render to ensure WebGL buffer has current frame
+		gl.render(scene, camera);
 
 		// Convert canvas to blob
 		return new Promise((resolve, reject) => {
@@ -59,16 +50,26 @@ export function ScreenshotProvider() {
 				1.0,
 			);
 		});
-	}, [gl, scene, camera, isPathTracingEnabled]);
+	}, [gl, scene, camera]);
 
-	// Register the capture function in the store
+	/**
+	 * Get the appropriate capture function based on what's available.
+	 * Pathtracer takes priority when registered.
+	 */
+	const getCapture = useCallback((): (() => Promise<Blob>) => {
+		return pathtracerCapture ?? captureStandard;
+	}, [pathtracerCapture, captureStandard]);
+
+	// Register the main capture function in the store
+	// This always points to the best available capture method
 	useEffect(() => {
-		setScreenshotCapture(captureScreenshot);
+		const capture = getCapture();
+		setScreenshotCapture(capture);
 
 		return () => {
 			setScreenshotCapture(null);
 		};
-	}, [captureScreenshot, setScreenshotCapture]);
+	}, [getCapture, setScreenshotCapture]);
 
 	// Listen for programmatic screenshot requests from Socket.IO
 	useEffect(() => {
@@ -87,15 +88,13 @@ export function ScreenshotProvider() {
 			}
 
 			try {
-				const blob = await captureScreenshot();
+				// Use the best available capture function
+				const capture = getCapture();
+				const blob = await capture();
 
 				// Upload via existing endpoint with request_id for correlation
 				const formData = new FormData();
-				formData.append(
-					"file",
-					blob,
-					`screenshot_${requestId}.png`,
-				);
+				formData.append("file", blob, `screenshot_${requestId}.png`);
 				formData.append("format", "png");
 				formData.append("width", gl.domElement.width.toString());
 				formData.append("height", gl.domElement.height.toString());
@@ -128,7 +127,7 @@ export function ScreenshotProvider() {
 		return () => {
 			socket.off("screenshot:request", handleScreenshotRequest);
 		};
-	}, [captureScreenshot, roomId, gl]);
+	}, [getCapture, roomId, gl]);
 
 	// This component doesn't render anything
 	return null;

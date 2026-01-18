@@ -7,7 +7,10 @@ import { useAppStore } from "../store";
  * Uses Zustand subscription for efficient change detection instead of RAF polling.
  */
 export const useFrameLoadTime = () => {
-	const { currentFrame, playing, setFrameLoadTime } = useAppStore();
+	// Use individual selectors to prevent re-renders from unrelated store changes
+	const currentFrame = useAppStore((state) => state.currentFrame);
+	const playing = useAppStore((state) => state.playing);
+	const setFrameLoadTime = useAppStore((state) => state.setFrameLoadTime);
 
 	const frameStartTimeRef = useRef<number | null>(null);
 	const previousFrameRef = useRef<number | null>(null);

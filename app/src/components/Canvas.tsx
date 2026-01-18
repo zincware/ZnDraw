@@ -1,12 +1,11 @@
 import * as THREE from "three";
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, memo, type RefObject } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useAppStore, getActiveCurves, selectPreferredCurve } from "../store";
 import { useSettings } from "../hooks/useSettings";
 import { useTheme } from "@mui/material/styles";
-import { Snackbar, Alert } from "@mui/material";
 import { CanvasLoadingState } from "./CanvasLoadingState";
 import { CanvasErrorState } from "./CanvasErrorState";
 import {
@@ -187,8 +186,6 @@ function MyScene() {
 	);
 	const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
 	const attachToCamera = useAppStore((state) => state.attachToCamera);
-	const snackbar = useAppStore((state) => state.snackbar);
-	const hideSnackbar = useAppStore((state) => state.hideSnackbar);
 	const theme = useTheme();
 
 	useFrameLoadTime();
@@ -261,9 +258,9 @@ function MyScene() {
 	return (
 		<div style={{ width: "100%", height: "calc(100vh - 64px)" }}>
 			<Canvas
-				// Add a key that changes when the camera type changes.
-				// This will force React to re-create the Canvas and its camera.
-				key={cameraType}
+				// Key changes when camera type OR pathtracing changes.
+				// Pathtracing requires preserveDrawingBuffer which can only be set at context creation.
+				key={`${cameraType}-${pathtracingEnabled}`}
 				shadows
 				// Use session camera position from geometry
 				camera={{
@@ -273,6 +270,10 @@ function MyScene() {
 				gl={{
 					antialias: true,
 					toneMapping: THREE.ACESFilmicToneMapping,
+					// Pathtracing requires preserveDrawingBuffer for screenshot capture.
+					// The pathtracer renders progressively - without this, the buffer clears
+					// before we can capture. Standard mode uses gl.render() before capture instead.
+					preserveDrawingBuffer: pathtracingEnabled,
 				}}
 				style={{ background: backgroundColor }}
 				// The orthographic prop sets the initial camera type.
@@ -281,7 +282,7 @@ function MyScene() {
 				{/* Place the CameraManager here, inside the Canvas */}
 				<CameraManager sessionCameraData={sessionCameraData} />
 
-				{/* Screenshot capture provider - enables screenshots without preserveDrawingBuffer */}
+				{/* Screenshot capture provider */}
 				<ScreenshotProvider />
 
 				{/* Wrap scene in PathTracingRenderer */}
@@ -388,22 +389,14 @@ function MyScene() {
 			<HoverInfoBox />
 			<DrawingIndicator />
 			<EditingIndicator />
-
-			{/* Global snackbar for notifications */}
-			{snackbar && (
-				<Snackbar
-					open={snackbar.open}
-					autoHideDuration={6000}
-					onClose={hideSnackbar}
-					anchorOrigin={{ vertical: "top", horizontal: "center" }}
-				>
-					<Alert severity={snackbar.severity} onClose={hideSnackbar}>
-						{snackbar.message}
-					</Alert>
-				</Snackbar>
-			)}
 		</div>
 	);
 }
 
-export default MyScene;
+/**
+ * Memoized to prevent re-renders from parent (MainPage) header button clicks.
+ * The @react-three/gpu-pathtracer Pathtracer component has a bug where it resets
+ * on every re-render due to rest props spread creating new object references.
+ * Since MyScene has no props, memo prevents all unnecessary re-renders.
+ */
+export default memo(MyScene);
