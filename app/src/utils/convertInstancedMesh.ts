@@ -60,8 +60,9 @@ export function convertInstancedMeshToMerged(
 		: null;
 	const mergedUvs = baseUvs ? new Float32Array(totalVertexCount * 2) : null;
 	const mergedColors = new Float32Array(totalVertexCount * 3);
+	// Use Uint32Array if base geometry uses it OR if totalVertexCount exceeds Uint16 max (65535)
 	const mergedIndices = baseIndices
-		? new (baseIndices.array instanceof Uint32Array
+		? new (baseIndices.array instanceof Uint32Array || totalVertexCount > 65535
 				? Uint32Array
 				: Uint16Array)(totalIndexCount)
 		: null;
