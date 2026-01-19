@@ -662,6 +662,7 @@ export default function Bonds({
 		material,
 		opacity,
 		data,
+		updateMergedMesh,
 	]);
 
 	// Separate effect for selection mesh updates (doesn't reprocess main mesh data)

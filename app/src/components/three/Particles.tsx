@@ -709,6 +709,7 @@ export default function Sphere({
 		material,
 		opacity,
 		data,
+		updateMergedMesh,
 	]);
 
 	// Separate effect for hover mesh updates - doesn't trigger data reprocessing

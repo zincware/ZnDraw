@@ -518,6 +518,7 @@ export default function Arrow({
 		material,
 		opacity,
 		data,
+		updateMergedMesh,
 	]);
 
 	// Separate effect for hover mesh updates - doesn't trigger data reprocessing

@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
 
 /**
  * Converts an InstancedMesh to a single merged Mesh with vertex colors.

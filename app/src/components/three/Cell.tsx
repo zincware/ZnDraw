@@ -1,7 +1,7 @@
 import { useColorScheme, useTheme } from "@mui/material/styles";
 import { Line } from "@react-three/drei";
 import { useAppStore } from "../../store";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { getFrames } from "../../myapi/client";
@@ -34,10 +34,9 @@ export const Cell = ({
 	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
 	// Merge with defaults from Pydantic (single source of truth)
-	const fullData = getGeometryWithDefaults<CellData>(
-		data,
-		"Cell",
-		geometryDefaults,
+	const fullData = useMemo(
+		() => getGeometryWithDefaults<CellData>(data, "Cell", geometryDefaults),
+		[data, geometryDefaults],
 	);
 
 	const [displayedVertices, setDisplayedVertices] = useState<

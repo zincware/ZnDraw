@@ -513,6 +513,7 @@ export default function Plane({
 		material,
 		opacity,
 		data,
+		updateMergedMesh,
 	]);
 
 	// Separate effect for hover mesh updates - doesn't trigger data reprocessing

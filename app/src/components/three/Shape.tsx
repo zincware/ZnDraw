@@ -460,6 +460,7 @@ export default function Shape({
 		material,
 		opacity,
 		data,
+		updateMergedMesh,
 	]);
 
 	// Separate effect for hover mesh updates
