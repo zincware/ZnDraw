@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { useEffect, useRef, memo, type RefObject } from "react";
+import { useEffect, useRef, memo, useMemo, type RefObject } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -39,6 +39,7 @@ import { PathTracingRenderer } from "./PathTracingRenderer";
 import { GeometryErrorBoundary } from "./three/GeometryErrorBoundary";
 import { useFrameLoadTime } from "../hooks/useFrameLoadTime";
 import { ScreenshotProvider } from "./three/ScreenshotProvider";
+import { resolvePosition } from "../utils/cameraUtils";
 
 /**
  * Component configuration for geometry types.
@@ -234,6 +235,15 @@ function MyScene() {
 	const sessionCamera = sessionCameraKey ? geometries[sessionCameraKey] : null;
 	const sessionCameraData = sessionCamera?.data;
 
+	// Memoize camera position resolution (must be before early returns)
+	const cameraPosition = useMemo(
+		() =>
+			sessionCameraData?.position
+				? resolvePosition(sessionCameraData.position, geometries)
+				: ([0, 0, 10] as [number, number, number]),
+		[sessionCameraData?.position, geometries],
+	);
+
 	// Show error state if initialization failed
 	if (initializationError) {
 		return <CanvasErrorState error={initializationError} />;
@@ -251,7 +261,6 @@ function MyScene() {
 	const pathtracingSettings = settingsResponse.data.pathtracing;
 	const pathtracingEnabled = pathtracingSettings.enabled === true;
 
-	const cameraPosition = sessionCameraData.position as [number, number, number];
 	const cameraFov = sessionCameraData.fov;
 	const cameraType = sessionCameraData.camera_type;
 	const showCrosshair = sessionCameraData.show_crosshair;
@@ -264,7 +273,7 @@ function MyScene() {
 	return (
 		<div style={{ width: "100%", height: "calc(100vh - 64px)" }}>
 			<Canvas
-				key={cameraType}
+				key={`${cameraType}-${pathtracingEnabled}`}
 				shadows
 				camera={{
 					position: cameraPosition,
