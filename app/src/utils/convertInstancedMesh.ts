@@ -45,6 +45,7 @@ export function convertInstancedMeshToMerged(
 
 	// Reusable temporary objects (avoids creating new objects in loop)
 	const tempMatrix = new THREE.Matrix4();
+	const tempNormalMatrix = new THREE.Matrix3();
 	const tempColor = new THREE.Color();
 
 	// Get base attributes
@@ -79,6 +80,12 @@ export function convertInstancedMeshToMerged(
 		// Get instance matrix
 		instancedMesh.getMatrixAt(i, tempMatrix);
 
+		// Compute normal matrix (inverse-transpose of upper 3x3) for correct
+		// normal transformation with non-uniform scale
+		if (baseNormals) {
+			tempNormalMatrix.getNormalMatrix(tempMatrix);
+		}
+
 		// Get instance color
 		if (hasInstanceColor) {
 			instancedMesh.getColorAt(i, tempColor);
@@ -108,20 +115,32 @@ export function convertInstancedMeshToMerged(
 			mergedPositions[targetIdx + 2] =
 				(e[2] * x + e[6] * y + e[10] * z + e[14]) * w;
 
-			// Normal transform (if available)
+			// Normal transform using inverse-transpose (normal matrix)
+			// This correctly handles non-uniform scale
 			if (mergedNormals && baseNormals) {
 				const nx = baseNormals.getX(v);
 				const ny = baseNormals.getY(v);
 				const nz = baseNormals.getZ(v);
 
-				// Transform normal by rotation part of matrix (upper 3x3)
-				// Note: For non-uniform scale, we technically need inverse-transpose,
-				// but for uniform scale (common in particles) this is sufficient.
-				// For perfect correctness with non-uniform scale, we'd need normal matrix.
-				// Given performance constraints, direct rotation is often acceptable approximation here.
-				mergedNormals[targetIdx] = e[0] * nx + e[4] * ny + e[8] * nz;
-				mergedNormals[targetIdx + 1] = e[1] * nx + e[5] * ny + e[9] * nz;
-				mergedNormals[targetIdx + 2] = e[2] * nx + e[6] * ny + e[10] * nz;
+				// Apply normal matrix (inverse-transpose of model matrix)
+				const ne = tempNormalMatrix.elements;
+				const tnx = ne[0] * nx + ne[3] * ny + ne[6] * nz;
+				const tny = ne[1] * nx + ne[4] * ny + ne[7] * nz;
+				const tnz = ne[2] * nx + ne[5] * ny + ne[8] * nz;
+
+				// Normalize the transformed normal
+				const len = Math.sqrt(tnx * tnx + tny * tny + tnz * tnz);
+				if (len > 0) {
+					const invLen = 1 / len;
+					mergedNormals[targetIdx] = tnx * invLen;
+					mergedNormals[targetIdx + 1] = tny * invLen;
+					mergedNormals[targetIdx + 2] = tnz * invLen;
+				} else {
+					// Degenerate normal, keep original direction
+					mergedNormals[targetIdx] = nx;
+					mergedNormals[targetIdx + 1] = ny;
+					mergedNormals[targetIdx + 2] = nz;
+				}
 			}
 
 			// UV copy (if available)
