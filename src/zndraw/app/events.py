@@ -727,6 +727,7 @@ def handle_room_join(data):
     return {
         "status": "ok",
         "sessionId": session_id,
+        "workerId": sid,  # Server's socket SID for worker identification
         "cameraKey": get_session_camera_key(session_id),
         "step": int(current_step) if current_step else 0,
         "frameCount": frame_count,

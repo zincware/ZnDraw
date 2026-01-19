@@ -429,6 +429,9 @@ class ZnDraw(MutableSequence):
     )
     _filesystems: dict[str, dict] = dataclasses.field(default_factory=dict, init=False)
     role: str = dataclasses.field(default="guest", init=False)
+    _worker_id: str | None = dataclasses.field(
+        default=None, init=False
+    )  # Server's sid for worker identification
     _selection: frozenset[int] = frozenset()
     _frame_selection: frozenset[int] = frozenset()
     _bookmarks: dict[int, str] = dataclasses.field(default_factory=dict, init=False)
@@ -684,17 +687,18 @@ class ZnDraw(MutableSequence):
 
     @property
     def sid(self) -> str | None:
-        """Return the current socket session ID.
+        """Return the worker ID assigned by the server.
 
-        This is the socket.io session ID that identifies this client connection.
-        The server uses this ID for job assignment and worker tracking.
+        The server assigns a worker ID (its request.sid) during extension registration.
+        This ID is used consistently for both registration and disconnect cleanup.
 
         Returns
         -------
         str | None
-            The socket session ID, or None if not connected.
+            The worker ID assigned by server, client's socket.sio.sid if not yet registered,
+            or None if not connected.
         """
-        return self.socket.sio.sid
+        return self._worker_id if self._worker_id else self.socket.sio.sid
 
     @property
     def is_admin(self) -> bool:
@@ -1578,7 +1582,8 @@ class ZnDraw(MutableSequence):
             socket_manager=self.socket,
             public=public,
         )
-        log.info(f"Extension '{name}' registered with {scope} (sid: {self.sid}).")
+        # Note: worker_id is already set from room:join response
+        log.info(f"Extension '{name}' registered with {scope} (worker_id: {self.sid}).")
 
     def run(self, extension: Extension, public: bool | None = None):
         """Run an extension by submitting a job to the server.
@@ -1699,7 +1704,10 @@ class ZnDraw(MutableSequence):
             socket_manager=self.socket,
             public=public,
         )
-        log.debug(f"Filesystem '{name}' registered with {scope} (sid: {self.sid}).")
+        # Note: worker_id is already set from room:join response
+        log.debug(
+            f"Filesystem '{name}' registered with {scope} (worker_id: {self.sid})."
+        )
 
     def log(self, message: str) -> dict:
         """Send a chat message to the room."""

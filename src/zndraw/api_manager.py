@@ -374,6 +374,9 @@ class APIManager:
                 f"Extension registration failed: {data.get('error', 'Unknown error')}"
             )
 
+        # Return the worker_id assigned by server so caller can store it
+        return data.get("workerId")
+
     def register_filesystem(
         self,
         name: str,
@@ -427,6 +430,9 @@ class APIManager:
             raise RuntimeError(
                 f"Filesystem registration failed: {data.get('error', 'Unknown error')}"
             )
+
+        # Return the worker_id assigned by server so caller can store it
+        return data.get("workerId")
 
     def get_frames(
         self, indices_or_slice, keys: list[str] | None = None
