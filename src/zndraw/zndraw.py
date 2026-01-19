@@ -1575,19 +1575,15 @@ class ZnDraw(MutableSequence):
             f"Registering {'global' if public else 'room-scoped'} extension '{name}'..."
         )
 
-        worker_id = self.api.register_extension(
+        self.api.register_extension(
             name=name,
             category=extension.category,
             schema=extension.model_json_schema(),
             socket_manager=self.socket,
             public=public,
         )
-        # Store the worker_id assigned by server (server's request.sid)
-        if worker_id:
-            self._worker_id = worker_id
-        log.info(
-            f"Extension '{name}' registered with {scope} (worker_id: {self._worker_id})."
-        )
+        # Note: worker_id is already set from room:join response
+        log.info(f"Extension '{name}' registered with {scope} (worker_id: {self.sid}).")
 
     def run(self, extension: Extension, public: bool | None = None):
         """Run an extension by submitting a job to the server.
@@ -1701,20 +1697,16 @@ class ZnDraw(MutableSequence):
             f"Registering {'global' if public else 'room-scoped'} filesystem '{name}'..."
         )
 
-        # Register with server via Socket.IO
-        worker_id = self.api.register_filesystem(
+        # Register with server via REST API
+        self.api.register_filesystem(
             name=name,
             fs_type=fs.__class__.__name__,
             socket_manager=self.socket,
             public=public,
         )
-
-        # Store the worker_id assigned by server (server's request.sid)
-        if worker_id:
-            self._worker_id = worker_id
-
+        # Note: worker_id is already set from room:join response
         log.debug(
-            f"Filesystem '{name}' registered with {scope} (worker_id: {self._worker_id})."
+            f"Filesystem '{name}' registered with {scope} (worker_id: {self.sid})."
         )
 
     def log(self, message: str) -> dict:
