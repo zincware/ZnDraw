@@ -10,15 +10,21 @@ import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
  * - Draw calls: 1 draw call instead of N draw calls
  * - Instance colors are baked into vertex colors
  *
- * @param instancedMesh - The instanced mesh to convert
+ * IMPORTANT: Pass geometry explicitly rather than relying on instancedMesh.geometry.
+ * R3F attaches geometry asynchronously, so the mesh's geometry property may be stale
+ * when this function is called from a React effect.
+ *
+ * @param instancedMesh - The instanced mesh (used for matrices, colors, count)
+ * @param geometry - The geometry to use for merging (pass explicitly from React state)
  * @param material - Optional material to use (must support vertexColors)
  * @returns A single THREE.Mesh with merged geometry and vertex colors
  */
 export function convertInstancedMeshToMerged(
 	instancedMesh: THREE.InstancedMesh,
+	geometry: THREE.BufferGeometry,
 	material?: THREE.Material,
 ): THREE.Mesh {
-	const baseGeometry = instancedMesh.geometry;
+	const baseGeometry = geometry;
 	const baseMaterial = instancedMesh.material;
 	const count = instancedMesh.count;
 
@@ -87,7 +93,6 @@ export function convertInstancedMeshToMerged(
 		// Process vertices
 		for (let v = 0; v < baseVertexCount; v++) {
 			const targetIdx = (vertexOffset + v) * 3;
-			const srcIdx = v * 3;
 
 			// Position transform
 			const x = basePositions.getX(v);

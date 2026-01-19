@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { usePathtracer } from "@react-three/gpu-pathtracer";
+import { useFrame } from "@react-three/fiber";
 import { useAppStore } from "../store";
 import type { PathTracing } from "../types/room-config";
 
@@ -7,10 +8,8 @@ import type { PathTracing } from "../types/room-config";
  * Component that watches for pathtracing update requests and calls
  * pathtracer.update() to rebuild the BVH acceleration structure.
  *
- * This is needed when:
- * - Scene changes dynamically (e.g., particles switching from instanced to individual meshes)
- * - Current frame changes (particles move, arrows change, etc.)
- * - Pathtracing settings change
+ * Uses useFrame to ensure update() is called after R3F has finished
+ * processing all scene updates in the render loop.
  */
 export function PathtracingUpdater({ settings }: { settings: PathTracing }) {
 	const pathtracingNeedsUpdate = useAppStore(
@@ -25,38 +24,32 @@ export function PathtracingUpdater({ settings }: { settings: PathTracing }) {
 
 	// Track if this is the first render to avoid calling update on mount
 	const isFirstRender = useRef(true);
+	// Pending update flag - processed in useFrame to ensure scene is stable
+	const pendingUpdate = useRef(false);
 
-	// Handle manual update requests (e.g., when switching to individual meshes)
+	// Capture manual update requests
 	useEffect(() => {
-		if (pathtracingNeedsUpdate && update) {
-			update();
+		if (pathtracingNeedsUpdate) {
+			pendingUpdate.current = true;
 			clearPathtracingUpdate();
 		}
-	}, [pathtracingNeedsUpdate, update, clearPathtracingUpdate]);
+	}, [pathtracingNeedsUpdate, clearPathtracingUpdate]);
 
-	// Handle automatic updates when frame changes
+	// Capture frame change updates
 	useEffect(() => {
-		// Skip the first render
 		if (isFirstRender.current) {
 			isFirstRender.current = false;
 			return;
 		}
+		pendingUpdate.current = true;
+	}, [currentFrame]);
 
-		if (update) {
-			update();
-		}
-	}, [currentFrame, update]);
-
-	// Handle automatic updates when pathtracing settings change
+	// Capture settings change updates
 	useEffect(() => {
-		// Skip the first render
 		if (isFirstRender.current) {
 			return;
 		}
-
-		if (update) {
-			update();
-		}
+		pendingUpdate.current = true;
 	}, [
 		settings.samples,
 		settings.min_samples,
@@ -68,6 +61,13 @@ export function PathtracingUpdater({ settings }: { settings: PathTracing }) {
 		settings.environment_background,
 	]);
 
-	// This component doesn't render anything
+	// Execute update in useFrame - guarantees R3F has processed scene updates
+	useFrame(() => {
+		if (pendingUpdate.current && update) {
+			update();
+			pendingUpdate.current = false;
+		}
+	});
+
 	return null;
 }

@@ -1,23 +1,10 @@
-import {
-	useRef,
-	useEffect,
-	useState,
-	useCallback,
-	type RefObject,
-} from "react";
+import { useRef, useEffect, useCallback, type RefObject } from "react";
 import * as THREE from "three";
 import { useAppStore } from "../store";
 import {
 	convertInstancedMeshToMerged,
 	disposeMesh,
 } from "../utils/convertInstancedMesh";
-
-interface UsePathtracingMeshResult {
-	/** The merged mesh for rendering, or null when disabled/empty */
-	mergedMesh: THREE.Mesh | null;
-	/** Call this after updating the instanced mesh to trigger conversion */
-	updateMergedMesh: () => void;
-}
 
 /**
  * Hook that manages the merged mesh for GPU pathtracing.
@@ -26,77 +13,89 @@ interface UsePathtracingMeshResult {
  * single merged mesh with vertex colors. This hook handles the conversion,
  * disposal, and update signaling.
  *
- * Usage:
- * ```tsx
- * const { mergedMesh, updateMergedMesh } = usePathtracingMesh(
- *   mainMeshRef,
- *   pathtracingEnabled
- * );
+ * CRITICAL: This hook uses refs and manual scene graph management (not React state)
+ * to ensure precise timing control. The merged mesh is added to the parent group
+ * synchronously, guaranteeing it's in the scene before the pathtracer updates.
  *
- * // In your main data effect, at the end:
- * if (pathtracingEnabled && instanceCount > 0) {
- *   updateMergedMesh();
- * }
- *
- * // In JSX:
- * {pathtracingEnabled && mergedMesh && <primitive object={mergedMesh} />}
- * ```
- *
+ * @param parentGroupRef - Ref to the parent group where merged mesh will be added
  * @param mainMeshRef - Ref to the instanced mesh to convert
  * @param pathtracingEnabled - Whether pathtracing mode is active
- * @returns Object with mergedMesh and updateMergedMesh function
+ * @returns updateMergedMesh function to trigger conversion
  */
 export function usePathtracingMesh(
+	parentGroupRef: RefObject<THREE.Group | null>,
 	mainMeshRef: RefObject<THREE.InstancedMesh | null>,
 	pathtracingEnabled: boolean,
-): UsePathtracingMeshResult {
+): (geometry: THREE.BufferGeometry) => void {
 	const requestPathtracingUpdate = useAppStore(
 		(state) => state.requestPathtracingUpdate,
 	);
 
-	// State to hold the merged mesh and trigger re-renders
-	const [mergedMesh, setMergedMesh] = useState<THREE.Mesh | null>(null);
-	// Ref to track for disposal without causing re-render loops
+	// Ref to track the merged mesh - NO React state to avoid timing issues
 	const mergedMeshRef = useRef<THREE.Mesh | null>(null);
 
 	// Function to convert and update the merged mesh
-	const updateMergedMesh = useCallback(() => {
-		if (!pathtracingEnabled || !mainMeshRef.current) {
-			return;
-		}
+	// This is synchronous - mesh is added to scene immediately
+	const updateMergedMesh = useCallback(
+		(geometry: THREE.BufferGeometry) => {
+			if (
+				!pathtracingEnabled ||
+				!mainMeshRef.current ||
+				!parentGroupRef.current
+			) {
+				return;
+			}
 
-		// Dispose old mesh before creating new one
-		if (mergedMeshRef.current) {
-			disposeMesh(mergedMeshRef.current);
-		}
+			// Remove and dispose old mesh from scene
+			if (mergedMeshRef.current) {
+				parentGroupRef.current.remove(mergedMeshRef.current);
+				disposeMesh(mergedMeshRef.current);
+				mergedMeshRef.current = null;
+			}
 
-		// Convert instanced mesh to merged mesh with vertex colors
-		const newMergedMesh = convertInstancedMeshToMerged(mainMeshRef.current);
-		mergedMeshRef.current = newMergedMesh;
-		setMergedMesh(newMergedMesh);
+			// Convert instanced mesh to merged mesh with vertex colors
+			const newMergedMesh = convertInstancedMeshToMerged(
+				mainMeshRef.current,
+				geometry,
+			);
 
-		// Signal pathtracer to rebuild BVH
-		requestPathtracingUpdate();
-	}, [pathtracingEnabled, mainMeshRef, requestPathtracingUpdate]);
+			// Add new mesh to scene SYNCHRONOUSLY
+			parentGroupRef.current.add(newMergedMesh);
+			mergedMeshRef.current = newMergedMesh;
+
+			// Signal pathtracer to rebuild BVH
+			// The mesh is already in the scene, so update() will see it
+			requestPathtracingUpdate();
+		},
+		[pathtracingEnabled, mainMeshRef, parentGroupRef, requestPathtracingUpdate],
+	);
 
 	// Cleanup when pathtracing is disabled
 	useEffect(() => {
-		if (!pathtracingEnabled && mergedMeshRef.current) {
+		if (
+			!pathtracingEnabled &&
+			mergedMeshRef.current &&
+			parentGroupRef.current
+		) {
+			parentGroupRef.current.remove(mergedMeshRef.current);
 			disposeMesh(mergedMeshRef.current);
 			mergedMeshRef.current = null;
-			setMergedMesh(null);
 		}
-	}, [pathtracingEnabled]);
+	}, [pathtracingEnabled, parentGroupRef]);
 
 	// Cleanup on unmount
 	useEffect(() => {
 		return () => {
 			if (mergedMeshRef.current) {
+				// Try to remove from parent if still attached
+				if (mergedMeshRef.current.parent) {
+					mergedMeshRef.current.parent.remove(mergedMeshRef.current);
+				}
 				disposeMesh(mergedMeshRef.current);
 				mergedMeshRef.current = null;
 			}
 		};
 	}, []);
 
-	return { mergedMesh, updateMergedMesh };
+	return updateMergedMesh;
 }

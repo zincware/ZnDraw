@@ -86,10 +86,13 @@ export default function Box({
 	const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const hoverMeshRef = useRef<THREE.Mesh | null>(null);
+	const parentGroupRef = useRef<THREE.Group | null>(null);
 	const [instanceCount, setInstanceCount] = useState(0);
 
 	// Pathtracing: convert instanced mesh to merged mesh
-	const { mergedMesh, updateMergedMesh } = usePathtracingMesh(
+	// Uses refs and manual scene management for precise timing control
+	const updateMergedMesh = usePathtracingMesh(
+		parentGroupRef,
 		mainMeshRef,
 		pathtracingEnabled,
 	);
@@ -445,7 +448,7 @@ export default function Box({
 
 			// Update pathtracing mesh if enabled
 			if (pathtracingEnabled) {
-				updateMergedMesh();
+				updateMergedMesh(mainGeometry);
 			}
 
 			// --- Selection Mesh Update ---
@@ -586,8 +589,9 @@ export default function Box({
 	}
 
 	return (
-		<group>
+		<group ref={parentGroupRef}>
 			{/* Main instanced mesh - visible when NOT pathtracing */}
+			{/* Merged mesh for pathtracing is added to this group imperatively via usePathtracingMesh */}
 			<instancedMesh
 				key={instanceCount}
 				ref={mainMeshRef}
@@ -645,9 +649,6 @@ export default function Box({
 					/>
 				</mesh>
 			)}
-
-			{/* Merged mesh - visible when pathtracing */}
-			{pathtracingEnabled && mergedMesh && <primitive object={mergedMesh} />}
 		</group>
 	);
 }

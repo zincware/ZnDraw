@@ -168,6 +168,7 @@ export default function Bonds({
 	const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const hoverMeshRef = useRef<THREE.InstancedMesh | null>(null);
+	const parentGroupRef = useRef<THREE.Group | null>(null);
 	const [hoveredBondPairIndex, setHoveredBondPairIndex] = useState<
 		number | null
 	>(null);
@@ -183,7 +184,9 @@ export default function Bonds({
 		bondState;
 
 	// Pathtracing: convert instanced mesh to merged mesh
-	const { mergedMesh, updateMergedMesh } = usePathtracingMesh(
+	// Uses refs and manual scene management for precise timing control
+	const updateMergedMesh = usePathtracingMesh(
+		parentGroupRef,
 		mainMeshRef,
 		pathtracingEnabled,
 	);
@@ -629,7 +632,7 @@ export default function Bonds({
 
 			// Update pathtracing mesh if enabled
 			if (pathtracingEnabled) {
-				updateMergedMesh();
+				updateMergedMesh(bondGeometry);
 			}
 		} catch (error) {
 			console.error("Error processing Bonds data:", error);
@@ -776,9 +779,10 @@ export default function Bonds({
 	}
 
 	return (
-		<group>
+		<group ref={parentGroupRef}>
 			{/* Instanced mesh - visible when NOT pathtracing */}
 			{/* NOTE: Interactions (click, hover) disabled when pathtracing enabled */}
+			{/* Merged mesh for pathtracing is added to this group imperatively via usePathtracingMesh */}
 			<instancedMesh
 				key={instanceCount}
 				ref={mainMeshRef}
@@ -836,9 +840,6 @@ export default function Bonds({
 					)}
 				</>
 			)}
-
-			{/* Merged mesh - visible when pathtracing */}
-			{pathtracingEnabled && mergedMesh && <primitive object={mergedMesh} />}
 		</group>
 	);
 }
