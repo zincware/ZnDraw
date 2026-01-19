@@ -849,8 +849,9 @@ export default function Curve({
 	if (!marker || !virtual_marker) return null;
 	// Don't render if geometry is disabled OR if required keys are not available
 	if (fullData.active === false || !hasRequiredKeys) return null;
-	// Hide curve when pathtracing (Line components not supported by GPU pathtracer)
-	if (pathtracingEnabled) return null;
+	// Hide curve visuals when pathtracing (Line components not supported by GPU pathtracer)
+	// BUT keep the component mounted so curveRef stays registered for CurveAttachment resolution
+	if (pathtracingEnabled) return <group />;
 
 	// --- Render ---
 	return (

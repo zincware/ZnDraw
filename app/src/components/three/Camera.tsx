@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import { useThree } from "@react-three/fiber";
 import { useAppStore } from "../../store";
-import { isCurveAttachment, PositionType } from "../../utils/cameraUtils";
+import {
+	isCurveAttachment,
+	resolvePosition,
+	PositionType,
+} from "../../utils/cameraUtils";
 
 interface CameraData {
 	// Position and target can be either direct coordinates or CurveAttachment
@@ -40,47 +44,21 @@ export default function Camera({
 	const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
 	const curveRefs = useAppStore((state) => state.curveRefs);
 
-	/**
-	 * Resolve initial position from data.
-	 * For arrays: use directly. For CurveAttachment: try to resolve from geometry data.
-	 * Backend always provides valid data, so fallback cases should not occur.
-	 */
-	const resolveInitialPosition = (
-		positionData: PositionType,
-	): THREE.Vector3 => {
-		if (Array.isArray(positionData)) {
-			return new THREE.Vector3(
-				positionData[0],
-				positionData[1],
-				positionData[2],
-			);
-		}
-		// CurveAttachment - resolve from geometry data
-		if (isCurveAttachment(positionData)) {
-			const curveGeometry = geometries[positionData.geometry_key];
-			if (
-				curveGeometry?.type === "Curve" &&
-				curveGeometry.data?.position?.[0]
-			) {
-				const [x, y, z] = curveGeometry.data.position[0];
-				return new THREE.Vector3(x, y, z);
-			}
-		}
-		// Backend should always provide valid data - this indicates a bug
-		console.error("Camera: received invalid position data from backend");
-		throw new Error("Invalid camera position data");
-	};
-
-	const [computedPosition, setComputedPosition] = useState<THREE.Vector3>(() =>
-		resolveInitialPosition(data.position),
+	// Initial position/target from shared utility (linear interpolation)
+	const [computedPosition, setComputedPosition] = useState<THREE.Vector3>(
+		() => {
+			const [x, y, z] = resolvePosition(data.position, geometries);
+			return new THREE.Vector3(x, y, z);
+		},
 	);
-	const [computedTarget, setComputedTarget] = useState<THREE.Vector3>(() =>
-		resolveInitialPosition(data.target),
-	);
+	const [computedTarget, setComputedTarget] = useState<THREE.Vector3>(() => {
+		const [x, y, z] = resolvePosition(data.target, geometries);
+		return new THREE.Vector3(x, y, z);
+	});
 
 	const isAttached = attachedCameraKey === geometryKey;
 
-	// Extract curve info from position/target (either direct coords or CurveAttachment)
+	// Extract curve info from position/target
 	const positionCurveKey = isCurveAttachment(data.position)
 		? data.position.geometry_key
 		: null;
@@ -101,94 +79,38 @@ export default function Camera({
 	const targetCurve = targetCurveKey ? curveRefs[targetCurveKey] : undefined;
 
 	/**
-	 * Helper: Resolve position from either direct coordinates or CurveAttachment.
-	 * Returns null if CurveAttachment cannot be resolved (curve not loaded yet).
-	 * Backend always provides valid data, so null indicates a timing issue, not invalid data.
+	 * Resolve position to Vector3. Uses curveRef for smooth spline interpolation
+	 * when available, falls back to resolvePosition (linear) otherwise.
 	 */
-	const resolvePositionToVector = (
+	const resolveToVector3 = (
 		positionData: PositionType,
-		curveKey: string | null,
 		curve: THREE.CatmullRomCurve3 | undefined,
 		progress: number,
-	): THREE.Vector3 | null => {
-		// Direct coordinates - just use them
-		if (Array.isArray(positionData)) {
-			return new THREE.Vector3(
-				positionData[0],
-				positionData[1],
-				positionData[2],
-			);
-		}
-
-		// CurveAttachment - resolve via curve
-		if (!curveKey) {
-			// Invalid CurveAttachment (no geometry_key) - backend bug
-			console.error(
-				`Camera ${geometryKey}: CurveAttachment missing geometry_key`,
-			);
-			return null;
-		}
-
-		if (curve) {
-			// Multi-point curve - use shared THREE.js curve object
+	): THREE.Vector3 => {
+		// Use curveRef for smooth spline interpolation when available
+		if (curve && isCurveAttachment(positionData)) {
 			return curve.getPointAt(progress);
-		} else {
-			// Single-point curve (or not yet built) - read position directly from geometry data
-			const curveGeometry = geometries[curveKey];
-			if (
-				curveGeometry?.type === "Curve" &&
-				curveGeometry.data?.position?.[0]
-			) {
-				const [x, y, z] = curveGeometry.data.position[0];
-				return new THREE.Vector3(x, y, z);
-			} else {
-				// Curve not loaded yet - will be resolved when geometry loads
-				return null;
-			}
 		}
+		// Fallback to linear interpolation via shared utility
+		const [x, y, z] = resolvePosition(positionData, geometries);
+		return new THREE.Vector3(x, y, z);
 	};
 
 	// Compute position (from direct coords or curve)
 	useEffect(() => {
-		const point = resolvePositionToVector(
+		const point = resolveToVector3(
 			data.position,
-			positionCurveKey,
 			positionCurve,
 			positionProgress,
 		);
-		// Only update if resolution succeeded (null = curve not loaded yet)
-		if (point !== null) {
-			setComputedPosition(point);
-		}
-	}, [
-		data.position,
-		positionCurve,
-		positionCurveKey,
-		positionProgress,
-		geometries,
-		geometryKey,
-	]);
+		setComputedPosition(point);
+	}, [data.position, positionCurve, positionProgress, geometries]);
 
 	// Compute target (from direct coords or curve)
 	useEffect(() => {
-		const point = resolvePositionToVector(
-			data.target,
-			targetCurveKey,
-			targetCurve,
-			targetProgress,
-		);
-		// Only update if resolution succeeded (null = curve not loaded yet)
-		if (point !== null) {
-			setComputedTarget(point);
-		}
-	}, [
-		data.target,
-		targetCurve,
-		targetCurveKey,
-		targetProgress,
-		geometries,
-		geometryKey,
-	]);
+		const point = resolveToVector3(data.target, targetCurve, targetProgress);
+		setComputedTarget(point);
+	}, [data.target, targetCurve, targetProgress, geometries]);
 
 	// Update scene camera if this camera is attached
 	useEffect(() => {
@@ -199,29 +121,13 @@ export default function Camera({
 		sceneCamera.lookAt(computedTarget);
 
 		// Update projection properties
-		let needsProjectionUpdate = false;
-
 		if ("fov" in sceneCamera) {
 			(sceneCamera as THREE.PerspectiveCamera).fov = data.fov;
-			needsProjectionUpdate = true;
 		}
-		if ("near" in sceneCamera) {
-			sceneCamera.near = data.near;
-			needsProjectionUpdate = true;
-		}
-		if ("far" in sceneCamera) {
-			sceneCamera.far = data.far;
-			needsProjectionUpdate = true;
-		}
-		if ("zoom" in sceneCamera) {
-			sceneCamera.zoom = data.zoom;
-			needsProjectionUpdate = true;
-		}
-
-		// Update projection matrix if any projection property changed
-		if (needsProjectionUpdate) {
-			sceneCamera.updateProjectionMatrix();
-		}
+		sceneCamera.near = data.near;
+		sceneCamera.far = data.far;
+		sceneCamera.zoom = data.zoom;
+		sceneCamera.updateProjectionMatrix();
 	}, [
 		isAttached,
 		computedPosition,
@@ -238,9 +144,8 @@ export default function Camera({
 	const helperCamera = useMemo(() => {
 		if (data.camera_type === "PerspectiveCamera") {
 			return new THREE.PerspectiveCamera(data.fov, 1.0, data.near, data.far);
-		} else {
-			return new THREE.OrthographicCamera(-1, 1, 1, -1, data.near, data.far);
 		}
+		return new THREE.OrthographicCamera(-1, 1, 1, -1, data.near, data.far);
 	}, [data.camera_type, data.fov, data.near, data.far]);
 
 	// Update helper camera position and target

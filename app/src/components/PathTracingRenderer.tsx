@@ -12,9 +12,8 @@ interface PathTracingRendererProps {
 
 /**
  * Wraps scene with GPU path tracing renderer and environment lighting.
- * When disabled, passes children through without modification.
  *
- * IMPORTANT: When path tracing is enabled:
+ * When path tracing is enabled:
  * - All user interactions (click, hover, selection) are disabled
  * - Instanced meshes are converted to merged meshes (required for path tracer)
  * - Studio lighting is automatically disabled (environment provides lighting)
@@ -24,11 +23,6 @@ export function PathTracingRenderer({
 	settings,
 	children,
 }: PathTracingRendererProps) {
-	// Handle undefined settings (loading state)
-	if (!settings) {
-		return <>{children}</>;
-	}
-
 	const {
 		enabled = false,
 		min_samples = 1,
@@ -39,29 +33,20 @@ export function PathTracingRenderer({
 		environment_intensity = 1.0,
 		environment_blur = 0.0,
 		environment_background = false,
-	} = settings;
-
-	// Pass through if not enabled
-	if (!enabled) {
-		return <>{children}</>;
-	}
-
+	} = settings ?? {};
 	return (
 		<Pathtracer
 			minSamples={min_samples}
 			samples={samples}
 			bounces={bounces}
 			tiles={tiles}
-			enabled={true}
+			enabled={enabled}
 		>
-			{/* Pathtracing updater - watches for scene changes and calls update() */}
-			<PathtracingUpdater settings={settings} />
+			{enabled && <PathtracingUpdater settings={settings!} />}
+			{enabled && <PathtracingCaptureProvider />}
 
-			{/* Registers pathtracer capture function to store (DRY - ScreenshotProvider handles logic) */}
-			<PathtracingCaptureProvider />
-
-			{/* Environment lighting for path tracing */}
-			{environment_preset !== "none" && (
+			{/* Environment lighting - only when pathtracing enabled */}
+			{enabled && environment_preset !== "none" && (
 				<Environment
 					preset={environment_preset}
 					background={environment_background}

@@ -276,7 +276,7 @@ def request_screenshot(session_id: str):
 
     room_keys = RoomKeys(room_id)
     current_user = get_current_user()
-    if not r.sismember(room_keys.members(), current_user):
+    if not r.sismember(room_keys.users(), current_user):
         return {"error": "You are not a member of this room"}, 403
 
     try:
