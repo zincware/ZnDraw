@@ -35,7 +35,10 @@ export default function Camera({
 }) {
 	const { camera: sceneCamera } = useThree();
 
-	const { roomId, geometries, attachedCameraKey, curveRefs } = useAppStore();
+	const roomId = useAppStore((state) => state.roomId);
+	const geometries = useAppStore((state) => state.geometries);
+	const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
+	const curveRefs = useAppStore((state) => state.curveRefs);
 
 	/**
 	 * Resolve initial position from data.

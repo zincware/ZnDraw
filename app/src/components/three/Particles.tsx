@@ -28,10 +28,7 @@ import {
 	_quat2,
 	_color,
 } from "../../utils/threeObjectPools";
-import {
-	convertInstancedMeshToMerged,
-	disposeMesh,
-} from "../../utils/convertInstancedMesh";
+import { usePathtracingMesh } from "../../hooks/usePathtracingMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 import {
 	isTransform,
@@ -95,9 +92,6 @@ export default function Sphere({
 		(state) => state.setHoveredGeometryInstance,
 	);
 	const setParticleCount = useAppStore((state) => state.setParticleCount);
-	const requestPathtracingUpdate = useAppStore(
-		(state) => state.requestPathtracingUpdate,
-	);
 	const updateGeometry = useAppStore((state) => state.updateGeometry);
 	const registerLoadedDynamicPositions = useAppStore(
 		(state) => state.registerLoadedDynamicPositions,
@@ -107,10 +101,9 @@ export default function Sphere({
 	);
 
 	// Merge with defaults from Pydantic (single source of truth)
-	const fullData = getGeometryWithDefaults<SphereData>(
-		data,
-		"Sphere",
-		geometryDefaults,
+	const fullData = useMemo(
+		() => getGeometryWithDefaults<SphereData>(data, "Sphere", geometryDefaults),
+		[data, geometryDefaults],
 	);
 
 	const {
@@ -128,8 +121,16 @@ export default function Sphere({
 	const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const hoverMeshRef = useRef<THREE.Mesh | null>(null);
-	const mergedMeshRef = useRef<THREE.Mesh | null>(null);
+	const parentGroupRef = useRef<THREE.Group | null>(null);
 	const [instanceCount, setInstanceCount] = useState(0);
+
+	// Pathtracing: convert instanced mesh to merged mesh
+	// Uses refs and manual scene management for precise timing control
+	const updateMergedMesh = usePathtracingMesh(
+		parentGroupRef,
+		mainMeshRef,
+		pathtracingEnabled,
+	);
 
 	// Fetch frame keys to check if required data is available
 	const { data: frameKeysData, isLoading: isLoadingKeys } = useFrameKeys(
@@ -645,6 +646,11 @@ export default function Sphere({
 			mainMesh.computeBoundingBox();
 			mainMesh.computeBoundingSphere();
 
+			// Update pathtracing mesh if enabled
+			if (pathtracingEnabled) {
+				updateMergedMesh(mainGeometry);
+			}
+
 			// --- Selection Mesh Update ---
 			if (selecting.enabled && selectionMeshRef.current) {
 				const selectionMesh = selectionMeshRef.current;
@@ -680,25 +686,30 @@ export default function Sphere({
 			if (instanceCount !== 0) setInstanceCount(0);
 		}
 	}, [
-		data, // Add data to dependencies to ensure updates trigger
 		frameCount, // Watch frameCount to clear particles when it becomes 0
 		isFetching,
 		hasQueryError,
 		positionData,
 		colorData,
 		radiusData,
-		scaleData, // Add scaleData
+		scaleData,
 		transformData,
 		positionProp,
 		colorProp,
 		radiusProp,
-		scale, // Add scale
+		scale,
 		positionIsTransform,
 		radiusIsTransform,
 		colorIsTransform,
 		instanceCount,
 		validSelectedIndices,
 		selecting,
+		pathtracingEnabled,
+		particleResolution,
+		material,
+		opacity,
+		data,
+		updateMergedMesh,
 	]);
 
 	// Separate effect for hover mesh updates - doesn't trigger data reprocessing
@@ -729,47 +740,6 @@ export default function Sphere({
 			hoverMesh.visible = false;
 		}
 	}, [hoveredGeometryInstance, instanceCount, hovering, geometryKey]);
-
-	// Convert instanced mesh to merged mesh for path tracing
-	useEffect(() => {
-		if (!pathtracingEnabled) {
-			// Clean up merged mesh when pathtracing disabled
-			if (mergedMeshRef.current) {
-				disposeMesh(mergedMeshRef.current);
-				mergedMeshRef.current = null;
-			}
-			return;
-		}
-
-		if (!mainMeshRef.current || instanceCount === 0) return;
-
-		// Dispose old merged mesh if it exists
-		if (mergedMeshRef.current) {
-			disposeMesh(mergedMeshRef.current);
-		}
-
-		// Convert instanced mesh to single merged mesh with vertex colors
-		const mergedMesh = convertInstancedMeshToMerged(mainMeshRef.current);
-		mergedMeshRef.current = mergedMesh;
-
-		// Request pathtracing update
-		requestPathtracingUpdate();
-
-		// Cleanup on unmount or when dependencies change
-		return () => {
-			if (mergedMeshRef.current) {
-				disposeMesh(mergedMeshRef.current);
-				mergedMeshRef.current = null;
-			}
-		};
-	}, [
-		pathtracingEnabled,
-		instanceCount,
-		geometryKey,
-		requestPathtracingUpdate,
-		// DO NOT depend on positionData/colorData/radiusData/selections/hover here!
-		// That causes unnecessary rebuilds. instanceCount only changes AFTER mesh update completes.
-	]);
 
 	// Shared geometry for all particles (both instanced and merged meshes)
 	const mainGeometry = useMemo(() => {
@@ -819,9 +789,10 @@ export default function Sphere({
 	}
 
 	return (
-		<group>
+		<group ref={parentGroupRef}>
 			{/* Main instanced mesh - visible when NOT pathtracing */}
 			{/* NOTE: Interactions (click, hover) disabled when pathtracing enabled */}
+			{/* Merged mesh for pathtracing is added to this group imperatively via usePathtracingMesh */}
 			<instancedMesh
 				key={instanceCount}
 				ref={mainMeshRef}
@@ -878,11 +849,6 @@ export default function Sphere({
 						color={hovering.color}
 					/>
 				</mesh>
-			)}
-
-			{/* Merged mesh - visible when pathtracing */}
-			{pathtracingEnabled && mergedMeshRef.current && (
-				<primitive object={mergedMeshRef.current} />
 			)}
 		</group>
 	);

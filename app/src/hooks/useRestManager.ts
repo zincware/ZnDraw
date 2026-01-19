@@ -14,7 +14,9 @@ import {
  * Room join and data fetching is handled by useSocketManager via room:join.
  */
 export const useRestJoinManager = () => {
-	const { setRoomId, setUserName, setUserRole } = useAppStore();
+	const setRoomId = useAppStore((state) => state.setRoomId);
+	const setUserName = useAppStore((state) => state.setUserName);
+	const setUserRole = useAppStore((state) => state.setUserRole);
 	const { roomId: room } = useParams<{ roomId: string }>();
 	const hasInitialized = useRef(false);
 

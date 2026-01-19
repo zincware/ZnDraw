@@ -29,18 +29,22 @@ import {
  * - Persisting their own updates
  */
 export default function MultiGeometryTransformControls() {
-	const {
-		mode,
-		transformMode,
-		editingSelectedAxis,
-		geometries,
-		selections,
-		notifyEditingChange,
-		showSnackbar,
-		updateSelectionForGeometry,
-		setEditingCombinedCentroid,
-		loadedDynamicPositions,
-	} = useAppStore();
+	const mode = useAppStore((state) => state.mode);
+	const transformMode = useAppStore((state) => state.transformMode);
+	const editingSelectedAxis = useAppStore((state) => state.editingSelectedAxis);
+	const geometries = useAppStore((state) => state.geometries);
+	const selections = useAppStore((state) => state.selections);
+	const notifyEditingChange = useAppStore((state) => state.notifyEditingChange);
+	const showSnackbar = useAppStore((state) => state.showSnackbar);
+	const updateSelectionForGeometry = useAppStore(
+		(state) => state.updateSelectionForGeometry,
+	);
+	const setEditingCombinedCentroid = useAppStore(
+		(state) => state.setEditingCombinedCentroid,
+	);
+	const loadedDynamicPositions = useAppStore(
+		(state) => state.loadedDynamicPositions,
+	);
 
 	// Virtual object at centroid for transform controls
 	const virtualObjectRef = useRef<THREE.Object3D>(null);

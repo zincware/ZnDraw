@@ -27,26 +27,27 @@ const FrameProgressBar = () => {
 	const sliderContainerRef = useRef<HTMLDivElement>(null);
 	const [sliderWidth, setSliderWidth] = useState(0);
 
-	const {
-		currentFrame,
-		setCurrentFrame,
-		frameCount,
-		isConnected,
-		isLoading,
-		skipFrames,
-		setSkipFrames,
-		frame_selection,
-		bookmarks,
-		addBookmark,
-		deleteBookmark,
-		frameSelectionEnabled,
-		setFrameSelectionEnabled,
-		synchronizedMode,
-		setSynchronizedMode,
-		getIsFetching,
-		playing,
-		setPlaying,
-	} = useAppStore();
+	const currentFrame = useAppStore((state) => state.currentFrame);
+	const frameCount = useAppStore((state) => state.frameCount);
+	const isConnected = useAppStore((state) => state.isConnected);
+	const isLoading = useAppStore((state) => state.isLoading);
+	const skipFrames = useAppStore((state) => state.skipFrames);
+	const setSkipFrames = useAppStore((state) => state.setSkipFrames);
+	const frame_selection = useAppStore((state) => state.frame_selection);
+	const bookmarks = useAppStore((state) => state.bookmarks);
+	const addBookmark = useAppStore((state) => state.addBookmark);
+	const deleteBookmark = useAppStore((state) => state.deleteBookmark);
+	const frameSelectionEnabled = useAppStore(
+		(state) => state.frameSelectionEnabled,
+	);
+	const setFrameSelectionEnabled = useAppStore(
+		(state) => state.setFrameSelectionEnabled,
+	);
+	const synchronizedMode = useAppStore((state) => state.synchronizedMode);
+	const setSynchronizedMode = useAppStore((state) => state.setSynchronizedMode);
+	const getIsFetching = useAppStore((state) => state.getIsFetching);
+	const playing = useAppStore((state) => state.playing);
+	const setPlaying = useAppStore((state) => state.setPlaying);
 
 	const { setStep, remoteLocked } = useStepControl();
 

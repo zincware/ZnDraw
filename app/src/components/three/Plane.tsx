@@ -31,10 +31,7 @@ import {
 	_quat2,
 	_color,
 } from "../../utils/threeObjectPools";
-import {
-	convertInstancedMeshToMerged,
-	disposeMesh,
-} from "../../utils/convertInstancedMesh";
+import { usePathtracingMesh } from "../../hooks/usePathtracingMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 import { useFrameKeys } from "../../hooks/useSchemas";
 
@@ -71,10 +68,9 @@ export default function Plane({
 	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
 	// Merge with defaults from Pydantic (single source of truth)
-	const fullData = getGeometryWithDefaults<PlaneData>(
-		data,
-		"Plane",
-		geometryDefaults,
+	const fullData = useMemo(
+		() => getGeometryWithDefaults<PlaneData>(data, "Plane", geometryDefaults),
+		[data, geometryDefaults],
 	);
 
 	const {
@@ -93,8 +89,16 @@ export default function Plane({
 	const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const hoverMeshRef = useRef<THREE.Mesh | null>(null);
-	const mergedMeshRef = useRef<THREE.Mesh | null>(null);
+	const parentGroupRef = useRef<THREE.Group | null>(null);
 	const [instanceCount, setInstanceCount] = useState(0);
+
+	// Pathtracing: convert instanced mesh to merged mesh
+	// Uses refs and manual scene management for precise timing control
+	const updateMergedMesh = usePathtracingMesh(
+		parentGroupRef,
+		mainMeshRef,
+		pathtracingEnabled,
+	);
 
 	// Use individual selectors to prevent unnecessary re-renders
 	const currentFrame = useAppStore((state) => state.currentFrame);
@@ -117,9 +121,6 @@ export default function Plane({
 	const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
 	const removeGeometryFetching = useAppStore(
 		(state) => state.removeGeometryFetching,
-	);
-	const requestPathtracingUpdate = useAppStore(
-		(state) => state.requestPathtracingUpdate,
 	);
 
 	// Fetch frame keys to check if required data is available
@@ -448,6 +449,11 @@ export default function Plane({
 			mainMesh.computeBoundingBox();
 			mainMesh.computeBoundingSphere();
 
+			// Update pathtracing mesh if enabled
+			if (pathtracingEnabled) {
+				updateMergedMesh(mainGeometry);
+			}
+
 			// --- Selection Mesh Update (uses thin box geometry for visible outline) ---
 			if (selecting.enabled && selectionMeshRef.current) {
 				const selectionMesh = selectionMeshRef.current;
@@ -486,7 +492,6 @@ export default function Plane({
 			if (instanceCount !== 0) setInstanceCount(0);
 		}
 	}, [
-		data, // Add data to dependencies to ensure updates trigger
 		frameCount, // Watch frameCount to clear planes when it becomes 0
 		isFetching,
 		hasQueryError,
@@ -504,6 +509,11 @@ export default function Plane({
 		validSelectedIndices,
 		selecting,
 		geometryKey,
+		pathtracingEnabled,
+		material,
+		opacity,
+		data,
+		updateMergedMesh,
 	]);
 
 	// Separate effect for hover mesh updates - doesn't trigger data reprocessing
@@ -539,40 +549,6 @@ export default function Plane({
 			hoverMesh.visible = false;
 		}
 	}, [hoveredGeometryInstance, instanceCount, hovering, geometryKey]);
-
-	// Convert instanced mesh to merged mesh for path tracing
-	useEffect(() => {
-		if (!pathtracingEnabled) {
-			if (mergedMeshRef.current) {
-				disposeMesh(mergedMeshRef.current);
-				mergedMeshRef.current = null;
-			}
-			return;
-		}
-
-		if (!mainMeshRef.current || instanceCount === 0) return;
-
-		if (mergedMeshRef.current) {
-			disposeMesh(mergedMeshRef.current);
-		}
-
-		const mergedMesh = convertInstancedMeshToMerged(mainMeshRef.current);
-		mergedMeshRef.current = mergedMesh;
-
-		requestPathtracingUpdate();
-
-		return () => {
-			if (mergedMeshRef.current) {
-				disposeMesh(mergedMeshRef.current);
-				mergedMeshRef.current = null;
-			}
-		};
-	}, [
-		pathtracingEnabled,
-		instanceCount,
-		geometryKey,
-		requestPathtracingUpdate,
-	]);
 
 	// Shared geometries
 	const mainGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
@@ -622,8 +598,9 @@ export default function Plane({
 	}
 
 	return (
-		<group>
+		<group ref={parentGroupRef}>
 			{/* Main instanced mesh - visible when NOT pathtracing */}
+			{/* Merged mesh for pathtracing is added to this group imperatively via usePathtracingMesh */}
 			<instancedMesh
 				key={instanceCount}
 				ref={mainMeshRef}
@@ -685,11 +662,6 @@ export default function Plane({
 						color={hovering.color}
 					/>
 				</mesh>
-			)}
-
-			{/* Merged mesh - visible when pathtracing */}
-			{pathtracingEnabled && mergedMeshRef.current && (
-				<primitive object={mergedMeshRef.current} />
 			)}
 		</group>
 	);

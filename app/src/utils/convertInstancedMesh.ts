@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
 
 /**
  * Converts an InstancedMesh to a single merged Mesh with vertex colors.
@@ -10,15 +9,21 @@ import { BufferGeometryUtils } from "three/examples/jsm/Addons.js";
  * - Draw calls: 1 draw call instead of N draw calls
  * - Instance colors are baked into vertex colors
  *
- * @param instancedMesh - The instanced mesh to convert
+ * IMPORTANT: Pass geometry explicitly rather than relying on instancedMesh.geometry.
+ * R3F attaches geometry asynchronously, so the mesh's geometry property may be stale
+ * when this function is called from a React effect.
+ *
+ * @param instancedMesh - The instanced mesh (used for matrices, colors, count)
+ * @param geometry - The geometry to use for merging (pass explicitly from React state)
  * @param material - Optional material to use (must support vertexColors)
  * @returns A single THREE.Mesh with merged geometry and vertex colors
  */
 export function convertInstancedMeshToMerged(
 	instancedMesh: THREE.InstancedMesh,
+	geometry: THREE.BufferGeometry,
 	material?: THREE.Material,
 ): THREE.Mesh {
-	const baseGeometry = instancedMesh.geometry;
+	const baseGeometry = geometry;
 	const baseMaterial = instancedMesh.material;
 	const count = instancedMesh.count;
 
@@ -38,61 +43,146 @@ export function convertInstancedMeshToMerged(
 		throw new Error("Base geometry is invalid or missing position attribute");
 	}
 
+	// Reusable temporary objects (avoids creating new objects in loop)
 	const tempMatrix = new THREE.Matrix4();
+	const tempNormalMatrix = new THREE.Matrix3();
 	const tempColor = new THREE.Color();
 
-	// Array to hold all transformed geometries
-	const geometries: THREE.BufferGeometry[] = [];
+	// Get base attributes
+	const basePositions = baseGeometry.attributes.position;
+	const baseNormals = baseGeometry.attributes.normal;
+	const baseUvs = baseGeometry.attributes.uv;
+	const baseIndices = baseGeometry.index;
 
-	// Temporary objects for matrix decomposition
-	const tempPosition = new THREE.Vector3();
-	const tempQuaternion = new THREE.Quaternion();
-	const tempScale = new THREE.Vector3();
+	const baseVertexCount = basePositions.count;
+	const totalVertexCount = baseVertexCount * count;
+	const baseIndexCount = baseIndices ? baseIndices.count : 0;
+	const totalIndexCount = baseIndexCount * count;
 
+	// Create new attributes for merged geometry
+	const mergedPositions = new Float32Array(totalVertexCount * 3);
+	const mergedNormals = baseNormals
+		? new Float32Array(totalVertexCount * 3)
+		: null;
+	const mergedUvs = baseUvs ? new Float32Array(totalVertexCount * 2) : null;
+	const mergedColors = new Float32Array(totalVertexCount * 3);
+	// Use Uint32Array if base geometry uses it OR if totalVertexCount exceeds Uint16 max (65535)
+	const mergedIndices = baseIndices
+		? new (baseIndices.array instanceof Uint32Array || totalVertexCount > 65535
+				? Uint32Array
+				: Uint16Array)(totalIndexCount)
+		: null;
+
+	const hasInstanceColor = !!instancedMesh.instanceColor;
+
+	// Transform and merge
 	for (let i = 0; i < count; i++) {
-		// Get the transformation matrix for the current instance
+		// Get instance matrix
 		instancedMesh.getMatrixAt(i, tempMatrix);
 
-		// Decompose the matrix into position, rotation (as quaternion), and scale
-		tempMatrix.decompose(tempPosition, tempQuaternion, tempScale);
-
-		// Clone the original geometry and apply the instance's transformation
-		const instanceGeometry = baseGeometry.clone();
-		instanceGeometry.applyMatrix4(
-			new THREE.Matrix4().compose(tempPosition, tempQuaternion, tempScale),
-		);
-
-		// Bake instance color into vertex colors
-		if (instancedMesh.instanceColor) {
-			instancedMesh.getColorAt(i, tempColor);
-
-			const colors: number[] = [];
-			const vertexCount = instanceGeometry.attributes.position.count;
-			for (let j = 0; j < vertexCount; j++) {
-				colors.push(tempColor.r, tempColor.g, tempColor.b);
-			}
-			instanceGeometry.setAttribute(
-				"color",
-				new THREE.Float32BufferAttribute(colors, 3),
-			);
+		// Compute normal matrix (inverse-transpose of upper 3x3) for correct
+		// normal transformation with non-uniform scale
+		if (baseNormals) {
+			tempNormalMatrix.getNormalMatrix(tempMatrix);
 		}
 
-		// Add transformed geometry to the array for merging
-		geometries.push(instanceGeometry);
+		// Get instance color
+		if (hasInstanceColor) {
+			instancedMesh.getColorAt(i, tempColor);
+		} else {
+			tempColor.set(1, 1, 1); // Default white
+		}
+
+		const vertexOffset = i * baseVertexCount;
+		const indexOffset = i * baseIndexCount;
+
+		// Process vertices
+		for (let v = 0; v < baseVertexCount; v++) {
+			const targetIdx = (vertexOffset + v) * 3;
+
+			// Position transform
+			const x = basePositions.getX(v);
+			const y = basePositions.getY(v);
+			const z = basePositions.getZ(v);
+
+			// Manual matrix multiplication for performance (avoid Vector3 allocation)
+			const e = tempMatrix.elements;
+			const w = 1 / (e[3] * x + e[7] * y + e[11] * z + e[15]);
+
+			mergedPositions[targetIdx] = (e[0] * x + e[4] * y + e[8] * z + e[12]) * w;
+			mergedPositions[targetIdx + 1] =
+				(e[1] * x + e[5] * y + e[9] * z + e[13]) * w;
+			mergedPositions[targetIdx + 2] =
+				(e[2] * x + e[6] * y + e[10] * z + e[14]) * w;
+
+			// Normal transform using inverse-transpose (normal matrix)
+			// This correctly handles non-uniform scale
+			if (mergedNormals && baseNormals) {
+				const nx = baseNormals.getX(v);
+				const ny = baseNormals.getY(v);
+				const nz = baseNormals.getZ(v);
+
+				// Apply normal matrix (inverse-transpose of model matrix)
+				const ne = tempNormalMatrix.elements;
+				const tnx = ne[0] * nx + ne[3] * ny + ne[6] * nz;
+				const tny = ne[1] * nx + ne[4] * ny + ne[7] * nz;
+				const tnz = ne[2] * nx + ne[5] * ny + ne[8] * nz;
+
+				// Normalize the transformed normal
+				const len = Math.sqrt(tnx * tnx + tny * tny + tnz * tnz);
+				if (len > 0) {
+					const invLen = 1 / len;
+					mergedNormals[targetIdx] = tnx * invLen;
+					mergedNormals[targetIdx + 1] = tny * invLen;
+					mergedNormals[targetIdx + 2] = tnz * invLen;
+				} else {
+					// Degenerate normal, keep original direction
+					mergedNormals[targetIdx] = nx;
+					mergedNormals[targetIdx + 1] = ny;
+					mergedNormals[targetIdx + 2] = nz;
+				}
+			}
+
+			// UV copy (if available)
+			if (mergedUvs && baseUvs) {
+				const targetUvIdx = (vertexOffset + v) * 2;
+				mergedUvs[targetUvIdx] = baseUvs.getX(v);
+				mergedUvs[targetUvIdx + 1] = baseUvs.getY(v);
+			}
+
+			// Color copy
+			mergedColors[targetIdx] = tempColor.r;
+			mergedColors[targetIdx + 1] = tempColor.g;
+			mergedColors[targetIdx + 2] = tempColor.b;
+		}
+
+		// Copy indices (offset by vertex count)
+		if (mergedIndices && baseIndices) {
+			for (let j = 0; j < baseIndexCount; j++) {
+				mergedIndices[indexOffset + j] = baseIndices.getX(j) + vertexOffset;
+			}
+		}
 	}
 
-	// Merge all geometries into a single BufferGeometry
-	// CRITICAL: Pass `true` as second parameter to create geometry groups
-	let mergedGeometry: THREE.BufferGeometry;
-	try {
-		mergedGeometry = BufferGeometryUtils.mergeGeometries(geometries, true);
-	} catch (error) {
-		console.error("[convertInstancedMesh] Error merging geometries:", error);
-		throw error;
-	}
-
-	// Dispose individual geometries after merging to free memory
-	geometries.forEach((geo) => geo.dispose());
+	// Create merged buffer geometry
+	const mergedGeometry = new THREE.BufferGeometry();
+	mergedGeometry.setAttribute(
+		"position",
+		new THREE.BufferAttribute(mergedPositions, 3),
+	);
+	if (mergedNormals)
+		mergedGeometry.setAttribute(
+			"normal",
+			new THREE.BufferAttribute(mergedNormals, 3),
+		);
+	if (mergedUvs)
+		mergedGeometry.setAttribute("uv", new THREE.BufferAttribute(mergedUvs, 2));
+	mergedGeometry.setAttribute(
+		"color",
+		new THREE.BufferAttribute(mergedColors, 3),
+	);
+	if (mergedIndices)
+		mergedGeometry.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
 
 	// CRITICAL: Compute bounding box and sphere for pathtracer!
 	// The pathtracer needs these for ray intersection tests
