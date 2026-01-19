@@ -351,12 +351,12 @@ def test_stale_assigned_job_is_failed_on_list(server, redis_client):
     job = vis.run(TestModifier(param=42))
     assert job.is_assigned()
 
-    # Artificially age the job by setting created_at to be older than the timeout
+    # Artificially age the job by setting assigned_at to be older than the timeout
     job_keys = JobKeys(job.job_id)
     old_time = (
         datetime.now(timezone.utc).replace(year=2020).isoformat()
     )  # Very old timestamp
-    redis_client.hset(job_keys.hash_key(), "created_at", old_time)
+    redis_client.hset(job_keys.hash_key(), "assigned_at", old_time)
 
     # List jobs - this triggers lazy cleanup
     response = requests.get(f"{server}/api/rooms/test-timeout/jobs")

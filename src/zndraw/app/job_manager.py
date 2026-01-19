@@ -253,6 +253,7 @@ class JobManager:
         update_data = {
             "status": JobStatus.ASSIGNED,
             "worker_id": worker_id,
+            "assigned_at": utc_now_iso(),
         }
 
         redis_client.hset(job_keys.hash_key(), mapping=update_data)
@@ -485,13 +486,14 @@ class JobManager:
                 continue
 
             # Check if job has been in ASSIGNED state too long
-            created_at = job_data.get("created_at")
-            if not created_at:
+            # Use assigned_at if available, fallback to created_at for backwards compatibility
+            assigned_at = job_data.get("assigned_at") or job_data.get("created_at")
+            if not assigned_at:
                 continue
 
             try:
-                created_timestamp = isoparse(created_at).timestamp()
-                age_seconds = now - created_timestamp
+                assigned_timestamp = isoparse(assigned_at).timestamp()
+                age_seconds = now - assigned_timestamp
 
                 if age_seconds > ASSIGNED_TIMEOUT_SECONDS:
                     # Fail the job due to timeout
