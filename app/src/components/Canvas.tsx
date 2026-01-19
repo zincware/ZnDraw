@@ -264,7 +264,7 @@ function MyScene() {
 	return (
 		<div style={{ width: "100%", height: "calc(100vh - 64px)" }}>
 			<Canvas
-				key={`${cameraType}-${pathtracingEnabled}`}
+				key={cameraType}
 				shadows
 				camera={{
 					position: cameraPosition,

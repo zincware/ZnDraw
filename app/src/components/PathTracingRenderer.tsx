@@ -24,9 +24,10 @@ export function PathTracingRenderer({
 	settings,
 	children,
 }: PathTracingRendererProps) {
-	// Handle undefined settings (loading state)
+	// Handle undefined settings (loading state) - use defaults
+	// We still render Pathtracer (disabled) to maintain stable tree structure
 	if (!settings) {
-		return <>{children}</>;
+		return <Pathtracer enabled={false}>{children}</Pathtracer>;
 	}
 
 	const {
@@ -52,16 +53,16 @@ export function PathTracingRenderer({
 			samples={samples}
 			bounces={bounces}
 			tiles={tiles}
-			enabled={true}
+			enabled={enabled}
 		>
-			{/* Pathtracing updater - watches for scene changes and calls update() */}
-			<PathtracingUpdater settings={settings} />
+			{/* Pathtracing updater - only active when enabled */}
+			{enabled && <PathtracingUpdater settings={settings} />}
 
 			{/* Registers pathtracer capture function to store (DRY - ScreenshotProvider handles logic) */}
-			<PathtracingCaptureProvider />
+			{enabled && <PathtracingCaptureProvider />}
 
-			{/* Environment lighting for path tracing */}
-			{environment_preset !== "none" && (
+			{/* Environment lighting for path tracing - only when enabled */}
+			{enabled && environment_preset !== "none" && (
 				<Environment
 					preset={environment_preset}
 					background={environment_background}
