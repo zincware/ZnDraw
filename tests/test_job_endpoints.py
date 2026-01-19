@@ -82,7 +82,7 @@ def test_get_job_details_success(server):
     job = vis.run(TestModifier(param=42))
 
     # Fetch via REST API directly
-    response = requests.get(f"{server}/api/jobs/{job.job_id}")
+    response = requests.get(f"{server}/api/jobs/{job.job_id}", timeout=10)
 
     assert response.status_code == 200
     details = response.json()
@@ -97,7 +97,7 @@ def test_get_job_details_success(server):
 
 def test_get_job_details_not_found(server):
     """Test GET with invalid job ID returns 404."""
-    response = requests.get(f"{server}/api/jobs/nonexistent-job-id")
+    response = requests.get(f"{server}/api/jobs/nonexistent-job-id", timeout=10)
 
     assert response.status_code == 404
 
@@ -143,6 +143,7 @@ def test_update_job_status_to_processing(server, get_jwt_auth_headers):
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "processing", "workerId": job.worker_id},
         headers=get_jwt_auth_headers(server, "testuser"),
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -164,11 +165,13 @@ def test_update_job_status_to_completed(server, get_jwt_auth_headers):
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "processing", "workerId": worker_id},
         headers=auth_headers,
+        timeout=10,
     )
     response = requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "completed", "workerId": worker_id},
         headers=auth_headers,
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -191,6 +194,7 @@ def test_update_job_status_to_failed(server, get_jwt_auth_headers):
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "processing", "workerId": worker_id},
         headers=auth_headers,
+        timeout=10,
     )
 
     # Mark as failed
@@ -202,6 +206,7 @@ def test_update_job_status_to_failed(server, get_jwt_auth_headers):
             "error": "Something went wrong",
         },
         headers=auth_headers,
+        timeout=10,
     )
 
     assert response.status_code == 200
@@ -230,6 +235,7 @@ def test_job_refresh(server, get_jwt_auth_headers):
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "processing", "workerId": job.worker_id},
         headers=get_jwt_auth_headers(server, "testuser"),
+        timeout=10,
     )
 
     # Refresh and check
@@ -281,6 +287,7 @@ def test_job_completion_lifecycle(server, get_jwt_auth_headers):
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "processing", "workerId": worker_id},
         headers=auth_headers,
+        timeout=10,
     )
 
     # Mark as completed (extensions work through side effects, no result needed)
@@ -288,6 +295,7 @@ def test_job_completion_lifecycle(server, get_jwt_auth_headers):
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={"status": "completed", "workerId": worker_id},
         headers=auth_headers,
+        timeout=10,
     )
 
     assert response.status_code == 200

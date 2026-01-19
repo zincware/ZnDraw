@@ -1578,6 +1578,7 @@ class ZnDraw(MutableSequence):
             socket_manager=self.socket,
             public=public,
         )
+        # Note: worker_id is already set from room:join response
         log.info(f"Extension '{name}' registered with {scope} (worker_id: {self.sid}).")
 
     def run(self, extension: Extension, public: bool | None = None):
@@ -1699,6 +1700,7 @@ class ZnDraw(MutableSequence):
             socket_manager=self.socket,
             public=public,
         )
+        # Note: worker_id is already set from room:join response
         log.debug(
             f"Filesystem '{name}' registered with {scope} (worker_id: {self.sid})."
         )

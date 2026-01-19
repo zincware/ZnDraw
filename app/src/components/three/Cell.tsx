@@ -1,7 +1,7 @@
 import { useColorScheme, useTheme } from "@mui/material/styles";
 import { Line } from "@react-three/drei";
 import { useAppStore } from "../../store";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { getFrames } from "../../myapi/client";
@@ -14,7 +14,16 @@ interface CellData {
 	thickness: number;
 }
 
-export const Cell = ({ data }: { data: CellData }) => {
+/**
+ * Renders the periodic cell as line segments.
+ *
+ * Note: Cell uses Line components which are not supported by the GPU pathtracer.
+ * When pathtracingEnabled is true, the cell is hidden.
+ */
+export const Cell = ({
+	data,
+	pathtracingEnabled = false,
+}: { data: CellData; pathtracingEnabled?: boolean }) => {
 	const { mode } = useColorScheme();
 	const theme = useTheme();
 	// Use individual selectors to prevent unnecessary re-renders
@@ -25,10 +34,9 @@ export const Cell = ({ data }: { data: CellData }) => {
 	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
 	// Merge with defaults from Pydantic (single source of truth)
-	const fullData = getGeometryWithDefaults<CellData>(
-		data,
-		"Cell",
-		geometryDefaults,
+	const fullData = useMemo(
+		() => getGeometryWithDefaults<CellData>(data, "Cell", geometryDefaults),
+		[data, geometryDefaults],
 	);
 
 	const [displayedVertices, setDisplayedVertices] = useState<
@@ -110,6 +118,9 @@ export const Cell = ({ data }: { data: CellData }) => {
 				? theme.palette.primary.dark
 				: theme.palette.primary.light
 			: fullData.color;
+
+	// Hide cell when pathtracing (Line components not supported by GPU pathtracer)
+	if (pathtracingEnabled) return null;
 
 	return (
 		<group>

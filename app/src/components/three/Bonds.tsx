@@ -30,10 +30,7 @@ import {
 	_matrix2,
 	_color,
 } from "../../utils/threeObjectPools";
-import {
-	convertInstancedMeshToMerged,
-	disposeMesh,
-} from "../../utils/convertInstancedMesh";
+import { usePathtracingMesh } from "../../hooks/usePathtracingMesh";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
 import { useFrameKeys } from "../../hooks/useSchemas";
 
@@ -147,10 +144,9 @@ export default function Bonds({
 	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 
 	// Merge with defaults from Pydantic (single source of truth)
-	const fullData = getGeometryWithDefaults<BondData>(
-		data,
-		"Bond",
-		geometryDefaults,
+	const fullData = useMemo(
+		() => getGeometryWithDefaults<BondData>(data, "Bond", geometryDefaults),
+		[data, geometryDefaults],
 	);
 
 	const {
@@ -172,7 +168,7 @@ export default function Bonds({
 	const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
 	const hoverMeshRef = useRef<THREE.InstancedMesh | null>(null);
-	const mergedMeshRef = useRef<THREE.Mesh | null>(null);
+	const parentGroupRef = useRef<THREE.Group | null>(null);
 	const [hoveredBondPairIndex, setHoveredBondPairIndex] = useState<
 		number | null
 	>(null);
@@ -187,6 +183,14 @@ export default function Bonds({
 	const { instanceCount, bondPairs, instanceToBondMap, bondPairsHash } =
 		bondState;
 
+	// Pathtracing: convert instanced mesh to merged mesh
+	// Uses refs and manual scene management for precise timing control
+	const updateMergedMesh = usePathtracingMesh(
+		parentGroupRef,
+		mainMeshRef,
+		pathtracingEnabled,
+	);
+
 	// Use individual selectors to prevent unnecessary re-renders
 	const roomId = useAppStore((state) => state.roomId);
 	const currentFrame = useAppStore((state) => state.currentFrame);
@@ -197,9 +201,6 @@ export default function Bonds({
 	const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
 	const removeGeometryFetching = useAppStore(
 		(state) => state.removeGeometryFetching,
-	);
-	const requestPathtracingUpdate = useAppStore(
-		(state) => state.requestPathtracingUpdate,
 	);
 
 	// Fetch frame keys to check if required data is available
@@ -628,6 +629,11 @@ export default function Bonds({
 			// Update bounding box to prevent frustum culling issues
 			mainMesh.computeBoundingBox();
 			mainMesh.computeBoundingSphere();
+
+			// Update pathtracing mesh if enabled
+			if (pathtracingEnabled) {
+				updateMergedMesh(bondGeometry);
+			}
 		} catch (error) {
 			console.error("Error processing Bonds data:", error);
 			if (instanceCount !== 0) {
@@ -637,26 +643,26 @@ export default function Bonds({
 	}, [
 		frameCount, // Watch frameCount to clear bonds when it becomes 0
 		isFetching,
-		// Data dependencies - these change when frame changes
 		positionData,
 		colorData,
 		radiusData,
 		connectivityData,
-		// Prop dependencies
 		positionProp,
 		colorProp,
 		radiusProp,
 		connectivityProp,
-		// Configuration
 		bondScale,
 		bond_order_mode,
 		bond_order_offset,
 		bond_order_radius_scale,
-		// Note: instanceCount and bondPairsHash are NOT in dependencies to prevent infinite loops.
-		// They are derived state - we compare calculated values against current state values
-		// and only dispatch if different. Since they're not in deps, state updates don't
-		// re-trigger this effect. This breaks the feedback loop while maintaining proper
-		// React data flow (no refs needed).
+		// instanceCount must be in deps so effect re-runs after resize to populate matrices.
+		instanceCount,
+		pathtracingEnabled,
+		bondResolution,
+		material,
+		opacity,
+		data,
+		updateMergedMesh,
 	]);
 
 	// Separate effect for selection mesh updates (doesn't reprocess main mesh data)
@@ -719,47 +725,6 @@ export default function Bonds({
 		}
 	}, [hovering?.enabled, hoveredBondIndices]);
 
-	// Convert instanced mesh to merged mesh for path tracing
-	useEffect(() => {
-		if (!pathtracingEnabled) {
-			// Clean up merged mesh when pathtracing disabled
-			if (mergedMeshRef.current) {
-				disposeMesh(mergedMeshRef.current);
-				mergedMeshRef.current = null;
-			}
-			return;
-		}
-
-		if (!mainMeshRef.current || instanceCount === 0) return;
-
-		// Dispose old merged mesh if it exists
-		if (mergedMeshRef.current) {
-			disposeMesh(mergedMeshRef.current);
-		}
-
-		// Convert instanced mesh to single merged mesh with vertex colors
-		const mergedMesh = convertInstancedMeshToMerged(mainMeshRef.current);
-		mergedMeshRef.current = mergedMesh;
-
-		// Request pathtracing update
-		requestPathtracingUpdate();
-
-		// Cleanup on unmount or when dependencies change
-		return () => {
-			if (mergedMeshRef.current) {
-				disposeMesh(mergedMeshRef.current);
-				mergedMeshRef.current = null;
-			}
-		};
-	}, [
-		pathtracingEnabled,
-		instanceCount,
-		geometryKey,
-		requestPathtracingUpdate,
-		// DO NOT depend on positionData/colorData/radiusData/connectivityData/bondPairs/selections here!
-		// That causes unnecessary rebuilds. instanceCount only changes AFTER mesh update completes.
-	]);
-
 	const bondGeometry = useMemo(() => {
 		// Create a unit cylinder that goes from y=0 to y=1.
 		// This makes it a perfect "half-bond" that can be positioned at an atom's center and scaled outwards.
@@ -815,9 +780,10 @@ export default function Bonds({
 	}
 
 	return (
-		<group>
+		<group ref={parentGroupRef}>
 			{/* Instanced mesh - visible when NOT pathtracing */}
 			{/* NOTE: Interactions (click, hover) disabled when pathtracing enabled */}
+			{/* Merged mesh for pathtracing is added to this group imperatively via usePathtracingMesh */}
 			<instancedMesh
 				key={instanceCount}
 				ref={mainMeshRef}
@@ -874,11 +840,6 @@ export default function Bonds({
 						</instancedMesh>
 					)}
 				</>
-			)}
-
-			{/* Merged mesh - visible when pathtracing */}
-			{pathtracingEnabled && mergedMeshRef.current && (
-				<primitive object={mergedMeshRef.current} />
 			)}
 		</group>
 	);

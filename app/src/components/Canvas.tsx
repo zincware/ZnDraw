@@ -1,12 +1,11 @@
 import * as THREE from "three";
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, memo, useMemo, type RefObject } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useAppStore, getActiveCurves, selectPreferredCurve } from "../store";
 import { useSettings } from "../hooks/useSettings";
 import { useTheme } from "@mui/material/styles";
-import { Snackbar, Alert } from "@mui/material";
 import { CanvasLoadingState } from "./CanvasLoadingState";
 import { CanvasErrorState } from "./CanvasErrorState";
 import {
@@ -39,6 +38,43 @@ import MultiGeometryTransformControls from "./three/MultiGeometryTransformContro
 import { PathTracingRenderer } from "./PathTracingRenderer";
 import { GeometryErrorBoundary } from "./three/GeometryErrorBoundary";
 import { useFrameLoadTime } from "../hooks/useFrameLoadTime";
+import { ScreenshotProvider } from "./three/ScreenshotProvider";
+import { resolvePosition } from "../utils/cameraUtils";
+
+/**
+ * Component configuration for geometry types.
+ * Components that accept pathtracingEnabled prop.
+ */
+const PATHTRACING_GEOMETRY_COMPONENTS = {
+	Sphere: Sphere,
+	Bond: Bonds,
+	Arrow: Arrow,
+	Box: Box,
+	Plane: Plane,
+	Shape: Shape,
+	Curve: Curve,
+} as const;
+
+/**
+ * Components that accept geometryKey but NOT pathtracingEnabled.
+ */
+const SIMPLE_GEOMETRY_COMPONENTS = {
+	Camera: Camera,
+} as const;
+
+/**
+ * Components that only accept data prop AND pathtracingEnabled.
+ */
+const DATA_PATHTRACING_GEOMETRY_COMPONENTS = {
+	Cell: Cell,
+} as const;
+
+/**
+ * Components that only accept data prop (no geometryKey, no pathtracingEnabled).
+ */
+const DATA_ONLY_GEOMETRY_COMPONENTS = {
+	Floor: Floor,
+} as const;
 
 /**
  * Component for integrating camera sync inside the Canvas.
@@ -157,8 +193,6 @@ function MyScene() {
 	);
 	const attachedCameraKey = useAppStore((state) => state.attachedCameraKey);
 	const attachToCamera = useAppStore((state) => state.attachToCamera);
-	const snackbar = useAppStore((state) => state.snackbar);
-	const hideSnackbar = useAppStore((state) => state.hideSnackbar);
 	const theme = useTheme();
 
 	useFrameLoadTime();
@@ -201,6 +235,15 @@ function MyScene() {
 	const sessionCamera = sessionCameraKey ? geometries[sessionCameraKey] : null;
 	const sessionCameraData = sessionCamera?.data;
 
+	// Memoize camera position resolution (must be before early returns)
+	const cameraPosition = useMemo(
+		() =>
+			sessionCameraData?.position
+				? resolvePosition(sessionCameraData.position, geometries)
+				: ([0, 0, 10] as [number, number, number]),
+		[sessionCameraData?.position, geometries],
+	);
+
 	// Show error state if initialization failed
 	if (initializationError) {
 		return <CanvasErrorState error={initializationError} />;
@@ -218,10 +261,8 @@ function MyScene() {
 	const pathtracingSettings = settingsResponse.data.pathtracing;
 	const pathtracingEnabled = pathtracingSettings.enabled === true;
 
-	const cameraPosition = sessionCameraData.position as [number, number, number];
 	const cameraFov = sessionCameraData.fov;
 	const cameraType = sessionCameraData.camera_type;
-	const preserveDrawingBuffer = sessionCameraData.preserve_drawing_buffer;
 	const showCrosshair = sessionCameraData.show_crosshair;
 
 	const backgroundColor =
@@ -232,11 +273,8 @@ function MyScene() {
 	return (
 		<div style={{ width: "100%", height: "calc(100vh - 64px)" }}>
 			<Canvas
-				// Add a key that changes when the camera type changes.
-				// This will force React to re-create the Canvas and its camera.
-				key={cameraType}
+				key={`${cameraType}-${pathtracingEnabled}`}
 				shadows
-				// Use session camera position from geometry
 				camera={{
 					position: cameraPosition,
 					fov: cameraFov,
@@ -244,18 +282,14 @@ function MyScene() {
 				gl={{
 					antialias: true,
 					toneMapping: THREE.ACESFilmicToneMapping,
-					preserveDrawingBuffer: preserveDrawingBuffer,
+					preserveDrawingBuffer: pathtracingEnabled,
 				}}
 				style={{ background: backgroundColor }}
-				// The orthographic prop sets the initial camera type.
 				orthographic={cameraType === "OrthographicCamera"}
 			>
-				{/* Place the CameraManager here, inside the Canvas */}
 				<CameraManager sessionCameraData={sessionCameraData} />
-
-				{/* Wrap scene in PathTracingRenderer */}
+				<ScreenshotProvider />
 				<PathTracingRenderer settings={pathtracingSettings}>
-					{/* Disable studio lighting when pathtracing (environment provides light) */}
 					{!pathtracingEnabled && (
 						<SceneLighting
 							ambient_light={studioLightingSettings.ambient_light}
@@ -266,102 +300,74 @@ function MyScene() {
 						/>
 					)}
 
-					{/* Keyboard shortcuts for 3D interactions */}
 					<KeyboardShortcutsHandler />
-
-					{/* Render our clean, refactored components */}
-					{/* <Sphere /> */}
 					{Object.entries(geometries)
 						.filter(([_, config]) => config.data?.active !== false)
 						.map(([name, config]) => {
-							if (config.type === "Sphere") {
+							const type = config.type as string;
+
+							// Check pathtracing-enabled components first (most common)
+							if (type in PATHTRACING_GEOMETRY_COMPONENTS) {
+								const Component =
+									PATHTRACING_GEOMETRY_COMPONENTS[
+										type as keyof typeof PATHTRACING_GEOMETRY_COMPONENTS
+									];
 								return (
 									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Sphere
+										<Component
 											geometryKey={name}
 											data={config.data}
 											pathtracingEnabled={pathtracingEnabled}
 										/>
 									</GeometryErrorBoundary>
 								);
-							} else if (config.type === "Bond") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Bonds
-											geometryKey={name}
-											data={config.data}
-											pathtracingEnabled={pathtracingEnabled}
-										/>
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Arrow") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Arrow
-											geometryKey={name}
-											data={config.data}
-											pathtracingEnabled={pathtracingEnabled}
-										/>
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Curve") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Curve geometryKey={name} data={config.data} />
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Camera") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Camera geometryKey={name} data={config.data} />
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Cell") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Cell data={config.data} />
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Floor") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Floor data={config.data} />
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Box") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Box
-											geometryKey={name}
-											data={config.data}
-											pathtracingEnabled={pathtracingEnabled}
-										/>
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Plane") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Plane
-											geometryKey={name}
-											data={config.data}
-											pathtracingEnabled={pathtracingEnabled}
-										/>
-									</GeometryErrorBoundary>
-								);
-							} else if (config.type === "Shape") {
-								return (
-									<GeometryErrorBoundary key={name} geometryKey={name}>
-										<Shape
-											geometryKey={name}
-											data={config.data}
-											pathtracingEnabled={pathtracingEnabled}
-										/>
-									</GeometryErrorBoundary>
-								);
-							} else {
-								console.warn(`Unhandled geometry type: ${config.type}`);
-								return null;
 							}
+
+							// Check simple geometry components (geometryKey + data only)
+							if (type in SIMPLE_GEOMETRY_COMPONENTS) {
+								const Component =
+									SIMPLE_GEOMETRY_COMPONENTS[
+										type as keyof typeof SIMPLE_GEOMETRY_COMPONENTS
+									];
+								return (
+									<GeometryErrorBoundary key={name} geometryKey={name}>
+										<Component geometryKey={name} data={config.data} />
+									</GeometryErrorBoundary>
+								);
+							}
+
+							// Check data + pathtracing components (no geometryKey, but pathtracingEnabled)
+							if (type in DATA_PATHTRACING_GEOMETRY_COMPONENTS) {
+								const Component =
+									DATA_PATHTRACING_GEOMETRY_COMPONENTS[
+										type as keyof typeof DATA_PATHTRACING_GEOMETRY_COMPONENTS
+									];
+								return (
+									<GeometryErrorBoundary key={name} geometryKey={name}>
+										<Component
+											data={config.data}
+											pathtracingEnabled={pathtracingEnabled}
+										/>
+									</GeometryErrorBoundary>
+								);
+							}
+
+							// Check data-only components (no geometryKey)
+							if (type in DATA_ONLY_GEOMETRY_COMPONENTS) {
+								const Component =
+									DATA_ONLY_GEOMETRY_COMPONENTS[
+										type as keyof typeof DATA_ONLY_GEOMETRY_COMPONENTS
+									];
+								return (
+									<GeometryErrorBoundary key={name} geometryKey={name}>
+										<Component data={config.data} />
+									</GeometryErrorBoundary>
+								);
+							}
+
+							// Unknown geometry type
+							console.warn(`Unhandled geometry type: ${type}`);
+							return null;
 						})}
 					{showCrosshair && <Crosshair />}
 					<VirtualCanvas />
@@ -387,33 +393,18 @@ function MyScene() {
 					enableZoom={cameraControls.enableZoom}
 				/>
 
-				{/* Camera sync integration for Python-side camera access and geometry sync */}
 				<CameraSyncIntegration
 					controlsRef={orbitControlsRef}
 					controlsState={cameraControls}
 				/>
 			</Canvas>
-			{/* Info boxes and drawing/editing indicators rendered outside Canvas, in DOM */}
 			<StaticInfoBox />
 			<HoverInfoBox />
 			<DrawingIndicator />
 			<EditingIndicator />
-
-			{/* Global snackbar for notifications */}
-			{snackbar && (
-				<Snackbar
-					open={snackbar.open}
-					autoHideDuration={6000}
-					onClose={hideSnackbar}
-					anchorOrigin={{ vertical: "top", horizontal: "center" }}
-				>
-					<Alert severity={snackbar.severity} onClose={hideSnackbar}>
-						{snackbar.message}
-					</Alert>
-				</Snackbar>
-			)}
 		</div>
 	);
 }
 
-export default MyScene;
+/** Memoized to prevent pathtracer reset on parent re-renders. */
+export default memo(MyScene);

@@ -70,8 +70,9 @@ class SocketManager:
         if response.get("status") != "ok":
             raise RuntimeError(f"Failed to join room: {response.get('message')}")
 
-        # Store sessionId for subsequent operations
+        # Store sessionId and workerId for subsequent operations
         self.zndraw.api.session_id = response["sessionId"]
+        self.zndraw._worker_id = response.get("workerId")
 
         # Initialize minimal room data from socket response
         self.zndraw._len = response.get("frameCount", 0)
@@ -138,8 +139,9 @@ class SocketManager:
             )
             return
 
-        # Update session ID and minimal state
+        # Update session ID, worker ID, and minimal state
         self.zndraw.api.session_id = response["sessionId"]
+        self.zndraw._worker_id = response.get("workerId")
         self.zndraw._len = response.get("frameCount", 0)
         self.zndraw._step = response.get("step", 0)
 
@@ -151,6 +153,7 @@ class SocketManager:
 
         Called from connect() after room:join succeeds and session_id is set.
         This ensures the session exists before attempting to register extensions.
+        Note: worker_id is already set from room:join response, no need to capture here.
         """
         # Re-register any extensions that were registered before connection
         # Process public extensions
@@ -174,14 +177,13 @@ class SocketManager:
             )
 
         # Re-register any filesystems that were registered before connection
-        for name, fs in self.zndraw._filesystems.items():
-            provider = fs["provider"]
+        for _, fs_entry in self.zndraw._filesystems.items():
+            fs_instance = fs_entry["fs"]
             self.zndraw.api.register_filesystem(
-                name=name,
-                provider_type=provider.__class__.__name__,
-                root_path=provider.root_path,
+                name=fs_entry["name"],
+                fs_type=fs_instance.__class__.__name__,
                 socket_manager=self,
-                public=fs["public"],
+                public=fs_entry["public"],
             )
 
     def _on_frame_update(self, data):

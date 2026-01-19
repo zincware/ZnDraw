@@ -7,10 +7,45 @@ Note: Python clients do NOT appear in vis.sessions - only frontend browsers.
 Note: Session cameras are stored as geometries with key 'cam:session:{session_id}'.
 """
 
+import base64
+import dataclasses
 from collections.abc import Mapping
+from pathlib import Path
 
 from zndraw.geometries import Camera
 from zndraw.settings import RoomConfig
+
+
+@dataclasses.dataclass
+class ScreenshotImage:
+    """Screenshot image with Jupyter notebook display support.
+
+    Attributes
+    ----------
+    data : bytes
+        Raw PNG image data.
+    """
+
+    data: bytes
+
+    def _repr_png_(self) -> bytes:
+        """Jupyter notebook PNG representation."""
+        return self.data
+
+    def _repr_html_(self) -> str:
+        """Jupyter notebook HTML representation with base64 image."""
+        b64 = base64.b64encode(self.data).decode("utf-8")
+        return f'<img src="data:image/png;base64,{b64}" />'
+
+    def save(self, path: str | Path) -> None:
+        """Save screenshot to file.
+
+        Parameters
+        ----------
+        path : str | Path
+            Output file path.
+        """
+        Path(path).write_bytes(self.data)
 
 
 def get_session_camera_key(session_id: str) -> str:
@@ -182,6 +217,43 @@ class FrontendSession:
 
     def __repr__(self) -> str:
         return f"FrontendSession({self.session_id!r})"
+
+    def take_screenshot(self, timeout: float = 10.0) -> ScreenshotImage:
+        """Request a screenshot from this browser session.
+
+        Uses REST-based communication:
+        1. Request triggers lightweight Socket.IO signal to browser
+        2. Browser captures screenshot and uploads via REST
+        3. This method downloads the result via REST
+
+        Parameters
+        ----------
+        timeout : float
+            Maximum wait time in seconds (default: 10.0).
+
+        Returns
+        -------
+        ScreenshotImage
+            Screenshot with Jupyter display support.
+
+        Raises
+        ------
+        TimeoutError
+            If no response within timeout.
+        requests.HTTPError
+            If the server returns an error response.
+
+        Examples
+        --------
+        >>> session = vis.sessions["abc-123"]
+        >>> img = session.take_screenshot()
+        >>> img  # Displays in Jupyter
+        >>> img.save("screenshot.png")
+        """
+        result = self._vis.api.request_screenshot(self.session_id, timeout)
+        screenshot_id = result["screenshot_id"]
+        data = self._vis.api.download_screenshot(screenshot_id)
+        return ScreenshotImage(data=data)
 
 
 class FrontendSessions(Mapping):

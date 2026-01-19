@@ -1,88 +1,31 @@
 /**
- * Utility functions for capturing canvas screenshots.
- * Supports standard canvas capture and is designed to be extensible
- * for future integration with renderers like three-gpu-pathtracer.
+ * Utility functions for downloading screenshots.
  */
 
 /**
- * Capture screenshot from a canvas element as PNG.
+ * Download a screenshot blob to the client's browser.
  *
- * @param canvas - The canvas element to capture
- * @returns Promise resolving to a PNG Blob
- */
-export function captureCanvasScreenshot(
-	canvas: HTMLCanvasElement,
-): Promise<Blob> {
-	return new Promise((resolve, reject) => {
-		canvas.toBlob((blob) => {
-			if (blob) resolve(blob);
-			else reject(new Error("Failed to create blob from canvas"));
-		}, "image/png");
-	});
-}
-
-/**
- * Upload a screenshot blob to the server.
+ * Creates a temporary download link and triggers a file download.
  *
- * @param roomId - Room identifier
  * @param blob - Screenshot PNG blob
- * @param width - Image width
- * @param height - Image height
- * @returns Promise resolving to upload response
+ * @param filename - Optional filename (defaults to timestamp-based name)
  */
-export async function uploadScreenshot(
-	roomId: string,
-	blob: Blob,
-	width: number,
-	height: number,
-): Promise<{
-	id: string;
-	timestamp: string;
-	format: string;
-	size: number;
-	url: string;
-}> {
-	const formData = new FormData();
-	formData.append("file", blob, `screenshot_${Date.now()}.png`);
-	formData.append("format", "png");
-	formData.append("width", width.toString());
-	formData.append("height", height.toString());
+export function downloadScreenshot(blob: Blob, filename?: string): void {
+	const finalFilename = filename || `screenshot_${Date.now()}.png`;
 
-	const response = await fetch(`/api/rooms/${roomId}/screenshots/upload`, {
-		method: "POST",
-		body: formData,
-	});
+	// Create object URL for the blob
+	const url = URL.createObjectURL(blob);
 
-	if (!response.ok) {
-		const error = await response
-			.json()
-			.catch(() => ({ error: "Upload failed" }));
-		throw new Error(error.error || `Upload failed: ${response.statusText}`);
-	}
+	// Create temporary download link
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = finalFilename;
 
-	return response.json();
-}
+	// Trigger download
+	document.body.appendChild(link);
+	link.click();
 
-/**
- * Take a screenshot and upload it to the server.
- *
- * @param canvas - Canvas element to capture
- * @param roomId - Room identifier
- * @returns Promise resolving to upload response
- */
-export async function takeAndUploadScreenshot(
-	canvas: HTMLCanvasElement,
-	roomId: string,
-): Promise<{
-	id: string;
-	timestamp: string;
-	format: string;
-	size: number;
-	url: string;
-}> {
-	// Capture screenshot
-	const blob = await captureCanvasScreenshot(canvas);
-
-	// Upload to server
-	return uploadScreenshot(roomId, blob, canvas.width, canvas.height);
+	// Cleanup
+	document.body.removeChild(link);
+	URL.revokeObjectURL(url);
 }
