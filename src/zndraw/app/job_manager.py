@@ -470,7 +470,9 @@ class JobManager:
             List of job IDs that were failed due to timeout
         """
         room_keys = RoomKeys(room)
-        job_ids = redis_client.smembers(room_keys.jobs_active())
+        # Convert to list to avoid "Set changed size during iteration" error
+        # since fail_job() removes jobs from the active set
+        job_ids = list(redis_client.smembers(room_keys.jobs_active()))
         failed_jobs = []
         now = utc_now_timestamp()
 

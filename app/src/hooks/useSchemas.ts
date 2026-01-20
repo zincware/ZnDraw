@@ -214,6 +214,22 @@ export const useJobs = (room: string) => {
 		};
 	}, [room, refetch]);
 
+	// Poll every 5 seconds when there are jobs in "assigned" state
+	// This triggers lazy cleanup on the backend for timed-out jobs
+	useEffect(() => {
+		const hasAssignedJobs = jobs.some((job) => job.status === "assigned");
+
+		if (!hasAssignedJobs || !room) {
+			return;
+		}
+
+		const intervalId = setInterval(() => {
+			refetch(false); // Silent refetch, no loading spinner
+		}, 5000);
+
+		return () => clearInterval(intervalId);
+	}, [jobs, room, refetch]);
+
 	return {
 		data: jobs,
 		isLoading: isLoading && !hasLoaded, // Only show loading if we haven't loaded yet
