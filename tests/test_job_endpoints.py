@@ -138,9 +138,10 @@ def test_update_job_status_to_processing(server, get_jwt_auth_headers):
     job = vis.run(TestModifier(param=42))
 
     # Job is already assigned, transition to processing
+    # Use job.worker_id (the assigned worker) instead of vis.sid
     response = requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "processing", "workerId": vis.sid},
+        json={"status": "processing", "workerId": job.worker_id},
         headers=get_jwt_auth_headers(server, "testuser"),
         timeout=10,
     )
@@ -157,17 +158,18 @@ def test_update_job_status_to_completed(server, get_jwt_auth_headers):
 
     job = vis.run(TestModifier(param=42))
     auth_headers = get_jwt_auth_headers(server, "testuser")
+    worker_id = job.worker_id
 
     # Transition: assigned → processing → completed
     requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "processing", "workerId": vis.sid},
+        json={"status": "processing", "workerId": worker_id},
         headers=auth_headers,
         timeout=10,
     )
     response = requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "completed", "workerId": vis.sid},
+        json={"status": "completed", "workerId": worker_id},
         headers=auth_headers,
         timeout=10,
     )
@@ -185,11 +187,12 @@ def test_update_job_status_to_failed(server, get_jwt_auth_headers):
 
     job = vis.run(TestModifier(param=42))
     auth_headers = get_jwt_auth_headers(server, "testuser")
+    worker_id = job.worker_id
 
     # Transition to processing first
     requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "processing", "workerId": vis.sid},
+        json={"status": "processing", "workerId": worker_id},
         headers=auth_headers,
         timeout=10,
     )
@@ -199,7 +202,7 @@ def test_update_job_status_to_failed(server, get_jwt_auth_headers):
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
         json={
             "status": "failed",
-            "workerId": vis.sid,
+            "workerId": worker_id,
             "error": "Something went wrong",
         },
         headers=auth_headers,
@@ -227,10 +230,10 @@ def test_job_refresh(server, get_jwt_auth_headers):
     initial_status = job.status
     assert initial_status == "assigned"  # Assigned immediately with worker available
 
-    # Update via API to processing
+    # Update via API to processing using the assigned worker ID
     requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "processing", "workerId": vis.sid},
+        json={"status": "processing", "workerId": job.worker_id},
         headers=get_jwt_auth_headers(server, "testuser"),
         timeout=10,
     )
@@ -273,6 +276,7 @@ def test_job_completion_lifecycle(server, get_jwt_auth_headers):
 
     job = vis.run(TestModifier(param=42))
     auth_headers = get_jwt_auth_headers(server, "testuser")
+    worker_id = job.worker_id
 
     # Job is assigned but not yet processing
     assert job.is_assigned()
@@ -281,7 +285,7 @@ def test_job_completion_lifecycle(server, get_jwt_auth_headers):
     # Transition to processing
     requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "processing", "workerId": vis.sid},
+        json={"status": "processing", "workerId": worker_id},
         headers=auth_headers,
         timeout=10,
     )
@@ -289,7 +293,7 @@ def test_job_completion_lifecycle(server, get_jwt_auth_headers):
     # Mark as completed (extensions work through side effects, no result needed)
     response = requests.put(
         f"{server}/api/rooms/test/jobs/{job.job_id}/status",
-        json={"status": "completed", "workerId": vis.sid},
+        json={"status": "completed", "workerId": worker_id},
         headers=auth_headers,
         timeout=10,
     )
@@ -324,5 +328,67 @@ def test_multiple_jobs_queue_correctly(server):
     assert job1.job_id != job2.job_id
     assert job2.job_id != job3.job_id
     assert job1.job_id != job3.job_id
+
+    vis.disconnect()
+
+
+# =============================================================================
+# Test Suite F: ASSIGNED Job Timeout
+# =============================================================================
+
+
+def test_stale_assigned_job_is_failed_on_list(server, redis_client):
+    """Test that jobs stuck in ASSIGNED state are failed during list_jobs."""
+    from datetime import datetime, timezone
+
+    from zndraw.app.redis_keys import JobKeys
+
+    vis = ZnDraw(
+        url=server, room="test-timeout", user="testuser", auto_pickup_jobs=False
+    )
+    vis.register_extension(TestModifier)
+
+    job = vis.run(TestModifier(param=42))
+    assert job.is_assigned()
+
+    # Artificially age the job by setting assigned_at to be older than the timeout
+    job_keys = JobKeys(job.job_id)
+    old_time = (
+        datetime.now(timezone.utc).replace(year=2020).isoformat()
+    )  # Very old timestamp
+    redis_client.hset(job_keys.hash_key(), "assigned_at", old_time)
+
+    # List jobs - this triggers lazy cleanup
+    response = requests.get(f"{server}/api/rooms/test-timeout/jobs")
+    assert response.status_code == 200
+
+    # Refresh the job and verify it's now failed
+    job.refresh()
+    assert job.is_failed()
+    assert job.is_done()
+    assert job.error is not None
+    assert "timed out in ASSIGNED state" in job.error
+
+    vis.disconnect()
+
+
+def test_assigned_job_within_timeout_is_not_failed(server):
+    """Test that jobs in ASSIGNED state within timeout are not affected."""
+    vis = ZnDraw(
+        url=server, room="test-no-timeout", user="testuser", auto_pickup_jobs=False
+    )
+    vis.register_extension(TestModifier)
+
+    job = vis.run(TestModifier(param=42))
+    assert job.is_assigned()
+
+    # List jobs - this triggers cleanup, but job is fresh so should not be failed
+    response = requests.get(f"{server}/api/rooms/test-no-timeout/jobs")
+    assert response.status_code == 200
+
+    # Job should still be assigned
+    job.refresh()
+    assert job.is_assigned()
+    assert not job.is_failed()
 
     vis.disconnect()

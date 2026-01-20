@@ -1,18 +1,18 @@
 """Job object for tracking job progress."""
 
 import time
+from dataclasses import dataclass, field
 from typing import Any
 
 from zndraw.app.job_manager import JobStatus
 
 
+@dataclass
 class Job:
     """Represents a submitted job and allows tracking its progress.
 
     This object is returned by vis.run() and provides methods to monitor
     job execution, wait for completion, and retrieve results.
-
-    In Jupyter notebooks, displays an iframe showing live progress.
 
     Parameters
     ----------
@@ -22,23 +22,23 @@ class Job:
         Server URL
     room : str
         Room ID
-    api : APIManager
+    api : Any
         API manager instance for making requests
+    socket : Any
+        Socket manager instance (optional)
 
     Examples
     --------
     >>> job = vis.run(MyExtension(param=42))
     >>> job.wait()  # Block until completion
-    >>> result = job.get_result()
     """
 
-    def __init__(self, job_id: str, url: str, room: str, api: Any, socket: Any = None):
-        self.job_id = job_id
-        self.url = url
-        self.room = room
-        self.api = api
-        self.socket = socket
-        self._cached_data: dict[str, Any] | None = None
+    job_id: str
+    url: str
+    room: str
+    api: Any
+    socket: Any = None
+    _cached_data: dict[str, Any] = field(default_factory=dict, repr=False)
 
     def refresh(self) -> dict[str, Any]:
         """Fetch latest job status from server.
@@ -51,6 +51,12 @@ class Job:
         self._cached_data = self.api.get_job(self.job_id)
         return self._cached_data
 
+    def _ensure_cached(self) -> dict[str, Any]:
+        """Ensure cached data is loaded, fetching if necessary."""
+        if not self._cached_data:
+            self.refresh()
+        return self._cached_data
+
     @property
     def status(self) -> str:
         """Get current job status.
@@ -60,9 +66,7 @@ class Job:
         str
             One of: pending, assigned, processing, completed, failed
         """
-        if self._cached_data is None:
-            self.refresh()
-        return self._cached_data.get("status", "unknown")
+        return self._ensure_cached().get("status", "unknown")
 
     def is_pending(self) -> bool:
         """Check if job is pending (waiting for worker)."""
@@ -87,6 +91,28 @@ class Job:
     def is_done(self) -> bool:
         """Check if job is in a terminal state (completed or failed)."""
         return self.is_completed() or self.is_failed()
+
+    @property
+    def error(self) -> str | None:
+        """Get error message if job failed.
+
+        Returns
+        -------
+        str | None
+            Error message if failed, None otherwise
+        """
+        return self._ensure_cached().get("error") or None
+
+    @property
+    def worker_id(self) -> str | None:
+        """Get the worker ID assigned to this job.
+
+        Returns
+        -------
+        str | None
+            Worker session ID if assigned, None otherwise
+        """
+        return self._ensure_cached().get("workerId") or None
 
     def wait(self, timeout: float | None = None, poll_interval: float = 0.5) -> None:
         """Block until job completes or fails.
@@ -120,19 +146,4 @@ class Job:
 
     def __repr__(self) -> str:
         """Terminal-friendly representation."""
-        status = self.status
-        return f"Job(id={self.job_id}, status={status})"
-
-    # def _repr_html_(self) -> str:
-    #     """Jupyter notebook representation using iframe.
-
-    #     Displays live progress by embedding the server's job page.
-    #     """
-    #     try:
-    #         from IPython.display import IFrame
-    #     except ImportError:
-    #         raise ImportError(
-    #             "IPython is required for viewer display. Install with: uv add / pip install ipython"
-    #         )
-    #     iframe_url = f"{self.url}/job/{self.job_id}"
-    #     return IFrame(src=iframe_url, width="100%", height=600)._repr_html_()
+        return f"Job(id={self.job_id}, status={self.status})"

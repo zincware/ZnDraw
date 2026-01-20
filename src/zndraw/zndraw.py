@@ -689,16 +689,15 @@ class ZnDraw(MutableSequence):
     def sid(self) -> str | None:
         """Return the worker ID assigned by the server.
 
-        The server assigns a worker ID (its request.sid) during extension registration.
-        This ID is used consistently for both registration and disconnect cleanup.
+        The server assigns a worker ID (its request.sid) during room:join.
+        This ID is used for job assignment and worker tracking.
 
         Returns
         -------
         str | None
-            The worker ID assigned by server, client's socket.sio.sid if not yet registered,
-            or None if not connected.
+            The server-assigned worker ID, or None if not yet connected.
         """
-        return self._worker_id if self._worker_id else self.socket.sio.sid
+        return self._worker_id
 
     @property
     def is_admin(self) -> bool:

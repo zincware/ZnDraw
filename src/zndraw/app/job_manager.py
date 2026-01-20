@@ -15,6 +15,10 @@ from .redis_keys import JobKeys, RoomKeys, WorkerKeys
 
 log = logging.getLogger(__name__)
 
+# Jobs in ASSIGNED state should transition to PROCESSING within seconds.
+# If they stay in ASSIGNED longer than this, they're considered stale (worker died/disconnected).
+ASSIGNED_TIMEOUT_SECONDS = 30
+
 
 def _emit_job_state_changed(
     socketio,
@@ -249,6 +253,7 @@ class JobManager:
         update_data = {
             "status": JobStatus.ASSIGNED,
             "worker_id": worker_id,
+            "assigned_at": utc_now_iso(),
         }
 
         redis_client.hset(job_keys.hash_key(), mapping=update_data)
@@ -441,6 +446,73 @@ class JobManager:
         return True
 
     @staticmethod
+    def cleanup_stale_assigned_jobs(
+        redis_client: Any, room: str, socketio=None
+    ) -> list[str]:
+        """Fail jobs stuck in ASSIGNED state for too long.
+
+        Jobs in ASSIGNED state should transition to PROCESSING within seconds.
+        If they stay in ASSIGNED longer than ASSIGNED_TIMEOUT_SECONDS, the
+        worker likely died or disconnected before confirming the job.
+
+        Parameters
+        ----------
+        redis_client
+            Redis client instance
+        room : str
+            Room identifier
+        socketio
+            SocketIO instance for emitting events (optional)
+
+        Returns
+        -------
+        list[str]
+            List of job IDs that were failed due to timeout
+        """
+        room_keys = RoomKeys(room)
+        # Convert to list to avoid "Set changed size during iteration" error
+        # since fail_job() removes jobs from the active set
+        job_ids = list(redis_client.smembers(room_keys.jobs_active()))
+        failed_jobs = []
+        now = utc_now_timestamp()
+
+        for job_id in job_ids:
+            job_keys = JobKeys(job_id)
+            job_data = redis_client.hgetall(job_keys.hash_key())
+
+            if not job_data:
+                continue
+
+            # Only check ASSIGNED jobs
+            if job_data.get("status") != JobStatus.ASSIGNED:
+                continue
+
+            # Check if job has been in ASSIGNED state too long
+            # Use assigned_at if available, fallback to created_at for backwards compatibility
+            assigned_at = job_data.get("assigned_at") or job_data.get("created_at")
+            if not assigned_at:
+                continue
+
+            try:
+                assigned_timestamp = isoparse(assigned_at).timestamp()
+                age_seconds = now - assigned_timestamp
+
+                if age_seconds > ASSIGNED_TIMEOUT_SECONDS:
+                    # Fail the job due to timeout
+                    error_msg = (
+                        f"Job timed out in ASSIGNED state after {age_seconds:.1f}s "
+                        f"(threshold: {ASSIGNED_TIMEOUT_SECONDS}s). "
+                        "Worker likely disconnected before processing."
+                    )
+                    JobManager.fail_job(redis_client, job_id, error_msg, socketio)
+                    failed_jobs.append(job_id)
+                    log.warning(f"Cleaned up stale ASSIGNED job {job_id}: {error_msg}")
+            except Exception as e:
+                log.error(f"Error checking job {job_id} for timeout: {e}")
+
+        return failed_jobs
+
+    @staticmethod
     def get_job(redis_client: Any, job_id: str) -> Optional[dict]:
         """Get job details.
 
@@ -464,16 +536,28 @@ class JobManager:
         return job_data
 
     @staticmethod
-    def list_active_jobs(redis_client: Any, room: str) -> list[dict]:
+    def list_active_jobs(redis_client: Any, room: str, socketio=None) -> list[dict]:
         """List all active (queued or running) jobs for a room.
 
-        Args:
-            redis_client: Redis client instance
-            room: Room identifier
+        Performs lazy cleanup of stale ASSIGNED jobs before returning results.
 
-        Returns:
+        Parameters
+        ----------
+        redis_client
+            Redis client instance
+        room : str
+            Room identifier
+        socketio
+            SocketIO instance for emitting events during cleanup (optional)
+
+        Returns
+        -------
+        list[dict]
             List of job data dicts
         """
+        # Lazy cleanup: fail any jobs stuck in ASSIGNED state
+        JobManager.cleanup_stale_assigned_jobs(redis_client, room, socketio)
+
         room_keys = RoomKeys(room)
         job_ids = redis_client.smembers(room_keys.jobs_active())
 
@@ -536,15 +620,26 @@ class JobManager:
         return jobs
 
     @staticmethod
-    def list_all_jobs(redis_client: Any, room: str) -> list[dict]:
+    def list_all_jobs(redis_client: Any, room: str, socketio=None) -> list[dict]:
         """List all jobs for a room.
-        Args:
-            redis_client: Redis client instance
-            room: Room identifier
-        Returns:
+
+        Performs lazy cleanup of stale ASSIGNED jobs via list_active_jobs.
+
+        Parameters
+        ----------
+        redis_client
+            Redis client instance
+        room : str
+            Room identifier
+        socketio
+            SocketIO instance for emitting events during cleanup (optional)
+
+        Returns
+        -------
+        list[dict]
             List of job data dicts
         """
-        active_jobs = JobManager.list_active_jobs(redis_client, room)
+        active_jobs = JobManager.list_active_jobs(redis_client, room, socketio)
         inactive_jobs = JobManager.list_inactive_jobs(redis_client, room)
         return active_jobs + inactive_jobs
 

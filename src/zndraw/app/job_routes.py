@@ -120,10 +120,13 @@ def _transition_worker_to_idle(
 
 @jobs.route("/api/rooms/<string:room_id>/jobs", methods=["GET"])
 def list_jobs(room_id: str):
-    """List active jobs for a room."""
+    """List active jobs for a room.
+
+    Performs lazy cleanup of stale ASSIGNED jobs.
+    """
     redis_client = current_app.extensions["redis"]
-    jobs = JobManager.list_all_jobs(redis_client, room_id)
-    return jobs, 200
+    jobs_list = JobManager.list_all_jobs(redis_client, room_id, socketio)
+    return jobs_list, 200
 
 
 @jobs.route("/api/rooms/<string:room_id>/jobs/<string:job_id>", methods=["GET"])
@@ -191,6 +194,8 @@ def get_job_details(job_id: str):
         "public": job.get("public") == "true",
         "status": job["status"],
         "createdAt": job.get("created_at"),
+        "error": job.get("error") or None,
+        "workerId": job.get("worker_id") or None,
     }
 
     log.debug(f"Worker fetching job {job_id}: {job['category']}/{job['extension']}")
