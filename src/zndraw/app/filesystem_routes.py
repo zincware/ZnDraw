@@ -115,6 +115,8 @@ def _list_files_impl(fs_name: str, public: bool, room_id: str | None = None):
     """
     from zndraw.server import socketio
 
+    from .stale_cleanup import cleanup_stale_filesystem_worker
+
     r = current_app.extensions["redis"]
 
     # Validate parameters
@@ -125,14 +127,25 @@ def _list_files_impl(fs_name: str, public: bool, room_id: str | None = None):
     if public:
         keys = FilesystemKeys.for_global_filesystem(fs_name)
         fs_type = "global"
+        fs_room_id = None
     else:
         keys = FilesystemKeys.for_filesystem(room_id, fs_name)
         fs_type = "room-scoped"
+        fs_room_id = room_id
 
     worker_id = r.get(keys.worker)
     if not worker_id:
         return jsonify(
             {"error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found"}
+        ), 404
+
+    # Check if worker is stale and clean up if so
+    cleaned = cleanup_stale_filesystem_worker(r, socketio, fs_room_id, fs_name)
+    if cleaned:
+        return jsonify(
+            {
+                "error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found (worker disconnected)"
+            }
         ), 404
 
     # Generate request ID
@@ -203,6 +216,8 @@ def _load_file_impl(
     """
     from zndraw.server import socketio
 
+    from .stale_cleanup import cleanup_stale_filesystem_worker
+
     r = current_app.extensions["redis"]
 
     # Validate parameters
@@ -241,6 +256,16 @@ def _load_file_impl(
     if not worker_id:
         return jsonify(
             {"error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found"}
+        ), 404
+
+    # Check if worker is stale and clean up if so
+    fs_room_id = None if public else room_id
+    cleaned = cleanup_stale_filesystem_worker(r, socketio, fs_room_id, fs_name)
+    if cleaned:
+        return jsonify(
+            {
+                "error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found (worker disconnected)"
+            }
         ), 404
 
     # Generate request ID
@@ -369,6 +394,8 @@ def _get_file_metadata_impl(fs_name: str, public: bool, room_id: str | None = No
     """
     from zndraw.server import socketio
 
+    from .stale_cleanup import cleanup_stale_filesystem_worker
+
     r = current_app.extensions["redis"]
 
     # Validate parameters
@@ -391,6 +418,16 @@ def _get_file_metadata_impl(fs_name: str, public: bool, room_id: str | None = No
     if not worker_id:
         return jsonify(
             {"error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found"}
+        ), 404
+
+    # Check if worker is stale and clean up if so
+    fs_room_id = None if public else room_id
+    cleaned = cleanup_stale_filesystem_worker(r, socketio, fs_room_id, fs_name)
+    if cleaned:
+        return jsonify(
+            {
+                "error": f"{fs_type.capitalize()} filesystem '{fs_name}' not found (worker disconnected)"
+            }
         ), 404
 
     # Generate request ID
