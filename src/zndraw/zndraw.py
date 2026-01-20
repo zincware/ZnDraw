@@ -429,6 +429,9 @@ class ZnDraw(MutableSequence):
     )
     _filesystems: dict[str, dict] = dataclasses.field(default_factory=dict, init=False)
     role: str = dataclasses.field(default="guest", init=False)
+    _worker_id: str | None = dataclasses.field(
+        default=None, init=False
+    )  # Server's sid for worker identification
     _selection: frozenset[int] = frozenset()
     _frame_selection: frozenset[int] = frozenset()
     _bookmarks: dict[int, str] = dataclasses.field(default_factory=dict, init=False)
@@ -684,17 +687,17 @@ class ZnDraw(MutableSequence):
 
     @property
     def sid(self) -> str | None:
-        """Return the current socket session ID.
+        """Return the worker ID assigned by the server.
 
-        This is the socket.io session ID that identifies this client connection.
-        The server uses this ID for job assignment and worker tracking.
+        The server assigns a worker ID (its request.sid) during room:join.
+        This ID is used for job assignment and worker tracking.
 
         Returns
         -------
         str | None
-            The socket session ID, or None if not connected.
+            The server-assigned worker ID, or None if not yet connected.
         """
-        return self.socket.sio.sid
+        return self._worker_id
 
     @property
     def is_admin(self) -> bool:
