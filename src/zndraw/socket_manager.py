@@ -22,6 +22,7 @@ class SocketManager:
 
     def _register_handlers(self):
         self.sio.on("connect", self._on_connect)
+        self.sio.on("connect_error", self._on_connect_error)
         self.sio.on(SocketEvents.FRAME_UPDATE, self._on_frame_update)
         self.sio.on(SocketEvents.SELECTION_UPDATE, self._on_selection_update)
         self.sio.on(SocketEvents.ROOM_UPDATE, self._on_room_update)
@@ -97,6 +98,42 @@ class SocketManager:
 
         # Mark initial connection as done - subsequent connects are reconnects
         self._initial_connect_done = True
+
+    def _on_connect_error(self, data):
+        """Handle socket connection error.
+
+        When the server rejects connection with "User not found" (e.g., after
+        server restart when Redis data is cleared), re-register the user
+        via the login API and update the JWT token for the next reconnect attempt.
+        """
+        error_msg = str(data) if data else ""
+        log.warning(f"Socket connection error: {error_msg}")
+
+        # Check if error is "User not found" - need to re-register
+        if "User not found" in error_msg or "not found" in error_msg.lower():
+            log.info("User not found on server, re-registering...")
+            try:
+                # Re-call login API to re-register the user
+                # This creates the user in Redis and gets a fresh JWT token
+                login_data = self.zndraw.api.login(
+                    user_name=self.zndraw.user,
+                    password=(
+                        self.zndraw.password.get_secret_value()
+                        if self.zndraw.password
+                        else None
+                    ),
+                )
+
+                # Update user info from response (in case it changed)
+                self.zndraw.user = login_data["userName"]
+                self.zndraw.role = login_data.get("role", "guest")
+
+                log.info(
+                    f"Re-registered as {self.zndraw.user}, "
+                    "next reconnect attempt should succeed"
+                )
+            except Exception as e:
+                log.error(f"Failed to re-register user: {e}")
 
     def disconnect(self):
         if self.sio.connected:
