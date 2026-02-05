@@ -25,13 +25,17 @@ export const useDefaultCamera = () => {
 		onSuccess: (_, cameraKey) => {
 			queryClient.invalidateQueries({ queryKey: ["defaultCamera", roomId] });
 			if (cameraKey) {
-				showSnackbar(`Set "${cameraKey}" as default camera for new sessions`, "success");
+				showSnackbar(
+					`Set "${cameraKey}" as default camera for new sessions`,
+					"success",
+				);
 			} else {
 				showSnackbar("Cleared default camera", "info");
 			}
 		},
 		onError: (error: any) => {
-			const message = error?.response?.data?.error || "Failed to update default camera";
+			const message =
+				error?.response?.data?.error || "Failed to update default camera";
 			showSnackbar(message, "error");
 		},
 	});
