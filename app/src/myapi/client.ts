@@ -903,6 +903,29 @@ export const getLockStatus = async (
 	return data;
 };
 
+// ==================== Default Camera API ====================
+
+export interface DefaultCameraResponse {
+	default_camera: string | null;
+}
+
+export const getDefaultCamera = async (
+	roomId: string,
+): Promise<DefaultCameraResponse> => {
+	const { data } = await apiClient.get(`/api/rooms/${roomId}/default-camera`);
+	return data;
+};
+
+export const setDefaultCamera = async (
+	roomId: string,
+	cameraKey: string | null,
+): Promise<{ status: string }> => {
+	const { data } = await apiClient.put(`/api/rooms/${roomId}/default-camera`, {
+		default_camera: cameraKey,
+	});
+	return data;
+};
+
 // ==================== File Browser API ====================
 
 export interface FileItem {

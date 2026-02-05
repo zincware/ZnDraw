@@ -603,6 +603,56 @@ class ZnDraw(MutableSequence):
         return FrontendSessions(self)
 
     @property
+    def default_camera(self) -> str | None:
+        """Default camera key for new sessions joining this room.
+
+        When set, new frontend sessions will clone this camera's settings
+        instead of using Pydantic model defaults.
+
+        Returns
+        -------
+        str | None
+            Camera geometry key, or None if not set.
+
+        Examples
+        --------
+        >>> # Create a camera and set as default
+        >>> from zndraw.geometries import Camera
+        >>> cam = Camera(position=(10, 10, 30), fov=60)
+        >>> vis.geometries["my_camera"] = cam
+        >>> vis.default_camera = "my_camera"
+        >>>
+        >>> # New sessions will now start with this camera's view
+        """
+        return self.api.get_default_camera()
+
+    @default_camera.setter
+    def default_camera(self, value: str | None) -> None:
+        """Set the default camera for new sessions.
+
+        Parameters
+        ----------
+        value : str | None
+            Camera geometry key, or None to unset.
+
+        Raises
+        ------
+        KeyError
+            If the camera key doesn't exist in geometries.
+        TypeError
+            If the geometry is not a Camera.
+        """
+        if value is not None:
+            if value not in self.geometries:
+                raise KeyError(f"Camera '{value}' not found in geometries")
+            from zndraw.geometries import Camera
+
+            geom = self.geometries[value]
+            if not isinstance(geom, Camera):
+                raise TypeError(f"Geometry '{value}' is not a Camera")
+        self.api.set_default_camera(value)
+
+    @property
     def figures(self) -> Figures:
         return Figures(self)
 

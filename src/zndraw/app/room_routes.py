@@ -418,6 +418,61 @@ def set_default_room():
     return {"status": "ok"}, 200
 
 
+@rooms.route("/api/rooms/<string:room_id>/default-camera", methods=["GET"])
+@require_auth
+def get_default_camera(room_id: str):
+    """Get the default camera for new sessions in this room.
+
+    Returns
+    -------
+    dict
+        {"default_camera": "camera_key" | null}
+    """
+    redis_client = current_app.extensions["redis"]
+    keys = RoomKeys(room_id)
+    default_camera = redis_client.get(keys.default_camera())
+    return {"default_camera": default_camera}, 200
+
+
+@rooms.route("/api/rooms/<string:room_id>/default-camera", methods=["PUT"])
+@require_auth
+def set_default_camera(room_id: str):
+    """Set the default camera for new sessions in this room.
+
+    Request body:
+        {"default_camera": "camera_key" | null}
+
+    Validates that the camera exists and is a Camera geometry type.
+    """
+    redis_client = current_app.extensions["redis"]
+    keys = RoomKeys(room_id)
+    data = request.get_json() or {}
+    camera_key = data.get("default_camera")
+
+    if camera_key is None:
+        # Unset default camera
+        redis_client.delete(keys.default_camera())
+        log.debug(f"Unset default camera for room '{room_id}'")
+        return {"status": "ok"}, 200
+
+    # Validate camera exists
+    geometry_json = redis_client.hget(keys.geometries(), camera_key)
+    if not geometry_json:
+        return {"error": f"Camera '{camera_key}' not found in geometries"}, 404
+
+    # Validate it's a Camera type
+    geometry = json.loads(geometry_json)
+    if geometry.get("type") != "Camera":
+        return {
+            "error": f"Geometry '{camera_key}' is not a Camera (type: {geometry.get('type')})"
+        }, 400
+
+    # Set default camera
+    redis_client.set(keys.default_camera(), camera_key)
+    log.debug(f"Set default camera for room '{room_id}' to '{camera_key}'")
+    return {"status": "ok"}, 200
+
+
 @rooms.route("/api/rooms/<string:room_id>/metadata", methods=["GET"])
 def get_room_metadata(room_id: str):
     """Get all metadata for a room.

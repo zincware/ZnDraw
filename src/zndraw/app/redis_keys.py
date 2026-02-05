@@ -359,6 +359,16 @@ class RoomKeys:
         """
         return f"room:{self.room_id}:session:{session_id}:active_camera"
 
+    def default_camera(self) -> str:
+        """Default camera geometry key for new sessions.
+
+        Returns
+        -------
+        str
+            Redis key for room's default camera setting
+        """
+        return f"room:{self.room_id}:default_camera"
+
     def frontend_sessions(self) -> str:
         """Set of frontend session IDs in this room.
 
@@ -562,6 +572,7 @@ class RoomKeys:
             self.jobs_inactive(),
             self.jobs_by_time(),
             self.frontend_sessions(),
+            self.default_camera(),
         ]
 
 

@@ -1884,3 +1884,47 @@ class APIManager:
             timeout=10.0,
         )
         response.raise_for_status()
+
+    def get_default_camera(self) -> str | None:
+        """Get the default camera key for new sessions.
+
+        Returns
+        -------
+        str | None
+            Camera geometry key, or None if not set.
+
+        Raises
+        ------
+        requests.HTTPError
+            If request fails.
+        """
+        headers = self._get_headers()
+        response = requests.get(
+            f"{self.url}/api/rooms/{self.room}/default-camera",
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return response.json().get("default_camera")
+
+    def set_default_camera(self, camera_key: str | None) -> None:
+        """Set the default camera for new sessions.
+
+        Parameters
+        ----------
+        camera_key : str | None
+            Camera geometry key, or None to unset.
+
+        Raises
+        ------
+        requests.HTTPError
+            If request fails.
+        """
+        headers = self._get_headers()
+        response = requests.put(
+            f"{self.url}/api/rooms/{self.room}/default-camera",
+            json={"default_camera": camera_key},
+            headers=headers,
+            timeout=10.0,
+        )
+        response.raise_for_status()

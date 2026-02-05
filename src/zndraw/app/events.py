@@ -732,6 +732,7 @@ def handle_room_join(data):
         "step": int(current_step) if current_step else 0,
         "frameCount": frame_count,
         "locked": bool(locked),
+        "defaultCamera": r.get(room_keys.default_camera()),
     }
 
 
