@@ -20,12 +20,15 @@ import SearchIcon from "@mui/icons-material/Search";
 import BrushIcon from "@mui/icons-material/Brush";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
+import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
 import { useGeometryStore } from "../../stores/geometryStore";
 import DeleteConfirmDialog from "./DeleteConfirmDialog";
 import {
 	useDeleteGeometry,
 	useCreateGeometry,
 } from "../../hooks/useGeometries";
+import { useDefaultCamera } from "../../hooks/useDefaultCamera";
 import { useAppStore } from "../../store";
 
 interface GeometryGridProps {
@@ -51,6 +54,8 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 
 	const { mutate: deleteGeometry } = useDeleteGeometry();
 	const { mutate: updateGeometry } = useCreateGeometry();
+	const { defaultCamera, setDefaultCamera, isSettingDefault } =
+		useDefaultCamera();
 
 	const handleEdit = (key: string) => {
 		setSelectedKey(key);
@@ -102,6 +107,15 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 			if (attachedCameraKey !== key) {
 				attachToCamera(key);
 			}
+		}
+	};
+
+	const handleDefaultCameraToggle = (key: string) => {
+		// Toggle: if this camera is already the default, unset it; otherwise set it
+		if (defaultCamera === key) {
+			setDefaultCamera(null);
+		} else {
+			setDefaultCamera(key);
 		}
 	};
 
@@ -159,6 +173,41 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 							) : (
 								<RadioButtonUncheckedIcon />
 							)}
+						</IconButton>
+					</Tooltip>
+				);
+			},
+		},
+		{
+			field: "default",
+			headerName: "Default",
+			width: 70,
+			renderCell: (params: GridRenderCellParams) => {
+				const geometryType = params.row.type;
+				const isCamera = geometryType === "Camera";
+
+				// Only show for Cameras (not session cameras)
+				if (!isCamera || params.row.key.startsWith("cam:session:")) {
+					return null;
+				}
+
+				const isDefault = defaultCamera === params.row.key;
+				const tooltipText = isDefault
+					? "Unset as default camera for new sessions"
+					: "Set as default camera for new sessions";
+
+				return (
+					<Tooltip title={tooltipText}>
+						<IconButton
+							size="small"
+							onClick={(e) => {
+								e.stopPropagation();
+								handleDefaultCameraToggle(params.row.key);
+							}}
+							color={isDefault ? "warning" : "default"}
+							disabled={isSettingDefault}
+						>
+							{isDefault ? <StarIcon /> : <StarBorderIcon />}
 						</IconButton>
 					</Tooltip>
 				);

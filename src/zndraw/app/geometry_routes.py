@@ -197,6 +197,11 @@ def delete_geometry(room_id: str, key: str, session_id: str, user_id: str):
 
     r.hdel(keys.geometries(), key)
 
+    # Clear default_camera if this geometry was the default
+    if r.get(keys.default_camera()) == key:
+        r.delete(keys.default_camera())
+        log.debug(f"Cleared default_camera for room '{room_id}' (deleted geometry)")
+
     socketio.emit(
         SocketEvents.INVALIDATE_GEOMETRY,
         {

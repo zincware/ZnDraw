@@ -14,6 +14,7 @@ import {
 	getGlobalSettings,
 	createRoom,
 	getLockStatus,
+	createGeometry,
 } from "../myapi/client";
 import {
 	checkVersionCompatibility,
@@ -158,7 +159,8 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 						useAppStore.getState().resetChatUnread();
 
 						// Extract minimal data from socket response
-						const { sessionId, step, frameCount, locked } = response;
+						const { sessionId, step, frameCount, locked, defaultCamera } =
+							response;
 						setSessionId(sessionId);
 
 						// Track room visit for localStorage persistence
@@ -186,9 +188,51 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 							]);
 
 							// Set geometries and type metadata (schemas + defaults)
-							setGeometries(geometriesResponse.geometries || {});
+							const geometries = geometriesResponse.geometries || {};
+							setGeometries(geometries);
 							setGeometrySchemas(geometriesResponse.types?.schemas || {});
 							setGeometryDefaults(geometriesResponse.types?.defaults || {});
+
+							// Clone default camera properties to session camera if set
+							const sessionCameraKey = `cam:session:${sessionId}`;
+							if (
+								defaultCamera &&
+								geometries[defaultCamera] &&
+								geometries[sessionCameraKey]
+							) {
+								const defaultCameraData = geometries[defaultCamera].data;
+								const sessionCameraData = geometries[sessionCameraKey].data;
+
+								// Clone properties from default camera to session camera
+								// Keep session camera's protected status
+								const clonedData = {
+									...sessionCameraData,
+									position: defaultCameraData.position,
+									target: defaultCameraData.target,
+									up: defaultCameraData.up,
+									fov: defaultCameraData.fov,
+									near: defaultCameraData.near,
+									far: defaultCameraData.far,
+									zoom: defaultCameraData.zoom,
+									camera_type: defaultCameraData.camera_type,
+								};
+
+								// Update session camera via API
+								createGeometry(roomId, sessionCameraKey, "Camera", clonedData)
+									.then(() => {
+										// Update local store with cloned data
+										updateGeometry(sessionCameraKey, {
+											type: "Camera",
+											data: clonedData,
+										});
+									})
+									.catch((error) => {
+										console.error(
+											"Failed to clone default camera to session camera:",
+											error,
+										);
+									});
+							}
 
 							// Clear any previous error and mark as connected
 							setInitializationError(null);
