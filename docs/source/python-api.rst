@@ -368,6 +368,38 @@ Camera parameters:
 - ``zoom``: Camera zoom factor
 
 
+Default Camera
+""""""""""""""
+
+Set a default camera so that new browser sessions start with a specific view:
+
+.. code:: python
+
+    from zndraw.geometries import Camera
+
+    # Create a template camera
+    vis.geometries["template-cam"] = Camera(
+        position=(10, 10, 30),
+        target=(0, 0, 0),
+        fov=60
+    )
+
+    # Set as default for new sessions
+    vis.default_camera = "template-cam"
+
+    # Check current default
+    print(vis.default_camera)  # "template-cam"
+
+    # Unset
+    vis.default_camera = None
+
+When set, new frontend sessions joining the room will clone the default camera's
+position, target, fov, and other properties instead of using model defaults.
+
+In the UI, the default camera is indicated with a star icon in the geometry grid.
+Click the star to toggle the default camera setting.
+
+
 Drawing Mode
 ^^^^^^^^^^^^
 
