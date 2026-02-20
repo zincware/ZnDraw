@@ -21,32 +21,15 @@ jobs:
           - ubuntu-latest
 
     services:
-      # Label used to access the service container
       redis:
-        # Docker Hub image
         image: redis
-        # Set health checks to wait until redis has started
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
         ports:
-          # Maps port 6379 on service container to the host
           - 6379:6379
-
-      mongodb:
-        image: mongo:7
-        env:
-          MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: example
-        options: >-
-          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 27017:27017
 
     steps:
       - uses: actions/checkout@v4
@@ -54,6 +37,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - uses: oven-sh/setup-bun@v2
       - name: Install package
         run: |
            uv sync --all-extras --dev
