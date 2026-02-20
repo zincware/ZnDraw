@@ -13,18 +13,19 @@ from playwright.sync_api import Page, sync_playwright
 
 MISC_DIR = Path(__file__).parent
 SCREENSHOTS_DIR = MISC_DIR.parent / "docs" / "source" / "_static" / "screenshots"
-PORT = 5000
+PORT = 8000
 BASE_URL = f"http://localhost:{PORT}"
 
 
 def _wait_for_server(url: str, timeout: float = 30.0) -> bool:
-    """Wait for the server to be ready."""
+    """Wait for the server to be ready by polling the health endpoint."""
     import urllib.request
 
+    health_url = f"{url}/v1/health"
     start = time.time()
     while time.time() - start < timeout:
         try:
-            urllib.request.urlopen(url, timeout=1)
+            urllib.request.urlopen(health_url, timeout=1)
             return True
         except Exception:
             time.sleep(0.5)
@@ -62,7 +63,7 @@ def server():
     yield BASE_URL
 
     print("\nShutting down server...")
-    subprocess.run(["uv", "run", "zndraw", "--shutdown"], check=True)
+    process.terminate()
     process.wait(timeout=10)
 
 

@@ -551,7 +551,7 @@ def test_custom_modifier(server, page, capture, bmim_bf4, request):
 
     vis = ZnDraw(url=server, room=request.node.name)
     vis.append(bmim_bf4)
-    vis.register_extension(ScaleAtoms)
+    vis.register_job(ScaleAtoms)
 
     page.goto(f"{server}/room/{request.node.name}")
     page.wait_for_timeout(1000)
