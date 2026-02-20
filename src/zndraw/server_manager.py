@@ -340,7 +340,7 @@ def shutdown_server(server_info: ServerInfo) -> bool:
 
         with httpx.Client(timeout=5.0) as client:
             client.post(
-                f"http://localhost:{server_info.port}/v1/shutdown",
+                f"http://localhost:{server_info.port}/v1/admin/shutdown",
                 headers=headers,
             )
     except httpx.RequestError:

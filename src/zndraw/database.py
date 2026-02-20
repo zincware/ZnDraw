@@ -223,6 +223,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Redis - auto-start TcpFakeServer if REDIS_URL not configured
         app.state.fake_server = None
         app.state.fake_server_thread = None
+        redis_protocol: int | None = None
         if settings.redis_url is None:
             from fakeredis import TcpFakeServer
 
@@ -236,11 +237,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.fake_server = fake_server
             app.state.fake_server_thread = fake_server_thread
             redis_url = f"redis://127.0.0.1:{port}"
+            redis_protocol = 3  # TcpFakeServer speaks RESP3
         else:
             redis_url = settings.redis_url
 
         app.state.redis_url = redis_url
-        app.state.redis = redis_client.from_url(redis_url, decode_responses=True)
+        redis_kwargs: dict = {}
+        if redis_protocol is not None:
+            redis_kwargs["protocol"] = redis_protocol
+        app.state.redis = redis_client.from_url(
+            redis_url, decode_responses=True, **redis_kwargs
+        )
 
         # Frame storage (wrapped in StorageRouter for virtual mount support)
         # The underlying backend is shared with the provider cache so frame
@@ -315,7 +322,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             StorageResultBackend,
         )
 
-        redis_raw = redis_client.from_url(redis_url)
+        redis_raw = redis_client.from_url(redis_url, **redis_kwargs)
         redis_backend = RedisResultBackend(redis_raw)
         frame_cache = StorageResultBackend(default_storage)
         result_backend = CompositeResultBackend(redis=redis_backend, frames=frame_cache)
