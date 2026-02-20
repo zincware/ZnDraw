@@ -74,7 +74,9 @@ export function ScreenshotProvider() {
 		};
 
 		socket.on("screenshot_request", handleScreenshotRequest);
-		return () => socket.off("screenshot_request", handleScreenshotRequest);
+		return () => {
+			socket.off("screenshot_request", handleScreenshotRequest);
+		};
 	}, [getCapture, roomId, gl]);
 
 	return null;
