@@ -1,196 +1,61 @@
+"""Modifier extensions for manipulating atoms in the scene.
+
+These extensions modify the atomic structure (add, delete, move atoms, etc.).
+"""
+
 import enum
-import logging
 import typing as t
 
-import ase
-import ase.constraints
-import numpy as np
 from ase.data import chemical_symbols
 from pydantic import Field
 
 from zndraw.extensions.abc import Category, Extension
-from zndraw.utils import get_scaled_radii
+from zndraw.extensions.molecule_building import molify_modifiers
 
-if t.TYPE_CHECKING:
-    from zndraw import ZnDraw
-
-log = logging.getLogger("zndraw")
-
+# Create an enum of all chemical symbols
 Symbols = enum.Enum("Symbols", {symbol: symbol for symbol in chemical_symbols})
 
 
 class UpdateScene(Extension):
-    category = Category.MODIFIER
+    """Base class for all modifier extensions."""
 
-    def apply_selection(
-        self, atom_ids: list[int], atoms: ase.Atoms
-    ) -> t.Tuple[ase.Atoms, ase.Atoms]:
-        """Split the atoms object into the selected and remaining atoms."""
-        atoms_selected = atoms[atom_ids]
-        atoms_remaining_ids = [x for x in range(len(atoms)) if x not in atom_ids]
-        if len(atoms_remaining_ids) > 0:
-            atoms_remaining = atoms[atoms_remaining_ids]
-        else:
-            atoms_remaining = ase.Atoms()
-        return atoms_selected, atoms_remaining
-
-
-class Connect(UpdateScene):
-    """Create guiding curve between selected atoms."""
-
-    curve: str = Field(
-        "curve",
-        description="Name of the curve geometry to use",
-        json_schema_extra={
-            "x-custom-type": "dynamic-enum",
-            "x-features": ["dynamic-geometries"],
-            "x-geometry-filter": "Curve",
-        },
-    )
-
-    def run(self, vis, **kwargs) -> None:
-        atoms = vis.atoms
-        atom_ids = vis.selection
-        atom_positions = vis.atoms.get_positions()
-        camera_position = np.array(vis.camera["position"])[None, :]  # 1,3
-
-        new_points = atom_positions[atom_ids]  # N, 3
-        radii = np.array(
-            [get_scaled_radii()[number] for number in atoms.numbers[atom_ids]]
-        )[:, None]
-        direction = camera_position - new_points
-        direction /= np.linalg.norm(direction, axis=1, keepdims=True)
-        new_points += direction * radii
-
-        vis.points = new_points
-        vis.selection = []
-
-
-class Rotate(UpdateScene):
-    """Rotate the selected atoms around a the line (2 points only)."""
-
-    angle: float = Field(90, le=360, ge=0, description="Angle in degrees")
-    direction: t.Literal["left", "right"] = Field(
-        "left", description="Direction of rotation"
-    )
-    steps: int = Field(
-        30, ge=1, description="Number of steps to take to complete the rotation"
-    )
-    curve: str = Field(
-        "curve",
-        description="Name of the curve geometry to use",
-        json_schema_extra={
-            "x-custom-type": "dynamic-enum",
-            "x-features": ["dynamic-geometries"],
-            "x-geometry-filter": "Curve",
-        },
-    )
-
-    def run(self, vis, **kwargs) -> None:
-        # split atoms object into the selected from atoms_ids and the remaining
-        if len(vis) > vis.step + 1:
-            del vis[vis.step + 1 :]
-
-        points = vis.points
-        atom_ids = list(vis.selection)
-        atoms = vis.atoms
-        if atoms is None:
-            raise ValueError("No atoms in the scene.")
-        if len(points) != 2:
-            raise ValueError("Please draw exactly 2 points to rotate around.")
-
-        angle = self.angle if self.direction == "left" else -self.angle
-        angle = angle / self.steps
-
-        atoms_selected, atoms_remaining = self.apply_selection(list(atom_ids), atoms)
-        # create a vector from the two points
-        vector = points[1] - points[0]
-        frames = []
-        for _ in range(self.steps):
-            # rotate the selected atoms around the vector
-            atoms_selected.rotate(angle, vector, center=points[0])
-            # update the positions of the selected atoms
-            atoms.positions[atom_ids] = atoms_selected.positions
-            frames.append(atoms.copy())
-
-        vis.extend(frames)
+    category: t.ClassVar[Category] = Category.MODIFIER
 
 
 class Delete(UpdateScene):
     """Delete the selected atoms."""
 
-    def run(self, vis, **kwargs) -> None:
+    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+        import ase
+
         atom_ids = vis.selection
         atoms = vis[vis.step]
 
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
-        # vis.log(f"Deleting atoms {atom_ids}")
         if len(atom_ids) == len(atoms):
             vis.append(ase.Atoms())
         else:
             for idx, atom_id in enumerate(sorted(atom_ids)):
-                atoms.pop(atom_id - idx)  # we remove the atom and shift the index
+                atoms.pop(atom_id - idx)
             atoms.info.pop("connectivity", None)
         vis.append(atoms)
         vis.selection = []
         vis.step += 1
 
 
-class Translate(UpdateScene):
-    """Move the selected atoms along the line."""
-
-    steps: int = Field(10, ge=1)
-    curve: str = Field(
-        "curve",
-        description="Name of the curve geometry to use",
-        json_schema_extra={
-            "x-custom-type": "dynamic-enum",
-            "x-features": ["dynamic-geometries"],
-            "x-geometry-filter": "Curve",
-        },
-    )
-
-    def run(self, vis, **kwargs) -> None:
-        if len(vis) > vis.step + 1:
-            del vis[vis.step + 1 :]
-
-        # Get the curve geometry and interpolate
-        curve_geom = vis.geometries.get(self.curve)
-        if curve_geom is None:
-            raise ValueError(f"Curve geometry '{self.curve}' not found")
-
-        segments = curve_geom.get_interpolated_points()
-
-        if self.steps > len(segments):
-            raise ValueError(
-                "The number of steps must be less than the number of segments. You can add more points to increase the number of segments."
-            )
-
-        atoms = vis.atoms
-        selection = np.array(vis.selection)
-
-        frames = []
-
-        for idx in range(self.steps):
-            end_idx = int((idx + 1) * (len(segments) - 1) / self.steps)
-            tmp_atoms = atoms.copy()
-            vector = segments[end_idx] - segments[0]
-            positions = tmp_atoms.positions
-            positions[selection] += vector
-            tmp_atoms.positions = positions
-            frames.append(tmp_atoms)
-
-        vis.extend(frames)
-
-
 class Duplicate(UpdateScene):
-    x: float = Field(0.5, le=5, ge=0)
-    y: float = Field(0.5, le=5, ge=0)
-    z: float = Field(0.5, le=5, ge=0)
+    """Duplicate selected atoms with an offset."""
+
+    x: float = Field(0.5, le=5, ge=0, description="X offset")
+    y: float = Field(0.5, le=5, ge=0, description="Y offset")
+    z: float = Field(0.5, le=5, ge=0, description="Z offset")
     symbol: Symbols = Field(Symbols.X, description="Symbol of the new atoms")
 
-    def run(self, vis, **kwargs) -> None:
+    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+        import ase
+        import numpy as np
+
         atoms = vis.atoms
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
@@ -209,9 +74,11 @@ class Duplicate(UpdateScene):
 
 
 class ChangeType(UpdateScene):
-    symbol: Symbols
+    """Change the type of selected atoms."""
 
-    def run(self, vis, **kwargs) -> None:
+    symbol: Symbols = Field(..., description="New symbol for selected atoms")
+
+    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
@@ -227,43 +94,13 @@ class ChangeType(UpdateScene):
         vis.selection = []
 
 
-class AddLineParticles(UpdateScene):
-    symbol: Symbols
-    curve: str = Field(
-        "curve",
-        description="Name of the curve geometry to use",
-        json_schema_extra={
-            "x-custom-type": "dynamic-enum",
-            "x-features": ["dynamic-geometries"],
-            "x-geometry-filter": "Curve",
-        },
-    )
-
-    def run(self, vis, **kwargs) -> None:
-        if len(vis) > vis.step + 1:
-            del vis[vis.step + 1 :]
-
-        atoms = vis.atoms
-        for point in vis.points:
-            atoms += ase.Atom(self.symbol.name, position=point)
-
-        atoms.arrays.pop("colors", None)
-        atoms.arrays.pop("radii", None)
-        atoms.info.pop("connectivity", None)
-
-        vis.append(atoms)
-
-
 class Wrap(UpdateScene):
-    """Wrap the atoms to the cell."""
+    """Wrap atoms to the periodic cell."""
 
-    recompute_bonds: bool = True
-    all: bool = Field(
-        False,
-        description="Apply to the full trajectory",
-    )
+    recompute_bonds: bool = Field(True, description="Recompute bonds after wrapping")
+    all: bool = Field(False, description="Apply to the full trajectory")
 
-    def run(self, vis, **kwargs) -> None:
+    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
         if self.all:
             for idx, atoms in enumerate(vis):
                 atoms.wrap()
@@ -279,23 +116,22 @@ class Wrap(UpdateScene):
 
 
 class Center(UpdateScene):
-    """Move the atoms, such that the selected atom is in the center of the cell."""
+    """Center atoms around the selected atom(s) center of mass."""
 
-    recompute_bonds: bool = True
+    recompute_bonds: bool = Field(True, description="Recompute bonds after centering")
     dynamic: bool = Field(
-        False, description="Move the atoms to the center of the cell at each step"
+        False, description="Recalculate center at each step for trajectories"
     )
-    wrap: bool = Field(True, description="Wrap the atoms to the cell")
-    all: bool = Field(
-        False,
-        description="Apply to the full trajectory",
-    )
+    wrap: bool = Field(True, description="Wrap atoms to the cell after centering")
+    all: bool = Field(False, description="Apply to the full trajectory")
 
-    def run(self, vis, **kwargs) -> None:
+    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+        import numpy as np
+
         selection = vis.selection
         if len(selection) < 1:
             vis.log("Please select at least one atom.")
-            return
+            raise ValueError("No atoms selected for centering.")
 
         if not self.dynamic:
             center = vis.atoms[selection].get_center_of_mass()
@@ -312,7 +148,6 @@ class Center(UpdateScene):
                     atoms.wrap()
                 if self.recompute_bonds:
                     atoms.info.pop("connectivity", None)
-
                 vis[idx] = atoms
         else:
             atoms = vis.atoms
@@ -323,57 +158,44 @@ class Center(UpdateScene):
                 atoms.wrap()
             if self.recompute_bonds:
                 atoms.info.pop("connectivity", None)
-
             vis[vis.step] = atoms
 
 
 class Replicate(UpdateScene):
-    """Replicate the atoms in the cell."""
+    """Replicate the unit cell."""
 
-    x: int = Field(2, ge=1, le=10)
-    y: int = Field(2, ge=1, le=10)
-    z: int = Field(2, ge=1, le=10)
-
+    x: int = Field(2, ge=1, le=10, json_schema_extra={"format": "range"})
+    y: int = Field(2, ge=1, le=10, json_schema_extra={"format": "range"})
+    z: int = Field(2, ge=1, le=10, json_schema_extra={"format": "range"})
     keep_box: bool = Field(False, description="Keep the original box size")
-    all: bool = Field(
-        False,
-        description="Apply to the full trajectory",
-    )
+    all: bool = Field(False, description="Apply to the full trajectory")
 
-    @classmethod
-    def model_json_schema(cls):
-        schema = super().model_json_schema()
-        # make it sliders
-        schema["properties"]["x"]["format"] = "range"
-        schema["properties"]["y"]["format"] = "range"
-        schema["properties"]["z"]["format"] = "range"
-        # and checkboxes
-        schema["properties"]["keep_box"]["format"] = "checkbox"
-        schema["properties"]["all"]["format"] = "checkbox"
-        return schema
-
-    def run(self, vis: "ZnDraw", **kwargs) -> None:
+    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
         if self.all:
             for idx, atoms in enumerate(vis):
+                original_cell = atoms.cell.copy()
                 atoms = atoms.repeat((self.x, self.y, self.z))
                 if self.keep_box:
-                    atoms.cell = vis[idx].cell
+                    atoms.cell = original_cell
                 vis[idx] = atoms
         else:
             atoms = vis.atoms
+            original_cell = atoms.cell.copy()
             atoms = atoms.repeat((self.x, self.y, self.z))
             if self.keep_box:
-                atoms.cell = vis.atoms.cell
+                atoms.cell = original_cell
             vis[vis.step] = atoms
 
 
 class NewCanvas(UpdateScene):
-    """Clear the scene, deleting all atoms and points."""
+    """Clear the scene and start fresh."""
 
-    def run(self, vis, **kwargs) -> None:
+    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+        import ase
+
         from zndraw.geometries import Curve, Plane
 
-        # Clear points by setting curve geometry to empty position list
+        # Clear drawing curve
         vis.geometries["curve"] = Curve(position=[])
         vis.append(ase.Atoms())
         vis.selection = []
@@ -389,54 +211,32 @@ class NewCanvas(UpdateScene):
 
 
 class RemoveAtoms(UpdateScene):
-    """Remove the current scene."""
+    """Remove the current frame from the trajectory."""
 
-    def run(self, vis, **kwargs) -> None:
+    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
         del vis[vis.step]
 
 
-class FixAtoms(UpdateScene):
-    """Fix the selected atoms."""
-
-    def run(self, vis, **kwargs) -> None:
-        selection = vis.selection
-        atoms = vis.atoms
-        if len(selection) == 0:
-            atoms.set_constraint()
-        else:
-            constraint = ase.constraints.FixAtoms(indices=selection)
-            atoms.set_constraint(constraint)
-        vis.atoms = atoms
-
-
 class Empty(UpdateScene):
-    """An empty modifier that does nothing."""
+    """Add an empty frame (no atoms)."""
 
-    def run(self, vis, **kwargs) -> None:
+    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+        import ase
+
         vis.append(ase.Atoms())
 
 
-modifiers: dict[str, t.Type[UpdateScene]] = {
+# Registry of all modifier extensions
+modifiers: dict[str, type[Extension]] = {
     Delete.__name__: Delete,
-    Rotate.__name__: Rotate,
-    Translate.__name__: Translate,
     Duplicate.__name__: Duplicate,
     ChangeType.__name__: ChangeType,
-    AddLineParticles.__name__: AddLineParticles,
     Wrap.__name__: Wrap,
     Center.__name__: Center,
     Replicate.__name__: Replicate,
-    Connect.__name__: Connect,
     NewCanvas.__name__: NewCanvas,
     RemoveAtoms.__name__: RemoveAtoms,
-    FixAtoms.__name__: FixAtoms,
     Empty.__name__: Empty,
 }
 
-# Optional extensions requiring molify
-try:
-    from zndraw.extensions.molecule_building import molify_modifiers
-
-    modifiers.update(molify_modifiers)
-except ImportError:
-    pass
+modifiers.update(molify_modifiers)

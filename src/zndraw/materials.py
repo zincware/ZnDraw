@@ -33,7 +33,6 @@ class BaseMaterial(BaseModel, ABC):
         str
             Three.js material type (e.g., 'meshStandardMaterial')
         """
-        pass
 
 
 class MeshBasicMaterial(BaseMaterial):

@@ -1,3 +1,8 @@
+"""Selection extensions for choosing atoms in the scene.
+
+These extensions modify which atoms are selected in the 3D view.
+"""
+
 import random
 import typing as t
 
@@ -8,52 +13,62 @@ from zndraw.extensions.abc import Category, Extension
 
 
 class Selection(Extension):
-    """The base class for all selection extensions."""
+    """Base class for all selection extensions."""
 
     category: t.ClassVar[Category] = Category.SELECTION
 
 
 class NoneSelection(Selection):
-    def run(self, vis) -> None:
+    """Clear all selected atoms."""
+
+    def run(self, vis: t.Any) -> None:
         vis.selection = []
 
 
 class All(Selection):
     """Select all atoms."""
 
-    def run(self, vis) -> None:
+    def run(self, vis: t.Any) -> None:
         atoms = vis[vis.step]
         vis.selection = list(range(len(atoms)))
 
 
 class Invert(Selection):
-    def run(self, vis) -> None:
+    """Invert the current selection."""
+
+    def run(self, vis: t.Any) -> None:
         atoms = vis[vis.step]
         selected_ids = vis.selection
         vis.selection = list(set(range(len(atoms))) - set(selected_ids))
 
 
 class Range(Selection):
+    """Select atoms in a range by index."""
+
     start: int = Field(0, description="Start index")
     end: int = Field(5, description="End index")
     step: int = Field(1, description="Step size")
 
-    def run(self, vis) -> None:
+    def run(self, vis: t.Any) -> None:
         vis.selection = list(range(self.start, self.end, self.step))
 
 
 class Random(Selection):
+    """Select a random subset of atoms."""
+
     count: int = Field(..., description="Number of atoms to select")
     seed: int = Field(42, description="Random seed for reproducibility")
 
-    def run(self, vis) -> None:
+    def run(self, vis: t.Any) -> None:
         atoms = vis[vis.step]
         random.seed(self.seed)
         vis.selection = random.sample(range(len(atoms)), self.count)
 
 
 class IdenticalSpecies(Selection):
-    def run(self, vis) -> None:
+    """Select all atoms of the same species as currently selected."""
+
+    def run(self, vis: t.Any) -> None:
         atoms = vis[vis.step]
         selected_ids = vis.selection
         selected_ids = set(selected_ids)
@@ -66,7 +81,9 @@ class IdenticalSpecies(Selection):
 
 
 class ConnectedParticles(Selection):
-    def run(self, vis) -> None:
+    """Select all particles connected to the current selection."""
+
+    def run(self, vis: t.Any) -> None:
         atoms = vis.atoms
         selected_ids = vis.selection
         total_ids = []
@@ -77,7 +94,7 @@ class ConnectedParticles(Selection):
                 node_a, node_b, weight = edge
                 graph.add_edge(node_a, node_b, weight=weight)
         except (AttributeError, KeyError):
-            return selected_ids
+            return
 
         for node_id in selected_ids:
             total_ids += list(nx.node_connected_component(graph, node_id))
@@ -90,7 +107,7 @@ class Neighbour(Selection):
 
     order: int = Field(1, description="Order of neighbour")
 
-    def run(self, vis) -> None:
+    def run(self, vis: t.Any) -> None:
         total_ids = []
         atoms = vis[vis.step]
         selected_ids = vis.selection
@@ -100,7 +117,7 @@ class Neighbour(Selection):
             for u, v, weight in connectivity:
                 graph.add_edge(u, v, weight=weight)
         except (AttributeError, KeyError):
-            return selected_ids
+            return
 
         for node_id in selected_ids:
             total_ids += list(
@@ -111,13 +128,14 @@ class Neighbour(Selection):
 
 
 class UpdateSelection(Selection):
-    """Reload Selection."""
+    """Reload the current selection (trigger update)."""
 
-    def run(self, vis) -> None:
+    def run(self, vis: t.Any) -> None:
         vis.selection = vis.selection
 
 
-selections: dict[str, t.Type[Selection]] = {
+# Registry of all selection extensions
+selections: dict[str, type[Selection]] = {
     ConnectedParticles.__name__: ConnectedParticles,
     NoneSelection.__name__: NoneSelection,
     All.__name__: All,

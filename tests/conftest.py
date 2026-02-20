@@ -1,560 +1,451 @@
-import shutil
-import signal
+"""Test fixtures for async database sessions and integration testing."""
+
+import os
 import socket
-import subprocess
+import threading
 import time
-import typing as t
-import uuid
+from collections.abc import AsyncIterator, Callable, Generator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from typing import Any
 
-import ase.collections
-import ase.io
-import eventlet  # noqa - eventlet must be installed for flask-socketio to start a production server
+import httpx
+import msgpack
 import pytest
-import redis
-import requests
-import socketio
-import znh5md
+import pytest_asyncio
+import uvicorn
+from fastapi_users.password import PasswordHelper
+from httpx import ASGITransport, AsyncClient
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
+from sqlmodel import SQLModel
+from zndraw_auth import User
+from zndraw_auth.settings import AuthSettings
 
-from zndraw.start_celery import run_celery_worker
+from zndraw.config import Settings
+from zndraw.models import Room
+from zndraw.storage.base import RawFrame
+
+_password_helper = PasswordHelper()
+
+
+def make_raw_frame(data: dict) -> RawFrame:
+    """Convert a simple dict to RawFrame format for test assertions.
+
+    The storage converts input dicts to raw bytes format.
+    This helper creates the expected output for simple test dicts.
+    """
+    result: RawFrame = {}
+    for k, v in data.items():
+        key: bytes = k.encode() if isinstance(k, str) else k
+        packed = msgpack.packb(v)
+        val: bytes = packed if packed is not None else b""
+        result[key] = val
+    return result
+
+
+def create_test_user_model(
+    email: str = "testuser@local.test",
+    password: str = "testpassword",
+    is_superuser: bool = False,
+) -> User:
+    """Create a User model instance with hashed password for tests."""
+    return User(
+        email=email,
+        hashed_password=_password_helper.hash(password),
+        is_active=True,
+        is_superuser=is_superuser,
+        is_verified=True,
+    )
+
+
+def create_test_token(user: User) -> str:
+    """Create a JWT token for a test user."""
+    from fastapi_users.jwt import generate_jwt
+
+    settings = AuthSettings()
+    data = {"sub": str(user.id), "aud": "fastapi-users:auth"}
+    return generate_jwt(
+        data,
+        settings.secret_key.get_secret_value(),
+        settings.token_lifetime_seconds,
+    )
+
+
+def decode_msgpack_response(content: bytes) -> list[dict[bytes, bytes]]:
+    """Decode a MessagePack response body to a list of raw frames."""
+    return msgpack.unpackb(content, raw=True)
+
+
+async def create_test_user_in_db(
+    session: AsyncSession, email: str = "testuser@local.test"
+) -> tuple[User, str]:
+    """Create a user in the DB and return (user, token)."""
+    user = create_test_user_model(email=email)
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user, create_test_token(user)
+
+
+async def create_test_room(
+    session: AsyncSession, user: User, description: str = "Test Room"
+) -> Room:
+    """Create a room with user as owner and return it."""
+    from zndraw.models import MemberRole, RoomMembership
+
+    room = Room(
+        description=description,
+        created_by_id=user.id,  # type: ignore[arg-type]
+        is_public=True,
+    )
+    session.add(room)
+    await session.commit()
+    await session.refresh(room)
+
+    membership = RoomMembership(
+        room_id=room.id,  # type: ignore[arg-type]
+        user_id=user.id,  # type: ignore[arg-type]
+        role=MemberRole.OWNER,
+    )
+    session.add(membership)
+    await session.commit()
+    return room
+
+
+def auth_header(token: str) -> dict[str, str]:
+    """Return Authorization header dict."""
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(autouse=True)
+def test_settings() -> Generator[None, None, None]:
+    """Configure test settings for each test.
+
+    Sets test environment variables so that Settings() created anywhere
+    (lifespan, CLI, etc.) picks up test values.
+    Note: REDIS_URL is not set - the lifespan will auto-start TcpFakeServer.
+    """
+    # Database (in-memory for tests)
+    os.environ["ZNDRAW_DATABASE_URL"] = "sqlite+aiosqlite://"
+    # Don't set REDIS_URL - lifespan will auto-start TcpFakeServer
+    os.environ.pop("ZNDRAW_REDIS_URL", None)
+    # Remove host/port so Settings() reads its own defaults
+    os.environ.pop("ZNDRAW_HOST", None)
+    os.environ.pop("ZNDRAW_PORT", None)
+
+    return
+
+
+def get_free_port() -> int:
+    """Find a free port on localhost."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+# =============================================================================
+# REST API Test Fixtures (async sessions)
+# =============================================================================
+
+
+@pytest_asyncio.fixture(name="session")
+async def session_fixture() -> AsyncIterator[AsyncSession]:
+    """Create a fresh in-memory async database session for each test."""
+    engine = create_async_engine(
+        "sqlite+aiosqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.create_all)
+
+        async_session_factory = async_sessionmaker(
+            bind=engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
+
+        async with async_session_factory() as session:
+            yield session
+    finally:
+        await engine.dispose()
+
+
+class MockSioServer:
+    """Mock Socket.IO server for testing broadcasts.
+
+    Compatible with zndraw-socketio's AsyncServerWrapper emit pattern:
+    - sio.emit(PydanticModel(), room=...) - model as first arg
+    - sio.emit("event", data, room=...) - classic pattern
+    """
+
+    def __init__(self) -> None:
+        self.emitted: list[dict[str, Any]] = []
+        self.rooms: dict[str, set[str]] = {}
+        self.sessions: dict[str, dict[str, Any]] = {}
+
+    async def emit(
+        self,
+        event_or_model: str | BaseModel,
+        data: Any = None,
+        *,
+        room: str | None = None,
+        skip_sid: str | None = None,
+        to: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        if isinstance(event_or_model, BaseModel):
+            # zndraw-socketio pattern: model class name -> snake_case event
+            cls_name = type(event_or_model).__name__
+            event = "".join(
+                f"_{c.lower()}" if c.isupper() else c for c in cls_name
+            ).lstrip("_")
+            data = event_or_model.model_dump()
+        else:
+            event = event_or_model
+        self.emitted.append({"event": event, "data": data, "room": room, "to": to})
+
+    async def enter_room(self, sid: str, room: str) -> None:
+        if room not in self.rooms:
+            self.rooms[room] = set()
+        self.rooms[room].add(sid)
+
+    async def get_session(self, sid: str) -> dict[str, Any]:
+        return self.sessions.get(sid, {})
+
+    async def save_session(self, sid: str, session: dict[str, Any]) -> None:
+        self.sessions[sid] = session
+
+
+@pytest_asyncio.fixture(name="client")
+async def client_fixture(session: AsyncSession) -> AsyncIterator[AsyncClient]:
+    """Create an async test client with the session dependency overridden."""
+    from zndraw_auth import get_session
+
+    from zndraw.app import app
+    from zndraw.dependencies import get_redis, get_tsio
+
+    mock_sio = MockSioServer()
+
+    async def get_session_override() -> AsyncIterator[AsyncSession]:
+        yield session
+
+    def get_sio_override() -> MockSioServer:
+        return mock_sio
+
+    # Create test session_maker for Socket.IO handlers
+    @asynccontextmanager
+    async def test_session_maker():
+        yield session
+
+    app.dependency_overrides[get_session] = get_session_override
+    app.dependency_overrides[get_redis] = lambda: (
+        None
+    )  # tests that need redis override this
+    app.dependency_overrides[get_tsio] = get_sio_override
+    app.state.session_maker = test_session_maker
+    app.state.settings = Settings()
+    app.state.auth_settings = AuthSettings()
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        yield client
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(name="test_user")
+async def test_user_fixture(session: AsyncSession) -> User:
+    """Create a test user in the database."""
+    user = create_test_user_model()
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+
+# =============================================================================
+# Redis Test Fixtures
+# =============================================================================
+
+
+@pytest_asyncio.fixture(name="redis_client")
+async def redis_client_fixture():
+    """Create a Redis client for testing.
+
+    Connects to localhost Redis and flushes the database before/after each test.
+    """
+    from redis.asyncio import Redis
+
+    redis: Redis = Redis.from_url("redis://localhost", decode_responses=True)
+    await redis.flushdb()
+    yield redis
+    await redis.flushdb()
+    await redis.aclose()
+
+
+# =============================================================================
+# Socket.IO Integration Test Fixtures (Factory Pattern)
+# =============================================================================
 
 
 @dataclass
-class RoomConnection:
-    """Active connection to a room with authentication.
+class ServerInstance:
+    """Holds a running server instance for cleanup."""
 
-    Attributes
-    ----------
-    sio
-        The connected socket.io client.
-    headers
-        HTTP headers with Authorization and X-Session-ID for REST calls.
-    room_id
-        The room identifier.
-    session_id
-        The session identifier assigned by the server.
+    url: str
+    server: uvicorn.Server
+    thread: threading.Thread
+    env_overrides: dict[str, str]
+
+
+# Type alias for server factory
+ServerFactory = Callable[[dict[str, str]], ServerInstance]
+
+
+@pytest.fixture(name="server_factory")
+def server_factory_fixture() -> Generator[ServerFactory, None, None]:
+    """Factory fixture that creates servers with custom settings.
+
+    Usage:
+        def test_something(server_factory):
+            server = server_factory({"ZNDRAW_PRESENCE_TTL": "2"})
+            # server.url contains the server URL
+
+    The factory handles cleanup of all created servers automatically.
     """
-
-    sio: socketio.Client
-    headers: dict
-    room_id: str
-    session_id: str
-
-
-def _get_free_port() -> int:
-    """Get a free port using socket binding.
-
-    This is safer than random port selection as it guarantees the port
-    is actually available at the time of binding.
-    """
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("", 0))
-        return sock.getsockname()[1]
-
-
-def _wait_for_server(port: int, timeout: float = 10.0) -> bool:
-    """Wait for server to be ready on the given port.
-
-    Parameters
-    ----------
-    port
-        The port to check for server availability.
-    timeout
-        Maximum time to wait in seconds.
-
-    Returns
-    -------
-    bool
-        True if server is ready, False if timeout reached.
-    """
-    start = time.time()
-    while time.time() - start < timeout:
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.settimeout(0.1)
-                sock.connect(("127.0.0.1", port))
-                return True
-        except (ConnectionRefusedError, OSError):
-            time.sleep(0.1)
-    return False
-
-
-def _get_jwt_auth_headers(server_url: str, user_name: str | None = None) -> dict:
-    """Register user and get JWT authentication headers for API requests.
-
-    Follows the proper auth flow: register first, then login.
-
-    Args:
-        server_url: The base URL of the server (e.g., "http://127.0.0.1:5000")
-        user_name: Optional username. If not provided, generates a random one.
-
-    Returns:
-        Dictionary with Authorization header containing JWT token
-    """
-    import requests
-
-    if user_name is None:
-        user_name = f"test-user-{uuid.uuid4().hex[:8]}"
-
-    # Step 1: Register user (creates in backend)
-    register_response = requests.post(
-        f"{server_url}/api/user/register", json={"userName": user_name}, timeout=10
-    )
-    # 409 = already exists, which is fine (allows reusing usernames in tests)
-    if register_response.status_code not in (200, 201, 409):
-        raise RuntimeError(f"Registration failed: {register_response.text}")
-
-    # Step 2: Login (get JWT)
-    response = requests.post(
-        f"{server_url}/api/login", json={"userName": user_name}, timeout=10
-    )
-
-    if response.status_code != 200:
-        raise RuntimeError(f"Login failed: {response.text}")
-
-    data = response.json()
-    return {"Authorization": f"Bearer {data['token']}"}
-
-
-def _create_room_via_rest(
-    server: str, room_id: str, auth_headers: dict, template: str = "none"
-) -> None:
-    """Create a room via REST API.
-
-    Parameters
-    ----------
-    server
-        The base URL of the server.
-    room_id
-        The room ID to create.
-    auth_headers
-        Headers dict containing Authorization header.
-    template
-        Template name. Defaults to "none" for 0 frames (test isolation).
-        Use "empty" for 1 frame with empty ase.Atoms.
-
-    Raises
-    ------
-    RuntimeError
-        If room creation fails (except 409 Conflict which is ignored).
-    """
-    payload = {"roomId": room_id, "template": template}
-
-    response = requests.post(
-        f"{server}/api/rooms",
-        json=payload,
-        headers=auth_headers,
-        timeout=10,
-    )
-    if response.status_code not in (200, 201, 409):
-        raise RuntimeError(f"Failed to create room {room_id}: {response.text}")
-
-
-def _create_and_join_room(server: str, room: str, auth_headers: dict) -> str:
-    """Create a room and join it via socket, returning session_id.
-
-    Creates the room via REST API first (ensures 0 frames), then joins via socket.
-    This prevents frontend auto-creation which would apply the "empty" template.
-
-    Parameters
-    ----------
-    server
-        The base URL of the server.
-    room
-        The room ID to create and join.
-    auth_headers
-        Headers dict containing Authorization header.
-
-    Returns
-    -------
-    str
-        The session_id from the room:join response.
-    """
-    import socketio
-
-    jwt_token = auth_headers["Authorization"].replace("Bearer ", "")
-
-    _create_room_via_rest(server, room, auth_headers)
-
-    sio = socketio.Client()
-    sio.connect(server, auth={"token": jwt_token}, wait=True)
-
-    try:
-        response = sio.call("room:join", {"roomId": room, "clientType": "frontend"})
-
-        if response.get("status") != "ok":
-            raise RuntimeError(f"Failed to join room {room}: {response.get('message')}")
-
-        return response["sessionId"]
-    finally:
-        sio.disconnect()
-
-
-def _join_room_and_get_headers(
-    server: str, room_id: str, user: str = "test-user"
-) -> dict:
-    """Join a room and return auth headers with session ID."""
-    auth_headers = _get_jwt_auth_headers(server, user)
-    session_id = _create_and_join_room(server, room_id, auth_headers)
-    return {**auth_headers, "X-Session-ID": session_id}
-
-
-def _create_room_connection(
-    server: str, room_id: str, user: str = "test-user"
-) -> RoomConnection:
-    """Create a room connection that stays connected.
-
-    Creates the room via REST API first (ensures 0 frames), then joins via socket.
-    This prevents frontend auto-creation which would apply the "empty" template.
-    The caller is responsible for disconnecting the socket.
-
-    Parameters
-    ----------
-    server
-        The base URL of the server.
-    room_id
-        The room identifier.
-    user
-        Username for authentication.
-
-    Returns
-    -------
-    RoomConnection
-        Active connection with socket, headers, and session info.
-    """
-    auth_headers = _get_jwt_auth_headers(server, user)
-    jwt_token = auth_headers["Authorization"].replace("Bearer ", "")
-
-    _create_room_via_rest(server, room_id, auth_headers)
-
-    sio = socketio.Client()
-    sio.connect(server, auth={"token": jwt_token}, wait=True)
-
-    response = sio.call("room:join", {"roomId": room_id, "clientType": "frontend"})
-
-    if response.get("status") != "ok":
-        sio.disconnect()
-        raise RuntimeError(f"Failed to join room {room_id}: {response.get('message')}")
-
-    session_id = response["sessionId"]
-    headers = {**auth_headers, "X-Session-ID": session_id}
-
-    return RoomConnection(
-        sio=sio,
-        headers=headers,
-        room_id=room_id,
-        session_id=session_id,
-    )
-
-
-@pytest.fixture
-def get_free_port():
-    """Fixture that provides the get_free_port function."""
-    return _get_free_port
-
-
-@pytest.fixture
-def wait_for_server():
-    """Fixture that provides the wait_for_server function."""
-    return _wait_for_server
-
-
-@pytest.fixture
-def get_jwt_auth_headers():
-    """Fixture that provides the get_jwt_auth_headers function."""
-    return _get_jwt_auth_headers
-
-
-@pytest.fixture
-def create_and_join_room():
-    """Fixture that provides the create_and_join_room function."""
-    return _create_and_join_room
-
-
-@pytest.fixture
-def join_room_and_get_headers():
-    """Fixture that provides the join_room_and_get_headers function."""
-    return _join_room_and_get_headers
-
-
-@pytest.fixture
-def connect_room(server):
-    """Factory for room connections with automatic cleanup.
-
-    Creates room connections that stay alive for the test duration.
-    All connections are automatically disconnected after the test.
-
-    Usage
-    -----
-    def test_something(connect_room):
-        conn = connect_room("my-room")
-        # conn.headers, conn.sio, conn.room_id, conn.session_id available
-        # No cleanup needed - fixture handles it
-    """
-    connections: list[RoomConnection] = []
-
-    def create(room_id: str, user: str = "test-user") -> RoomConnection:
-        conn = _create_room_connection(server, room_id, user)
-        connections.append(conn)
-        return conn
-
-    yield create
-
-    # Automatic cleanup after test
-    for conn in connections:
-        if conn.sio.connected:
-            conn.sio.disconnect()
-
-
-@pytest.fixture
-def app():
-    """Create a Flask app for unit testing."""
-    from zndraw.config import ZnDrawConfig
-    from zndraw.server import create_app
-
-    # Create app with in-memory storage for testing
-    config = ZnDrawConfig(redis_url=None)
-    test_app = create_app(config=config)
-    test_app.config["TESTING"] = True
-
-    yield test_app
-
-
-@pytest.fixture
-def redis_client():
-    """Create a Redis client and clean up after test."""
-    client = redis.Redis(host="localhost", port=6379, decode_responses=True)
-    yield client
-    client.flushall()
-
-
-# Test admin credentials (used in admin mode)
-TEST_ADMIN_USERNAME = "test-admin"
-TEST_ADMIN_PASSWORD = "test-admin-password"
-
-
-def _create_server_process(
-    tmp_path, admin_mode: bool = False
-) -> t.Generator[str, None, None]:
-    """Create and manage a zndraw server subprocess.
-
-    Parameters
-    ----------
-    tmp_path
-        Temporary directory for server data and logs.
-    admin_mode
-        If True, start server with admin credentials configured.
-        If False, start in local mode (all users are admin).
-
-    Yields
-    ------
-    str
-        Server URL (e.g., "http://127.0.0.1:5000")
-    """
-    import os
-
-    port = _get_free_port()
-    storage_path = tmp_path / "zndraw-data"
-    redis_url = "redis://localhost:6379"
-
-    # Log files for debugging
-    server_log = tmp_path / "server.log"
-    server_err = tmp_path / "server_err.log"
-
-    # Create environment for subprocess
-    env = os.environ.copy()
-
-    if admin_mode:
-        # Admin mode: set admin credentials
-        env["ZNDRAW_ADMIN_USERNAME"] = TEST_ADMIN_USERNAME
-        env["ZNDRAW_ADMIN_PASSWORD"] = TEST_ADMIN_PASSWORD
-    else:
-        # Local mode: remove any admin credentials
-        env.pop("ZNDRAW_ADMIN_USERNAME", None)
-        env.pop("ZNDRAW_ADMIN_PASSWORD", None)
-
-    # Start zndraw-server subprocess
-    # Using unique port ensures new server starts (no --force-new-server needed)
-    with open(server_log, "w") as stdout_f, open(server_err, "w") as stderr_f:
-        proc = subprocess.Popen(
-            [
-                "zndraw",
-                "--port",
-                str(port),
-                "--no-celery",
-                "--storage-path",
-                str(storage_path),
-                "--redis-url",
-                redis_url,
-                "--no-browser",
-            ],
-            stdout=stdout_f,
-            stderr=stderr_f,
-            env=env,
+    from zndraw.app import socket_app
+
+    created_servers: list[ServerInstance] = []
+    original_env: dict[str, str | None] = {}
+
+    def _create_server(env_overrides: dict[str, str] | None = None) -> ServerInstance:
+        # Always use real Redis for testing (FakeRedis is only for standalone mode)
+        port = get_free_port()
+        host = "127.0.0.1"
+
+        defaults = {
+            "ZNDRAW_REDIS_URL": "redis://localhost",
+            "ZNDRAW_DATABASE_URL": "sqlite+aiosqlite://",
+            "ZNDRAW_HOST": host,
+            "ZNDRAW_PORT": str(port),
+        }
+        defaults.update(env_overrides or {})
+        env_overrides = defaults
+
+        # Store original values and apply overrides
+        for key, value in env_overrides.items():
+            if key not in original_env:
+                original_env[key] = os.environ.get(key)
+            os.environ[key] = value
+        url = f"http://{host}:{port}"
+
+        config = uvicorn.Config(
+            socket_app,
+            host=host,
+            port=port,
+            log_level="error",
         )
+        server = uvicorn.Server(config)
 
-    # Wait for the server to be ready
-    if not _wait_for_server(port):
-        proc.kill()
-        raise TimeoutError("Server did not start in time")
+        thread = threading.Thread(target=server.run)
+        thread.daemon = True
+        thread.start()
 
-    try:
-        yield f"http://127.0.0.1:{port}"
-    finally:
-        proc.send_signal(signal.SIGTERM)
-        try:
-            proc.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            raise RuntimeError("Server did not shut down in time")
-        finally:
-            # Print logs for debugging
-            if server_log.exists():
-                print("\n=== Server stdout ===")
-                print(server_log.read_text())
-            if server_err.exists():
-                print("\n=== Server stderr ===")
-                print(server_err.read_text())
+        # Wait for server to be ready
+        timeout = 5.0
+        start_time = time.time()
+        while True:
+            if time.time() - start_time > timeout:
+                raise RuntimeError("Server timed out waiting for start")
+            try:
+                response = httpx.get(f"{url}/v1/health", timeout=1.0)
+                if response.status_code == 200:
+                    break
+            except httpx.RequestError:
+                time.sleep(0.1)
 
-            # Clean up storage and Redis
-            shutil.rmtree(storage_path, ignore_errors=True)
-            r = redis.Redis.from_url(redis_url, decode_responses=True)
-            r.flushall()
+        instance = ServerInstance(
+            url=url,
+            server=server,
+            thread=thread,
+            env_overrides=env_overrides,
+        )
+        created_servers.append(instance)
+        return instance
 
-            # Clean up server info file
-            from zndraw.server_manager import remove_server_info
+    yield _create_server
 
-            remove_server_info(port)
+    # Cleanup all created servers
+    for instance in created_servers:
+        instance.server.should_exit = True
+        instance.thread.join(timeout=1)
+
+    # Restore original environment
+    for key, original_value in original_env.items():
+        if original_value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = original_value
 
 
-@pytest.fixture
-def server(tmp_path) -> t.Generator[str, None, None]:
-    """Server in LOCAL mode (all users are admin).
+@pytest.fixture(name="server")
+def server_fixture(server_factory: ServerFactory) -> str:
+    """Start a real uvicorn server for Socket.IO integration testing."""
+    instance = server_factory({})
+    return instance.url
 
-    Use this fixture for tests that don't need to differentiate
-    between admin and non-admin users.
+
+@pytest.fixture(name="server_short_ttl")
+def server_short_ttl_fixture(server_factory: ServerFactory) -> str:
+    """Start a server with short presence TTL (2s) for testing expiration."""
+    instance = server_factory({"ZNDRAW_PRESENCE_TTL": "2"})
+    return instance.url
+
+
+@pytest.fixture(name="server_auth")
+def server_auth_fixture(server_factory: ServerFactory) -> str:
+    """Start a server with authentication enabled (production-like roles).
+
+    Sets default admin email to enable production mode:
+    - New users get regular user role
+    - Only the admin user gets superuser
     """
-    yield from _create_server_process(tmp_path, admin_mode=False)
-
-
-@pytest.fixture
-def server_admin_mode(tmp_path) -> t.Generator[str, None, None]:
-    """Server in ADMIN mode (only granted users are admin).
-
-    Use this fixture for tests that need to verify admin vs non-admin behavior.
-    Admin credentials: TEST_ADMIN_USERNAME / TEST_ADMIN_PASSWORD
-
-    In admin mode:
-    - Regular users are NOT admins by default
-    - Only the configured admin user has admin privileges
-    - Users can be granted admin via AdminService.grant_admin()
-    """
-    yield from _create_server_process(tmp_path, admin_mode=True)
-
-
-@pytest.fixture
-def celery_worker():
-    from zndraw.config import ZnDrawConfig
-
-    config = ZnDrawConfig(redis_url="redis://localhost:6379")
-    worker = run_celery_worker(config)
-    try:
-        yield worker
-    finally:
-        worker.terminate()
-        try:
-            worker.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            # Eventlet workers on Python 3.13 may not respond to SIGTERM gracefully
-            # Force kill and continue (test cleanup should still succeed)
-            worker.kill()
-            worker.wait(timeout=5)
-
-
-@pytest.fixture
-def s22() -> list[ase.Atom]:
-    """Return a list of 22 atoms."""
-    return list(ase.collections.s22)
-
-
-@pytest.fixture
-def s22_xyz(s22, tmp_path) -> str:
-    """Return the S22 trajectory as an Atoms object with multiple frames."""
-    traj_path = tmp_path / "s22.xyz"
-    ase.io.write(traj_path, s22)
-    return traj_path.as_posix()
-
-
-@pytest.fixture
-def s22_h5(s22, tmp_path) -> str:
-    """Return the S22 trajectory as an Atoms object with multiple frames."""
-    traj_path = tmp_path / "s22.h5"
-    znh5md.write(traj_path, s22)
-    return traj_path.as_posix()
-
-
-@pytest.fixture
-def s22_db(s22, tmp_path) -> str:
-    """Return the S22 trajectory as an ASE database with multiple structures."""
-    import ase.db
-
-    db_path = tmp_path / "s22.db"
-    db = ase.db.connect(str(db_path))
-
-    # Write all S22 structures to the database
-    for i, atoms in enumerate(s22):
-        db.write(atoms, name=f"s22_{i}", index=i)
-
-    return db_path.as_posix()
-
-
-@pytest.fixture
-def s22_json_db(s22, tmp_path) -> str:
-    """Return the S22 trajectory as a JSON-format ASE database."""
-    import ase.db
-
-    db_path = tmp_path / "s22.json"
-    db = ase.db.connect(str(db_path))
-
-    # Write all S22 structures to the database
-    for i, atoms in enumerate(s22):
-        db.write(atoms, name=f"s22_{i}", index=i)
-
-    return db_path.as_posix()
-
-
-@pytest.fixture
-def joined_room(server, request):
-    """Create a room and return tuple of (server_url, room_name).
-
-    Room name is automatically generated from test function name.
-    If test name is "test_foo_bar", room will be "test-foo-bar".
-
-    Note: SessionId is created via socket room:join when needed.
-    This fixture just ensures the room exists.
-
-    Example:
-        def test_my_feature(joined_room):
-            server, room = joined_room
-            # Room exists, use _join_room_and_get_headers for sessionId
-            headers = _join_room_and_get_headers(server, room)
-    """
-    import requests
-
-    # Generate room name from test function name
-    test_name = request.node.name
-    room = test_name.replace("_", "-")
-
-    # Create the room
-    auth_headers = _get_jwt_auth_headers(server)
-    create_response = requests.post(
-        f"{server}/api/rooms",
-        json={"roomId": room},
-        headers=auth_headers,
-        timeout=10,
+    instance = server_factory(
+        {
+            "ZNDRAW_AUTH_DEFAULT_ADMIN_EMAIL": "admin@local.test",
+            "ZNDRAW_AUTH_DEFAULT_ADMIN_PASSWORD": "adminpassword",
+        }
     )
-    assert create_response.status_code in (200, 201, 409), (
-        f"Failed to create room {room}"
-    )
+    return instance.url
 
-    return server, room
+
+@pytest_asyncio.fixture(name="http_client")
+async def http_client_fixture(server: str) -> AsyncIterator[AsyncClient]:
+    """Provide an async HTTP client for Socket.IO integration tests."""
+    async with AsyncClient(base_url=server) as client:
+        yield client
+
+
+@pytest_asyncio.fixture(name="http_client_auth")
+async def http_client_auth_fixture(
+    server_auth: str,
+) -> AsyncIterator[AsyncClient]:
+    """Provide an async HTTP client for auth-enabled server."""
+    async with AsyncClient(base_url=server_auth) as client:
+        yield client
+
+
+@pytest_asyncio.fixture(name="http_client_short_ttl")
+async def http_client_short_ttl_fixture(
+    server_short_ttl: str,
+) -> AsyncIterator[AsyncClient]:
+    """Provide an async HTTP client for short TTL server."""
+    async with AsyncClient(base_url=server_short_ttl) as client:
+        yield client

@@ -1,5 +1,7 @@
 """Extensions requiring the molify package."""
 
+import typing as t
+
 from pydantic import BaseModel, Field
 
 from zndraw.extensions.abc import Category, Extension
@@ -8,7 +10,7 @@ from zndraw.extensions.abc import Category, Extension
 class AddFromSMILES(Extension):
     """Add a molecule from SMILES notation."""
 
-    category = Category.MODIFIER
+    category: t.ClassVar[Category] = Category.MODIFIER
     smiles: str = Field(
         ...,
         json_schema_extra={
@@ -17,7 +19,7 @@ class AddFromSMILES(Extension):
         },
     )
 
-    def run(self, vis, **kwargs):
+    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
         import molify
 
         atoms = molify.smiles2atoms(self.smiles)
@@ -45,14 +47,14 @@ class MoleculeSpec(BaseModel):
 class PackBox(Extension):
     """Pack molecules into a box at specified density."""
 
-    category = Category.MODIFIER
+    category: t.ClassVar[Category] = Category.MODIFIER
     molecules: list[MoleculeSpec] = Field(
         default=[],
         json_schema_extra={"x-custom-type": "smiles-pack-array"},
     )
     density: float = Field(1.0, ge=0.0)
 
-    def run(self, vis, **kwargs):
+    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
         import molify
 
         conformers = [
@@ -68,7 +70,7 @@ class PackBox(Extension):
         vis.step = len(vis) - 1
         vis.log(
             f"Packed box with {len(self.molecules)} molecule types "
-            f"at density {self.density} kg/m³"
+            f"at density {self.density} kg/m\u00b3"
         )
 
 

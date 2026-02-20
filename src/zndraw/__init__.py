@@ -1,19 +1,12 @@
-"""ZnDraw communication package with physical-to-logical frame mapping."""
+"""ZnDraw - Interactive visualization for atomistic simulations."""
 
-import importlib.metadata
-import logging
+from zndraw.client import ZnDraw
 
-from zndraw.server import create_app
-from zndraw.transformations import InArrayTransform, Transform
-from zndraw.zndraw import ZnDraw
+try:
+    from zndraw._version import __version__, __version_tuple__
+except ImportError:
+    # Fallback for development without build
+    __version__ = "0.0.0-dev"
+    __version_tuple__ = (0, 0, 0, "dev")
 
-__all__ = ["ZnDraw", "create_app", "InArrayTransform", "Transform"]
-
-log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-log.addHandler(handler)
-
-__version__ = importlib.metadata.version("zndraw")
+__all__ = ["ZnDraw", "__version__", "__version_tuple__"]

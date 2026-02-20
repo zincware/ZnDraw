@@ -1,352 +1,154 @@
-"""Tests for ZnDrawConfig configuration module."""
+"""Tests for storage discriminated union configuration."""
 
 import os
-
-import pytest
-from pydantic import ValidationError
+from pathlib import Path
 
 from zndraw.config import (
-    InMemoryStorageConfig,
-    LMDBStorageConfig,
-    MongoDBStorageConfig,
-    ZnDrawConfig,
-    get_config,
-    reload_config,
+    LMDBStorage,
+    MemoryStorage,
+    MongoDBStorage,
+    Settings,
 )
 
 
-@pytest.fixture
-def clean_env():
-    """Save and restore environment variables after test.
-
-    Clears ALL ZNDRAW_* and FLASK_SECRET_KEY env vars at the START of each test
-    to ensure a clean environment, then restores the original state after.
-    """
-    original_env = os.environ.copy()
-
-    # Clear ZNDRAW_* env vars at START of test
-    for key in list(os.environ.keys()):
-        if key.startswith("ZNDRAW_") or key == "FLASK_SECRET_KEY":
-            del os.environ[key]
-
-    # Reset config singleton before test
-    from zndraw import config as config_module
-
-    config_module._config = None
-
-    yield
-
-    # Restore original environment
-    os.environ.clear()
-    os.environ.update(original_env)
-    # Force config reload after each test
-    config_module._config = None
-
-
-def test_config_defaults(clean_env):
-    """Test that config loads with default values when no env vars set."""
-    config = ZnDrawConfig()
-
-    assert config.redis_url is None
-    assert isinstance(config.storage, InMemoryStorageConfig)
-    assert config.storage.type == "memory"
-    assert config.media_path == "./zndraw-media"
-    assert config.server_host == "0.0.0.0"
-    assert config.server_port == 5000
-    assert config.log_level == "WARNING"
-    assert config.flask_secret_key == "dev-secret-key-change-in-production"
-    assert config.admin_username is None
-    assert config.admin_password is None
-    assert config.upload_temp == "/tmp/zndraw_uploads"
-    assert config.max_upload_mb == 500
-    assert config.simgen_enabled is False
-    assert config.file_browser_enabled is False
-
-
-def test_config_lmdb_storage_from_environment(clean_env):
-    """Test that LMDB storage config loads from environment variables."""
-    os.environ["ZNDRAW_STORAGE__TYPE"] = "lmdb"
-    os.environ["ZNDRAW_STORAGE__PATH"] = "/custom/storage"
-    os.environ["ZNDRAW_STORAGE__MAP_SIZE"] = "2147483648"
-
-    config = ZnDrawConfig()
-
-    assert isinstance(config.storage, LMDBStorageConfig)
-    assert config.storage.path == "/custom/storage"
-    assert config.storage.map_size == 2147483648
-
-
-def test_config_mongodb_storage_from_environment(clean_env):
-    """Test that MongoDB storage config loads from environment variables."""
-    os.environ["ZNDRAW_STORAGE__TYPE"] = "mongodb"
-    os.environ["ZNDRAW_STORAGE__URL"] = "mongodb://localhost:27017"
-    os.environ["ZNDRAW_STORAGE__DATABASE"] = "testdb"
-
-    config = ZnDrawConfig()
-
-    assert isinstance(config.storage, MongoDBStorageConfig)
-    assert config.storage.url == "mongodb://localhost:27017"
-    assert config.storage.database == "testdb"
-
-
-def test_config_memory_storage_from_environment(clean_env):
-    """Test that in-memory storage config loads from environment variables."""
-    os.environ["ZNDRAW_STORAGE__TYPE"] = "memory"
-
-    config = ZnDrawConfig()
-
-    assert isinstance(config.storage, InMemoryStorageConfig)
-    assert config.storage.type == "memory"
-
-
-def test_config_loads_from_environment(clean_env):
-    """Test that config loads values from environment variables."""
-    os.environ["ZNDRAW_REDIS_URL"] = "redis://test:6379"
-    os.environ["ZNDRAW_STORAGE__TYPE"] = "lmdb"
-    os.environ["ZNDRAW_STORAGE__PATH"] = "/custom/storage"
-    os.environ["ZNDRAW_MEDIA_PATH"] = "/custom/media"
-    os.environ["ZNDRAW_SERVER_HOST"] = "example.com"
-    os.environ["ZNDRAW_SERVER_PORT"] = "8000"
-    os.environ["ZNDRAW_LOG_LEVEL"] = "DEBUG"
-    os.environ["FLASK_SECRET_KEY"] = "test-secret-key"
-    os.environ["ZNDRAW_SIMGEN_ENABLED"] = "true"
-    os.environ["ZNDRAW_FILE_BROWSER_ENABLED"] = "1"
-
-    config = ZnDrawConfig()
-
-    assert config.redis_url == "redis://test:6379"
-    assert isinstance(config.storage, LMDBStorageConfig)
-    assert config.storage.path == "/custom/storage"
-    assert config.media_path == "/custom/media"
-    assert config.server_host == "example.com"
-    assert config.server_port == 8000
-    assert config.log_level == "DEBUG"
-    assert config.flask_secret_key == "test-secret-key"
-    assert config.simgen_enabled is True
-    assert config.file_browser_enabled is True
-
-
-def test_config_boolean_parsing(clean_env):
-    """Test that boolean environment variables are parsed correctly."""
-    test_cases = [
-        ("true", True),
-        ("TRUE", True),
-        ("1", True),
-        ("false", False),
-        ("FALSE", False),
-        ("0", False),
-    ]
-
-    for value, expected in test_cases:
-        os.environ["ZNDRAW_SIMGEN_ENABLED"] = value
-        config = ZnDrawConfig()
-        assert config.simgen_enabled == expected
-
-
-def test_config_integer_parsing(clean_env):
-    """Test that integer environment variables are parsed correctly."""
-    os.environ["ZNDRAW_SERVER_PORT"] = "3000"
-    os.environ["ZNDRAW_MAX_UPLOAD_MB"] = "1000"
-
-    config = ZnDrawConfig()
-
-    assert config.server_port == 3000
-    assert config.max_upload_mb == 1000
-
-
-def test_config_server_url_auto_generated(clean_env):
-    """Test that server_url is auto-generated from host and port."""
-    os.environ["ZNDRAW_SERVER_HOST"] = "example.com"
-    os.environ["ZNDRAW_SERVER_PORT"] = "8080"
-
-    config = ZnDrawConfig()
-
-    assert config.server_url == "http://example.com:8080"
-
-
-def test_config_server_url_explicit(clean_env):
-    """Test that explicit server_url is used when provided."""
-    os.environ["ZNDRAW_SERVER_URL"] = "https://custom.example.com"
-    os.environ["ZNDRAW_SERVER_HOST"] = "localhost"
-    os.environ["ZNDRAW_SERVER_PORT"] = "5000"
-
-    config = ZnDrawConfig()
-
-    assert config.server_url == "https://custom.example.com"
-
-
-def test_config_server_url_docker_mode(clean_env):
-    """Test that server_url uses localhost when host is 0.0.0.0 (Docker)."""
-    os.environ["ZNDRAW_SERVER_HOST"] = "0.0.0.0"
-    os.environ["ZNDRAW_SERVER_PORT"] = "5000"
-
-    config = ZnDrawConfig()
-
-    assert config.server_url == "http://localhost:5000"
-
-
-def test_config_admin_validation_both_set(clean_env):
-    """Test that admin credentials work when both username and password set."""
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret"
-
-    config = ZnDrawConfig()
-
-    assert config.admin_username == "admin"
-    assert config.admin_password.get_secret_value() == "secret"
-
-
-def test_config_admin_validation_only_username(clean_env):
-    """Test that only setting admin username raises ValueError."""
-    os.environ["ZNDRAW_ADMIN_USERNAME"] = "admin"
-    # Password not set
-
-    with pytest.raises(
-        ValueError,
-        match="admin_username and admin_password must both be set or both be unset",
-    ):
-        ZnDrawConfig()
-
-
-def test_config_admin_validation_only_password(clean_env):
-    """Test that only setting admin password raises ValueError."""
-    os.environ["ZNDRAW_ADMIN_PASSWORD"] = "secret"
-    # Username not set
-
-    with pytest.raises(
-        ValueError,
-        match="admin_username and admin_password must both be set or both be unset",
-    ):
-        ZnDrawConfig()
-
-
-def test_config_port_validation_invalid_low(clean_env):
-    """Test that port number below 1 raises ValueError."""
-    os.environ["ZNDRAW_SERVER_PORT"] = "0"
-
-    with pytest.raises(ValidationError):
-        ZnDrawConfig()
-
-
-def test_config_port_validation_invalid_high(clean_env):
-    """Test that port number above 65535 raises ValueError."""
-    os.environ["ZNDRAW_SERVER_PORT"] = "65536"
-
-    with pytest.raises(ValidationError):
-        ZnDrawConfig()
-
-
-def test_config_upload_size_validation(clean_env):
-    """Test that upload size less than 1MB raises ValueError."""
-    os.environ["ZNDRAW_MAX_UPLOAD_MB"] = "0"
-
-    with pytest.raises(ValidationError):
-        ZnDrawConfig()
-
-
-def test_config_log_level_validation_invalid(clean_env):
-    """Test that invalid log level falls back to WARNING."""
-    os.environ["ZNDRAW_LOG_LEVEL"] = "INVALID"
-
-    config = ZnDrawConfig()
-
-    # Should fall back to WARNING with a warning message
-    assert config.log_level == "WARNING"
-
-
-def test_config_log_level_validation_valid(clean_env):
-    """Test that valid log levels are accepted."""
-    valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-
-    for level in valid_levels:
-        os.environ["ZNDRAW_LOG_LEVEL"] = level
-        config = ZnDrawConfig()
-        assert config.log_level == level
-
-
-def test_get_config_singleton(clean_env):
-    """Test that get_config returns singleton instance."""
-    config1 = get_config()
-    config2 = get_config()
-
-    assert config1 is config2
-
-
-def test_reload_config(clean_env):
-    """Test that reload_config creates a new instance."""
-    os.environ["ZNDRAW_STORAGE__TYPE"] = "lmdb"
-    os.environ["ZNDRAW_STORAGE__PATH"] = "/old/path"
-
-    config1 = get_config()
-    assert isinstance(config1.storage, LMDBStorageConfig)
-    assert config1.storage.path == "/old/path"
-
-    # Change environment
-    os.environ["ZNDRAW_STORAGE__PATH"] = "/new/path"
-
-    # Reload config
-    config2 = reload_config()
-
-    assert isinstance(config2.storage, LMDBStorageConfig)
-    assert config2.storage.path == "/new/path"
-    assert config1 is not config2
-
-
-def test_config_file_browser_root_default(clean_env):
-    """Test that file_browser_root defaults to current working directory."""
-    config = ZnDrawConfig()
-
-    assert config.file_browser_root == os.getcwd()
-
-
-def test_config_file_browser_root_custom(clean_env):
-    """Test that custom file_browser_root is used when set."""
-    os.environ["ZNDRAW_FILE_BROWSER_ROOT"] = "/custom/browser/root"
-
-    config = ZnDrawConfig()
-
-    assert config.file_browser_root == "/custom/browser/root"
-
-
-def test_config_mongodb_masked_url(clean_env):
-    """Test that MongoDB URL with credentials is properly masked for logging."""
-    storage = MongoDBStorageConfig(
-        url="mongodb://user:password123@localhost:27017",
-        database="testdb",
-    )
-
-    masked = storage.get_masked_url()
-    assert "password123" not in masked
-    assert "***" in masked
-    assert "localhost:27017" in masked
-
-
-def test_config_mongodb_url_without_credentials(clean_env):
-    """Test that MongoDB URL without credentials is not modified."""
-    storage = MongoDBStorageConfig(
-        url="mongodb://localhost:27017",
-        database="testdb",
-    )
-
-    masked = storage.get_masked_url()
-    assert masked == "mongodb://localhost:27017"
-
-
-def test_config_storage_discriminated_union(clean_env):
-    """Test that storage config uses proper discriminated union based on type."""
-    # In-memory (default)
-    config_memory = ZnDrawConfig()
-    assert isinstance(config_memory.storage, InMemoryStorageConfig)
-    assert config_memory.storage.type == "memory"
-
-    # LMDB via constructor
-    config_lmdb = ZnDrawConfig(storage=LMDBStorageConfig())
-    assert isinstance(config_lmdb.storage, LMDBStorageConfig)
-    assert config_lmdb.storage.type == "lmdb"
-
-    # MongoDB via constructor
-    config_mongo = ZnDrawConfig(
-        storage=MongoDBStorageConfig(url="mongodb://localhost:27017")
-    )
-    assert isinstance(config_mongo.storage, MongoDBStorageConfig)
-    assert config_mongo.storage.type == "mongodb"
+class TestStorageDiscriminatedUnion:
+    """Test storage configuration discriminated union."""
+
+    def test_default_storage_is_memory(self) -> None:
+        """Default storage should be MemoryStorage."""
+        settings = Settings()
+        assert isinstance(settings.storage, MemoryStorage)
+        assert settings.storage.type == "memory"
+
+    def test_memory_storage_explicit(self) -> None:
+        """MemoryStorage can be explicitly created."""
+        storage = MemoryStorage()
+        assert storage.type == "memory"
+
+    def test_lmdb_storage_default_map_size(self) -> None:
+        """LMDBStorage should have default map_size of 1GB."""
+        storage = LMDBStorage(path=Path("/tmp/lmdb"))
+        assert storage.type == "lmdb"
+        assert storage.path == Path("/tmp/lmdb")
+        assert storage.map_size == 1024 * 1024 * 1024  # 1GB
+
+    def test_lmdb_storage_custom_map_size(self) -> None:
+        """LMDBStorage should accept custom map_size."""
+        storage = LMDBStorage(path=Path("/tmp/lmdb"), map_size=512 * 1024 * 1024)
+        assert storage.map_size == 512 * 1024 * 1024
+
+    def test_mongodb_storage_default_database(self) -> None:
+        """MongoDBStorage should have default database 'zndraw'."""
+        storage = MongoDBStorage(url="mongodb://localhost:27017")
+        assert storage.type == "mongodb"
+        assert storage.url == "mongodb://localhost:27017"
+        assert storage.database == "zndraw"
+
+    def test_mongodb_storage_custom_database(self) -> None:
+        """MongoDBStorage should accept custom database name."""
+        storage = MongoDBStorage(url="mongodb://localhost:27017", database="custom_db")
+        assert storage.database == "custom_db"
+
+
+class TestStorageFromEnvVars:
+    """Test storage configuration from environment variables."""
+
+    def test_lmdb_storage_from_env(self) -> None:
+        """LMDB storage should be configurable via env vars."""
+        os.environ["ZNDRAW_STORAGE__TYPE"] = "lmdb"
+        os.environ["ZNDRAW_STORAGE__PATH"] = "/tmp/test-lmdb"
+        os.environ["ZNDRAW_STORAGE__MAP_SIZE"] = "536870912"  # 512MB
+
+        try:
+            settings = Settings()
+            assert isinstance(settings.storage, LMDBStorage)
+            assert settings.storage.type == "lmdb"
+            assert settings.storage.path == Path("/tmp/test-lmdb")
+            assert settings.storage.map_size == 536870912
+        finally:
+            os.environ.pop("ZNDRAW_STORAGE__TYPE", None)
+            os.environ.pop("ZNDRAW_STORAGE__PATH", None)
+            os.environ.pop("ZNDRAW_STORAGE__MAP_SIZE", None)
+
+    def test_mongodb_storage_from_env(self) -> None:
+        """MongoDB storage should be configurable via env vars."""
+        os.environ["ZNDRAW_STORAGE__TYPE"] = "mongodb"
+        os.environ["ZNDRAW_STORAGE__URL"] = "mongodb://mongo.example.com:27017"
+        os.environ["ZNDRAW_STORAGE__DATABASE"] = "test_db"
+
+        try:
+            settings = Settings()
+            assert isinstance(settings.storage, MongoDBStorage)
+            assert settings.storage.type == "mongodb"
+            assert settings.storage.url == "mongodb://mongo.example.com:27017"
+            assert settings.storage.database == "test_db"
+        finally:
+            os.environ.pop("ZNDRAW_STORAGE__TYPE", None)
+            os.environ.pop("ZNDRAW_STORAGE__URL", None)
+            os.environ.pop("ZNDRAW_STORAGE__DATABASE", None)
+
+
+class TestGuestPassword:
+    """Test guest password configuration."""
+
+    def test_default_guest_password(self) -> None:
+        """Default guest_password should be 'zndraw'."""
+        settings = Settings()
+        assert settings.guest_password.get_secret_value() == "zndraw"
+
+
+class TestMediaAndServerSettings:
+    """Test media path and server configuration."""
+
+    def test_default_media_path(self) -> None:
+        """Default media_path should be 'zndraw-media'."""
+        settings = Settings()
+        assert settings.media_path == Path("zndraw-media")
+
+    def test_media_path_from_env(self) -> None:
+        """media_path should be configurable via env var."""
+        os.environ["ZNDRAW_MEDIA_PATH"] = "/var/data/media"
+
+        try:
+            settings = Settings()
+            assert settings.media_path == Path("/var/data/media")
+        finally:
+            os.environ.pop("ZNDRAW_MEDIA_PATH", None)
+
+    def test_default_host_and_port(self) -> None:
+        """Default host should be '0.0.0.0' and port should be 5000."""
+        settings = Settings()
+        assert settings.host == "0.0.0.0"
+        assert settings.port == 5000
+
+    def test_host_and_port_from_env(self) -> None:
+        """host and port should be configurable via env vars."""
+        os.environ["ZNDRAW_HOST"] = "127.0.0.1"
+        os.environ["ZNDRAW_PORT"] = "8080"
+
+        try:
+            settings = Settings()
+            assert settings.host == "127.0.0.1"
+            assert settings.port == 8080
+        finally:
+            os.environ.pop("ZNDRAW_HOST", None)
+            os.environ.pop("ZNDRAW_PORT", None)
+
+
+class TestSettingsFromEnv:
+    """Test that Settings reads from environment variables."""
+
+    def test_settings_returns_settings(self) -> None:
+        """Settings() should return a Settings instance."""
+        settings = Settings()
+        assert isinstance(settings, Settings)
+
+    def test_settings_picks_up_env_changes(self) -> None:
+        """New Settings() instance should pick up env var changes."""
+        os.environ["ZNDRAW_PORT"] = "9999"
+
+        try:
+            settings = Settings()
+            assert settings.port == 9999
+        finally:
+            os.environ.pop("ZNDRAW_PORT", None)

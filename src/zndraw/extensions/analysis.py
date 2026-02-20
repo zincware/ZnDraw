@@ -1,3 +1,8 @@
+"""Analysis extensions for creating plots and visualizations.
+
+These extensions analyze the atomic trajectory and create interactive plots.
+"""
+
 import typing as t
 
 import numpy as np
@@ -5,30 +10,22 @@ from pydantic import Field
 
 from zndraw.extensions.abc import Category, Extension
 
-if t.TYPE_CHECKING:
-    from zndraw import ZnDraw
-
 
 class Analysis(Extension):
-    """The base class for all analysis extensions."""
+    """Base class for all analysis extensions."""
 
     category: t.ClassVar[Category] = Category.ANALYSIS
 
 
 class Distance(Analysis):
-    """Distance analysis with interactive frame selection.
+    """Calculate distances between 2 selected atoms across all frames.
 
-    Calculates distances between 2 selected atoms across all frames.
     Creates an interactive plot with bidirectional synchronization:
-    - Clicking/selecting points in the plot sets the frame
-    - Frame changes in the 3D view highlight corresponding points in the plot
+    - Clicking points in the plot sets the frame
+    - Frame changes highlight corresponding points
     """
 
-    def run(self, vis: "ZnDraw") -> None:
-        """Create interactive distance plot.
-
-        Requires exactly 2 atoms to be selected in the 3D view.
-        """
+    def run(self, vis: t.Any) -> None:
         import pandas as pd
         import plotly.express as px
 
@@ -49,7 +46,7 @@ class Distance(Analysis):
             df,
             x="step",
             y="distance",
-            labels={"step": "Frame", "distance": "Distance (Å)"},
+            labels={"step": "Frame", "distance": "Distance (Angstrom)"},
             title="Distance Over Time",
         )
 
@@ -90,19 +87,12 @@ class Distance(Analysis):
 
 
 class DihedralAngle(Analysis):
-    """Dihedral angle analysis with interactive frame selection.
+    """Calculate dihedral angles for 4 selected atoms across all frames.
 
-    Calculates dihedral angles for 4 selected atoms across all frames.
-    Creates an interactive plot with bidirectional synchronization:
-    - Clicking/selecting points in the plot sets the frame
-    - Frame changes in the 3D view highlight corresponding points in the plot
+    Creates an interactive plot with bidirectional synchronization.
     """
 
-    def run(self, vis: "ZnDraw") -> None:
-        """Create interactive dihedral angle plot.
-
-        Requires exactly 4 atoms to be selected in the 3D view.
-        """
+    def run(self, vis: t.Any) -> None:
         import pandas as pd
         import plotly.express as px
 
@@ -121,7 +111,6 @@ class DihedralAngle(Analysis):
             {"step": list(range(len(atoms_lst))), "dihedral": dihedral_angles}
         )
 
-        # Create scatter plot with line for visual continuity
         fig = px.scatter(
             df,
             x="step",
@@ -143,10 +132,9 @@ class DihedralAngle(Analysis):
 
         meta_step = np.arange(len(atoms_lst))
 
-        # Set up customdata and interactions schema
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
-            selector=dict(mode="markers"),  # Only update scatter points
+            selector=dict(mode="markers"),
             meta={
                 "interactions": [
                     {
@@ -158,7 +146,6 @@ class DihedralAngle(Analysis):
             },
         )
 
-        # Enable lasso and box selection
         fig.update_layout(
             dragmode="lasso",
             hovermode="closest",
@@ -168,46 +155,30 @@ class DihedralAngle(Analysis):
 
 
 class Properties1D(Analysis):
-    """1D property analysis with interactive frame selection.
+    """Create scatter plot of a 1D property over frames.
 
-    Creates an interactive scatter plot of 1D properties over frames with
-    bidirectional synchronization:
-    - Clicking/selecting points in the plot sets the frame
-    - Frame changes in the 3D view highlight corresponding points in the plot
-
-    Supports lasso and box selection for selecting multiple frames at once.
+    Supports interactive frame selection via plot interactions.
     """
 
-    value: str = Field(..., description="The property value")
+    value: str = Field(
+        ...,
+        description="The property value to plot",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props"],
+        },
+    )
 
-    @classmethod
-    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
-        schema = super().model_json_schema(**kwargs)
-        schema["properties"]["value"]["x-custom-type"] = "dynamic-enum"
-        schema["properties"]["value"]["x-features"] = ["dynamic-atom-props"]
-        schema["properties"]["value"]["type"] = "string"
-        schema["properties"]["value"].pop("anyOf", None)
-        return schema
-
-    def run(self, vis: "ZnDraw") -> None:
-        """Create interactive scatter plot with frame interactions.
-
-        The plot uses:
-        - customdata to store frame indices (step)
-        - meta.interactions schema to enable frame selection/hovering
-        - lasso dragmode for flexible selection
-        """
+    def run(self, vis: t.Any) -> None:
         import pandas as pd
         import plotly.express as px
 
-        properties = vis.get(slice(None, None, None), keys=[self.value])
-        df = pd.DataFrame(properties)
+        frames = vis.get(slice(None), keys=[self.value])
+        values = [frame[self.value] for frame in frames]
+        frame_indices = list(range(len(frames)))
 
-        # Add frame index for x-axis (continuous positioning)
-        frame_indices = np.arange(len(properties))
-        df.insert(0, "frame", frame_indices)
+        df = pd.DataFrame({"frame": frame_indices, self.value: values})
 
-        # Create scatter plot with line connecting points for visual continuity
         fig = px.scatter(
             df,
             x="frame",
@@ -219,23 +190,21 @@ class Properties1D(Analysis):
             title=f"Property: {self.value}",
         )
 
-        # Add line traces for visual continuity (lower opacity)
         fig.add_scatter(
             x=df["frame"],
             y=df[self.value],
             mode="lines",
             name="trend",
-            line=dict(color="rgba(0, 0, 0, 0.1)"),
+            line={"color": "rgba(0, 0, 0, 0.1)"},
             hoverinfo="skip",
             showlegend=False,
         )
 
-        # Set up customdata for interactions (frame indices only)
-        meta_step = np.arange(len(properties))
+        meta_step = np.arange(len(frames))
 
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
-            selector=dict(mode="markers"),  # Only update scatter points, not line
+            selector={"mode": "markers"},
             meta={
                 "interactions": [
                     {
@@ -247,9 +216,8 @@ class Properties1D(Analysis):
             },
         )
 
-        # Enable lasso and box selection
         fig.update_layout(
-            dragmode="lasso",  # Default to lasso, users can toggle to box with toolbar
+            dragmode="lasso",
             hovermode="closest",
         )
 
@@ -257,79 +225,63 @@ class Properties1D(Analysis):
 
 
 class Properties2D(Analysis):
-    """2D property scatter plot with interactive frame selection.
+    """Create 2D scatter plot of two properties with color mapping.
 
-    Creates an interactive scatter plot showing the relationship between two
-    properties across all frames with color-coded data points.
-    Supports bidirectional synchronization with frame selection.
+    Supports interactive frame selection via plot interactions.
     """
 
-    x_data: str = Field(..., description="Property for x-axis")
-    y_data: str = Field(..., description="Property for y-axis")
-    color: str = Field(..., description="Property for color mapping")
+    x_data: str = Field(
+        ...,
+        description="Property for x-axis",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "step"],
+        },
+    )
+    y_data: str = Field(
+        ...,
+        description="Property for y-axis",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "step"],
+        },
+    )
+    color: str = Field(
+        ...,
+        description="Property for color mapping",
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["dynamic-atom-props", "step"],
+        },
+    )
     fix_aspect_ratio: bool = Field(
-        True, description="Fix aspect ratio to 1:1 for equal scaling"
+        True,
+        description="Fix aspect ratio to 1:1 for equal scaling",
+        json_schema_extra={"format": "checkbox"},
     )
 
-    @classmethod
-    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
-        schema = super().model_json_schema(**kwargs)
-        # Mark property fields as dynamic enums
-        for prop in ["x_data", "y_data", "color"]:
-            schema["properties"][prop]["x-custom-type"] = "dynamic-enum"
-            schema["properties"][prop]["x-features"] = ["dynamic-atom-props", "step"]
-            schema["properties"][prop]["type"] = "string"
-            schema["properties"][prop].pop("anyOf", None)
-        # Mark fix_aspect_ratio as checkbox
-        schema["properties"]["fix_aspect_ratio"]["format"] = "checkbox"
-        return schema
-
-    def run(self, vis: "ZnDraw") -> None:
-        """Create interactive 2D property scatter plot.
-
-        Supports special 'step' property to use frame indices.
-        All other properties are retrieved from frame data.
-        """
+    def run(self, vis: t.Any) -> None:
         import pandas as pd
         import plotly.express as px
 
-        # Determine which properties to fetch (exclude 'step')
-        keys_to_fetch = []
-        for prop in [self.x_data, self.y_data, self.color]:
-            if prop != "step" and prop not in keys_to_fetch:
-                keys_to_fetch.append(prop)
+        # Only fetch the keys we actually need (skip "step" — it's computed)
+        fetch_keys = [k for k in {self.x_data, self.y_data, self.color} if k != "step"]
+        frames = vis.get(slice(None), keys=fetch_keys) if fetch_keys else []
+        num_frames = len(frames) if frames else len(vis)
 
-        # Get all frames with required properties
-        if keys_to_fetch:
-            properties = vis.get(slice(None, None, None), keys=keys_to_fetch)
-        else:
-            # All properties are 'step', just need frame count
-            properties = [{} for _ in range(len(vis))]
-
-        num_frames = len(properties)
-
-        # Extract or generate data for each axis
-        def get_property_data(prop_name: str) -> np.ndarray:
+        def get_property_data(prop_name: str) -> list:
             if prop_name == "step":
-                return np.arange(num_frames)
-            else:
-                data = np.array([frame[prop_name] for frame in properties])
-                return data.reshape(-1)
+                return list(range(num_frames))
+            return [frame[prop_name] for frame in frames]
 
-        x_data = get_property_data(self.x_data)
-        y_data = get_property_data(self.y_data)
-        color_data = get_property_data(self.color)
-
-        # Create dataframe for plotting
         df = pd.DataFrame(
             {
-                self.x_data: x_data,
-                self.y_data: y_data,
-                self.color: color_data,
+                self.x_data: get_property_data(self.x_data),
+                self.y_data: get_property_data(self.y_data),
+                self.color: get_property_data(self.color),
             }
         )
 
-        # Create scatter plot with color mapping
         fig = px.scatter(
             df,
             x=self.x_data,
@@ -343,16 +295,14 @@ class Properties2D(Analysis):
             title=f"2D Properties: {self.x_data} vs {self.y_data}",
         )
 
-        # Fix aspect ratio if requested
         if self.fix_aspect_ratio:
             fig.update_yaxes(scaleanchor="x", scaleratio=1)
 
-        # Set up customdata and interactions for frame selection
         meta_step = np.arange(num_frames)
 
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
-            selector=dict(mode="markers"),
+            selector={"mode": "markers"},
             meta={
                 "interactions": [
                     {
@@ -364,7 +314,6 @@ class Properties2D(Analysis):
             },
         )
 
-        # Enable lasso and box selection
         fig.update_layout(
             dragmode="lasso",
             hovermode="closest",
@@ -373,115 +322,10 @@ class Properties2D(Analysis):
         vis.figures["Properties2D"] = fig
 
 
-class ForceCorrelation(Analysis):
-    """Analyze correlation between two properties for the current frame.
-
-    Creates an interactive scatter plot showing the correlation between two
-    properties (e.g., force magnitudes) across particles in the current frame.
-    Clicking/selecting particles in the plot highlights them in the 3D view.
-    """
-
-    x_data: str = Field(..., description="Property for x-axis")
-    y_data: str = Field(..., description="Property for y-axis")
-
-    @classmethod
-    def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
-        schema = super().model_json_schema(**kwargs)
-        # Mark these as dynamic enums for the UI to populate dynamically
-        for prop in ["x_data", "y_data"]:
-            schema["properties"][prop]["x-custom-type"] = "dynamic-enum"
-            schema["properties"][prop]["x-features"] = ["dynamic-atom-props"]
-            schema["properties"][prop]["type"] = "string"
-            schema["properties"][prop].pop("anyOf", None)
-        return schema
-
-    def run(self, vis: "ZnDraw") -> None:
-        """Create interactive correlation plot for the current frame.
-
-        Maps particle indices to the 'particles' geometry for interactive
-        particle selection in the 3D view.
-        """
-        import pandas as pd
-        import plotly.express as px
-
-        step = vis.step
-
-        # Get property data for current frame only
-        frame_slice = slice(step, step + 1)
-        frame_list = vis.get(frame_slice, keys=[self.x_data, self.y_data])
-
-        if not frame_list:
-            raise ValueError("No data available for current frame")
-
-        # Extract values from the single frame dict
-        frame_data = frame_list[0]
-        if self.x_data not in frame_data or self.y_data not in frame_data:
-            raise ValueError(
-                f"Properties '{self.x_data}' or '{self.y_data}' not found in frame data"
-            )
-
-        x_values = frame_data[self.x_data]
-        y_values = frame_data[self.y_data]
-
-        # Normalize to get magnitudes if vectors
-        if x_values.ndim > 1:
-            x_values = np.linalg.norm(x_values, axis=-1)
-        if y_values.ndim > 1:
-            y_values = np.linalg.norm(y_values, axis=-1)
-
-        x_values = x_values.reshape(-1)
-        y_values = y_values.reshape(-1)
-
-        # Create dataframe for plotting
-        df = pd.DataFrame(
-            {
-                self.x_data: x_values,
-                self.y_data: y_values,
-            }
-        )
-
-        # Create scatter plot
-        fig = px.scatter(
-            df,
-            x=self.x_data,
-            y=self.y_data,
-            labels={
-                self.x_data: self.x_data,
-                self.y_data: self.y_data,
-            },
-            title=f"Correlation: {self.x_data} vs {self.y_data} (Step {step})",
-            render_mode="svg",
-        )
-
-        # Set up interactions: customdata is particle indices, mapped to "particles" geometry
-        particle_indices = np.arange(len(x_values))
-
-        fig.update_traces(
-            customdata=particle_indices,
-            selector=dict(mode="markers"),
-            meta={
-                "interactions": [
-                    {
-                        "click": "particles",
-                        "select": "particles",
-                    }
-                ]
-            },
-        )
-
-        # Enable lasso and box selection for flexible particle selection
-        fig.update_layout(
-            dragmode="lasso",
-            hovermode="closest",
-        )
-
-        vis.figures[f"ForceCorrelation-{step}"] = fig
-
-
-analysis: dict[str, t.Type[Analysis]] = {
+# Registry of all analysis extensions
+analysis: dict[str, type[Analysis]] = {
     "Distance": Distance,
     "DihedralAngle": DihedralAngle,
     "Properties1D": Properties1D,
     "Properties2D": Properties2D,
-    "ForceCorrelation": ForceCorrelation,
 }
