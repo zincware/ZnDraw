@@ -30,6 +30,7 @@ from zndraw.routes.figures import router as figures_router
 from zndraw.routes.frames import router as frames_router
 from zndraw.routes.geometries import router as geometries_router
 from zndraw.routes.problems import router as problems_router
+from zndraw.routes.progress import router as progress_router
 from zndraw.routes.rooms import router as rooms_router
 from zndraw.routes.screenshots import router as screenshots_router
 from zndraw.routes.selection_groups import router as selection_groups_router
@@ -76,6 +77,7 @@ app.include_router(frames_router)
 app.include_router(geometries_router)
 app.include_router(edit_lock_router)
 app.include_router(problems_router)
+app.include_router(progress_router)
 app.include_router(server_settings_router)
 app.include_router(rooms_router)
 app.include_router(screenshots_router)
