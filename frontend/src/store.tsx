@@ -14,13 +14,15 @@ import { createUISlice } from "./stores/slices/uiSlice";
 export { getActiveCurves, selectPreferredCurve } from "./stores/slices/sceneSlice";
 
 /**
- * Progress tracking state
+ * Progress tracking state — mirrors server ProgressResponse (snake_case).
  */
 export interface Progress {
-	progressId: string;
-	roomId: string;
+	progress_id: string;
 	description: string;
-	progress: number | null;
+	n: number;
+	total: number | null;
+	elapsed: number;
+	unit: string;
 }
 
 /**

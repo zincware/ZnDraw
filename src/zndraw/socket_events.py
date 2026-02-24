@@ -232,6 +232,7 @@ class ProgressStart(BaseModel):
 
     progress_id: str
     description: str
+    unit: str = "it"
 
 
 class ProgressUpdate(BaseModel):
@@ -239,7 +240,10 @@ class ProgressUpdate(BaseModel):
 
     progress_id: str
     description: str | None = None
-    progress: float | None = None
+    n: int | None = None
+    total: int | None = None
+    elapsed: float | None = None
+    unit: str | None = None
 
 
 class ProgressComplete(BaseModel):

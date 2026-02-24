@@ -48,19 +48,25 @@ class ZnDrawTqdm(std_tqdm):  # type: ignore[type-arg]
         super().__init__(*args, **kwargs)
         self._vis_api = vis.api
         self._progress_id = str(uuid4())
-        self._vis_api.progress_start(self._progress_id, description)
+        self._vis_api.progress_start(
+            self._progress_id, description, unit=kwargs.get("unit", "it")
+        )
 
     def display(self, *args: Any, **kwargs: Any) -> None:
         """Suppress terminal output (headless mode)."""
 
-    def update(self, n: int = 1) -> bool | None:
+    def update(self, n: float | None = 1) -> bool | None:
         """Advance the progress bar and send a throttled REST update."""
         displayed = super().update(n)
         if displayed:
             d = self.format_dict
-            total = d.get("total")
-            progress = (d["n"] / total * 100) if total else None
-            self._vis_api.progress_update(self._progress_id, progress=progress)
+            self._vis_api.progress_update(
+                self._progress_id,
+                n=d["n"],
+                total=d.get("total"),
+                elapsed=d["elapsed"],
+                unit=d.get("unit", "it"),
+            )
         return displayed
 
     def close(self) -> None:

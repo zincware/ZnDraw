@@ -10,7 +10,43 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { LAYOUT_CONSTANTS } from "../constants/layout";
+import type { Progress } from "../store";
 import { useAppStore } from "../store";
+
+/**
+ * Format seconds as MM:SS (matching tqdm elapsed display).
+ */
+function formatElapsed(seconds: number): string {
+	const m = Math.floor(seconds / 60);
+	const s = Math.floor(seconds % 60);
+	return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+/**
+ * Format rate with appropriate precision.
+ */
+function formatRate(rate: number): string {
+	if (rate >= 100) return rate.toFixed(0);
+	if (rate >= 10) return rate.toFixed(1);
+	return rate.toFixed(2);
+}
+
+/**
+ * Build a tqdm-like status string from tracker fields.
+ *
+ * Known total:   42/100 frames [00:05, 8.40 frames/s]
+ * Unknown total: 42 it [00:05, 8.40 it/s]
+ */
+function formatStatus(tracker: Progress): string {
+	const { n, total, elapsed, unit } = tracker;
+	const rate = elapsed > 0 ? n / elapsed : 0;
+	const ratePart = elapsed > 0 ? `, ${formatRate(rate)} ${unit}/s` : "";
+
+	if (total !== null) {
+		return `${n}/${total} ${unit} [${formatElapsed(elapsed)}${ratePart}]`;
+	}
+	return `${n} ${unit} [${formatElapsed(elapsed)}${ratePart}]`;
+}
 
 export default function ProgressNotifications() {
 	const progressTrackers = useAppStore((state) => state.progressTrackers);
@@ -18,9 +54,8 @@ export default function ProgressNotifications() {
 		new Set(),
 	);
 
-	// Filter out hidden progress trackers
 	const progressList = Object.values(progressTrackers).filter(
-		(tracker) => !hiddenProgressIds.has(tracker.progressId),
+		(tracker) => !hiddenProgressIds.has(tracker.progress_id),
 	);
 
 	const handleHideProgress = (progressId: string) => {
@@ -44,70 +79,78 @@ export default function ProgressNotifications() {
 				maxWidth: 400,
 			}}
 		>
-			{progressList.map((tracker) => (
-				<Fade key={tracker.progressId} in={true}>
-					<Paper
-						elevation={8}
-						sx={{
-							p: 2,
-							display: "flex",
-							flexDirection: "column",
-							gap: 1.5,
-							minWidth: 320,
-							position: "relative",
-						}}
-					>
-						{/* Close button */}
-						<IconButton
-							size="small"
-							onClick={() => handleHideProgress(tracker.progressId)}
+			{progressList.map((tracker) => {
+				const hasDeterminate = tracker.total !== null && tracker.total > 0;
+				const percent = hasDeterminate
+					? (tracker.n / tracker.total!) * 100
+					: undefined;
+
+				return (
+					<Fade key={tracker.progress_id} in={true}>
+						<Paper
+							elevation={8}
 							sx={{
-								position: "absolute",
-								top: 8,
-								right: 8,
-								opacity: 0.6,
-								"&:hover": {
-									opacity: 1,
-								},
+								p: 2,
+								display: "flex",
+								flexDirection: "column",
+								gap: 1.5,
+								minWidth: 320,
+								position: "relative",
 							}}
 						>
-							<CloseIcon fontSize="small" />
-						</IconButton>
+							<IconButton
+								size="small"
+								onClick={() => handleHideProgress(tracker.progress_id)}
+								sx={{
+									position: "absolute",
+									top: 8,
+									right: 8,
+									opacity: 0.6,
+									"&:hover": { opacity: 1 },
+								}}
+							>
+								<CloseIcon fontSize="small" />
+							</IconButton>
 
-						{/* Progress description */}
-						<Box sx={{ pr: 4 }}>
-							<Typography variant="body1" fontWeight={600}>
-								{tracker.description}
-							</Typography>
-						</Box>
+							<Box sx={{ pr: 4 }}>
+								<Typography variant="body1" fontWeight={600}>
+									{tracker.description}
+								</Typography>
+							</Box>
 
-						{/* Progress indicator */}
-						{tracker.progress !== null ? (
-							<Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-								<LinearProgress
-									variant="determinate"
-									value={tracker.progress}
-									sx={{ height: 6, borderRadius: 3 }}
-								/>
-								<Typography
-									variant="caption"
-									color="text.secondary"
-									textAlign="right"
+							{hasDeterminate ? (
+								<Box
+									sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}
 								>
-									{Math.round(tracker.progress)}%
-								</Typography>
-							</Box>
-						) : (
-							<Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-								<CircularProgress size={24} />
-								<Typography variant="caption" color="text.secondary">
-									In progress...
-								</Typography>
-							</Box>
-						)}
-					</Paper>
-				</Fade>
-			))}
+									<LinearProgress
+										variant="determinate"
+										value={percent}
+										sx={{ height: 6, borderRadius: 3 }}
+									/>
+									<Typography
+										variant="caption"
+										color="text.secondary"
+										fontFamily="monospace"
+									>
+										{formatStatus(tracker)}
+									</Typography>
+								</Box>
+							) : (
+								<Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+									<CircularProgress size={24} />
+									<Typography
+										variant="caption"
+										color="text.secondary"
+										fontFamily="monospace"
+									>
+										{formatStatus(tracker)}
+									</Typography>
+								</Box>
+							)}
+						</Paper>
+					</Fade>
+				);
+			})}
 		</Box>
 	);
 }

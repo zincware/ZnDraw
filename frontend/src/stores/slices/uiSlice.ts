@@ -28,17 +28,8 @@ export interface UISlice {
 	) => void;
 	hideSnackbar: () => void;
 	setProgressTrackers: (trackers: Record<string, Progress>) => void;
-	addProgressTracker: (
-		progressId: string,
-		description: string,
-		progress: number | null,
-		roomId: string,
-	) => void;
-	updateProgressTracker: (
-		progressId: string,
-		description?: string,
-		progress?: number | null,
-	) => void;
+	addProgressTracker: (tracker: Progress) => void;
+	updateProgressTracker: (update: Partial<Progress> & { progress_id: string }) => void;
 	removeProgressTracker: (progressId: string) => void;
 	toggleInfoBoxes: () => void;
 	setHoveredFrame: (frame: number | null) => void;
@@ -93,26 +84,22 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (
 
 	setProgressTrackers: (progressTrackers) => set({ progressTrackers }),
 
-	addProgressTracker: (progressId, description, progress, roomId) =>
+	addProgressTracker: (tracker) =>
 		set((state) => ({
 			progressTrackers: {
 				...state.progressTrackers,
-				[progressId]: { progressId, roomId, description, progress },
+				[tracker.progress_id]: tracker,
 			},
 		})),
 
-	updateProgressTracker: (progressId, description, progress) =>
+	updateProgressTracker: (update) =>
 		set((state) => {
-			const tracker = state.progressTrackers[progressId];
+			const tracker = state.progressTrackers[update.progress_id];
 			if (!tracker) return {};
 			return {
 				progressTrackers: {
 					...state.progressTrackers,
-					[progressId]: {
-						...tracker,
-						...(description !== undefined && { description }),
-						...(progress !== undefined && { progress }),
-					},
+					[update.progress_id]: { ...tracker, ...update },
 				},
 			};
 		}),

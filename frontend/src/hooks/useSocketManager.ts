@@ -739,18 +739,22 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		}
 
 		function onProgressStarted(data: any) {
-			const { progress_id, description } = data;
-			addProgressTracker(progress_id, description, null, roomId);
+			addProgressTracker({
+				progress_id: data.progress_id,
+				description: data.description,
+				n: 0,
+				total: null,
+				elapsed: 0,
+				unit: data.unit ?? "it",
+			});
 		}
 
 		function onProgressUpdate(data: any) {
-			const { progress_id, description, progress } = data;
-			updateProgressTracker(progress_id, description, progress);
+			updateProgressTracker(data);
 		}
 
 		function onProgressComplete(data: any) {
-			const { progress_id } = data;
-			removeProgressTracker(progress_id);
+			removeProgressTracker(data.progress_id);
 		}
 
 		async function onConnectError(err: Error) {

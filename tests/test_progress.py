@@ -82,6 +82,7 @@ async def mock_redis_fixture() -> AsyncMock:
     redis.hget = AsyncMock(side_effect=hget)
     redis.hdel = AsyncMock(side_effect=hdel)
     redis.hgetall = AsyncMock(side_effect=hgetall)
+    redis.expire = AsyncMock(return_value=True)
     return redis
 
 
@@ -144,7 +145,10 @@ async def test_create_progress(
     data = response.json()
     assert data["progress_id"] == "task-1"
     assert data["description"] == "Loading data"
-    assert data["progress"] is None
+    assert data["n"] == 0
+    assert data["total"] is None
+    assert data["elapsed"] == 0.0
+    assert data["unit"] == "it"
 
     # Verify socket broadcast
     assert len(mock_sio.emitted) == 1
@@ -157,6 +161,35 @@ async def test_create_progress(
     stored_data = json.loads(stored)
     assert stored_data["progress_id"] == "task-1"
     assert stored_data["description"] == "Loading data"
+
+    # Verify TTL was set
+    mock_redis.expire.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_create_progress_with_unit(
+    progress_client: AsyncClient,
+    progress_session: AsyncSession,
+    mock_sio: MockSioServer,
+) -> None:
+    """POST with custom unit returns it in the response."""
+    user, token = await create_test_user_in_db(progress_session)
+    room = await create_test_room(progress_session, user)
+
+    response = await progress_client.post(
+        f"/v1/rooms/{room.id}/progress",
+        json={
+            "progress_id": "task-1",
+            "description": "Uploading",
+            "unit": "frames",
+        },
+        headers=auth_header(token),
+    )
+    assert response.status_code == 201
+    assert response.json()["unit"] == "frames"
+
+    # Verify broadcast includes unit
+    assert mock_sio.emitted[0]["data"]["unit"] == "frames"
 
 
 @pytest.mark.asyncio
@@ -187,7 +220,7 @@ async def test_update_progress(
     mock_sio: MockSioServer,
     mock_redis: AsyncMock,
 ) -> None:
-    """PATCH updates progress value, returns 200, emits progress_update."""
+    """PATCH updates tqdm fields, returns 200, emits progress_update."""
     user, token = await create_test_user_in_db(progress_session)
     room = await create_test_room(progress_session, user)
 
@@ -199,20 +232,24 @@ async def test_update_progress(
     )
     mock_sio.emitted.clear()
 
-    # Update it
+    # Update with tqdm-like fields
     response = await progress_client.patch(
         f"/v1/rooms/{room.id}/progress/task-1",
-        json={"progress": 0.5},
+        json={"n": 42, "total": 100, "elapsed": 5.3, "unit": "frames"},
         headers=auth_header(token),
     )
     assert response.status_code == 200
     data = response.json()
     assert data["progress_id"] == "task-1"
-    assert data["progress"] == 0.5
+    assert data["n"] == 42
+    assert data["total"] == 100
+    assert data["elapsed"] == 5.3
+    assert data["unit"] == "frames"
 
     # Verify socket broadcast
     update_events = [e for e in mock_sio.emitted if e["event"] == "progress_update"]
     assert len(update_events) == 1
+    assert update_events[0]["data"]["n"] == 42
 
 
 @pytest.mark.asyncio
@@ -226,7 +263,7 @@ async def test_update_progress_not_found(
 
     response = await progress_client.patch(
         f"/v1/rooms/{room.id}/progress/nonexistent",
-        json={"progress": 0.5},
+        json={"n": 10},
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -240,7 +277,7 @@ async def test_update_progress_description(
     mock_sio: MockSioServer,
     mock_redis: AsyncMock,
 ) -> None:
-    """PATCH can update both description and progress."""
+    """PATCH can update description alongside tqdm fields."""
     user, token = await create_test_user_in_db(progress_session)
     room = await create_test_room(progress_session, user)
 
@@ -252,16 +289,23 @@ async def test_update_progress_description(
     )
     mock_sio.emitted.clear()
 
-    # Update both description and progress
+    # Update both description and tqdm fields
     response = await progress_client.patch(
         f"/v1/rooms/{room.id}/progress/task-1",
-        json={"description": "Processing step 2", "progress": 0.75},
+        json={
+            "description": "Processing step 2",
+            "n": 75,
+            "total": 100,
+            "elapsed": 8.1,
+        },
         headers=auth_header(token),
     )
     assert response.status_code == 200
     data = response.json()
     assert data["description"] == "Processing step 2"
-    assert data["progress"] == 0.75
+    assert data["n"] == 75
+    assert data["total"] == 100
+    assert data["elapsed"] == 8.1
 
     # Verify socket broadcast
     update_events = [e for e in mock_sio.emitted if e["event"] == "progress_update"]

@@ -516,13 +516,17 @@ class ProgressCreate(BaseModel):
 
     progress_id: str
     description: str
+    unit: str = "it"
 
 
 class ProgressPatch(BaseModel):
     """Request to update an existing progress tracker."""
 
     description: str | None = None
-    progress: float | None = None
+    n: int | None = None
+    total: int | None = None
+    elapsed: float | None = None
+    unit: str | None = None
 
 
 class ProgressResponse(BaseModel):
@@ -530,4 +534,7 @@ class ProgressResponse(BaseModel):
 
     progress_id: str
     description: str
-    progress: float | None = None
+    n: int = 0
+    total: int | None = None
+    elapsed: float = 0.0
+    unit: str = "it"

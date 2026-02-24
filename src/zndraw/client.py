@@ -872,11 +872,17 @@ class APIManager:
     # Progress Operations
     # -------------------------------------------------------------------------
 
-    def progress_start(self, progress_id: str, description: str) -> dict[str, Any]:
+    def progress_start(
+        self, progress_id: str, description: str, unit: str = "it"
+    ) -> dict[str, Any]:
         """Create a new progress tracker in the room."""
         response = self.http.post(
             f"/v1/rooms/{self.room_id}/progress",
-            json={"progress_id": progress_id, "description": description},
+            json={
+                "progress_id": progress_id,
+                "description": description,
+                "unit": unit,
+            },
             headers=self._headers(),
         )
         self.raise_for_status(response)
@@ -886,14 +892,23 @@ class APIManager:
         self,
         progress_id: str,
         description: str | None = None,
-        progress: float | None = None,
+        n: int | None = None,
+        total: int | None = None,
+        elapsed: float | None = None,
+        unit: str | None = None,
     ) -> dict[str, Any]:
         """Update an existing progress tracker."""
         payload: dict[str, Any] = {}
         if description is not None:
             payload["description"] = description
-        if progress is not None:
-            payload["progress"] = progress
+        if n is not None:
+            payload["n"] = n
+        if total is not None:
+            payload["total"] = total
+        if elapsed is not None:
+            payload["elapsed"] = elapsed
+        if unit is not None:
+            payload["unit"] = unit
         response = self.http.patch(
             f"/v1/rooms/{self.room_id}/progress/{progress_id}",
             json=payload,
