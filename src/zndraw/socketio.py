@@ -27,6 +27,7 @@ from zndraw.exceptions import (
 from zndraw.geometries.camera import Camera
 from zndraw.models import Room, RoomMembership
 from zndraw.redis import RedisKey
+from zndraw.schemas import ProgressResponse
 from zndraw.socket_events import (
     FramesInvalidate,
     GeometryInvalidate,
@@ -317,6 +318,13 @@ async def room_join(
 
     frame_count = await storage.get_length(data.room_id)
 
+    # Load active progress trackers from Redis
+    progress_raw = await redis.hgetall(RedisKey.room_progress(data.room_id))  # type: ignore[misc]
+    progress_trackers = {
+        pid: ProgressResponse(**json.loads(pdata))
+        for pid, pdata in progress_raw.items()
+    }
+
     return RoomJoinResponse(
         room_id=data.room_id,
         session_id=sid,
@@ -324,6 +332,7 @@ async def room_join(
         frame_count=frame_count,
         locked=room_locked,
         camera_key=camera_key,
+        progress_trackers=progress_trackers,
     )
 
 
