@@ -926,7 +926,6 @@ class APIManager:
         self.raise_for_status(response)
         return response.json()
 
-
     # -------------------------------------------------------------------------
     # Progress Operations
     # -------------------------------------------------------------------------
@@ -968,6 +967,7 @@ class APIManager:
             headers=self._headers(),
         )
         self.raise_for_status(response)
+
 
 # =============================================================================
 # SocketManager - WebSocket Real-time Sync

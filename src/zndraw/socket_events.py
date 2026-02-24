@@ -227,7 +227,6 @@ class Typing(BaseModel):
     is_typing: bool
 
 
-
 class ProgressStart(BaseModel):
     """Broadcast when a new progress tracker is created."""
 

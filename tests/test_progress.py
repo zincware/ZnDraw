@@ -6,7 +6,12 @@ from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
-from conftest import MockSioServer, auth_header, create_test_room, create_test_user_in_db
+from conftest import (
+    MockSioServer,
+    auth_header,
+    create_test_room,
+    create_test_user_in_db,
+)
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -295,9 +300,7 @@ async def test_delete_progress(
     assert response.status_code == 204
 
     # Verify socket broadcast
-    complete_events = [
-        e for e in mock_sio.emitted if e["event"] == "progress_complete"
-    ]
+    complete_events = [e for e in mock_sio.emitted if e["event"] == "progress_complete"]
     assert len(complete_events) == 1
 
     # Verify removed from Redis

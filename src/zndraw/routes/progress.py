@@ -83,9 +83,7 @@ async def update_progress(
 
     raw = await redis.hget(RedisKey.room_progress(room_id), progress_id)  # type: ignore[misc]
     if raw is None:
-        raise ProgressNotFound.exception(
-            f"Progress tracker {progress_id} not found"
-        )
+        raise ProgressNotFound.exception(f"Progress tracker {progress_id} not found")
 
     current = json.loads(raw)
     if request.description is not None:
@@ -129,9 +127,7 @@ async def delete_progress(
 
     deleted = await redis.hdel(RedisKey.room_progress(room_id), progress_id)  # type: ignore[misc]
     if not deleted:
-        raise ProgressNotFound.exception(
-            f"Progress tracker {progress_id} not found"
-        )
+        raise ProgressNotFound.exception(f"Progress tracker {progress_id} not found")
 
     await sio.emit(
         ProgressComplete(progress_id=progress_id),
