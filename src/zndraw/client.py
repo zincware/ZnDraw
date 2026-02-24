@@ -927,6 +927,48 @@ class APIManager:
         return response.json()
 
 
+    # -------------------------------------------------------------------------
+    # Progress Operations
+    # -------------------------------------------------------------------------
+
+    def progress_start(self, progress_id: str, description: str) -> dict[str, Any]:
+        """Create a new progress tracker in the room."""
+        response = self.http.post(
+            f"/v1/rooms/{self.room_id}/progress",
+            json={"progress_id": progress_id, "description": description},
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()
+
+    def progress_update(
+        self,
+        progress_id: str,
+        description: str | None = None,
+        progress: float | None = None,
+    ) -> dict[str, Any]:
+        """Update an existing progress tracker."""
+        payload: dict[str, Any] = {}
+        if description is not None:
+            payload["description"] = description
+        if progress is not None:
+            payload["progress"] = progress
+        response = self.http.patch(
+            f"/v1/rooms/{self.room_id}/progress/{progress_id}",
+            json=payload,
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()
+
+    def progress_complete(self, progress_id: str) -> None:
+        """Complete and remove a progress tracker."""
+        response = self.http.delete(
+            f"/v1/rooms/{self.room_id}/progress/{progress_id}",
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+
 # =============================================================================
 # SocketManager - WebSocket Real-time Sync
 # =============================================================================
