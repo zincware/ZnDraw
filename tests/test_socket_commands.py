@@ -101,6 +101,7 @@ def test_room_join_response_serialization() -> None:
         "frame_count": 10,
         "locked": True,
         "camera_key": "cam:user@test.com:a1b2c3d4",
+        "progress_trackers": {},
     }
 
 

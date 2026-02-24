@@ -31,13 +31,6 @@ import numpy as np
 import socketio
 from asebytes import decode, encode
 from pydantic import SecretStr
-from rich.progress import (
-    BarColumn,
-    Progress,
-    SpinnerColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
 from zndraw_joblib.client import ClaimedTask, Extension as JoblibExtension, JobManager
 from zndraw_joblib.exceptions import ProviderTimeoutError
 from zndraw_socketio import SyncClientWrapper, wrap
@@ -147,57 +140,6 @@ def _estimate_frame_size(frame: dict[str, Any]) -> int:
     is only used for chunking heuristics, not exact measurement.
     """
     return sum(len(v) for v in frame.values() if isinstance(v, str))
-
-
-def _start_upload_progress(
-    total_frames: int | None, bytes_so_far: int
-) -> tuple[Progress, Any]:
-    """Create and start a Rich progress bar for chunked uploads."""
-    columns: list[Any] = [
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TextColumn("{task.fields[mb_done]:.1f} MB"),
-        TextColumn("|"),
-    ]
-    if total_frames is not None:
-        columns.append(
-            TextColumn("{task.fields[frames_done]}/{task.fields[frames_total]} frames")
-        )
-    else:
-        columns.append(TextColumn("{task.fields[frames_done]} frames"))
-    columns.append(TimeElapsedColumn())
-
-    progress = Progress(*columns, transient=False)
-    progress.start()
-    task_id = progress.add_task(
-        "Uploading",
-        total=total_frames,
-        mb_done=bytes_so_far / 1_048_576,
-        frames_done=0,
-        frames_total=total_frames or 0,
-    )
-    return progress, task_id
-
-
-def _update_upload_progress(
-    progress: Progress | None,
-    task_id: Any,
-    bytes_done: int,
-    frames_done: int,
-    total_frames: int | None,
-) -> None:
-    """Update the progress bar after a chunk upload."""
-    if progress is None:
-        return
-    kwargs: dict[str, Any] = {
-        "mb_done": bytes_done / 1_048_576,
-        "frames_done": frames_done,
-    }
-    if total_frames is not None:
-        kwargs["completed"] = frames_done
-        kwargs["total"] = total_frames
-    progress.update(task_id, **kwargs)
 
 
 # =============================================================================
@@ -1927,9 +1869,12 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         """Extend with multiple ase.Atoms frames.
 
         Streams frames in size-targeted chunks (~2 MB, max 1000 frames each).
-        Shows a Rich progress bar when multiple chunks are produced. Accepts
-        any iterable including generators.
+        Shows a tqdm progress bar in the terminal and broadcasts progress to
+        the ZnDraw UI via ``ZnDrawTqdm``. Accepts any iterable including
+        generators.
         """
+        from zndraw.tqdm import ZnDrawTqdm
+
         try:
             total_frames: int | None = len(values)  # type: ignore[arg-type]
         except TypeError:
@@ -1937,28 +1882,14 @@ class ZnDraw(MutableSequence[ase.Atoms]):
 
         chunk: list[dict[str, Any]] = []
         chunk_size = 0
-        bytes_done = 0
-        frames_done = 0
         result: dict[str, Any] = {}
-        progress_ctx: Progress | None = None
-        task_id = None
 
-        def _flush() -> dict[str, Any]:
-            nonlocal chunk, chunk_size, bytes_done, frames_done
-            nonlocal progress_ctx, task_id
-            if progress_ctx is None:
-                progress_ctx, task_id = _start_upload_progress(
-                    total_frames, bytes_done + chunk_size
-                )
-            r = self.api.append_frames(chunk)
-            bytes_done += chunk_size
-            frames_done += len(chunk)
-            _update_upload_progress(
-                progress_ctx, task_id, bytes_done, frames_done, total_frames
-            )
-            chunk = []
-            chunk_size = 0
-            return r
+        progress = ZnDrawTqdm(
+            total=total_frames,
+            vis=self,
+            description="Uploading frames",
+            unit="frames",
+        )
 
         try:
             for atoms in values:
@@ -1971,7 +1902,10 @@ class ZnDraw(MutableSequence[ase.Atoms]):
                     chunk_size + frame_size > _TARGET_CHUNK_BYTES
                     or len(chunk) >= _MAX_CHUNK_FRAMES
                 ):
-                    result = _flush()
+                    result = self.api.append_frames(chunk)
+                    progress.update(len(chunk))
+                    chunk = []
+                    chunk_size = 0
 
                 chunk.append(frame)
                 chunk_size += frame_size
@@ -1979,19 +1913,9 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             # Flush remaining frames
             if chunk:
                 result = self.api.append_frames(chunk)
-                bytes_done += chunk_size
-                frames_done += len(chunk)
-                if progress_ctx is not None:
-                    _update_upload_progress(
-                        progress_ctx,
-                        task_id,
-                        bytes_done,
-                        frames_done,
-                        total_frames,
-                    )
+                progress.update(len(chunk))
         finally:
-            if progress_ctx is not None:
-                progress_ctx.stop()
+            progress.close()
 
         if result:
             self._cached_length = result.get("total")
