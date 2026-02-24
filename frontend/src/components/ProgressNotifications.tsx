@@ -14,15 +14,13 @@ import { useAppStore } from "../store";
 
 export default function ProgressNotifications() {
 	const progressTrackers = useAppStore((state) => state.progressTrackers);
-	const roomId = useAppStore((state) => state.roomId);
 	const [hiddenProgressIds, setHiddenProgressIds] = useState<Set<string>>(
 		new Set(),
 	);
 
-	// Filter out hidden progress trackers and trackers from other rooms
+	// Filter out hidden progress trackers
 	const progressList = Object.values(progressTrackers).filter(
-		(tracker) =>
-			!hiddenProgressIds.has(tracker.progressId) && tracker.roomId === roomId,
+		(tracker) => !hiddenProgressIds.has(tracker.progressId),
 	);
 
 	const handleHideProgress = (progressId: string) => {

@@ -193,6 +193,11 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 						console.debug("[RoomJoin] locked:", response.locked);
 						setSuperuserLock(response.locked ?? false);
 
+						// Set progress trackers from join response
+						if (response.progress_trackers) {
+							setProgressTrackers(response.progress_trackers);
+						}
+
 						// === CRITICAL: Fetch render-blocking data via REST ===
 						// Both calls run in parallel - we need both to render the scene
 						try {
@@ -733,26 +738,19 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			}
 		}
 
-		function onProgressInitial(data: any) {
-			const { progressTrackers } = data;
-			if (progressTrackers) {
-				setProgressTrackers(progressTrackers);
-			}
-		}
-
 		function onProgressStarted(data: any) {
-			const { progressId, roomId, description } = data;
-			addProgressTracker(progressId, description, null, roomId);
+			const { progress_id, description } = data;
+			addProgressTracker(progress_id, description, null, roomId);
 		}
 
 		function onProgressUpdate(data: any) {
-			const { progressId, description, progress } = data;
-			updateProgressTracker(progressId, description, progress);
+			const { progress_id, description, progress } = data;
+			updateProgressTracker(progress_id, description, progress);
 		}
 
 		function onProgressComplete(data: any) {
-			const { progressId } = data;
-			removeProgressTracker(progressId);
+			const { progress_id } = data;
+			removeProgressTracker(progress_id);
 		}
 
 		async function onConnectError(err: Error) {
@@ -799,7 +797,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		socket.on("room_update", onRoomUpdate);
 		socket.on("room_delete", onRoomDelete);
 		socket.on("lock_update", onLockUpdate);
-		socket.on("progress_init", onProgressInitial);
 		socket.on("progress_start", onProgressStarted);
 		socket.on("progress_update", onProgressUpdate);
 		socket.on("progress_complete", onProgressComplete);
@@ -888,7 +885,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			socket.off("room_update", onRoomUpdate);
 			socket.off("room_delete", onRoomDelete);
 			socket.off("lock_update", onLockUpdate);
-			socket.off("progress_init", onProgressInitial);
 			socket.off("progress_start", onProgressStarted);
 			socket.off("progress_update", onProgressUpdate);
 			socket.off("progress_complete", onProgressComplete);
