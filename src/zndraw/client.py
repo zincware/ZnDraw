@@ -12,23 +12,33 @@ ZnDraw implementation. It includes:
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import logging
 import threading
 import uuid
-from collections.abc import Iterable, Iterator, Mapping, MutableMapping, MutableSequence
+from collections.abc import (
+    Generator,
+    Iterable,
+    Iterator,
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+)
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast, overload
 
 if TYPE_CHECKING:
     from zndraw.providers.frame_source import FrameSource
+    from zndraw.tqdm import ZnDrawTqdm
 
 import ase
 import httpx
 import msgpack
 import numpy as np
 import socketio
+import typing_extensions
 from asebytes import decode, encode
 from pydantic import SecretStr
 from zndraw_joblib.client import ClaimedTask, Extension as JoblibExtension, JobManager
@@ -1879,6 +1889,50 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             raise TypeError("Value must be an ase.Atoms object")
         result = self.api.append_frames([atoms_to_json_dict(value)])
         self._cached_length = result.get("total")
+
+    @contextlib.contextmanager
+    @typing_extensions.deprecated(
+        "Use ZnDrawTqdm directly: "
+        "for x in ZnDrawTqdm(items, vis=vis, description='...', unit='it'): ..."
+    )
+    def progress_bar(
+        self,
+        iterable: Iterable[Any] | None = None,
+        *,
+        total: int | None = None,
+        description: str = "Processing...",
+        unit: str = "it",
+    ) -> Generator[ZnDrawTqdm, None, None]:
+        """Context manager yielding a ZnDrawTqdm progress bar.
+
+        .. deprecated::
+            Use :class:`ZnDrawTqdm` directly instead.
+
+        Parameters
+        ----------
+        iterable : Iterable[Any] | None
+            Optional iterable to wrap.
+        total : int | None
+            Total expected iterations.
+        description : str
+            Label shown in the UI.
+        unit : str
+            Unit label (e.g. ``"frames"``).
+
+        Yields
+        ------
+        ZnDrawTqdm
+            A tqdm-compatible progress bar.
+        """
+        from zndraw.tqdm import ZnDrawTqdm
+
+        pbar = ZnDrawTqdm(
+            iterable, total=total, vis=self, description=description, unit=unit
+        )
+        try:
+            yield pbar
+        finally:
+            pbar.close()
 
     def extend(self, values: Iterable[ase.Atoms]) -> None:
         """Extend with multiple ase.Atoms frames.
