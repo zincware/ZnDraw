@@ -11,7 +11,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from zndraw.schemas import RoomResponse
+from zndraw.schemas import ProgressResponse, RoomResponse
 
 # =============================================================================
 # Request Models (client -> server)
@@ -67,6 +67,7 @@ class RoomJoinResponse(BaseModel):
     frame_count: int
     locked: bool
     camera_key: str | None = None
+    progress_trackers: dict[str, ProgressResponse] = {}
 
 
 class RoomLeaveResponse(BaseModel):
@@ -224,3 +225,25 @@ class Typing(BaseModel):
     user_id: UUID
     email: str | None = None
     is_typing: bool
+
+
+
+class ProgressStart(BaseModel):
+    """Broadcast when a new progress tracker is created."""
+
+    progress_id: str
+    description: str
+
+
+class ProgressUpdate(BaseModel):
+    """Broadcast when a progress tracker is updated."""
+
+    progress_id: str
+    description: str | None = None
+    progress: float | None = None
+
+
+class ProgressComplete(BaseModel):
+    """Broadcast when a progress tracker finishes."""
+
+    progress_id: str

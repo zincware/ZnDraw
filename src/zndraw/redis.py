@@ -117,3 +117,15 @@ class RedisKey:
     def provider_inflight(full_name: str, rhash: str) -> str:
         """Inflight lock key preventing duplicate provider dispatches."""
         return f"provider-inflight:{full_name}:{rhash}"
+
+    # =========================================================================
+    # Progress Tracker Keys
+    # =========================================================================
+
+    @staticmethod
+    def room_progress(room_id: str) -> str:
+        """Hash of active progress trackers in a room.
+
+        Field: progress_id, Value: JSON ProgressResponse.
+        """
+        return f"room:{room_id}:progress"

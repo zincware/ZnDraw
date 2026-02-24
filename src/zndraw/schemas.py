@@ -504,3 +504,30 @@ class ScreenshotCaptureCreate(BaseModel):
     """Request body for programmatic screenshot capture."""
 
     session_id: str
+
+
+# =============================================================================
+# Progress Schemas
+# =============================================================================
+
+
+class ProgressCreate(BaseModel):
+    """Request to start a new progress tracker."""
+
+    progress_id: str
+    description: str
+
+
+class ProgressPatch(BaseModel):
+    """Request to update an existing progress tracker."""
+
+    description: str | None = None
+    progress: float | None = None
+
+
+class ProgressResponse(BaseModel):
+    """Response for a single progress tracker."""
+
+    progress_id: str
+    description: str
+    progress: float | None = None

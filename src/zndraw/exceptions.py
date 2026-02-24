@@ -353,6 +353,21 @@ class MessageNotFound(ProblemType):
         raise KeyError(problem.detail or problem.title)
 
 
+class ProgressNotFound(ProblemType):
+    """The requested progress tracker does not exist.
+
+    This error occurs when attempting to update or complete a
+    progress tracker that does not exist or has already completed.
+    """
+
+    title: ClassVar[str] = "Not Found"
+    status: ClassVar[int] = 404
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise KeyError(problem.detail or problem.title)
+
+
 class NotMessageOwner(ProblemType):
     """Only the message owner can edit this message.
 
@@ -509,6 +524,7 @@ PROBLEM_TYPES: dict[str, type[ProblemType]] = {
         FigureNotFound,
         RoomLocked,
         MessageNotFound,
+        ProgressNotFound,
         NotMessageOwner,
         Forbidden,
         StepOutOfBounds,
