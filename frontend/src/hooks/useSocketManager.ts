@@ -266,10 +266,34 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 							// Set edit lock status (for edit/drawing modes)
 							if (editLockResponse.locked) {
-								setUserLock(
-									editLockResponse.user_id ?? null,
-									editLockResponse.msg ?? null,
-								);
+								const mySessionId =
+									useAppStore.getState().sessionId;
+								if (editLockResponse.sid === mySessionId) {
+									// We hold this lock (page reload case)
+									useAppStore.setState({
+										lockToken:
+											editLockResponse.lock_token ?? null,
+										userLock:
+											editLockResponse.user_id ?? null,
+										userLockMessage:
+											editLockResponse.msg ?? null,
+									});
+									useAppStore
+										.getState()
+										.startLockRenewal();
+								} else {
+									setUserLock(
+										editLockResponse.user_id ?? null,
+										editLockResponse.msg ?? null,
+									);
+									if (editLockResponse.ttl) {
+										useAppStore
+											.getState()
+											.startLockExpiryTimer(
+												editLockResponse.ttl,
+											);
+									}
+								}
 							}
 						} catch (error) {
 							console.error("Error fetching secondary data:", error);
@@ -729,12 +753,35 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		}
 
 		function onLockUpdate(data: any) {
-			const { action, user_id, msg } = data;
+			const { action, user_id, sid, msg, ttl } = data;
+			const mySessionId = useAppStore.getState().sessionId;
 
 			if (action === "acquired" || action === "refreshed") {
+				// If this is our own session, lockSlice already set the state
+				if (sid === mySessionId) return;
 				setUserLock(user_id ?? null, msg ?? null);
+				// Start TTL countdown to verify expiry
+				if (ttl && action === "acquired") {
+					useAppStore.getState().startLockExpiryTimer(ttl);
+				}
 			} else if (action === "released") {
-				setUserLock(null, null);
+				// If we held the lock and it was released (e.g. disconnect cleanup)
+				const currentLockToken = useAppStore.getState().lockToken;
+				if (currentLockToken && sid === mySessionId) {
+					useAppStore.getState().stopLockRenewal();
+					useAppStore.setState({
+						lockToken: null,
+						userLock: null,
+						userLockMessage: null,
+						mode: "view",
+					});
+					useAppStore
+						.getState()
+						.showSnackbar("Lock released (session ended)", "info");
+				} else {
+					setUserLock(null, null);
+				}
+				useAppStore.getState().stopLockExpiryTimer();
 			}
 		}
 

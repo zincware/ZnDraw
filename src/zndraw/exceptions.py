@@ -338,6 +338,21 @@ class RoomLocked(ProblemType):
         raise RoomLockedError(problem.detail or problem.title)
 
 
+class LockExpired(ProblemType):
+    """The edit lock has expired and must be re-acquired.
+
+    This error occurs when a client tries to refresh a lock that has
+    already expired due to TTL. The client must acquire a new lock.
+    """
+
+    title: ClassVar[str] = "Conflict"
+    status: ClassVar[int] = 409
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise RuntimeError(problem.detail or problem.title)
+
+
 class MessageNotFound(ProblemType):
     """The requested message does not exist.
 

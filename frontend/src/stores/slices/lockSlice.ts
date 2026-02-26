@@ -1,12 +1,18 @@
 import type { StateCreator } from "zustand";
-import { acquireEditLock, releaseEditLock } from "../../myapi/client";
+import {
+	acquireEditLock,
+	getEditLockStatus,
+	releaseEditLock,
+} from "../../myapi/client";
 import type { AppState } from "../../store";
 
 export interface LockSlice {
 	superuserLock: boolean;
 	userLock: string | null;
 	userLockMessage: string | null;
+	lockToken: string | null;
 	lockRenewalIntervalId: number | null;
+	lockExpiryTimerId: number | null;
 
 	setSuperuserLock: (locked: boolean) => void;
 	setUserLock: (email: string | null, message?: string | null) => void;
@@ -15,6 +21,8 @@ export interface LockSlice {
 	acquireLock: (msg: string) => Promise<boolean>;
 	releaseLock: () => Promise<boolean>;
 	hasLock: () => boolean;
+	startLockExpiryTimer: (ttl: number) => void;
+	stopLockExpiryTimer: () => void;
 }
 
 export const createLockSlice: StateCreator<AppState, [], [], LockSlice> = (
@@ -24,7 +32,9 @@ export const createLockSlice: StateCreator<AppState, [], [], LockSlice> = (
 	superuserLock: false,
 	userLock: null,
 	userLockMessage: null,
+	lockToken: null,
 	lockRenewalIntervalId: null,
+	lockExpiryTimerId: null,
 
 	setSuperuserLock: (locked) => set({ superuserLock: locked }),
 
@@ -32,9 +42,9 @@ export const createLockSlice: StateCreator<AppState, [], [], LockSlice> = (
 		set({ userLock: email, userLockMessage: message ?? null }),
 
 	startLockRenewal: () => {
-		const { lockRenewalIntervalId, userLock, stopLockRenewal } = get();
-		if (!userLock) {
-			console.warn("[startLockRenewal] No lock to renew");
+		const { lockRenewalIntervalId, lockToken, stopLockRenewal } = get();
+		if (!lockToken) {
+			console.warn("[startLockRenewal] No lock token to renew");
 			return;
 		}
 		if (lockRenewalIntervalId !== null) {
@@ -43,17 +53,30 @@ export const createLockSlice: StateCreator<AppState, [], [], LockSlice> = (
 		const refreshIntervalMs = 5000;
 		const intervalId = window.setInterval(async () => {
 			const state = get();
-			const currentMessage = state.userLockMessage;
-			if (!state.userLock || !state.roomId) {
+			if (!state.lockToken || !state.roomId) {
 				stopLockRenewal();
 				return;
 			}
 			try {
-				await acquireEditLock(state.roomId, currentMessage ?? undefined);
-			} catch (error) {
+				await acquireEditLock(
+					state.roomId,
+					state.userLockMessage ?? undefined,
+					state.lockToken,
+				);
+			} catch (error: any) {
 				console.error("[startLockRenewal] Error refreshing lock:", error);
-				set({ userLock: null, userLockMessage: null });
-				get().showSnackbar("Lock lost - returning to view mode", "warning");
+				set({
+					userLock: null,
+					userLockMessage: null,
+					lockToken: null,
+				});
+				const is409 = error?.response?.status === 409;
+				get().showSnackbar(
+					is409
+						? "Lock expired - returning to view mode"
+						: "Lock lost - returning to view mode",
+					"warning",
+				);
 				set({ mode: "view" });
 				get().stopLockRenewal();
 			}
@@ -70,14 +93,15 @@ export const createLockSlice: StateCreator<AppState, [], [], LockSlice> = (
 	},
 
 	acquireLock: async (msg) => {
-		const { roomId, userLock, user } = get();
+		const { roomId, lockToken, user } = get();
 		if (!roomId) {
 			console.error("[acquireLock] No roomId");
 			return false;
 		}
-		if (userLock) {
+		if (lockToken) {
+			// Already holding — refresh
 			try {
-				await acquireEditLock(roomId, msg);
+				await acquireEditLock(roomId, msg, lockToken);
 				set({ userLockMessage: msg });
 				return true;
 			} catch (error) {
@@ -87,9 +111,13 @@ export const createLockSlice: StateCreator<AppState, [], [], LockSlice> = (
 		}
 		try {
 			const response = await acquireEditLock(roomId, msg);
-			if (!response.locked) return false;
+			if (!response.locked || !response.lock_token) return false;
 			const currentUserEmail = user?.email ?? null;
-			set({ userLock: currentUserEmail, userLockMessage: msg });
+			set({
+				userLock: currentUserEmail,
+				userLockMessage: msg,
+				lockToken: response.lock_token,
+			});
 			get().startLockRenewal();
 			return true;
 		} catch (error) {
@@ -99,15 +127,15 @@ export const createLockSlice: StateCreator<AppState, [], [], LockSlice> = (
 	},
 
 	releaseLock: async () => {
-		const { roomId, userLock } = get();
-		if (!userLock) return true;
+		const { roomId, lockToken } = get();
+		if (!lockToken) return true;
 		if (!roomId) {
 			console.error("[releaseLock] No roomId");
 			return false;
 		}
 		try {
-			await releaseEditLock(roomId);
-			set({ userLock: null, userLockMessage: null });
+			await releaseEditLock(roomId, lockToken);
+			set({ userLock: null, userLockMessage: null, lockToken: null });
 			get().stopLockRenewal();
 			return true;
 		} catch (error) {
@@ -116,5 +144,31 @@ export const createLockSlice: StateCreator<AppState, [], [], LockSlice> = (
 		}
 	},
 
-	hasLock: () => get().userLock !== null,
+	hasLock: () => get().lockToken !== null,
+
+	startLockExpiryTimer: (ttl: number) => {
+		get().stopLockExpiryTimer();
+		const timerId = window.setTimeout(async () => {
+			// TTL expired — verify with server
+			const { roomId } = get();
+			if (!roomId) return;
+			try {
+				const status = await getEditLockStatus(roomId);
+				if (!status.locked) {
+					set({ userLock: null, userLockMessage: null });
+				}
+			} catch {
+				// Ignore — will be caught on next interaction
+			}
+		}, (ttl + 1) * 1000);
+		set({ lockExpiryTimerId: timerId });
+	},
+
+	stopLockExpiryTimer: () => {
+		const { lockExpiryTimerId } = get();
+		if (lockExpiryTimerId !== null) {
+			window.clearTimeout(lockExpiryTimerId);
+			set({ lockExpiryTimerId: null });
+		}
+	},
 });

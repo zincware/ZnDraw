@@ -225,10 +225,12 @@ class ZnDrawLock:
     msg: str | None = None
     _stop: threading.Event = field(default_factory=threading.Event, init=False)
     _refresh_thread: threading.Thread | None = field(default=None, init=False)
+    _lock_token: str | None = field(default=None, init=False)
 
     def __enter__(self) -> ZnDrawLock:
         """Acquire the edit lock."""
-        self.api.edit_lock_acquire(self.msg)
+        result = self.api.edit_lock_acquire(self.msg)
+        self._lock_token = result["lock_token"]
         self._stop.clear()
         self._refresh_thread = threading.Thread(target=self._refresh, daemon=True)
         self._refresh_thread.start()
@@ -240,9 +242,10 @@ class ZnDrawLock:
         if self._refresh_thread is not None:
             self._refresh_thread.join(timeout=2.0)
         try:
-            self.api.edit_lock_release()
+            self.api.edit_lock_release(self._lock_token)
         except Exception as e:
             log.warning(f"Failed to release edit lock: {e}")
+        self._lock_token = None
         return False
 
     def _refresh(self) -> None:
@@ -250,11 +253,18 @@ class ZnDrawLock:
         from zndraw.schemas import EDIT_LOCK_REFRESH
 
         while not self._stop.wait(EDIT_LOCK_REFRESH):
+            if self._lock_token is None:
+                break
             try:
-                self.api.edit_lock_acquire(self.msg)
+                self.api.edit_lock_refresh(self._lock_token, self.msg)
             except Exception as e:
                 log.warning(f"Failed to refresh edit lock: {e}")
                 break
+
+    @property
+    def lock_token(self) -> str | None:
+        """The current lock token, or None if not held."""
+        return self._lock_token
 
 
 # =============================================================================
@@ -763,7 +773,7 @@ class APIManager:
     # -------------------------------------------------------------------------
 
     def edit_lock_acquire(self, msg: str | None = None) -> dict[str, Any]:
-        """Acquire or refresh the room edit lock (idempotent for the holder)."""
+        """Acquire the room edit lock."""
         response = self.http.put(
             f"/v1/rooms/{self.room_id}/edit-lock",
             json={"msg": msg},
@@ -772,11 +782,27 @@ class APIManager:
         self.raise_for_status(response)
         return response.json()
 
-    def edit_lock_release(self) -> None:
+    def edit_lock_refresh(
+        self, lock_token: str, msg: str | None = None
+    ) -> dict[str, Any]:
+        """Refresh an existing edit lock using its token."""
+        headers = {**self._headers(), "Lock-Token": lock_token}
+        response = self.http.put(
+            f"/v1/rooms/{self.room_id}/edit-lock",
+            json={"msg": msg},
+            headers=headers,
+        )
+        self.raise_for_status(response)
+        return response.json()
+
+    def edit_lock_release(self, lock_token: str | None = None) -> None:
         """Release the room edit lock."""
+        headers = self._headers()
+        if lock_token:
+            headers["Lock-Token"] = lock_token
         response = self.http.delete(
             f"/v1/rooms/{self.room_id}/edit-lock",
-            headers=self._headers(),
+            headers=headers,
         )
         self.raise_for_status(response)
 

@@ -183,7 +183,9 @@ class LockUpdate(BaseModel):
     room_id: str
     action: Literal["acquired", "refreshed", "released"]
     user_id: str | None = None
+    sid: str | None = None
     msg: str | None = None
+    ttl: int | None = None
 
 
 class RoomUpdate(RoomResponse):

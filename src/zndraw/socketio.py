@@ -33,6 +33,7 @@ from zndraw.socket_events import (
     GeometryInvalidate,
     Heartbeat,
     HeartbeatResponse,
+    LockUpdate,
     RoomJoin,
     RoomJoinResponse,
     RoomLeave,
@@ -118,14 +119,17 @@ async def on_connect(
     return True
 
 
-@tsio.on("disconnect", emits=[GeometryInvalidate, SessionLeft, FramesInvalidate])
+@tsio.on(
+    "disconnect",
+    emits=[GeometryInvalidate, LockUpdate, SessionLeft, FramesInvalidate],
+)
 async def on_disconnect(
     sid: str,
     reason: str,
     redis: RedisDep,
     db_session: SessionDep,
 ) -> None:
-    """Handle disconnect - clean up presence, camera, and workers."""
+    """Handle disconnect - clean up presence, camera, locks, and workers."""
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
     current_room_id: str | None = sio_session.get("current_room_id")
@@ -140,6 +144,23 @@ async def on_disconnect(
             SessionLeft(room_id=current_room_id, user_id=user_id, sid=sid),
             room=room_channel(current_room_id),
         )
+
+        # Release edit lock if this disconnecting session holds it
+        lock_key = RedisKey.edit_lock(current_room_id)
+        raw_lock = await redis.get(lock_key)
+        if raw_lock is not None:
+            holder = json.loads(raw_lock)
+            if holder.get("sid") == sid:
+                await redis.delete(lock_key)
+                await tsio.emit(
+                    LockUpdate(
+                        room_id=current_room_id,
+                        action="released",
+                        user_id=str(user_id),
+                        sid=sid,
+                    ),
+                    room=room_channel(current_room_id),
+                )
 
     # Worker cleanup — fail tasks, remove links, soft-delete orphan jobs
     worker_id = sio_session.get("worker_id")

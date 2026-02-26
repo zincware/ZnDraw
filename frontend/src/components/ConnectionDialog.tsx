@@ -20,11 +20,21 @@ interface ConnectionDialogProps {
 const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
 	const { roomId } = useParams<{ roomId: string }>();
 	const userName = useAppStore((state) => state.user?.email ?? null);
+	const sessionId = useAppStore((state) => state.sessionId);
 	const { mode } = useColorScheme();
 
+	const connectionCode = `from zndraw import ZnDraw\n\nvis = ZnDraw(\n  url="${window.location.origin}/",\n  room="${roomId}",\n  user="${userName}"\n)`;
+
+	const sessionCode = sessionId
+		? `ses = vis.sessions["${sessionId}"]`
+		: "# No active session";
+
 	const handleCopyCode = () => {
-		const code = `from zndraw import ZnDraw\n\nvis = ZnDraw(\n  url="${window.location.origin}/",\n  room="${roomId}",\n  user="${userName}"\n)`;
-		navigator.clipboard.writeText(code);
+		navigator.clipboard.writeText(connectionCode);
+	};
+
+	const handleCopySessionCode = () => {
+		navigator.clipboard.writeText(sessionCode);
 	};
 
 	return (
@@ -43,11 +53,37 @@ const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
 							borderRadius: "4px",
 						}}
 					>
-						{`from zndraw import ZnDraw\n\nvis = ZnDraw(\n  url="${window.location.origin}/",\n  room="${roomId}",\n  user="${userName}"\n)`}
+						{connectionCode}
 					</SyntaxHighlighter>
 					<Button
 						startIcon={<ContentCopyIcon />}
 						onClick={handleCopyCode}
+						sx={{
+							mt: 1,
+						}}
+						variant="outlined"
+						size="small"
+					>
+						Copy to clipboard
+					</Button>
+				</Box>
+				<Typography variant="body2" sx={{ mt: 3, mb: 2 }}>
+					Access this browser session:
+				</Typography>
+				<Box sx={{ position: "relative" }}>
+					<SyntaxHighlighter
+						language="python"
+						style={mode === "dark" ? oneDark : oneLight}
+						customStyle={{
+							margin: 0,
+							borderRadius: "4px",
+						}}
+					>
+						{sessionCode}
+					</SyntaxHighlighter>
+					<Button
+						startIcon={<ContentCopyIcon />}
+						onClick={handleCopySessionCode}
 						sx={{
 							mt: 1,
 						}}

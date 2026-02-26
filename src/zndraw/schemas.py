@@ -437,8 +437,7 @@ class ActiveCameraResponse(BaseModel):
 # Edit Lock Schemas
 # =============================================================================
 
-EDIT_LOCK_TTL = 10  # seconds
-EDIT_LOCK_REFRESH = 5  # seconds
+EDIT_LOCK_REFRESH = 5  # seconds (client-side refresh interval)
 
 
 class EditLockRequest(BaseModel):
@@ -457,7 +456,9 @@ class EditLockResponse(BaseModel):
     """Response for edit lock status."""
 
     locked: bool
+    lock_token: str | None = None
     user_id: str | None = None
+    sid: str | None = None
     msg: str | None = None
     acquired_at: float | None = None
     ttl: int | None = None

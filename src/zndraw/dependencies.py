@@ -122,6 +122,7 @@ async def _check_locks(
     room_id: str,
     room: Room,
     user: User,  # type: ignore[type-arg]
+    lock_token: str | None = None,
 ) -> None:
     """Check admin lock and edit lock; raise RoomLocked (423) if blocked."""
     if room.locked and not user.is_superuser:
@@ -130,11 +131,20 @@ async def _check_locks(
     raw = await redis.get(RedisKey.edit_lock(room_id))
     if raw is not None:
         holder = json.loads(raw)
-        if holder["user_id"] != str(user.id):
-            raise RoomLocked.exception("Room is being edited by another user")
+        if lock_token is not None:
+            if holder["lock_token"] != lock_token:
+                raise RoomLocked.exception(
+                    "Room is being edited by another session"
+                )
+        else:
+            if holder["user_id"] != str(user.id):
+                raise RoomLocked.exception(
+                    "Room is being edited by another user"
+                )
 
 
 async def get_writable_room(
+    request: Request,
     session: SessionDep,
     current_user: CurrentUserDep,
     redis: RedisDep,
@@ -147,7 +157,8 @@ async def get_writable_room(
     """
     validate_room_id(room_id)
     room = await verify_room(session, room_id)
-    await _check_locks(redis, room_id, room, current_user)
+    lock_token = request.headers.get("Lock-Token")
+    await _check_locks(redis, room_id, room, current_user, lock_token)
     return room
 
 
@@ -215,6 +226,7 @@ async def check_geometry_write_access(
     room_id: str,
     geometry_key: str,
     current_user: User,
+    lock_token: str | None = None,
 ) -> WritableGeometryInfo:
     """Check that the current user can write to a geometry.
 
@@ -234,8 +246,16 @@ async def check_geometry_write_access(
     raw = await redis.get(RedisKey.edit_lock(room_id))
     if raw is not None:
         holder = json.loads(raw)
-        if holder["user_id"] != str(current_user.id):
-            raise RoomLocked.exception("Room is being edited by another user")
+        if lock_token is not None:
+            if holder["lock_token"] != lock_token:
+                raise RoomLocked.exception(
+                    "Room is being edited by another session"
+                )
+        else:
+            if holder["user_id"] != str(current_user.id):
+                raise RoomLocked.exception(
+                    "Room is being edited by another user"
+                )
 
     # Resolve owner once — reused for lock bypass and ownership check
     current_owner = await get_owner_from_geometry(redis, session, room_id, geometry_key)
@@ -255,6 +275,7 @@ async def check_geometry_write_access(
 
 
 async def get_writable_geometry(
+    request: Request,
     session: SessionDep,
     current_user: CurrentUserDep,
     redis: RedisDep,
@@ -262,13 +283,17 @@ async def get_writable_geometry(
     key: str = Path(),
 ) -> WritableGeometryInfo:
     """FastAPI dependency wrapping check_geometry_write_access."""
-    return await check_geometry_write_access(session, redis, room_id, key, current_user)
+    lock_token = request.headers.get("Lock-Token")
+    return await check_geometry_write_access(
+        session, redis, room_id, key, current_user, lock_token
+    )
 
 
 WritableGeometryDep = Annotated[WritableGeometryInfo, Depends(get_writable_geometry)]
 
 
 async def get_writable_room_id(
+    request: Request,
     session: SessionDep,
     current_user: CurrentUserDep,
     redis: RedisDep,
@@ -285,5 +310,6 @@ async def get_writable_room_id(
     validate_room_id(room_id)
     if room_id not in ("@global", "@internal"):
         room = await verify_room(session, room_id)
-        await _check_locks(redis, room_id, room, current_user)
+        lock_token = request.headers.get("Lock-Token")
+        await _check_locks(redis, room_id, room, current_user, lock_token)
     return room_id

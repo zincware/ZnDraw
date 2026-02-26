@@ -1,5 +1,6 @@
 """Tests for Edit Lock REST API endpoints and WritableRoomDep enforcement."""
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock
@@ -172,6 +173,7 @@ async def test_get_edit_lock_returns_unlocked_when_no_lock(
     data = response.json()
     assert data["locked"] is False
     assert data["user_id"] is None
+    assert data["lock_token"] is None
 
 
 @pytest.mark.asyncio
@@ -182,10 +184,14 @@ async def test_get_edit_lock_returns_locked_when_lock_exists(
     user, token = await _create_user(el_session)
     room = await _create_room(el_session, user)
 
-    # Set lock directly in Redis
-    lock_data = json.dumps(
-        {"user_id": str(user.id), "msg": "testing", "acquired_at": 1000.0}
-    )
+    # Set lock directly in Redis (new format with lock_token)
+    lock_data = json.dumps({
+        "lock_token": "test-token-123",
+        "user_id": str(user.id),
+        "sid": None,
+        "msg": "testing",
+        "acquired_at": 1000.0,
+    })
     await el_redis.set(RedisKey.edit_lock(room.id), lock_data, ex=10)
 
     response = await el_client.get(
@@ -195,6 +201,7 @@ async def test_get_edit_lock_returns_locked_when_lock_exists(
     data = response.json()
     assert data["locked"] is True
     assert data["user_id"] == str(user.id)
+    assert data["lock_token"] == "test-token-123"
     assert data["msg"] == "testing"
     assert data["ttl"] is not None
     assert data["ttl"] > 0
@@ -222,7 +229,7 @@ async def test_get_edit_lock_returns_404_for_nonexistent_room(
 async def test_acquire_edit_lock(
     el_client: AsyncClient, el_session: AsyncSession, el_redis: Redis
 ) -> None:
-    """Test PUT acquires the edit lock."""
+    """Test PUT acquires the edit lock and returns a lock_token."""
     user, token = await _create_user(el_session)
     room = await _create_room(el_session, user)
 
@@ -235,15 +242,40 @@ async def test_acquire_edit_lock(
     data = response.json()
     assert data["locked"] is True
     assert data["user_id"] == str(user.id)
+    assert data["lock_token"] is not None
     assert data["msg"] == "editing geometries"
     assert data["acquired_at"] is not None
     assert data["ttl"] is not None
 
-    # Verify Redis entry
+    # Verify Redis entry has lock_token
     raw = await el_redis.get(RedisKey.edit_lock(room.id))
     assert raw is not None
     lock = json.loads(raw)
     assert lock["user_id"] == str(user.id)
+    assert lock["lock_token"] == data["lock_token"]
+
+
+@pytest.mark.asyncio
+async def test_acquire_edit_lock_stores_session_id(
+    el_client: AsyncClient, el_session: AsyncSession, el_redis: Redis
+) -> None:
+    """Test PUT stores X-Session-ID header as sid in Redis."""
+    user, token = await _create_user(el_session)
+    room = await _create_room(el_session, user)
+
+    response = await el_client.put(
+        f"/v1/rooms/{room.id}/edit-lock",
+        json={"msg": "editing"},
+        headers={**_auth(token), "X-Session-ID": "my-sid-123"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["sid"] == "my-sid-123"
+
+    # Verify Redis
+    raw = await el_redis.get(RedisKey.edit_lock(room.id))
+    lock = json.loads(raw)
+    assert lock["sid"] == "my-sid-123"
 
 
 @pytest.mark.asyncio
@@ -252,7 +284,7 @@ async def test_acquire_edit_lock_broadcasts_lock_update(
     el_session: AsyncSession,
     mock_sio: MagicMock,
 ) -> None:
-    """Test PUT broadcasts LockUpdate socket event."""
+    """Test PUT broadcasts LockUpdate socket event with ttl."""
     user, token = await _create_user(el_session)
     room = await _create_room(el_session, user)
 
@@ -269,13 +301,73 @@ async def test_acquire_edit_lock_broadcasts_lock_update(
     assert model.action == "acquired"
     assert model.user_id == str(user.id)
     assert model.msg == "drawing"
+    assert model.ttl is not None
+    assert model.ttl > 0
 
 
 @pytest.mark.asyncio
-async def test_refresh_edit_lock_idempotent(
+async def test_refresh_edit_lock_with_token(
     el_client: AsyncClient, el_session: AsyncSession
 ) -> None:
-    """Test PUT refreshes when called by the same holder."""
+    """Test PUT with Lock-Token header refreshes the lock."""
+    user, token = await _create_user(el_session)
+    room = await _create_room(el_session, user)
+
+    # Acquire
+    resp1 = await el_client.put(
+        f"/v1/rooms/{room.id}/edit-lock",
+        json={"msg": "first"},
+        headers=_auth(token),
+    )
+    assert resp1.status_code == 200
+    lock_token = resp1.json()["lock_token"]
+
+    # Refresh with Lock-Token
+    resp2 = await el_client.put(
+        f"/v1/rooms/{room.id}/edit-lock",
+        json={"msg": "updated"},
+        headers={**_auth(token), "Lock-Token": lock_token},
+    )
+    assert resp2.status_code == 200
+    data = resp2.json()
+    assert data["locked"] is True
+    assert data["lock_token"] == lock_token
+    assert data["user_id"] == str(user.id)
+
+
+@pytest.mark.asyncio
+async def test_refresh_with_expired_lock_returns_409(
+    el_client: AsyncClient, el_session: AsyncSession, el_redis: Redis
+) -> None:
+    """Test refresh returns 409 when lock has expired."""
+    user, token = await _create_user(el_session)
+    room = await _create_room(el_session, user)
+
+    # Acquire
+    resp = await el_client.put(
+        f"/v1/rooms/{room.id}/edit-lock",
+        json={"msg": "editing"},
+        headers=_auth(token),
+    )
+    lock_token = resp.json()["lock_token"]
+
+    # Simulate expiry by deleting the key
+    await el_redis.delete(RedisKey.edit_lock(room.id))
+
+    # Try to refresh → 409
+    resp2 = await el_client.put(
+        f"/v1/rooms/{room.id}/edit-lock",
+        json={"msg": "editing"},
+        headers={**_auth(token), "Lock-Token": lock_token},
+    )
+    assert resp2.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_acquire_without_token_when_lock_exists_returns_423(
+    el_client: AsyncClient, el_session: AsyncSession
+) -> None:
+    """Test PUT without Lock-Token when lock exists returns 423 (no silent re-create)."""
     user, token = await _create_user(el_session)
     room = await _create_room(el_session, user)
 
@@ -287,16 +379,13 @@ async def test_refresh_edit_lock_idempotent(
     )
     assert resp1.status_code == 200
 
-    # Refresh (same user, different message)
+    # Same user, no Lock-Token → 423 (lock already exists)
     resp2 = await el_client.put(
         f"/v1/rooms/{room.id}/edit-lock",
-        json={"msg": "updated"},
+        json={"msg": "second attempt"},
         headers=_auth(token),
     )
-    assert resp2.status_code == 200
-    data = resp2.json()
-    assert data["locked"] is True
-    assert data["user_id"] == str(user.id)
+    assert resp2.status_code == 423
 
 
 @pytest.mark.asyncio
@@ -354,16 +443,89 @@ async def test_acquire_edit_lock_blocked_by_admin_lock(
     assert response.status_code == 423
 
 
+@pytest.mark.asyncio
+async def test_lock_auto_expires_after_ttl(
+    el_client: AsyncClient, el_session: AsyncSession, el_redis: Redis
+) -> None:
+    """Lock disappears from Redis after edit_lock_ttl without refresh."""
+    user1, token1 = await _create_user(el_session, "user1@test")
+    user2, token2 = await _create_user(el_session, "user2@test")
+    room = await _create_room(el_session, user1)
+
+    membership = RoomMembership(
+        room_id=room.id,  # type: ignore
+        user_id=user2.id,  # type: ignore
+        role=MemberRole.MEMBER,
+    )
+    el_session.add(membership)
+    await el_session.commit()
+
+    # User1 acquires
+    resp = await el_client.put(
+        f"/v1/rooms/{room.id}/edit-lock",
+        json={"msg": "no refresh"},
+        headers=_auth(token1),
+    )
+    assert resp.status_code == 200
+
+    # Wait for TTL + buffer (default 10s + 1s)
+    await asyncio.sleep(11)
+
+    # Lock should be gone
+    status = await el_client.get(
+        f"/v1/rooms/{room.id}/edit-lock", headers=_auth(token1)
+    )
+    assert status.json()["locked"] is False
+
+    # User2 can now acquire
+    resp2 = await el_client.put(
+        f"/v1/rooms/{room.id}/edit-lock",
+        json={"msg": "after expiry"},
+        headers=_auth(token2),
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["user_id"] == str(user2.id)
+
+
 # =============================================================================
 # DELETE /v1/rooms/{room_id}/edit-lock (Release)
 # =============================================================================
 
 
 @pytest.mark.asyncio
-async def test_release_edit_lock(
+async def test_release_edit_lock_with_token(
     el_client: AsyncClient, el_session: AsyncSession, el_redis: Redis
 ) -> None:
-    """Test DELETE releases the lock."""
+    """Test DELETE with Lock-Token releases the lock."""
+    user, token = await _create_user(el_session)
+    room = await _create_room(el_session, user)
+
+    # Acquire
+    resp = await el_client.put(
+        f"/v1/rooms/{room.id}/edit-lock",
+        json={"msg": "temp"},
+        headers=_auth(token),
+    )
+    lock_token = resp.json()["lock_token"]
+
+    # Release with Lock-Token
+    response = await el_client.delete(
+        f"/v1/rooms/{room.id}/edit-lock",
+        headers={**_auth(token), "Lock-Token": lock_token},
+    )
+    assert response.status_code == 200
+    StatusResponse.model_validate(response.json())
+
+    # Verify Redis entry removed
+    raw = await el_redis.get(RedisKey.edit_lock(room.id))
+    assert raw is None
+
+
+@pytest.mark.asyncio
+async def test_release_edit_lock_by_user_id_fallback(
+    el_client: AsyncClient, el_session: AsyncSession, el_redis: Redis
+) -> None:
+    """Test DELETE without Lock-Token falls back to user_id check."""
     user, token = await _create_user(el_session)
     room = await _create_room(el_session, user)
 
@@ -374,14 +536,13 @@ async def test_release_edit_lock(
         headers=_auth(token),
     )
 
-    # Release
+    # Release without Lock-Token (user_id fallback)
     response = await el_client.delete(
         f"/v1/rooms/{room.id}/edit-lock", headers=_auth(token)
     )
     assert response.status_code == 200
     StatusResponse.model_validate(response.json())
 
-    # Verify Redis entry removed
     raw = await el_redis.get(RedisKey.edit_lock(room.id))
     assert raw is None
 
@@ -397,14 +558,18 @@ async def test_release_edit_lock_broadcasts_lock_update(
     room = await _create_room(el_session, user)
 
     # Acquire then release
-    await el_client.put(
+    resp = await el_client.put(
         f"/v1/rooms/{room.id}/edit-lock",
         json={},
         headers=_auth(token),
     )
+    lock_token = resp.json()["lock_token"]
     mock_sio.emit.reset_mock()
 
-    await el_client.delete(f"/v1/rooms/{room.id}/edit-lock", headers=_auth(token))
+    await el_client.delete(
+        f"/v1/rooms/{room.id}/edit-lock",
+        headers={**_auth(token), "Lock-Token": lock_token},
+    )
 
     mock_sio.emit.assert_called()
     call_args = mock_sio.emit.call_args
@@ -426,6 +591,29 @@ async def test_release_edit_lock_idempotent_when_no_lock(
     )
     assert response.status_code == 200
     StatusResponse.model_validate(response.json())
+
+
+@pytest.mark.asyncio
+async def test_release_edit_lock_wrong_token_returns_403(
+    el_client: AsyncClient, el_session: AsyncSession
+) -> None:
+    """Test DELETE with wrong Lock-Token returns 403."""
+    user, token = await _create_user(el_session)
+    room = await _create_room(el_session, user)
+
+    # Acquire
+    await el_client.put(
+        f"/v1/rooms/{room.id}/edit-lock",
+        json={},
+        headers=_auth(token),
+    )
+
+    # Release with wrong Lock-Token
+    response = await el_client.delete(
+        f"/v1/rooms/{room.id}/edit-lock",
+        headers={**_auth(token), "Lock-Token": "wrong-token"},
+    )
+    assert response.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -484,7 +672,7 @@ async def test_admin_can_release_any_lock(
         headers=_auth(token),
     )
 
-    # Admin releases
+    # Admin releases (no Lock-Token needed for admin)
     response = await el_client.delete(
         f"/v1/rooms/{room.id}/edit-lock", headers=_auth(admin_token)
     )
@@ -538,7 +726,7 @@ async def test_writable_room_allows_admin_on_admin_locked_room(
 
 
 # =============================================================================
-# WritableRoomDep: Edit Lock Enforcement
+# WritableRoomDep: Edit Lock Enforcement with Lock-Token
 # =============================================================================
 
 
@@ -577,10 +765,35 @@ async def test_writable_room_blocks_non_holder(
 
 
 @pytest.mark.asyncio
-async def test_writable_room_allows_lock_holder(
+async def test_writable_room_allows_lock_holder_with_token(
     el_client: AsyncClient, el_session: AsyncSession
 ) -> None:
-    """Test lock holder can mutate normally."""
+    """Test lock holder can mutate when sending Lock-Token header."""
+    user, token = await _create_user(el_session)
+    room = await _create_room(el_session, user)
+
+    # Acquire lock
+    resp = await el_client.put(
+        f"/v1/rooms/{room.id}/edit-lock",
+        json={"msg": "editing"},
+        headers=_auth(token),
+    )
+    lock_token = resp.json()["lock_token"]
+
+    # Holder can mutate with Lock-Token
+    response = await el_client.put(
+        f"/v1/rooms/{room.id}/bookmarks/0",
+        json={"label": "allowed"},
+        headers={**_auth(token), "Lock-Token": lock_token},
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_writable_room_allows_lock_holder_by_user_id(
+    el_client: AsyncClient, el_session: AsyncSession
+) -> None:
+    """Test lock holder can mutate by user_id fallback (no Lock-Token)."""
     user, token = await _create_user(el_session)
     room = await _create_room(el_session, user)
 
@@ -591,13 +804,37 @@ async def test_writable_room_allows_lock_holder(
         headers=_auth(token),
     )
 
-    # Holder can still mutate
+    # Holder can mutate without Lock-Token (user_id fallback)
     response = await el_client.put(
         f"/v1/rooms/{room.id}/bookmarks/0",
         json={"label": "allowed"},
         headers=_auth(token),
     )
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_writable_room_blocks_wrong_lock_token(
+    el_client: AsyncClient, el_session: AsyncSession
+) -> None:
+    """Test mutation returns 423 when wrong Lock-Token is sent."""
+    user, token = await _create_user(el_session)
+    room = await _create_room(el_session, user)
+
+    # Acquire lock
+    await el_client.put(
+        f"/v1/rooms/{room.id}/edit-lock",
+        json={"msg": "editing"},
+        headers=_auth(token),
+    )
+
+    # Wrong Lock-Token → 423
+    response = await el_client.put(
+        f"/v1/rooms/{room.id}/bookmarks/0",
+        json={"label": "blocked"},
+        headers={**_auth(token), "Lock-Token": "wrong-token"},
+    )
+    assert response.status_code == 423
 
 
 @pytest.mark.asyncio

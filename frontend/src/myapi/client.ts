@@ -87,21 +87,22 @@ export interface GlobalSettings {
 
 const apiClient = axios.create({});
 
-// Add interceptor to include JWT token and session ID in all requests
+// Add interceptor to include JWT token, session ID, and lock token in all requests
 apiClient.interceptors.request.use((config) => {
 	const token = getToken();
 	if (token) {
 		config.headers["Authorization"] = `Bearer ${token}`;
 	}
 
-	// Add session ID header if available (optional - only needed for specific endpoints)
-	// SessionId is required for:
-	// - Endpoints with @check_lock (frame uploads, geometry operations)
-	// - Worker registration
-	// Most GET endpoints only need JWT auth
 	const sessionId = useAppStore.getState().sessionId;
 	if (sessionId) {
 		config.headers["X-Session-ID"] = sessionId;
+	}
+
+	// Include Lock-Token for mutation requests when holding a lock
+	const lockToken = useAppStore.getState().lockToken;
+	if (lockToken) {
+		config.headers["Lock-Token"] = lockToken;
 	}
 
 	return config;
@@ -762,7 +763,9 @@ export interface DefaultRoomResponse {
 
 export interface EditLockResponse {
 	locked: boolean;
+	lock_token?: string | null;
 	user_id?: string | null;
+	sid?: string | null;
 	msg?: string | null;
 	acquired_at?: number | null;
 	ttl?: number | null;
@@ -1049,20 +1052,27 @@ export const updateStep = async (
 // ==================== Edit Lock API ====================
 
 /**
- * Acquire or refresh the room edit lock (idempotent for the holder).
+ * Acquire or refresh the room edit lock.
  *
  * @param roomId - Room identifier
  * @param msg - Optional message describing the lock purpose
+ * @param lockToken - Optional lock token for refresh (omit for new acquisition)
  * @returns Promise with edit lock response
  */
 export const acquireEditLock = async (
 	roomId: string,
 	msg?: string,
+	lockToken?: string,
 ): Promise<EditLockResponse> => {
 	try {
+		const headers: Record<string, string> = {};
+		if (lockToken) {
+			headers["Lock-Token"] = lockToken;
+		}
 		const { data } = await apiClient.put(
 			`/v1/rooms/${roomId}/edit-lock`,
 			{ msg: msg ?? null },
+			{ headers },
 		);
 		return data;
 	} catch (error: any) {
@@ -1082,29 +1092,30 @@ export const acquireEditLock = async (
  * Release the room edit lock.
  *
  * @param roomId - Room identifier
+ * @param lockToken - Optional lock token for authentication
  */
-export const releaseEditLock = async (roomId: string): Promise<void> => {
-	await apiClient.delete(`/v1/rooms/${roomId}/edit-lock`);
+export const releaseEditLock = async (
+	roomId: string,
+	lockToken?: string,
+): Promise<void> => {
+	const headers: Record<string, string> = {};
+	if (lockToken) {
+		headers["Lock-Token"] = lockToken;
+	}
+	await apiClient.delete(`/v1/rooms/${roomId}/edit-lock`, { headers });
 };
 
 // ==================== Session API ====================
 
 /**
- * Session information returned from list endpoint.
- */
-export interface SessionInfo {
-	session_id: string;
-}
-
-/**
- * List all frontend sessions in a room.
+ * List the current user's active frontend sessions in a room.
  *
  * @param roomId - Room identifier
- * @returns Promise with array of session info
+ * @returns Promise with array of session IDs
  */
-export const listSessions = async (roomId: string): Promise<SessionInfo[]> => {
+export const listSessions = async (roomId: string): Promise<string[]> => {
 	const { data } = await apiClient.get(`/v1/rooms/${roomId}/sessions`);
-	return data.sessions;
+	return data.items;
 };
 
 // ==================== Active Camera API ====================
