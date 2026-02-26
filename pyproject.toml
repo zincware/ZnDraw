@@ -65,6 +65,7 @@ version-file = "src/zndraw/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/zndraw"]
+artifacts = ["src/zndraw/static/"]
 exclude = [
     "**/node_modules",
     "**/__pycache__",
