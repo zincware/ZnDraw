@@ -526,6 +526,45 @@ Available dynamic property references are computed from the ``atoms.info``, ``at
 - ``info.connectivity`` - Bond connectivity
 
 
+Constraint Visualization
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+ZnDraw automatically visualizes atomic constraints. When you upload atoms with
+ASE constraints, a ``constraints-fixed-atoms`` geometry overlays red wireframe
+spheres on the constrained atoms.
+
+.. code-block:: python
+
+   import ase
+   from ase.constraints import FixAtoms
+   from zndraw import ZnDraw
+
+   # Create acetic acid and constrain the methyl group
+   atoms = ase.Atoms(
+       "C2H4O2",
+       positions=[
+           [0.0, 0.0, 0.0],   # C (methyl) — constrained
+           [1.5, 0.0, 0.0],   # C (carboxyl)
+           [-0.5, 1.0, 0.0],  # H — constrained
+           [-0.5, -1.0, 0.0], # H — constrained
+           [2.5, 1.0, 0.0],   # O (C=O)
+           [2.5, -1.0, 0.0],  # O (OH)
+       ],
+   )
+   atoms.set_constraint(FixAtoms(indices=[0, 2, 3]))
+
+   vis = ZnDraw(url="http://localhost:8000")
+   vis.append(atoms)
+
+The constrained atoms (methyl C and two H atoms) will appear with a red
+wireframe sphere overlay, while the COOH group remains undecorated.
+
+**Customization:** Open the geometry panel and click ``constraints-fixed-atoms``
+to change the color, scale, or target a different constraint. The Transform
+Editor shows a dropdown of all constraints in the current frame — select one
+to switch which atoms are highlighted.
+
+
 Analysis & Figures
 ------------------
 
