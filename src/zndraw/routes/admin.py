@@ -9,7 +9,7 @@ import signal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from sqlmodel import func, select
 from zndraw_auth import User

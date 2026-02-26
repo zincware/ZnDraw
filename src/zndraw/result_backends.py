@@ -23,8 +23,8 @@ NOTIFY_PREFIX = "notify:"
 
 
 async def _pubsub_wait(
-    pubsub_factory: "Callable[[], PubSub]",
-    get_fn: "Callable[[str], Awaitable[bytes | None]]",
+    pubsub_factory: Callable[[], PubSub],
+    get_fn: Callable[[str], Awaitable[bytes | None]],
     key: str,
     timeout: float,
 ) -> bytes | None:

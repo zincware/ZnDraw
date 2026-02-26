@@ -47,7 +47,9 @@ export function FileList({
 	if (error) {
 		return (
 			<Alert severity="error" sx={{ mb: 2 }}>
-				{isAxiosError(error) ? (error.response?.data?.detail ?? error.message) : "Failed to load files"}
+				{isAxiosError(error)
+					? (error.response?.data?.detail ?? error.message)
+					: "Failed to load files"}
 			</Alert>
 		);
 	}
@@ -99,9 +101,7 @@ export function FileList({
 						<ListItemText
 							primary={item.name}
 							secondary={
-								item.type === "file"
-									? formatFileSize(item.size)
-									: "Directory"
+								item.type === "file" ? formatFileSize(item.size) : "Directory"
 							}
 						/>
 					</ListItemButton>

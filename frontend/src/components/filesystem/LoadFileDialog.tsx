@@ -231,9 +231,7 @@ export function LoadFileDialog({
 					<RadioGroup
 						value={targetType}
 						onChange={(e) =>
-							setTargetType(
-								e.target.value as "current" | "new" | "existing",
-							)
+							setTargetType(e.target.value as "current" | "new" | "existing")
 						}
 					>
 						<FormControlLabel
@@ -254,7 +252,9 @@ export function LoadFileDialog({
 					</RadioGroup>
 				</FormControl>
 				{targetType === "new" && (
-					<Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
+					<Box
+						sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}
+					>
 						<TextField
 							size="small"
 							fullWidth
@@ -279,16 +279,12 @@ export function LoadFileDialog({
 						value={selectedRoom}
 						onChange={(_, value) => setSelectedRoom(value)}
 						getOptionLabel={(room) =>
-							room.description
-								? `${room.description} (${room.id})`
-								: room.id
+							room.description ? `${room.description} (${room.id})` : room.id
 						}
 						renderInput={(params) => (
 							<TextField {...params} label="Select room" />
 						)}
-						isOptionEqualToValue={(option, value) =>
-							option.id === value.id
-						}
+						isOptionEqualToValue={(option, value) => option.id === value.id}
 						sx={{ mt: 1 }}
 					/>
 				)}

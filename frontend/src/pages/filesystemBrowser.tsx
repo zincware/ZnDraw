@@ -225,7 +225,9 @@ export default function FilesystemBrowserPage() {
 		return (
 			<Container maxWidth="lg" sx={{ mt: 4 }}>
 				<Alert severity="error">
-					{isAxiosError(providersError) ? (providersError.response?.data?.detail ?? providersError.message) : "Failed to load filesystem providers"}
+					{isAxiosError(providersError)
+						? (providersError.response?.data?.detail ?? providersError.message)
+						: "Failed to load filesystem providers"}
 				</Alert>
 				<Button onClick={handleBack} sx={{ mt: 2 }}>
 					Back

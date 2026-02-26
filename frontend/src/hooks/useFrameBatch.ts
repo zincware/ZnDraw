@@ -114,37 +114,28 @@ export function getFrameBatched(
 		// Defer fetch so queryFn calls in the same event-loop turn
 		// can register their keys. setTimeout(0) fires AFTER React's
 		// useEffect flush, ensuring all components' queries join.
-		const promise = new Promise<FrameResponse | null>(
-			(resolve, reject) => {
-				setTimeout(() => {
-					// Seal: late arrivals will create a new batch
-					batchPromises.delete(batchKey);
+		const promise = new Promise<FrameResponse | null>((resolve, reject) => {
+			setTimeout(() => {
+				// Seal: late arrivals will create a new batch
+				batchPromises.delete(batchKey);
 
-					const toFetch = [...keys];
+				const toFetch = [...keys];
 
-					fetchWithRetry(
-						roomId,
-						frame,
-						toFetch,
-						controller.signal,
-					)
-						.then((data) => {
-							for (const k of toFetch) {
-								queryClient.setQueryData(
-									["frame", roomId, frame, k],
-									data?.[k] !== undefined
-										? { [k]: data[k] }
-										: null,
-								);
-							}
-							resolve(data);
-						})
-						.catch((error) => {
-							reject(error);
-						});
-				}, 0);
-			},
-		);
+				fetchWithRetry(roomId, frame, toFetch, controller.signal)
+					.then((data) => {
+						for (const k of toFetch) {
+							queryClient.setQueryData(
+								["frame", roomId, frame, k],
+								data?.[k] !== undefined ? { [k]: data[k] } : null,
+							);
+						}
+						resolve(data);
+					})
+					.catch((error) => {
+						reject(error);
+					});
+			}, 0);
+		});
 
 		batch = { keys, promise, controller };
 		batchPromises.set(batchKey, batch);
@@ -155,9 +146,7 @@ export function getFrameBatched(
 
 	// All callers share the same promise, each extracts their key
 	return batch.promise.then((data) =>
-		data?.[key] !== undefined
-			? ({ [key]: data[key] } as FrameResponse)
-			: null,
+		data?.[key] !== undefined ? ({ [key]: data[key] } as FrameResponse) : null,
 	);
 }
 
@@ -176,8 +165,7 @@ export async function prefetchFrame(
 	signal?: AbortSignal,
 ): Promise<void> {
 	const uncached = allKeys.filter(
-		(k) =>
-			queryClient.getQueryData(["frame", roomId, frame, k]) === undefined,
+		(k) => queryClient.getQueryData(["frame", roomId, frame, k]) === undefined,
 	);
 	if (uncached.length === 0) return;
 

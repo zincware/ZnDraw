@@ -185,13 +185,15 @@ async def test_get_edit_lock_returns_locked_when_lock_exists(
     room = await _create_room(el_session, user)
 
     # Set lock directly in Redis (new format with lock_token)
-    lock_data = json.dumps({
-        "lock_token": "test-token-123",
-        "user_id": str(user.id),
-        "sid": None,
-        "msg": "testing",
-        "acquired_at": 1000.0,
-    })
+    lock_data = json.dumps(
+        {
+            "lock_token": "test-token-123",
+            "user_id": str(user.id),
+            "sid": None,
+            "msg": "testing",
+            "acquired_at": 1000.0,
+        }
+    )
     await el_redis.set(RedisKey.edit_lock(room.id), lock_data, ex=10)
 
     response = await el_client.get(

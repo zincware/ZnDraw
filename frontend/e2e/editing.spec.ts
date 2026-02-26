@@ -181,7 +181,8 @@ test.describe("Edit Lock — Two Tabs Same User", () => {
 				});
 				break;
 			} catch {
-				if (attempt === 2) throw new Error("Tab2 failed to enter editing mode after 3 attempts");
+				if (attempt === 2)
+					throw new Error("Tab2 failed to enter editing mode after 3 attempts");
 				await canvas2.click();
 				await tab2.waitForTimeout(1000);
 			}

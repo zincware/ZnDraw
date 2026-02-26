@@ -131,7 +131,8 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 		const geom = geometriesData[key];
 		const owner = geom?.data?.owner as string | null | undefined;
 		if (owner && owner !== userId) return "Owned by another user";
-		if (userLock && userLock !== currentUserEmail) return "Room is being edited";
+		if (userLock && userLock !== currentUserEmail)
+			return "Room is being edited";
 		if (superuserLock && owner !== userId) return "Room is locked";
 		return null;
 	};

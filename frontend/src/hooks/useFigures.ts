@@ -81,10 +81,7 @@ export const useCreateFigure = () => {
 		},
 		onError: (_err, _variables, context) => {
 			if (context?.previous) {
-				queryClient.setQueryData(
-					figuresKeys.list(roomId!),
-					context.previous,
-				);
+				queryClient.setQueryData(figuresKeys.list(roomId!), context.previous);
 			}
 		},
 		onSettled: () => {
@@ -123,10 +120,7 @@ export const useDeleteFigure = () => {
 		},
 		onError: (_err, _key, context) => {
 			if (context?.previous) {
-				queryClient.setQueryData(
-					figuresKeys.list(roomId!),
-					context.previous,
-				);
+				queryClient.setQueryData(figuresKeys.list(roomId!), context.previous);
 			}
 		},
 		onSettled: () => {

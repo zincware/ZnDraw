@@ -65,8 +65,7 @@ export default function RoomListPage() {
 				showSnackbar(`Room created with ${files.length} file(s)`, "success");
 				navigate(`/rooms/${newRoomId}`);
 			} catch (error: any) {
-				const detail =
-					error?.response?.data?.detail || "Upload failed";
+				const detail = error?.response?.data?.detail || "Upload failed";
 				showSnackbar(detail, "error");
 			}
 		},
@@ -383,7 +382,7 @@ export default function RoomListPage() {
 					>
 						Upload File
 					</Button>
-					</Box>
+				</Box>
 			</Box>
 
 			{/* Duplicate Dialog */}

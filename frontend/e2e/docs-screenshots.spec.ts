@@ -5,7 +5,10 @@ import { BASE_URL, PY, waitForScene, spawnPY, waitForBgReady } from "./helpers";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const SCREENSHOTS_DIR = path.resolve(__dirname, "../../docs/source/_static/screenshots");
+const SCREENSHOTS_DIR = path.resolve(
+	__dirname,
+	"../../docs/source/_static/screenshots",
+);
 
 for (const theme of ["light", "dark"] as const) {
 	const outDir = path.join(SCREENSHOTS_DIR, `${theme}mode`);
@@ -127,7 +130,9 @@ dst.selection_groups["bf4"] = {"particles": list(range(32 * 5))}
 dst.selection_groups["bmim"] = {"particles": list(range(32 * 25))}
 `);
 			await page.goto(`${BASE_URL}/rooms/${room}`);
-			await page.getByRole("button", { name: "Selection tools and groups" }).click();
+			await page
+				.getByRole("button", { name: "Selection tools and groups" })
+				.click();
 			await page.mouse.click(0, 0);
 			await page.waitForTimeout(2500);
 			await page.screenshot({ path: path.join(outDir, "selection.png") });
@@ -231,7 +236,9 @@ vis.bookmarks[17] = "Frame 17"
 vis.step = 5
 `);
 			await page.goto(`${BASE_URL}/rooms/${room}`);
-			await page.getByRole("button", { name: "Bookmark: Frame 5 (Frame 5)" }).hover();
+			await page
+				.getByRole("button", { name: "Bookmark: Frame 5 (Frame 5)" })
+				.hover();
 			await page.waitForTimeout(400);
 			await page.screenshot({ path: path.join(outDir, "bookmarks.png") });
 		});
@@ -327,11 +334,15 @@ vis.append(ase.Atoms())
 			await page.getByLabel("modifiers Method").click();
 			await page.getByRole("option", { name: "AddFromSMILES" }).click();
 			await page.waitForTimeout(500);
-			await page.getByPlaceholder("Enter SMILES notation").fill("NC(Cc1ccccc1)C(=O)O");
+			await page
+				.getByPlaceholder("Enter SMILES notation")
+				.fill("NC(Cc1ccccc1)C(=O)O");
 			await page.waitForTimeout(500);
 			await page.getByRole("button", { name: "Run Extension" }).click();
 			await page.waitForTimeout(2000);
-			await page.screenshot({ path: path.join(outDir, "molecule_builder.png") });
+			await page.screenshot({
+				path: path.join(outDir, "molecule_builder.png"),
+			});
 		});
 
 		test("molecule_builder_editor", async ({ page }) => {
@@ -350,16 +361,22 @@ vis.append(ase.Atoms())
 			await page.getByLabel("modifiers Method").click();
 			await page.getByRole("option", { name: "AddFromSMILES" }).click();
 			await page.waitForTimeout(500);
-			await page.getByPlaceholder("Enter SMILES notation").fill("NC(Cc1ccccc1)C(=O)O");
+			await page
+				.getByPlaceholder("Enter SMILES notation")
+				.fill("NC(Cc1ccccc1)C(=O)O");
 			await page.waitForTimeout(500);
 			await page.getByRole("button", { name: "Run Extension" }).click();
 			await page.waitForTimeout(2000);
 			await page.getByPlaceholder("Enter SMILES notation").fill("CC(N)C(=O)O");
 			await page.waitForTimeout(500);
 			await page.getByRole("button", { name: "Draw", exact: true }).click();
-			await page.getByRole("dialog", { name: "Molecular Structure Editor" }).waitFor({ state: "visible" });
+			await page
+				.getByRole("dialog", { name: "Molecular Structure Editor" })
+				.waitFor({ state: "visible" });
 			await page.waitForTimeout(1000);
-			await page.screenshot({ path: path.join(outDir, "molecule_builder_editor.png") });
+			await page.screenshot({
+				path: path.join(outDir, "molecule_builder_editor.png"),
+			});
 		});
 
 		test("rooms", async ({ page }) => {
@@ -415,7 +432,9 @@ time.sleep(60)
 				for (let attempt = 0; attempt < 3; attempt++) {
 					await page.goto(`${BASE_URL}/rooms/${room}/files`);
 					await page.waitForTimeout(2000);
-					const noFs = page.getByText("No filesystems are currently registered");
+					const noFs = page.getByText(
+						"No filesystems are currently registered",
+					);
 					if (!(await noFs.isVisible().catch(() => false))) break;
 					if (attempt < 2) await waitForBgReady(3000);
 				}
@@ -468,7 +487,9 @@ vis.geometries["camera"] = Camera(
 			await waitForScene(page);
 			await page.getByRole("button", { name: "show connection info" }).click();
 			await page.waitForTimeout(500);
-			await page.screenshot({ path: path.join(outDir, "python_connection.png") });
+			await page.screenshot({
+				path: path.join(outDir, "python_connection.png"),
+			});
 		});
 
 		test("chat", async ({ page }) => {
@@ -535,7 +556,9 @@ time.sleep(60)
 				await page.getByLabel("modifiers Method").click();
 				await page.getByRole("option", { name: "ScaleAtoms" }).click();
 				await page.waitForTimeout(500);
-				await page.screenshot({ path: path.join(outDir, "custom_modifier.png") });
+				await page.screenshot({
+					path: path.join(outDir, "custom_modifier.png"),
+				});
 			} finally {
 				bg.kill();
 			}
@@ -558,7 +581,9 @@ pbar.close()
 				await waitForBgReady(5000);
 				await page.goto(`${BASE_URL}/rooms/${room}`);
 				await page.waitForTimeout(2000);
-				await page.screenshot({ path: path.join(outDir, "progress_tracker.png") });
+				await page.screenshot({
+					path: path.join(outDir, "progress_tracker.png"),
+				});
 			} finally {
 				bg.kill();
 			}
@@ -611,7 +636,9 @@ vis.geometries["force_arrows"] = Arrow(
 			await page.waitForTimeout(500);
 			await page.getByLabel("Position").click();
 			await page.waitForTimeout(500);
-			await page.screenshot({ path: path.join(outDir, "dynamic_properties_dropdown.png") });
+			await page.screenshot({
+				path: path.join(outDir, "dynamic_properties_dropdown.png"),
+			});
 		});
 
 		test("property_inspector", async ({ page }) => {
@@ -633,7 +660,9 @@ vis.geometries["force_arrows"] = Arrow(
 			await page.waitForTimeout(500);
 			await page.mouse.move(950, 280);
 			await page.waitForTimeout(500);
-			await page.screenshot({ path: path.join(outDir, "property_inspector.png") });
+			await page.screenshot({
+				path: path.join(outDir, "property_inspector.png"),
+			});
 		});
 
 		test("chat_frame_reference", async ({ page }) => {
@@ -651,7 +680,9 @@ vis.log("Check the transition at @10 and compare with @15")
 			await page.waitForTimeout(1000);
 			await page.getByRole("button", { name: "toggle chat" }).click();
 			await page.waitForTimeout(500);
-			await page.screenshot({ path: path.join(outDir, "chat_frame_reference.png") });
+			await page.screenshot({
+				path: path.join(outDir, "chat_frame_reference.png"),
+			});
 		});
 
 		test("chat_progress", async ({ page }) => {
@@ -731,7 +762,9 @@ vis.selections["box"] = [0]
 			await page.waitForTimeout(500);
 			await page.keyboard.down("x");
 			await page.waitForTimeout(300);
-			await page.screenshot({ path: path.join(outDir, "editing_axis_constraint.png") });
+			await page.screenshot({
+				path: path.join(outDir, "editing_axis_constraint.png"),
+			});
 			await page.keyboard.up("x");
 		});
 

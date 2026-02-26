@@ -4,7 +4,7 @@ import json
 from functools import lru_cache
 from typing import Any
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 from pydantic import ValidationError
 from sqlmodel import select
 

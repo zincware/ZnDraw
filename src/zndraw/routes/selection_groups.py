@@ -2,7 +2,7 @@
 
 import json
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 
 from zndraw.dependencies import (
     CurrentUserDep,

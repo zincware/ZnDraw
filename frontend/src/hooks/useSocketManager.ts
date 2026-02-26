@@ -128,9 +128,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 				if (!compatibility.compatible) {
 					console.error(compatibility.message);
-					useAppStore
-						.getState()
-						.showSnackbar(compatibility.message, "error");
+					useAppStore.getState().showSnackbar(compatibility.message, "error");
 					socket.disconnect();
 					return;
 				}
@@ -266,21 +264,15 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 							// Set edit lock status (for edit/drawing modes)
 							if (editLockResponse.locked) {
-								const mySessionId =
-									useAppStore.getState().sessionId;
+								const mySessionId = useAppStore.getState().sessionId;
 								if (editLockResponse.sid === mySessionId) {
 									// We hold this lock (page reload case)
 									useAppStore.setState({
-										lockToken:
-											editLockResponse.lock_token ?? null,
-										userLock:
-											editLockResponse.user_id ?? null,
-										userLockMessage:
-											editLockResponse.msg ?? null,
+										lockToken: editLockResponse.lock_token ?? null,
+										userLock: editLockResponse.user_id ?? null,
+										userLockMessage: editLockResponse.msg ?? null,
 									});
-									useAppStore
-										.getState()
-										.startLockRenewal();
+									useAppStore.getState().startLockRenewal();
 								} else {
 									setUserLock(
 										editLockResponse.user_id ?? null,
@@ -289,9 +281,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 									if (editLockResponse.ttl) {
 										useAppStore
 											.getState()
-											.startLockExpiryTimer(
-												editLockResponse.ttl,
-											);
+											.startLockExpiryTimer(editLockResponse.ttl);
 									}
 								}
 							}
@@ -415,8 +405,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			count?: number | null;
 			reason?: string | null;
 		}) {
-			const { room_id: eventRoomId, action, indices, count, reason } =
-				data;
+			const { room_id: eventRoomId, action, indices, count, reason } = data;
 
 			// Update frameCount if provided (new total frame count)
 			if (count != null) {
@@ -425,9 +414,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 			// Notify user when a mounted source disconnects
 			if (action === "clear" && reason === "provider_disconnected") {
-				useAppStore
-					.getState()
-					.showSnackbar("Source disconnected", "warning");
+				useAppStore.getState().showSnackbar("Source disconnected", "warning");
 			}
 
 			// Invalidate React Query cache based on action

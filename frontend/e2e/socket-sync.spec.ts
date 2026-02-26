@@ -68,12 +68,8 @@ vis.step = 0
 			await waitForScene(pageB);
 
 			// Open chat in both tabs
-			await pageA
-				.getByRole("button", { name: "toggle chat" })
-				.click();
-			await pageB
-				.getByRole("button", { name: "toggle chat" })
-				.click();
+			await pageA.getByRole("button", { name: "toggle chat" }).click();
+			await pageB.getByRole("button", { name: "toggle chat" }).click();
 			await pageA.waitForTimeout(500);
 			await pageB.waitForTimeout(500);
 
@@ -125,12 +121,12 @@ for i in range(3):
 			const expectedCount = beforeCount + 3;
 
 			// Both tabs should update frame count via frames_invalidate
-			await expect(
-				pageA.getByText(`/ ${expectedCount}`),
-			).toBeVisible({ timeout: 15000 });
-			await expect(
-				pageB.getByText(`/ ${expectedCount}`),
-			).toBeVisible({ timeout: 15000 });
+			await expect(pageA.getByText(`/ ${expectedCount}`)).toBeVisible({
+				timeout: 15000,
+			});
+			await expect(pageB.getByText(`/ ${expectedCount}`)).toBeVisible({
+				timeout: 15000,
+			});
 		} finally {
 			await ctxA.close();
 			await ctxB.close();

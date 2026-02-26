@@ -4,7 +4,7 @@ Manages server-wide configuration such as the default room
 that new rooms copy from when no explicit `copyFrom` is provided.
 """
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 

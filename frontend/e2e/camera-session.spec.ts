@@ -54,34 +54,26 @@ async function moveCameraViaAPI(
 				{ headers },
 			);
 			if (!camResp.ok)
-				throw new Error(
-					`Failed to get active camera: ${camResp.status}`,
-				);
+				throw new Error(`Failed to get active camera: ${camResp.status}`);
 			const camKey = (await camResp.json()).active_camera;
 
 			// 3. Get current camera geometry data
-			const geomResp = await fetch(
-				`/v1/rooms/${room}/geometries/${camKey}`,
-				{ headers },
-			);
+			const geomResp = await fetch(`/v1/rooms/${room}/geometries/${camKey}`, {
+				headers,
+			});
 			if (!geomResp.ok)
-				throw new Error(
-					`Failed to get camera geometry: ${geomResp.status}`,
-				);
+				throw new Error(`Failed to get camera geometry: ${geomResp.status}`);
 			const geom = await geomResp.json();
 			const camData = geom.geometry.data;
 
 			// 4. Update camera position and PUT back
 			camData.position = position;
 			camData.target = target;
-			const putResp = await fetch(
-				`/v1/rooms/${room}/geometries/${camKey}`,
-				{
-					method: "PUT",
-					headers,
-					body: JSON.stringify({ type: "Camera", data: camData }),
-				},
-			);
+			const putResp = await fetch(`/v1/rooms/${room}/geometries/${camKey}`, {
+				method: "PUT",
+				headers,
+				body: JSON.stringify({ type: "Camera", data: camData }),
+			});
 			if (!putResp.ok)
 				throw new Error(`Failed to update camera: ${putResp.status}`);
 		},
@@ -121,9 +113,7 @@ vis.append(ase.Atoms('H4', positions=[(0,0,0),(2,0,0),(0,2,0),(2,2,0)]))
 		});
 	});
 
-	test("camera update via API reflects in geometry panel", async ({
-		page,
-	}) => {
+	test("camera update via API reflects in geometry panel", async ({ page }) => {
 		await page.goto(`${BASE_URL}/rooms/${ROOM}`);
 		await waitForScene(page);
 

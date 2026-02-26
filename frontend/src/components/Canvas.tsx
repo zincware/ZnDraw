@@ -199,7 +199,11 @@ function MyScene() {
 
 	const sessionCameraKey = useAppStore((state) => state.cameraKey);
 
-	const cameraControls = useCameraControls(attachedCameraKey, geometries, userId);
+	const cameraControls = useCameraControls(
+		attachedCameraKey,
+		geometries,
+		userId,
+	);
 
 	const orbitControlsRef = useRef<OrbitControlsImpl | null>(null);
 

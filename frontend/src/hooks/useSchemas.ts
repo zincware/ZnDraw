@@ -4,11 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import { useEffect } from "react";
-import {
-	type Task,
-	getFrameMetadata,
-	listTasksForJob,
-} from "../myapi/client";
+import { type Task, getFrameMetadata, listTasksForJob } from "../myapi/client";
 import { socket } from "../socket";
 import type { TaskStatusEvent } from "../types/jobs";
 

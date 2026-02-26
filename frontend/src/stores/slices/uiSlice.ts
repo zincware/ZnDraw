@@ -29,7 +29,9 @@ export interface UISlice {
 	hideSnackbar: () => void;
 	setProgressTrackers: (trackers: Record<string, Progress>) => void;
 	addProgressTracker: (tracker: Progress) => void;
-	updateProgressTracker: (update: Partial<Progress> & { progress_id: string }) => void;
+	updateProgressTracker: (
+		update: Partial<Progress> & { progress_id: string },
+	) => void;
 	removeProgressTracker: (progressId: string) => void;
 	toggleInfoBoxes: () => void;
 	setHoveredFrame: (frame: number | null) => void;

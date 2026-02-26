@@ -9,7 +9,7 @@ import pytest
 from zndraw.providers.filesystem import FileItem, FilesystemRead, _from_info
 
 
-@pytest.fixture()
+@pytest.fixture
 def nested_fs(tmp_path: Path):
     """Real fsspec local filesystem with nested .xyz files.
 
@@ -198,7 +198,7 @@ def test_glob_memory_filesystem_specific_file():
 # --- RED tests: root path glob bug (relative filesystem) ---
 
 
-@pytest.fixture()
+@pytest.fixture
 def relative_fs(tmp_path: Path):
     """DirFileSystem rooted at tmp_path — paths are relative.
 

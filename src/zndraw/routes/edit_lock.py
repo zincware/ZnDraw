@@ -124,13 +124,15 @@ async def acquire_edit_lock(
     # --- Acquire path: no Lock-Token header ---
     new_token = str(uuid.uuid4())
     acquired_at = time.time()
-    lock_data = json.dumps({
-        "lock_token": new_token,
-        "user_id": user_id,
-        "sid": x_session_id,
-        "msg": request.msg,
-        "acquired_at": acquired_at,
-    })
+    lock_data = json.dumps(
+        {
+            "lock_token": new_token,
+            "user_id": user_id,
+            "sid": x_session_id,
+            "msg": request.msg,
+            "acquired_at": acquired_at,
+        }
+    )
     # Atomic set-if-not-exists — prevents TOCTOU race between concurrent acquires
     was_set = await redis.set(key, lock_data, ex=settings.edit_lock_ttl, nx=True)
     if not was_set:

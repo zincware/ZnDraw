@@ -57,7 +57,6 @@ const GeometryForm = () => {
 
 	// Geometry schemas come from Zustand store (populated during connection)
 
-
 	// Get geometry data from Zustand store (single source of truth)
 	// This ensures transform control updates are immediately visible
 	// In edit mode: use selectedKey; in create mode: use keyInput (for sync after creation)

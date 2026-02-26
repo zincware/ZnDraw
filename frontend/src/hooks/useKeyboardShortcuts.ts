@@ -149,7 +149,15 @@ export const useKeyboardShortcuts = () => {
 		}, 33);
 
 		return () => clearInterval(intervalId);
-	}, [playing, getNavigableFrames, setStep, skipFrames, setPlaying, synchronizedMode, getIsFetching]);
+	}, [
+		playing,
+		getNavigableFrames,
+		setStep,
+		skipFrames,
+		setPlaying,
+		synchronizedMode,
+		getIsFetching,
+	]);
 
 	// Track FPS during playback
 	useEffect(() => {

@@ -1,6 +1,6 @@
 """Bookmarks REST API endpoints for room frame bookmarks."""
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 from sqlmodel import select
 
 from zndraw.dependencies import (
