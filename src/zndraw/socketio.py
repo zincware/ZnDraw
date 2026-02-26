@@ -25,7 +25,7 @@ from zndraw.exceptions import (
     UserNotFound,
 )
 from zndraw.geometries.camera import Camera
-from zndraw.models import Room, RoomMembership
+from zndraw.models import Room, RoomGeometry, RoomMembership
 from zndraw.redis import RedisKey
 from zndraw.schemas import ProgressResponse
 from zndraw.socket_events import (
@@ -315,6 +315,27 @@ async def room_join(
     if data.client_type == "frontend":
         camera_key = f"cam:{email}:{sid[:8]}"
         camera = Camera(owner=str(user_id))
+
+        # Clone default camera properties if set
+        if room.default_camera:
+            default_row = await session.get(
+                RoomGeometry, (data.room_id, room.default_camera)
+            )
+            if default_row and default_row.type == "Camera":
+                default_data = json.loads(default_row.config)
+                for field in (
+                    "position",
+                    "target",
+                    "up",
+                    "fov",
+                    "near",
+                    "far",
+                    "zoom",
+                    "camera_type",
+                ):
+                    if field in default_data:
+                        setattr(camera, field, default_data[field])
+
         camera_value = json.dumps(
             {
                 "sid": sid,
@@ -353,6 +374,7 @@ async def room_join(
         frame_count=frame_count,
         locked=room_locked,
         camera_key=camera_key,
+        default_camera=room.default_camera,
         progress_trackers=progress_trackers,
     )
 

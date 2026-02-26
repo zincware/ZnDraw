@@ -645,6 +645,15 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			}
 		}
 
+		function onDefaultCameraInvalidate(data: {
+			room_id: string;
+			default_camera: string | null;
+		}) {
+			queryClient.setQueryData(["defaultCamera", data.room_id], {
+				default_camera: data.default_camera,
+			});
+		}
+
 		function onFiguresInvalidate(data: {
 			key: string;
 			operation?: "set" | "delete";
@@ -842,6 +851,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		socket.on("message_edited", onChatMessageUpdated);
 		socket.on("typing", onTyping);
 		socket.on("geometry_invalidate", onGeometriesInvalidate);
+		socket.on("default_camera_invalidate", onDefaultCameraInvalidate);
 		socket.on("figure_invalidate", onFiguresInvalidate);
 		socket.on("selection_invalidate", onSelectionsInvalidate);
 		socket.on("selection_groups_invalidate", onSelectionGroupsInvalidate);
@@ -930,6 +940,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			for (const timeout of typingTimeouts.values()) clearTimeout(timeout);
 			typingTimeouts.clear();
 			socket.off("geometry_invalidate", onGeometriesInvalidate);
+			socket.off("default_camera_invalidate", onDefaultCameraInvalidate);
 			socket.off("figure_invalidate", onFiguresInvalidate);
 			socket.off("selection_invalidate", onSelectionsInvalidate);
 			socket.off("selection_groups_invalidate", onSelectionGroupsInvalidate);

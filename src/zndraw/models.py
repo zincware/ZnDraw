@@ -48,6 +48,7 @@ class Room(SQLModel, table=True):
     locked: bool = Field(default=False)  # Admin lock status
     step: int = Field(default=0)
     frame_selection: str | None = Field(default=None)  # JSON list[int]
+    default_camera: str | None = Field(default=None)  # Geometry key for default camera
 
 
 class Message(SQLModel, table=True):

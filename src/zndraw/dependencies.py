@@ -133,14 +133,10 @@ async def _check_locks(
         holder = json.loads(raw)
         if lock_token is not None:
             if holder["lock_token"] != lock_token:
-                raise RoomLocked.exception(
-                    "Room is being edited by another session"
-                )
+                raise RoomLocked.exception("Room is being edited by another session")
         else:
             if holder["user_id"] != str(user.id):
-                raise RoomLocked.exception(
-                    "Room is being edited by another user"
-                )
+                raise RoomLocked.exception("Room is being edited by another user")
 
 
 async def get_writable_room(
@@ -248,14 +244,10 @@ async def check_geometry_write_access(
         holder = json.loads(raw)
         if lock_token is not None:
             if holder["lock_token"] != lock_token:
-                raise RoomLocked.exception(
-                    "Room is being edited by another session"
-                )
+                raise RoomLocked.exception("Room is being edited by another session")
         else:
             if holder["user_id"] != str(current_user.id):
-                raise RoomLocked.exception(
-                    "Room is being edited by another user"
-                )
+                raise RoomLocked.exception("Room is being edited by another user")
 
     # Resolve owner once — reused for lock bypass and ownership check
     current_owner = await get_owner_from_geometry(redis, session, room_id, geometry_key)

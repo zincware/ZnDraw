@@ -67,6 +67,7 @@ class RoomJoinResponse(BaseModel):
     frame_count: int
     locked: bool
     camera_key: str | None = None
+    default_camera: str | None = None
     progress_trackers: dict[str, ProgressResponse] = {}
 
 
@@ -147,6 +148,13 @@ class GeometryInvalidate(BaseModel):
     room_id: str
     operation: Literal["set", "delete"]
     key: str
+
+
+class DefaultCameraInvalidate(BaseModel):
+    """Broadcast when the default camera changes."""
+
+    room_id: str
+    default_camera: str | None = None
 
 
 class SelectionInvalidate(BaseModel):

@@ -28,9 +28,11 @@ from zndraw.exceptions import (
     problem_responses,
 )
 from zndraw.geometries import geometries as geometry_models
-from zndraw.models import RoomGeometry
+from zndraw.models import Room, RoomGeometry
 from zndraw.redis import RedisKey
 from zndraw.schemas import (
+    DefaultCameraRequest,
+    DefaultCameraResponse,
     GeometriesResponse,
     GeometryCreateRequest,
     GeometryData,
@@ -40,7 +42,11 @@ from zndraw.schemas import (
     SelectionUpdateRequest,
     StatusResponse,
 )
-from zndraw.socket_events import GeometryInvalidate, SelectionInvalidate
+from zndraw.socket_events import (
+    DefaultCameraInvalidate,
+    GeometryInvalidate,
+    SelectionInvalidate,
+)
 
 
 @lru_cache(maxsize=1)
@@ -286,9 +292,80 @@ async def delete_geometry(
             await session.delete(row)
             await session.commit()
 
+    # Clear default camera if this geometry was the default
+    room = await session.get(Room, room_id)
+    if room is not None and room.default_camera == key:
+        room.default_camera = None
+        session.add(room)
+        await session.commit()
+        await sio.emit(
+            DefaultCameraInvalidate(room_id=room_id, default_camera=None),
+            room=room_channel(room_id),
+        )
+
     await sio.emit(
         GeometryInvalidate(room_id=room_id, operation="delete", key=key),
         room=room_channel(room_id),
     )
 
     return StatusResponse()
+
+
+# =============================================================================
+# Default Camera
+# =============================================================================
+
+default_camera_router = APIRouter(prefix="/v1/rooms/{room_id}", tags=["geometries"])
+
+
+@default_camera_router.get(
+    "/default-camera",
+    responses=problem_responses(RoomNotFound),
+)
+async def get_default_camera(
+    session: SessionDep,
+    _user: OptionalUserDep,
+    room_id: str,
+) -> DefaultCameraResponse:
+    """Get the default camera geometry key for a room."""
+    room = await verify_room(session, room_id)
+    return DefaultCameraResponse(default_camera=room.default_camera)
+
+
+@default_camera_router.put(
+    "/default-camera",
+    responses=problem_responses(
+        RoomNotFound, NotAuthenticated, GeometryNotFound, InvalidPayload
+    ),
+)
+async def set_default_camera(
+    session: SessionDep,
+    sio: SioDep,
+    _user: CurrentUserDep,
+    room_id: str,
+    body: DefaultCameraRequest,
+) -> DefaultCameraResponse:
+    """Set or unset the default camera for a room."""
+    room = await verify_room(session, room_id)
+
+    if body.default_camera is not None:
+        row = await session.get(RoomGeometry, (room_id, body.default_camera))
+        if row is None:
+            raise GeometryNotFound.exception(
+                f"Geometry '{body.default_camera}' not found"
+            )
+        if row.type != "Camera":
+            raise InvalidPayload.exception(
+                f"Geometry '{body.default_camera}' is type '{row.type}', not Camera"
+            )
+
+    room.default_camera = body.default_camera
+    session.add(room)
+    await session.commit()
+
+    await sio.emit(
+        DefaultCameraInvalidate(room_id=room_id, default_camera=room.default_camera),
+        room=room_channel(room_id),
+    )
+
+    return DefaultCameraResponse(default_camera=room.default_camera)

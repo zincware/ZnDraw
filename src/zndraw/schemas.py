@@ -309,6 +309,18 @@ class GeometryCreateRequest(BaseModel):
     data: dict[str, Any]
 
 
+class DefaultCameraResponse(BaseModel):
+    """Response for default camera endpoint."""
+
+    default_camera: str | None = None
+
+
+class DefaultCameraRequest(BaseModel):
+    """Request to set/unset default camera."""
+
+    default_camera: str | None = None
+
+
 # =============================================================================
 # Selection Schemas
 # =============================================================================

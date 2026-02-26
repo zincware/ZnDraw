@@ -4,6 +4,8 @@ import LockIcon from "@mui/icons-material/Lock";
 import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import SearchIcon from "@mui/icons-material/Search";
+import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
 import {
 	Box,
 	IconButton,
@@ -21,6 +23,7 @@ import {
 	type GridRowParams,
 } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
+import { useDefaultCamera } from "../../hooks/useDefaultCamera";
 import {
 	useCreateGeometry,
 	useDeleteGeometry,
@@ -57,6 +60,8 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 
 	const { mutate: deleteGeometry } = useDeleteGeometry();
 	const { mutate: updateGeometry } = useCreateGeometry();
+	const { defaultCamera, setDefaultCamera, isSettingDefault } =
+		useDefaultCamera();
 
 	/** Check if the current user can edit a geometry. */
 	const canEdit = (key: string): boolean => {
@@ -191,6 +196,43 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 								<RadioButtonUncheckedIcon />
 							)}
 						</IconButton>
+					</Tooltip>
+				);
+			},
+		},
+		{
+			field: "default",
+			headerName: "",
+			width: 50,
+			sortable: false,
+			renderCell: (params: GridRenderCellParams) => {
+				const isCamera = params.row.type === "Camera";
+				const isSessionCam = (params.row.key as string).startsWith("cam:");
+				if (!isCamera || isSessionCam) return null;
+
+				const isDefault = defaultCamera === params.row.key;
+				return (
+					<Tooltip
+						title={
+							isDefault ? "Unset default camera" : "Set as default camera"
+						}
+					>
+						<span>
+							<IconButton
+								size="small"
+								disabled={isSettingDefault}
+								onClick={(e) => {
+									e.stopPropagation();
+									setDefaultCamera(isDefault ? null : params.row.key);
+								}}
+							>
+								{isDefault ? (
+									<StarIcon color="warning" />
+								) : (
+									<StarBorderIcon />
+								)}
+							</IconButton>
+						</span>
 					</Tooltip>
 				);
 			},

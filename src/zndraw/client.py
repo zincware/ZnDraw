@@ -626,6 +626,28 @@ class APIManager:
         self.raise_for_status(response)
 
     # -------------------------------------------------------------------------
+    # Default Camera
+    # -------------------------------------------------------------------------
+
+    def get_default_camera(self) -> str | None:
+        """Get the default camera key for the room."""
+        response = self.http.get(
+            f"/v1/rooms/{self.room_id}/default-camera",
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()["default_camera"]
+
+    def set_default_camera(self, camera_key: str | None) -> None:
+        """Set or unset the default camera."""
+        response = self.http.put(
+            f"/v1/rooms/{self.room_id}/default-camera",
+            json={"default_camera": camera_key},
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+
+    # -------------------------------------------------------------------------
     # Selection Operations
     # -------------------------------------------------------------------------
 
@@ -1669,6 +1691,22 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         if self._geometries is None:
             self._geometries = Geometries(self)
         return self._geometries
+
+    @property
+    def default_camera(self) -> str | None:
+        """Default camera geometry key for new sessions."""
+        return self.api.get_default_camera()
+
+    @default_camera.setter
+    def default_camera(self, value: str | None) -> None:
+        """Set default camera. Validates key exists and is a Camera."""
+        if value is not None:
+            if value not in self.geometries:
+                raise KeyError(f"Camera '{value}' not found in geometries")
+            geom = self.geometries[value]
+            if not isinstance(geom, Camera):
+                raise TypeError(f"Geometry '{value}' is not a Camera")
+        self.api.set_default_camera(value)
 
     @property
     def figures(self) -> Figures:

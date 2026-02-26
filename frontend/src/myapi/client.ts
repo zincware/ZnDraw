@@ -295,6 +295,32 @@ export const deleteGeometry = async (
 	}
 };
 
+// ==================== Default Camera API ====================
+
+export interface DefaultCameraResponse {
+	default_camera: string | null;
+}
+
+export const getDefaultCamera = async (
+	roomId: string,
+): Promise<DefaultCameraResponse> => {
+	const { data } = await apiClient.get(
+		`/v1/rooms/${roomId}/default-camera`,
+	);
+	return data;
+};
+
+export const setDefaultCamera = async (
+	roomId: string,
+	cameraKey: string | null,
+): Promise<DefaultCameraResponse> => {
+	const { data } = await apiClient.put(
+		`/v1/rooms/${roomId}/default-camera`,
+		{ default_camera: cameraKey },
+	);
+	return data;
+};
+
 // ==================== Selections API ====================
 
 export interface SelectionGroupResponse {
