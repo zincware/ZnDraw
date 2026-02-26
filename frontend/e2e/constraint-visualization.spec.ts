@@ -19,18 +19,16 @@ function setupConstraintRoom() {
 	CLI(`rooms create --room-id ${ROOM}`);
 	PY(`
 from zndraw import ZnDraw
-import ase
-from ase.constraints import FixAtoms, FixedLine
+from molify import smiles2conformers
+from ase.constraints import FixAtoms
 
 vis = ZnDraw(url='${BASE_URL}', room='${ROOM}')
 del vis[:]
 
-# 5 atoms: fix atoms 0 and 2, constrain atom 1 to a line
-atoms = ase.Atoms('H5', positions=[(0,0,0),(2,0,0),(4,0,0),(6,0,0),(8,0,0)])
-atoms.set_constraint([
-    FixAtoms(indices=[0, 2]),
-    FixedLine(1, direction=[1, 0, 0]),
-])
+# Butyric acid: constrain the carbon chain
+atoms = smiles2conformers('CCCC(=O)O', numConfs=1)[0]
+carbon_indices = [i for i, s in enumerate(atoms.symbols) if s == 'C']
+atoms.set_constraint(FixAtoms(indices=carbon_indices))
 vis.append(atoms)
 `);
 }
