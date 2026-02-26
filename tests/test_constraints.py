@@ -308,3 +308,63 @@ def test_client_extend_with_constraints(server: str):
     assert r2.constraints == []
 
     client.disconnect()
+
+
+# =============================================================================
+# Section 4: Default geometry tests
+# =============================================================================
+
+
+def test_default_constraint_geometry_created_on_room_creation(server: str):
+    """New rooms include a constraints-fixed-atoms geometry."""
+    from zndraw import ZnDraw
+    from zndraw.geometries import Sphere
+    from zndraw.transformations import InArrayTransform
+
+    room_id = uuid.uuid4().hex
+    client = ZnDraw(url=server, room=room_id)
+
+    geo = client.geometries["constraints-fixed-atoms"]
+    assert geo is not None
+
+    # Verify it's a Sphere with InArrayTransform position
+    assert isinstance(geo, Sphere)
+    assert isinstance(geo.position, InArrayTransform)
+    assert geo.position.source == "constraints"
+    assert geo.position.path == "0.kwargs.indices"
+    assert geo.position.filter == "arrays.positions"
+
+    assert isinstance(geo.radius, InArrayTransform)
+    assert geo.radius.source == "constraints"
+    assert geo.radius.filter == "arrays.radii"
+
+    assert geo.color == ["#FF0000"]
+    assert geo.selecting.enabled is False
+    assert geo.hovering.enabled is False
+
+    client.disconnect()
+
+
+def test_constraint_geometry_renders_fixed_atoms(server: str):
+    """Constraint geometry filters positions to only fixed atoms."""
+    from zndraw import ZnDraw
+    from zndraw.transformations import InArrayTransform
+
+    room_id = uuid.uuid4().hex
+    client = ZnDraw(url=server, room=room_id)
+
+    atoms = ase.Atoms("H5", positions=[[i, 0, 0] for i in range(5)])
+    atoms.set_constraint(FixAtoms(indices=[1, 3]))
+    client.append(atoms)
+
+    # The constraint geometry exists and has correct transform config
+    geo = client.geometries["constraints-fixed-atoms"]
+    assert isinstance(geo.position, InArrayTransform)
+
+    # Verify constraint data roundtrip
+    retrieved = client[0]
+    assert len(retrieved.constraints) == 1
+    assert isinstance(retrieved.constraints[0], FixAtoms)
+    np.testing.assert_array_equal(retrieved.constraints[0].index, [1, 3])
+
+    client.disconnect()
