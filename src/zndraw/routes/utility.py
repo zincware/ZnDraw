@@ -5,11 +5,11 @@ Handles version, global settings, health checks, and other system endpoints.
 
 import json
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 import zndraw
-from zndraw.config import Settings, get_zndraw_settings
+from zndraw.config import SettingsDep
 from zndraw.dependencies import (
     CurrentUserDep,
     RedisDep,
@@ -88,13 +88,14 @@ async def get_version() -> VersionResponse:
 
 
 @router.get("/config/global-settings", response_model=GlobalSettings)
-async def get_global_settings() -> GlobalSettings:
+async def get_global_settings(
+    settings: SettingsDep,
+) -> GlobalSettings:
     """Get global settings for frontend feature flags.
 
     Returns configuration for optional features like SiMGen integration.
     """
-    # TODO: Load from config when simgen support is added
-    return GlobalSettings(simgen=SiMGenSettings(enabled=False))
+    return GlobalSettings(simgen=SiMGenSettings(enabled=settings.simgen_enabled))
 
 
 @router.get(
@@ -123,7 +124,7 @@ async def update_session_settings(
     room_id: str,
     session_id: VerifiedSessionDep,
     body: RoomConfig,
-    settings: Settings = Depends(get_zndraw_settings),
+    settings: SettingsDep,
 ) -> StatusResponse:
     """Update session-specific settings."""
     key = RedisKey.session_settings(room_id, session_id)

@@ -3,6 +3,9 @@
 import os
 from pathlib import Path
 
+import pytest
+from httpx import AsyncClient
+
 from zndraw.config import (
     LMDBStorage,
     MemoryStorage,
@@ -135,6 +138,25 @@ class TestMediaAndServerSettings:
             os.environ.pop("ZNDRAW_PORT", None)
 
 
+class TestSimgenEnabled:
+    """Test SiMGen feature flag configuration."""
+
+    def test_default_simgen_disabled(self) -> None:
+        """SiMGen should be disabled by default."""
+        settings = Settings()
+        assert settings.simgen_enabled is False
+
+    def test_simgen_enabled_from_env(self) -> None:
+        """SiMGen should be configurable via ZNDRAW_SIMGEN_ENABLED."""
+        os.environ["ZNDRAW_SIMGEN_ENABLED"] = "true"
+
+        try:
+            settings = Settings()
+            assert settings.simgen_enabled is True
+        finally:
+            os.environ.pop("ZNDRAW_SIMGEN_ENABLED", None)
+
+
 class TestSettingsFromEnv:
     """Test that Settings reads from environment variables."""
 
@@ -152,3 +174,28 @@ class TestSettingsFromEnv:
             assert settings.port == 9999
         finally:
             os.environ.pop("ZNDRAW_PORT", None)
+
+
+class TestGlobalSettingsEndpoint:
+    """Test /v1/config/global-settings endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_simgen_disabled_by_default(self, client: AsyncClient) -> None:
+        """Endpoint returns simgen.enabled=false with default settings."""
+        response = await client.get("/v1/config/global-settings")
+        assert response.status_code == 200
+        assert response.json() == {"simgen": {"enabled": False}}
+
+    @pytest.mark.asyncio
+    async def test_simgen_enabled_from_settings(self, client: AsyncClient) -> None:
+        """Endpoint returns simgen.enabled=true when configured."""
+        from zndraw.app import app
+
+        original = app.state.settings
+        app.state.settings = Settings(simgen_enabled=True)
+        try:
+            response = await client.get("/v1/config/global-settings")
+            assert response.status_code == 200
+            assert response.json() == {"simgen": {"enabled": True}}
+        finally:
+            app.state.settings = original

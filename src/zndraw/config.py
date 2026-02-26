@@ -124,6 +124,9 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 5000
 
+    # Feature flags
+    simgen_enabled: bool = False
+
 
 def get_zndraw_settings(request: Request) -> Settings:
     """Retrieve ZnDraw settings from app.state."""
