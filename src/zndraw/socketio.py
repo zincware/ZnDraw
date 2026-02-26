@@ -323,18 +323,22 @@ async def room_join(
             )
             if default_row and default_row.type == "Camera":
                 default_data = json.loads(default_row.config)
-                for field in (
-                    "position",
-                    "target",
-                    "up",
-                    "fov",
-                    "near",
-                    "far",
-                    "zoom",
-                    "camera_type",
-                ):
-                    if field in default_data:
-                        setattr(camera, field, default_data[field])
+                updates = {
+                    field: default_data[field]
+                    for field in (
+                        "position",
+                        "target",
+                        "up",
+                        "fov",
+                        "near",
+                        "far",
+                        "zoom",
+                        "camera_type",
+                    )
+                    if field in default_data
+                }
+                if updates:
+                    camera = camera.model_copy(update=updates)
 
         camera_value = json.dumps(
             {

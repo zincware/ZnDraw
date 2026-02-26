@@ -641,6 +641,36 @@ vis.geometries["force_arrows"] = Arrow(
 			});
 		});
 
+		test("constraint_visualization", async ({ page }) => {
+			const room = `${prefix}-constraint-vis`;
+			PY(`
+import numpy as np
+from zndraw import ZnDraw
+from zndraw.geometries import Camera
+from molify import smiles2conformers
+from ase.constraints import FixAtoms
+vis = ZnDraw(url='${BASE_URL}', room='${room}')
+del vis[:]
+atoms = smiles2conformers('CCCC(=O)O', numConfs=1)[0]
+carbon_indices = [i for i, s in enumerate(atoms.symbols) if s == 'C']
+atoms.set_constraint(FixAtoms(indices=carbon_indices))
+vis.append(atoms)
+cx, cy, cz = [float(x) for x in atoms.positions.mean(axis=0)]
+vis.geometries["close-cam"] = Camera(
+    position=(cx, cy, cz + 8),
+    target=(cx, cy, cz),
+    fov=50,
+)
+vis.default_camera = "close-cam"
+`);
+			await page.goto(`${BASE_URL}/rooms/${room}`);
+			await waitForScene(page);
+			await page.waitForTimeout(3000);
+			await page.screenshot({
+				path: path.join(outDir, "constraint_visualization.png"),
+			});
+		});
+
 		test("property_inspector", async ({ page }) => {
 			const room = `${prefix}-property-inspector`;
 			cloneEF(room, 10);

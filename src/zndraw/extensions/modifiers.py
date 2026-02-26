@@ -217,6 +217,26 @@ class RemoveAtoms(UpdateScene):
         del vis[vis.step]
 
 
+class FixAtoms(UpdateScene):
+    """Fix or unfix selected atoms.
+
+    If atoms are selected, applies a FixAtoms constraint to them.
+    If no atoms are selected, removes all constraints.
+    """
+
+    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+        import ase.constraints
+
+        selection = vis.selection
+        atoms = vis.atoms
+        if len(selection) == 0:
+            atoms.set_constraint()
+        else:
+            constraint = ase.constraints.FixAtoms(indices=selection)
+            atoms.set_constraint(constraint)
+        vis.atoms = atoms
+
+
 class Empty(UpdateScene):
     """Add an empty frame (no atoms)."""
 
@@ -236,6 +256,7 @@ modifiers: dict[str, type[Extension]] = {
     Replicate.__name__: Replicate,
     NewCanvas.__name__: NewCanvas,
     RemoveAtoms.__name__: RemoveAtoms,
+    FixAtoms.__name__: FixAtoms,
     Empty.__name__: Empty,
 }
 

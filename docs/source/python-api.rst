@@ -529,35 +529,34 @@ Available dynamic property references are computed from the ``atoms.info``, ``at
 Constraint Visualization
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. image:: /_static/screenshots/lightmode/constraint_visualization.png
+   :class: only-light
+   :alt: Constraint visualization with red wireframe spheres
+
+.. image:: /_static/screenshots/darkmode/constraint_visualization.png
+   :class: only-dark
+   :alt: Constraint visualization with red wireframe spheres
+
 ZnDraw automatically visualizes atomic constraints. When you upload atoms with
 ASE constraints, a ``constraints-fixed-atoms`` geometry overlays red wireframe
 spheres on the constrained atoms.
 
 .. code-block:: python
 
-   import ase
+   from molify import smiles2conformers
    from ase.constraints import FixAtoms
    from zndraw import ZnDraw
 
-   # Create acetic acid and constrain the methyl group
-   atoms = ase.Atoms(
-       "C2H4O2",
-       positions=[
-           [0.0, 0.0, 0.0],   # C (methyl) — constrained
-           [1.5, 0.0, 0.0],   # C (carboxyl)
-           [-0.5, 1.0, 0.0],  # H — constrained
-           [-0.5, -1.0, 0.0], # H — constrained
-           [2.5, 1.0, 0.0],   # O (C=O)
-           [2.5, -1.0, 0.0],  # O (OH)
-       ],
-   )
-   atoms.set_constraint(FixAtoms(indices=[0, 2, 3]))
+   # Create butyric acid and constrain the carbon chain
+   atoms = smiles2conformers("CCCC(=O)O", numConfs=1)[0]
+   carbon_indices = [i for i, s in enumerate(atoms.symbols) if s == "C"]
+   atoms.set_constraint(FixAtoms(indices=carbon_indices))
 
    vis = ZnDraw(url="http://localhost:8000")
    vis.append(atoms)
 
-The constrained atoms (methyl C and two H atoms) will appear with a red
-wireframe sphere overlay, while the COOH group remains undecorated.
+The constrained carbon atoms will appear with a red wireframe sphere overlay,
+while the remaining atoms are undecorated.
 
 **Customization:** Open the geometry panel and click ``constraints-fixed-atoms``
 to change the color, scale, or target a different constraint. The Transform
