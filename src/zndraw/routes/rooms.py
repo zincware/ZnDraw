@@ -39,7 +39,6 @@ from zndraw.exceptions import (
 )
 from zndraw.geometries import geometries as geometry_models
 from zndraw.materials import MeshBasicMaterial
-from zndraw.transformations import InArrayTransform
 from zndraw.models import (
     Room,
     RoomBookmark,
@@ -61,6 +60,7 @@ from zndraw.schemas import (
     SessionsListResponse,
 )
 from zndraw.socket_events import FramesInvalidate, RoomUpdate
+from zndraw.transformations import InArrayTransform
 
 router = APIRouter(prefix="/v1/rooms", tags=["rooms"])
 

@@ -49,9 +49,7 @@ test.describe("Constraint Visualization", () => {
 		await openGeometryPanel(page);
 		const grid = page.locator('[role="grid"]');
 		await expect(
-			grid
-				.getByText("constraints-fixed-atoms", { exact: true })
-				.first(),
+			grid.getByText("constraints-fixed-atoms", { exact: true }).first(),
 		).toBeVisible({ timeout: 5000 });
 
 		await page.screenshot({

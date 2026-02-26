@@ -180,9 +180,7 @@ export default function TransformEditor({
 								}
 							>
 								{constraints.length === 0 && !isLoadingConstraints ? (
-									<MenuItem disabled>
-										No constraints in current frame
-									</MenuItem>
+									<MenuItem disabled>No constraints in current frame</MenuItem>
 								) : (
 									constraints.map((entry) => (
 										<MenuItem key={entry.index} value={entry.index}>
