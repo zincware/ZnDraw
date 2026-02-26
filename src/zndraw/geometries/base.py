@@ -4,6 +4,7 @@ import typing as t
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 if t.TYPE_CHECKING:
     from zndraw.transformations import Transform
@@ -125,7 +126,7 @@ class BaseGeometry(BaseModel):
         json_schema_extra={"x-custom-type": "three-material"},
     )
 
-    selection: list[int] | None = Field(
+    selection: SkipJsonSchema[list[int] | None] = Field(
         default=None,
         description="Selected instance indices.",
     )
