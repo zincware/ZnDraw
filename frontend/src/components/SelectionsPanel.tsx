@@ -174,7 +174,10 @@ export default function SelectionsPanel() {
 
 	const dynamicSchema = useMemo(() => {
 		if (!currentSchema) return null;
-		return injectDynamicEnums(currentSchema as Record<string, unknown>, geometries);
+		return injectDynamicEnums(
+			currentSchema as Record<string, unknown>,
+			geometries,
+		);
 	}, [currentSchema, geometries]);
 
 	// Create form options from jobs list
@@ -725,26 +728,20 @@ export default function SelectionsPanel() {
 
 								{dynamicSchema && (
 									<>
-										<Tooltip
-											title={roomReadOnly ? "Room is locked" : ""}
-										>
+										<Tooltip title={roomReadOnly ? "Room is locked" : ""}>
 											<span>
 												<Button
 													variant="contained"
 													startIcon={<SaveIcon />}
 													onClick={handleSubmit}
 													disabled={
-														isSubmitting ||
-														isLoadingSchema ||
-														roomReadOnly
+														isSubmitting || isLoadingSchema || roomReadOnly
 													}
 													fullWidth
 													color="primary"
 													sx={{ mb: 2 }}
 												>
-													{isSubmitting
-														? "Running..."
-														: "Run Extension"}
+													{isSubmitting ? "Running..." : "Run Extension"}
 												</Button>
 											</span>
 										</Tooltip>
@@ -752,10 +749,7 @@ export default function SelectionsPanel() {
 										{isLoadingSchema ? (
 											<FormSkeleton />
 										) : (
-											<Fade
-												in={!isLoadingSchema}
-												timeout={200}
-											>
+											<Fade in={!isLoadingSchema} timeout={200}>
 												<Box>
 													<JsonForms
 														key={selectedJobName}
@@ -839,8 +833,7 @@ export default function SelectionsPanel() {
 								color="text.secondary"
 								sx={{ p: 2, textAlign: "center" }}
 							>
-								Select geometry instances and type a name above to save a
-								group.
+								Select geometry instances and type a name above to save a group.
 							</Typography>
 						)}
 

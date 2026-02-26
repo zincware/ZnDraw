@@ -34,9 +34,7 @@ vis.log("\`\`\`smiles\\nCCO\\n\`\`\`")
 		await page.getByRole("button", { name: "toggle chat" }).click();
 		await page.waitForTimeout(500);
 
-		await expect(
-			page.getByRole("heading", { name: "Chat" }),
-		).toBeVisible();
+		await expect(page.getByRole("heading", { name: "Chat" })).toBeVisible();
 
 		// MoleculePreview renders as <img alt="Molecule structure">
 		const moleculeImg = page.getByAltText("Molecule structure");
@@ -70,9 +68,7 @@ vis.log("See @5 for details")
 		await page.waitForTimeout(500);
 
 		// FrameReference renders a clickable MUI Chip with label "5"
-		const frameChip = page
-			.locator(".MuiChip-root")
-			.filter({ hasText: "5" });
+		const frameChip = page.locator(".MuiChip-root").filter({ hasText: "5" });
 		await expect(frameChip.first()).toBeVisible({ timeout: 10000 });
 
 		await page.screenshot({

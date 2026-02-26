@@ -57,9 +57,9 @@ test.describe("Geometry & Drawing", () => {
 		await expect(grid).toBeVisible();
 
 		for (const name of ["box", "sphere", "curve", "arrow", "floor"]) {
-			await expect(
-				grid.getByText(name, { exact: true }).first(),
-			).toBeVisible({ timeout: 5000 });
+			await expect(grid.getByText(name, { exact: true }).first()).toBeVisible({
+				timeout: 5000,
+			});
 		}
 	});
 
@@ -112,9 +112,9 @@ test.describe("Geometry Deletion", () => {
 
 		await openGeometryPanel(page);
 		const grid = page.locator('[role="grid"]');
-		await expect(
-			grid.getByText("arrow", { exact: true }).first(),
-		).toBeVisible({ timeout: 5000 });
+		await expect(grid.getByText("arrow", { exact: true }).first()).toBeVisible({
+			timeout: 5000,
+		});
 
 		await page.screenshot({
 			path: "e2e/screenshots/geometry-before-delete.png",
@@ -132,9 +132,9 @@ test.describe("Geometry Deletion", () => {
 		const gridAfter = page.locator('[role="grid"]');
 		await expect(gridAfter).toBeVisible();
 
-		await expect(
-			gridAfter.getByText("arrow", { exact: true }),
-		).not.toBeVisible({ timeout: 5000 });
+		await expect(gridAfter.getByText("arrow", { exact: true })).not.toBeVisible(
+			{ timeout: 5000 },
+		);
 
 		for (const name of ["box", "sphere", "curve", "floor"]) {
 			await expect(

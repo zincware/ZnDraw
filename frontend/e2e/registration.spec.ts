@@ -1,5 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { BASE_URL, CLI, PY, waitForScene, spawnPY, waitForBgReady } from "./helpers";
+import {
+	BASE_URL,
+	CLI,
+	PY,
+	waitForScene,
+	spawnPY,
+	waitForBgReady,
+} from "./helpers";
 
 const ROOM_EXT = "test-registration-ext";
 const ROOM_FS = "test-registration-fs";
@@ -51,24 +58,18 @@ time.sleep(60)
 			await waitForScene(page);
 
 			// Open modifiers panel
-			await page
-				.getByRole("button", { name: "Modifier tools" })
-				.click();
+			await page.getByRole("button", { name: "Modifier tools" }).click();
 			await page
 				.getByRole("heading", { name: "modifiers" })
 				.waitFor({ state: "visible", timeout: 10000 });
 
 			// The custom extension should appear in the Method dropdown
-			await page
-				.getByRole("combobox", { name: "modifiers Method" })
-				.click();
+			await page.getByRole("combobox", { name: "modifiers Method" }).click();
 			await page.waitForTimeout(500);
 
 			// Look for the custom extension in the dropdown options
 			// The name may be displayed as "E2ETestModifier" or "E2E Test Modifier"
-			const option = page
-				.getByRole("option")
-				.filter({ hasText: /E2E/i });
+			const option = page.getByRole("option").filter({ hasText: /E2E/i });
 			await expect(option.first()).toBeVisible({ timeout: 15000 });
 
 			await page.screenshot({
@@ -118,9 +119,7 @@ time.sleep(120)
 				await page.goto(`${BASE_URL}/rooms/${ROOM_FS}/files`);
 				await page.waitForTimeout(2000);
 
-				const noFs = page.getByText(
-					"No filesystems are currently registered",
-				);
+				const noFs = page.getByText("No filesystems are currently registered");
 				const isNoFs = await noFs.isVisible().catch(() => false);
 				if (!isNoFs) break;
 
@@ -144,9 +143,9 @@ time.sleep(120)
 
 			// --- Browse: navigate into /testdir ---
 			// The root listing should show the "testdir" directory
-			await expect(
-				page.getByRole("button", { name: /testdir/i }),
-			).toBeVisible({ timeout: 15000 });
+			await expect(page.getByRole("button", { name: /testdir/i })).toBeVisible({
+				timeout: 15000,
+			});
 			await page.getByRole("button", { name: /testdir/i }).click();
 
 			// --- Browse: verify file listing ---

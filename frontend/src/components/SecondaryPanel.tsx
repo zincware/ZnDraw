@@ -121,7 +121,10 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
 	// injectDynamicEnums only handles dynamic-geometries here.
 	const dynamicSchema = useMemo(() => {
 		if (!currentSchema) return null;
-		return injectDynamicEnums(currentSchema as Record<string, unknown>, geometries);
+		return injectDynamicEnums(
+			currentSchema as Record<string, unknown>,
+			geometries,
+		);
 	}, [currentSchema, geometries]);
 
 	if (!roomId || !userName) {

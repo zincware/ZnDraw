@@ -36,7 +36,6 @@ if TYPE_CHECKING:
 import ase
 import httpx
 import msgpack
-import numpy as np
 import socketio
 import typing_extensions
 from asebytes import decode, encode

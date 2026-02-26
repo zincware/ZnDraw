@@ -111,9 +111,7 @@ vis.log("Check frame @0 for details")
 		await page.waitForTimeout(1000);
 
 		// Open the connection info dialog
-		await page
-			.getByRole("button", { name: "show connection info" })
-			.click();
+		await page.getByRole("button", { name: "show connection info" }).click();
 		await page.waitForTimeout(500);
 
 		// Verify the dialog heading is visible
@@ -188,15 +186,11 @@ vis.log("Check frame @0 for details")
 		await page.waitForTimeout(1000);
 
 		// Click the Application settings button in the sidebar
-		await page
-			.getByRole("button", { name: "Application settings" })
-			.click();
+		await page.getByRole("button", { name: "Application settings" }).click();
 		await page.waitForTimeout(500);
 
 		// Verify the Settings heading is visible
-		await expect(
-			page.getByRole("heading", { name: "Settings" }),
-		).toBeVisible();
+		await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 
 		// Verify the Settings Category dropdown is present
 		await expect(page.getByLabel("Settings Category")).toBeVisible();
@@ -204,9 +198,7 @@ vis.log("Check frame @0 for details")
 		await page.screenshot({ path: "e2e/screenshots/ui-settings.png" });
 
 		// Click the settings button again to close the panel
-		await page
-			.getByRole("button", { name: "Application settings" })
-			.click();
+		await page.getByRole("button", { name: "Application settings" }).click();
 		await page.waitForTimeout(500);
 
 		// Settings panel should be hidden
@@ -225,9 +217,7 @@ vis.log("Check frame @0 for details")
 		).toBeVisible();
 
 		// Verify the Back button is present
-		await expect(
-			page.getByRole("button", { name: "Back" }),
-		).toBeVisible();
+		await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
 
 		await page.screenshot({
 			path: "e2e/screenshots/ui-file-browser.png",

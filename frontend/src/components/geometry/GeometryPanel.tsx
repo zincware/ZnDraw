@@ -25,10 +25,7 @@ const GeometryPanel = () => {
 	} = useGeometriesList(roomId);
 
 	const geometries = useMemo(() => {
-		if (
-			!geometriesData?.items ||
-			typeof geometriesData.items !== "object"
-		) {
+		if (!geometriesData?.items || typeof geometriesData.items !== "object") {
 			return [];
 		}
 

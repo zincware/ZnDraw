@@ -136,7 +136,8 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 		const geom = geometriesData[key];
 		const owner = geom?.data?.owner as string | null | undefined;
 		if (owner && owner !== userId) return "Owned by another user";
-		if (userLock && userLock !== currentUserEmail) return "Room is being edited";
+		if (userLock && userLock !== currentUserEmail)
+			return "Room is being edited";
 		if (superuserLock && owner !== userId) return "Room is locked";
 		return null;
 	};
@@ -213,9 +214,7 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 				const isDefault = defaultCamera === params.row.key;
 				return (
 					<Tooltip
-						title={
-							isDefault ? "Unset default camera" : "Set as default camera"
-						}
+						title={isDefault ? "Unset default camera" : "Set as default camera"}
 					>
 						<span>
 							<IconButton
@@ -226,11 +225,7 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 									setDefaultCamera(isDefault ? null : params.row.key);
 								}}
 							>
-								{isDefault ? (
-									<StarIcon color="warning" />
-								) : (
-									<StarBorderIcon />
-								)}
+								{isDefault ? <StarIcon color="warning" /> : <StarBorderIcon />}
 							</IconButton>
 						</span>
 					</Tooltip>

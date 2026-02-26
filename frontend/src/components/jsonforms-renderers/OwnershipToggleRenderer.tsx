@@ -6,16 +6,9 @@ import PersonIcon from "@mui/icons-material/Person";
 import { Box, Button, FormLabel, Typography } from "@mui/material";
 import { useAppStore } from "../../store";
 
-const OwnershipToggle = ({
-	data,
-	handleChange,
-	path,
-	label,
-}: ControlProps) => {
+const OwnershipToggle = ({ data, handleChange, path, label }: ControlProps) => {
 	const userId = useAppStore((state) => state.user?.id ?? null);
-	const isSuperuser = useAppStore(
-		(state) => state.user?.is_superuser ?? false,
-	);
+	const isSuperuser = useAppStore((state) => state.user?.is_superuser ?? false);
 
 	const isOwned = data != null && data !== "";
 	const isOwnedByMe = isOwned && data === userId;

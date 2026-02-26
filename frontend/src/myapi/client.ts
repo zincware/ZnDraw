@@ -304,9 +304,7 @@ export interface DefaultCameraResponse {
 export const getDefaultCamera = async (
 	roomId: string,
 ): Promise<DefaultCameraResponse> => {
-	const { data } = await apiClient.get(
-		`/v1/rooms/${roomId}/default-camera`,
-	);
+	const { data } = await apiClient.get(`/v1/rooms/${roomId}/default-camera`);
 	return data;
 };
 
@@ -314,10 +312,9 @@ export const setDefaultCamera = async (
 	roomId: string,
 	cameraKey: string | null,
 ): Promise<DefaultCameraResponse> => {
-	const { data } = await apiClient.put(
-		`/v1/rooms/${roomId}/default-camera`,
-		{ default_camera: cameraKey },
-	);
+	const { data } = await apiClient.put(`/v1/rooms/${roomId}/default-camera`, {
+		default_camera: cameraKey,
+	});
 	return data;
 };
 
@@ -348,9 +345,7 @@ export const updateSelection = async (
 export const listSelectionGroups = async (
 	roomId: string,
 ): Promise<SelectionGroupsListResponse> => {
-	const { data } = await apiClient.get(
-		`/v1/rooms/${roomId}/selection-groups`,
-	);
+	const { data } = await apiClient.get(`/v1/rooms/${roomId}/selection-groups`);
 	return data;
 };
 
@@ -370,9 +365,7 @@ export const deleteSelectionGroup = async (
 	roomId: string,
 	groupName: string,
 ): Promise<void> => {
-	await apiClient.delete(
-		`/v1/rooms/${roomId}/selection-groups/${groupName}`,
-	);
+	await apiClient.delete(`/v1/rooms/${roomId}/selection-groups/${groupName}`);
 };
 
 // ==================== Bookmarks API ====================
@@ -1009,9 +1002,7 @@ export const listProviders = async (
 	roomId: string,
 	category?: string,
 ): Promise<ProviderInfo[]> => {
-	const { data } = await apiClient.get(
-		`/v1/joblib/rooms/${roomId}/providers`,
-	);
+	const { data } = await apiClient.get(`/v1/joblib/rooms/${roomId}/providers`);
 	const items = data.items as ProviderInfo[];
 	return category ? items.filter((p) => p.category === category) : items;
 };

@@ -67,7 +67,7 @@ class InMemoryResultBackend:
         try:
             await asyncio.wait_for(event.wait(), timeout=timeout)
             return self._data.get(key)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return None
         finally:
             waiters = self._waiters.get(key, [])

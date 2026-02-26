@@ -15,7 +15,10 @@ export function CLI(cmd: string): string {
 
 /** Write a Python script to a temp file, run it, return stdout. */
 export function PY(code: string): string {
-	const tmp = join(tmpdir(), `zndraw-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.py`);
+	const tmp = join(
+		tmpdir(),
+		`zndraw-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.py`,
+	);
 	writeFileSync(tmp, code);
 	try {
 		return execSync(`uv run python ${tmp}`, { encoding: "utf-8" });
@@ -45,7 +48,9 @@ export function spawnPY(code: string): ChildProcess {
 		console.error(`[bg-py stderr] ${data.toString().trim()}`);
 	});
 	child.on("exit", () => {
-		try { unlinkSync(tmp); } catch {}
+		try {
+			unlinkSync(tmp);
+		} catch {}
 	});
 	return child;
 }

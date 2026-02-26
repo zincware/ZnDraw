@@ -148,19 +148,22 @@ export const createLockSlice: StateCreator<AppState, [], [], LockSlice> = (
 
 	startLockExpiryTimer: (ttl: number) => {
 		get().stopLockExpiryTimer();
-		const timerId = window.setTimeout(async () => {
-			// TTL expired — verify with server
-			const { roomId } = get();
-			if (!roomId) return;
-			try {
-				const status = await getEditLockStatus(roomId);
-				if (!status.locked) {
-					set({ userLock: null, userLockMessage: null });
+		const timerId = window.setTimeout(
+			async () => {
+				// TTL expired — verify with server
+				const { roomId } = get();
+				if (!roomId) return;
+				try {
+					const status = await getEditLockStatus(roomId);
+					if (!status.locked) {
+						set({ userLock: null, userLockMessage: null });
+					}
+				} catch {
+					// Ignore — will be caught on next interaction
 				}
-			} catch {
-				// Ignore — will be caught on next interaction
-			}
-		}, (ttl + 1) * 1000);
+			},
+			(ttl + 1) * 1000,
+		);
 		set({ lockExpiryTimerId: timerId });
 	},
 

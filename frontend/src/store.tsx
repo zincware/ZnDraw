@@ -11,7 +11,10 @@ import type { UISlice } from "./stores/slices/uiSlice";
 import { createUISlice } from "./stores/slices/uiSlice";
 
 // Re-export helpers that live in slices
-export { getActiveCurves, selectPreferredCurve } from "./stores/slices/sceneSlice";
+export {
+	getActiveCurves,
+	selectPreferredCurve,
+} from "./stores/slices/sceneSlice";
 
 /**
  * Progress tracking state — mirrors server ProgressResponse (snake_case).

@@ -205,4 +205,3 @@ max-args = 10  # Allow up to 10 args for FastAPI endpoints
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-

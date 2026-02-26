@@ -73,7 +73,7 @@ def test_bookmarks_set_default_label(
     )
     resp = BookmarksResponse.model_validate(data)
     assert "0" in resp.items
-    assert "Frame 0" == resp.items["0"]
+    assert resp.items["0"] == "Frame 0"
 
 
 def test_bookmarks_delete_with_index(

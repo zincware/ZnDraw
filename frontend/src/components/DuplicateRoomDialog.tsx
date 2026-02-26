@@ -106,7 +106,11 @@ export default function DuplicateRoomDialog({
 			</DialogContent>
 			<DialogActions>
 				<Button onClick={onClose}>Cancel</Button>
-				<Button onClick={handleDuplicate} variant="contained" disabled={!!error}>
+				<Button
+					onClick={handleDuplicate}
+					variant="contained"
+					disabled={!!error}
+				>
 					Duplicate
 				</Button>
 			</DialogActions>
