@@ -44,6 +44,9 @@ export function spawnPY(code: string): ChildProcess {
 	child.stderr?.on("data", (data: Buffer) => {
 		console.error(`[bg-py stderr] ${data.toString().trim()}`);
 	});
+	child.on("exit", () => {
+		try { unlinkSync(tmp); } catch {}
+	});
 	return child;
 }
 
