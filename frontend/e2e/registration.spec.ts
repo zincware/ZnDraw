@@ -1,36 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { spawn, type ChildProcess } from "child_process";
-import { writeFileSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
-import { BASE_URL, CLI, PY, waitForScene } from "./helpers";
+import { BASE_URL, CLI, PY, waitForScene, spawnPY, waitForBgReady } from "./helpers";
 
 const ROOM_EXT = "test-registration-ext";
 const ROOM_FS = "test-registration-fs";
 const ROOM_MOUNT = "test-registration-mount";
-
-/** Spawn a Python script as a background process. Returns the child process. */
-function spawnPY(code: string): ChildProcess {
-	const tmp = join(
-		tmpdir(),
-		`zndraw-e2e-bg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.py`,
-	);
-	writeFileSync(tmp, code);
-	const child = spawn("uv", ["run", "python", tmp], {
-		stdio: ["pipe", "pipe", "pipe"],
-		detached: false,
-	});
-	// Log stderr for debugging if the bg process fails
-	child.stderr?.on("data", (data: Buffer) => {
-		console.error(`[bg-py stderr] ${data.toString().trim()}`);
-	});
-	return child;
-}
-
-/** Wait for the background process to be ready (registration propagation). */
-async function waitForBgReady(ms: number = 8000): Promise<void> {
-	await new Promise((r) => setTimeout(r, ms));
-}
 
 test.describe("Registration", () => {
 	test.describe.configure({ mode: "serial" });

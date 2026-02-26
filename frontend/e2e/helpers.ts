@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execSync, spawn, type ChildProcess } from "child_process";
 import { writeFileSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -28,6 +28,28 @@ export function PY(code: string): string {
 export async function waitForScene(page: Page): Promise<void> {
 	await page.waitForTimeout(1000);
 	await page.waitForSelector("canvas", { state: "visible", timeout: 15000 });
+}
+
+/** Spawn a Python script as a background process. Returns the child process. */
+export function spawnPY(code: string): ChildProcess {
+	const tmp = join(
+		tmpdir(),
+		`zndraw-e2e-bg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.py`,
+	);
+	writeFileSync(tmp, code);
+	const child = spawn("uv", ["run", "python", tmp], {
+		stdio: ["pipe", "pipe", "pipe"],
+		detached: false,
+	});
+	child.stderr?.on("data", (data: Buffer) => {
+		console.error(`[bg-py stderr] ${data.toString().trim()}`);
+	});
+	return child;
+}
+
+/** Wait for a background process to be ready (registration propagation). */
+export async function waitForBgReady(ms: number = 8000): Promise<void> {
+	await new Promise((r) => setTimeout(r, ms));
 }
 
 /**
