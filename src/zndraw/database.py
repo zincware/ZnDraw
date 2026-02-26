@@ -9,6 +9,7 @@ Uses app.state pattern to store resources:
 
 import asyncio
 import contextlib
+import importlib
 import logging
 import socket
 import threading
@@ -341,6 +342,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             run_sweeper(get_session=get_session, settings=joblib_settings, tsio=tsio)
         )
 
+        # Warm heavy optional imports in a background thread so first
+        # request doesn't pay the import cost.  Failures are silently
+        # ignored — the route-level import will raise if truly missing.
+        def _warm_imports() -> None:
+            for mod in ("molify", "rdkit", "rdkit.Chem", "rdkit.Chem.Draw"):
+                with contextlib.suppress(ImportError):
+                    importlib.import_module(mod)
+
+        warmup_task = asyncio.create_task(asyncio.to_thread(_warm_imports))
+
         yield
 
         # Shutdown in reverse order
@@ -353,6 +364,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         sweeper_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await sweeper_task
+
+        warmup_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await warmup_task
 
         await app.state.frame_storage.close()
         await redis_raw.aclose()
