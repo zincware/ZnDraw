@@ -526,6 +526,44 @@ Available dynamic property references are computed from the ``atoms.info``, ``at
 - ``info.connectivity`` - Bond connectivity
 
 
+Constraint Visualization
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. image:: /_static/screenshots/lightmode/constraint_visualization.png
+   :class: only-light
+   :alt: Constraint visualization with red wireframe spheres
+
+.. image:: /_static/screenshots/darkmode/constraint_visualization.png
+   :class: only-dark
+   :alt: Constraint visualization with red wireframe spheres
+
+ZnDraw automatically visualizes atomic constraints. When you upload atoms with
+ASE constraints, a ``constraints-fixed-atoms`` geometry overlays red wireframe
+spheres on the constrained atoms.
+
+.. code-block:: python
+
+   from molify import smiles2conformers
+   from ase.constraints import FixAtoms
+   from zndraw import ZnDraw
+
+   # Create butyric acid and constrain the carbon chain
+   atoms = smiles2conformers("CCCC(=O)O", numConfs=1)[0]
+   carbon_indices = [i for i, s in enumerate(atoms.symbols) if s == "C"]
+   atoms.set_constraint(FixAtoms(indices=carbon_indices))
+
+   vis = ZnDraw(url="http://localhost:8000")
+   vis.append(atoms)
+
+The constrained carbon atoms will appear with a red wireframe sphere overlay,
+while the remaining atoms are undecorated.
+
+**Customization:** Open the geometry panel and click ``constraints-fixed-atoms``
+to change the color, scale, or target a different constraint. The Transform
+Editor shows a dropdown of all constraints in the current frame — select one
+to switch which atoms are highlighted.
+
+
 Analysis & Figures
 ------------------
 

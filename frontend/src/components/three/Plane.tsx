@@ -1,0 +1,698 @@
+import {
+	keepPreviousData,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
+import { getFrameBatched } from "../../hooks/useFrameBatch";
+import { useGeometryEditing } from "../../hooks/useGeometryEditing";
+import { useGeometryPersistence } from "../../hooks/useGeometryPersistence";
+import { usePathtracingMesh } from "../../hooks/usePathtracingMesh";
+import { useRegisterFrameKeys } from "../../hooks/useRegisterFrameKeys";
+import { useFrameMetadata } from "../../hooks/useSchemas";
+import { useAppStore } from "../../store";
+import { shouldFetchAsFrameData } from "../../utils/colorUtils";
+import {
+	HOVER_SCALE,
+	SELECTION_SCALE,
+	type ScaleProp,
+	expandSharedColor,
+	getInstanceCount,
+	processColorData,
+	processPositionAttribute,
+	processRotationAttribute,
+	processScaleAttribute,
+	processSize2D,
+	validateArrayLengths,
+} from "../../utils/geometryData";
+import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
+import {
+	_color,
+	_euler,
+	_matrix,
+	_matrix2,
+	_quat,
+	_quat2,
+	_vec3,
+	_vec3_2,
+	_vec3_3,
+} from "../../utils/threeObjectPools";
+import { renderMaterial } from "./materials";
+
+interface InteractionSettings {
+	enabled: boolean;
+	color: string;
+	opacity: number;
+}
+
+interface PlaneData {
+	position: string | number[][];
+	size: string | number[][];
+	color: string | string[]; // Dynamic ref or list of hex strings
+	rotation: string | number[][];
+	material: string;
+	scale: ScaleProp;
+	opacity: number;
+	double_sided: boolean;
+	selecting: InteractionSettings;
+	hovering: InteractionSettings;
+	active?: boolean; // Whether geometry is active (can be disabled on critical errors)
+}
+
+export default function Plane({
+	data,
+	geometryKey,
+	pathtracingEnabled = false,
+}: {
+	data: PlaneData;
+	geometryKey: string;
+	pathtracingEnabled?: boolean;
+}) {
+	const queryClient = useQueryClient();
+	// Use individual selectors to prevent unnecessary re-renders
+	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
+
+	// Merge with defaults from Pydantic (single source of truth)
+	const fullData = useMemo(
+		() => getGeometryWithDefaults<PlaneData>(data, "Plane", geometryDefaults),
+		[data, geometryDefaults],
+	);
+
+	const {
+		position: positionProp,
+		size: sizeProp,
+		color: colorProp,
+		rotation: rotationProp,
+		material,
+		scale,
+		double_sided,
+		selecting,
+		hovering,
+		opacity,
+	} = fullData;
+
+	const mainMeshRef = useRef<THREE.InstancedMesh | null>(null);
+	const selectionMeshRef = useRef<THREE.InstancedMesh | null>(null);
+	const hoverMeshRef = useRef<THREE.Mesh | null>(null);
+	const parentGroupRef = useRef<THREE.Group | null>(null);
+	const [instanceCount, setInstanceCount] = useState(0);
+
+	// Pathtracing: convert instanced mesh to merged mesh
+	// Uses refs and manual scene management for precise timing control
+	const updateMergedMesh = usePathtracingMesh(
+		parentGroupRef,
+		mainMeshRef,
+		pathtracingEnabled,
+	);
+
+	// Use individual selectors to prevent unnecessary re-renders
+	const currentFrame = useAppStore((state) => state.currentFrame);
+	const frameCount = useAppStore((state) => state.frameCount);
+	const roomId = useAppStore((state) => state.roomId);
+	const userName = useAppStore((state) => state.user?.email ?? null);
+	const selections = useAppStore((state) => state.selections);
+	const updateSelections = useAppStore((state) => state.updateSelections);
+	const hoveredGeometryInstance = useAppStore(
+		(state) => state.hoveredGeometryInstance,
+	);
+	const setHoveredGeometryInstance = useAppStore(
+		(state) => state.setHoveredGeometryInstance,
+	);
+	const setDrawingPointerPosition = useAppStore(
+		(state) => state.setDrawingPointerPosition,
+	);
+	const mode = useAppStore((state) => state.mode);
+	const setDrawingIsValid = useAppStore((state) => state.setDrawingIsValid);
+	const setGeometryFetching = useAppStore((state) => state.setGeometryFetching);
+	const removeGeometryFetching = useAppStore(
+		(state) => state.removeGeometryFetching,
+	);
+
+	// Fetch frame keys to check if required data is available
+	const { data: frameKeysData, isLoading: isLoadingKeys } = useFrameMetadata(
+		roomId!,
+		currentFrame,
+	);
+
+	// Check if required keys are available for this geometry
+	const requiredKeys = useMemo(() => {
+		const keys: string[] = [];
+		if (typeof positionProp === "string") keys.push(positionProp);
+		if (typeof sizeProp === "string") keys.push(sizeProp);
+		return keys;
+	}, [positionProp, sizeProp]);
+
+	const hasRequiredKeys = useMemo(() => {
+		// While loading keys, assume we have them (keep previous frame rendered)
+		if (isLoadingKeys) return true;
+		// If no keys data yet, assume we have them (keep previous frame)
+		if (!frameKeysData?.metadata) return true;
+		// Only when we have keys data, check if required keys are available
+		const availableKeys = new Set(Object.keys(frameKeysData.metadata));
+		return requiredKeys.every((key) => availableKeys.has(key));
+	}, [frameKeysData, requiredKeys, isLoadingKeys]);
+
+	// Use geometry-specific selection
+	const planeSelection = selections[geometryKey] || [];
+	const selectionSet = useMemo(() => new Set(planeSelection), [planeSelection]);
+	const selectedIndices = useMemo(
+		() => Array.from(selectionSet),
+		[selectionSet],
+	);
+	const validSelectedIndices = useMemo(
+		() => selectedIndices.filter((id) => id < instanceCount),
+		[selectedIndices, instanceCount],
+	);
+
+	// Individual queries for each attribute
+	const {
+		data: positionData,
+		isFetching: isPositionFetching,
+		isError: isPositionError,
+	} = useQuery({
+		queryKey: ["frame", roomId, currentFrame, positionProp],
+		queryFn: () =>
+			getFrameBatched(
+				roomId!,
+				currentFrame,
+				positionProp as string,
+				queryClient,
+			),
+		enabled:
+			!!roomId &&
+			!!userName &&
+			frameCount > 0 &&
+			typeof positionProp === "string",
+		placeholderData: keepPreviousData,
+		retry: false,
+	});
+
+	const {
+		data: sizeData,
+		isFetching: isSizeFetching,
+		isError: isSizeError,
+	} = useQuery({
+		queryKey: ["frame", roomId, currentFrame, sizeProp],
+		queryFn: () =>
+			getFrameBatched(roomId!, currentFrame, sizeProp as string, queryClient),
+		enabled:
+			!!roomId && !!userName && frameCount > 0 && typeof sizeProp === "string",
+		placeholderData: keepPreviousData,
+		retry: false,
+	});
+
+	const {
+		data: colorData,
+		isFetching: isColorFetching,
+		isError: isColorError,
+	} = useQuery({
+		queryKey: ["frame", roomId, currentFrame, colorProp],
+		queryFn: () =>
+			getFrameBatched(roomId!, currentFrame, colorProp as string, queryClient),
+		enabled:
+			!!roomId &&
+			!!userName &&
+			frameCount > 0 &&
+			typeof colorProp === "string" &&
+			shouldFetchAsFrameData(colorProp as string),
+		placeholderData: keepPreviousData,
+		retry: false,
+	});
+
+	const {
+		data: rotationData,
+		isFetching: isRotationFetching,
+		isError: isRotationError,
+	} = useQuery({
+		queryKey: ["frame", roomId, currentFrame, rotationProp],
+		queryFn: () =>
+			getFrameBatched(
+				roomId!,
+				currentFrame,
+				rotationProp as string,
+				queryClient,
+			),
+		enabled:
+			!!roomId &&
+			!!userName &&
+			frameCount > 0 &&
+			typeof rotationProp === "string",
+		placeholderData: keepPreviousData,
+		retry: false,
+	});
+
+	const {
+		data: scaleData,
+		isFetching: isScaleFetching,
+		isError: isScaleError,
+	} = useQuery({
+		queryKey: ["frame", roomId, currentFrame, scale],
+		queryFn: () =>
+			getFrameBatched(roomId!, currentFrame, scale as string, queryClient),
+		enabled:
+			!!roomId && !!userName && frameCount > 0 && typeof scale === "string",
+		placeholderData: keepPreviousData,
+		retry: false,
+	});
+
+	// Check if any enabled query is still fetching
+	const isFetching =
+		(typeof positionProp === "string" && isPositionFetching) ||
+		(typeof sizeProp === "string" && isSizeFetching) ||
+		(typeof colorProp === "string" &&
+			shouldFetchAsFrameData(colorProp as string) &&
+			isColorFetching) ||
+		(typeof rotationProp === "string" && isRotationFetching) ||
+		(typeof scale === "string" && isScaleFetching);
+
+	// Check if any query has errored - treat as data unavailable
+	const hasQueryError = useMemo(
+		() =>
+			(typeof positionProp === "string" && isPositionError) ||
+			(typeof sizeProp === "string" && isSizeError) ||
+			(typeof colorProp === "string" &&
+				shouldFetchAsFrameData(colorProp as string) &&
+				isColorError) ||
+			(typeof rotationProp === "string" && isRotationError) ||
+			(typeof scale === "string" && isScaleError),
+		[
+			positionProp,
+			isPositionError,
+			sizeProp,
+			isSizeError,
+			colorProp,
+			isColorError,
+			rotationProp,
+			isRotationError,
+			scale,
+			isScaleError,
+		],
+	);
+
+	// Report fetching state to global store
+	useEffect(() => {
+		setGeometryFetching(geometryKey, isFetching);
+	}, [geometryKey, isFetching, setGeometryFetching]);
+
+	// Clean up fetching state on unmount
+	useEffect(() => {
+		return () => {
+			removeGeometryFetching(geometryKey);
+		};
+	}, [geometryKey, removeGeometryFetching]);
+
+	// Register frame keys for prefetching
+	const frameKeys = useMemo(() => {
+		const keys: string[] = [];
+		if (typeof positionProp === "string") keys.push(positionProp);
+		if (typeof sizeProp === "string") keys.push(sizeProp);
+		if (typeof colorProp === "string" && shouldFetchAsFrameData(colorProp))
+			keys.push(colorProp);
+		if (typeof rotationProp === "string") keys.push(rotationProp);
+		if (typeof scale === "string") keys.push(scale);
+		return keys;
+	}, [positionProp, sizeProp, colorProp, rotationProp, scale]);
+
+	useRegisterFrameKeys(geometryKey, frameKeys);
+
+	// Handle geometry editing with transform controls
+	const finalPositionData =
+		typeof positionProp === "string"
+			? positionData?.[positionProp]
+			: positionProp;
+	const finalRotationData =
+		typeof rotationProp === "string"
+			? rotationData?.[rotationProp]
+			: rotationProp;
+	const finalScaleData = typeof scale === "string" ? scaleData?.[scale] : scale;
+	const scaleValue = finalScaleData || 1.0;
+
+	useGeometryEditing(
+		geometryKey,
+		finalPositionData,
+		finalRotationData,
+		scaleValue,
+		selectedIndices,
+		"Plane",
+		fullData,
+		instanceCount,
+	);
+
+	// Handle persistence of local geometry changes to server
+	useGeometryPersistence(geometryKey, "Plane");
+
+	// Consolidated data processing and mesh update
+	useEffect(() => {
+		// When frameCount is 0, explicitly clear planes (e.g., after del vis[:])
+		if (frameCount === 0) {
+			if (instanceCount !== 0) setInstanceCount(0);
+			return;
+		}
+
+		if (isFetching) {
+			return; // Wait for all enabled queries to complete
+		}
+
+		// If queries have errored, continue with fallback to static data (this is normal when data doesn't exist)
+		// No logging needed as this is expected behavior
+
+		try {
+			// --- Data Processing Step ---
+			const fetchedPosition =
+				typeof positionProp === "string"
+					? positionData?.[positionProp as string]
+					: undefined;
+			const finalCount = getInstanceCount(positionProp, fetchedPosition);
+
+			if (finalCount === 0) {
+				if (instanceCount !== 0) setInstanceCount(0);
+				return;
+			}
+
+			// Process all attributes using new specialized functions
+			const finalPositions = processPositionAttribute(
+				positionProp,
+				fetchedPosition,
+			);
+
+			const fetchedColor =
+				typeof colorProp === "string"
+					? colorData?.[colorProp as string]
+					: undefined;
+			const colorHexArray = processColorData(
+				colorProp,
+				fetchedColor,
+				finalCount,
+			);
+
+			const fetchedSize =
+				typeof sizeProp === "string"
+					? sizeData?.[sizeProp as string]
+					: undefined;
+			const finalSizes = processSize2D(sizeProp, fetchedSize, finalCount);
+
+			const fetchedRotation =
+				typeof rotationProp === "string"
+					? rotationData?.[rotationProp as string]
+					: undefined;
+			const finalRotations = processRotationAttribute(
+				rotationProp,
+				fetchedRotation,
+				finalCount,
+			);
+
+			const fetchedScale =
+				typeof scale === "string" ? scaleData?.[scale] : undefined;
+			const { values: finalScales } = processScaleAttribute(
+				scale,
+				fetchedScale,
+				finalCount,
+			);
+
+			// Handle shared color (single color for all instances)
+			const finalColorHex = expandSharedColor(colorHexArray, finalCount);
+
+			// --- Validation Step ---
+			const isDataValid =
+				validateArrayLengths(
+					{
+						positions: finalPositions,
+						sizes: finalSizes,
+						rotations: finalRotations,
+						scales: finalScales,
+					},
+					{
+						positions: finalCount * 3,
+						sizes: finalCount * 2,
+						rotations: finalCount * 3,
+						scales: finalCount * 3,
+					},
+				) && finalColorHex.length === finalCount;
+
+			if (!isDataValid) {
+				console.error("Plane data is invalid or has inconsistent lengths.");
+				if (instanceCount !== 0) setInstanceCount(0);
+				return;
+			}
+
+			// --- Mesh Resizing Step ---
+			if (instanceCount !== finalCount) {
+				setInstanceCount(finalCount);
+				return;
+			}
+
+			// --- Main Mesh Instance Update ---
+			const mainMesh = mainMeshRef.current;
+			if (!mainMesh) return;
+
+			for (let i = 0; i < finalCount; i++) {
+				const i3 = i * 3;
+				const i2 = i * 2;
+				_vec3.set(
+					finalPositions[i3],
+					finalPositions[i3 + 1],
+					finalPositions[i3 + 2],
+				);
+				_euler.set(
+					finalRotations[i3],
+					finalRotations[i3 + 1],
+					finalRotations[i3 + 2],
+				);
+				const width = finalSizes[i2] * finalScales[i3];
+				const height = finalSizes[i2 + 1] * finalScales[i3 + 1];
+				_quat.setFromEuler(_euler);
+				_vec3_2.set(width, height, finalScales[i3 + 2]);
+				_matrix.compose(_vec3, _quat, _vec3_2);
+				mainMesh.setMatrixAt(i, _matrix);
+
+				// Set color directly from hex string (THREE.Color.set() accepts hex)
+				_color.set(finalColorHex[i]);
+				mainMesh.setColorAt(i, _color);
+			}
+
+			mainMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+			mainMesh.instanceMatrix.needsUpdate = true;
+			if (mainMesh.instanceColor) mainMesh.instanceColor.needsUpdate = true;
+
+			// Update bounding box to prevent frustum culling issues
+			mainMesh.computeBoundingBox();
+			mainMesh.computeBoundingSphere();
+
+			// Update pathtracing mesh if enabled
+			if (pathtracingEnabled) {
+				updateMergedMesh(mainGeometry);
+			}
+
+			// --- Selection Mesh Update (uses thin box geometry for visible outline) ---
+			if (selecting.enabled && selectionMeshRef.current) {
+				const selectionMesh = selectionMeshRef.current;
+				validSelectedIndices.forEach((id, index) => {
+					if (id >= finalCount) return;
+					const i3 = id * 3;
+					const i2 = id * 2;
+					_vec3.set(
+						finalPositions[i3],
+						finalPositions[i3 + 1],
+						finalPositions[i3 + 2],
+					);
+					_euler.set(
+						finalRotations[i3],
+						finalRotations[i3 + 1],
+						finalRotations[i3 + 2],
+					);
+					const width = finalSizes[i2] * finalScales[i3] * SELECTION_SCALE;
+					const height =
+						finalSizes[i2 + 1] * finalScales[i3 + 1] * SELECTION_SCALE;
+					// Use thin depth (0.01) for visible outline effect, scaled by z-scale
+					const depth = 0.01 * finalScales[i3 + 2];
+					_quat.setFromEuler(_euler);
+					_vec3_2.set(width, height, depth);
+					_matrix.compose(_vec3, _quat, _vec3_2);
+					selectionMesh.setMatrixAt(index, _matrix);
+				});
+				selectionMesh.instanceMatrix.needsUpdate = true;
+
+				// Update bounding box for selection mesh
+				selectionMesh.computeBoundingBox();
+				selectionMesh.computeBoundingSphere();
+			}
+		} catch (error) {
+			console.error("Error processing Plane data:", error);
+			if (instanceCount !== 0) setInstanceCount(0);
+		}
+	}, [
+		frameCount, // Watch frameCount to clear planes when it becomes 0
+		isFetching,
+		hasQueryError,
+		positionData,
+		sizeData,
+		colorData,
+		rotationData,
+		scaleData, // Add scaleData
+		positionProp,
+		sizeProp,
+		colorProp,
+		rotationProp,
+		scale, // Add scale
+		instanceCount,
+		validSelectedIndices,
+		selecting,
+		geometryKey,
+		pathtracingEnabled,
+		material,
+		opacity,
+		data,
+		updateMergedMesh,
+	]);
+
+	// Separate effect for hover mesh updates - doesn't trigger data reprocessing
+	useEffect(() => {
+		if (!hovering?.enabled || !hoverMeshRef.current || !mainMeshRef.current)
+			return;
+		if (instanceCount === 0) return;
+
+		const hoverMesh = hoverMeshRef.current;
+		const mainMesh = mainMeshRef.current;
+
+		// Only show hover if it's for this geometry
+		if (
+			hoveredGeometryInstance?.geometryKey === geometryKey &&
+			hoveredGeometryInstance?.instanceId !== null &&
+			hoveredGeometryInstance.instanceId < instanceCount
+		) {
+			hoverMesh.visible = true;
+
+			// Get transform from main mesh using pooled objects
+			mainMesh.getMatrixAt(hoveredGeometryInstance.instanceId, _matrix2);
+			_matrix2.decompose(_vec3, _quat2, _vec3_2);
+
+			// Apply hover scale (with thin depth for outline)
+			hoverMesh.position.copy(_vec3);
+			hoverMesh.quaternion.copy(_quat2);
+			hoverMesh.scale.set(
+				_vec3_2.x * HOVER_SCALE,
+				_vec3_2.y * HOVER_SCALE,
+				_vec3_2.z, // Keep z-scale (which is likely thin)
+			);
+		} else {
+			hoverMesh.visible = false;
+		}
+	}, [hoveredGeometryInstance, instanceCount, hovering, geometryKey]);
+
+	// Shared geometries
+	const mainGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
+	// Thin box geometry for selection/hover (since PlaneGeometry can't be visibly scaled for outline)
+	const outlineGeometry = useMemo(() => new THREE.BoxGeometry(1, 1, 0.01), []);
+
+	const onClickHandler = useCallback(
+		(event: any) => {
+			if (event.detail !== 1 || event.instanceId === undefined) return;
+			event.stopPropagation();
+			updateSelections(geometryKey, event.instanceId, event.shiftKey);
+		},
+		[updateSelections, geometryKey],
+	);
+
+	const onPointerMoveHandler = useCallback(
+		(event: any) => {
+			if (event.instanceId === undefined) return;
+			event.stopPropagation();
+			if (mode === "drawing") {
+				setDrawingPointerPosition(event.point);
+			}
+		},
+		[mode, setDrawingPointerPosition],
+	);
+
+	const onPointerEnterHandler = useCallback(
+		(event: any) => {
+			if (event.instanceId === undefined) return;
+			event.stopPropagation();
+			setHoveredGeometryInstance(geometryKey, event.instanceId);
+			setDrawingIsValid(true);
+		},
+		[setHoveredGeometryInstance, setDrawingIsValid, geometryKey],
+	);
+
+	const onPointerOutHandler = useCallback(() => {
+		setHoveredGeometryInstance(null, null);
+		setDrawingIsValid(false);
+	}, [setHoveredGeometryInstance, setDrawingIsValid]);
+
+	if (!userName || !roomId) return null;
+
+	// Don't render if geometry is disabled OR if required keys are not available
+	if (fullData.active === false || !hasRequiredKeys) {
+		return null;
+	}
+
+	return (
+		<group ref={parentGroupRef}>
+			{/* Main instanced mesh - visible when NOT pathtracing */}
+			{/* Merged mesh for pathtracing is added to this group imperatively via usePathtracingMesh */}
+			<instancedMesh
+				key={instanceCount}
+				ref={mainMeshRef}
+				args={[undefined, undefined, instanceCount]}
+				visible={!pathtracingEnabled}
+				onClick={
+					!pathtracingEnabled && selecting.enabled ? onClickHandler : undefined
+				}
+				onPointerEnter={
+					!pathtracingEnabled && hovering?.enabled
+						? onPointerEnterHandler
+						: undefined
+				}
+				onPointerMove={
+					!pathtracingEnabled && hovering?.enabled
+						? onPointerMoveHandler
+						: undefined
+				}
+				onPointerOut={
+					!pathtracingEnabled && hovering?.enabled
+						? onPointerOutHandler
+						: undefined
+				}
+			>
+				<primitive object={mainGeometry} attach="geometry" />
+				{renderMaterial(
+					material,
+					opacity,
+					undefined,
+					double_sided ? THREE.DoubleSide : THREE.FrontSide,
+				)}
+			</instancedMesh>
+
+			{/* Selection mesh - thin box geometry for visible outline */}
+			{!pathtracingEnabled && selecting.enabled && (
+				<instancedMesh
+					key={`selection-${validSelectedIndices.length}`}
+					ref={selectionMeshRef}
+					args={[undefined, undefined, validSelectedIndices.length]}
+				>
+					<primitive object={outlineGeometry} attach="geometry" />
+					<meshBasicMaterial
+						side={double_sided ? THREE.DoubleSide : THREE.FrontSide}
+						transparent
+						opacity={selecting.opacity}
+						color={selecting.color}
+					/>
+				</instancedMesh>
+			)}
+
+			{/* Hover mesh - thin box geometry for visible outline */}
+			{!pathtracingEnabled && hovering?.enabled && (
+				<mesh ref={hoverMeshRef} visible={false}>
+					<primitive object={outlineGeometry} attach="geometry" />
+					<meshBasicMaterial
+						side={THREE.BackSide}
+						transparent
+						opacity={hovering.opacity}
+						color={hovering.color}
+					/>
+				</mesh>
+			)}
+		</group>
+	);
+}

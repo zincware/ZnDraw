@@ -92,14 +92,15 @@ class Camera(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    owner: str | None = Field(
+        default=None,
+        description="User ID of the geometry owner.",
+        json_schema_extra={"x-custom-type": "ownership-toggle"},
+    )
+
     active: bool = Field(
         default=True,
         description="Whether this geometry should be rendered.",
-    )
-
-    protected: bool = Field(
-        default=False,
-        description="Whether this geometry is protected from deletion.",
     )
 
     # Position and target with union type

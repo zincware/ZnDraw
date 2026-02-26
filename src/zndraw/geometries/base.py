@@ -4,6 +4,7 @@ import typing as t
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 if t.TYPE_CHECKING:
     from zndraw.transformations import Transform
@@ -85,14 +86,15 @@ class BaseGeometry(BaseModel):
             return coerce_numpy_arrays(data)
         return data
 
+    owner: str | None = Field(
+        default=None,
+        description="User ID of the geometry owner.",
+        json_schema_extra={"x-custom-type": "ownership-toggle"},
+    )
+
     active: bool = Field(
         default=True,
         description="Whether this geometry should be rendered.",
-    )
-
-    protected: bool = Field(
-        default=False,
-        description="Whether this geometry is protected from deletion.",
     )
 
     position: PositionProp = Field(
@@ -122,4 +124,9 @@ class BaseGeometry(BaseModel):
         default="MeshPhysicalMaterial_matt",
         description="Material type or object.",
         json_schema_extra={"x-custom-type": "three-material"},
+    )
+
+    selection: SkipJsonSchema[list[int] | None] = Field(
+        default=None,
+        description="Selected instance indices.",
     )

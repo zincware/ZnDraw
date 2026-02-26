@@ -1,11 +1,9 @@
-import typing as t
-
 import ase
 import numpy as np
 import vesin
 from ase.neighborlist import natural_cutoffs
 
-T_CONNECTIVITY = t.List[t.Tuple[int, int, int | float | None]]
+T_CONNECTIVITY = list[tuple[int, int, int | float | None]]
 
 
 def add_connectivity(atoms: ase.Atoms, scale: float = 1.2) -> None:

@@ -8,15 +8,18 @@ from .base import BaseGeometry
 
 
 class Floor(BaseGeometry):
-    """A floor plane with grid, shadows, and fog support.
-
-    Floor size is automatically calculated from camera far plane distance.
-    Fog extends from near to far plane when enabled.
-    """
+    """A floor plane with grid, shadows, and fog support."""
 
     active: bool = Field(
         default=False,
         description="Whether this geometry should be rendered. Inactive geometries are hidden.",
+    )
+
+    size: float = Field(
+        default=600.0,
+        ge=10.0,
+        le=2000.0,
+        description="Floor plane size (width and depth)",
     )
 
     # Override base properties - Floor doesn't need dynamic data
@@ -67,8 +70,25 @@ class Floor(BaseGeometry):
         default=0.5, ge=0.0, le=2.0, description="Shadow blur radius"
     )
 
-    fog_enabled: bool = Field(
-        default=True, description="Enable fog (extends to camera far plane)"
+    fog_enabled: bool = Field(default=True, description="Enable distance fog effect")
+
+    fog_color: str = Field(
+        default="default",
+        description="Fog color (uses theme background when 'default')",
+    )
+
+    fog_near: float = Field(
+        default=180.0,
+        ge=0.0,
+        le=1000.0,
+        description="Distance where fog starts",
+    )
+
+    fog_far: float = Field(
+        default=300.0,
+        ge=10.0,
+        le=2000.0,
+        description="Distance where fog is fully opaque",
     )
 
     @classmethod
@@ -99,5 +119,19 @@ class Floor(BaseGeometry):
         schema["properties"]["height"]["step"] = 0.5
         schema["properties"]["height"]["minimum"] = -50
         schema["properties"]["height"]["maximum"] = 50
+
+        # Size slider
+        schema["properties"]["size"]["format"] = "range"
+        schema["properties"]["size"]["step"] = 10
+
+        # Fog color picker
+        schema["properties"]["fog_color"]["format"] = "color"
+
+        # Fog distance sliders
+        schema["properties"]["fog_near"]["format"] = "range"
+        schema["properties"]["fog_near"]["step"] = 10
+
+        schema["properties"]["fog_far"]["format"] = "range"
+        schema["properties"]["fog_far"]["step"] = 10
 
         return schema

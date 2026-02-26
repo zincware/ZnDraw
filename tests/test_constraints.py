@@ -1,288 +1,370 @@
-"""Tests for constraint serialization and storage.
+"""Tests for ASE constraint serialization through encode/decode, storage, and client."""
 
-This test suite verifies that ASE constraints can be properly serialized,
-stored in ASEBytes storage, and reconstructed. All constraints that inherit from
-ase.constraints.FixConstraint should be supported via ASE's todict()
-and dict2constraint() methods.
-"""
+import uuid
 
 import ase
-import ase.constraints
-import numpy.testing as npt
+import numpy as np
+import pytest
+import pytest_asyncio
+from ase.calculators.singlepoint import SinglePointCalculator
+from ase.constraints import FixAtoms, FixBondLengths, FixedLine, FixedPlane
 from asebytes import decode, encode
 
-from zndraw.storage import ASEBytesStorageBackend
+from zndraw.storage import InMemoryStorage, LMDBStorage
+
+# =============================================================================
+# Section 1: Unit tests (encode/decode roundtrip, no server needed)
+# =============================================================================
 
 
-def test_fixatoms_serialization():
-    """Test FixAtoms constraint serialization and deserialization."""
-    atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
-    constraint = ase.constraints.FixAtoms(indices=[0, 2])
-    atoms.set_constraint(constraint)
+def test_fixatoms_roundtrip():
+    """FixAtoms indices survive encode/decode roundtrip."""
+    atoms = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
+    atoms.set_constraint(FixAtoms(indices=[0, 2]))
 
-    # Serialize with asebytes (natively supports constraints)
-    data = encode(atoms)
+    decoded = decode(encode(atoms))
 
-    # Deserialize
-    atoms2 = decode(data)
-    assert len(atoms2.constraints) == 1
-    assert isinstance(atoms2.constraints[0], ase.constraints.FixAtoms)
-    npt.assert_array_equal(atoms2.constraints[0].index, [0, 2])
+    assert len(decoded.constraints) == 1
+    constraint = decoded.constraints[0]
+    assert isinstance(constraint, FixAtoms)
+    np.testing.assert_array_equal(constraint.index, [0, 2])
 
 
-def test_fixbondlength_serialization():
-    """Test FixBondLength constraint serialization and deserialization."""
+def test_fixbondlengths_roundtrip():
+    """FixBondLengths pairs survive encode/decode roundtrip."""
+    atoms = ase.Atoms("H4", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0]])
+    atoms.set_constraint(FixBondLengths(pairs=[[0, 1], [2, 3]]))
+
+    decoded = decode(encode(atoms))
+
+    assert len(decoded.constraints) == 1
+    constraint = decoded.constraints[0]
+    assert isinstance(constraint, FixBondLengths)
+    np.testing.assert_array_equal(constraint.pairs, [[0, 1], [2, 3]])
+
+
+def test_fixedline_roundtrip():
+    """FixedLine direction and index survive encode/decode roundtrip."""
     atoms = ase.Atoms("H2", positions=[[0, 0, 0], [1, 0, 0]])
-    constraint = ase.constraints.FixBondLength(0, 1)
-    atoms.set_constraint(constraint)
+    atoms.set_constraint(FixedLine(0, direction=[1, 0, 0]))
 
-    # Serialize with asebytes (natively supports constraints)
-    data = encode(atoms)
+    decoded = decode(encode(atoms))
 
-    # Deserialize
-    atoms2 = decode(data)
-    assert len(atoms2.constraints) == 1
-    # Restored as FixBondLengths
-    assert atoms2.constraints[0].__class__.__name__ == "FixBondLengths"
+    assert len(decoded.constraints) == 1
+    constraint = decoded.constraints[0]
+    assert isinstance(constraint, FixedLine)
+    np.testing.assert_array_equal(constraint.index, [0])
+    np.testing.assert_allclose(constraint.dir, [1.0, 0.0, 0.0])
 
 
-def test_fixbondlengths_serialization():
-    """Test FixBondLengths constraint serialization and deserialization."""
-    atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
-    constraint = ase.constraints.FixBondLengths(pairs=[[0, 1], [0, 2]])
-    atoms.set_constraint(constraint)
+def test_fixedplane_roundtrip():
+    """FixedPlane normal and index survive encode/decode roundtrip."""
+    atoms = ase.Atoms("H2", positions=[[0, 0, 0], [1, 0, 0]])
+    atoms.set_constraint(FixedPlane(0, direction=[0, 0, 1]))
 
-    # Serialize with asebytes (natively supports constraints)
-    data = encode(atoms)
+    decoded = decode(encode(atoms))
 
-    # Deserialize
-    atoms2 = decode(data)
-    assert len(atoms2.constraints) == 1
-    assert atoms2.constraints[0].__class__.__name__ == "FixBondLengths"
-    npt.assert_array_equal(atoms2.constraints[0].pairs, [[0, 1], [0, 2]])
+    assert len(decoded.constraints) == 1
+    constraint = decoded.constraints[0]
+    assert isinstance(constraint, FixedPlane)
+    np.testing.assert_array_equal(constraint.index, [0])
+    np.testing.assert_allclose(constraint.dir, [0.0, 0.0, 1.0])
 
 
-def test_fixedline_serialization():
-    """Test FixedLine constraint serialization and deserialization."""
-    atoms = ase.Atoms("H", positions=[[0, 0, 0]])
-    constraint = ase.constraints.FixedLine(0, [1, 0, 0])
-    atoms.set_constraint(constraint)
-
-    # Serialize with asebytes (natively supports constraints)
-    data = encode(atoms)
-
-    # Deserialize
-    atoms2 = decode(data)
-    assert len(atoms2.constraints) == 1
-    assert atoms2.constraints[0].__class__.__name__ == "FixedLine"
-    npt.assert_array_equal(atoms2.constraints[0].index, [0])
-    npt.assert_array_almost_equal(atoms2.constraints[0].dir, [1, 0, 0])
-
-
-def test_fixedplane_serialization():
-    """Test FixedPlane constraint serialization and deserialization."""
-    atoms = ase.Atoms("H", positions=[[0, 0, 0]])
-    constraint = ase.constraints.FixedPlane(0, [0, 0, 1])
-    atoms.set_constraint(constraint)
-
-    # Serialize with asebytes (natively supports constraints)
-    data = encode(atoms)
-
-    # Deserialize
-    atoms2 = decode(data)
-    assert len(atoms2.constraints) == 1
-    assert atoms2.constraints[0].__class__.__name__ == "FixedPlane"
-    npt.assert_array_equal(atoms2.constraints[0].index, [0])
-    npt.assert_array_almost_equal(atoms2.constraints[0].dir, [0, 0, 1])
-
-
-def test_multiple_constraints_serialization():
-    """Test serialization of multiple constraints on the same atoms object."""
-    atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
-    constraints = [
-        ase.constraints.FixAtoms(indices=[0]),
-        ase.constraints.FixBondLength(1, 2),
-    ]
-    atoms.set_constraint(constraints)
-
-    # Serialize with asebytes (natively supports constraints)
-    data = encode(atoms)
-
-    # Deserialize
-    atoms2 = decode(data)
-    assert len(atoms2.constraints) == 2
-    assert atoms2.constraints[0].__class__.__name__ == "FixAtoms"
-    assert atoms2.constraints[1].__class__.__name__ == "FixBondLengths"
-
-
-def test_no_constraints_serialization():
-    """Test that atoms without constraints don't have a constraints key."""
-    atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
-
-    # Serialize with asebytes
-    data = encode(atoms)
-
-    # Deserialize should work fine
-    atoms2 = decode(data)
-    assert len(atoms2.constraints) == 0
-
-
-def test_constraints_with_storage(tmp_path):
-    """Integration test: constraints should persist through ASEBytes storage."""
-    atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
-    constraint = ase.constraints.FixAtoms(indices=[0, 2])
-    atoms.set_constraint(constraint)
-
-    # Serialize with asebytes
-    data = encode(atoms)
-
-    # Store in ASEBytes
-    db_path = str(tmp_path / "test.lmdb")
-    store = ASEBytesStorageBackend(db_path, map_size=1_000_000_000)
-    store.append(data)
-
-    # Retrieve from storage
-    retrieved = store[0]
-
-    # Convert back to atoms
-    atoms2 = decode(retrieved)
-    assert len(atoms2.constraints) == 1
-    assert isinstance(atoms2.constraints[0], ase.constraints.FixAtoms)
-    npt.assert_array_equal(atoms2.constraints[0].index, [0, 2])
-
-
-def test_constraints_with_variable_sized_atoms(tmp_path):
-    """Test that constraints work with variable-sized atoms in ASEBytes storage."""
-    # Create multiple frames with different sizes and constraints
-    atoms1 = ase.Atoms("H2", positions=[[0, 0, 0], [1, 0, 0]])
-    atoms1.set_constraint(ase.constraints.FixAtoms(indices=[0]))
-
-    atoms2 = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
-    atoms2.set_constraint(ase.constraints.FixAtoms(indices=[0, 2]))
-
-    atoms3 = ase.Atoms(
-        "CH4", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0], [-1, 0, 0], [0, -1, 0]]
+def test_multiple_constraints():
+    """Multiple different constraints on the same Atoms object are preserved."""
+    atoms = ase.Atoms("H4", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0]])
+    atoms.set_constraint(
+        [
+            FixAtoms(indices=[0, 3]),
+            FixedLine(1, direction=[0, 1, 0]),
+        ]
     )
-    atoms3.set_constraint(ase.constraints.FixAtoms(indices=[0]))
 
-    # Serialize with asebytes
-    data1 = encode(atoms1)
-    data2 = encode(atoms2)
-    data3 = encode(atoms3)
+    decoded = decode(encode(atoms))
 
-    # Store in ASEBytes
-    db_path = str(tmp_path / "test.lmdb")
-    store = ASEBytesStorageBackend(db_path, map_size=1_000_000_000)
-    store.extend([data1, data2, data3])
+    assert len(decoded.constraints) == 2
+    types = {type(c) for c in decoded.constraints}
+    assert types == {FixAtoms, FixedLine}
 
-    # Retrieve and verify
-    retrieved1 = store[0]
-    retrieved2 = store[1]
-    retrieved3 = store[2]
+    # Verify each constraint's data
+    for c in decoded.constraints:
+        if isinstance(c, FixAtoms):
+            np.testing.assert_array_equal(c.index, [0, 3])
+        elif isinstance(c, FixedLine):
+            np.testing.assert_array_equal(c.index, [1])
+            np.testing.assert_allclose(c.dir, [0.0, 1.0, 0.0])
 
-    # Check frame 1
-    atoms1_restored = decode(retrieved1)
-    npt.assert_array_equal(atoms1_restored.constraints[0].index, [0])
 
-    # Check frame 2
-    atoms2_restored = decode(retrieved2)
-    npt.assert_array_equal(atoms2_restored.constraints[0].index, [0, 2])
+def test_no_constraints():
+    """Atoms without constraints roundtrip with an empty constraints list."""
+    atoms = ase.Atoms("H2", positions=[[0, 0, 0], [1, 0, 0]])
 
-    # Check frame 3
-    atoms3_restored = decode(retrieved3)
-    npt.assert_array_equal(atoms3_restored.constraints[0].index, [0])
+    decoded = decode(encode(atoms))
+
+    assert decoded.constraints == []
 
 
 def test_constraints_with_calculator():
-    """Test that constraints work alongside calculator data."""
-    from ase.calculators.singlepoint import SinglePointCalculator
-
-    atoms = ase.Atoms("H2", positions=[[0, 0, 0], [1, 0, 0]])
-    atoms.set_constraint(ase.constraints.FixAtoms(indices=[0]))
-
-    # Add calculator
-    calc = SinglePointCalculator(atoms, energy=1.5, forces=[[0.1, 0, 0], [0.2, 0, 0]])
+    """Constraints and SinglePointCalculator both survive encode/decode."""
+    atoms = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
+    atoms.set_constraint(FixAtoms(indices=[1]))
+    energy = -5.0
+    calc = SinglePointCalculator(
+        atoms,
+        energy=energy,
+        forces=np.array([[0.1, 0, 0], [0, 0.2, 0], [0, 0, 0.3]]),
+    )
     atoms.calc = calc
 
-    # Serialize with asebytes (supports both constraints and calculator)
-    data = encode(atoms)
+    decoded = decode(encode(atoms))
 
-    # Deserialize
-    atoms2 = decode(data)
-    assert len(atoms2.constraints) == 1
-    assert isinstance(atoms2.constraints[0], ase.constraints.FixAtoms)
-    assert atoms2.calc.results["energy"] == 1.5
-    npt.assert_array_almost_equal(
-        atoms2.calc.results["forces"], [[0.1, 0, 0], [0.2, 0, 0]]
-    )
+    # Constraints preserved
+    assert len(decoded.constraints) == 1
+    assert isinstance(decoded.constraints[0], FixAtoms)
+    np.testing.assert_array_equal(decoded.constraints[0].index, [1])
 
-
-def test_constraint_roundtrip_fixatoms():
-    """Test FixAtoms constraint serialization roundtrip."""
-    atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
-    constraint = ase.constraints.FixAtoms(indices=[0, 1])
-    atoms.set_constraint(constraint)
-
-    # Roundtrip: atoms -> bytes -> atoms
-    data = encode(atoms)
-    atoms2 = decode(data)
-
-    # Verify constraint was restored
-    assert len(atoms2.constraints) == 1
-    assert isinstance(atoms2.constraints[0], ase.constraints.FixAtoms)
-    npt.assert_array_equal(atoms2.constraints[0].index, [0, 1])
+    # Calculator preserved
+    assert decoded.calc is not None
+    assert decoded.get_potential_energy() == energy
 
 
-def test_constraint_roundtrip_fixbondlength():
-    """Test FixBondLength constraint serialization roundtrip."""
-    atoms = ase.Atoms("H2", positions=[[0, 0, 0], [1, 0, 0]])
-    constraint = ase.constraints.FixBondLength(0, 1)
-    atoms.set_constraint(constraint)
-
-    # Roundtrip: atoms -> bytes -> atoms
-    data = encode(atoms)
-    atoms2 = decode(data)
-
-    # Verify constraint was restored (as FixBondLengths)
-    assert len(atoms2.constraints) == 1
-    assert atoms2.constraints[0].__class__.__name__ == "FixBondLengths"
+# =============================================================================
+# Section 2: Storage integration tests (async)
+# =============================================================================
 
 
-def test_constraints_preserved_across_multiple_frames(tmp_path):
-    """Test that different constraints are preserved independently across frames."""
-    db_path = str(tmp_path / "test.lmdb")
-    store = ASEBytesStorageBackend(db_path, map_size=1_000_000_000)
+@pytest_asyncio.fixture
+async def memory_storage():
+    """Create a fresh InMemoryStorage instance."""
+    storage = InMemoryStorage()
+    yield storage
+    await storage.close()
 
-    # Frame 1: FixAtoms
-    atoms1 = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
-    atoms1.set_constraint(ase.constraints.FixAtoms(indices=[0]))
-    store.append(encode(atoms1))
 
-    # Frame 2: FixBondLength
+@pytest_asyncio.fixture
+async def lmdb_storage(tmp_path):
+    """Create a fresh LMDBStorage instance with a temp directory."""
+    storage = LMDBStorage(path=tmp_path / "test.lmdb")
+    yield storage
+    await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_constraints_through_memory_storage(memory_storage: InMemoryStorage):
+    """Constraints survive InMemoryStorage extend/get roundtrip."""
+    atoms = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
+    atoms.set_constraint(FixAtoms(indices=[0, 2]))
+
+    frame = encode(atoms)
+    await memory_storage.extend(room_id="room1", frames=[frame])
+
+    raw = await memory_storage.get(room_id="room1", index=0)
+    assert raw is not None
+    decoded = decode(raw)
+
+    assert len(decoded.constraints) == 1
+    assert isinstance(decoded.constraints[0], FixAtoms)
+    np.testing.assert_array_equal(decoded.constraints[0].index, [0, 2])
+
+
+@pytest.mark.asyncio
+async def test_constraints_through_lmdb_storage(lmdb_storage: LMDBStorage):
+    """Constraints survive LMDBStorage extend/get roundtrip."""
+    atoms = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
+    atoms.set_constraint(FixAtoms(indices=[0, 2]))
+
+    frame = encode(atoms)
+    await lmdb_storage.extend(room_id="room1", frames=[frame])
+
+    raw = await lmdb_storage.get(room_id="room1", index=0)
+    assert raw is not None
+    decoded = decode(raw)
+
+    assert len(decoded.constraints) == 1
+    assert isinstance(decoded.constraints[0], FixAtoms)
+    np.testing.assert_array_equal(decoded.constraints[0].index, [0, 2])
+
+
+async def _assert_variable_constraints_across_frames(
+    storage: InMemoryStorage | LMDBStorage,
+) -> None:
+    """Verify different constraint types across frames are each preserved."""
+    # Frame 0: FixAtoms
+    atoms0 = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
+    atoms0.set_constraint(FixAtoms(indices=[1]))
+
+    # Frame 1: FixedLine
+    atoms1 = ase.Atoms("H2", positions=[[0, 0, 0], [1, 0, 0]])
+    atoms1.set_constraint(FixedLine(0, direction=[1, 0, 0]))
+
+    # Frame 2: FixedPlane
     atoms2 = ase.Atoms("H2", positions=[[0, 0, 0], [1, 0, 0]])
-    atoms2.set_constraint(ase.constraints.FixBondLength(0, 1))
-    store.append(encode(atoms2))
+    atoms2.set_constraint(FixedPlane(1, direction=[0, 0, 1]))
 
-    # Frame 3: Multiple constraints
-    atoms3 = ase.Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
-    atoms3.set_constraint(
-        [
-            ase.constraints.FixAtoms(indices=[0]),
-            ase.constraints.FixBondLength(1, 2),
-        ]
-    )
-    store.append(encode(atoms3))
+    frames = [encode(a) for a in [atoms0, atoms1, atoms2]]
+    await storage.extend(room_id="room1", frames=frames)
 
-    # Retrieve and verify each frame independently
-    retrieved1 = decode(store[0])
-    assert len(retrieved1.constraints) == 1
-    assert isinstance(retrieved1.constraints[0], ase.constraints.FixAtoms)
+    # Verify frame 0
+    raw0 = await storage.get(room_id="room1", index=0)
+    assert raw0 is not None
+    dec0 = decode(raw0)
+    assert len(dec0.constraints) == 1
+    assert isinstance(dec0.constraints[0], FixAtoms)
+    np.testing.assert_array_equal(dec0.constraints[0].index, [1])
 
-    retrieved2 = decode(store[1])
-    assert len(retrieved2.constraints) == 1
-    assert retrieved2.constraints[0].__class__.__name__ == "FixBondLengths"
+    # Verify frame 1
+    raw1 = await storage.get(room_id="room1", index=1)
+    assert raw1 is not None
+    dec1 = decode(raw1)
+    assert len(dec1.constraints) == 1
+    assert isinstance(dec1.constraints[0], FixedLine)
+    np.testing.assert_allclose(dec1.constraints[0].dir, [1.0, 0.0, 0.0])
 
-    retrieved3 = decode(store[2])
-    assert len(retrieved3.constraints) == 2
-    assert isinstance(retrieved3.constraints[0], ase.constraints.FixAtoms)
-    assert retrieved3.constraints[1].__class__.__name__ == "FixBondLengths"
+    # Verify frame 2
+    raw2 = await storage.get(room_id="room1", index=2)
+    assert raw2 is not None
+    dec2 = decode(raw2)
+    assert len(dec2.constraints) == 1
+    assert isinstance(dec2.constraints[0], FixedPlane)
+    np.testing.assert_array_equal(dec2.constraints[0].index, [1])
+    np.testing.assert_allclose(dec2.constraints[0].dir, [0.0, 0.0, 1.0])
+
+
+@pytest.mark.asyncio
+async def test_variable_constraints_across_frames_memory(
+    memory_storage: InMemoryStorage,
+):
+    """Different constraint types across InMemoryStorage frames are preserved."""
+    await _assert_variable_constraints_across_frames(memory_storage)
+
+
+@pytest.mark.asyncio
+async def test_variable_constraints_across_frames_lmdb(lmdb_storage: LMDBStorage):
+    """Different constraint types across LMDBStorage frames are preserved."""
+    await _assert_variable_constraints_across_frames(lmdb_storage)
+
+
+# =============================================================================
+# Section 3: Client integration tests (sync, real server)
+# =============================================================================
+
+
+def test_client_constraint_roundtrip(server: str):
+    """Constraints survive the full client append/retrieve cycle."""
+    from zndraw import ZnDraw
+
+    room_id = uuid.uuid4().hex
+    client = ZnDraw(url=server, room=room_id)
+
+    atoms = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
+    atoms.set_constraint(FixAtoms(indices=[0, 2]))
+    client.append(atoms)
+
+    retrieved = client[0]
+    assert len(retrieved.constraints) == 1
+    constraint = retrieved.constraints[0]
+    assert isinstance(constraint, FixAtoms)
+    np.testing.assert_array_equal(constraint.index, [0, 2])
+
+    client.disconnect()
+
+
+def test_client_extend_with_constraints(server: str):
+    """Multiple constrained frames survive client extend/retrieve."""
+    from zndraw import ZnDraw
+
+    room_id = uuid.uuid4().hex
+    client = ZnDraw(url=server, room=room_id)
+
+    # Frame 0: FixAtoms
+    a0 = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
+    a0.set_constraint(FixAtoms(indices=[1]))
+
+    # Frame 1: FixedLine
+    a1 = ase.Atoms("H2", positions=[[0, 0, 0], [1, 0, 0]])
+    a1.set_constraint(FixedLine(0, direction=[0, 1, 0]))
+
+    # Frame 2: no constraints
+    a2 = ase.Atoms("H2", positions=[[0, 0, 0], [1, 0, 0]])
+
+    client.extend([a0, a1, a2])
+    assert len(client) == 3
+
+    # Verify frame 0
+    r0 = client[0]
+    assert len(r0.constraints) == 1
+    assert isinstance(r0.constraints[0], FixAtoms)
+    np.testing.assert_array_equal(r0.constraints[0].index, [1])
+
+    # Verify frame 1
+    r1 = client[1]
+    assert len(r1.constraints) == 1
+    assert isinstance(r1.constraints[0], FixedLine)
+    np.testing.assert_allclose(r1.constraints[0].dir, [0.0, 1.0, 0.0])
+
+    # Verify frame 2
+    r2 = client[2]
+    assert r2.constraints == []
+
+    client.disconnect()
+
+
+# =============================================================================
+# Section 4: Default geometry tests
+# =============================================================================
+
+
+def test_default_constraint_geometry_created_on_room_creation(server: str):
+    """New rooms include a constraints-fixed-atoms geometry."""
+    from zndraw import ZnDraw
+    from zndraw.geometries import Sphere
+    from zndraw.transformations import InArrayTransform
+
+    room_id = uuid.uuid4().hex
+    client = ZnDraw(url=server, room=room_id)
+
+    geo = client.geometries["constraints-fixed-atoms"]
+    assert geo is not None
+
+    # Verify it's a Sphere with InArrayTransform position
+    assert isinstance(geo, Sphere)
+    assert isinstance(geo.position, InArrayTransform)
+    assert geo.position.source == "constraints"
+    assert geo.position.path == "0.kwargs.indices"
+    assert geo.position.filter == "arrays.positions"
+
+    assert isinstance(geo.radius, InArrayTransform)
+    assert geo.radius.source == "constraints"
+    assert geo.radius.filter == "arrays.radii"
+
+    assert geo.color == ["#FF0000"]
+    assert geo.selecting.enabled is False
+    assert geo.hovering.enabled is False
+
+    client.disconnect()
+
+
+def test_constraint_geometry_renders_fixed_atoms(server: str):
+    """Constraint geometry filters positions to only fixed atoms."""
+    from zndraw import ZnDraw
+    from zndraw.transformations import InArrayTransform
+
+    room_id = uuid.uuid4().hex
+    client = ZnDraw(url=server, room=room_id)
+
+    atoms = ase.Atoms("H5", positions=[[i, 0, 0] for i in range(5)])
+    atoms.set_constraint(FixAtoms(indices=[1, 3]))
+    client.append(atoms)
+
+    # The constraint geometry exists and has correct transform config
+    geo = client.geometries["constraints-fixed-atoms"]
+    assert isinstance(geo.position, InArrayTransform)
+
+    # Verify constraint data roundtrip
+    retrieved = client[0]
+    assert len(retrieved.constraints) == 1
+    assert isinstance(retrieved.constraints[0], FixAtoms)
+    np.testing.assert_array_equal(retrieved.constraints[0].index, [1, 3])
+
+    client.disconnect()
