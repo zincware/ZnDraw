@@ -38,6 +38,8 @@ from zndraw.exceptions import (
     problem_responses,
 )
 from zndraw.geometries import geometries as geometry_models
+from zndraw.materials import MeshBasicMaterial
+from zndraw.transformations import InArrayTransform
 from zndraw.models import (
     Room,
     RoomBookmark,
@@ -94,6 +96,27 @@ def _initialize_default_geometries(session: AsyncSession, room_id: str) -> None:
         "curve": ("Curve", {"active": True}),
         "cell": ("Cell", {"active": True}),
         "floor": ("Floor", {"active": False}),
+        "constraints-fixed-atoms": (
+            "Sphere",
+            {
+                "active": True,
+                "position": InArrayTransform(
+                    source="constraints",
+                    path="0.kwargs.indices",
+                    filter="arrays.positions",
+                ),
+                "radius": InArrayTransform(
+                    source="constraints",
+                    path="0.kwargs.indices",
+                    filter="arrays.radii",
+                ),
+                "color": ["#FF0000"],
+                "material": MeshBasicMaterial(wireframe=True),
+                "scale": [(0.71, 0.71, 0.71)],
+                "selecting": {"enabled": False},
+                "hovering": {"enabled": False},
+            },
+        ),
     }
 
     for key, (type_name, data) in defaults.items():
