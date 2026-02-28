@@ -9,6 +9,7 @@ from zndraw.schemas import (
     CollectionResponse,
     RoomCreate,
     RoomCreateResponse,
+    RoomPatchResponse,
     RoomResponse,
 )
 
@@ -56,3 +57,36 @@ def room_info(
     conn = get_connection(ctx.obj["url"], ctx.obj["token"])
     response = conn.get(f"/v1/rooms/{room}")
     json_print(RoomResponse.model_validate(response.json()))
+
+
+@rooms_app.command("lock")
+def lock_room(
+    ctx: typer.Context,
+    room: Annotated[str, typer.Argument(help="Room ID")],
+) -> None:
+    """Lock a room (prevent edits by non-admin users)."""
+    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
+    response = conn.patch(f"/v1/rooms/{room}", json={"locked": True})
+    json_print(RoomPatchResponse.model_validate(response.json()))
+
+
+@rooms_app.command("unlock")
+def unlock_room(
+    ctx: typer.Context,
+    room: Annotated[str, typer.Argument(help="Room ID")],
+) -> None:
+    """Unlock a room (allow edits again)."""
+    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
+    response = conn.patch(f"/v1/rooms/{room}", json={"locked": False})
+    json_print(RoomPatchResponse.model_validate(response.json()))
+
+
+@rooms_app.command("set-default")
+def set_default_room(
+    ctx: typer.Context,
+    room: Annotated[str, typer.Argument(help="Room ID to set as default template")],
+) -> None:
+    """Set a room as the default template for new rooms."""
+    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
+    response = conn.put("/v1/server-settings/default-room", json={"room_id": room})
+    json_print(response.json())
