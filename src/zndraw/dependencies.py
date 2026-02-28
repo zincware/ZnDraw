@@ -29,7 +29,7 @@ from zndraw.geometries import geometries as geometry_models
 from zndraw.geometries.camera import Camera
 from zndraw.models import Room, RoomGeometry
 from zndraw.redis import RedisKey
-from zndraw.storage.base import StorageBackend
+from zndraw.storage import AsebytesStorage
 from zndraw.storage.router import StorageRouter
 
 # Re-export auth dependencies for convenience
@@ -53,12 +53,12 @@ def get_redis(request: Request) -> AsyncRedis:  # type: ignore[type-arg]
 RedisDep = Annotated[AsyncRedis, Depends(get_redis)]  # type: ignore[type-arg]
 
 
-def get_storage(request: Request) -> StorageBackend:
+def get_storage(request: Request) -> AsebytesStorage:
     """Get frame storage backend from app.state."""
     return request.app.state.frame_storage
 
 
-StorageDep = Annotated[StorageBackend, Depends(get_storage)]
+StorageDep = Annotated[AsebytesStorage, Depends(get_storage)]
 
 
 def get_storage_router(request: Request) -> StorageRouter:

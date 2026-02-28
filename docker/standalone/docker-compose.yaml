@@ -15,9 +15,10 @@ services:
     image: pythonf/zndraw:latest
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "8000:8000"
     depends_on:
       redis: { condition: service_healthy }
+    env_file: .env
     environment:
       - ZNDRAW_REDIS_URL=redis://redis:6379
       - ZNDRAW_STORAGE=/app/data/zndraw-data.lmdb
@@ -25,7 +26,7 @@ services:
     volumes:
       - zndraw-data:/app/data
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000').read()"]
       interval: 30s
       timeout: 10s
       start_period: 60s
@@ -37,10 +38,11 @@ services:
     depends_on:
       redis: { condition: service_healthy }
     command: ["taskiq", "worker", "zndraw.broker:broker"]
+    env_file: .env
     environment:
       - ZNDRAW_REDIS_URL=redis://redis:6379
       - ZNDRAW_STORAGE=/app/data/zndraw-data.lmdb
-      - ZNDRAW_SERVER_URL=http://zndraw:5000
+      - ZNDRAW_SERVER_URL=http://zndraw:8000
     volumes:
       - zndraw-data:/app/data
 
@@ -49,8 +51,9 @@ services:
     restart: "no"
     depends_on:
       zndraw: { condition: service_healthy }
+    env_file: .env
     environment:
-      - ZNDRAW_URL=http://zndraw:5000
+      - ZNDRAW_URL=http://zndraw:8000
     command:
       - sh
       - -c

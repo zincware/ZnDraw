@@ -66,10 +66,10 @@ class TestMediaAndServerSettings:
             os.environ.pop("ZNDRAW_MEDIA_PATH", None)
 
     def test_default_host_and_port(self) -> None:
-        """Default host should be '0.0.0.0' and port should be 5000."""
+        """Default host should be '0.0.0.0' and port should be 8000."""
         settings = Settings()
         assert settings.host == "0.0.0.0"
-        assert settings.port == 5000
+        assert settings.port == 8000
 
     def test_host_and_port_from_env(self) -> None:
         """host and port should be configurable via env vars."""

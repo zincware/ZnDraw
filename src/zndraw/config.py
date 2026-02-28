@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     # Server configuration
     media_path: Path = Path("zndraw-media")
     host: str = "0.0.0.0"
-    port: int = 5000
+    port: int = 8000
 
     # Feature flags
     simgen_enabled: bool = False

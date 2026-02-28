@@ -43,16 +43,15 @@ services:
     depends_on:
       redis: { condition: service_healthy }
       mongo: { condition: service_healthy }
+    env_file: .env
     environment:
       - ZNDRAW_REDIS_URL=redis://redis:6379
       - ZNDRAW_STORAGE=mongodb://mongo:27017/zndraw
       - ZNDRAW_WORKER_ENABLED=false
-      - ZNDRAW_ADMIN_USERNAME=admin
-      - ZNDRAW_ADMIN_PASSWORD=secure-password
     deploy:
       replicas: 3
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000').read()"]
       interval: 30s
       timeout: 10s
       start_period: 60s
@@ -65,6 +64,7 @@ services:
       redis: { condition: service_healthy }
       mongo: { condition: service_healthy }
     command: ["taskiq", "worker", "zndraw.broker:broker"]
+    env_file: .env
     environment:
       - ZNDRAW_REDIS_URL=redis://redis:6379
       - ZNDRAW_STORAGE=mongodb://mongo:27017/zndraw
@@ -75,10 +75,9 @@ services:
     restart: "no"
     depends_on:
       nginx: { condition: service_healthy }
+    env_file: .env
     environment:
       - ZNDRAW_URL=http://nginx
-      - ZNDRAW_ADMIN_USERNAME=admin
-      - ZNDRAW_ADMIN_PASSWORD=admin
     command:
       - sh
       - -c

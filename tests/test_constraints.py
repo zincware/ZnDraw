@@ -10,7 +10,7 @@ from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms, FixBondLengths, FixedLine, FixedPlane
 from asebytes import decode, encode
 
-from zndraw.storage import InMemoryStorage, LMDBStorage
+from zndraw.storage import AsebytesStorage
 
 # =============================================================================
 # Section 1: Unit tests (encode/decode roundtrip, no server needed)
@@ -136,23 +136,23 @@ def test_constraints_with_calculator():
 
 @pytest_asyncio.fixture
 async def memory_storage():
-    """Create a fresh InMemoryStorage instance."""
-    storage = InMemoryStorage()
+    """Create a fresh AsebytesStorage instance."""
+    storage = AsebytesStorage("memory://")
     yield storage
     await storage.close()
 
 
 @pytest_asyncio.fixture
 async def lmdb_storage(tmp_path):
-    """Create a fresh LMDBStorage instance with a temp directory."""
-    storage = LMDBStorage(path=tmp_path / "test.lmdb")
+    """Create a fresh AsebytesStorage with LMDB backend."""
+    storage = AsebytesStorage(str(tmp_path / "test.lmdb"))
     yield storage
     await storage.close()
 
 
 @pytest.mark.asyncio
-async def test_constraints_through_memory_storage(memory_storage: InMemoryStorage):
-    """Constraints survive InMemoryStorage extend/get roundtrip."""
+async def test_constraints_through_memory_storage(memory_storage: AsebytesStorage):
+    """Constraints survive AsebytesStorage extend/get roundtrip."""
     atoms = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
     atoms.set_constraint(FixAtoms(indices=[0, 2]))
 
@@ -169,8 +169,8 @@ async def test_constraints_through_memory_storage(memory_storage: InMemoryStorag
 
 
 @pytest.mark.asyncio
-async def test_constraints_through_lmdb_storage(lmdb_storage: LMDBStorage):
-    """Constraints survive LMDBStorage extend/get roundtrip."""
+async def test_constraints_through_lmdb_storage(lmdb_storage: AsebytesStorage):
+    """Constraints survive LMDB-backed AsebytesStorage extend/get roundtrip."""
     atoms = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
     atoms.set_constraint(FixAtoms(indices=[0, 2]))
 
@@ -187,7 +187,7 @@ async def test_constraints_through_lmdb_storage(lmdb_storage: LMDBStorage):
 
 
 async def _assert_variable_constraints_across_frames(
-    storage: InMemoryStorage | LMDBStorage,
+    storage: AsebytesStorage,
 ) -> None:
     """Verify different constraint types across frames are each preserved."""
     # Frame 0: FixAtoms
@@ -233,15 +233,15 @@ async def _assert_variable_constraints_across_frames(
 
 @pytest.mark.asyncio
 async def test_variable_constraints_across_frames_memory(
-    memory_storage: InMemoryStorage,
+    memory_storage: AsebytesStorage,
 ):
-    """Different constraint types across InMemoryStorage frames are preserved."""
+    """Different constraint types across AsebytesStorage frames are preserved."""
     await _assert_variable_constraints_across_frames(memory_storage)
 
 
 @pytest.mark.asyncio
-async def test_variable_constraints_across_frames_lmdb(lmdb_storage: LMDBStorage):
-    """Different constraint types across LMDBStorage frames are preserved."""
+async def test_variable_constraints_across_frames_lmdb(lmdb_storage: AsebytesStorage):
+    """Different constraint types across LMDB-backed AsebytesStorage frames are preserved."""
     await _assert_variable_constraints_across_frames(lmdb_storage)
 
 

@@ -56,7 +56,7 @@ from zndraw.schemas import (
     StatusResponse,
 )
 from zndraw.socket_events import FramesInvalidate
-from zndraw.storage.base import RawFrame, to_raw_frame
+from zndraw.storage import RawFrame, to_raw_frame
 
 router = APIRouter(prefix="/v1/rooms/{room_id}/frames", tags=["frames"])
 

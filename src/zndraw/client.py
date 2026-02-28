@@ -1039,7 +1039,7 @@ class SocketManager:
         if "type" in response:
             # RFC 9457 error response - room might not exist
             if response.get("status") == 404:
-                self.zndraw.api.create_room(copy_from="@none")
+                self.zndraw.api.create_room(copy_from=self.zndraw.copy_from)
                 # Retry join
                 raw_response = self._tsio.call(join_request)
                 response = raw_response if raw_response else {}
@@ -1427,6 +1427,10 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     password : SecretStr | str | None
         Password for login. Accepts ``str`` (auto-wrapped to ``SecretStr``)
         or ``SecretStr``. If None, inferred from ``Settings.guest_password``.
+    copy_from : str | None
+        Room ID to copy frames from when creating a new room, or an @-prefixed
+        preset (``@empty`` for one empty frame, ``@none`` for zero frames).
+        If None, uses the server's default template room. Default is ``@none``.
     auto_connect : bool
         If True, connect immediately on creation.
 
@@ -1445,6 +1449,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     room: str | None = None
     user: str | None = None
     password: SecretStr | str | None = None
+    copy_from: str | None = "@none"
     auto_connect: bool = True
     auto_pickup: bool = True
     polling_interval: float = 5.0

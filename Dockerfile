@@ -56,7 +56,7 @@ WORKDIR /app
 
 # Copy wheel and install
 COPY --from=builder /build/dist/*.whl /tmp/
-RUN WHEEL=$(ls /tmp/*.whl) && uv pip install --system --no-cache-dir "${WHEEL}[full]" && rm /tmp/*.whl
+RUN WHEEL=$(ls /tmp/*.whl) && uv pip install --system --no-cache-dir --prerelease explicit "${WHEEL}[full]" && rm /tmp/*.whl
 
 # Set environment
 ENV PYTHONUNBUFFERED=1 \
@@ -65,9 +65,9 @@ ENV PYTHONUNBUFFERED=1 \
 
 USER appuser
 
-EXPOSE 5000
+EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000').read()" || exit 1
 
 CMD ["zndraw", "--no-browser"]

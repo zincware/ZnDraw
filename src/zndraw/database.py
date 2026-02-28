@@ -2,7 +2,7 @@
 
 Uses app.state pattern to store resources:
 - redis: Redis async client
-- frame_storage: Frame storage backend (InMemory, LMDB, etc.)
+- frame_storage: StorageRouter wrapping AsebytesStorage
 - fake_server: TcpFakeServer instance (when REDIS_URL not configured)
 - tsio: zndraw-socketio typed wrapper
 """
@@ -40,20 +40,13 @@ from zndraw_joblib import (
 from zndraw_joblib.settings import JobLibSettings
 
 import zndraw.models  # noqa: F401 - registers Room, Message, etc.
-from zndraw.config import (
-    LMDBStorage as LMDBStorageConfig,
-    MemoryStorage,
-    MongoDBStorage,
-    Settings,
-    StorageConfig,
-)
+from zndraw.config import Settings
 from zndraw.executor import InternalExtensionExecutor
 from zndraw.extensions.analysis import analysis
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
 from zndraw.socketio import tsio
-from zndraw.storage import InMemoryStorage, LMDBStorage as LMDBStorageBackend
-from zndraw.storage.base import StorageBackend
+from zndraw.storage import AsebytesStorage
 
 
 def _get_free_port() -> int:
@@ -61,17 +54,6 @@ def _get_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
-
-
-def _create_storage_backend(config: StorageConfig) -> StorageBackend:
-    """Create a storage backend based on configuration."""
-    if isinstance(config, MemoryStorage):
-        return InMemoryStorage()
-    if isinstance(config, LMDBStorageConfig):
-        return LMDBStorageBackend(path=config.path, map_size=config.map_size)
-    if isinstance(config, MongoDBStorage):
-        raise NotImplementedError("MongoDB storage is not yet implemented")
-    raise ValueError(f"Unknown storage config type: {type(config)}")
 
 
 def _collect_extensions() -> list[type]:
@@ -255,7 +237,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # provider results automatically use the same storage engine.
         from zndraw.storage.router import StorageRouter
 
-        default_storage = _create_storage_backend(settings.storage)
+        default_storage = AsebytesStorage(uri=settings.storage)
         app.state.frame_storage = StorageRouter(
             default=default_storage,
             redis=app.state.redis,

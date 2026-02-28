@@ -25,7 +25,7 @@ from zndraw_auth.settings import AuthSettings
 
 from zndraw.config import Settings
 from zndraw.models import Room
-from zndraw.storage.base import RawFrame
+from zndraw.storage import RawFrame
 
 _password_helper = PasswordHelper()
 

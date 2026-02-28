@@ -29,8 +29,7 @@ from zndraw.schemas import (
     FrameResponse,
     StatusResponse,
 )
-from zndraw.storage import InMemoryStorage
-from zndraw.storage.base import RawFrame
+from zndraw.storage import AsebytesStorage, RawFrame
 
 
 def _make_json_frame(formula: str = "H2") -> dict[str, Any]:
@@ -83,16 +82,16 @@ async def frame_session_fixture() -> AsyncIterator[AsyncSession]:
 
 
 @pytest_asyncio.fixture(name="frame_storage")
-async def frame_storage_fixture() -> AsyncIterator[InMemoryStorage]:
-    """Create a fresh InMemoryStorage instance for each test."""
-    storage = InMemoryStorage()
+async def frame_storage_fixture() -> AsyncIterator[AsebytesStorage]:
+    """Create a fresh AsebytesStorage instance for each test."""
+    storage = AsebytesStorage("memory://")
     yield storage
     await storage.close()
 
 
 @pytest_asyncio.fixture(name="frame_client")
 async def frame_client_fixture(
-    frame_session: AsyncSession, frame_storage: InMemoryStorage
+    frame_session: AsyncSession, frame_storage: AsebytesStorage
 ) -> AsyncIterator[AsyncClient]:
     """Create an async test client with session and storage dependencies overridden."""
     from contextlib import asynccontextmanager
@@ -119,7 +118,7 @@ async def frame_client_fixture(
     async def test_session_maker():
         yield frame_session
 
-    def get_storage_override() -> InMemoryStorage:
+    def get_storage_override() -> AsebytesStorage:
         return frame_storage
 
     def get_sio_override() -> MockSioServer:
@@ -180,7 +179,7 @@ async def test_list_frames_empty_room(
 async def test_list_frames_with_data(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: InMemoryStorage,
+    frame_storage: AsebytesStorage,
 ) -> None:
     """Test listing frames with data returns all frames."""
     user, token = await _create_user(frame_session)
@@ -205,7 +204,7 @@ async def test_list_frames_with_data(
 async def test_list_frames_with_range(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: InMemoryStorage,
+    frame_storage: AsebytesStorage,
 ) -> None:
     """Test listing frames with range query params."""
     user, token = await _create_user(frame_session)
@@ -247,7 +246,7 @@ async def test_list_frames_room_not_found(
 async def test_list_frames_with_indices(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: InMemoryStorage,
+    frame_storage: AsebytesStorage,
 ) -> None:
     """Test listing specific frames by indices parameter."""
     user, token = await _create_user(frame_session)
@@ -276,7 +275,7 @@ async def test_list_frames_with_indices(
 async def test_list_frames_with_keys_filter(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: InMemoryStorage,
+    frame_storage: AsebytesStorage,
 ) -> None:
     """Test listing frames with keys parameter to filter frame data."""
     user, token = await _create_user(frame_session)
@@ -308,7 +307,7 @@ async def test_list_frames_with_keys_filter(
 async def test_list_frames_with_indices_and_keys(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: InMemoryStorage,
+    frame_storage: AsebytesStorage,
 ) -> None:
     """Test listing specific indices with keys filter."""
     user, token = await _create_user(frame_session)
@@ -345,7 +344,7 @@ async def test_list_frames_with_indices_and_keys(
 async def test_get_frame(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: InMemoryStorage,
+    frame_storage: AsebytesStorage,
 ) -> None:
     """Test getting a single frame by index."""
     user, token = await _create_user(frame_session)
@@ -411,7 +410,7 @@ async def test_get_frame_room_not_found(
 async def test_get_frame_metadata(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: InMemoryStorage,
+    frame_storage: AsebytesStorage,
 ) -> None:
     """Test getting metadata for a frame with mixed scalar and array data."""
     from ase import Atoms
@@ -611,7 +610,7 @@ async def test_append_frames_exceeds_max_length(
 async def test_update_frame(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: InMemoryStorage,
+    frame_storage: AsebytesStorage,
 ) -> None:
     """Test updating a frame at specific index."""
     user, token = await _create_user(frame_session)
@@ -661,7 +660,7 @@ async def test_update_frame_not_found(
 async def test_merge_frame(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: InMemoryStorage,
+    frame_storage: AsebytesStorage,
 ) -> None:
     """Test partial update merges new keys into existing frame."""
     user, token = await _create_user(frame_session)
@@ -692,7 +691,7 @@ async def test_merge_frame(
 async def test_merge_frame_preserves_untouched_keys(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: InMemoryStorage,
+    frame_storage: AsebytesStorage,
 ) -> None:
     """Test partial update does not remove keys not in the patch."""
     user, token = await _create_user(frame_session)
@@ -757,7 +756,7 @@ async def test_merge_frame_room_not_found(
 async def test_merge_frame_preserves_msgpack_str_type(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: InMemoryStorage,
+    frame_storage: AsebytesStorage,
 ) -> None:
     """Test that PATCH preserves msgpack str/bin distinction for numpy arrays.
 
@@ -849,7 +848,7 @@ async def test_merge_frame_preserves_msgpack_str_type(
 async def test_delete_frame(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: InMemoryStorage,
+    frame_storage: AsebytesStorage,
 ) -> None:
     """Test deleting a frame at specific index."""
     user, token = await _create_user(frame_session)
@@ -988,7 +987,7 @@ async def test_append_rejects_frames_without_colors_radii(
 async def test_update_rejects_frame_without_colors_radii(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: InMemoryStorage,
+    frame_storage: AsebytesStorage,
 ) -> None:
     """PUT /frames/{index} rejects frames missing arrays.colors and arrays.radii."""
     user, token = await _create_user(frame_session)

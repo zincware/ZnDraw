@@ -13,9 +13,10 @@ requires-python = ">=3.11"
 dependencies = [
     "argon2-cffi>=25.1.0",
     "ase>=3.27.0",
-    "asebytes[lmdb,h5md]>=0.2.0",
+    "asebytes[h5md,lmdb,mongodb]>=0.3.0a1",
     "fakeredis>=2.33.0",
     "fastapi>=0.128.0",
+    "httpx>=0.28.0",
     "lmdb>=1.5.0",
     "msgpack>=1.0.0",
     "msgpack-numpy>=0.4.8",
@@ -201,6 +202,9 @@ max-args = 10  # Allow up to 10 args for FastAPI endpoints
 "__init__.py" = [
     "F401",    # unused imports in __init__.py (re-exports)
 ]
+
+[tool.uv.sources]
+asebytes = { path = "../asebytes", editable = true }
 
 [tool.ruff.format]
 quote-style = "double"

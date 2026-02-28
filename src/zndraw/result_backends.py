@@ -1,7 +1,7 @@
 """Result backends for the zndraw-joblib provider system.
 
 - ``RedisResultBackend`` — general-purpose, for small JSON payloads.
-- ``StorageResultBackend`` — adapts any ``StorageBackend`` to the
+- ``StorageResultBackend`` — adapts ``AsebytesStorage`` to the
   ``ResultBackend`` protocol.  Reuses the same storage infrastructure
   as the main frame storage (memory, LMDB, MongoDB, …).
 - ``CompositeResultBackend`` — routes by cache-key pattern: frame
@@ -14,10 +14,11 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 
+import msgpack
 from redis.asyncio import Redis
 from redis.asyncio.client import PubSub
 
-from zndraw.storage.base import StorageBackend
+from zndraw.storage import AsebytesStorage
 
 NOTIFY_PREFIX = "notify:"
 
@@ -91,12 +92,12 @@ class RedisResultBackend:
 
 
 class StorageResultBackend:
-    """Adapt any ``StorageBackend`` to the ``ResultBackend`` protocol.
+    """Adapt ``AsebytesStorage`` to the ``ResultBackend`` protocol.
 
     Uses cache keys as room_ids and stores raw bytes as a single-entry
     frame (``{b"_": data}``).  This means the provider cache
     automatically uses whatever storage the server is configured with
-    (in-memory, LMDB, MongoDB, …) — no storage-specific code needed.
+    (memory, LMDB, MongoDB, …) — no storage-specific code needed.
 
     TTL is not enforced at this layer; entries are cleaned up when
     providers disconnect.
@@ -108,18 +109,24 @@ class StorageResultBackend:
         frame storage is fine — cache keys are namespaced).
     """
 
-    def __init__(self, storage: StorageBackend) -> None:
+    def __init__(self, storage: AsebytesStorage) -> None:
         self._storage = storage
 
     async def store(self, key: str, data: bytes, ttl: int) -> None:
         await self._storage.clear(key)
-        await self._storage.extend(key, [{b"_": data}])
+        # Wrap in msgpack so the blob↔object adapter round-trip works
+        packed = msgpack.packb(data)
+        assert packed is not None
+        await self._storage.extend(key, [{b"_": packed}])
 
     async def get(self, key: str) -> bytes | None:
         frame = await self._storage.get(key, 0)
         if frame is None:
             return None
-        return frame.get(b"_")
+        packed = frame.get(b"_")
+        if packed is None:
+            return None
+        return msgpack.unpackb(packed)
 
     async def delete(self, key: str) -> None:
         await self._storage.clear(key)

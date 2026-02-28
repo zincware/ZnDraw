@@ -8,7 +8,7 @@ from conftest import make_raw_frame
 from redis.asyncio import Redis as AsyncRedis
 
 from zndraw.exceptions import ProblemException, RoomReadOnly
-from zndraw.storage import InMemoryStorage
+from zndraw.storage import AsebytesStorage
 from zndraw.storage.router import StorageRouter
 
 ROOM_NORMAL = "normal-room"
@@ -16,9 +16,9 @@ ROOM_PROVIDER = "provider-room"
 
 
 @pytest_asyncio.fixture
-async def default_backend() -> AsyncGenerator[InMemoryStorage, None]:
-    """Default InMemoryStorage backend."""
-    s = InMemoryStorage()
+async def default_backend() -> AsyncGenerator[AsebytesStorage, None]:
+    """Default AsebytesStorage backend."""
+    s = AsebytesStorage("memory://")
     yield s
     await s.close()
 
@@ -35,7 +35,7 @@ async def redis() -> AsyncGenerator[AsyncRedis, None]:  # type: ignore[type-arg]
 
 @pytest_asyncio.fixture
 async def router(
-    default_backend: InMemoryStorage,
+    default_backend: AsebytesStorage,
     redis: AsyncRedis,  # type: ignore[type-arg]
 ) -> AsyncGenerator[StorageRouter, None]:
     """StorageRouter with default backend."""
@@ -49,7 +49,7 @@ async def router(
 
 @pytest.mark.asyncio
 async def test_router_get_delegates_to_default(
-    router: StorageRouter, default_backend: InMemoryStorage
+    router: StorageRouter, default_backend: AsebytesStorage
 ) -> None:
     """Normal room reads go to default backend."""
     await default_backend.extend(ROOM_NORMAL, [make_raw_frame({"a": 1})])
