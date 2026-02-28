@@ -330,8 +330,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.result_backend = result_backend
         app.dependency_overrides[get_result_backend] = lambda: result_backend
 
-        # Spawn in-process TaskIQ worker
-        worker_task = asyncio.create_task(run_receiver_task(broker))
+        # Spawn in-process TaskIQ worker (disabled in Docker — dedicated containers)
+        worker_task = None
+        if settings.worker_enabled:
+            worker_task = asyncio.create_task(run_receiver_task(broker))
 
         # zndraw-joblib: background sweeper for stale workers
         async def get_session():
@@ -355,9 +357,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
 
         # Shutdown in reverse order
-        worker_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await worker_task
+        if worker_task is not None:
+            worker_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await worker_task
 
         await broker.shutdown()
 
