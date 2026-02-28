@@ -61,10 +61,7 @@ RUN WHEEL=$(ls /tmp/*.whl) && uv pip install --system --no-cache-dir "${WHEEL}[f
 # Set environment
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    ZNDRAW_STORAGE_PATH=/app/data/zndraw-data \
-    ZNDRAW_UPLOAD_TEMP=/tmp/zndraw_uploads \
-    ZNDRAW_SERVER_HOST=0.0.0.0 \
-    ZNDRAW_REDIS_URL=redis://redis:6379
+    ZNDRAW_HOST=0.0.0.0
 
 USER appuser
 
