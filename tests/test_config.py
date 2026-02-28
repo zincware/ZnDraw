@@ -1,4 +1,4 @@
-"""Tests for storage discriminated union configuration."""
+"""Tests for application configuration."""
 
 import os
 from pathlib import Path
@@ -6,89 +6,36 @@ from pathlib import Path
 import pytest
 from httpx import AsyncClient
 
-from zndraw.config import (
-    LMDBStorage,
-    MemoryStorage,
-    MongoDBStorage,
-    Settings,
-)
+from zndraw.config import Settings
 
 
-class TestStorageDiscriminatedUnion:
-    """Test storage configuration discriminated union."""
+class TestStorageUri:
+    """Test storage URI configuration."""
 
     def test_default_storage_is_memory(self) -> None:
-        """Default storage should be MemoryStorage."""
+        """Default storage should be memory://."""
         settings = Settings()
-        assert isinstance(settings.storage, MemoryStorage)
-        assert settings.storage.type == "memory"
+        assert settings.storage == "memory://"
 
-    def test_memory_storage_explicit(self) -> None:
-        """MemoryStorage can be explicitly created."""
-        storage = MemoryStorage()
-        assert storage.type == "memory"
-
-    def test_lmdb_storage_default_map_size(self) -> None:
-        """LMDBStorage should have default map_size of 1GB."""
-        storage = LMDBStorage(path=Path("/tmp/lmdb"))
-        assert storage.type == "lmdb"
-        assert storage.path == Path("/tmp/lmdb")
-        assert storage.map_size == 1024 * 1024 * 1024  # 1GB
-
-    def test_lmdb_storage_custom_map_size(self) -> None:
-        """LMDBStorage should accept custom map_size."""
-        storage = LMDBStorage(path=Path("/tmp/lmdb"), map_size=512 * 1024 * 1024)
-        assert storage.map_size == 512 * 1024 * 1024
-
-    def test_mongodb_storage_default_database(self) -> None:
-        """MongoDBStorage should have default database 'zndraw'."""
-        storage = MongoDBStorage(url="mongodb://localhost:27017")
-        assert storage.type == "mongodb"
-        assert storage.url == "mongodb://localhost:27017"
-        assert storage.database == "zndraw"
-
-    def test_mongodb_storage_custom_database(self) -> None:
-        """MongoDBStorage should accept custom database name."""
-        storage = MongoDBStorage(url="mongodb://localhost:27017", database="custom_db")
-        assert storage.database == "custom_db"
-
-
-class TestStorageFromEnvVars:
-    """Test storage configuration from environment variables."""
-
-    def test_lmdb_storage_from_env(self) -> None:
-        """LMDB storage should be configurable via env vars."""
-        os.environ["ZNDRAW_STORAGE__TYPE"] = "lmdb"
-        os.environ["ZNDRAW_STORAGE__PATH"] = "/tmp/test-lmdb"
-        os.environ["ZNDRAW_STORAGE__MAP_SIZE"] = "536870912"  # 512MB
+    def test_storage_from_env(self) -> None:
+        """Storage URI should be configurable via env var."""
+        os.environ["ZNDRAW_STORAGE"] = "/tmp/test.lmdb"
 
         try:
             settings = Settings()
-            assert isinstance(settings.storage, LMDBStorage)
-            assert settings.storage.type == "lmdb"
-            assert settings.storage.path == Path("/tmp/test-lmdb")
-            assert settings.storage.map_size == 536870912
+            assert settings.storage == "/tmp/test.lmdb"
         finally:
-            os.environ.pop("ZNDRAW_STORAGE__TYPE", None)
-            os.environ.pop("ZNDRAW_STORAGE__PATH", None)
-            os.environ.pop("ZNDRAW_STORAGE__MAP_SIZE", None)
+            os.environ.pop("ZNDRAW_STORAGE", None)
 
     def test_mongodb_storage_from_env(self) -> None:
-        """MongoDB storage should be configurable via env vars."""
-        os.environ["ZNDRAW_STORAGE__TYPE"] = "mongodb"
-        os.environ["ZNDRAW_STORAGE__URL"] = "mongodb://mongo.example.com:27017"
-        os.environ["ZNDRAW_STORAGE__DATABASE"] = "test_db"
+        """MongoDB URI should be configurable via env var."""
+        os.environ["ZNDRAW_STORAGE"] = "mongodb://mongo:27017/zndraw"
 
         try:
             settings = Settings()
-            assert isinstance(settings.storage, MongoDBStorage)
-            assert settings.storage.type == "mongodb"
-            assert settings.storage.url == "mongodb://mongo.example.com:27017"
-            assert settings.storage.database == "test_db"
+            assert settings.storage == "mongodb://mongo:27017/zndraw"
         finally:
-            os.environ.pop("ZNDRAW_STORAGE__TYPE", None)
-            os.environ.pop("ZNDRAW_STORAGE__URL", None)
-            os.environ.pop("ZNDRAW_STORAGE__DATABASE", None)
+            os.environ.pop("ZNDRAW_STORAGE", None)
 
 
 class TestGuestPassword:
@@ -155,6 +102,42 @@ class TestSimgenEnabled:
             assert settings.simgen_enabled is True
         finally:
             os.environ.pop("ZNDRAW_SIMGEN_ENABLED", None)
+
+
+class TestWorkerEnabled:
+    """Test worker_enabled configuration."""
+
+    def test_default_worker_enabled(self) -> None:
+        """Worker should be enabled by default."""
+        settings = Settings()
+        assert settings.worker_enabled is True
+
+    def test_worker_disabled_from_env(self) -> None:
+        """Worker can be disabled via ZNDRAW_WORKER_ENABLED."""
+        os.environ["ZNDRAW_WORKER_ENABLED"] = "false"
+        try:
+            settings = Settings()
+            assert settings.worker_enabled is False
+        finally:
+            os.environ.pop("ZNDRAW_WORKER_ENABLED", None)
+
+
+class TestServerUrl:
+    """Test server_url configuration."""
+
+    def test_default_server_url_is_none(self) -> None:
+        """server_url should be None by default."""
+        settings = Settings()
+        assert settings.server_url is None
+
+    def test_server_url_from_env(self) -> None:
+        """server_url should be configurable via ZNDRAW_SERVER_URL."""
+        os.environ["ZNDRAW_SERVER_URL"] = "http://nginx"
+        try:
+            settings = Settings()
+            assert settings.server_url == "http://nginx"
+        finally:
+            os.environ.pop("ZNDRAW_SERVER_URL", None)
 
 
 class TestSettingsFromEnv:
