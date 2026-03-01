@@ -59,7 +59,7 @@ Use `<command> --help` for full options. Key patterns:
 | `chat` | `list`, `send` |
 | `extensions` | `list`, `describe`, `run` |
 | `jobs` | `list`, `status` |
-| `geometries` | `list`, `get`, `set`, `delete` |
+| `geometries` | `list`, `get`, `set`, `delete`, `types`, `describe` |
 | `screenshots` | `list`, `request`, `get` |
 | `sessions` | `list` |
 | Standalone | `mount FILE` |

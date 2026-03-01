@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
+
 from typer.testing import CliRunner
 
-from zndraw.schemas import GeometriesResponse, GeometryResponse, StatusResponse
+from zndraw.cli_agent import app
+from zndraw.schemas import GeometryResponse, StatusResponse
 
 from .conftest import invoke_cli
 
@@ -12,12 +15,19 @@ from .conftest import invoke_cli
 def test_geometries_list(
     cli_runner: CliRunner, server_url: str, auth_token: str, test_room: str
 ) -> None:
-    """geometries list should return a list of geometry key strings."""
+    """geometries list should return a compact summary."""
     data = invoke_cli(
         cli_runner, server_url, auth_token, ["geometries", "list", test_room]
     )
-    resp = GeometriesResponse.model_validate(data)
-    assert "particles" in resp.items
+    assert isinstance(data, list)
+    assert len(data) > 0
+    keys = {entry["key"] for entry in data}
+    assert "particles" in keys
+    for entry in data:
+        assert "key" in entry
+        assert "type" in entry
+        assert "active" in entry
+        assert "owner" in entry
 
 
 def test_geometries_get(
@@ -90,3 +100,29 @@ def test_geometries_delete(
         ["geometries", "delete", test_room, "to-delete"],
     )
     StatusResponse.model_validate(data)
+
+
+def test_geometries_types(cli_runner: CliRunner) -> None:
+    """geometries types should list available type names."""
+    result = cli_runner.invoke(app, ["geometries", "types"])
+    assert result.exit_code == 0, result.stdout
+    data = json.loads(result.stdout)
+    assert isinstance(data, list)
+    assert "Sphere" in data
+    assert "Bond" in data
+
+
+def test_geometries_describe(cli_runner: CliRunner) -> None:
+    """geometries describe should return schema and defaults for a type."""
+    result = cli_runner.invoke(app, ["geometries", "describe", "Sphere"])
+    assert result.exit_code == 0, result.stdout
+    data = json.loads(result.stdout)
+    assert data["name"] == "Sphere"
+    assert "schema" in data
+    assert "defaults" in data
+
+
+def test_geometries_describe_nonexistent(cli_runner: CliRunner) -> None:
+    """geometries describe should fail for unknown type."""
+    result = cli_runner.invoke(app, ["geometries", "describe", "NoSuchType"])
+    assert result.exit_code != 0

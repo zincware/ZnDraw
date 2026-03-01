@@ -23,15 +23,55 @@ def list_geometries(
     ctx: typer.Context,
     room: Annotated[str, typer.Argument(help="Room ID")],
 ) -> None:
-    """List geometry keys for a room."""
+    """List geometries for a room (compact summary)."""
     with cli_error_handler():
         vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/geometries", headers=vis.api._headers()
         )
         vis.api.raise_for_status(resp)
-        json_print(GeometriesResponse.model_validate(resp.json()))
+        full = GeometriesResponse.model_validate(resp.json())
+        summary = [
+            {
+                "key": key,
+                "type": entry.type,
+                "active": entry.data.get("active", True),
+                "owner": entry.data.get("owner"),
+            }
+            for key, entry in full.items.items()
+        ]
+        json_print(summary)
         vis.disconnect()
+
+
+@geometries_app.command("types")
+def types() -> None:
+    """List available geometry type names."""
+    from zndraw.geometries import geometries
+
+    json_print(list(geometries.keys()))
+
+
+@geometries_app.command("describe")
+def describe(
+    type_name: Annotated[str, typer.Argument(help="Geometry type name")],
+) -> None:
+    """Show schema and defaults for a geometry type."""
+    from zndraw.geometries import geometries
+
+    model = geometries.get(type_name)
+    if model is None:
+        raise typer.BadParameter(
+            f"Unknown geometry type {type_name!r}. "
+            f"Available: {', '.join(geometries.keys())}"
+        )
+    json_print(
+        {
+            "name": type_name,
+            "schema": model.model_json_schema(),
+            "defaults": model().model_dump(),
+        }
+    )
 
 
 @geometries_app.command("get")
