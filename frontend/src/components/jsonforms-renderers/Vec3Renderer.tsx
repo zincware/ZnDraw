@@ -1,8 +1,9 @@
 /**
- * Vec3Renderer - Custom JSONForms renderer for list[Vec3] fields.
+ * Vec3Renderer - Custom JSONForms renderer for vec3 fields.
  *
- * Matches schemas with `x-custom-type: "vec3"`. Reads `[[x, y, z]]`,
- * displays three number inputs (X, Y, Z), and writes back `[[x, y, z]]`.
+ * Matches schemas with `x-custom-type: "vec3"`. Handles both:
+ * - Nested `[[x, y, z]]` (list[Vec3], e.g. CircleCurve)
+ * - Flat `[x, y, z]` (tuple[float,float,float], e.g. Camera.up, Floor.position)
  */
 
 import {
@@ -16,14 +17,19 @@ import { withJsonFormsControlProps } from "@jsonforms/react";
 import { Box, TextField, Typography } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 
+/** Whether data is nested `[[x, y, z]]` vs flat `[x, y, z]`. */
+function isNested(data: unknown): boolean {
+	return Array.isArray(data) && data.length === 1 && Array.isArray(data[0]);
+}
+
 function extractVec3(data: unknown): [number, number, number] {
-	if (
-		Array.isArray(data) &&
-		data.length === 1 &&
-		Array.isArray(data[0]) &&
-		data[0].length === 3
-	) {
-		return data[0] as [number, number, number];
+	if (Array.isArray(data)) {
+		if (isNested(data) && data[0].length === 3) {
+			return data[0] as [number, number, number];
+		}
+		if (data.length === 3 && !Array.isArray(data[0])) {
+			return data as [number, number, number];
+		}
 	}
 	return [0, 0, 0];
 }
@@ -61,10 +67,10 @@ const Vec3Renderer = ({
 			const z = Number.parseFloat(newCoords[2]);
 
 			if (!Number.isNaN(x) && !Number.isNaN(y) && !Number.isNaN(z)) {
-				handleChange(path, [[x, y, z]]);
+				handleChange(path, isNested(data) ? [[x, y, z]] : [x, y, z]);
 			}
 		},
-		[coords, handleChange, path],
+		[coords, data, handleChange, path],
 	);
 
 	if (!visible) return null;

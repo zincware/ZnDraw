@@ -128,6 +128,7 @@ class Camera(BaseModel):
     up: tuple[float, float, float] = Field(
         default=(0.0, 1.0, 0.0),
         description="Camera up vector [x,y,z].",
+        json_schema_extra={"x-custom-type": "vec3"},
     )
 
     # Camera type and projection parameters
