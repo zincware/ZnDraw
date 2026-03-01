@@ -169,16 +169,22 @@ async def get_verified_session_id(
 ) -> str:
     """Verify session belongs to the current user, or raise 404.
 
-    Checks the presence key to confirm the session exists and is owned
-    by the requesting user. Returns 404 for both missing and non-owned
-    sessions (prevents enumeration).
+    Finds the session's own camera in room_cameras (by SID match) to
+    verify ownership. The active camera may point to another user's
+    camera (sessions can view through any camera in the room), so we
+    cannot use the active_cameras chain for ownership verification.
     """
-    user_id = await redis.get(  # type: ignore[misc]
-        RedisKey.presence_sid(room_id, session_id)
-    )
-    if user_id is None or user_id != str(current_user.id):
+    if not await redis.hexists(RedisKey.active_cameras(room_id), session_id):  # type: ignore[misc]
         raise SessionNotFound.exception("Session not found")
-    return session_id
+    all_cameras: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
+        RedisKey.room_cameras(room_id)
+    )
+    uid = str(current_user.id)
+    for raw in all_cameras.values():
+        entry = json.loads(raw)
+        if entry.get("sid") == session_id and Camera(**entry["data"]).owner == uid:
+            return session_id
+    raise SessionNotFound.exception("Session not found")
 
 
 VerifiedSessionDep = Annotated[str, Depends(get_verified_session_id)]

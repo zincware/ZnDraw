@@ -21,6 +21,7 @@ from zndraw.dependencies import (
     verify_room,
 )
 from zndraw.exceptions import (
+    GeometryNotFound,
     InvalidPayload,
     NotAuthenticated,
     RoomLocked,
@@ -156,7 +157,7 @@ async def get_active_camera(
 
 @router.put(
     "/rooms/{room_id}/sessions/{session_id}/active-camera",
-    responses=problem_responses(NotAuthenticated, SessionNotFound),
+    responses=problem_responses(NotAuthenticated, SessionNotFound, GeometryNotFound),
 )
 async def set_active_camera(
     redis: RedisDep,
@@ -165,5 +166,9 @@ async def set_active_camera(
     body: ActiveCameraRequest,
 ) -> ActiveCameraResponse:
     """Set active camera key for a session."""
+    if not await redis.hexists(RedisKey.room_cameras(room_id), body.active_camera):  # type: ignore[misc]
+        raise GeometryNotFound.exception(
+            f"Camera {body.active_camera!r} not found in room"
+        )
     await redis.hset(RedisKey.active_cameras(room_id), session_id, body.active_camera)  # type: ignore[misc]
     return ActiveCameraResponse(active_camera=body.active_camera)

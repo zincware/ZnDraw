@@ -1,8 +1,8 @@
-"""Redis key patterns for presence tracking and ephemeral locks.
+"""Redis key patterns for ephemeral state.
 
 All persistent room state (geometries, bookmarks, figures, selections, step)
 is stored in SQL. Redis is used only for:
-- Presence tracking (TTL-based per-session keys)
+- Session cameras (frontend presence derived from camera hash)
 - Ephemeral locks (TTL-based with metadata)
 - Socket.IO pub/sub adapter
 """
@@ -10,41 +10,6 @@ is stored in SQL. Redis is used only for:
 
 class RedisKey:
     """Redis key patterns - avoids magic strings."""
-
-    # =========================================================================
-    # Presence Keys
-    # =========================================================================
-
-    @staticmethod
-    def presence_sid(room_id: str, sid: str) -> str:
-        """Key for session presence in a room (per-sid).
-
-        Each Socket.IO session (tab) gets its own presence key.
-        This enables multi-tab support for the same user.
-        """
-        return f"presence:room:{room_id}:sid:{sid}"
-
-    @staticmethod
-    def presence_sid_pattern(room_id: str) -> str:
-        """Pattern for scanning all sessions in a room."""
-        return f"presence:room:{room_id}:sid:*"
-
-    @staticmethod
-    def parse_presence_sid(key: str) -> str | None:
-        """Extract SID from a presence key.
-
-        Expected format: presence:room:{room_id}:sid:{sid}
-        Returns the SID or None if the key format is invalid.
-        """
-        parts = key.split(":")
-        if (
-            len(parts) == 5
-            and parts[0] == "presence"
-            and parts[1] == "room"
-            and parts[3] == "sid"
-        ):
-            return parts[4]
-        return None
 
     # =========================================================================
     # Session Camera Keys

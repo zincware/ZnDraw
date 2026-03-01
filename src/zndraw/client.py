@@ -1402,8 +1402,13 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         Room ID to copy frames from when creating a new room, or an @-prefixed
         preset (``@empty`` for one empty frame, ``@none`` for zero frames).
         If None, uses the server's default template room. Default is ``@none``.
-    auto_connect : bool
-        If True, connect immediately on creation.
+
+    Notes
+    -----
+    The Socket.IO connection is established lazily on the first call to
+    ``mount()``, ``register_job()``, ``register_fs()``, or ``wait()``.
+    All frame CRUD and metadata operations use REST and work without a socket.
+    Call ``connect()`` explicitly if you need the socket immediately.
 
     Examples
     --------
@@ -1421,7 +1426,6 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     user: str | None = None
     password: SecretStr | str | None = None
     copy_from: str | None = "@none"
-    auto_connect: bool = True
     auto_pickup: bool = True
     polling_interval: float = 5.0
     heartbeat_interval: float = 30.0
@@ -1443,7 +1447,9 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     _metadata: RoomMetadata | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
-        """Initialize the client."""
+        """Initialize the client (REST-only, socket connects lazily)."""
+        import atexit
+
         # Normalize password to SecretStr
         if isinstance(self.password, str):
             self.password = SecretStr(self.password)
@@ -1470,7 +1476,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             data = self.api.create_guest_session()
             self.user = data["email"]
 
-        # Create socket manager
+        # Create socket manager (no connection yet — connects lazily)
         self.socket = SocketManager(zndraw=self)
 
         # Create job manager (zero-cost until first register())
@@ -1482,36 +1488,59 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             polling_interval=self.polling_interval,
         )
 
-        # Auto-connect if requested
-        if self.auto_connect:
-            self.connect()
+        # Verify/create room via REST and seed frame count cache
+        try:
+            info = self.api.get_room_info()
+            self._cached_length = info.get("frame_count", 0)
+        except KeyError:
+            self.api.create_room(copy_from=self.copy_from)
+            self._cached_length = 0
+
+        # Ensure cleanup on interpreter exit
+        atexit.register(self.disconnect)
 
     # -------------------------------------------------------------------------
     # Connection Management
     # -------------------------------------------------------------------------
 
+    def _ensure_socket_connected(self) -> None:
+        """Connect the socket lazily if not already connected."""
+        if not self.socket.connected:
+            self.socket.connect()
+
     def connect(self) -> None:
-        """Connect to the server."""
-        self.socket.connect()
+        """Explicitly connect the Socket.IO connection.
+
+        Most operations work over REST without a socket. Call this only
+        if you need the socket immediately (e.g. to receive broadcasts).
+        Socket-dependent methods like ``mount()``, ``register_job()``,
+        and ``wait()`` call this automatically.
+        """
+        self._ensure_socket_connected()
 
     def disconnect(self) -> None:
-        """Disconnect from the server."""
+        """Disconnect from the server. Idempotent.
+
+        Worker cleanup is handled server-side by the ``on_disconnect``
+        handler when the socket disconnects (clears providers, frame
+        counts, etc.).  If the socket was never connected, there is no
+        worker to clean up.
+        """
         self.socket.disconnect()
         self.api.close()
 
     def wait(self) -> None:
         """Block until disconnected."""
+        self._ensure_socket_connected()
         self.socket.wait()
 
     @property
     def connected(self) -> bool:
-        """Check if connected."""
+        """Check if the socket is connected."""
         return self.socket.connected
 
     def __enter__(self) -> ZnDraw:
         """Context manager entry."""
-        if not self.connected:
-            self.connect()
         return self
 
     def __exit__(self, *args: Any) -> None:
@@ -1527,7 +1556,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
 
         The room must be empty (``len(vis) == 0``) and have no existing mount.
         After mounting, the room becomes read-only — frames are served on demand
-        from the source via the provider system.
+        from the source via the provider system. Connects the socket if needed.
 
         Registers two providers:
         - ``FrameSourceRead`` (category "frames") — serves individual frames.
@@ -1560,6 +1589,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         if self.room is None:
             raise NotConnectedError("Cannot mount: no room set")
 
+        self._ensure_socket_connected()
         self._mount = source
         # UUID ensures each mount gets fresh provider cache keys —
         # prevents stale results from a previous mount being served.
@@ -1714,7 +1744,11 @@ class ZnDraw(MutableSequence[ase.Atoms]):
 
     @property
     def jobs(self) -> JobManager:
-        """Access the job manager for registering jobs and submitting tasks."""
+        """Access the job manager for registering jobs and submitting tasks.
+
+        Lazily connects the socket, since all job operations require it.
+        """
+        self._ensure_socket_connected()
         return self._jobs
 
     def _resolve_room(self, room: str | None) -> str:
@@ -1725,7 +1759,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         return resolved
 
     def register_job(self, cls: type, *, room: str | None = None) -> None:
-        """Register an extension as a job.
+        """Register an extension as a job. Connects the socket if needed.
 
         Parameters
         ----------
@@ -1734,6 +1768,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         room
             Room scope. Defaults to ``self.room``.
         """
+        self._ensure_socket_connected()
         self.jobs.register(cls, room=self._resolve_room(room))
 
     def register_provider(
@@ -1744,7 +1779,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         handler: Any,
         room: str | None = None,
     ) -> uuid.UUID:
-        """Register a provider for serving read requests.
+        """Register a provider for serving read requests. Connects the socket if needed.
 
         Parameters
         ----------
@@ -1757,6 +1792,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         room
             Room scope. Defaults to ``self.room``.
         """
+        self._ensure_socket_connected()
         return self.jobs.register_provider(
             provider_cls, name=name, handler=handler, room=self._resolve_room(room)
         )
@@ -1802,8 +1838,6 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         >>> with vis.get_lock(msg="Uploading frames"):
         ...     vis.extend(frames)
         """
-        if not self.connected:
-            raise NotConnectedError("Cannot acquire lock when not connected")
         return ZnDrawLock(api=self.api, msg=msg)
 
     # -------------------------------------------------------------------------
@@ -1813,11 +1847,11 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     def __len__(self) -> int:
         """Return number of frames.
 
-        Uses a cached value when available (seeded on connect, updated by
-        ``FramesInvalidate`` socket events and local mutations). Falls back
-        to an HTTP request on cache miss.
+        When the socket is connected, uses a cached value (updated by
+        ``FramesInvalidate`` events and local mutations).  Without socket,
+        always queries the server to avoid stale reads.
         """
-        if self._cached_length is not None:
+        if self._cached_length is not None and self.socket.connected:
             return self._cached_length
         info = self.api.get_room_info()
         length = info.get("frame_count", 0)
@@ -2095,9 +2129,6 @@ class ZnDraw(MutableSequence[ase.Atoms]):
 
         This is an alternative to __setitem__ that supports list indices.
         """
-        if not self.connected:
-            raise NotConnectedError("Client is not connected")
-
         if isinstance(index, int):
             if not isinstance(value, ase.Atoms):
                 raise TypeError("Value must be ase.Atoms for single index")

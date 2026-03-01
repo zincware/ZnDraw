@@ -78,9 +78,9 @@ class TestConstructorAPI:
         client.disconnect()
 
     def test_guest_session_when_no_user(self, server: str):
-        """No user parameter creates a guest session."""
+        """No user parameter creates a guest session (socket stays lazy)."""
         client = ZnDraw(url=server)
-        assert client.connected
+        assert not client.connected
         assert client.api.token is not None
         client.disconnect()
 
@@ -119,7 +119,7 @@ class TestConstructorAPI:
         ).raise_for_status()
 
         client = ZnDraw(url=server, user=email)
-        assert client.connected
+        assert not client.connected
         assert client.api.token is not None
         client.disconnect()
 
@@ -130,7 +130,7 @@ class TestConstructorAPI:
             user="admin@local.test",
             password="adminpassword",
         )
-        assert client.connected
+        assert not client.connected
         assert client.api.token is not None
         client.disconnect()
 
@@ -168,30 +168,39 @@ class TestConstructorAPI:
 
         # No password= argument — should infer from Settings
         client = ZnDraw(url=server, user=email)
-        assert client.connected
+        assert not client.connected
+        assert client.api.token is not None
         client.disconnect()
 
 
 class TestClientConnection:
     """Tests for client connection and disconnection."""
 
-    def test_connect_and_disconnect(self, server: str):
-        """Client can connect and disconnect from server."""
+    def test_socket_not_connected_after_init(self, server: str):
+        """Socket is lazy — not connected after construction."""
         room_id = uuid.uuid4().hex
         client = ZnDraw(url=server, room=room_id)
 
+        assert not client.connected
+        client.disconnect()
+
+    def test_connect_and_disconnect(self, server: str):
+        """Client can explicitly connect and disconnect socket."""
+        room_id = uuid.uuid4().hex
+        client = ZnDraw(url=server, room=room_id)
+
+        assert not client.connected
+        client.connect()
         assert client.connected
         client.disconnect()
         assert not client.connected
 
     def test_context_manager(self, server: str):
-        """Client works as context manager."""
+        """Context manager does not auto-connect socket."""
         room_id = uuid.uuid4().hex
 
-        with ZnDraw(url=server, room=room_id, auto_connect=False) as client:
-            assert client.connected
-
-        assert not client.connected
+        with ZnDraw(url=server, room=room_id) as client:
+            assert not client.connected
 
     def test_auto_creates_room(self, server: str):
         """Client creates room automatically if it doesn't exist."""
@@ -519,14 +528,6 @@ class TestSetFrames:
         assert client[3].info["value"] == 3  # Unchanged
         assert client[4].info["value"] == 40
         client.disconnect()
-
-    def test_set_frames_not_connected_raises(self, server: str):
-        """set_frames() raises when not connected."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id, auto_connect=False)
-
-        with pytest.raises(Exception):  # NotConnectedError
-            client.set_frames(0, make_atoms([[0, 0, 0]]))
 
 
 class TestMutableSequenceInterface:

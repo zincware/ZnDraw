@@ -221,7 +221,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 							// Clear any previous error and mark as connected
 							setInitializationError(null);
 							setConnected(true);
-							startHeartbeat();
 						} catch (error) {
 							console.error("Error fetching critical data:", error);
 							setInitializationError({
@@ -845,27 +844,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		socket.on("progress_update", onProgressUpdate);
 		socket.on("progress_complete", onProgressComplete);
 
-		// Heartbeat interval — keeps presence + session camera alive
-		const HEARTBEAT_INTERVAL = 30_000; // 30s (TTL is 60s)
-		let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-
-		function startHeartbeat() {
-			stopHeartbeat();
-			if (!roomId || isOverview) return;
-			heartbeatTimer = setInterval(() => {
-				if (socket.connected && roomId) {
-					socket.emit("heartbeat", { room_id: roomId });
-				}
-			}, HEARTBEAT_INTERVAL);
-		}
-
-		function stopHeartbeat() {
-			if (heartbeatTimer) {
-				clearInterval(heartbeatTimer);
-				heartbeatTimer = null;
-			}
-		}
-
 		// Single auth → connect sequence
 		if (socket.connected) {
 			onConnect(); // room switch — re-join, don't reconnect
@@ -883,7 +861,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 		return () => {
 			cancelled = true;
-			stopHeartbeat();
 			// Note: room_leave is NOT emitted during room switching
 			// Backend automatically handles leaving old room in room_join handler
 			const currentState = useAppStore.getState();

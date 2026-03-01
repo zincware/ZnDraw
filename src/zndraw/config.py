@@ -34,7 +34,6 @@ class Settings(BaseSettings):
 
     # Core settings
     redis_url: str | None = None
-    presence_ttl: int = 60
     edit_lock_ttl: int = 10  # seconds — Redis TTL for edit locks
 
     # Storage backend URI (memory://, *.lmdb, mongodb://host/db)

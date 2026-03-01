@@ -31,12 +31,9 @@ def _seed_frontend_session(
 ) -> None:
     """Seed Redis with a fake frontend session for testing.
 
-    Creates the presence key, active-cameras entry, and a camera geometry
-    so that ``list_sessions`` returns the fake SID and camera operations work.
+    Creates active-cameras entry and a camera geometry so that
+    ``list_sessions`` returns the fake SID and camera operations work.
     """
-    # Presence key (maps SID → user_id)
-    r.set(RedisKey.presence_sid(room_id, fake_sid), user_id, ex=300)
-
     # Active cameras hash (marks SID as frontend)
     r.hset(RedisKey.active_cameras(room_id), fake_sid, camera_key)
 
@@ -163,10 +160,22 @@ def test_session_active_camera_roundtrip(server: str):
     session = vis.sessions[fake_sid]
     assert session.active_camera == camera_key
 
-    # Set a different active camera
-    new_key = "custom_camera"
-    session.active_camera = new_key
-    assert session.active_camera == new_key
+    # Seed a second camera and switch to it
+    second_key = "cam:other@local.test:second"
+    second_cam = Camera(owner=user_id)
+    r.hset(
+        RedisKey.room_cameras(room_id),
+        second_key,
+        json.dumps(
+            {
+                "sid": "other-sid",
+                "email": "other@local.test",
+                "data": second_cam.model_dump(),
+            }
+        ),
+    )
+    session.active_camera = second_key
+    assert session.active_camera == second_key
 
     r.close()
     vis.disconnect()
