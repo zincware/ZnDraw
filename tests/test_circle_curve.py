@@ -143,6 +143,13 @@ def test_circle_curve_numpy_coercion():
     assert c.position == (1.0, 2.0, 3.0)
 
 
+def test_circle_curve_in_geometry_registry():
+    """CircleCurve is registered in the geometries dict."""
+    from zndraw.geometries import geometries
+
+    assert "CircleCurve" in geometries
+
+
 def test_circle_curve_json_schema():
     """JSON schema includes expected format metadata."""
     schema = CircleCurve.model_json_schema()
