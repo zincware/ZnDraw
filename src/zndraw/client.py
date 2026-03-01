@@ -1200,8 +1200,8 @@ class ZnDraw(MutableSequence[ase.Atoms]):
 
     Parameters
     ----------
-    url : str
-        URL of the ZnDraw server.
+    url : str | None
+        URL of the ZnDraw server. If None, auto-discovers via PID file.
     room : str | None
         Room ID to connect to. If None, generates a random UUID.
     user : str | None
@@ -1232,7 +1232,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     >>> del vis[0]  # Delete frame
     """
 
-    url: str
+    url: str | None = None
     room: str | None = None
     user: str | None = None
     password: SecretStr | str | None = None
@@ -1270,8 +1270,8 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         if self.room is None:
             self.room = str(uuid.uuid4())
 
-        # Ensure URL doesn't have trailing slash
-        self.url = self.url.rstrip("/")
+        # Resolve URL (auto-discover if None)
+        self.url = self._resolve_url(self.url)
 
         # Create API manager
         self.api = APIManager(url=self.url, room_id=self.room, token=self.token)
@@ -1607,10 +1607,35 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     # Class Methods (server-level, no room needed)
     # -------------------------------------------------------------------------
 
+    @staticmethod
+    def _resolve_url(url: str | None) -> str:
+        """Resolve the server URL from argument or PID file auto-discovery.
+
+        Parameters
+        ----------
+        url
+            Explicit URL, or None to auto-discover via PID file.
+
+        Raises
+        ------
+        ConnectionError
+            If no running server is found.
+        """
+        if url is not None:
+            return url.rstrip("/")
+        from zndraw.server_manager import find_running_server
+
+        server_info = find_running_server()
+        if server_info is not None:
+            return f"http://localhost:{server_info.port}"
+        raise ConnectionError(
+            "No running zndraw server found. Start one with `uv run zndraw` or pass `url`."
+        )
+
     @classmethod
     def list_rooms(
         cls,
-        url: str,
+        url: str | None = None,
         *,
         token: str | None = None,
         search: str | None = None,
@@ -1620,13 +1645,14 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         Parameters
         ----------
         url
-            Server URL.
+            Server URL. If None, auto-discovers via PID file.
         token
             JWT token. If None, creates a guest session.
         search
             Optional search filter.
         """
-        api = APIManager(url=url.rstrip("/"), room_id="", token=token)
+        resolved = cls._resolve_url(url)
+        api = APIManager(url=resolved, room_id="", token=token)
         try:
             if token is None:
                 api.create_guest_session()
@@ -1637,16 +1663,16 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     @classmethod
     def login(
         cls,
-        url: str,
-        username: str,
-        password: str,
+        url: str | None = None,
+        username: str = "",
+        password: str = "",
     ) -> str:
         """Authenticate and return a JWT token.
 
         Parameters
         ----------
         url
-            Server URL.
+            Server URL. If None, auto-discovers via PID file.
         username
             User email.
         password
@@ -1657,7 +1683,8 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         str
             JWT access token.
         """
-        api = APIManager(url=url.rstrip("/"), room_id="")
+        resolved = cls._resolve_url(url)
+        api = APIManager(url=resolved, room_id="")
         try:
             data = api.login(username, password)
             return data["access_token"]

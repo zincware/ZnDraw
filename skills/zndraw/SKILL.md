@@ -9,7 +9,7 @@ description: Use when interacting with a ZnDraw molecular visualization server �
 
 ZnDraw is an interactive visualization platform for atomistic simulations. Two interaction tools:
 
-1. **`zndraw-cli`** — Typer CLI, structured stdout. For CRUD on rooms, frames, selections, bookmarks, figures, extensions, ... .
+1. **`uv run zndraw-cli`** — Typer CLI, structured stdout. For CRUD on rooms, frames, selections, bookmarks, figures, extensions, ... .
 2. **`uv run python -c "..."`** — For computation requiring numpy/ASE/plotly. **Must use the `ZnDraw` Python client** to connect to the server and modify data. Use `uv run --with <dependencies>` to include extra packages.
 
 ## Discover First, Never Guess
@@ -17,25 +17,25 @@ ZnDraw is an interactive visualization platform for atomistic simulations. Two i
 The CLI is self-documenting. **Always discover before acting:**
 
 ```bash
-zndraw-cli --help                            # all resource groups
-zndraw-cli frames --help                     # verbs + options for frames
-zndraw-cli extensions list ROOM              # available extensions (fully qualified names)
-zndraw-cli extensions describe ROOM NAME     # parameter schema
-zndraw-cli frames get ROOM 0                 # inspect one frame to learn the data shape
+uv run zndraw-cli --help                            # all resource groups
+uv run zndraw-cli frames --help                     # verbs + options for frames
+uv run zndraw-cli extensions list ROOM              # available extensions (fully qualified names)
+uv run zndraw-cli extensions describe ROOM NAME     # parameter schema
+uv run zndraw-cli frames get ROOM 0                 # inspect one frame to learn the data shape
 ```
 
 Extension names are fully qualified (e.g. `@internal:modifier:Delete`). Never hardcode names — they vary per server. Run `extensions list` then `extensions describe` to learn parameters before `extensions run`.
 
 ## Connection
 
-Both `zndraw-cli` and the Python client require a **running ZnDraw server**. Start one with `uv run zndraw` if none is running. Verify with `zndraw-cli rooms list` (exit code 0 = server reachable).
+Both `uv run zndraw-cli` and the Python client require a **running ZnDraw server**. Start one with `uv run zndraw` if none is running. Verify with `uv run zndraw-cli rooms list` (exit code 0 = server reachable).
 
 ```bash
 # Auto-discovers running server + creates guest token
-zndraw-cli rooms list
+uv run zndraw-cli rooms list
 
 # Explicit
-zndraw-cli --url http://localhost:1234 --token TOKEN rooms list
+uv run zndraw-cli --url http://localhost:8000 --token TOKEN rooms list
 
 # Env vars: ZNDRAW_URL, ZNDRAW_TOKEN
 # When working on a single room, export ZNDRAW_ROOM to avoid repeating it
@@ -77,17 +77,17 @@ Use `<command> --help` for full options. Key patterns:
 
 ```bash
 # 1. Discover what's available
-zndraw-cli extensions list ROOM
+uv run zndraw-cli extensions list ROOM
 
 # 2. Get parameter schema for the extension you need
-zndraw-cli extensions describe ROOM "@internal:modifier:AddFromSMILES"
+uv run zndraw-cli extensions describe ROOM "@internal:modifier:AddFromSMILES"
 
 # 3. Run with --key value flags
 #    Returns {"job_id": "abc123", "status": "pending"}
-zndraw-cli extensions run ROOM "@internal:modifier:AddFromSMILES" --smiles "CCO"
+uv run zndraw-cli extensions run ROOM "@internal:modifier:AddFromSMILES" --smiles "CCO"
 
 # 4. Poll for completion (job_id is global, no room needed)
-zndraw-cli jobs status JOB_ID
+uv run zndraw-cli jobs status JOB_ID
 ```
 
 Three extension categories exist: **modifiers** (edit atoms), **selections** (pick atoms), **analysis** (create plots). Discover which are available via `extensions list`.
@@ -98,8 +98,8 @@ When the CLI alone isn't enough (filtering, math, custom analysis, Plotly figure
 
 ```python
 from zndraw import ZnDraw
-vis = ZnDraw(url="http://localhost:1234", room="ROOM")
-# Or with explicit token: ZnDraw(url=..., room=..., token="JWT_TOKEN")
+vis = ZnDraw(room="ROOM")
+# Or with explicit url and token: ZnDraw(url=..., room=..., token="JWT_TOKEN")
 
 # Frames — MutableSequence[ase.Atoms]
 len(vis)              # frame count
@@ -149,8 +149,8 @@ vis.screenshots["id"].data       # PNG bytes
 vis.get(slice(None), keys=["info.energy"])
 
 # Classmethods (no room needed)
-ZnDraw.list_rooms(url="http://localhost:1234")
-ZnDraw.login(url="http://localhost:1234", username="...", password="...")
+ZnDraw.list_rooms() # or with url="http://localhost:8000"
+token = ZnDraw.login(username="...", password="...") # or with url="http://localhost:8000",
 ```
 
 ### Bookmark frames matching a condition
@@ -158,7 +158,7 @@ ZnDraw.login(url="http://localhost:1234", username="...", password="...")
 ```bash
 uv run python -c "
 from zndraw import ZnDraw
-vis = ZnDraw(url='http://localhost:1234', room='ROOM')
+vis = ZnDraw(room='ROOM')
 for i, atoms in enumerate(vis):
     if atoms.info.get('energy', 0) > -40:
         vis.bookmarks[i] = f'E={atoms.info[\"energy\"]:.2f}'
@@ -171,7 +171,7 @@ for i, atoms in enumerate(vis):
 uv run python -c "
 from zndraw import ZnDraw
 import plotly.graph_objects as go
-vis = ZnDraw(url='http://localhost:1234', room='ROOM')
+vis = ZnDraw(room='ROOM')
 data = vis.get(slice(None), keys=['info.energy'])
 energies = [f['info.energy'] for f in data]
 fig = go.Figure(go.Scatter(x=list(range(len(energies))), y=energies, mode='lines+markers'))
@@ -185,7 +185,7 @@ vis.figures['energy'] = fig
 ```bash
 uv run python -c "
 from zndraw import ZnDraw
-vis = ZnDraw(url='http://localhost:1234', room='ROOM')
+vis = ZnDraw(room='ROOM')
 atoms = vis[vis.step]
 vis.selection = [i for i, s in enumerate(atoms.get_chemical_symbols()) if s == 'H']
 "
@@ -198,7 +198,7 @@ uv run python -c "
 from zndraw import ZnDraw
 import plotly.graph_objects as go
 from ase.geometry.analysis import Analysis
-vis = ZnDraw(url='http://localhost:1234', room='ROOM')
+vis = ZnDraw(room='ROOM')
 ana = Analysis(vis[:])
 rdf = ana.get_rdf(rmax=6.0, nbins=100, return_dists=True)
 fig = go.Figure(go.Scatter(x=rdf[1][0].tolist(), y=rdf[0][0].tolist(), mode='lines'))
@@ -212,10 +212,10 @@ For large files that support sliced access (`.h5`, `.lmdb`, `.zarr`,`.db`), use 
 
 ```bash
 # Mount into a new room (auto-generated ID)
-zndraw-cli mount trajectory.h5
+uv run zndraw-cli mount trajectory.h5
 
 # Mount into a new specific room
-zndraw-cli mount trajectory.h5 --room my-room-id
+uv run zndraw-cli mount trajectory.h5 --room my-room-id
 
 # Output: {"room_id": "...", "url": "http://...", "frame_count": 50000}
 ```
@@ -226,22 +226,24 @@ This command keeps serving frames until Ctrl+C is pressed.
 
 | User request | Approach |
 |-------------|----------|
-| "jump to frame 42" | `zndraw-cli step set ROOM 42` |
-| "how many frames?" | `zndraw-cli frames count ROOM` |
+| "jump to frame 42" | `uv run zndraw-cli step set ROOM 42` |
+| "how many frames?" | `uv run zndraw-cli frames count ROOM` |
 | "select all hydrogens" | Python: `vis.selection = [i for i, s in ...]` |
 | "bookmark high-energy frames" | Python: iterate `vis`, set `vis.bookmarks[i]` |
 | "plot energy over time" | Python: `vis.get(...)` + Plotly → `vis.figures[...]` |
 | "compute RDF / analysis" | Python: `vis[:]` + ASE Analysis → `vis.figures[...]` |
 | "delete selected atoms" | `extensions describe` the Delete modifier → `extensions run` |
 | "add a molecule" | `extensions describe` AddFromSMILES → `extensions run` with params |
-| "visualize this large H5 file" | `zndraw-cli mount trajectory.h5` (lazy) |
-| "lock the room" | `zndraw-cli rooms lock ROOM` or Python: `vis.locked = True` |
-| "send a chat message" | `zndraw-cli chat send ROOM "msg"` or Python: `vis.chat.send("msg")` |
+| "show me aspirin / molecule" | `extensions list` → find AddFromSMILES → `extensions describe` → `extensions run --smiles "..."` |
+| "visualize this large H5 file" | `uv run zndraw-cli mount trajectory.h5` (lazy) |
+| "lock the room" | `uv run zndraw-cli rooms lock ROOM` or Python: `vis.locked = True` |
+| "send a chat message" | `uv run zndraw-cli chat send ROOM "msg"` or Python: `vis.chat.send("msg")` |
 | "take a screenshot" | Python: `vis.screenshots.request()` |
 | "what can I do?" | `extensions list ROOM` + `--help` on each resource group |
 
 ## Common Mistakes
 
+- **Running bare `zndraw-cli`** — always use `uv run zndraw-cli`; the binary is not on PATH
 - **Guessing extension names/params** — always `list` then `describe` first
 - **Fetching everything** — use `vis.get(..., keys=[...])` or CLI `--keys` to limit data
 - **Not polling jobs** — `extensions run` returns a `job_id`; check `jobs status JOB_ID` for completion

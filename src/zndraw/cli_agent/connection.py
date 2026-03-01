@@ -259,8 +259,10 @@ def get_zndraw(
 def cli_error_handler() -> Generator[None, None, None]:
     """Context manager for CLI error handling.
 
-    Catches httpx errors from ZnDraw/APIManager and prints
-    RFC 9457 problem JSON to stderr.
+    Catches httpx errors and Python exceptions raised by
+    ``APIManager.raise_for_status`` (KeyError, PermissionError,
+    ValueError, ZnDrawError, RoomLockedError) and prints RFC 9457
+    problem JSON to stderr.
     """
     try:
         yield
@@ -283,3 +285,22 @@ def cli_error_handler() -> Generator[None, None, None]:
         raise SystemExit(exit_code)
     except httpx.RequestError as exc:
         die("Connection Error", str(exc), 503, EXIT_CONNECTION_ERROR)
+    except KeyError as exc:
+        die("Not Found", str(exc), 404, EXIT_CLIENT_ERROR)
+    except PermissionError as exc:
+        die("Forbidden", str(exc), 403, EXIT_CLIENT_ERROR)
+    except ValueError as exc:
+        die("Unprocessable Entity", str(exc), 422, EXIT_CLIENT_ERROR)
+    except _zndraw_exceptions() as exc:
+        from zndraw.client import RoomLockedError
+
+        if isinstance(exc, RoomLockedError):
+            die("Room Locked", str(exc), 423, EXIT_CLIENT_ERROR)
+        die("Server Error", str(exc), 500, EXIT_SERVER_ERROR)
+
+
+def _zndraw_exceptions() -> tuple[type[Exception], ...]:
+    """Lazily import ZnDraw exception types."""
+    from zndraw.client import RoomLockedError, ZnDrawError
+
+    return (ZnDrawError, RoomLockedError)

@@ -6,9 +6,13 @@ instance properties (locked, chat, screenshots, extensions, tasks).
 
 import uuid
 import warnings
+from unittest.mock import patch
+
+import pytest
 
 from zndraw import ZnDraw
 from zndraw.schemas import MessageResponse, ScreenshotListItem
+from zndraw.server_manager import ServerInfo
 
 # =============================================================================
 # ZnDraw.list_rooms classmethod
@@ -43,6 +47,23 @@ def test_list_rooms_search_filters(server: str):
     assert room_name in room_ids
 
 
+def test_list_rooms_autodiscover(server: str):
+    """list_rooms with url=None uses PID file auto-discovery."""
+    # Extract port from server URL (e.g. "http://127.0.0.1:12345")
+    port = int(server.rsplit(":", 1)[1])
+    fake_info = ServerInfo(pid=0, port=port, version="")
+    with patch("zndraw.server_manager.find_running_server", return_value=fake_info):
+        rooms = ZnDraw.list_rooms()
+    assert isinstance(rooms, list)
+
+
+def test_list_rooms_no_server_raises():
+    """list_rooms raises ConnectionError when no server is found."""
+    with patch("zndraw.server_manager.find_running_server", return_value=None):
+        with pytest.raises(ConnectionError):
+            ZnDraw.list_rooms()
+
+
 # =============================================================================
 # ZnDraw.login classmethod
 # =============================================================================
@@ -57,6 +78,55 @@ def test_login_returns_token(server_auth: str):
     )
     assert isinstance(token, str)
     assert len(token) > 0
+
+
+def test_login_autodiscover(server_auth: str):
+    """login with url=None uses PID file auto-discovery."""
+    port = int(server_auth.rsplit(":", 1)[1])
+    fake_info = ServerInfo(pid=0, port=port, version="")
+    with patch("zndraw.server_manager.find_running_server", return_value=fake_info):
+        token = ZnDraw.login(
+            username="admin@local.test",
+            password="adminpassword",
+        )
+    assert isinstance(token, str)
+    assert len(token) > 0
+
+
+def test_login_no_server_raises():
+    """login raises ConnectionError when no server is found."""
+    with patch("zndraw.server_manager.find_running_server", return_value=None):
+        with pytest.raises(ConnectionError):
+            ZnDraw.login(username="x", password="y")
+
+
+# =============================================================================
+# ZnDraw constructor url auto-discovery
+# =============================================================================
+
+
+def test_constructor_autodiscover(server: str):
+    """ZnDraw() with url=None uses PID file auto-discovery."""
+    port = int(server.rsplit(":", 1)[1])
+    fake_info = ServerInfo(pid=0, port=port, version="")
+    with patch("zndraw.server_manager.find_running_server", return_value=fake_info):
+        vis = ZnDraw()
+    assert vis.url == f"http://localhost:{port}"
+    vis.disconnect()
+
+
+def test_constructor_no_server_raises():
+    """ZnDraw() raises ConnectionError when no server is found."""
+    with patch("zndraw.server_manager.find_running_server", return_value=None):
+        with pytest.raises(ConnectionError):
+            ZnDraw()
+
+
+def test_constructor_explicit_url_still_works(server: str):
+    """ZnDraw(url=...) still works as before."""
+    vis = ZnDraw(url=server)
+    assert vis.url == server
+    vis.disconnect()
 
 
 # =============================================================================
