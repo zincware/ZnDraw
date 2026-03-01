@@ -48,7 +48,8 @@ Use `<command> --help` for full options. Key patterns:
 
 | Resource | Verbs |
 |----------|-------|
-| `rooms` | `list`, `create`, `info` |
+| `auth` | `login` |
+| `rooms` | `list`, `create`, `info`, `lock`, `unlock`, `set-default` |
 | `frames` | `count`, `get`, `list`, `extend`, `export`, `delete` |
 | `step` | `get`, `set` |
 | `selection` | `get`, `set`, `clear` |
@@ -60,7 +61,7 @@ Use `<command> --help` for full options. Key patterns:
 | `jobs` | `list`, `status` |
 | `geometries` | `list`, `get`, `set`, `delete` |
 | `screenshots` | `list`, `request`, `get` |
-| `sessions` | `list`, `settings` |
+| `sessions` | `list` |
 | Standalone | `mount FILE` |
 
 **Frames tips:**
@@ -68,9 +69,10 @@ Use `<command> --help` for full options. Key patterns:
 - `--keys positions,info.energy` for server-side field filtering
 - `--start N --stop M` for ranges (don't fetch 10k frames at once)
 
-** Chat tips:**
+**Chat tips:**
 - `send` has full markdown support
-- send relevant updates to the chat in addtition to printing them.
+- Send relevant updates to the chat in addition to printing them.
+
 ## Extensions: Discover → Describe → Run → Poll
 
 ```bash
@@ -97,7 +99,9 @@ When the CLI alone isn't enough (filtering, math, custom analysis, Plotly figure
 ```python
 from zndraw import ZnDraw
 vis = ZnDraw(url="http://localhost:1234", room="ROOM")
+# Or with explicit token: ZnDraw(url=..., room=..., token="JWT_TOKEN")
 
+# Frames — MutableSequence[ase.Atoms]
 len(vis)              # frame count
 vis[0]                # frame as ase.Atoms
 vis[vis.step]         # current frame
@@ -106,13 +110,47 @@ vis.append(atoms)     # append frame
 del vis[0]            # delete frame
 vis[:]                # all frames as list[ase.Atoms]
 
+# Selections, bookmarks, figures
 vis.selection = [0, 1, 2]       # set selected atom indices
 vis.bookmarks[42] = "label"     # MutableMapping[int, str]
 vis.figures["energy"] = fig     # MutableMapping[str, plotly.Figure]
-vis.log("message")              # send chat message
+
+# Chat
+vis.chat.send("message")        # send chat message
+vis.chat[0]                      # read message (Sequence)
+
+# Room state
+vis.locked = True                # lock/unlock room
+
+# Run extensions — string name + kwargs (simple, 1 round-trip)
+task_id = vis.run("@internal:modifiers:Delete")
+task_id = vis.run("@internal:modifiers:AddFromSMILES", smiles="CCO")
+
+# Or with an Extension class (if you have one from vis.register())
+from zndraw.extensions.selections import All
+task_id = vis.run(All())
+
+# Discovery
+list(vis.extensions)                                    # all extension names
+vis.extensions["@internal:modifiers:Delete"]["schema"]   # parameter schema
+
+# Poll task
+vis.tasks[task_id]               # TaskResponse
+vis.tasks("running")             # filtered view
+
+# Sessions — read-only Mapping of active browser sessions
+vis.sessions                     # Mapping[str, Session]
+
+# Screenshots
+vis.screenshots.request()        # request new screenshot
+vis.screenshots["id"].data       # PNG bytes
 
 # Efficient partial reads (server-side filtering)
 vis.get(slice(None), keys=["info.energy"])
+
+# Classmethods (no room needed)
+ZnDraw.list_rooms(url="http://localhost:1234")
+ZnDraw.login(url="http://localhost:1234", username="...", password="...")
 ```
 
 ### Bookmark frames matching a condition
@@ -197,6 +235,9 @@ This command keeps serving frames until Ctrl+C is pressed.
 | "delete selected atoms" | `extensions describe` the Delete modifier → `extensions run` |
 | "add a molecule" | `extensions describe` AddFromSMILES → `extensions run` with params |
 | "visualize this large H5 file" | `zndraw-cli mount trajectory.h5` (lazy) |
+| "lock the room" | `zndraw-cli rooms lock ROOM` or Python: `vis.locked = True` |
+| "send a chat message" | `zndraw-cli chat send ROOM "msg"` or Python: `vis.chat.send("msg")` |
+| "take a screenshot" | Python: `vis.screenshots.request()` |
 | "what can I do?" | `extensions list ROOM` + `--help` on each resource group |
 
 ## Common Mistakes

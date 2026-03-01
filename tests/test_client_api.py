@@ -8,7 +8,6 @@ import uuid
 import warnings
 
 from zndraw import ZnDraw
-from zndraw.extensions import Category, Extension
 from zndraw.schemas import MessageResponse, ScreenshotListItem
 
 # =============================================================================
@@ -184,41 +183,23 @@ def test_extensions_contains_internal(server: str):
     vis.disconnect()
 
 
-def test_extensions_getitem_returns_extension_subclass(server: str):
-    """vis.extensions[name] returns an Extension subclass (not instance)."""
+def test_extensions_getitem_returns_dict(server: str):
+    """vis.extensions[name] returns a dict with extension metadata."""
     vis = ZnDraw(url=server)
     key = next(k for k in vis.extensions if "Delete" in k)
-    cls = vis.extensions[key]
-    assert isinstance(cls, type)
-    assert issubclass(cls, Extension)
+    ext = vis.extensions[key]
+    assert isinstance(ext, dict)
+    assert "name" in ext
+    assert "category" in ext
     vis.disconnect()
 
 
-def test_extensions_class_has_category(server: str):
-    """Returned extension class has the correct category."""
+def test_extensions_getitem_has_schema(server: str):
+    """Returned extension dict contains a schema key."""
     vis = ZnDraw(url=server)
     key = next(k for k in vis.extensions if "Delete" in k)
-    cls = vis.extensions[key]
-    assert cls.category == Category.MODIFIER
-    vis.disconnect()
-
-
-def test_extensions_class_has_correct_name(server: str):
-    """Returned extension class __name__ matches the server name."""
-    vis = ZnDraw(url=server)
-    key = next(k for k in vis.extensions if "Delete" in k)
-    cls = vis.extensions[key]
-    assert cls.__name__ == "Delete"
-    vis.disconnect()
-
-
-def test_extensions_class_is_instantiable(server: str):
-    """Returned extension class can be instantiated."""
-    vis = ZnDraw(url=server)
-    key = next(k for k in vis.extensions if "Delete" in k)
-    cls = vis.extensions[key]
-    instance = cls()
-    assert isinstance(instance, Extension)
+    ext = vis.extensions[key]
+    assert "schema" in ext
     vis.disconnect()
 
 

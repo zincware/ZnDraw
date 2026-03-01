@@ -2078,22 +2078,44 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     # Extension Execution
     # -------------------------------------------------------------------------
 
-    def run(self, extension: Extension, *, job_room: str | None = None) -> str:
-        """Submit an extension for execution via the job system.
+    @overload
+    def run(self, extension: str, **kwargs: Any) -> str: ...
+
+    @overload
+    def run(self, extension: Extension, *, job_room: str | None = None) -> str: ...
+
+    def run(
+        self,
+        extension: str | Extension,
+        *,
+        job_room: str | None = None,
+        **kwargs: Any,
+    ) -> str:
+        """Submit an extension for execution.
 
         Parameters
         ----------
-        extension : Extension
-            The extension instance to run.
+        extension : str | Extension
+            Either a fully-qualified name (e.g. ``"@internal:modifiers:Delete"``)
+            for pure-REST dispatch, or an ``Extension`` instance for the
+            existing job-system path.
         job_room : str | None
-            The room where the job is registered. If None, auto-detects:
+            Only used with ``Extension`` instances.  If *None*, auto-detects:
             ``@internal`` for built-in extensions, ``@global`` otherwise.
+        **kwargs : Any
+            Only used with string dispatch — passed as the task payload.
 
         Returns
         -------
         str
             The task ID for tracking progress.
         """
+        if isinstance(extension, str):
+            if self.room is None:
+                raise NotConnectedError("Cannot run: no room set")
+            return self.api.submit_task(extension, kwargs)["id"]
+
+        # Extension instance path
         if job_room is None:
             module = extension.__class__.__module__
             job_room = (

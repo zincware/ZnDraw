@@ -169,3 +169,52 @@ def test_sequential_internal_tasks(server, wait_for_task):
             assert result.status == "completed", f"Task {i} failed: {result.error}"
     finally:
         vis.disconnect()
+
+
+# =============================================================================
+# String dispatch (pure REST, no Extension import needed)
+# =============================================================================
+
+
+def test_run_string_dispatch(server):
+    """vis.run(string) returns a task ID via pure REST."""
+    vis = ZnDraw(url=server)
+    try:
+        vis.append(ase.Atoms("H"))
+        task_id = vis.run("@internal:selections:All")
+        assert isinstance(task_id, str)
+        assert len(task_id) > 0
+    finally:
+        vis.disconnect()
+
+
+def test_run_string_dispatch_e2e(server, wait_for_task):
+    """String dispatch selects all atoms end-to-end."""
+    vis = ZnDraw(url=server)
+    try:
+        atoms = ase.Atoms("HHHHH", positions=[[i, 0, 0] for i in range(5)])
+        vis.append(atoms)
+
+        task_id = vis.run("@internal:selections:All")
+        result = wait_for_task(vis, task_id)
+        assert result.status == "completed", f"Task failed: {result.error}"
+
+        assert vis.selection == tuple(range(5))
+    finally:
+        vis.disconnect()
+
+
+def test_run_string_with_kwargs(server, wait_for_task):
+    """String dispatch with kwargs passes payload correctly."""
+    vis = ZnDraw(url=server)
+    try:
+        atoms = ase.Atoms("HHHHH", positions=[[i, 0, 0] for i in range(5)])
+        vis.append(atoms)
+
+        task_id = vis.run("@internal:selections:Random", count=2)
+        result = wait_for_task(vis, task_id)
+        assert result.status == "completed", f"Task failed: {result.error}"
+
+        assert len(vis.selection) == 2
+    finally:
+        vis.disconnect()

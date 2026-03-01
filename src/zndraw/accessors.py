@@ -457,39 +457,22 @@ class Screenshots(Mapping[int, ScreenshotImage]):
 # =============================================================================
 
 
-class Extensions(Mapping[str, type]):
+class Extensions(Mapping[str, dict[str, Any]]):
     """Read-only mapping of available extensions by full_name.
 
+    ``vis.extensions[name]`` returns the job metadata dict
+    (name, category, schema_, ...).
     ``list(vis.extensions)`` returns extension full_names.
-    ``vis.extensions[full_name]`` returns a dynamic Extension subclass.
     """
 
     def __init__(self, api: APIManager) -> None:
         self._api = api
 
-    def __getitem__(self, full_name: str) -> type:
-        from pydantic import create_model
-
-        from zndraw.extensions import Category, Extension
-
+    def __getitem__(self, full_name: str) -> dict[str, Any]:
         try:
-            resp = self._api.get_extension(full_name)
+            return self._api.get_extension(full_name)
         except Exception:
             raise KeyError(full_name)
-
-        schema = resp.get("schema_", resp.get("schema", {}))
-        properties = schema.get("properties", {})
-        fields: dict[str, Any] = {}
-        for k, v in properties.items():
-            default = v.get("default")
-            if default is not None:
-                fields[k] = (Any, default)
-            else:
-                fields[k] = (Any, None)
-
-        cls = create_model(resp["name"], __base__=Extension, **fields)
-        cls.category = Category(resp["category"])
-        return cls
 
     def __iter__(self) -> Iterator[str]:
         data = self._api.list_extensions()
