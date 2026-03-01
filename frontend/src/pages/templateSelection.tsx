@@ -52,7 +52,6 @@ async function determineTemplate(): Promise<string | null> {
 
 	// Auto-template: single room with data
 	if (rooms.length === 1 && rooms[0].frame_count > 0) {
-		console.log("[Template] Auto-template from single room:", rooms[0].id);
 		return rooms[0].id;
 	}
 

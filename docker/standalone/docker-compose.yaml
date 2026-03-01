@@ -20,9 +20,7 @@ services:
       redis: { condition: service_healthy }
     env_file: .env
     environment:
-      - ZNDRAW_REDIS_URL=redis://redis:6379
       - ZNDRAW_STORAGE=/app/data/zndraw-data.lmdb
-      - ZNDRAW_WORKER_ENABLED=false
     volumes:
       - zndraw-data:/app/data
     healthcheck:
@@ -40,7 +38,6 @@ services:
     command: ["taskiq", "worker", "zndraw.broker:broker"]
     env_file: .env
     environment:
-      - ZNDRAW_REDIS_URL=redis://redis:6379
       - ZNDRAW_STORAGE=/app/data/zndraw-data.lmdb
       - ZNDRAW_SERVER_URL=http://zndraw:8000
     volumes:
@@ -58,7 +55,11 @@ services:
       - sh
       - -c
       - |
-        zndraw-cli rooms create --room-id template &&
+        export ZNDRAW_TOKEN=$(zndraw-cli auth login \
+          --user "$ZNDRAW_AUTH_DEFAULT_ADMIN_EMAIL" \
+          --password "$ZNDRAW_AUTH_DEFAULT_ADMIN_PASSWORD" \
+          | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])") &&
+        zndraw-cli rooms create --room-id template --copy-from @none &&
         zndraw-cli frames extend template --file /app/templates/ethanol.xyz &&
         zndraw-cli rooms lock template &&
         zndraw-cli rooms set-default template

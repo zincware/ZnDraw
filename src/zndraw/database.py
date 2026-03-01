@@ -37,6 +37,7 @@ from zndraw_joblib import (
     register_internal_jobs,
     run_sweeper,
 )
+from zndraw_joblib.registry import ensure_internal_jobs, register_internal_tasks
 from zndraw_joblib.settings import JobLibSettings
 
 import zndraw.models  # noqa: F401 - registers Room, Message, etc.
@@ -168,6 +169,9 @@ async def init_database(engine: AsyncEngine | None = None) -> None:
     async with session_maker() as session:
         await ensure_internal_worker(session, settings.worker_password)
 
+    # Seed @internal Job rows for built-in extensions
+    await ensure_internal_jobs(_collect_extensions(), session_maker)
+
     # Only dispose if we created the engine (CLI mode)
     if own_engine:
         await engine.dispose()
@@ -285,13 +289,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             worker_password=settings.worker_password,
         )
 
-        await register_internal_jobs(
-            app,
-            broker,
-            extensions=_collect_extensions(),
-            executor=executor,
-            session_factory=app.state.session_maker,
-        )
+        if settings.init_db_on_startup:
+            await register_internal_jobs(
+                app,
+                broker,
+                extensions=_collect_extensions(),
+                executor=executor,
+                session_factory=app.state.session_maker,
+            )
+        else:
+            # Production: db-init already seeded Job rows — only register
+            # broker tasks (no DB writes, avoids unique_job race).
+            registry = register_internal_tasks(broker, _collect_extensions(), executor)
+            app.state.internal_registry = registry
         await broker.startup()
 
         # zndraw-joblib: wire ResultBackend for provider caching

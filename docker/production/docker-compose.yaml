@@ -1,3 +1,22 @@
+x-zndraw: &zndraw
+  image: pythonf/zndraw:latest
+  restart: unless-stopped
+  depends_on:
+    redis: { condition: service_healthy }
+    mongo: { condition: service_healthy }
+    db-init: { condition: service_completed_successfully }
+  env_file: .env
+  environment:
+    - ZNDRAW_STORAGE=mongodb://mongo:27017/zndraw
+    - ZNDRAW_DATABASE_URL=postgresql+asyncpg://zndraw:zndraw@postgres:5432/zndraw
+    - ZNDRAW_INIT_DB_ON_STARTUP=false
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000').read()"]
+    interval: 30s
+    timeout: 10s
+    start_period: 60s
+    retries: 3
+
 services:
   redis:
     image: redis:7-alpine
@@ -22,6 +41,31 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=zndraw
+      - POSTGRES_USER=zndraw
+      - POSTGRES_PASSWORD=zndraw
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zndraw"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-init:
+    image: pythonf/zndraw:latest
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy }
+    env_file: .env
+    environment:
+      - ZNDRAW_DATABASE_URL=postgresql+asyncpg://zndraw:zndraw@postgres:5432/zndraw
+    command: ["zndraw-db"]
+
   nginx:
     image: nginx:alpine
     restart: unless-stopped
@@ -30,32 +74,21 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      zndraw: { condition: service_healthy }
+      zndraw-1: { condition: service_healthy }
+      zndraw-2: { condition: service_healthy }
+      zndraw-3: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
       interval: 10s
       timeout: 3s
       retries: 3
 
-  zndraw:
-    image: pythonf/zndraw:latest
-    restart: unless-stopped
-    depends_on:
-      redis: { condition: service_healthy }
-      mongo: { condition: service_healthy }
-    env_file: .env
-    environment:
-      - ZNDRAW_REDIS_URL=redis://redis:6379
-      - ZNDRAW_STORAGE=mongodb://mongo:27017/zndraw
-      - ZNDRAW_WORKER_ENABLED=false
-    deploy:
-      replicas: 3
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000').read()"]
-      interval: 30s
-      timeout: 10s
-      start_period: 60s
-      retries: 3
+  zndraw-1:
+    <<: *zndraw
+  zndraw-2:
+    <<: *zndraw
+  zndraw-3:
+    <<: *zndraw
 
   taskiq-worker:
     image: pythonf/zndraw:latest
@@ -66,7 +99,6 @@ services:
     command: ["taskiq", "worker", "zndraw.broker:broker"]
     env_file: .env
     environment:
-      - ZNDRAW_REDIS_URL=redis://redis:6379
       - ZNDRAW_STORAGE=mongodb://mongo:27017/zndraw
       - ZNDRAW_SERVER_URL=http://nginx
 
@@ -82,7 +114,11 @@ services:
       - sh
       - -c
       - |
-        zndraw-cli rooms create --room-id template &&
+        export ZNDRAW_TOKEN=$(zndraw-cli auth login \
+          --user "$ZNDRAW_AUTH_DEFAULT_ADMIN_EMAIL" \
+          --password "$ZNDRAW_AUTH_DEFAULT_ADMIN_PASSWORD" \
+          | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])") &&
+        zndraw-cli rooms create --room-id template --copy-from @none &&
         zndraw-cli frames extend template --file /app/templates/ethanol.xyz &&
         zndraw-cli rooms lock template &&
         zndraw-cli rooms set-default template
@@ -92,3 +128,4 @@ services:
 volumes:
   redis-data:
   mongo-data:
+  postgres-data:
