@@ -24,6 +24,7 @@ import Box from "./three/Box";
 import Camera from "./three/Camera";
 // Import our new, self-contained components
 import { Cell } from "./three/Cell";
+import CircleCurve from "./three/CircleCurve";
 import Curve from "./three/Curve";
 import DrawingIndicator from "./three/DrawingIndicator";
 import EditingIndicator from "./three/EditingIndicator";
@@ -58,6 +59,7 @@ const PATHTRACING_GEOMETRY_COMPONENTS = {
 	Plane: Plane,
 	Shape: Shape,
 	Curve: Curve,
+	CircleCurve: CircleCurve,
 } as const;
 
 /**
