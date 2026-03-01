@@ -27,7 +27,7 @@ vis = ZnDraw(url='${BASE_URL}', room='${room}')
 del vis[:]
 vis.append(ase.Atoms('H4', positions=[(0,0,0),(2,0,0),(0,2,0),(2,2,0)]))
 from zndraw.geometries import Box, Sphere, Curve, Arrow, Floor
-vis.geometries['floor'] = Floor(active=True, height=-2.0, color='#808080')
+vis.geometries['floor'] = Floor(active=True, position=(0, -2.0, 0), color='#808080')
 vis.geometries['box'] = Box(position=[(0,2,0)], size=[(4,4,4)], color=['#e74c3c'], material='MeshToonMaterial')
 vis.geometries['sphere'] = Sphere(position=[(8,2,0)], radius=[2.0], color=['#3498db'], material='MeshPhysicalMaterial_glass')
 vis.geometries['curve'] = Curve(position=[(-6,0,-6),(-3,4,-3),(0,0,0),(3,4,3),(6,0,6)], color='#2ecc71')

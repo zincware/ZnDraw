@@ -205,7 +205,7 @@ Add 3D geometries to the scene using ``vis.geometries``:
     from zndraw.geometries import Box, Sphere, Curve, Arrow, Floor
 
     # Add a floor
-    vis.geometries["floor"] = Floor(active=True, height=-2.0, color="#808080")
+    vis.geometries["floor"] = Floor(active=True, position=(0, -2.0, 0), color="#808080")
 
     # Add a red box with cartoon material
     vis.geometries["box"] = Box(

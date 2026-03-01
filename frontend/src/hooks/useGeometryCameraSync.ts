@@ -41,11 +41,16 @@ export function useGeometryCameraSync({
 
 	// Ref for latest persist function (avoids stale closure)
 	const persistRef = useRef<
-		((position: number[], target: number[]) => Promise<void>) | null
+		| ((position: number[], target: number[], up: number[]) => Promise<void>)
+		| null
 	>(null);
 
 	// Update persist function ref
-	persistRef.current = async (position: number[], target: number[]) => {
+	persistRef.current = async (
+		position: number[],
+		target: number[],
+		up: number[],
+	) => {
 		if (!roomId || !attachedCameraKey) return;
 
 		if (!attachedCameraGeometry || attachedCameraGeometry.type !== "Camera")
@@ -71,6 +76,8 @@ export function useGeometryCameraSync({
 			updatedData.target = target;
 		}
 
+		updatedData.up = up;
+
 		try {
 			await createGeometry(roomId, attachedCameraKey, "Camera", updatedData);
 		} catch (error) {
@@ -84,8 +91,8 @@ export function useGeometryCameraSync({
 	// Debounced persist
 	const debouncedPersist = useMemo(
 		() =>
-			debounce((position: number[], target: number[]) => {
-				persistRef.current?.(position, target);
+			debounce((position: number[], target: number[], up: number[]) => {
+				persistRef.current?.(position, target, up);
 			}, DEBOUNCE_MS),
 		[],
 	);
@@ -119,8 +126,9 @@ export function useGeometryCameraSync({
 
 		const position = camera.position.toArray();
 		const target = controls.target.toArray();
+		const up = camera.up.toArray();
 
-		debouncedPersist(position, target);
+		debouncedPersist(position, target, up);
 	}, [
 		camera,
 		controlsRef,

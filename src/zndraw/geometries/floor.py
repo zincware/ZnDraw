@@ -24,7 +24,9 @@ class Floor(BaseGeometry):
 
     # Override base properties - Floor doesn't need dynamic data
     position: tuple[float, float, float] = Field(
-        default=(0, 0, 0), description="Floor center position [x,y,z]"
+        default=(0, -5, 0),
+        description="Floor center position [x,y,z]",
+        json_schema_extra={"x-custom-type": "vec3"},
     )
 
     @field_validator("position", mode="before")
@@ -38,11 +40,6 @@ class Floor(BaseGeometry):
     color: str = Field(
         default="default",
         description="Floor base color (uses theme colors when 'default')",
-    )
-
-    # Floor-specific properties
-    height: float = Field(
-        default=-5.0, le=50.0, ge=-50.0, description="Y-position of the floor plane"
     )
 
     grid_spacing: float = Field(
@@ -93,11 +90,6 @@ class Floor(BaseGeometry):
 
         schema["properties"]["shadow_blur"]["format"] = "range"
         schema["properties"]["shadow_blur"]["step"] = 0.1
-
-        schema["properties"]["height"]["format"] = "range"
-        schema["properties"]["height"]["step"] = 0.5
-        schema["properties"]["height"]["minimum"] = -50
-        schema["properties"]["height"]["maximum"] = 50
 
         # Size slider
         schema["properties"]["size"]["format"] = "range"
