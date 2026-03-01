@@ -123,7 +123,7 @@ async def on_disconnect(
     redis: RedisDep,
     db_session: SessionDep,
 ) -> None:
-    """Handle disconnect - clean up presence, camera, locks, and workers."""
+    """Handle disconnect - clean up camera, locks, and workers."""
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
     current_room_id: str | None = sio_session.get("current_room_id")
@@ -215,7 +215,7 @@ async def room_join(
     """Join a Socket.IO room for real-time updates.
 
     Supports special system rooms with '@' prefix (e.g., @overview) that skip
-    database validation, presence tracking, and camera creation.
+    database validation and camera creation.
     """
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
