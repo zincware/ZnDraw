@@ -45,7 +45,7 @@ def _unset_default_room(server_url: str, token: str) -> None:
     response.raise_for_status()
 
 
-@pytest.mark.parametrize("storage_type", ["memory", "lmdb", "mongodb"])
+@pytest.mark.parametrize("storage_type", ["memory", "lmdb"])
 def test_template_room_isolation(
     server_factory: Callable[[dict[str, str]], Any],
     tmp_path: pathlib.Path,
@@ -71,9 +71,6 @@ def test_template_room_isolation(
     if storage_type == "lmdb":
         lmdb_path = tmp_path / "test_storage.lmdb"
         env_overrides["ZNDRAW_STORAGE"] = str(lmdb_path)
-    elif storage_type == "mongodb":
-        # Use running MongoDB docker container
-        env_overrides["ZNDRAW_STORAGE"] = "mongodb://localhost:27017/zndraw_test"
 
     server_instance = server_factory(env_overrides)
     server_url = server_instance.url

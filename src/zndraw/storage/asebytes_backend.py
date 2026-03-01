@@ -60,18 +60,30 @@ def to_raw_frame(frame: dict[str, Any] | RawFrame) -> RawFrame:
     return result
 
 
-def _create_blob_backend(uri: str) -> AsyncReadWriteBackend[bytes, bytes]:
+def _create_blob_backend(
+    uri: str, group: str | None = None
+) -> AsyncReadWriteBackend[bytes, bytes]:
     """Create an async blob backend from a URI string.
 
     All backends from asebytes registries are object-level (str keys).
     This function wraps them to blob-level (bytes keys) via
     AsyncObjectToBlobReadWriteAdapter, converting sync backends to
     async first when needed.
+
+    Parameters
+    ----------
+    uri
+        Storage backend URI string.
+    group
+        Optional group/namespace for data isolation (e.g., room_id).
     """
     from asebytes._registry import get_async_backend_cls
 
     cls = get_async_backend_cls(uri, readonly=False)
-    backend = cls.from_uri(uri) if hasattr(cls, "from_uri") else cls(uri)
+    if hasattr(cls, "from_uri"):
+        backend = cls.from_uri(uri, group=group)
+    else:
+        backend = cls(uri, group=group)
 
     # Ensure async
     if not isinstance(backend, AsyncReadWriteBackend):
@@ -104,7 +116,7 @@ class AsebytesStorage:
     def _get_io(self, room_id: str) -> AsyncBlobIO:
         """Get or create an AsyncBlobIO for a room."""
         if room_id not in self._rooms:
-            backend = _create_blob_backend(self._uri)
+            backend = _create_blob_backend(self._uri, group=room_id)
             self._rooms[room_id] = AsyncBlobIO(backend)
         return self._rooms[room_id]
 
