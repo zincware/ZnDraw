@@ -110,7 +110,7 @@ class Camera(BaseModel):
         json_schema_extra={
             "x-custom-type": "position-attachment",
             "x-features": ["dynamic-geometries"],
-            "x-geometry-filter": "Curve",
+            "x-geometry-filter": ["Curve", "CircleCurve"],
         },
     )
 
@@ -120,7 +120,7 @@ class Camera(BaseModel):
         json_schema_extra={
             "x-custom-type": "position-attachment",
             "x-features": ["dynamic-geometries"],
-            "x-geometry-filter": "Curve",
+            "x-geometry-filter": ["Curve", "CircleCurve"],
         },
     )
 

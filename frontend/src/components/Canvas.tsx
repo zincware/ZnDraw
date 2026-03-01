@@ -309,7 +309,12 @@ function MyScene() {
 				<PathTracingRenderer pathtracingData={pathtracingData}>
 					<KeyboardShortcutsHandler />
 					{Object.entries(geometries)
-						.filter(([_, config]) => config.data?.active !== false)
+						.filter(
+							([_, config]) =>
+								config.data?.active !== false ||
+								config.type === "Curve" ||
+								config.type === "CircleCurve",
+						)
 						.filter(
 							([_, config]) =>
 								!CONFIG_GEOMETRY_TYPES.includes(

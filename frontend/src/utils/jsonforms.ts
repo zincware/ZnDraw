@@ -32,6 +32,9 @@ import PositionAttachmentRenderer, {
 import PropertyInspectorRenderer, {
 	propertyInspectorTester,
 } from "../components/jsonforms-renderers/PropertyInspectorRenderer";
+import Vec3Renderer, {
+	vec3Tester,
+} from "../components/jsonforms-renderers/Vec3Renderer";
 import Vertices2DRenderer, {
 	vertices2DRendererTester,
 } from "../components/jsonforms-renderers/Vertices2DRenderer";
@@ -43,6 +46,7 @@ import Vertices2DRenderer, {
 export const customRenderers = [
 	...materialRenderers,
 	{ tester: ownershipToggleTester, renderer: OwnershipToggleRenderer }, // Priority 10 - Ownership claim/release toggle
+	{ tester: vec3Tester, renderer: Vec3Renderer }, // Priority 10 - Vec3 (x-custom-type: "vec3")
 	{ tester: vertices2DRendererTester, renderer: Vertices2DRenderer }, // Priority 10 - 2D vertices editor for Shape
 	{ tester: materialEditorTester, renderer: MaterialEditor }, // Priority 10 - Material editor with preset/object support
 	{
@@ -90,6 +94,9 @@ export const injectDynamicEnums = (
 				const geometryFilter = obj["x-geometry-filter"];
 				obj.enum = Object.keys(geometries).filter((key) => {
 					if (!geometryFilter) return true;
+					if (Array.isArray(geometryFilter)) {
+						return geometryFilter.includes(geometries[key]?.type);
+					}
 					return geometries[key]?.type === geometryFilter;
 				});
 			}

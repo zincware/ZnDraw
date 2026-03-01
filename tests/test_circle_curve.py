@@ -12,33 +12,37 @@ from zndraw.geometries.circle_curve import CircleCurve
 def test_circle_curve_defaults():
     """CircleCurve has sensible defaults."""
     c = CircleCurve()
-    assert c.position == (0.0, 0.0, 0.0)
+    assert c.position == [(0.0, 0.0, 0.0)]
     assert c.radius == 5.0
     assert c.start_angle == 0.0
     assert c.end_angle == 100.0
-    assert c.rotation == (0.0, 0.0, 0.0)
-    assert c.scale == (1.0, 1.0, 1.0)
-    assert c.color == "#FFA200"
+    assert c.rotation == [(0.0, 0.0, 0.0)]
+    assert c.scale == [(1.0, 1.0, 1.0)]
+    assert c.color == "default"
     assert c.material == "LineBasicMaterial"
     assert c.divisions == 50
     assert c.thickness == 2.0
+    assert c.selecting.color == "#FF6A00"
+    assert c.selecting.opacity == 0.5
+    assert c.hovering.color == "#FF0000"
+    assert c.hovering.opacity == 0.5
 
 
 def test_circle_curve_custom_values():
     """CircleCurve accepts custom values."""
     c = CircleCurve(
-        position=(1.0, 2.0, 3.0),
+        position=[(1.0, 2.0, 3.0)],
         radius=10.0,
         start_angle=25.0,
         end_angle=75.0,
-        rotation=(0.1, 0.2, 0.3),
-        scale=(2.0, 1.0, 1.0),
+        rotation=[(0.1, 0.2, 0.3)],
+        scale=[(2.0, 1.0, 1.0)],
         color="#FF0000",
         material="LineDashedMaterial",
         divisions=100,
         thickness=5.0,
     )
-    assert c.position == (1.0, 2.0, 3.0)
+    assert c.position == [(1.0, 2.0, 3.0)]
     assert c.radius == 10.0
     assert c.start_angle == 25.0
     assert c.end_angle == 75.0
@@ -47,6 +51,9 @@ def test_circle_curve_custom_values():
 @pytest.mark.parametrize(
     ("field", "value"),
     [
+        ("position", [(0.0, 0.0, 0.0), (1.0, 1.0, 1.0)]),
+        ("rotation", []),
+        ("scale", [(1.0, 1.0, 1.0), (2.0, 2.0, 2.0)]),
         ("radius", 0.0),
         ("radius", 101.0),
         ("start_angle", -1.0),
@@ -92,7 +99,7 @@ def test_get_interpolated_points_half_circle():
 def test_get_interpolated_points_with_position():
     """Center offset translates all points."""
     c = CircleCurve(
-        position=(10.0, 20.0, 30.0),
+        position=[(10.0, 20.0, 30.0)],
         radius=1.0,
         start_angle=0.0,
         end_angle=100.0,
@@ -109,7 +116,7 @@ def test_get_interpolated_points_with_scale():
     """Scale creates an ellipse."""
     c = CircleCurve(
         radius=1.0,
-        scale=(2.0, 1.0, 1.0),
+        scale=[(2.0, 1.0, 1.0)],
         start_angle=0.0,
         end_angle=100.0,
         divisions=36,
@@ -125,7 +132,7 @@ def test_get_interpolated_points_with_rotation():
     # Rotate 90 degrees around X axis: XY plane -> XZ plane
     c = CircleCurve(
         radius=1.0,
-        rotation=(math.pi / 2, 0.0, 0.0),
+        rotation=[(math.pi / 2, 0.0, 0.0)],
         start_angle=0.0,
         end_angle=100.0,
         divisions=36,
@@ -138,9 +145,9 @@ def test_get_interpolated_points_with_rotation():
 
 
 def test_circle_curve_numpy_coercion():
-    """Numpy arrays are coerced to tuples."""
-    c = CircleCurve(position=np.array([1.0, 2.0, 3.0]))
-    assert c.position == (1.0, 2.0, 3.0)
+    """Numpy arrays are coerced to list of tuples."""
+    c = CircleCurve(position=[np.array([1.0, 2.0, 3.0])])
+    assert c.position == [(1.0, 2.0, 3.0)]
 
 
 def test_circle_curve_in_geometry_registry():
@@ -160,3 +167,6 @@ def test_circle_curve_json_schema():
     assert props["color"]["format"] == "color"
     assert props["divisions"]["format"] == "range"
     assert props["thickness"]["format"] == "range"
+    assert props["position"]["x-custom-type"] == "vec3"
+    assert props["rotation"]["x-custom-type"] == "vec3"
+    assert props["scale"]["x-custom-type"] == "vec3"

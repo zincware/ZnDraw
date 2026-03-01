@@ -4,10 +4,10 @@ import math
 import typing as t
 
 import numpy as np
-from pydantic import Field
+from pydantic import Field, field_validator
 from scipy.spatial.transform import Rotation
 
-from .base import BaseGeometry, Vec3
+from .base import BaseGeometry, InteractionSettings, Vec3
 
 
 class CircleCurve(BaseGeometry):
@@ -18,13 +18,10 @@ class CircleCurve(BaseGeometry):
     a percentage of a full circle (0-100).
     """
 
-    position: Vec3 = Field(
-        default=(0.0, 0.0, 0.0),
+    position: list[Vec3] = Field(
+        default=[(0.0, 0.0, 0.0)],
         description="Center point of the circle.",
-        json_schema_extra={
-            "x-custom-type": "dynamic-enum",
-            "x-features": ["dynamic-atom-props", "editable-array"],
-        },
+        json_schema_extra={"x-custom-type": "vec3"},
     )
 
     radius: float = Field(
@@ -51,22 +48,40 @@ class CircleCurve(BaseGeometry):
         json_schema_extra={"format": "range", "step": 1.0},
     )
 
-    rotation: Vec3 = Field(
-        default=(0.0, 0.0, 0.0),
+    rotation: list[Vec3] = Field(
+        default=[(0.0, 0.0, 0.0)],
         description="Euler angles [x, y, z] in radians to orient the circle plane.",
-        json_schema_extra={"x-features": ["editable-array"]},
+        json_schema_extra={"x-custom-type": "vec3"},
     )
 
-    scale: Vec3 = Field(
-        default=(1.0, 1.0, 1.0),
+    scale: list[Vec3] = Field(
+        default=[(1.0, 1.0, 1.0)],
         description="Scale factors. X/Y create ellipse, Z has no visual effect.",
-        json_schema_extra={"x-features": ["editable-array"]},
+        json_schema_extra={"x-custom-type": "vec3"},
     )
+
+    @field_validator("position", "rotation", "scale")
+    @classmethod
+    def _must_be_length_one(cls, v: list[Vec3]) -> list[Vec3]:
+        if len(v) != 1:
+            msg = f"Expected exactly 1 element, got {len(v)}"
+            raise ValueError(msg)
+        return v
 
     color: str = Field(
-        default="#FFA200",
+        default="default",
         description="Curve color.",
         json_schema_extra={"format": "color"},
+    )
+
+    selecting: InteractionSettings = Field(
+        default=InteractionSettings(color="#FF6A00", opacity=0.5),
+        description="Selection interaction settings.",
+    )
+
+    hovering: InteractionSettings = Field(
+        default=InteractionSettings(color="#FF0000", opacity=0.5),
+        description="Hover interaction settings.",
     )
 
     material: t.Literal["LineBasicMaterial", "LineDashedMaterial"] = Field(
@@ -114,18 +129,18 @@ class CircleCurve(BaseGeometry):
         )
 
         # Apply scale (X/Y for ellipse, Z is a no-op for a flat curve)
-        sx, sy, sz = self.scale
+        sx, sy, sz = self.scale[0]
         points[:, 0] *= sx
         points[:, 1] *= sy
         points[:, 2] *= sz
 
         # Apply rotation
-        rx, ry, rz = self.rotation
+        rx, ry, rz = self.rotation[0]
         if rx != 0.0 or ry != 0.0 or rz != 0.0:
             rot = Rotation.from_euler("xyz", [rx, ry, rz])
             points = rot.apply(points)
 
         # Apply translation
-        points += np.array(self.position)
+        points += np.array(self.position[0])
 
         return points
