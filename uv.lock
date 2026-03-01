@@ -266,17 +266,13 @@ wheels = [
 
 [[package]]
 name = "asebytes"
-version = "0.3.0a3"
-source = { registry = "https://pypi.org/simple" }
+version = "0.3.0"
+source = { editable = "../asebytes" }
 dependencies = [
     { name = "ase" },
     { name = "msgpack" },
     { name = "msgpack-numpy" },
     { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ce/8b/5410d9db6df8214bd3ba21d8cdc61ba75be0887c0f61a687dd9cd22edc15/asebytes-0.3.0a3.tar.gz", hash = "sha256:0360f79743d219c88073b1a20f3f12bdd0beba41415a0d6522d569c1691cf976", size = 72426, upload-time = "2026-03-01T07:51:09.517Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/32/4c5e7b25f090350f96d786077ffd9c960504744425745e272676154f8731/asebytes-0.3.0a3-py3-none-any.whl", hash = "sha256:6aa25f5d074cdea8ebe8cee218513eacd9bc7d0723c52fc1c2be1fc33b36fd8d", size = 101560, upload-time = "2026-03-01T07:51:07.933Z" },
 ]
 
 [package.optional-dependencies]
@@ -288,6 +284,40 @@ lmdb = [
 ]
 mongodb = [
     { name = "pymongo" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ase", specifier = ">=3.26.0" },
+    { name = "datasets", marker = "extra == 'hf'", specifier = ">=4.5.0" },
+    { name = "h5py", marker = "extra == 'h5md'", specifier = ">=3.8.0" },
+    { name = "lmdb", marker = "extra == 'lmdb'", specifier = ">=1.7.5" },
+    { name = "msgpack", specifier = ">=1.1.2" },
+    { name = "msgpack-numpy", specifier = ">=0.4.8" },
+    { name = "pymongo", marker = "extra == 'mongodb'", specifier = ">=4.13" },
+    { name = "redis", marker = "extra == 'redis'", specifier = ">=5.0" },
+    { name = "typing-extensions", specifier = ">=4.5.0" },
+    { name = "zarr", marker = "extra == 'zarr'", specifier = ">=3.0" },
+]
+provides-extras = ["lmdb", "hf", "h5md", "zarr", "mongodb", "redis"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "anyio", specifier = ">=4.0" },
+    { name = "ase-db-backends", specifier = ">=0.10.0" },
+    { name = "asebytes", extras = ["h5md"] },
+    { name = "asebytes", extras = ["hf"] },
+    { name = "asebytes", extras = ["lmdb"] },
+    { name = "asebytes", extras = ["mongodb"] },
+    { name = "asebytes", extras = ["redis"] },
+    { name = "asebytes", extras = ["zarr"] },
+    { name = "ipykernel", specifier = ">=7.1.0" },
+    { name = "matplotlib", specifier = ">=3.10.7" },
+    { name = "molify", specifier = ">=0.0.1a0" },
+    { name = "pandas", specifier = ">=2.3.3" },
+    { name = "pytest", specifier = ">=8.4.2" },
+    { name = "pytest-benchmark", specifier = ">=5.2.1" },
+    { name = "znh5md", specifier = ">=0.4.8" },
 ]
 
 [[package]]
@@ -4276,6 +4306,7 @@ dependencies = [
     { name = "redis" },
     { name = "requests" },
     { name = "rich" },
+    { name = "scipy" },
     { name = "splines" },
     { name = "sqlalchemy", extra = ["aiosqlite", "asyncio"] },
     { name = "sqlmodel" },
@@ -4321,7 +4352,7 @@ docs = [
 requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "ase", specifier = ">=3.27.0" },
-    { name = "asebytes", extras = ["h5md", "lmdb", "mongodb"], specifier = ">=0.3.0a3" },
+    { name = "asebytes", extras = ["h5md", "lmdb", "mongodb"], editable = "../asebytes" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "fakeredis", specifier = ">=2.33.0" },
     { name = "fastapi", specifier = ">=0.128.0" },
@@ -4342,6 +4373,7 @@ requires-dist = [
     { name = "redis", specifier = ">=7.1.0" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "rich", specifier = ">=14.3.1" },
+    { name = "scipy", specifier = ">=1.17.0" },
     { name = "splines", specifier = ">=0.3.3" },
     { name = "sqlalchemy", extras = ["aiosqlite", "asyncio"], specifier = ">=2.0.46" },
     { name = "sqlmodel", specifier = ">=0.0.31" },

@@ -45,6 +45,7 @@ dependencies = [
     "fsspec>=2023",
     "tqdm>=4.67.3",
     "asyncpg>=0.31.0",
+    "scipy>=1.17.0",
 ]
 
 [project.scripts]
