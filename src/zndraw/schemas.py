@@ -155,15 +155,6 @@ class SessionsListResponse(BaseModel):
     items: list[str]
 
 
-class SessionSettingsResponse(BaseModel):
-    """Response for session settings with JSON schema."""
-
-    schema_: dict[str, Any] = Field(alias="schema")
-    data: dict[str, Any]
-
-    model_config = {"populate_by_name": True}
-
-
 # =============================================================================
 # Frame Schemas
 # =============================================================================

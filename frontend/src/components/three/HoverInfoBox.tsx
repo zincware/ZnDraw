@@ -12,12 +12,15 @@ import { formatPropertyValue } from "../../utils/propertyFormatting";
  */
 export default function HoverInfoBox() {
 	const theme = useTheme();
-	const showInfoBoxes = useAppStore((state) => state.showInfoBoxes);
+	const geometries = useAppStore((state) => state.geometries);
 	const hoveredGeometryInstance = useAppStore(
 		(state) => state.hoveredGeometryInstance,
 	);
 	const curveLength = useAppStore((state) => state.curveLength);
 	const mode = useAppStore((state) => state.mode);
+
+	// Get active state from PropertyInspector geometry
+	const isActive = geometries["property-inspector"]?.data?.active ?? false;
 
 	// Extract particle ID from hovered geometry instance
 	const hoveredParticleId =
@@ -28,7 +31,7 @@ export default function HoverInfoBox() {
 	const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
 	// Performance optimization: only fetch per-particle properties when boxes are visible and particle is hovered
-	const shouldFetchProperties = showInfoBoxes && hoveredParticleId !== null;
+	const shouldFetchProperties = isActive && hoveredParticleId !== null;
 
 	const { enabledProperties, propertyValues, isEnabled, categories } =
 		usePropertyInspectorSettings({
@@ -47,7 +50,7 @@ export default function HoverInfoBox() {
 		};
 	}, []);
 
-	if (!showInfoBoxes) return null;
+	if (!isActive) return null;
 
 	// Determine what to show
 	const showParticleInfo = hoveredParticleId != null; // Loose equality checks both null and undefined

@@ -1,12 +1,27 @@
 import { Environment } from "@react-three/drei";
 import { Pathtracer } from "@react-three/gpu-pathtracer";
 import type { ReactNode } from "react";
-import type { PathTracing } from "../types/room-config";
 import { PathtracingUpdater } from "./PathtracingUpdater";
 import { PathtracingCaptureProvider } from "./three/PathtracingScreenshotCapture";
 
+/**
+ * PathTracing geometry data from backend.
+ * Mirrors the Pydantic PathTracing model.
+ */
+interface PathTracingData {
+	active?: boolean;
+	min_samples?: number;
+	samples?: number;
+	bounces?: number;
+	tiles?: number;
+	environment_preset?: string;
+	environment_intensity?: number;
+	environment_blur?: number;
+	environment_background?: boolean;
+}
+
 interface PathTracingRendererProps {
-	settings?: PathTracing;
+	pathtracingData?: PathTracingData;
 	children: ReactNode;
 }
 
@@ -20,11 +35,11 @@ interface PathTracingRendererProps {
  * - Scene updates trigger BVH rebuild (can be expensive for large scenes)
  */
 export function PathTracingRenderer({
-	settings,
+	pathtracingData,
 	children,
 }: PathTracingRendererProps) {
 	const {
-		enabled = false,
+		active = false,
 		min_samples = 1,
 		samples = 256,
 		bounces = 3,
@@ -33,22 +48,35 @@ export function PathTracingRenderer({
 		environment_intensity = 1.0,
 		environment_blur = 0.0,
 		environment_background = false,
-	} = settings ?? {};
+	} = pathtracingData ?? {};
+
 	return (
 		<Pathtracer
 			minSamples={min_samples}
 			samples={samples}
 			bounces={bounces}
 			tiles={tiles}
-			enabled={enabled}
+			enabled={active}
 		>
-			{enabled && <PathtracingUpdater settings={settings!} />}
-			{enabled && <PathtracingCaptureProvider />}
+			{active && <PathtracingUpdater pathtracingData={pathtracingData!} />}
+			{active && <PathtracingCaptureProvider />}
 
 			{/* Environment lighting - only when pathtracing enabled */}
-			{enabled && environment_preset !== "none" && (
+			{active && environment_preset !== "none" && (
 				<Environment
-					preset={environment_preset}
+					preset={
+						environment_preset as
+							| "apartment"
+							| "city"
+							| "dawn"
+							| "forest"
+							| "lobby"
+							| "night"
+							| "park"
+							| "studio"
+							| "sunset"
+							| "warehouse"
+					}
 					background={environment_background}
 					backgroundBlurriness={environment_blur}
 					environmentIntensity={environment_intensity}

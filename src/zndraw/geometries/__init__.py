@@ -12,7 +12,16 @@ from zndraw.geometries.camera import Camera, CameraType
 from zndraw.geometries.cell import Cell
 from zndraw.geometries.curve import Curve, CurveMarker
 from zndraw.geometries.floor import Floor
+from zndraw.geometries.fog import Fog
+from zndraw.geometries.lights import (
+    AmbientLight,
+    DirectionalLight,
+    HemisphereLight,
+    LightPosition,
+)
+from zndraw.geometries.pathtracing import EnvironmentPreset, PathTracing
 from zndraw.geometries.plane import Plane
+from zndraw.geometries.property_inspector import PropertyInspector
 from zndraw.geometries.shape import Shape
 from zndraw.geometries.sphere import Sphere
 from zndraw.transformations import InArrayTransform, Transform
@@ -39,23 +48,38 @@ geometries = {
     "Box": Box,
     "Plane": Plane,
     "Shape": Shape,
+    # New scene object types
+    "DirectionalLight": DirectionalLight,
+    "AmbientLight": AmbientLight,
+    "HemisphereLight": HemisphereLight,
+    "Fog": Fog,
+    "PathTracing": PathTracing,
+    "PropertyInspector": PropertyInspector,
 }
 
 __all__ = [
+    "AmbientLight",
     "Arrow",
     "Bond",
     "Box",
     "Camera",
+    "LightPosition",
     "CameraType",
     "Cell",
     "ColorProp",
     "Curve",
     "CurveMarker",
+    "DirectionalLight",
+    "EnvironmentPreset",
     "Floor",
+    "Fog",
+    "HemisphereLight",
     "InArrayTransform",
     "InteractionSettings",
+    "PathTracing",
     "Plane",
     "PositionProp",
+    "PropertyInspector",
     "RotationProp",
     "Shape",
     "SizeProp",

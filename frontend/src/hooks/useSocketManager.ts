@@ -3,12 +3,12 @@ import { useEffect } from "react";
 import {
 	createRoom,
 	getAllBookmarks,
+	type GeometryData,
 	getEditLockStatus,
 	getFrameSelection,
 	getGeometry,
 	getGlobalSettings,
 	getServerVersion,
-	getSettings,
 	listGeometries,
 	listSelectionGroups,
 } from "../myapi/client";
@@ -199,14 +199,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 						// === CRITICAL: Fetch render-blocking data via REST ===
 						// Both calls run in parallel - we need both to render the scene
 						try {
-							const [geometriesResponse] = await Promise.all([
-								listGeometries(roomId),
-								// Use fetchQuery to fetch AND cache settings in one step
-								queryClient.fetchQuery({
-									queryKey: ["settings", roomId, sessionId],
-									queryFn: () => getSettings(roomId, sessionId),
-								}),
-							]);
+							const geometriesResponse = await listGeometries(roomId);
 
 							// Set geometries and type metadata (schemas + defaults)
 							const geos = geometriesResponse.items || {};
@@ -216,7 +209,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 							// Extract per-geometry selections (cameras don't have selections)
 							const selectionsFromGeos: Record<string, number[]> = {};
-							for (const [key, geo] of Object.entries(geos)) {
+							for (const [key, geo] of Object.entries(geos) as [
+								string,
+								GeometryData,
+							][]) {
 								if (geo.type === "Camera") continue;
 								selectionsFromGeos[key] = geo.selection ?? [];
 							}

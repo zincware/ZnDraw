@@ -2,7 +2,21 @@ import { useFrame } from "@react-three/fiber";
 import { usePathtracer } from "@react-three/gpu-pathtracer";
 import { useEffect, useRef } from "react";
 import { useAppStore } from "../store";
-import type { PathTracing } from "../types/room-config";
+
+/**
+ * PathTracing geometry data from backend.
+ */
+interface PathTracingData {
+	active?: boolean;
+	min_samples?: number;
+	samples?: number;
+	bounces?: number;
+	tiles?: number;
+	environment_preset?: string;
+	environment_intensity?: number;
+	environment_blur?: number;
+	environment_background?: boolean;
+}
 
 /**
  * Component that watches for pathtracing update requests and calls
@@ -11,7 +25,9 @@ import type { PathTracing } from "../types/room-config";
  * Uses useFrame to ensure update() is called after R3F has finished
  * processing all scene updates in the render loop.
  */
-export function PathtracingUpdater({ settings }: { settings: PathTracing }) {
+export function PathtracingUpdater({
+	pathtracingData,
+}: { pathtracingData: PathTracingData }) {
 	const pathtracingNeedsUpdate = useAppStore(
 		(state) => state.pathtracingNeedsUpdate,
 	);
@@ -51,14 +67,14 @@ export function PathtracingUpdater({ settings }: { settings: PathTracing }) {
 		}
 		pendingUpdate.current = true;
 	}, [
-		settings.samples,
-		settings.min_samples,
-		settings.bounces,
-		settings.tiles,
-		settings.environment_preset,
-		settings.environment_intensity,
-		settings.environment_blur,
-		settings.environment_background,
+		pathtracingData.samples,
+		pathtracingData.min_samples,
+		pathtracingData.bounces,
+		pathtracingData.tiles,
+		pathtracingData.environment_preset,
+		pathtracingData.environment_intensity,
+		pathtracingData.environment_blur,
+		pathtracingData.environment_background,
 	]);
 
 	// Execute update in useFrame - guarantees R3F has processed scene updates

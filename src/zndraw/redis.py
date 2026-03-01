@@ -69,15 +69,6 @@ class RedisKey:
         return f"room:{room_id}:active-cameras"
 
     # =========================================================================
-    # Session Settings Keys
-    # =========================================================================
-
-    @staticmethod
-    def session_settings(room_id: str, sid: str) -> str:
-        """Per-session settings key (JSON-serialized RoomConfig)."""
-        return f"room:{room_id}:session-settings:{sid}"
-
-    # =========================================================================
     # Edit Lock Keys
     # =========================================================================
 

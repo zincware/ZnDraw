@@ -56,12 +56,9 @@ tsio = wrap(socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*"))
 async def _cleanup_session(
     redis: RedisDep, sid: str, sio_session: dict, room_id: str
 ) -> None:
-    """Remove this SID's camera and settings from the room and broadcast deletion."""
+    """Remove this SID's camera from the room and broadcast deletion."""
     # Remove active camera tracking
     await redis.hdel(RedisKey.active_cameras(room_id), sid)  # type: ignore[misc]
-
-    # Remove session settings
-    await redis.delete(RedisKey.session_settings(room_id, sid))
 
     camera_key: str | None = sio_session.get("camera_key")
     if camera_key is None:
@@ -441,12 +438,6 @@ async def heartbeat(
         RedisKey.presence_sid(data.room_id, sid),
         str(user_id),
         ex=settings.presence_ttl,
-    )
-
-    # Refresh settings TTL alongside presence
-    await redis.expire(  # type: ignore[misc]
-        RedisKey.session_settings(data.room_id, sid),
-        settings.presence_ttl,
     )
 
     return HeartbeatResponse()

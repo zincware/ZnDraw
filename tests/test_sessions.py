@@ -12,7 +12,6 @@ from zndraw import ZnDraw
 from zndraw.client import Sessions
 from zndraw.geometries.camera import Camera
 from zndraw.redis import RedisKey
-from zndraw.settings import RoomConfig
 
 
 def _get_user_id(vis: ZnDraw) -> str:
@@ -173,42 +172,6 @@ def test_session_active_camera_roundtrip(server: str):
     vis.disconnect()
 
 
-def test_session_settings_roundtrip(server: str):
-    """Get/set settings through Session proxy."""
-    room_id = uuid.uuid4().hex
-    vis = ZnDraw(url=server, room=room_id)
-    user_id = _get_user_id(vis)
-
-    r = Redis.from_url("redis://localhost", decode_responses=True)
-    fake_sid = "fake-frontend-003"
-    camera_key = f"cam:test@local.test:{fake_sid[:8]}"
-    _seed_frontend_session(r, room_id, user_id, fake_sid, camera_key)
-
-    session = vis.sessions[fake_sid]
-
-    # Default settings
-    settings = session.settings
-    assert isinstance(settings, RoomConfig)
-    assert settings.studio_lighting.key_light == pytest.approx(0.7)
-
-    # Update settings
-    new_settings = settings.model_copy(
-        update={
-            "studio_lighting": settings.studio_lighting.model_copy(
-                update={"key_light": 1.5}
-            )
-        }
-    )
-    session.settings = new_settings
-
-    # Read back
-    updated = session.settings
-    assert updated.studio_lighting.key_light == pytest.approx(1.5)
-
-    r.close()
-    vis.disconnect()
-
-
 def test_session_camera_roundtrip(server: str):
     """Get/set camera through Session proxy (resolves via active_camera)."""
     room_id = uuid.uuid4().hex
@@ -239,8 +202,8 @@ def test_session_camera_roundtrip(server: str):
     vis.disconnect()
 
 
-def test_session_settings_not_accessible_by_other_user(server: str):
-    """Another user cannot access a session's settings (404)."""
+def test_session_active_camera_not_accessible_by_other_user(server: str):
+    """Another user cannot access a session's active camera (404)."""
     room_id = uuid.uuid4().hex
     vis1 = ZnDraw(url=server, room=room_id)
     user1_id = _get_user_id(vis1)

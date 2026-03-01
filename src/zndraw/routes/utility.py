@@ -35,10 +35,8 @@ from zndraw.schemas import (
     FrameSelectionResponse,
     FrameSelectionUpdateRequest,
     FrameSelectionUpdateResponse,
-    SessionSettingsResponse,
     StatusResponse,
 )
-from zndraw.settings import RoomConfig
 from zndraw.socket_events import FrameSelectionUpdate
 
 router = APIRouter(prefix="/v1", tags=["utility"])
@@ -96,40 +94,6 @@ async def get_global_settings(
     Returns configuration for optional features like SiMGen integration.
     """
     return GlobalSettings(simgen=SiMGenSettings(enabled=settings.simgen_enabled))
-
-
-@router.get(
-    "/rooms/{room_id}/sessions/{session_id}/settings",
-    responses=problem_responses(NotAuthenticated, SessionNotFound),
-)
-async def get_session_settings(
-    redis: RedisDep, room_id: str, session_id: VerifiedSessionDep
-) -> SessionSettingsResponse:
-    """Get session-specific settings with JSON schema."""
-    key = RedisKey.session_settings(room_id, session_id)
-    raw = await redis.get(key)  # type: ignore[misc]
-    config = RoomConfig.model_validate_json(raw) if raw else RoomConfig()
-    return SessionSettingsResponse(
-        schema=RoomConfig.model_json_schema(),
-        data=config.model_dump(),
-    )
-
-
-@router.put(
-    "/rooms/{room_id}/sessions/{session_id}/settings",
-    responses=problem_responses(NotAuthenticated, SessionNotFound),
-)
-async def update_session_settings(
-    redis: RedisDep,
-    room_id: str,
-    session_id: VerifiedSessionDep,
-    body: RoomConfig,
-    settings: SettingsDep,
-) -> StatusResponse:
-    """Update session-specific settings."""
-    key = RedisKey.session_settings(room_id, session_id)
-    await redis.set(key, body.model_dump_json(), ex=settings.presence_ttl)  # type: ignore[misc]
-    return StatusResponse()
 
 
 @router.get(

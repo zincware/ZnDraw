@@ -11,7 +11,6 @@ export interface UISlice {
 		severity: "success" | "info" | "warning" | "error";
 	} | null;
 	progressTrackers: Record<string, Progress>;
-	showInfoBoxes: boolean;
 	hoveredFrame: number | null;
 	screenshotCapture: (() => Promise<Blob>) | null;
 	pathtracerCapture: (() => Promise<Blob>) | null;
@@ -33,7 +32,6 @@ export interface UISlice {
 		update: Partial<Progress> & { progress_id: string },
 	) => void;
 	removeProgressTracker: (progressId: string) => void;
-	toggleInfoBoxes: () => void;
 	setHoveredFrame: (frame: number | null) => void;
 	setScreenshotCapture: (fn: (() => Promise<Blob>) | null) => void;
 	setPathtracerCapture: (fn: (() => Promise<Blob>) | null) => void;
@@ -49,7 +47,6 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (
 	typingUsers: new Set(),
 	snackbar: null,
 	progressTrackers: {},
-	showInfoBoxes: false,
 	hoveredFrame: null,
 	screenshotCapture: null,
 	pathtracerCapture: null,
@@ -111,9 +108,6 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (
 			const { [progressId]: _, ...remainingTrackers } = state.progressTrackers;
 			return { progressTrackers: remainingTrackers };
 		}),
-
-	toggleInfoBoxes: () =>
-		set((state) => ({ showInfoBoxes: !state.showInfoBoxes })),
 
 	setHoveredFrame: (frame) => set({ hoveredFrame: frame }),
 

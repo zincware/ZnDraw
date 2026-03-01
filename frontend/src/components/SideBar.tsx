@@ -2,7 +2,6 @@ import AnalyticsIcon from "@mui/icons-material/Analytics";
 import BuildIcon from "@mui/icons-material/Build";
 import CategoryIcon from "@mui/icons-material/Category";
 import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
-import SettingsIcon from "@mui/icons-material/Settings";
 // components/SideBar.tsx
 import { Box } from "@mui/material";
 import { LAYOUT_CONSTANTS, getContentHeight } from "../constants/layout";
@@ -10,17 +9,11 @@ import { useFormStore } from "../formStore";
 import PrimaryDrawer from "./PrimaryDrawer";
 import SecondaryPanel from "./SecondaryPanel";
 import SelectionsPanel from "./SelectionsPanel";
-import SettingsPanel from "./SettingsPanel";
 import GeometryPanel from "./geometry/GeometryPanel";
 
 // Hardcode the navigation items
+// Note: Settings are now managed via geometries (pathtracing, lights, fog, property-inspector)
 const navItems = [
-	{
-		name: "settings",
-		icon: <SettingsIcon />,
-		schemaType: "settings",
-		description: "Application settings",
-	},
 	{
 		name: "selections",
 		icon: <FilterCenterFocusIcon />,
@@ -48,7 +41,6 @@ const navItems = [
 ];
 
 const SECONDARY_PANEL_WIDTH = 240;
-const SETTINGS_PANEL_WIDTH = LAYOUT_CONSTANTS.SECONDARY_DRAWER_WIDTH;
 const GEOMETRIES_PANEL_WIDTH = LAYOUT_CONSTANTS.SECONDARY_DRAWER_WIDTH;
 const SELECTIONS_PANEL_WIDTH = LAYOUT_CONSTANTS.SECONDARY_DRAWER_WIDTH;
 const MODIFIERS_PANEL_WIDTH = LAYOUT_CONSTANTS.SECONDARY_DRAWER_WIDTH;
@@ -72,13 +64,11 @@ const SideBar = () => {
 			? GEOMETRIES_PANEL_WIDTH
 			: selectedCategory === "selections"
 				? SELECTIONS_PANEL_WIDTH
-				: selectedCategory === "settings"
-					? SETTINGS_PANEL_WIDTH
-					: selectedCategory === "modifiers"
-						? MODIFIERS_PANEL_WIDTH
-						: selectedCategory === "analysis"
-							? ANALYSIS_PANEL_WIDTH
-							: SECONDARY_PANEL_WIDTH;
+				: selectedCategory === "modifiers"
+					? MODIFIERS_PANEL_WIDTH
+					: selectedCategory === "analysis"
+						? ANALYSIS_PANEL_WIDTH
+						: SECONDARY_PANEL_WIDTH;
 
 	return (
 		<>
@@ -98,6 +88,7 @@ const SideBar = () => {
 						top: LAYOUT_CONSTANTS.APPBAR_HEIGHT,
 						width: panelWidth,
 						height: getContentHeight(),
+						overflow: "auto",
 						zIndex: (theme) => theme.zIndex.drawer,
 						borderRight: (theme) => `1px solid ${theme.palette.divider}`,
 						bgcolor: "background.paper",
@@ -108,8 +99,6 @@ const SideBar = () => {
 						<GeometryPanel />
 					) : selectedCategory === "selections" ? (
 						<SelectionsPanel />
-					) : selectedCategory === "settings" ? (
-						<SettingsPanel />
 					) : (
 						<SecondaryPanel
 							key={selectedCategory}

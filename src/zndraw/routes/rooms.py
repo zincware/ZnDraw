@@ -38,6 +38,15 @@ from zndraw.exceptions import (
     problem_responses,
 )
 from zndraw.geometries import geometries as geometry_models
+from zndraw.geometries.fog import Fog
+from zndraw.geometries.lights import (
+    AmbientLight,
+    DirectionalLight,
+    HemisphereLight,
+    LightPosition,
+)
+from zndraw.geometries.pathtracing import PathTracing
+from zndraw.geometries.property_inspector import PropertyInspector
 from zndraw.materials import MeshBasicMaterial
 from zndraw.models import (
     Room,
@@ -71,6 +80,10 @@ def _initialize_default_geometries(session: AsyncSession, room_id: str) -> None:
     Creates the standard geometry set: particles, bonds, curve, cell, floor.
     These geometries use property references (e.g., "arrays.positions") that
     are resolved at render time from frame data.
+
+    Also creates default scene objects for lighting, fog, pathtracing, and
+    property inspector.
+
     Rows are added to the session but NOT committed — caller must commit.
     """
     defaults: dict[str, tuple[str, dict[str, Any]]] = {
@@ -128,6 +141,48 @@ def _initialize_default_geometries(session: AsyncSession, room_id: str) -> None:
                 key=key,
                 type=type_name,
                 config=config_json,
+            )
+        )
+
+    # Scene objects: lights, fog, pathtracing, property inspector
+    scene_objects: dict[str, tuple[str, Any]] = {
+        "key-light": (
+            "DirectionalLight",
+            DirectionalLight(
+                position=LightPosition(x=5.0, y=2.0, z=8.0),
+                intensity=0.7,
+            ),
+        ),
+        "fill-light": (
+            "DirectionalLight",
+            DirectionalLight(
+                position=LightPosition(x=-4.0, y=-1.0, z=6.0),
+                intensity=0.4,
+                color="#a0c4ff",
+            ),
+        ),
+        "rim-light": (
+            "DirectionalLight",
+            DirectionalLight(
+                position=LightPosition(x=0.0, y=0.0, z=-50.0),
+                intensity=0.5,
+                color="#fff0f5",
+            ),
+        ),
+        "ambient-light": ("AmbientLight", AmbientLight(intensity=0.35)),
+        "hemisphere-light": ("HemisphereLight", HemisphereLight(intensity=0.3)),
+        "fog": ("Fog", Fog(active=True, near=180.0, far=300.0)),
+        "pathtracing": ("PathTracing", PathTracing(active=False)),
+        "property-inspector": ("PropertyInspector", PropertyInspector(active=False)),
+    }
+
+    for key, (type_name, model) in scene_objects.items():
+        session.add(
+            RoomGeometry(
+                room_id=room_id,
+                key=key,
+                type=type_name,
+                config=model.model_dump_json(),
             )
         )
 

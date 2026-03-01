@@ -49,7 +49,6 @@ from zndraw.exceptions import PROBLEM_TYPES, ProblemDetail
 from zndraw.geometries import geometries as geometry_models
 from zndraw.geometries.base import BaseGeometry
 from zndraw.geometries.camera import Camera
-from zndraw.settings import RoomConfig
 
 if TYPE_CHECKING:
     import plotly.graph_objects as go
@@ -870,24 +869,6 @@ class APIManager:
         )
         self.raise_for_status(response)
 
-    def get_session_settings(self, sid: str) -> dict[str, Any]:
-        """Get session settings data."""
-        response = self.http.get(
-            f"/v1/rooms/{self.room_id}/sessions/{sid}/settings",
-            headers=self._headers(),
-        )
-        self.raise_for_status(response)
-        return response.json()["data"]
-
-    def set_session_settings(self, sid: str, settings: dict[str, Any]) -> None:
-        """Update session settings."""
-        response = self.http.put(
-            f"/v1/rooms/{self.room_id}/sessions/{sid}/settings",
-            json=settings,
-            headers=self._headers(),
-        )
-        self.raise_for_status(response)
-
     # -------------------------------------------------------------------------
     # Chat Operations
     # -------------------------------------------------------------------------
@@ -1297,11 +1278,11 @@ class Session:
     def __post_init__(self) -> None:
         """Validate the session exists and belongs to the current user.
 
-        Uses the settings endpoint as a lightweight existence check.
+        Uses the active-camera endpoint as a lightweight existence check.
         ``VerifiedSessionDep`` returns 404 for non-existent or non-owned
         sessions, which ``raise_for_status`` maps to ``KeyError``.
         """
-        self._api.get_session_settings(self.sid)
+        self._api.get_active_camera(self.sid)
 
     @property
     def camera(self) -> Camera:
@@ -1325,16 +1306,6 @@ class Session:
     @active_camera.setter
     def active_camera(self, value: str) -> None:
         self._api.set_active_camera(self.sid, value)
-
-    @property
-    def settings(self) -> RoomConfig:
-        """Session rendering settings (frozen -- use model_copy to modify)."""
-        data = self._api.get_session_settings(self.sid)
-        return RoomConfig(**data)
-
-    @settings.setter
-    def settings(self, value: RoomConfig) -> None:
-        self._api.set_session_settings(self.sid, value.model_dump())
 
     def screenshot(self, timeout: float = 30.0) -> ScreenshotImage:
         """Capture a screenshot from this frontend session.

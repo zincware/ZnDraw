@@ -1,6 +1,5 @@
 import { useColorScheme } from "@mui/material/styles";
 import { ContactShadows } from "@react-three/drei";
-import { useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useAppStore } from "../../store";
@@ -19,14 +18,9 @@ interface FloorData {
 	show_shadows: boolean;
 	shadow_opacity: number;
 	shadow_blur: number;
-	fog_enabled: boolean;
-	fog_color: string;
-	fog_near: number;
-	fog_far: number;
 }
 
 export const Floor = ({ data }: { data: FloorData }) => {
-	const { scene } = useThree();
 	const geometryDefaults = useAppStore((state) => state.geometryDefaults);
 	const gridRef = useRef<THREE.GridHelper | null>(null);
 	const { mode } = useColorScheme();
@@ -55,33 +49,6 @@ export const Floor = ({ data }: { data: FloorData }) => {
 				? "#616161"
 				: "#9e9e9e"
 			: fullData.grid_color;
-
-	const fogColor =
-		fullData.fog_color === "default"
-			? mode === "light"
-				? "#FFFFFF"
-				: "#212121"
-			: fullData.fog_color;
-
-	// Sync fog with floor settings
-	useEffect(() => {
-		if (!fullData.fog_enabled) {
-			scene.fog = null;
-			return;
-		}
-
-		scene.fog = new THREE.Fog(fogColor, fullData.fog_near, fullData.fog_far);
-
-		return () => {
-			scene.fog = null;
-		};
-	}, [
-		fullData.fog_enabled,
-		fullData.fog_near,
-		fullData.fog_far,
-		fogColor,
-		scene,
-	]);
 
 	// Update grid when settings change
 	useEffect(() => {

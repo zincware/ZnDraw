@@ -1,4 +1,4 @@
-"""Floor geometry with grid, shadows, and fog support."""
+"""Floor geometry with grid and shadows support."""
 
 import typing as t
 
@@ -8,7 +8,7 @@ from .base import BaseGeometry
 
 
 class Floor(BaseGeometry):
-    """A floor plane with grid, shadows, and fog support."""
+    """A floor plane with grid and shadows support."""
 
     active: bool = Field(
         default=False,
@@ -70,27 +70,6 @@ class Floor(BaseGeometry):
         default=0.5, ge=0.0, le=2.0, description="Shadow blur radius"
     )
 
-    fog_enabled: bool = Field(default=True, description="Enable distance fog effect")
-
-    fog_color: str = Field(
-        default="default",
-        description="Fog color (uses theme background when 'default')",
-    )
-
-    fog_near: float = Field(
-        default=180.0,
-        ge=0.0,
-        le=1000.0,
-        description="Distance where fog starts",
-    )
-
-    fog_far: float = Field(
-        default=300.0,
-        ge=10.0,
-        le=2000.0,
-        description="Distance where fog is fully opaque",
-    )
-
     @classmethod
     def model_json_schema(cls, **kwargs: t.Any) -> dict[str, t.Any]:
         schema = super().model_json_schema(**kwargs)
@@ -123,15 +102,5 @@ class Floor(BaseGeometry):
         # Size slider
         schema["properties"]["size"]["format"] = "range"
         schema["properties"]["size"]["step"] = 10
-
-        # Fog color picker
-        schema["properties"]["fog_color"]["format"] = "color"
-
-        # Fog distance sliders
-        schema["properties"]["fog_near"]["format"] = "range"
-        schema["properties"]["fog_near"]["step"] = 10
-
-        schema["properties"]["fog_far"]["format"] = "range"
-        schema["properties"]["fog_far"]["step"] = 10
 
         return schema

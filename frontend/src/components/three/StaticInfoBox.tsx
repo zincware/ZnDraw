@@ -15,21 +15,24 @@ import { formatPropertyValue } from "../../utils/propertyFormatting";
  */
 export default function StaticInfoBox() {
 	const theme = useTheme();
-	const showInfoBoxes = useAppStore((state) => state.showInfoBoxes);
+	const geometries = useAppStore((state) => state.geometries);
 	const particleCount = useAppStore((state) => state.particleCount);
 	const selections = useAppStore((state) => state.selections);
 	const playing = useAppStore((state) => state.playing);
 	const fps = useAppStore((state) => state.fps);
 	const frameLoadTime = useAppStore((state) => state.frameLoadTime);
 
+	// Get active state from PropertyInspector geometry
+	const isActive = geometries["property-inspector"]?.data?.active ?? false;
+
 	// Performance optimization: only fetch global properties when boxes are visible
 	const { enabledProperties, propertyValues, isEnabled } =
 		usePropertyInspectorSettings({
 			category: "global",
-			enabled: showInfoBoxes,
+			enabled: isActive,
 		});
 
-	if (!showInfoBoxes) return null;
+	if (!isActive) return null;
 
 	const selectionCount = selections?.particles?.length || 0;
 

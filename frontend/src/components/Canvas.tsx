@@ -9,7 +9,6 @@ import {
 	useCameraControls,
 } from "../hooks/useCameraControls";
 import { useGeometryCameraSync } from "../hooks/useGeometryCameraSync";
-import { useSettings } from "../hooks/useSettings";
 import { getActiveCurves, selectPreferredCurve, useAppStore } from "../store";
 import { CanvasErrorState } from "./CanvasErrorState";
 import { CanvasLoadingState } from "./CanvasLoadingState";
@@ -19,7 +18,6 @@ import { useFramePrefetcher } from "../hooks/useFramePrefetcher";
 import { resolvePosition } from "../utils/cameraUtils";
 import CameraManager from "./CameraManager";
 import { PathTracingRenderer } from "./PathTracingRenderer";
-import SceneLighting from "./SceneLighting";
 import Arrow from "./three/Arrow";
 import Bonds from "./three/Bonds";
 import Box from "./three/Box";
@@ -30,9 +28,15 @@ import Curve from "./three/Curve";
 import DrawingIndicator from "./three/DrawingIndicator";
 import EditingIndicator from "./three/EditingIndicator";
 import { Floor } from "./three/Floor";
+import { Fog } from "./three/Fog";
 import { GeometryErrorBoundary } from "./three/GeometryErrorBoundary";
 import HoverInfoBox from "./three/HoverInfoBox";
 import { KeyboardShortcutsHandler } from "./three/KeyboardShortcutsHandler";
+import {
+	AmbientLight,
+	DirectionalLight,
+	HemisphereLight,
+} from "./three/Lights";
 import MultiGeometryTransformControls from "./three/MultiGeometryTransformControls";
 import Sphere from "./three/Particles";
 import Plane from "./three/Plane";
@@ -61,6 +65,10 @@ const PATHTRACING_GEOMETRY_COMPONENTS = {
  */
 const SIMPLE_GEOMETRY_COMPONENTS = {
 	Camera: Camera,
+	DirectionalLight: DirectionalLight,
+	AmbientLight: AmbientLight,
+	HemisphereLight: HemisphereLight,
+	Fog: Fog,
 } as const;
 
 /**
@@ -76,6 +84,12 @@ const DATA_PATHTRACING_GEOMETRY_COMPONENTS = {
 const DATA_ONLY_GEOMETRY_COMPONENTS = {
 	Floor: Floor,
 } as const;
+
+/**
+ * Non-renderable scene objects (configuration only).
+ * These are handled separately - not rendered as Three.js components.
+ */
+const CONFIG_GEOMETRY_TYPES = ["PathTracing", "PropertyInspector"] as const;
 
 /**
  * Component for integrating camera sync inside the Canvas.
@@ -207,7 +221,6 @@ function MyScene() {
 
 	const orbitControlsRef = useRef<OrbitControlsImpl | null>(null);
 
-	const { data: settingsResponse } = useSettings(roomId || "");
 	useEffect(() => {
 		if (
 			!attachedCameraKey &&
@@ -239,6 +252,11 @@ function MyScene() {
 	const sessionCamera = sessionCameraKey ? geometries[sessionCameraKey] : null;
 	const sessionCameraData = sessionCamera?.data;
 
+	// Get pathtracing configuration from geometry (key is "pathtracing")
+	const pathtracingGeometry = geometries["pathtracing"];
+	const pathtracingData = pathtracingGeometry?.data;
+	const pathtracingEnabled = pathtracingData?.active === true;
+
 	// Memoize camera position resolution (must be before early returns)
 	const cameraPosition = useMemo(
 		() =>
@@ -255,24 +273,17 @@ function MyScene() {
 
 	// Return early with loading state until fully connected and data is ready
 	// Gate on: 1) isConnected (socket connected), 2) sessionId (room joined),
-	// 3) settingsResponse (settings loaded), 4) sessionCameraData (camera geometry loaded)
-	if (!isConnected || !sessionId || !settingsResponse || !sessionCameraData) {
+	// 3) sessionCameraData (camera geometry loaded)
+	if (!isConnected || !sessionId || !sessionCameraData) {
 		return <CanvasLoadingState />;
 	}
-
-	// Backend always returns defaults, so these are guaranteed to exist
-	const studioLightingSettings = settingsResponse.data.studio_lighting;
-	const pathtracingSettings = settingsResponse.data.pathtracing;
-	const pathtracingEnabled = pathtracingSettings.enabled === true;
 
 	const cameraFov = sessionCameraData.fov;
 	const cameraType = sessionCameraData.camera_type;
 	const showCrosshair = sessionCameraData.show_crosshair;
 
-	const backgroundColor =
-		studioLightingSettings.background_color === "default"
-			? theme.palette.background.default
-			: studioLightingSettings.background_color;
+	// Use theme background color (no longer from settings)
+	const backgroundColor = theme.palette.background.default;
 
 	return (
 		<div style={{ width: "100%", height: "calc(100vh - 64px)" }}>
@@ -293,20 +304,16 @@ function MyScene() {
 			>
 				<CameraManager sessionCameraData={sessionCameraData} />
 				<ScreenshotProvider />
-				<PathTracingRenderer settings={pathtracingSettings}>
-					{!pathtracingEnabled && (
-						<SceneLighting
-							ambient_light={studioLightingSettings.ambient_light}
-							key_light={studioLightingSettings.key_light}
-							fill_light={studioLightingSettings.fill_light}
-							rim_light={studioLightingSettings.rim_light}
-							hemisphere_light={studioLightingSettings.hemisphere_light}
-						/>
-					)}
-
+				<PathTracingRenderer pathtracingData={pathtracingData}>
 					<KeyboardShortcutsHandler />
 					{Object.entries(geometries)
 						.filter(([_, config]) => config.data?.active !== false)
+						.filter(
+							([_, config]) =>
+								!CONFIG_GEOMETRY_TYPES.includes(
+									config.type as (typeof CONFIG_GEOMETRY_TYPES)[number],
+								),
+						)
 						.map(([name, config]) => {
 							const type = config.type as string;
 

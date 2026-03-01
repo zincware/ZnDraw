@@ -17,6 +17,9 @@ import CustomSmilesPackEditor, {
 import DynamicEnumRenderer, {
 	dynamicEnumTester,
 } from "../components/jsonforms-renderers/DynamicEnumRenderer";
+import LightPositionRenderer, {
+	lightPositionTester,
+} from "../components/jsonforms-renderers/LightPositionRenderer";
 import MaterialEditor, {
 	materialEditorTester,
 } from "../components/jsonforms-renderers/MaterialEditor";
@@ -46,6 +49,10 @@ export const customRenderers = [
 		tester: positionAttachmentTester,
 		renderer: PositionAttachmentRenderer,
 	}, // Priority 10 - Position with optional CurveAttachment
+	{
+		tester: lightPositionTester,
+		renderer: LightPositionRenderer,
+	}, // Priority 10 - Light position with CameraAttachment support
 	{ tester: dynamicEnumTester, renderer: DynamicEnumRenderer }, // Priority 10 - New unified renderer with transform support
 	{ tester: propertyInspectorTester, renderer: PropertyInspectorRenderer }, // Priority 10 - Property Inspector
 	{

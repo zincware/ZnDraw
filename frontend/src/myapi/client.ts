@@ -539,35 +539,6 @@ export const submitTask = async (
 	return data;
 };
 
-// ==================== Settings API ====================
-
-export interface SettingsResponse {
-	schema: any;
-	data: Record<string, any>;
-}
-
-export const getSettings = async (
-	roomId: string,
-	sessionId: string,
-): Promise<SettingsResponse> => {
-	const { data } = await apiClient.get(
-		`/v1/rooms/${roomId}/sessions/${sessionId}/settings`,
-	);
-	return data;
-};
-
-export const updateSettings = async (
-	roomId: string,
-	sessionId: string,
-	settingsData: Record<string, any>,
-): Promise<{ status: string }> => {
-	const { data } = await apiClient.put(
-		`/v1/rooms/${roomId}/sessions/${sessionId}/settings`,
-		settingsData,
-	);
-	return data;
-};
-
 // ==================== Tasks API ====================
 
 export interface Task {
