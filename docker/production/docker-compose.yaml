@@ -1,22 +1,3 @@
-x-zndraw: &zndraw
-  image: pythonf/zndraw:latest
-  restart: unless-stopped
-  depends_on:
-    redis: { condition: service_healthy }
-    mongo: { condition: service_healthy }
-    db-init: { condition: service_completed_successfully }
-  env_file: .env
-  environment:
-    - ZNDRAW_STORAGE=mongodb://mongo:27017/zndraw
-    - ZNDRAW_DATABASE_URL=postgresql+asyncpg://zndraw:zndraw@postgres:5432/zndraw
-    - ZNDRAW_INIT_DB_ON_STARTUP=false
-  healthcheck:
-    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000').read()"]
-    interval: 30s
-    timeout: 10s
-    start_period: 60s
-    retries: 3
-
 services:
   redis:
     image: redis:7-alpine
@@ -66,29 +47,41 @@ services:
       - ZNDRAW_DATABASE_URL=postgresql+asyncpg://zndraw:zndraw@postgres:5432/zndraw
     command: ["zndraw-db"]
 
-  nginx:
-    image: nginx:alpine
+  caddy:
+    image: caddy:2-alpine
     restart: unless-stopped
     ports:
       - "80:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
-      zndraw-1: { condition: service_healthy }
-      zndraw-2: { condition: service_healthy }
-      zndraw-3: { condition: service_healthy }
+      zndraw: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
       interval: 10s
       timeout: 3s
       retries: 3
 
-  zndraw-1:
-    <<: *zndraw
-  zndraw-2:
-    <<: *zndraw
-  zndraw-3:
-    <<: *zndraw
+  zndraw:
+    image: pythonf/zndraw:latest
+    restart: unless-stopped
+    depends_on:
+      redis: { condition: service_healthy }
+      mongo: { condition: service_healthy }
+      db-init: { condition: service_completed_successfully }
+    env_file: .env
+    environment:
+      - ZNDRAW_STORAGE=mongodb://mongo:27017/zndraw
+      - ZNDRAW_DATABASE_URL=postgresql+asyncpg://zndraw:zndraw@postgres:5432/zndraw
+      - ZNDRAW_INIT_DB_ON_STARTUP=false
+    deploy:
+      replicas: 3
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000').read()"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
 
   taskiq-worker:
     image: pythonf/zndraw:latest
@@ -100,16 +93,16 @@ services:
     env_file: .env
     environment:
       - ZNDRAW_STORAGE=mongodb://mongo:27017/zndraw
-      - ZNDRAW_SERVER_URL=http://nginx
+      - ZNDRAW_SERVER_URL=http://caddy
 
   template-loader:
     image: pythonf/zndraw:latest
     restart: "no"
     depends_on:
-      nginx: { condition: service_healthy }
+      caddy: { condition: service_healthy }
     env_file: .env
     environment:
-      - ZNDRAW_URL=http://nginx
+      - ZNDRAW_URL=http://caddy
     command:
       - sh
       - -c
