@@ -39,6 +39,7 @@ def get(
     import ase.io
     import asebytes
     import msgpack
+    from asebytes import atoms_to_dict
 
     conn = get_connection(ctx.obj["url"], ctx.obj["token"])
     if index is None:
@@ -58,15 +59,7 @@ def get(
         ase.io.write(buf, atoms, format="extxyz")
         text_print(buf.getvalue())
     else:
-        json_print(
-            {
-                "symbols": atoms.get_chemical_symbols(),
-                "positions": atoms.positions.tolist(),
-                "cell": atoms.cell.array.tolist(),
-                "pbc": atoms.pbc.tolist(),
-                "info": atoms.info,
-            }
-        )
+        json_print(atoms_to_dict(atoms))
 
 
 @frames_app.command("list")
@@ -84,6 +77,7 @@ def list_frames(
     import ase.io
     import asebytes
     import msgpack
+    from asebytes import atoms_to_dict
 
     conn = get_connection(ctx.obj["url"], ctx.obj["token"])
     params: dict = {"start": start}
@@ -102,17 +96,7 @@ def list_frames(
         ase.io.write(buf, atoms_list, format="extxyz")
         text_print(buf.getvalue())
     else:
-        result = [
-            {
-                "symbols": atoms.get_chemical_symbols(),
-                "positions": atoms.positions.tolist(),
-                "cell": atoms.cell.array.tolist(),
-                "pbc": atoms.pbc.tolist(),
-                "info": atoms.info,
-            }
-            for atoms in atoms_list
-        ]
-        json_print(result)
+        json_print([atoms_to_dict(atoms) for atoms in atoms_list])
 
 
 @frames_app.command("extend")
@@ -150,6 +134,7 @@ def export(
     if format == "json":
         import asebytes
         import msgpack
+        from asebytes import atoms_to_dict
 
         params: dict = {}
         if indices:
@@ -159,17 +144,7 @@ def export(
 
         resp = conn.get(f"/v1/rooms/{room}/frames", params=params)
         frames_raw = msgpack.unpackb(resp.content, raw=True)
-        result = [
-            {
-                "symbols": atoms.get_chemical_symbols(),
-                "positions": atoms.positions.tolist(),
-                "cell": atoms.cell.array.tolist(),
-                "pbc": atoms.pbc.tolist(),
-                "info": atoms.info,
-            }
-            for atoms in (asebytes.decode(f) for f in frames_raw)
-        ]
-        json_print(result)
+        json_print([atoms_to_dict(asebytes.decode(f)) for f in frames_raw])
     else:
         params = {"format": format}
         if indices:
