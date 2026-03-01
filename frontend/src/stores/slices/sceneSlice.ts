@@ -42,7 +42,7 @@ export interface SceneSlice {
 	editingCallbacks: Map<string, Set<(matrix: THREE.Matrix4) => void>>;
 	activeCurveForDrawing: string | null;
 	attachedCameraKey: string | null;
-	curveRefs: Record<string, THREE.CatmullRomCurve3>;
+	curveRefs: Record<string, THREE.Curve<THREE.Vector3>>;
 	hoveredGeometryInstance: {
 		geometryKey: string;
 		instanceId: number;
@@ -105,7 +105,7 @@ export interface SceneSlice {
 	setActiveCurveForDrawing: (key: string | null) => void;
 	attachToCamera: (cameraKey: string) => void;
 	setAttachedCameraKey: (cameraKey: string) => void;
-	registerCurveRef: (key: string, curve: THREE.CatmullRomCurve3) => void;
+	registerCurveRef: (key: string, curve: THREE.Curve<THREE.Vector3>) => void;
 	unregisterCurveRef: (key: string) => void;
 	setHoveredGeometryInstance: (
 		geometryKey: string | null,
