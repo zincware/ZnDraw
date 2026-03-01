@@ -5,7 +5,7 @@ from typing import Annotated
 
 import typer
 
-from zndraw.cli_agent.connection import get_connection, get_current_step
+from zndraw.cli_agent.connection import cli_error_handler, get_connection, get_zndraw
 from zndraw.cli_agent.output import json_print, text_print
 from zndraw.schemas import FrameBulkResponse, StatusResponse, StepResponse
 
@@ -18,9 +18,11 @@ def count(
     room: Annotated[str, typer.Argument(help="Room ID")],
 ) -> None:
     """Get total number of frames in the room."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    resp = conn.get(f"/v1/rooms/{room}/step")
-    json_print(StepResponse.model_validate(resp.json()))
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        data = vis.api.get_step()
+        json_print(StepResponse.model_validate(data))
+        vis.disconnect()
 
 
 @frames_app.command("get")
@@ -41,25 +43,33 @@ def get(
     import msgpack
     from asebytes import atoms_to_dict
 
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    if index is None:
-        index = get_current_step(conn, room)
-    params = {}
-    if keys:
-        params["keys"] = keys
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        if index is None:
+            index = vis.step
+        params = {}
+        if keys:
+            params["keys"] = keys
 
-    resp = conn.get(f"/v1/rooms/{room}/frames/{index}", params=params)
+        # Binary endpoint — use raw HTTP
+        resp = vis.api.http.get(
+            f"/v1/rooms/{vis.room}/frames/{index}",
+            params=params,
+            headers=vis.api._headers(),
+        )
+        vis.api.raise_for_status(resp)
 
-    frames_raw = msgpack.unpackb(resp.content, raw=True)
-    frame_raw = frames_raw[0] if isinstance(frames_raw, list) else frames_raw
-    atoms = asebytes.decode(frame_raw)
+        frames_raw = msgpack.unpackb(resp.content, raw=True)
+        frame_raw = frames_raw[0] if isinstance(frames_raw, list) else frames_raw
+        atoms = asebytes.decode(frame_raw)
 
-    if format == "xyz":
-        buf = StringIO()
-        ase.io.write(buf, atoms, format="extxyz")
-        text_print(buf.getvalue())
-    else:
-        json_print(atoms_to_dict(atoms))
+        if format == "xyz":
+            buf = StringIO()
+            ase.io.write(buf, atoms, format="extxyz")
+            text_print(buf.getvalue())
+        else:
+            json_print(atoms_to_dict(atoms))
+        vis.disconnect()
 
 
 @frames_app.command("list")
@@ -79,24 +89,31 @@ def list_frames(
     import msgpack
     from asebytes import atoms_to_dict
 
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    params: dict = {"start": start}
-    if stop is not None:
-        params["stop"] = stop
-    if keys:
-        params["keys"] = keys
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        params: dict = {"start": start}
+        if stop is not None:
+            params["stop"] = stop
+        if keys:
+            params["keys"] = keys
 
-    resp = conn.get(f"/v1/rooms/{room}/frames", params=params)
+        resp = vis.api.http.get(
+            f"/v1/rooms/{vis.room}/frames",
+            params=params,
+            headers=vis.api._headers(),
+        )
+        vis.api.raise_for_status(resp)
 
-    frames_raw = msgpack.unpackb(resp.content, raw=True)
-    atoms_list = [asebytes.decode(f) for f in frames_raw]
+        frames_raw = msgpack.unpackb(resp.content, raw=True)
+        atoms_list = [asebytes.decode(f) for f in frames_raw]
 
-    if format == "xyz":
-        buf = StringIO()
-        ase.io.write(buf, atoms_list, format="extxyz")
-        text_print(buf.getvalue())
-    else:
-        json_print([atoms_to_dict(atoms) for atoms in atoms_list])
+        if format == "xyz":
+            buf = StringIO()
+            ase.io.write(buf, atoms_list, format="extxyz")
+            text_print(buf.getvalue())
+        else:
+            json_print([atoms_to_dict(atoms) for atoms in atoms_list])
+        vis.disconnect()
 
 
 @frames_app.command("extend")
@@ -108,14 +125,18 @@ def extend(
     """Extend the room trajectory with frames from a file."""
     import pathlib
 
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    path = pathlib.Path(file)
-    with path.open("rb") as f:
-        resp = conn.post(
-            f"/v1/rooms/{room}/trajectory",
-            files={"file": (path.name, f, "application/octet-stream")},
-        )
-    json_print(FrameBulkResponse.model_validate(resp.json()))
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        path = pathlib.Path(file)
+        with path.open("rb") as f:
+            resp = vis.api.http.post(
+                f"/v1/rooms/{vis.room}/trajectory",
+                files={"file": (path.name, f, "application/octet-stream")},
+                headers=vis.api._headers(),
+            )
+        vis.api.raise_for_status(resp)
+        json_print(FrameBulkResponse.model_validate(resp.json()))
+        vis.disconnect()
 
 
 @frames_app.command("export")
@@ -129,31 +150,43 @@ def export(
     selection: Annotated[bool, typer.Option(help="Export only selected atoms")] = False,
 ) -> None:
     """Export trajectory from room to stdout."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
 
-    if format == "json":
-        import asebytes
-        import msgpack
-        from asebytes import atoms_to_dict
+        if format == "json":
+            import asebytes
+            import msgpack
+            from asebytes import atoms_to_dict
 
-        params: dict = {}
-        if indices:
-            params["indices"] = indices
-        if selection:
-            params["selection"] = "true"
+            params: dict = {}
+            if indices:
+                params["indices"] = indices
+            if selection:
+                params["selection"] = "true"
 
-        resp = conn.get(f"/v1/rooms/{room}/frames", params=params)
-        frames_raw = msgpack.unpackb(resp.content, raw=True)
-        json_print([atoms_to_dict(asebytes.decode(f)) for f in frames_raw])
-    else:
-        params = {"format": format}
-        if indices:
-            params["indices"] = indices
-        if selection:
-            params["selection"] = "true"
+            resp = vis.api.http.get(
+                f"/v1/rooms/{vis.room}/frames",
+                params=params,
+                headers=vis.api._headers(),
+            )
+            vis.api.raise_for_status(resp)
+            frames_raw = msgpack.unpackb(resp.content, raw=True)
+            json_print([atoms_to_dict(asebytes.decode(f)) for f in frames_raw])
+        else:
+            params = {"format": format}
+            if indices:
+                params["indices"] = indices
+            if selection:
+                params["selection"] = "true"
 
-        resp = conn.get(f"/v1/rooms/{room}/trajectory", params=params)
-        text_print(resp.text)
+            resp = vis.api.http.get(
+                f"/v1/rooms/{vis.room}/trajectory",
+                params=params,
+                headers=vis.api._headers(),
+            )
+            vis.api.raise_for_status(resp)
+            text_print(resp.text)
+        vis.disconnect()
 
 
 @frames_app.command("delete")
@@ -165,8 +198,10 @@ def delete(
     ] = None,
 ) -> None:
     """Delete a frame by index."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    if index is None:
-        index = get_current_step(conn, room)
-    response = conn.delete(f"/v1/rooms/{room}/frames/{index}")
-    json_print(StatusResponse.model_validate(response.json()))
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        if index is None:
+            index = vis.step
+        vis.api.delete_frame(index)
+        json_print(StatusResponse(status="ok"))
+        vis.disconnect()

@@ -7,12 +7,17 @@ that wraps httpx.Client with base_url and auth header.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
+from collections.abc import Generator
 from dataclasses import dataclass, field
-from typing import Any, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn
 
 import httpx
+
+if TYPE_CHECKING:
+    from zndraw import ZnDraw
 
 from zndraw.server_manager import find_running_server
 
@@ -225,3 +230,56 @@ def get_connection(url: str | None, token: str | None) -> Connection:
     base_url = resolve_url(url)
     resolved_token = resolve_token(base_url, token)
     return Connection(base_url=base_url, token=resolved_token)
+
+
+def get_zndraw(
+    url: str | None,
+    token: str | None,
+    room: str,
+) -> "ZnDraw":
+    """Create a ZnDraw instance from CLI context.
+
+    Parameters
+    ----------
+    url
+        From ``--url`` flag / ``ZNDRAW_URL`` env var, or None.
+    token
+        From ``--token`` flag / ``ZNDRAW_TOKEN`` env var, or None.
+    room
+        Room ID.
+    """
+    from zndraw import ZnDraw
+
+    base_url = resolve_url(url)
+    resolved_token = resolve_token(base_url, token)
+    return ZnDraw(url=base_url, room=room, token=resolved_token)
+
+
+@contextlib.contextmanager
+def cli_error_handler() -> Generator[None, None, None]:
+    """Context manager for CLI error handling.
+
+    Catches httpx errors from ZnDraw/APIManager and prints
+    RFC 9457 problem JSON to stderr.
+    """
+    try:
+        yield
+    except httpx.HTTPStatusError as exc:
+        content_type = exc.response.headers.get("content-type", "")
+        if "problem+json" in content_type or "application/json" in content_type:
+            sys.stderr.write(exc.response.text + "\n")
+        else:
+            sys.stderr.write(
+                _problem_json(
+                    exc.response.reason_phrase or "Error",
+                    exc.response.text[:500],
+                    exc.response.status_code,
+                )
+                + "\n"
+            )
+        exit_code = (
+            EXIT_CLIENT_ERROR if exc.response.status_code < 500 else EXIT_SERVER_ERROR
+        )
+        raise SystemExit(exit_code)
+    except httpx.RequestError as exc:
+        die("Connection Error", str(exc), 503, EXIT_CONNECTION_ERROR)

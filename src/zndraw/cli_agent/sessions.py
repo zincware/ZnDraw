@@ -6,7 +6,7 @@ import typer
 
 from zndraw.schemas import PresenceResponse
 
-from .connection import get_connection
+from .connection import cli_error_handler, get_zndraw
 from .output import json_print
 
 sessions_app = typer.Typer()
@@ -18,6 +18,8 @@ def list_sessions(
     room: Annotated[str, typer.Argument(help="Room ID")],
 ) -> None:
     """List all sessions (presence) in a room."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    response = conn.get(f"/v1/rooms/{room}/presence")
-    json_print(PresenceResponse.model_validate(response.json()))
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        sids = vis.api.list_sessions()
+        json_print(PresenceResponse(items=sids))
+        vis.disconnect()

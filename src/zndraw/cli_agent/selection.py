@@ -10,7 +10,7 @@ from zndraw.schemas import (
     StatusResponse,
 )
 
-from .connection import get_connection
+from .connection import cli_error_handler, get_zndraw
 from .output import json_print
 
 selection_app = typer.Typer()
@@ -23,9 +23,11 @@ def get_selection(
     geometry: Annotated[str, typer.Option(help="Geometry key")] = "particles",
 ) -> None:
     """Get the current selection for a geometry."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    response = conn.get(f"/v1/rooms/{room}/geometries/{geometry}/selection")
-    json_print(GeometrySelectionResponse.model_validate(response.json()))
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        data = vis.api.get_selection(geometry)
+        json_print(GeometrySelectionResponse.model_validate(data))
+        vis.disconnect()
 
 
 @selection_app.command("set")
@@ -36,13 +38,11 @@ def set_selection(
     geometry: Annotated[str, typer.Option(help="Geometry key")] = "particles",
 ) -> None:
     """Set the selection for a geometry."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    request = SelectionUpdateRequest(indices=indices)
-    response = conn.put(
-        f"/v1/rooms/{room}/geometries/{geometry}/selection",
-        json=request.model_dump(),
-    )
-    json_print(StatusResponse.model_validate(response.json()))
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        data = vis.api.update_selection(geometry, list(indices))
+        json_print(StatusResponse.model_validate(data))
+        vis.disconnect()
 
 
 @selection_app.command("clear")
@@ -52,10 +52,8 @@ def clear_selection(
     geometry: Annotated[str, typer.Option(help="Geometry key")] = "particles",
 ) -> None:
     """Clear the selection for a geometry."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    request = SelectionUpdateRequest(indices=[])
-    response = conn.put(
-        f"/v1/rooms/{room}/geometries/{geometry}/selection",
-        json=request.model_dump(),
-    )
-    json_print(StatusResponse.model_validate(response.json()))
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        data = vis.api.update_selection(geometry, [])
+        json_print(StatusResponse.model_validate(data))
+        vis.disconnect()

@@ -14,7 +14,7 @@ from zndraw.schemas import (
     StatusResponse,
 )
 
-from .connection import get_connection
+from .connection import cli_error_handler, get_zndraw
 from .output import json_print
 
 figures_app = typer.Typer(name="figures", help="Figure operations")
@@ -26,9 +26,14 @@ def list_figures(
     room: Annotated[str, typer.Argument(help="Room ID")],
 ) -> None:
     """List figures for a room."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    resp = conn.get(f"/v1/rooms/{room}/figures")
-    json_print(CollectionResponse[str].model_validate(resp.json()))
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        resp = vis.api.http.get(
+            f"/v1/rooms/{vis.room}/figures", headers=vis.api._headers()
+        )
+        vis.api.raise_for_status(resp)
+        json_print(CollectionResponse[str].model_validate(resp.json()))
+        vis.disconnect()
 
 
 @figures_app.command("get")
@@ -38,9 +43,14 @@ def get(
     key: Annotated[str, typer.Argument(help="Figure key")],
 ) -> None:
     """Get a figure by key."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    resp = conn.get(f"/v1/rooms/{room}/figures/{key}")
-    json_print(FigureResponse.model_validate(resp.json()))
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        resp = vis.api.http.get(
+            f"/v1/rooms/{vis.room}/figures/{key}", headers=vis.api._headers()
+        )
+        vis.api.raise_for_status(resp)
+        json_print(FigureResponse.model_validate(resp.json()))
+        vis.disconnect()
 
 
 @figures_app.command("set")
@@ -53,11 +63,13 @@ def set_figure(
     ],
 ) -> None:
     """Set a figure by key from a JSON file."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    file_contents = pathlib.Path(file).read_text()
-    request = FigureCreateRequest(figure=FigureData(data=file_contents))
-    resp = conn.post(f"/v1/rooms/{room}/figures/{key}", json=request.model_dump())
-    json_print(FigureCreateResponse.model_validate(resp.json()))
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        file_contents = pathlib.Path(file).read_text()
+        figure_data = FigureData(data=file_contents)
+        vis.api.set_figure(key, figure_data.model_dump())
+        json_print(FigureCreateResponse(key=key, status="ok"))
+        vis.disconnect()
 
 
 @figures_app.command("delete")
@@ -67,6 +79,11 @@ def delete(
     key: Annotated[str, typer.Argument(help="Figure key")],
 ) -> None:
     """Delete a figure by key."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    response = conn.delete(f"/v1/rooms/{room}/figures/{key}")
-    json_print(StatusResponse.model_validate(response.json()))
+    with cli_error_handler():
+        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        resp = vis.api.http.delete(
+            f"/v1/rooms/{vis.room}/figures/{key}", headers=vis.api._headers()
+        )
+        vis.api.raise_for_status(resp)
+        json_print(StatusResponse.model_validate(resp.json()))
+        vis.disconnect()

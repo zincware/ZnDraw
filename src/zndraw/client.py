@@ -17,16 +17,14 @@ import json
 import logging
 import threading
 import uuid
+import warnings
 from collections.abc import (
     Generator,
     Iterable,
     Iterator,
-    Mapping,
-    MutableMapping,
     MutableSequence,
 )
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast, overload
 
 if TYPE_CHECKING:
@@ -44,15 +42,26 @@ from zndraw_joblib.client import ClaimedTask, Extension as JoblibExtension, JobM
 from zndraw_joblib.exceptions import ProviderTimeoutError
 from zndraw_socketio import SyncClientWrapper, wrap
 
+from zndraw.accessors import (
+    Bookmarks,
+    ChatMessages,
+    Extensions,
+    Figures,
+    Geometries,
+    RoomMetadata,
+    ScreenshotImage,
+    Screenshots,
+    SelectionGroups,
+    Selections,
+    Session,
+    Sessions,
+    Tasks,
+)
 from zndraw.enrichment import add_colors, add_radii
 from zndraw.exceptions import PROBLEM_TYPES, ProblemDetail
-from zndraw.geometries import geometries as geometry_models
-from zndraw.geometries.base import BaseGeometry
 from zndraw.geometries.camera import Camera
 
 if TYPE_CHECKING:
-    import plotly.graph_objects as go
-
     from zndraw.extensions.abc import Extension
 
 
@@ -153,38 +162,6 @@ def _estimate_frame_size(frame: dict[str, Any]) -> int:
 # =============================================================================
 # Exceptions
 # =============================================================================
-
-
-@dataclass
-class ScreenshotImage:
-    """Screenshot image with Jupyter display support.
-
-    Parameters
-    ----------
-    data
-        Raw PNG bytes of the captured screenshot.
-    """
-
-    data: bytes = field(repr=False)
-
-    def _repr_png_(self) -> bytes:
-        """Jupyter PNG display hook."""
-        return self.data
-
-    def _repr_html_(self) -> str:
-        """Jupyter HTML display hook (inline base64 image)."""
-        b64 = base64.b64encode(self.data).decode("ascii")
-        return f'<img src="data:image/png;base64,{b64}" />'
-
-    def save(self, path: str | Path) -> None:
-        """Save the screenshot to a file.
-
-        Parameters
-        ----------
-        path
-            File path to save to.
-        """
-        Path(path).write_bytes(self.data)
 
 
 class ZnDrawError(Exception):
@@ -963,6 +940,124 @@ class APIManager:
         )
         self.raise_for_status(response)
 
+    # -------------------------------------------------------------------------
+    # Room Listing (no room_id needed)
+    # -------------------------------------------------------------------------
+
+    def list_rooms(self, search: str | None = None) -> list[dict[str, Any]]:
+        """List all rooms, optionally filtered by search query."""
+        params: dict[str, str] = {}
+        if search is not None:
+            params["search"] = search
+        response = self.http.get(
+            "/v1/rooms",
+            params=params,
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()["items"]
+
+    # -------------------------------------------------------------------------
+    # Chat Listing
+    # -------------------------------------------------------------------------
+
+    def list_chat_messages(
+        self,
+        limit: int | None = None,
+        before: str | None = None,
+    ) -> dict[str, Any]:
+        """List chat messages with optional pagination."""
+        params: dict[str, Any] = {}
+        if limit is not None:
+            params["limit"] = limit
+        if before is not None:
+            params["before"] = before
+        response = self.http.get(
+            f"/v1/rooms/{self.room_id}/chat/messages",
+            params=params,
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()
+
+    # -------------------------------------------------------------------------
+    # Screenshot Listing
+    # -------------------------------------------------------------------------
+
+    def list_screenshots(self) -> list[dict[str, Any]]:
+        """List screenshots for the room."""
+        response = self.http.get(
+            f"/v1/rooms/{self.room_id}/screenshots",
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()["items"]
+
+    # -------------------------------------------------------------------------
+    # Extensions (joblib jobs)
+    # -------------------------------------------------------------------------
+
+    def list_extensions(self, room: str | None = None) -> dict[str, Any]:
+        """List extensions for a job room."""
+        job_room = room or "@internal"
+        response = self.http.get(
+            f"/v1/joblib/rooms/{job_room}/jobs",
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()
+
+    def get_extension(self, full_name: str) -> dict[str, Any]:
+        """Get extension details by full_name."""
+        # full_name is like "@internal:modifiers:Delete"
+        # The job_room is the first segment
+        parts = full_name.split(":", 1)
+        if len(parts) != 2:
+            raise ValueError(f"Invalid extension name: {full_name}")
+        job_room = parts[0]
+        response = self.http.get(
+            f"/v1/joblib/rooms/{job_room}/jobs/{full_name}",
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()
+
+    def submit_task(self, full_name: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Submit a task for an extension."""
+        response = self.http.post(
+            f"/v1/joblib/rooms/{self.room_id}/tasks/{full_name}",
+            json={"payload": payload},
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()
+
+    # -------------------------------------------------------------------------
+    # Tasks
+    # -------------------------------------------------------------------------
+
+    def list_tasks(self, status: str | None = None) -> dict[str, Any]:
+        """List tasks for the room."""
+        params: dict[str, Any] = {}
+        if status is not None:
+            params["status"] = status
+        response = self.http.get(
+            f"/v1/joblib/rooms/{self.room_id}/tasks",
+            params=params,
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()
+
+    def get_task(self, task_id: str) -> dict[str, Any]:
+        """Get task details by ID."""
+        response = self.http.get(
+            f"/v1/joblib/tasks/{task_id}",
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()
+
 
 # =============================================================================
 # SocketManager - WebSocket Real-time Sync
@@ -1092,290 +1187,6 @@ class SocketManager:
 
 
 # =============================================================================
-# Helper Classes - Dict-like Accessors
-# =============================================================================
-
-
-class Selections(MutableMapping[str, tuple[int, ...]]):
-    """Accessor for per-geometry selections."""
-
-    def __init__(self, zndraw: ZnDraw) -> None:
-        self._zndraw = zndraw
-
-    def __getitem__(self, geometry: str) -> tuple[int, ...]:
-        response = self._zndraw.api.get_selection(geometry)
-        return tuple(response.get("selection", []))
-
-    def __setitem__(self, geometry: str, indices: Iterable[int]) -> None:
-        indices_list = list(indices)
-        self._zndraw.api.update_selection(geometry, indices_list)
-
-    def __delitem__(self, geometry: str) -> None:
-        self._zndraw.api.update_selection(geometry, [])
-
-    def __iter__(self):
-        geometries = self._zndraw.api.list_geometries()
-        return iter(geometries.keys())
-
-    def __len__(self) -> int:
-        geometries = self._zndraw.api.list_geometries()
-        return len(geometries)
-
-
-class SelectionGroups(MutableMapping[str, dict[str, list[int]]]):
-    """Accessor for named selection groups."""
-
-    def __init__(self, zndraw: ZnDraw) -> None:
-        self._zndraw = zndraw
-
-    def __getitem__(self, group_name: str) -> dict[str, list[int]]:
-        response = self._zndraw.api.get_selection_group(group_name)
-        return response["group"]
-
-    def __setitem__(self, group_name: str, selections: dict[str, list[int]]) -> None:
-        self._zndraw.api.set_selection_group(group_name, selections)
-
-    def __delitem__(self, group_name: str) -> None:
-        self._zndraw.api.delete_selection_group(group_name)
-
-    def __iter__(self):
-        groups = self._zndraw.api.list_selection_groups()
-        return iter(groups.keys())
-
-    def __len__(self) -> int:
-        groups = self._zndraw.api.list_selection_groups()
-        return len(groups)
-
-
-class Bookmarks(MutableMapping[int, str]):
-    """Accessor for frame bookmarks."""
-
-    def __init__(self, zndraw: ZnDraw) -> None:
-        self._zndraw = zndraw
-
-    def __getitem__(self, index: int) -> str:
-        response = self._zndraw.api.get_bookmark(index)
-        return response["label"]
-
-    def __setitem__(self, index: int, label: str) -> None:
-        self._zndraw.api.set_bookmark(index, label)
-
-    def __delitem__(self, index: int) -> None:
-        self._zndraw.api.delete_bookmark(index)
-
-    def __iter__(self):
-        return iter(int(k) for k in self._zndraw.api.get_all_bookmarks())
-
-    def __len__(self) -> int:
-        return len(self._zndraw.api.get_all_bookmarks())
-
-
-class Geometries(MutableMapping[str, BaseGeometry]):
-    """Accessor for custom geometries via Pydantic models."""
-
-    def __init__(self, zndraw: ZnDraw) -> None:
-        self._zndraw = zndraw
-
-    def __getitem__(self, key: str) -> BaseGeometry:
-        geom = self._zndraw.api.get_geometry(key)
-        if geom is None:
-            raise KeyError(key)
-        model_cls = geometry_models.get(geom["type"])
-        if model_cls is None:
-            raise ValueError(f"Unknown geometry type: {geom['type']}")
-        return model_cls(**geom["data"])
-
-    def __setitem__(self, key: str, value: BaseGeometry) -> None:
-        geometry_type = type(value).__name__
-        if geometry_type not in geometry_models:
-            raise ValueError(f"Unknown geometry type: {geometry_type}")
-        self._zndraw.api.set_geometry(key, geometry_type, value.model_dump())
-
-    def __delitem__(self, key: str) -> None:
-        self._zndraw.api.delete_geometry(key)
-
-    def __iter__(self):
-        return iter(self._zndraw.api.list_geometries().keys())
-
-    def __len__(self) -> int:
-        return len(self._zndraw.api.list_geometries())
-
-
-class Figures(MutableMapping[str, "go.Figure"]):
-    """Accessor for Plotly figures stored on the server.
-
-    Uses ``FigureData`` Pydantic model for serialization/deserialization.
-    """
-
-    def __init__(self, zndraw: ZnDraw) -> None:
-        self._zndraw = zndraw
-
-    def __getitem__(self, key: str) -> go.Figure:
-        from zndraw.schemas import FigureData
-
-        figure = self._zndraw.api.get_figure(key)
-        if figure is None:
-            raise KeyError(key)
-        return FigureData(**figure).to_figure()
-
-    def __setitem__(self, key: str, value: go.Figure) -> None:
-        from zndraw.schemas import FigureData
-
-        self._zndraw.api.set_figure(key, FigureData.from_figure(value).model_dump())
-
-    def __delitem__(self, key: str) -> None:
-        self._zndraw.api.delete_figure(key)
-
-    def __iter__(self):
-        return iter(self._zndraw.api.list_figures())
-
-    def __len__(self) -> int:
-        return len(self._zndraw.api.list_figures())
-
-
-class RoomMetadata(MutableMapping[str, str]):
-    """Accessor for room metadata."""
-
-    def __init__(self, zndraw: ZnDraw) -> None:
-        self._zndraw = zndraw
-
-    def __getitem__(self, key: str) -> str:
-        info = self._zndraw.api.get_room_info()
-        metadata = info.get("metadata", {})
-        if key not in metadata:
-            raise KeyError(key)
-        return metadata[key]
-
-    def __setitem__(self, key: str, value: str) -> None:
-        # Room metadata updates via PATCH
-        raise NotImplementedError("Room metadata updates not yet implemented")
-
-    def __delitem__(self, key: str) -> None:
-        raise NotImplementedError("Room metadata deletion not yet implemented")
-
-    def __iter__(self):
-        info = self._zndraw.api.get_room_info()
-        return iter(info.get("metadata", {}).keys())
-
-    def __len__(self) -> int:
-        info = self._zndraw.api.get_room_info()
-        return len(info.get("metadata", {}))
-
-
-@dataclass
-class Session:
-    """Proxy to a single frontend browser session.
-
-    Validates on creation that the session exists and belongs to the
-    current user (raises ``KeyError`` otherwise). Each subsequent
-    property access is a live HTTP call — no caching.
-    Camera access resolves through ``active_camera``.
-    """
-
-    _api: APIManager = field(repr=False)
-    sid: str
-
-    def __post_init__(self) -> None:
-        """Validate the session exists and belongs to the current user.
-
-        Uses the active-camera endpoint as a lightweight existence check.
-        ``VerifiedSessionDep`` returns 404 for non-existent or non-owned
-        sessions, which ``raise_for_status`` maps to ``KeyError``.
-        """
-        self._api.get_active_camera(self.sid)
-
-    @property
-    def camera(self) -> Camera:
-        """Camera the session is currently viewing through."""
-        key = self.active_camera
-        geom = self._api.get_geometry(key)
-        if geom is None:
-            raise KeyError(f"Camera geometry '{key}' not found")
-        return Camera(**geom["data"])
-
-    @camera.setter
-    def camera(self, value: Camera) -> None:
-        key = self.active_camera
-        self._api.set_geometry(key, "Camera", value.model_dump())
-
-    @property
-    def active_camera(self) -> str:
-        """Geometry key of the camera this session views through."""
-        return self._api.get_active_camera(self.sid)
-
-    @active_camera.setter
-    def active_camera(self, value: str) -> None:
-        self._api.set_active_camera(self.sid, value)
-
-    def screenshot(self, timeout: float = 30.0) -> ScreenshotImage:
-        """Capture a screenshot from this frontend session.
-
-        Requests the frontend to render and upload a screenshot,
-        then polls until the image is ready.
-
-        Parameters
-        ----------
-        timeout
-            Maximum seconds to wait for capture completion.
-
-        Returns
-        -------
-        ScreenshotImage
-            The captured image with Jupyter display support.
-
-        Raises
-        ------
-        TimeoutError
-            If the screenshot is not completed within the timeout.
-        """
-        import time
-
-        result = self._api.create_screenshot_capture(self.sid)
-        screenshot_id = result["id"]
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            data = self._api.get_screenshot(screenshot_id)
-            if data["status"] == "completed" and data["data"] is not None:
-                return ScreenshotImage(data=base64.b64decode(data["data"]))
-            time.sleep(0.2)
-        raise TimeoutError(f"Screenshot not completed within {timeout}s")
-
-    def __str__(self) -> str:
-        return f"Session({self.sid!r})"
-
-
-@dataclass(frozen=True)
-class Sessions(Mapping[str, Session]):
-    """User-scoped mapping of active frontend sessions.
-
-    Read-only: sessions are created by browsers, not Python.
-    """
-
-    _api: APIManager = field(repr=False)
-
-    def __getitem__(self, sid: str) -> Session:
-        return Session(_api=self._api, sid=sid)
-
-    def __contains__(self, key: object) -> bool:
-        if not isinstance(key, str):
-            return False
-        return key in self._api.list_sessions()
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._api.list_sessions())
-
-    def __len__(self) -> int:
-        return len(self._api.list_sessions())
-
-    def __repr__(self) -> str:
-        sids = list(self)
-        return f"Sessions({sids!r})"
-
-    def __str__(self) -> str:
-        return f"Sessions(n={len(self)})"
-
-
-# =============================================================================
 # ZnDraw - Main Client Class
 # =============================================================================
 
@@ -1425,6 +1236,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     room: str | None = None
     user: str | None = None
     password: SecretStr | str | None = None
+    token: str | None = None
     copy_from: str | None = "@none"
     auto_pickup: bool = True
     polling_interval: float = 5.0
@@ -1462,10 +1274,12 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         self.url = self.url.rstrip("/")
 
         # Create API manager
-        self.api = APIManager(url=self.url, room_id=self.room)
+        self.api = APIManager(url=self.url, room_id=self.room, token=self.token)
 
         # Authenticate
-        if self.user is not None:
+        if self.token is not None:
+            pass  # Token already set on APIManager
+        elif self.user is not None:
             pw = self.password  # SecretStr | None after normalization above
             if pw is None:
                 from zndraw.config import Settings
@@ -1642,14 +1456,14 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     def selections(self) -> Selections:
         """Access selections by geometry name."""
         if self._selections is None:
-            self._selections = Selections(self)
+            self._selections = Selections(self.api)
         return self._selections
 
     @property
     def selection_groups(self) -> SelectionGroups:
         """Access named selection groups."""
         if self._selection_groups is None:
-            self._selection_groups = SelectionGroups(self)
+            self._selection_groups = SelectionGroups(self.api)
         return self._selection_groups
 
     @property
@@ -1687,14 +1501,14 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     def bookmarks(self) -> Bookmarks:
         """Access frame bookmarks."""
         if self._bookmarks is None:
-            self._bookmarks = Bookmarks(self)
+            self._bookmarks = Bookmarks(self.api)
         return self._bookmarks
 
     @property
     def geometries(self) -> Geometries:
         """Access custom geometries."""
         if self._geometries is None:
-            self._geometries = Geometries(self)
+            self._geometries = Geometries(self.api)
         return self._geometries
 
     @property
@@ -1717,14 +1531,14 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     def figures(self) -> Figures:
         """Access Plotly figures."""
         if self._figures is None:
-            self._figures = Figures(self)
+            self._figures = Figures(self.api)
         return self._figures
 
     @property
     def metadata(self) -> RoomMetadata:
         """Access room metadata."""
         if self._metadata is None:
-            self._metadata = RoomMetadata(self)
+            self._metadata = RoomMetadata(self.api)
         return self._metadata
 
     @property
@@ -1732,15 +1546,123 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         """Active frontend browser sessions for this user."""
         return Sessions(_api=self.api)
 
+    @property
+    def chat(self) -> ChatMessages:
+        """Chat messages for this room.
+
+        Read-only Sequence with ``.send()`` for posting messages.
+        """
+        return ChatMessages(self.api)
+
+    @property
+    def screenshots(self) -> Screenshots:
+        """Screenshots for this room.
+
+        Read-only Mapping where keys are screenshot IDs.
+        """
+        return Screenshots(self.api)
+
+    @property
+    def extensions(self) -> Extensions:
+        """Available extensions for this room.
+
+        Read-only Mapping where keys are full_names (e.g.
+        ``'@internal:modifiers:Delete'``).
+        """
+        return Extensions(self.api)
+
+    @property
+    def tasks(self) -> Tasks:
+        """Tasks submitted to this room.
+
+        Read-only Mapping where keys are task IDs.
+        Call as ``vis.tasks(status='running')`` for filtered views.
+        """
+        return Tasks(self.api)
+
+    @property
+    def locked(self) -> bool:
+        """Whether the room is locked."""
+        info = self.api.get_room_info()
+        return info.get("locked", False)
+
+    @locked.setter
+    def locked(self, value: bool) -> None:
+        self.api.update_room({"locked": value})
+
     def log(self, message: str) -> None:
         """Send a chat message to the room.
 
+        .. deprecated::
+            Use ``vis.chat.send(message)`` instead.
+        """
+        warnings.warn(
+            "vis.log() is deprecated, use vis.chat.send() instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.chat.send(message)
+
+    # -------------------------------------------------------------------------
+    # Class Methods (server-level, no room needed)
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def list_rooms(
+        cls,
+        url: str,
+        *,
+        token: str | None = None,
+        search: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List all rooms on the server.
+
         Parameters
         ----------
-        message
-            The message content (supports Markdown).
+        url
+            Server URL.
+        token
+            JWT token. If None, creates a guest session.
+        search
+            Optional search filter.
         """
-        self.api.create_chat_message(message)
+        api = APIManager(url=url.rstrip("/"), room_id="", token=token)
+        try:
+            if token is None:
+                api.create_guest_session()
+            return api.list_rooms(search=search)
+        finally:
+            api.close()
+
+    @classmethod
+    def login(
+        cls,
+        url: str,
+        username: str,
+        password: str,
+    ) -> str:
+        """Authenticate and return a JWT token.
+
+        Parameters
+        ----------
+        url
+            Server URL.
+        username
+            User email.
+        password
+            User password.
+
+        Returns
+        -------
+        str
+            JWT access token.
+        """
+        api = APIManager(url=url.rstrip("/"), room_id="")
+        try:
+            data = api.login(username, password)
+            return data["access_token"]
+        finally:
+            api.close()
 
     @property
     def jobs(self) -> JobManager:
