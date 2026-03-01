@@ -16,7 +16,7 @@ class UTCDateTime(TypeDecorator):
     re-attaches UTC on load so consumers never see naive datetimes.
     """
 
-    impl = DateTime
+    impl = DateTime(timezone=True)
     cache_ok = True
 
     def process_result_value(
@@ -43,7 +43,7 @@ class Room(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid_mod.uuid4()), primary_key=True)
     description: str | None = None
     created_by_id: UUID | None = Field(default=None, index=True)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime())
     is_public: bool = Field(default=True)
     locked: bool = Field(default=False)  # Admin lock status
     step: int = Field(default=0)
@@ -66,7 +66,7 @@ class RoomMembership(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     room_id: str = Field(foreign_key="room.id", index=True)
     user_id: UUID = Field(index=True)
-    joined_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    joined_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime())
     role: MemberRole = Field(default=MemberRole.MEMBER)
 
 
