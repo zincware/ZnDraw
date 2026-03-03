@@ -353,6 +353,11 @@ def _create_server_process(
     """
     import os
 
+    from zndraw import config as config_module
+
+    # Reset config singleton for test isolation
+    config_module._config = None
+
     port = _get_free_port()
     storage_path = tmp_path / "zndraw-data"
     redis_url = "redis://localhost:6379"
@@ -425,6 +430,9 @@ def _create_server_process(
             from zndraw.server_manager import remove_server_info
 
             remove_server_info(port)
+
+            # Reset config singleton again for next test
+            config_module._config = None
 
 
 @pytest.fixture
@@ -558,3 +566,55 @@ def joined_room(server, request):
     )
 
     return server, room
+
+
+@pytest.fixture
+def server_provider(tmp_path, redis_client, get_free_port):
+    """Server with restart capability. Use only when testing restart scenarios.
+
+    For normal tests, use `server` or `server_admin_mode` fixtures instead.
+
+    This fixture provides a ServerProvider instance that allows:
+    - Starting/stopping the server
+    - Restarting the server mid-test
+    - Checking server status
+
+    Example
+    -------
+    def test_extension_persistence(server_provider):
+        vis = ZnDraw(url=server_provider.url, room="test")
+        vis.register_extension(MyExt, public=True)
+
+        server_provider.restart()
+
+        # Verify extension re-registers after restart
+        schema = requests.get(f"{server_provider.url}/api/schema/modifiers").json()
+        assert "MyExt" in schema
+    """
+    from server_provider import ServerProvider
+
+    from zndraw import config as config_module
+    from zndraw.server_manager import remove_server_info
+
+    # Reset config singleton for test isolation
+    config_module._config = None
+
+    port = get_free_port()
+    storage_path = tmp_path / "zndraw-provider"
+    storage_path.mkdir()
+    redis_url = "redis://localhost:6379"
+
+    provider = ServerProvider(
+        port=port,
+        storage_path=storage_path,
+        redis_url=redis_url,
+    )
+    provider.start()
+
+    try:
+        yield provider
+    finally:
+        provider.stop()  # Graceful shutdown first
+        redis_client.flushall()
+        remove_server_info(port)
+        config_module._config = None
