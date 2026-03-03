@@ -158,6 +158,14 @@ class ZnDrawConfig(BaseSettings):
         default=False, description="Auto-lock rooms created from CLI file loading"
     )
 
+    # Stale worker cleanup
+    worker_heartbeat_ttl: int = Field(
+        default=60,
+        ge=10,
+        description="TTL in seconds for cluster heartbeat. Workers registered before "
+        "the current heartbeat timestamp are considered stale after server restart.",
+    )
+
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v: str) -> str:

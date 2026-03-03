@@ -186,6 +186,20 @@ def create_app(config: "ZnDrawConfig | None" = None) -> Flask:
     if config.redis_url:
         log.debug(f"Configuring SocketIO with Redis message queue: {config.redis_url}")
         socketio.init_app(app, message_queue=config.redis_url, cors_allowed_origins="*")
+
+        # Initialize cluster heartbeat for stale worker detection
+        from zndraw.app.cluster_heartbeat import ClusterHeartbeat
+
+        heartbeat = ClusterHeartbeat(
+            app.extensions["redis"],
+            ttl_seconds=config.worker_heartbeat_ttl,
+        )
+        heartbeat.start()
+        app.extensions["cluster_heartbeat"] = heartbeat
+        log.debug(
+            f"Cluster heartbeat started (TTL: {config.worker_heartbeat_ttl}s, "
+            f"refresh: {config.worker_heartbeat_ttl // 2}s)"
+        )
     else:
         log.debug("Configuring SocketIO without message queue (single worker mode)")
         socketio.init_app(app, cors_allowed_origins="*")

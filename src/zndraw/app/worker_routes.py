@@ -450,6 +450,7 @@ def register_filesystem():
         "sessionId": session_id,
         "userName": user_name,
         "public": "true" if public else "false",
+        "registration_timestamp": str(utc_now_timestamp()),
     }
 
     with r.pipeline() as pipe:
