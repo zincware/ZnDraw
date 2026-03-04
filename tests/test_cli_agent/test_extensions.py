@@ -145,3 +145,63 @@ def test_extensions_run_with_args(
     assert resp.job_name == "@internal:selections:Range"
     assert resp.payload["start"] == 0
     assert resp.payload["stop"] == 5
+
+
+def test_extensions_run_with_smiles(
+    cli_runner: CliRunner, server_url: str, auth_token: str, test_room: str
+) -> None:
+    """extensions run should accept SMILES strings containing special chars like ( ) =."""
+    result = cli_runner.invoke(
+        app,
+        [
+            "extensions",
+            "run",
+            "--url",
+            server_url,
+            "--token",
+            auth_token,
+            "--room",
+            test_room,
+            "@internal:modifiers:AddFromSMILES",
+            "--smiles",
+            "CC(=O)Oc1ccccc1C(=O)O",  # aspirin
+        ],
+    )
+    assert result.exit_code == 0, (
+        f"exit={result.exit_code}\nstderr={result.stderr}\nstdout={result.stdout}"
+    )
+    data = json.loads(result.stdout)
+    resp = TaskResponse.model_validate(data)
+    assert resp.job_name == "@internal:modifiers:AddFromSMILES"
+    assert resp.payload["smiles"] == "CC(=O)Oc1ccccc1C(=O)O"
+
+
+def test_extensions_run_wait_after_extension_name(
+    cli_runner: CliRunner, server_url: str, auth_token: str, test_room: str
+) -> None:
+    """--wait and --timeout placed after the extension name must be handled by Typer,
+    not consumed as extension payload kwargs."""
+    result = cli_runner.invoke(
+        app,
+        [
+            "extensions",
+            "run",
+            "--url",
+            server_url,
+            "--token",
+            auth_token,
+            "--room",
+            test_room,
+            "@internal:selections:All",
+            "--wait",
+            "--timeout",
+            "30",
+        ],
+    )
+    assert result.exit_code == 0, (
+        f"exit={result.exit_code}\nstderr={result.stderr}\nstdout={result.stdout}"
+    )
+    data = json.loads(result.stdout)
+    resp = TaskResponse.model_validate(data)
+    assert resp.status == "completed"
+    assert resp.payload == {}
