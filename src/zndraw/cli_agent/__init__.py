@@ -12,6 +12,7 @@ from .extensions import extensions_app
 from .figures import figures_app
 from .frames import frames_app
 from .geometries import geometries_app
+from .gif import gif_app
 from .jobs import jobs_app
 from .mount import mount_cmd
 from .presets import presets_app
@@ -40,6 +41,7 @@ app.add_typer(extensions_app, name="extensions")
 app.add_typer(jobs_app, name="jobs")
 app.add_typer(chat_app, name="chat")
 app.add_typer(geometries_app, name="geometries")
+app.add_typer(gif_app, name="gif")
 app.add_typer(bookmarks_app, name="bookmarks")
 app.add_typer(figures_app, name="figures")
 app.add_typer(screenshots_app, name="screenshots")

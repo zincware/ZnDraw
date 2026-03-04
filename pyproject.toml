@@ -83,6 +83,7 @@ exclude = [
 
 [project.optional-dependencies]
 full = ["molify>=0.2.2"]
+gif = ["Pillow>=10.0.0"]
 
 [dependency-groups]
 dev = [

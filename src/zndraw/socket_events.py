@@ -138,6 +138,12 @@ class GeometryInvalidate(BaseModel):
     key: str
 
 
+class ActiveCameraUpdate(BaseModel):
+    """Sent to a specific session when its active camera changes."""
+
+    active_camera: str
+
+
 class DefaultCameraInvalidate(BaseModel):
     """Broadcast when the default camera changes."""
 

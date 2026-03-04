@@ -4325,6 +4325,9 @@ dependencies = [
 full = [
     { name = "molify" },
 ]
+gif = [
+    { name = "pillow" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -4365,6 +4368,7 @@ requires-dist = [
     { name = "msgpack-numpy", specifier = ">=0.4.8" },
     { name = "networkx", specifier = ">=3.6.1" },
     { name = "pandas", specifier = ">=3.0.0" },
+    { name = "pillow", marker = "extra == 'gif'", specifier = ">=10.0.0" },
     { name = "plotly", specifier = ">=6.5.2" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "pyjwt", specifier = ">=2.10.1" },
@@ -4387,7 +4391,7 @@ requires-dist = [
     { name = "zndraw-socketio", specifier = ">=0.1.5" },
     { name = "znh5md", specifier = ">=0.4.8" },
 ]
-provides-extras = ["full"]
+provides-extras = ["full", "gif"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -30,6 +30,7 @@ from zndraw.exceptions import (
     SessionNotFound,
     problem_responses,
 )
+from zndraw.models import RoomGeometry
 from zndraw.redis import RedisKey
 from zndraw.schemas import (
     ActiveCameraRequest,
@@ -39,7 +40,7 @@ from zndraw.schemas import (
     FrameSelectionUpdateResponse,
     StatusResponse,
 )
-from zndraw.socket_events import FrameSelectionUpdate
+from zndraw.socket_events import ActiveCameraUpdate, FrameSelectionUpdate
 
 router = APIRouter(prefix="/v1", tags=["utility"])
 
@@ -162,14 +163,24 @@ async def get_active_camera(
 )
 async def set_active_camera(
     redis: RedisDep,
+    sio: SioDep,
+    session: SessionDep,
     room_id: str,
     session_id: VerifiedSessionDep,
     body: ActiveCameraRequest,
 ) -> ActiveCameraResponse:
     """Set active camera key for a session."""
-    if not await redis.hexists(RedisKey.room_cameras(room_id), body.active_camera):  # type: ignore[misc]
-        raise GeometryNotFound.exception(
-            f"Camera {body.active_camera!r} not found in room"
-        )
+    # Check ephemeral session cameras (Redis) first, then persistent (SQL)
+    in_redis = await redis.hexists(RedisKey.room_cameras(room_id), body.active_camera)  # type: ignore[misc]
+    if not in_redis:
+        row = await session.get(RoomGeometry, (room_id, body.active_camera))
+        if row is None or row.type != "Camera":
+            raise GeometryNotFound.exception(
+                f"Camera {body.active_camera!r} not found in room"
+            )
     await redis.hset(RedisKey.active_cameras(room_id), session_id, body.active_camera)  # type: ignore[misc]
+    await sio.emit(
+        ActiveCameraUpdate(active_camera=body.active_camera),
+        to=session_id,
+    )
     return ActiveCameraResponse(active_camera=body.active_camera)

@@ -8,6 +8,35 @@ import { completeScreenshot } from "../../myapi/client";
 import { socket } from "../../socket";
 import { useAppStore } from "../../store";
 
+/**
+ * Wait until all active geometries finish fetching and one rAF completes.
+ * Mirrors the idle-detection pattern in useFrameLoadTime.ts.
+ */
+function waitForSceneIdle(timeout = 10000): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const timer = setTimeout(
+			() => reject(new Error("Scene idle timeout")),
+			timeout,
+		);
+		const check = () => {
+			const { geometryFetchingStates, geometries } = useAppStore.getState();
+			const anyFetching = Object.entries(geometryFetchingStates).some(
+				([key, isFetching]) => {
+					if (!isFetching) return false;
+					return geometries[key]?.data?.active !== false;
+				},
+			);
+			if (!anyFetching) {
+				clearTimeout(timer);
+				unsub();
+				requestAnimationFrame(() => resolve());
+			}
+		};
+		const unsub = useAppStore.subscribe(() => check());
+		check();
+	});
+}
+
 export function ScreenshotProvider() {
 	const { gl, scene, camera } = useThree();
 	const setScreenshotCapture = useAppStore(
@@ -58,6 +87,7 @@ export function ScreenshotProvider() {
 			}
 
 			try {
+				await waitForSceneIdle();
 				const capture = getCapture();
 				const blob = await capture();
 
