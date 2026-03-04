@@ -10,38 +10,63 @@ description: Use when interacting with a ZnDraw molecular visualization server �
 ZnDraw is an interactive visualization platform for atomistic simulations. Two interaction tools:
 
 1. **`uv run zndraw-cli`** — Typer CLI, structured stdout. For CRUD on rooms, frames, selections, bookmarks, figures, extensions, ... .
-2. **`uv run python -c "..."`** — For computation requiring numpy/ASE/plotly. **Must use the `ZnDraw` Python client** to connect to the server and modify data. Use `uv run --with <dependencies>` to include extra packages.
+2. **`uv run python -c "..."`** — **Last resort** for computation requiring numpy/ASE/plotly that no extension can handle. **Must use the `ZnDraw` Python client** to connect to the server and modify data. Use `uv run --with <dependencies>` to include extra packages.
 
-## Discover First, Never Guess
+## Extensions First — MANDATORY
 
-The CLI is self-documenting. **Always discover before acting:**
+**For ANY action that modifies atoms, creates structures, selects atoms, or runs analysis, you MUST check extensions before writing Python code or using the CLI directly.**
+
+The server has extensions (modifiers, selections, analysis) that handle most tasks. Extensions you don't expect exist — e.g. PackBox for building simulation boxes, various selection methods, analysis tools. **You cannot know what's available without checking.**
+
+**Required workflow for every action task:**
+
+```
+1. uv run zndraw-cli extensions list          # ALWAYS do this first
+2. Scan the list — does an extension match the task?
+   YES → extensions describe NAME → extensions run NAME
+   NO  → Use CLI commands or Python client as fallback
+```
+
+**Do NOT skip step 1.** Even if you think you know how to do it in Python, an extension may do it better, faster, and with proper server-side integration.
+
+**Red flags — STOP and check extensions first:**
+- You're about to write `uv run python -c "..."` for anything other than reading data or making plots
+- You're about to use ASE to build/modify structures programmatically
+- You think "I'll just write a quick script to..."
+- The task involves creating, deleting, duplicating, or transforming atoms
+
+The CLI is self-documenting. Use `--help` on any command to discover options:
 
 ```bash
 uv run zndraw-cli --help                                          # all resource groups
 uv run zndraw-cli frames --help                                   # verbs + options for frames
-uv run zndraw-cli extensions list --room ROOM                     # available extensions (fully qualified names)
-uv run zndraw-cli extensions describe --room ROOM NAME            # parameter schema
-uv run zndraw-cli frames get --room ROOM 0                        # inspect one frame to learn the data shape
+uv run zndraw-cli frames get 0                                    # inspect one frame to learn the data shape
 ```
 
-Extension names are fully qualified (e.g. `@internal:modifiers:Delete`). Never hardcode names — they vary per server. Run `extensions list` then `extensions describe` to learn parameters before `extensions run`.
+Extension names are fully qualified (e.g. `@internal:modifiers:Delete`). Never hardcode names — they vary per server.
 
-## Connection
+## Connection & Session Setup
 
 Both `uv run zndraw-cli` and the Python client require a **running ZnDraw server**. Start one with `uv run zndraw` if none is running. Verify with `uv run zndraw-cli rooms list` (exit code 0 = server reachable).
 
+**At the start of every session, set the room once.** All commands with `--room` read from `ZNDRAW_ROOM` automatically — never pass `--room` manually after this.
+
 ```bash
-# Auto-discovers running server + creates guest token
+# Discover rooms
 uv run zndraw-cli rooms list
 
-# Explicit (--url, --token, --room are per-subcommand options)
-uv run zndraw-cli rooms list --url http://localhost:8000 --token TOKEN
+# Set room for all subsequent commands — do this ONCE
+export ZNDRAW_ROOM=<room-id>
 
-# Env vars: ZNDRAW_URL, ZNDRAW_TOKEN, ZNDRAW_ROOM
-# When working on a single room, export ZNDRAW_ROOM to avoid repeating it
-export ZNDRAW_ROOM=my-room-id
-uv run zndraw-cli frames count
+# All commands now use this room automatically
+uv run zndraw-cli frames count          # no --room needed
+uv run zndraw-cli extensions list       # no --room needed
+uv run zndraw-cli step get              # no --room needed
 ```
+
+For explicit server connection: `uv run zndraw-cli rooms list --url http://localhost:8000 --token TOKEN`
+
+Env vars: `ZNDRAW_URL`, `ZNDRAW_TOKEN`, `ZNDRAW_ROOM`
 
 ## Authentication
 
@@ -50,36 +75,70 @@ The CLI auto-discovers tokens in this order:
 2. Stored token in `~/.zndraw/tokens.json` (validated on use, removed on 401)
 3. Guest token (anonymous fallback)
 
-To use your browser identity from the CLI (required for screenshots and session control):
-
 ```bash
-# Regular user: browser-based login (opens browser for approval)
-uv run zndraw-cli auth login
-
-# Login to a specific server (--url is a per-subcommand option)
-uv run zndraw-cli auth login --url http://myserver:8000
-
-# Check current identity and admin status
-uv run zndraw-cli auth status
-
-# Remove stored token
-uv run zndraw-cli auth logout
+uv run zndraw-cli auth status           # check current identity
+uv run zndraw-cli auth login            # browser-based login (see below)
+uv run zndraw-cli auth logout           # remove stored token
 ```
 
 For admin users who need to act as another user:
 
 ```bash
-# Check if you're admin
-uv run zndraw-cli auth status    # look for "is_superuser": true
-
-# List all users
+uv run zndraw-cli auth status           # look for "is_superuser": true
 uv run zndraw-cli admin users list
-
-# Login as another user (mints a token)
 uv run zndraw-cli admin users login USER_ID
 ```
 
 After `auth login` or `admin users login`, the token is stored in `~/.zndraw/tokens.json` and automatically used for all subsequent CLI commands — no `--token` needed.
+
+## Screenshots, GIFs & Browser Sessions
+
+Screenshots and GIF capture require **two prerequisites**:
+1. **You must be logged in as the user** (not as a guest)
+2. **The user must have the room open in their browser**
+
+### Auth login is INTERACTIVE — you CANNOT approve it yourself
+
+`auth login` opens a browser window where **the human user must click "Approve"**. This is a device-code flow — the CLI prints a code and waits up to 5 minutes for browser approval.
+
+**You MUST NOT** use Playwright, Selenium, or any browser automation to approve the login — no programmatic workarounds.
+- Attempt to create sessions or capture screenshots without proper auth
+**Required workflow for screenshots/GIFs:**
+
+```bash
+# 1. Check if already logged in
+uv run zndraw-cli auth status
+# Look for "token_source": "stored" — means you're logged in
+
+# 2. If NOT logged in: start login and ASK THE USER to approve
+uv run zndraw-cli auth login
+# ⚠️ STOP HERE — tell the user: "Please approve the login in your browser window"
+# WAIT for the user to confirm they approved it
+
+# 3. Verify login succeeded
+uv run zndraw-cli auth status
+
+# 4. Ensure room is open in user's browser, then capture
+uv run zndraw-cli screenshots request           # single screenshot
+uv run zndraw-cli gif capture --orbit -o out.gif # orbit GIF
+```
+
+**If `auth status` shows `token_source: "stored"`, skip steps 2-3** — you're already logged in.
+
+### GIF capture tips
+
+- **Hide helper geometries before capture** — curves, helper lines, etc. are visible in GIFs. Toggle them off first:
+  ```bash
+  uv run zndraw-cli geometries toggle my-curve    # hide before capture
+  uv run zndraw-cli gif capture --curve my-curve --curve-step 0.02 -o out.gif
+  uv run zndraw-cli geometries toggle my-curve    # show again after
+  ```
+- **Use presets for visual styles** — don't manually create PathTracing/lighting geometries. Use `preset apply pathtracing` instead.
+- **Increase `--delay` for path tracing** — default `0.02s` is too fast for path tracing to converge. Use `--delay 0.5` or higher:
+  ```bash
+  uv run zndraw-cli preset apply pathtracing
+  uv run zndraw-cli gif capture --orbit --delay 0.5 -o pathtraced.gif
+  ```
 
 ## CLI Quick Reference
 
@@ -102,6 +161,7 @@ Use `<command> --help` for full options. Key patterns:
 | `geometries` | `list`, `get`, `set`, `delete`, `toggle`, `set-prop`, `types`, `describe` |
 | `preset` | `list`, `get`, `load`, `apply`, `save`, `export`, `delete`, `reset` |
 | `screenshots` | `list`, `request`, `get` |
+| `gif` | `capture` |
 | `sessions` | `list`, `get-camera`, `set-camera` |
 | Standalone | `mount FILE` |
 
@@ -129,54 +189,48 @@ Use `<command> --help` for full options. Key patterns:
 
 ```bash
 # 1. Discover what's available
-uv run zndraw-cli extensions list --room ROOM
+uv run zndraw-cli extensions list
 
-# 2. Get parameter schema for the extension you need
-uv run zndraw-cli extensions describe --room ROOM "@internal:modifiers:AddFromSMILES"
+# 2. Get parameter schema — shows exact --flag names and types
+uv run zndraw-cli extensions describe "@internal:modifiers:AddFromSMILES"
+# Output tells you: --smiles (str), --optimize (bool), etc.
 
-# 3. Run with --key value flags (returns task JSON immediately)
-uv run zndraw-cli extensions run --room ROOM "@internal:modifiers:AddFromSMILES" --smiles "CCO"
+# 3. Run with --key value flags matching the schema (NOT --params JSON)
+uv run zndraw-cli extensions run "@internal:modifiers:AddFromSMILES" --smiles "CCO"
 
 # 3b. Run and block until completed (preferred)
-uv run zndraw-cli extensions run --room ROOM "@internal:selections:All" --wait --timeout 30
+uv run zndraw-cli extensions run "@internal:selections:All" --wait --timeout 30
 
 # 4. Manual polling fallback (if not using --wait)
 uv run zndraw-cli jobs status JOB_ID
 ```
 
+**Important:** Extension parameters are passed as `--flag value` pairs (from `describe` output), NOT as `--params '{"key": "value"}'` JSON.
+
 Three extension categories exist: **modifiers** (edit atoms), **selections** (pick atoms), **analysis** (create plots). Discover which are available via `extensions list`.
 
-**Note:** Custom extensions registered via `vis.register_job()` are scoped to the room they were registered in. Built-in extensions (`@internal:...`) are available in all rooms.
-
-**Known limitation:** Custom extensions registered via `register_job()` are currently not discoverable via `extensions list` / `extensions describe`. Only `@internal:*` extensions appear. Use string dispatch (`vis.run("@internal:...")`) for built-in extensions.
+**Note:** Custom extensions registered via `vis.register_job()` are scoped to the room they were registered in.
 
 ## Visual Presets
 
 Named visual styles (materials, lighting, fog) that can be applied to room geometries. Bundled presets (`matt`, `flat`, `glossy`, `pathtracing`) are always available in every room without needing to be created. Creating a room-level preset with the same name overrides the bundled one; deleting the override makes the bundled version reappear.
 
 ```bash
-# List presets in a room
-uv run zndraw-cli preset list --room ROOM
-
-# Apply a bundled or custom preset
-uv run zndraw-cli preset apply --room ROOM matt
-
-# Reset all geometries to factory defaults
-uv run zndraw-cli preset reset --room ROOM
-
-# Save current geometry state as a new preset
-uv run zndraw-cli preset save --room ROOM my-style -p "particles*" -p "fog" -p "*light*"
-
-# Export/import presets as JSON for sharing
-uv run zndraw-cli preset export --room ROOM my-style ./my-style.json
-uv run zndraw-cli preset load --room ROOM ./my-style.json
+uv run zndraw-cli preset list                                     # list presets
+uv run zndraw-cli preset apply matt                               # apply bundled preset
+uv run zndraw-cli preset reset                                    # reset to factory defaults
+uv run zndraw-cli preset save my-style -p "particles*" -p "fog"   # save current state
+uv run zndraw-cli preset export my-style ./my-style.json          # export for sharing
+uv run zndraw-cli preset load ./my-style.json                     # import from file
 ```
 
 Presets use fnmatch patterns (`particles*`, `*light*`, `fog`) and optional `geometry_type` filters to target specific geometries. Rules are deep-merged — only specified config keys are overridden.
 
 ## Python Scripting with ZnDraw Client
 
-When the CLI alone isn't enough (filtering, math, custom analysis, Plotly figures), use `uv run python -c "..."` with the **`ZnDraw` Python client**. It connects to the server and provides a `MutableSequence[ase.Atoms]` interface.
+**Only use Python when no extension covers the task** — typically for custom data reads, math, filtering, or Plotly figures. If you haven't run `extensions list` yet, do that first.
+
+Use `uv run python -c "..."` with the **`ZnDraw` Python client**. It connects to the server and provides a `MutableSequence[ase.Atoms]` interface.
 
 ```python
 from zndraw import ZnDraw, Extension, Category
@@ -224,11 +278,7 @@ vis.tasks("running")             # filtered view
 vis.sessions                     # Mapping[str, Session] (all users in room)
 list(vis.sessions)               # list of session SIDs
 
-# Screenshots (requires own browser session in the room)
-# Screenshots can only be captured for sessions belonging to the authenticated
-# user. The Python client creates a new guest user by default — use `token=`
-# or the stored CLI token (after `auth login`) to share identity with your
-# browser session.
+# Screenshots (requires own browser session — see "Screenshots, GIFs" section)
 sids = list(vis.sessions)           # list active session SIDs
 session = vis.sessions[sids[0]]     # get a session by SID
 img = session.screenshot()          # capture screenshot (own sessions only)
@@ -279,7 +329,9 @@ vis.figures['energy'] = fig
 "
 ```
 
-### Select atoms by element
+### Select atoms by element (Python fallback)
+
+Only use this if `extensions list` shows no suitable selection extension (e.g. no ByElement/BySymbol):
 
 ```bash
 uv run python -c "
@@ -290,7 +342,9 @@ vis.selection = [i for i, s in enumerate(atoms.get_chemical_symbols()) if s == '
 "
 ```
 
-### Compute RDF with ASE
+### Compute RDF (Python fallback)
+
+Only use if `extensions list` shows no RDF analysis extension:
 
 ```bash
 uv run python -c "
@@ -310,12 +364,8 @@ vis.figures['rdf'] = fig
 For large files that support sliced access (`.h5`, `.lmdb`, `.zarr`,`.db`), use `mount` — frames are served lazily on demand.
 
 ```bash
-# Mount into a new room (auto-generated ID)
-uv run zndraw-cli mount trajectory.h5
-
-# Mount into a new specific room
-uv run zndraw-cli mount trajectory.h5 --room my-room-id
-
+uv run zndraw-cli mount trajectory.h5                 # new room (auto-generated ID)
+uv run zndraw-cli mount trajectory.h5 --room my-room  # specific room
 # Output: {"room_id": "...", "url": "http://...", "frame_count": 50000}
 ```
 This command keeps serving frames until Ctrl+C is pressed.
@@ -326,56 +376,65 @@ This command keeps serving frames until Ctrl+C is pressed.
 Each browser session has an active camera. Use session commands to manage cameras:
 
 ```bash
-# List sessions to find SIDs
-uv run zndraw-cli sessions list --room ROOM
-
-# Get a session's current camera
-uv run zndraw-cli sessions get-camera --room ROOM SESSION_ID
-
-# Switch a session's camera (geometry key must be a Camera type)
-uv run zndraw-cli sessions set-camera --room ROOM SESSION_ID my-camera
+uv run zndraw-cli sessions list                          # find SIDs
+uv run zndraw-cli sessions get-camera SESSION_ID         # current camera
+uv run zndraw-cli sessions set-camera SESSION_ID my-cam  # switch camera
 ```
 
 Camera geometries can be partially updated like any geometry:
 ```bash
-# Adjust just the FOV without resetting position
-uv run zndraw-cli geometries set --room ROOM my-camera --data '{"fov": 45}'
+uv run zndraw-cli geometries set my-camera --data '{"fov": 45}'
 ```
 
 ## Task Mapping
 
+**For any task that modifies atoms or structures:** always `extensions list` first, then pick the right approach.
+
 | User request | Approach |
 |-------------|----------|
-| "jump to frame 42" | `uv run zndraw-cli step set --room ROOM 42` |
-| "how many frames?" | `uv run zndraw-cli frames count --room ROOM` |
-| "select all hydrogens" | Python: `vis.selection = [i for i, s in ...]` |
+| "build a box / pack molecules" | `extensions list` → find PackBox or similar → `describe` → `run` |
+| "delete selected atoms" | `extensions list` → find Delete modifier → `describe` → `run` |
+| "add a molecule" | `extensions list` → find AddFromSMILES → `describe` → `run` with params |
+| "show me aspirin / molecule" | `extensions list` → find AddFromSMILES → `describe` → `run --smiles "..."` |
+| "select all hydrogens" | `extensions list` → check for element selection extension first; fallback: Python `vis.selection = [...]` |
+| "duplicate / replicate atoms" | `extensions list` → find Replicate or similar → `describe` → `run` |
+| "compute RDF / analysis" | `extensions list` → check for analysis extension first; fallback: Python ASE + Plotly |
+| "jump to frame 42" | `uv run zndraw-cli step set 42` |
+| "how many frames?" | `uv run zndraw-cli frames count` |
 | "bookmark high-energy frames" | Python: iterate `vis`, set `vis.bookmarks[i]` |
 | "plot energy over time" | Python: `vis.get(...)` + Plotly → `vis.figures[...]` |
-| "compute RDF / analysis" | Python: `vis[:]` + ASE Analysis → `vis.figures[...]` |
-| "delete selected atoms" | `extensions describe` the Delete modifier → `extensions run` |
-| "add a molecule" | `extensions describe` AddFromSMILES → `extensions run` with params |
-| "show me aspirin / molecule" | `extensions list` → find AddFromSMILES → `extensions describe` → `extensions run --smiles "..."` |
 | "visualize this large H5 file" | `uv run zndraw-cli mount trajectory.h5` (lazy) |
-| "open / show the room" | `uv run zndraw-cli rooms open --room ROOM` |
-| "lock the room" | `uv run zndraw-cli rooms lock --room ROOM` or Python: `vis.locked = True` |
-| "send a chat message" | `uv run zndraw-cli chat send --room ROOM "msg"` or Python: `vis.chat.send("msg")` |
-| "take a screenshot" | `auth login` first, then `screenshots request --room ROOM` (CLI)|
-| "list browser sessions" | `uv run zndraw-cli sessions list --room ROOM` (shows all users' sessions) |
+| "open / show the room" | `uv run zndraw-cli rooms open` |
+| "lock the room" | `uv run zndraw-cli rooms lock` or Python: `vis.locked = True` |
+| "send a chat message" | `uv run zndraw-cli chat send "msg"` or Python: `vis.chat.send("msg")` |
+| "take a screenshot" | Check `auth status` → `auth login` if needed (ask user to approve in browser) → `screenshots request` |
+| "create a GIF / orbit animation" | Check `auth status` → `auth login` if needed (ask user) → ensure room open in browser → `gif capture --orbit -o out.gif` |
+| "create a path-traced GIF" | `preset apply pathtracing` → `gif capture --orbit --delay 0.5 -o out.gif` |
+| "GIF along a camera path" | Create curve → `geometries toggle CURVE` to hide → `gif capture --curve CURVE ...` → toggle CURVE back |
+| "list browser sessions" | `uv run zndraw-cli sessions list` |
 | "who am I / admin check" | `uv run zndraw-cli auth status` |
-| "apply matt style" | `uv run zndraw-cli preset apply --room ROOM matt` or Python: `vis.presets.apply("matt")` |
-| "reset to defaults" | `uv run zndraw-cli preset reset --room ROOM` or Python: `vis.presets.apply("@default")` |
-| "save current look as preset" | `uv run zndraw-cli preset save --room ROOM my-style -p "particles*" -p "fog"` |
-| "share a preset" | `uv run zndraw-cli preset export --room ROOM my-style ./my-style.json` |
-| "toggle fog off" | `uv run zndraw-cli geometries toggle --room ROOM fog` |
-| "make particles transparent" | `uv run zndraw-cli geometries set-prop --room ROOM particles material.opacity 0.5` |
-| "run extension and wait" | `extensions run --room ROOM EXT --wait` or Python: `vis.run(EXT).wait()` |
-| "what can I do?" | `extensions list --room ROOM` + `--help` on each resource group |
+| "apply matt style" | `uv run zndraw-cli preset apply matt` or Python: `vis.presets.apply("matt")` |
+| "reset to defaults" | `uv run zndraw-cli preset reset` or Python: `vis.presets.apply("@default")` |
+| "save current look as preset" | `uv run zndraw-cli preset save my-style -p "particles*" -p "fog"` |
+| "share a preset" | `uv run zndraw-cli preset export my-style ./my-style.json` |
+| "toggle fog off" | `uv run zndraw-cli geometries toggle fog` |
+| "make particles transparent" | `uv run zndraw-cli geometries set-prop particles material.opacity 0.5` |
+| "run extension and wait" | `extensions run EXT --wait` or Python: `vis.run(EXT).wait()` |
+| "what can I do?" | `extensions list` + `--help` on each resource group |
 
 ## Common Mistakes
 
+- **Writing Python before checking extensions** — the #1 mistake. An extension likely already does what you're about to script. `extensions list` takes 1 second; writing+debugging a Python script takes minutes. Always check first.
+- **Trying to automate `auth login` approval** — `auth login` opens a browser for the **human user** to approve. You CANNOT use Playwright, Selenium, or any automation. Ask the user to approve in their browser and wait for confirmation.
+- **Screenshots/GIFs without login** — guest tokens create a different user identity than the browser session. You must `auth login` first, and the user must have the room open in their browser.
+- **Repeating `--room` on every command** — set `export ZNDRAW_ROOM=...` once at session start. Never pass `--room` manually after that.
 - **Running bare `zndraw-cli`** — always use `uv run zndraw-cli`; the binary is not on PATH
-- **Guessing extension names/params** — always `list` then `describe` first
+- **Guessing extension names/params** — extensions change per server and per room. Always `list` then `describe` first; never assume you know what's available.
 - **Fetching everything** — use `vis.get(..., keys=[...])` or CLI `--keys` to limit data
 - **Not waiting for tasks** — use `--wait` flag or Python `task.wait()` instead of manual polling
 - **Wrong room** — `rooms list` to discover, don't guess UUIDs
 - **Piping CLI to Python for mutations** — use the `ZnDraw` client instead; it connects directly and handles serialization
+- **Leaving helper geometries visible in GIFs** — curves, helper lines show up in captures. Toggle them off with `geometries toggle KEY` before `gif capture`.
+- **Manual path tracing setup** — use `preset apply pathtracing`, not manual `geometries set --type PathTracing`. Presets are single-command and correct.
+- **Default `--delay` with path tracing** — `0.02s` produces noisy frames. Use `--delay 0.5` or higher for path tracing to accumulate samples.
+- **`screenshots get` instead of `screenshots request`** — `get ID` downloads an existing screenshot by its database ID. `request` captures a new one.

@@ -208,6 +208,7 @@ max-args = 10  # Allow up to 10 args for FastAPI endpoints
 
 [tool.uv.sources]
 asebytes = { path = "../asebytes", editable = true }
+zndraw-joblib = { path = "../zndraw-joblib", editable = true }
 
 [tool.ruff.format]
 quote-style = "double"

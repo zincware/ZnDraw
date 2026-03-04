@@ -488,6 +488,7 @@ export interface JobSummary {
 	full_name: string;
 	category: string;
 	name: string;
+	description: string | null;
 	workers: string[];
 }
 

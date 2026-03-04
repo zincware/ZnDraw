@@ -52,7 +52,7 @@ class PackBox(Extension):
         default=[],
         json_schema_extra={"x-custom-type": "smiles-pack-array"},
     )
-    density: float = Field(1.0, ge=0.0)
+    density: float = Field(1000, ge=0.0, description="Density in g/L")
 
     def run(self, vis: t.Any, **kwargs: t.Any) -> None:
         import molify
