@@ -43,7 +43,7 @@ uv run zndraw-cli frames --help                                   # verbs + opti
 uv run zndraw-cli frames get 0                                    # inspect one frame to learn the data shape
 ```
 
-Extension names are fully qualified (e.g. `@internal:modifiers:Delete`). Never hardcode names — they vary per server.
+Extension names are fully qualified (e.g. `@internal:modifiers:Delete`). Always quote them in shell commands (`@` and `:` may trigger shell expansion). Never hardcode names — they vary per server.
 
 ## Connection & Session Setup
 
@@ -130,7 +130,7 @@ uv run zndraw-cli gif capture --orbit -o out.gif # orbit GIF
 - **Hide helper geometries before capture** — curves, helper lines, etc. are visible in GIFs. Toggle them off first:
   ```bash
   uv run zndraw-cli geometries toggle my-curve    # hide before capture
-  uv run zndraw-cli gif capture --curve my-curve --curve-step 0.02 -o out.gif
+  uv run zndraw-cli gif capture --curve my-curve --curve-step 0.02 -o out.gif  # smaller step = more frames
   uv run zndraw-cli geometries toggle my-curve    # show again after
   ```
 - **Use presets for visual styles** — don't manually create PathTracing/lighting geometries. Use `preset apply pathtracing` instead.
@@ -361,7 +361,7 @@ vis.figures['rdf'] = fig
 ```
 
 ## Mounting Large Files
-For large files that support sliced access (`.h5`, `.lmdb`, `.zarr`,`.db`), use `mount` — frames are served lazily on demand.
+For large files that support sliced access (`.h5`, `.lmdb`, `.zarr`, `.db`), use `mount` — frames are served lazily on demand.
 
 ```bash
 uv run zndraw-cli mount trajectory.h5                 # new room (auto-generated ID)
@@ -388,8 +388,6 @@ uv run zndraw-cli geometries set my-camera --data '{"fov": 45}'
 
 ## Task Mapping
 
-**For any task that modifies atoms or structures:** always `extensions list` first, then pick the right approach.
-
 | User request | Approach |
 |-------------|----------|
 | "build a box / pack molecules" | `extensions list` → find PackBox or similar → `describe` → `run` |
@@ -410,7 +408,7 @@ uv run zndraw-cli geometries set my-camera --data '{"fov": 45}'
 | "take a screenshot" | Check `auth status` → `auth login` if needed (ask user to approve in browser) → `screenshots request` |
 | "create a GIF / orbit animation" | Check `auth status` → `auth login` if needed (ask user) → ensure room open in browser → `gif capture --orbit -o out.gif` |
 | "create a path-traced GIF" | `preset apply pathtracing` → `gif capture --orbit --delay 0.5 -o out.gif` |
-| "GIF along a camera path" | Create curve → `geometries toggle CURVE` to hide → `gif capture --curve CURVE ...` → toggle CURVE back |
+| "GIF along a camera path" | Curve must exist as a geometry (created via UI or `geometries set`) → `geometries toggle CURVE` to hide → `gif capture --curve CURVE ...` → toggle CURVE back |
 | "list browser sessions" | `uv run zndraw-cli sessions list` |
 | "who am I / admin check" | `uv run zndraw-cli auth status` |
 | "apply matt style" | `uv run zndraw-cli preset apply matt` or Python: `vis.presets.apply("matt")` |
