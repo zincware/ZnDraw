@@ -99,8 +99,8 @@ Use `<command> --help` for full options. Key patterns:
 | `chat` | `list`, `send` |
 | `extensions` | `list`, `describe`, `run` |
 | `jobs` | `list`, `status` |
-| `geometries` | `list`, `get`, `set`, `delete`, `types`, `describe` |
-| `preset` | `list`, `get`, `load`, `apply`, `save`, `export`, `delete` |
+| `geometries` | `list`, `get`, `set`, `delete`, `toggle`, `set-prop`, `types`, `describe` |
+| `preset` | `list`, `get`, `load`, `apply`, `save`, `export`, `delete`, `reset` |
 | `screenshots` | `list`, `request`, `get` |
 | `sessions` | `list`, `get-camera`, `set-camera` |
 | Standalone | `mount FILE` |
@@ -116,13 +116,16 @@ Use `<command> --help` for full options. Key patterns:
 **Chat tips:**
 - `send` has full markdown support
 - Use single quotes for messages with special characters: `'Hello!'`
+- Escape sequences `\n` and `\t` are processed — `send 'line1\nline2'` produces a multi-line message
 - Send relevant updates to the chat in addition to printing them.
 
 **Geometry tips:**
 - `set KEY --data '{"resolution": 32}'` without `--type` performs a partial update (PATCH, deep merge)
 - `set KEY --type Sphere --data '{...}'` with `--type` performs a full replace (PUT)
+- `toggle KEY` flips a geometry's `active` state (on/off)
+- `set-prop KEY material.opacity 0.5` sets a single property using dot notation (builds nested PATCH)
 
-## Extensions: Discover → Describe → Run → Poll
+## Extensions: Discover → Describe → Run
 
 ```bash
 # 1. Discover what's available
@@ -131,11 +134,13 @@ uv run zndraw-cli extensions list --room ROOM
 # 2. Get parameter schema for the extension you need
 uv run zndraw-cli extensions describe --room ROOM "@internal:modifiers:AddFromSMILES"
 
-# 3. Run with --key value flags
-#    Returns {"job_id": "abc123", "status": "pending"}
+# 3. Run with --key value flags (returns task JSON immediately)
 uv run zndraw-cli extensions run --room ROOM "@internal:modifiers:AddFromSMILES" --smiles "CCO"
 
-# 4. Poll for completion (job_id is global, no room needed)
+# 3b. Run and block until completed (preferred)
+uv run zndraw-cli extensions run --room ROOM "@internal:selections:All" --wait --timeout 30
+
+# 4. Manual polling fallback (if not using --wait)
 uv run zndraw-cli jobs status JOB_ID
 ```
 
@@ -156,6 +161,9 @@ uv run zndraw-cli preset list --room ROOM
 # Apply a bundled or custom preset
 uv run zndraw-cli preset apply --room ROOM matt
 
+# Reset all geometries to factory defaults
+uv run zndraw-cli preset reset --room ROOM
+
 # Save current geometry state as a new preset
 uv run zndraw-cli preset save --room ROOM my-style -p "particles*" -p "fog" -p "*light*"
 
@@ -171,7 +179,7 @@ Presets use fnmatch patterns (`particles*`, `*light*`, `fog`) and optional `geom
 When the CLI alone isn't enough (filtering, math, custom analysis, Plotly figures), use `uv run python -c "..."` with the **`ZnDraw` Python client**. It connects to the server and provides a `MutableSequence[ase.Atoms]` interface.
 
 ```python
-from zndraw import ZnDraw
+from zndraw import ZnDraw, Extension, Category
 vis = ZnDraw(room="ROOM")
 # After `zndraw-cli auth login`, stored token is auto-discovered — no --token needed
 # Or with explicit url and token: ZnDraw(url=..., room=..., token="JWT_TOKEN")
@@ -197,16 +205,19 @@ vis.chat[0]                      # read message (Sequence)
 # Room state
 vis.locked = True                # lock/unlock room
 
-# Run extensions — string name + kwargs (recommended)
-task_id = vis.run("@internal:modifiers:Delete")
-task_id = vis.run("@internal:modifiers:AddFromSMILES", smiles="CCO")
+# Run extensions — returns TaskHandle
+task = vis.run("@internal:modifiers:Delete")
+task = vis.run("@internal:modifiers:AddFromSMILES", smiles="CCO")
+task.wait(timeout=30)            # block until completed/failed
+task.status                      # "pending" | "running" | "completed" | "failed"
+task.id                          # task ID string
 
 # Discovery
 list(vis.extensions)                                    # all extension names
 vis.extensions["@internal:modifiers:Delete"]["schema"]   # parameter schema
 
-# Poll task
-vis.tasks[task_id]               # TaskResponse
+# Task handles
+vis.tasks[task_id]               # TaskHandle (with .wait(), .status, .id)
 vis.tasks("running")             # filtered view
 
 # Sessions — room-scoped Mapping of active browser sessions
@@ -227,6 +238,7 @@ img.save("frame.png")               # save to file
 # Visual Presets — MutableMapping[str, Preset]
 list(vis.presets)                 # list preset names
 vis.presets.apply("matt")        # apply preset to room geometries
+vis.presets.apply("@default")    # reset all geometries to factory defaults
 vis.presets.load(Path("f.json")) # load preset from JSON file
 vis.presets.export("pub", Path("out.json"))  # export to file
 vis.presets["custom"] = Preset(name="custom", rules=[...])
@@ -351,8 +363,12 @@ uv run zndraw-cli geometries set --room ROOM my-camera --data '{"fov": 45}'
 | "list browser sessions" | `uv run zndraw-cli sessions list --room ROOM` (shows all users' sessions) |
 | "who am I / admin check" | `uv run zndraw-cli auth status` |
 | "apply matt style" | `uv run zndraw-cli preset apply --room ROOM matt` or Python: `vis.presets.apply("matt")` |
+| "reset to defaults" | `uv run zndraw-cli preset reset --room ROOM` or Python: `vis.presets.apply("@default")` |
 | "save current look as preset" | `uv run zndraw-cli preset save --room ROOM my-style -p "particles*" -p "fog"` |
 | "share a preset" | `uv run zndraw-cli preset export --room ROOM my-style ./my-style.json` |
+| "toggle fog off" | `uv run zndraw-cli geometries toggle --room ROOM fog` |
+| "make particles transparent" | `uv run zndraw-cli geometries set-prop --room ROOM particles material.opacity 0.5` |
+| "run extension and wait" | `extensions run --room ROOM EXT --wait` or Python: `vis.run(EXT).wait()` |
 | "what can I do?" | `extensions list --room ROOM` + `--help` on each resource group |
 
 ## Common Mistakes
@@ -360,6 +376,6 @@ uv run zndraw-cli geometries set --room ROOM my-camera --data '{"fov": 45}'
 - **Running bare `zndraw-cli`** — always use `uv run zndraw-cli`; the binary is not on PATH
 - **Guessing extension names/params** — always `list` then `describe` first
 - **Fetching everything** — use `vis.get(..., keys=[...])` or CLI `--keys` to limit data
-- **Not polling jobs** — `extensions run` returns a `job_id`; check `jobs status JOB_ID` for completion
+- **Not waiting for tasks** — use `--wait` flag or Python `task.wait()` instead of manual polling
 - **Wrong room** — `rooms list` to discover, don't guess UUIDs
 - **Piping CLI to Python for mutations** — use the `ZnDraw` client instead; it connects directly and handles serialization

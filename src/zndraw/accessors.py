@@ -561,6 +561,37 @@ class Extensions(Mapping[str, dict[str, Any]]):
 # =============================================================================
 
 
+@dataclass
+class TaskHandle:
+    """Handle for a submitted task with polling support."""
+
+    id: str
+    _api: APIManager = field(repr=False)
+
+    @property
+    def status(self) -> str:
+        """Current task status."""
+        return self._fetch().status
+
+    def wait(self, *, timeout: float = 300, poll: float = 0.5) -> TaskHandle:
+        """Poll until completed/failed. Returns self. Raises TimeoutError."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            data = self._fetch()
+            if data.status in ("completed", "failed"):
+                return self
+            time.sleep(poll)
+        raise TimeoutError(f"Task {self.id} did not complete within {timeout}s")
+
+    def _fetch(self) -> Any:
+        from zndraw_joblib.schemas import TaskResponse
+
+        return TaskResponse.model_validate(self._api.get_task(self.id))
+
+    def __str__(self) -> str:
+        return self.id
+
+
 class Tasks(Mapping[str, Any]):
     """Read-only mapping of tasks by ID with callable filter.
 
@@ -577,14 +608,12 @@ class Tasks(Mapping[str, Any]):
         """Return a filtered view of tasks."""
         return Tasks(self._api, status=status)
 
-    def __getitem__(self, task_id: str) -> Any:
-        from zndraw_joblib.schemas import TaskResponse
-
+    def __getitem__(self, task_id: str) -> TaskHandle:
         try:
-            data = self._api.get_task(task_id)
+            self._api.get_task(task_id)
         except Exception:
             raise KeyError(task_id)
-        return TaskResponse.model_validate(data)
+        return TaskHandle(id=task_id, _api=self._api)
 
     def __iter__(self) -> Iterator[str]:
         data = self._api.list_tasks(status=self._status)

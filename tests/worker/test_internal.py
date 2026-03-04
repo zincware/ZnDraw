@@ -52,14 +52,15 @@ def test_internal_job_has_valid_schema(server):
 # =============================================================================
 
 
-def test_submit_returns_task_id(server):
-    """vis.run() for an @internal extension returns a non-empty task ID."""
+def test_submit_returns_task_handle(server):
+    """vis.run() for an @internal extension returns a TaskHandle."""
     vis = ZnDraw(url=server)
     try:
         vis.append(ase.Atoms("H"))
-        task_id = vis.run(All())
-        assert isinstance(task_id, str)
-        assert len(task_id) > 0
+        task = vis.run(All())
+        assert hasattr(task, "id")
+        assert isinstance(task.id, str)
+        assert len(task.id) > 0
     finally:
         vis.disconnect()
 
@@ -80,23 +81,23 @@ def test_submit_nonexistent_internal_errors(server, Echo):
 # =============================================================================
 
 
-def test_selection_all_e2e(server, wait_for_task):
+def test_selection_all_e2e(server):
     """All() selects every atom in the current frame."""
     vis = ZnDraw(url=server)
     try:
         atoms = ase.Atoms("HHHHH", positions=[[i, 0, 0] for i in range(5)])
         vis.append(atoms)
 
-        task_id = vis.run(All())
-        result = wait_for_task(vis, task_id)
-        assert result.status == "completed", f"Task failed: {result.error}"
+        task = vis.run(All())
+        task.wait(timeout=30)
+        assert task.status == "completed"
 
         assert vis.selection == tuple(range(5))
     finally:
         vis.disconnect()
 
 
-def test_selection_none_e2e(server, wait_for_task):
+def test_selection_none_e2e(server):
     """NoneSelection() clears the selection."""
     vis = ZnDraw(url=server)
     try:
@@ -104,16 +105,16 @@ def test_selection_none_e2e(server, wait_for_task):
         vis.append(atoms)
         vis.selection = [0, 1]
 
-        task_id = vis.run(NoneSelection())
-        result = wait_for_task(vis, task_id)
-        assert result.status == "completed", f"Task failed: {result.error}"
+        task = vis.run(NoneSelection())
+        task.wait(timeout=30)
+        assert task.status == "completed"
 
         assert vis.selection == ()
     finally:
         vis.disconnect()
 
 
-def test_modifier_delete_e2e(server, wait_for_task):
+def test_modifier_delete_e2e(server):
     """Delete() removes selected atoms and appends a new frame."""
     vis = ZnDraw(url=server)
     try:
@@ -121,9 +122,9 @@ def test_modifier_delete_e2e(server, wait_for_task):
         vis.append(atoms)
         vis.selection = [1, 3]
 
-        task_id = vis.run(Delete())
-        result = wait_for_task(vis, task_id)
-        assert result.status == "completed", f"Task failed: {result.error}"
+        task = vis.run(Delete())
+        task.wait(timeout=30)
+        assert task.status == "completed"
 
         # Delete appends a new frame with selected atoms removed
         assert len(vis) >= 2
@@ -156,7 +157,7 @@ def test_internal_task_with_invalid_payload_fails(server, wait_for_task):
         vis.disconnect()
 
 
-def test_sequential_internal_tasks(server, wait_for_task):
+def test_sequential_internal_tasks(server):
     """Multiple sequential @internal tasks all complete."""
     vis = ZnDraw(url=server)
     try:
@@ -164,9 +165,9 @@ def test_sequential_internal_tasks(server, wait_for_task):
         vis.append(atoms)
 
         for i in range(3):
-            task_id = vis.run(NoneSelection())
-            result = wait_for_task(vis, task_id)
-            assert result.status == "completed", f"Task {i} failed: {result.error}"
+            task = vis.run(NoneSelection())
+            task.wait(timeout=30)
+            assert task.status == "completed", f"Task {i} failed"
     finally:
         vis.disconnect()
 
@@ -177,43 +178,44 @@ def test_sequential_internal_tasks(server, wait_for_task):
 
 
 def test_run_string_dispatch(server):
-    """vis.run(string) returns a task ID via pure REST."""
+    """vis.run(string) returns a TaskHandle via pure REST."""
     vis = ZnDraw(url=server)
     try:
         vis.append(ase.Atoms("H"))
-        task_id = vis.run("@internal:selections:All")
-        assert isinstance(task_id, str)
-        assert len(task_id) > 0
+        task = vis.run("@internal:selections:All")
+        assert hasattr(task, "id")
+        assert isinstance(task.id, str)
+        assert len(task.id) > 0
     finally:
         vis.disconnect()
 
 
-def test_run_string_dispatch_e2e(server, wait_for_task):
+def test_run_string_dispatch_e2e(server):
     """String dispatch selects all atoms end-to-end."""
     vis = ZnDraw(url=server)
     try:
         atoms = ase.Atoms("HHHHH", positions=[[i, 0, 0] for i in range(5)])
         vis.append(atoms)
 
-        task_id = vis.run("@internal:selections:All")
-        result = wait_for_task(vis, task_id)
-        assert result.status == "completed", f"Task failed: {result.error}"
+        task = vis.run("@internal:selections:All")
+        task.wait(timeout=30)
+        assert task.status == "completed"
 
         assert vis.selection == tuple(range(5))
     finally:
         vis.disconnect()
 
 
-def test_run_string_with_kwargs(server, wait_for_task):
+def test_run_string_with_kwargs(server):
     """String dispatch with kwargs passes payload correctly."""
     vis = ZnDraw(url=server)
     try:
         atoms = ase.Atoms("HHHHH", positions=[[i, 0, 0] for i in range(5)])
         vis.append(atoms)
 
-        task_id = vis.run("@internal:selections:Random", count=2)
-        result = wait_for_task(vis, task_id)
-        assert result.status == "completed", f"Task failed: {result.error}"
+        task = vis.run("@internal:selections:Random", count=2)
+        task.wait(timeout=30)
+        assert task.status == "completed"
 
         assert len(vis.selection) == 2
     finally:

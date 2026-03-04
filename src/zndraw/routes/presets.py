@@ -261,7 +261,30 @@ async def apply_preset(
     """Apply a preset to all matching geometries in the room.
 
     Resolves from DB first, then bundled presets.
+    The special ``@default`` name resets all geometries to factory defaults.
     """
+    if name == "@default":
+        from zndraw.routes.rooms import _initialize_default_geometries
+
+        stmt = select(RoomGeometry).where(RoomGeometry.room_id == room_id)
+        existing = (await session.execute(stmt)).scalars().all()
+        existing_keys = [g.key for g in existing]
+        for g in existing:
+            await session.delete(g)
+        await session.flush()
+        _initialize_default_geometries(session, room_id)
+        await session.commit()
+
+        new_stmt = select(RoomGeometry).where(RoomGeometry.room_id == room_id)
+        new_keys = [g.key for g in (await session.execute(new_stmt)).scalars().all()]
+        all_keys = sorted(set(existing_keys) | set(new_keys))
+        for key in all_keys:
+            await sio.emit(
+                GeometryInvalidate(room_id=room_id, operation="set", key=key),
+                room=room_channel(room_id),
+            )
+        return PresetApplyResult(geometries_updated=all_keys)
+
     row = await session.get(RoomPreset, (room_id, name))
     if row is not None:
         rules = [PresetRule.model_validate(r) for r in json.loads(row.rules)]

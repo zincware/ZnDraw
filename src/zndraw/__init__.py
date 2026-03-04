@@ -1,6 +1,7 @@
 """ZnDraw - Interactive visualization for atomistic simulations."""
 
 from zndraw.client import ZnDraw
+from zndraw.extensions import Category, Extension
 from zndraw.tqdm import ZnDrawTqdm
 
 try:
@@ -10,4 +11,11 @@ except ImportError:
     __version__ = "0.0.0-dev"
     __version_tuple__ = (0, 0, 0, "dev")
 
-__all__ = ["ZnDraw", "ZnDrawTqdm", "__version__", "__version_tuple__"]
+__all__ = [
+    "Category",
+    "Extension",
+    "ZnDraw",
+    "ZnDrawTqdm",
+    "__version__",
+    "__version_tuple__",
+]

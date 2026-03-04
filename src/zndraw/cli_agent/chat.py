@@ -54,6 +54,8 @@ def send_message(
             raise typer.BadParameter("Message content is required")
         # Reverse zsh shell escaping of ! → \!
         message = message.replace("\\!", "!")
+        # Standard escape processing
+        message = message.replace("\\n", "\n").replace("\\t", "\t")
         vis = get_zndraw(url, token, room)
         data = vis.api.create_chat_message(message)
         json_print(MessageResponse.model_validate(data))

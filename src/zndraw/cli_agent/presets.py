@@ -153,6 +153,21 @@ def save_preset(
         vis.disconnect()
 
 
+@presets_app.command("reset")
+def reset_preset(
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
+) -> None:
+    """Reset all geometries to factory defaults."""
+    with cli_error_handler():
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
+        result = vis.presets.apply("@default")
+        json_print(result)
+        vis.disconnect()
+
+
 @presets_app.command("export")
 def export_preset(
     name: Annotated[str | None, typer.Argument(help="Preset name")] = None,

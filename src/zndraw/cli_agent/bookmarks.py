@@ -50,7 +50,9 @@ def set_bookmark(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
-    label: Annotated[str, typer.Option("--label", help="Bookmark label")] = "",
+    label: Annotated[
+        str | None, typer.Argument(help="Bookmark label (auto-generated if omitted)")
+    ] = None,
 ) -> None:
     """Set a bookmark."""
     with cli_error_handler():
@@ -58,7 +60,7 @@ def set_bookmark(
         vis = get_zndraw(url, token, room)
         if index is None:
             index = vis.step
-        if not label:
+        if label is None:
             label = f"Frame {index}"
         request = BookmarkCreateRequest(label=label)
         data = vis.api.set_bookmark(index, request.label)

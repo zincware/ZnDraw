@@ -72,6 +72,12 @@ def run_extension(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
+    wait: Annotated[
+        bool, typer.Option("--wait", help="Wait for the task to complete")
+    ] = False,
+    timeout: Annotated[
+        float, typer.Option("--timeout", help="Timeout in seconds (with --wait)")
+    ] = 300,
 ) -> None:
     """Run an extension with optional extra parameters passed as --key value pairs."""
     with cli_error_handler():
@@ -95,6 +101,8 @@ def run_extension(
                 value = raw_value
             payload[key] = value
 
-        data = vis.api.submit_task(extension_name, payload)
-        json_print(TaskResponse.model_validate(data))
+        task = vis.run(extension_name, **payload)
+        if wait:
+            task.wait(timeout=timeout)
+        json_print(task._fetch())
         vis.disconnect()

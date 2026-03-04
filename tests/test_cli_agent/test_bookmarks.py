@@ -28,7 +28,7 @@ def test_bookmarks_set_with_index(
         cli_runner,
         server_url,
         auth_token,
-        ["bookmarks", "set", "--room", test_room, "0", "--label", "Start"],
+        ["bookmarks", "set", "--room", test_room, "0", "Start"],
     )
     data = invoke_cli(
         cli_runner, server_url, auth_token, ["bookmarks", "list", "--room", test_room]
@@ -50,14 +50,14 @@ def test_bookmarks_set_default_index(
         cli_runner,
         server_url,
         auth_token,
-        ["bookmarks", "set", "--room", test_room, "--label", "Current"],
+        ["bookmarks", "set", "--room", test_room],
     )
     data = invoke_cli(
         cli_runner, server_url, auth_token, ["bookmarks", "list", "--room", test_room]
     )
     resp = BookmarksResponse.model_validate(data)
     assert "0" in resp.items
-    assert resp.items["0"] == "Current"
+    assert resp.items["0"] == "Frame 0"
 
 
 def test_bookmarks_set_default_label(
@@ -86,7 +86,7 @@ def test_bookmarks_delete_with_index(
         cli_runner,
         server_url,
         auth_token,
-        ["bookmarks", "set", "--room", test_room, "0", "--label", "ToDelete"],
+        ["bookmarks", "set", "--room", test_room, "0", "ToDelete"],
     )
     data = invoke_cli(
         cli_runner,

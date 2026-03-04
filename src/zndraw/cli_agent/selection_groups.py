@@ -8,7 +8,6 @@ import typer
 from zndraw.schemas import (
     SelectionGroupResponse,
     SelectionGroupsListResponse,
-    SelectionGroupUpdateRequest,
     StatusResponse,
 )
 
@@ -77,8 +76,8 @@ def set_selection_group(
 ) -> None:
     """Set a selection group.
 
-    ``--data`` accepts either ``{"group": [0,1,2]}`` or a flat ``[0,1,2]``
-    (wrapped automatically with the positional NAME).
+    ``--data`` accepts a JSON object mapping geometry keys to index lists,
+    e.g. ``{"particles": [0,1,2]}``.
     """
     with cli_error_handler():
         room = resolve_room(room)
@@ -88,8 +87,6 @@ def set_selection_group(
             raise typer.BadParameter("--data is required")
         vis = get_zndraw(url, token, room)
         parsed = json.loads(data)
-        if isinstance(parsed, list):
-            parsed = {name: parsed}
         result = vis.api.set_selection_group(name, parsed)
         json_print(StatusResponse.model_validate(result))
         vis.disconnect()

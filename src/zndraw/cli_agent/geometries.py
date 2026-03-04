@@ -149,6 +149,83 @@ def set_geometry(
         vis.disconnect()
 
 
+@geometries_app.command("toggle")
+def toggle_geometry(
+    key: Annotated[str | None, typer.Argument(help="Geometry key")] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
+) -> None:
+    """Toggle a geometry's active state."""
+    with cli_error_handler():
+        room = resolve_room(room)
+        if key is None:
+            raise typer.BadParameter("Geometry key is required")
+        vis = get_zndraw(url, token, room)
+        resp = vis.api.http.get(
+            f"/v1/rooms/{vis.room}/geometries/{key}", headers=vis.api._headers()
+        )
+        vis.api.raise_for_status(resp)
+        geom = resp.json()["geometry"]
+        active = not geom["data"].get("active", True)
+        patch_resp = vis.api.http.patch(
+            f"/v1/rooms/{vis.room}/geometries/{key}",
+            json={"data": {"active": active}},
+            headers=vis.api._headers(),
+        )
+        vis.api.raise_for_status(patch_resp)
+        json_print({"key": key, "active": active})
+        vis.disconnect()
+
+
+@geometries_app.command("set-prop")
+def set_prop(
+    key: Annotated[str | None, typer.Argument(help="Geometry key")] = None,
+    prop: Annotated[
+        str | None, typer.Argument(help="Property path (dot notation)")
+    ] = None,
+    value: Annotated[str | None, typer.Argument(help="Value (JSON-parsed)")] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
+) -> None:
+    """Set a single property on a geometry using dot notation.
+
+    Example: ``geometries set-prop particles material.opacity 0.5``
+    """
+    with cli_error_handler():
+        room = resolve_room(room)
+        if key is None:
+            raise typer.BadParameter("Geometry key is required")
+        if prop is None:
+            raise typer.BadParameter("Property path is required")
+        if value is None:
+            raise typer.BadParameter("Value is required")
+        try:
+            parsed_value = json.loads(value)
+        except json.JSONDecodeError:
+            parsed_value = value
+
+        # Build nested dict from dot path
+        parts = prop.split(".")
+        data: dict = {}
+        current = data
+        for part in parts[:-1]:
+            current[part] = {}
+            current = current[part]
+        current[parts[-1]] = parsed_value
+
+        vis = get_zndraw(url, token, room)
+        resp = vis.api.http.patch(
+            f"/v1/rooms/{vis.room}/geometries/{key}",
+            json={"data": data},
+            headers=vis.api._headers(),
+        )
+        vis.api.raise_for_status(resp)
+        json_print(StatusResponse.model_validate(resp.json()))
+        vis.disconnect()
+
+
 @geometries_app.command("delete")
 def delete(
     key: Annotated[str | None, typer.Argument(help="Geometry key")] = None,

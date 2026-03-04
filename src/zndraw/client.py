@@ -57,6 +57,7 @@ from zndraw.accessors import (
     Selections,
     Session,
     Sessions,
+    TaskHandle,
     Tasks,
 )
 from zndraw.enrichment import add_colors, add_radii
@@ -2221,10 +2222,12 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     # -------------------------------------------------------------------------
 
     @overload
-    def run(self, extension: str, **kwargs: Any) -> str: ...
+    def run(self, extension: str, **kwargs: Any) -> TaskHandle: ...
 
     @overload
-    def run(self, extension: Extension, *, job_room: str | None = None) -> str: ...
+    def run(
+        self, extension: Extension, *, job_room: str | None = None
+    ) -> TaskHandle: ...
 
     def run(
         self,
@@ -2232,7 +2235,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         *,
         job_room: str | None = None,
         **kwargs: Any,
-    ) -> str:
+    ) -> TaskHandle:
         """Submit an extension for execution.
 
         Parameters
@@ -2249,13 +2252,14 @@ class ZnDraw(MutableSequence[ase.Atoms]):
 
         Returns
         -------
-        str
-            The task ID for tracking progress.
+        TaskHandle
+            Handle for tracking task progress.
         """
         if isinstance(extension, str):
             if self.room is None:
                 raise NotConnectedError("Cannot run: no room set")
-            return self.api.submit_task(extension, kwargs)["id"]
+            task_id = self.api.submit_task(extension, kwargs)["id"]
+            return TaskHandle(id=task_id, _api=self.api)
 
         # Extension instance path
         if job_room is None:
@@ -2266,9 +2270,10 @@ class ZnDraw(MutableSequence[ase.Atoms]):
 
         if self.room is None:
             raise NotConnectedError("Cannot run: no room set")
-        return self.jobs.submit(
+        task_id = self.jobs.submit(
             cast("JoblibExtension", extension), room=self.room, job_room=job_room
         )
+        return TaskHandle(id=task_id, _api=self.api)
 
     # -------------------------------------------------------------------------
     # Worker Serve Loop
