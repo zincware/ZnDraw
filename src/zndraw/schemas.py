@@ -149,10 +149,18 @@ class PresenceResponse(BaseModel):
     items: list[PresenceSessionResponse]
 
 
-class SessionsListResponse(BaseModel):
-    """Response for listing user's own frontend sessions."""
+class SessionItem(BaseModel):
+    """A single active frontend session."""
 
-    items: list[str]
+    sid: str
+    email: str
+    camera_key: str
+
+
+class SessionsListResponse(BaseModel):
+    """Response for listing active frontend sessions in a room."""
+
+    items: list[SessionItem]
 
 
 # =============================================================================
@@ -294,9 +302,15 @@ class GeometriesResponse(BaseModel):
 
 
 class GeometryCreateRequest(BaseModel):
-    """Request to create or update a geometry."""
+    """Request to create or update a geometry (full replace)."""
 
     type: str
+    data: dict[str, Any]
+
+
+class GeometryPatchRequest(BaseModel):
+    """Request to partially update a geometry (deep merge)."""
+
     data: dict[str, Any]
 
 
@@ -542,3 +556,60 @@ class ProgressResponse(BaseModel):
     total: int | None = None
     elapsed: float = 0.0
     unit: str = "it"
+
+
+# =============================================================================
+# Preset Schemas
+# =============================================================================
+
+
+class PresetRule(BaseModel):
+    """A single rule that targets geometries by pattern.
+
+    Parameters
+    ----------
+    pattern : str
+        fnmatch pattern to match geometry keys.
+    geometry_type : str | None
+        Optional geometry type filter (e.g., "Sphere", "DirectionalLight").
+    config : dict[str, Any]
+        Partial geometry config to deep-merge into matching geometries.
+    """
+
+    pattern: str = Field(description="fnmatch pattern for geometry keys")
+    geometry_type: str | None = Field(
+        default=None, description="Optional geometry type filter"
+    )
+    config: dict[str, Any] = Field(
+        description="Partial config to deep-merge into matching geometries"
+    )
+
+
+class Preset(BaseModel):
+    """A visual preset — a named collection of rules for styling geometries.
+
+    Parameters
+    ----------
+    name : str
+        Unique name within a room. URL-safe characters only.
+    description : str
+        Human-readable description.
+    rules : list[PresetRule]
+        Ordered rules. Later rules override earlier ones for the same geometry.
+    created_at : datetime | None
+        Server-assigned creation timestamp (read-only, ignored on create/update).
+    updated_at : datetime | None
+        Server-assigned update timestamp (read-only, ignored on create/update).
+    """
+
+    name: str = Field(pattern=r"^[a-zA-Z0-9_-]+$", max_length=64)
+    description: str = ""
+    rules: list[PresetRule] = Field(default_factory=list)
+    created_at: datetime | None = Field(default=None, exclude=True)
+    updated_at: datetime | None = Field(default=None, exclude=True)
+
+
+class PresetApplyResult(BaseModel):
+    """Result of applying a preset."""
+
+    geometries_updated: list[str]

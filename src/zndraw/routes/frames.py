@@ -294,6 +294,9 @@ async def get_frame(
     joblib_settings: JobLibSettingsDep,
     room_id: str,
     index: int,
+    keys: Annotated[
+        str | None, Query(description="Comma-separated frame keys to include")
+    ] = None,
 ) -> Response:
     """Get a single frame by index.
 
@@ -310,24 +313,30 @@ async def get_frame(
             _raise_frame_not_found(index, total)
 
         frame = await storage.get(room_id, index)
-        if frame is not None:
-            return MessagePackResponse(content=[frame])
-
-        provider = await _find_frames_provider(session, room_id)
+        if frame is None:
+            provider = await _find_frames_provider(session, room_id)
+        else:
+            provider = None
     # Session closed, lock released ^
 
-    if provider is None:
-        _raise_frame_not_found(index, total)
+    if frame is None:
+        if provider is None:
+            _raise_frame_not_found(index, total)
+        frame = await _dispatch_provider_frame(
+            result_backend,
+            sio,
+            provider,
+            index,
+            timeout=joblib_settings.provider_long_poll_default_seconds,
+            inflight_ttl=joblib_settings.provider_inflight_ttl_seconds,
+        )
 
-    frame = await _dispatch_provider_frame(
-        result_backend,
-        sio,
-        provider,
-        index,
-        timeout=joblib_settings.provider_long_poll_default_seconds,
-        inflight_ttl=joblib_settings.provider_inflight_ttl_seconds,
-    )
-    return MessagePackResponse(content=[frame])
+    frames: list[RawFrame] = [frame]
+    if keys:
+        key_bytes = frozenset(k.strip().encode() for k in keys.split(","))
+        frames = _filter_frames_by_keys(frames, key_bytes)
+
+    return MessagePackResponse(content=frames)
 
 
 def _extract_property_meta(value_bytes: bytes) -> PropertyMeta:

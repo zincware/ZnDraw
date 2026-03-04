@@ -336,6 +336,16 @@ async def test_delete_screenshot(
 # =============================================================================
 
 
+def _make_camera_entry(sid: str, owner_id: str, email: str = "u@test") -> str:
+    """Build a JSON camera entry as stored in room_cameras hash."""
+    import json
+
+    from zndraw.geometries.camera import Camera
+
+    camera = Camera(owner=owner_id)
+    return json.dumps({"sid": sid, "email": email, "data": camera.model_dump()})
+
+
 @pytest.mark.asyncio
 async def test_request_capture(
     ss_client: AsyncClient,
@@ -343,16 +353,25 @@ async def test_request_capture(
     mock_sio: MockSioServer,
     mock_redis: AsyncMock,
 ) -> None:
-    """JSON POST with live session returns 202 and emits socket event."""
+    """JSON POST with live session owned by requesting user returns 202."""
     user, token = await _create_user(ss_session)
     room = await _create_room(ss_session, user)
 
-    # Mark session as active frontend
+    target_sid = "frontend-sid-123"
+
+    # Session is active AND owned by requesting user
     mock_redis.hexists = AsyncMock(return_value=True)
+    mock_redis.hgetall = AsyncMock(
+        return_value={
+            f"cam:{user.email}:abcd1234": _make_camera_entry(
+                target_sid, str(user.id), user.email
+            ),
+        }
+    )
 
     response = await ss_client.post(
         f"/v1/rooms/{room.id}/screenshots",
-        json={"session_id": "frontend-sid-123"},
+        json={"session_id": target_sid},
         headers=_auth(token),
     )
     assert response.status_code == 202
@@ -366,7 +385,43 @@ async def test_request_capture(
     emit = mock_sio.emitted[0]
     assert emit["event"] == "screenshot_request"
     assert emit["data"]["screenshot_id"] == body["id"]
-    assert emit["to"] == "frontend-sid-123"
+    assert emit["to"] == target_sid
+
+
+@pytest.mark.asyncio
+async def test_request_capture_rejects_other_users_session(
+    ss_client: AsyncClient,
+    ss_session: AsyncSession,
+    mock_sio: MockSioServer,
+    mock_redis: AsyncMock,
+) -> None:
+    """Requesting a screenshot from another user's session returns 409."""
+    user_a, token_a = await _create_user(ss_session, email="alice@test")
+    room = await _create_room(ss_session, user_a)
+    user_b, _token_b = await _create_user(ss_session, email="bob@test")
+
+    target_sid = "bobs-browser-sid"
+
+    # Session exists but is owned by user_b, not user_a
+    mock_redis.hexists = AsyncMock(return_value=True)
+    mock_redis.hgetall = AsyncMock(
+        return_value={
+            f"cam:bob@test:abcd1234": _make_camera_entry(
+                target_sid, str(user_b.id), user_b.email
+            ),
+        }
+    )
+
+    response = await ss_client.post(
+        f"/v1/rooms/{room.id}/screenshots",
+        json={"session_id": target_sid},
+        headers=_auth(token_a),
+    )
+    assert response.status_code == 409
+    assert "no-frontend-session" in response.json()["type"]
+
+    # No socket event should have been emitted
+    assert len(mock_sio.emitted) == 0
 
 
 @pytest.mark.asyncio
@@ -405,12 +460,21 @@ async def test_patch_pending_screenshot(
     """Create pending via capture request, then PATCH with file."""
     user, token = await _create_user(ss_session)
     room = await _create_room(ss_session, user)
+
+    target_sid = "frontend-sid"
     mock_redis.hexists = AsyncMock(return_value=True)
+    mock_redis.hgetall = AsyncMock(
+        return_value={
+            f"cam:{user.email}:abcd1234": _make_camera_entry(
+                target_sid, str(user.id), user.email
+            ),
+        }
+    )
 
     # Create pending screenshot
     capture_resp = await ss_client.post(
         f"/v1/rooms/{room.id}/screenshots",
-        json={"session_id": "frontend-sid"},
+        json={"session_id": target_sid},
         headers=_auth(token),
     )
     screenshot_id = capture_resp.json()["id"]

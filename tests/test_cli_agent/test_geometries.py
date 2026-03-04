@@ -17,7 +17,10 @@ def test_geometries_list(
 ) -> None:
     """geometries list should return a compact summary."""
     data = invoke_cli(
-        cli_runner, server_url, auth_token, ["geometries", "list", test_room]
+        cli_runner,
+        server_url,
+        auth_token,
+        ["geometries", "list", "--room", test_room],
     )
     assert isinstance(data, list)
     assert len(data) > 0
@@ -38,7 +41,7 @@ def test_geometries_get(
         cli_runner,
         server_url,
         auth_token,
-        ["geometries", "get", test_room, "particles"],
+        ["geometries", "get", "--room", test_room, "particles"],
     )
     resp = GeometryResponse.model_validate(data)
     assert resp.key == "particles"
@@ -55,6 +58,7 @@ def test_geometries_set_and_get(
         [
             "geometries",
             "set",
+            "--room",
             test_room,
             "test-geo",
             "--type",
@@ -68,7 +72,7 @@ def test_geometries_set_and_get(
         cli_runner,
         server_url,
         auth_token,
-        ["geometries", "get", test_room, "test-geo"],
+        ["geometries", "get", "--room", test_room, "test-geo"],
     )
     resp = GeometryResponse.model_validate(data)
     assert resp.key == "test-geo"
@@ -85,6 +89,7 @@ def test_geometries_delete(
         [
             "geometries",
             "set",
+            "--room",
             test_room,
             "to-delete",
             "--type",
@@ -97,7 +102,7 @@ def test_geometries_delete(
         cli_runner,
         server_url,
         auth_token,
-        ["geometries", "delete", test_room, "to-delete"],
+        ["geometries", "delete", "--room", test_room, "to-delete"],
     )
     StatusResponse.model_validate(data)
 

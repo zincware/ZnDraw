@@ -14,7 +14,7 @@ def test_bookmarks_list_empty(
 ) -> None:
     """bookmarks list should return empty initially."""
     data = invoke_cli(
-        cli_runner, server_url, auth_token, ["bookmarks", "list", test_room]
+        cli_runner, server_url, auth_token, ["bookmarks", "list", "--room", test_room]
     )
     resp = BookmarksResponse.model_validate(data)
     assert isinstance(resp.items, dict)
@@ -28,10 +28,10 @@ def test_bookmarks_set_with_index(
         cli_runner,
         server_url,
         auth_token,
-        ["bookmarks", "set", test_room, "0", "--label", "Start"],
+        ["bookmarks", "set", "--room", test_room, "0", "--label", "Start"],
     )
     data = invoke_cli(
-        cli_runner, server_url, auth_token, ["bookmarks", "list", test_room]
+        cli_runner, server_url, auth_token, ["bookmarks", "list", "--room", test_room]
     )
     resp = BookmarksResponse.model_validate(data)
     assert "0" in resp.items
@@ -43,15 +43,17 @@ def test_bookmarks_set_default_index(
 ) -> None:
     """bookmarks set without index should bookmark current step."""
     # Ensure step is 0
-    invoke_cli(cli_runner, server_url, auth_token, ["step", "set", test_room, "0"])
+    invoke_cli(
+        cli_runner, server_url, auth_token, ["step", "set", "--room", test_room, "0"]
+    )
     invoke_cli(
         cli_runner,
         server_url,
         auth_token,
-        ["bookmarks", "set", test_room, "--label", "Current"],
+        ["bookmarks", "set", "--room", test_room, "--label", "Current"],
     )
     data = invoke_cli(
-        cli_runner, server_url, auth_token, ["bookmarks", "list", test_room]
+        cli_runner, server_url, auth_token, ["bookmarks", "list", "--room", test_room]
     )
     resp = BookmarksResponse.model_validate(data)
     assert "0" in resp.items
@@ -66,10 +68,10 @@ def test_bookmarks_set_default_label(
         cli_runner,
         server_url,
         auth_token,
-        ["bookmarks", "set", test_room, "0"],
+        ["bookmarks", "set", "--room", test_room, "0"],
     )
     data = invoke_cli(
-        cli_runner, server_url, auth_token, ["bookmarks", "list", test_room]
+        cli_runner, server_url, auth_token, ["bookmarks", "list", "--room", test_room]
     )
     resp = BookmarksResponse.model_validate(data)
     assert "0" in resp.items
@@ -84,18 +86,18 @@ def test_bookmarks_delete_with_index(
         cli_runner,
         server_url,
         auth_token,
-        ["bookmarks", "set", test_room, "0", "--label", "ToDelete"],
+        ["bookmarks", "set", "--room", test_room, "0", "--label", "ToDelete"],
     )
     data = invoke_cli(
         cli_runner,
         server_url,
         auth_token,
-        ["bookmarks", "delete", test_room, "0"],
+        ["bookmarks", "delete", "--room", test_room, "0"],
     )
     StatusResponse.model_validate(data)
 
     after = invoke_cli(
-        cli_runner, server_url, auth_token, ["bookmarks", "list", test_room]
+        cli_runner, server_url, auth_token, ["bookmarks", "list", "--room", test_room]
     )
     resp = BookmarksResponse.model_validate(after)
     assert "0" not in resp.items

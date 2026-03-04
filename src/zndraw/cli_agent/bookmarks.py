@@ -11,7 +11,14 @@ from zndraw.schemas import (
     StatusResponse,
 )
 
-from .connection import cli_error_handler, get_zndraw
+from .connection import (
+    RoomOpt,
+    TokenOpt,
+    UrlOpt,
+    cli_error_handler,
+    get_zndraw,
+    resolve_room,
+)
 from .output import json_print
 
 bookmarks_app = typer.Typer()
@@ -19,12 +26,14 @@ bookmarks_app = typer.Typer()
 
 @bookmarks_app.command("list")
 def list_bookmarks(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """List all bookmarks."""
     with cli_error_handler():
-        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/bookmarks", headers=vis.api._headers()
         )
@@ -35,16 +44,18 @@ def list_bookmarks(
 
 @bookmarks_app.command("set")
 def set_bookmark(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
     index: Annotated[
         int | None, typer.Argument(help="Frame index (default: current step)")
     ] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
     label: Annotated[str, typer.Option("--label", help="Bookmark label")] = "",
 ) -> None:
     """Set a bookmark."""
     with cli_error_handler():
-        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
         if index is None:
             index = vis.step
         if not label:
@@ -57,15 +68,17 @@ def set_bookmark(
 
 @bookmarks_app.command("delete")
 def delete_bookmark(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
     index: Annotated[
         int | None, typer.Argument(help="Frame index (default: current step)")
     ] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """Delete a bookmark."""
     with cli_error_handler():
-        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
         if index is None:
             index = vis.step
         resp = vis.api.http.delete(

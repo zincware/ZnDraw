@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import httpx
 import pytest
 from typer.testing import CliRunner
 
@@ -29,12 +30,11 @@ def server_url_fixture(server: str) -> str:
 
 
 @pytest.fixture(name="auth_token")
-def auth_token_fixture(server_url: str, cli_runner: CliRunner) -> str:
-    """Get a guest auth token from the running server."""
-    result = cli_runner.invoke(app, ["--url", server_url, "auth", "login"])
-    assert result.exit_code == 0, result.stderr
-    data = json.loads(result.stdout)
-    return data["access_token"]
+def auth_token_fixture(server_url: str) -> str:
+    """Get a guest auth token via the REST guest endpoint."""
+    resp = httpx.post(f"{server_url}/v1/auth/guest", timeout=10.0)
+    resp.raise_for_status()
+    return resp.json()["access_token"]
 
 
 @pytest.fixture(name="test_room")
@@ -42,7 +42,7 @@ def test_room_fixture(server_url: str, cli_runner: CliRunner, auth_token: str) -
     """Create a test room with one empty frame and return its ID."""
     result = cli_runner.invoke(
         app,
-        ["--url", server_url, "--token", auth_token, "rooms", "create"],
+        ["rooms", "create", "--url", server_url, "--token", auth_token],
     )
     assert result.exit_code == 0, result.stderr
     data = json.loads(result.stdout)
@@ -62,20 +62,25 @@ def invoke_cli(
     cli_runner
         The Typer CliRunner.
     server_url
-        Server URL for --url flag.
+        Server URL for --url option.
     auth_token
-        JWT for --token flag.
+        JWT for --token option.
     args
-        Command args after the global options.
+        Command args: ``["subapp", "command", ...]``.
+        Connection options (--url, --token) are inserted after the
+        command path (first two elements).
 
     Returns
     -------
     Any
         Parsed JSON from stdout.
     """
+    cmd_path = args[:2]
+    cmd_args = args[2:]
+    connection_opts = ["--url", server_url, "--token", auth_token]
     result = cli_runner.invoke(
         app,
-        ["--url", server_url, "--token", auth_token, *args],
+        [*cmd_path, *connection_opts, *cmd_args],
     )
     assert result.exit_code == 0, (
         f"exit={result.exit_code}\nstderr={result.stderr}\nstdout={result.stdout}"

@@ -11,6 +11,7 @@ from pydantic import BaseModel
 import zndraw
 from zndraw.config import SettingsDep
 from zndraw.dependencies import (
+    ActiveSessionCamDep,
     CurrentUserDep,
     RedisDep,
     SessionDep,
@@ -148,7 +149,7 @@ async def update_frame_selection(
     responses=problem_responses(NotAuthenticated, SessionNotFound),
 )
 async def get_active_camera(
-    redis: RedisDep, room_id: str, session_id: VerifiedSessionDep
+    redis: RedisDep, room_id: str, session_id: ActiveSessionCamDep
 ) -> ActiveCameraResponse:
     """Get active camera key for a session."""
     key = await redis.hget(RedisKey.active_cameras(room_id), session_id)  # type: ignore[misc]

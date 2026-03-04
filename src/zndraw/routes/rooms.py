@@ -67,6 +67,7 @@ from zndraw.schemas import (
     RoomPatchRequest,
     RoomPatchResponse,
     RoomResponse,
+    SessionItem,
     SessionsListResponse,
 )
 from zndraw.socket_events import FramesInvalidate, RoomUpdate
@@ -518,43 +519,43 @@ async def get_room_presence(
     response_model=SessionsListResponse,
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
-async def list_user_sessions(
+async def list_sessions(
     session: SessionDep,
     redis: RedisDep,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
+    email: str | None = Query(None, description="Filter by user email"),
 ) -> SessionsListResponse:
-    """List the current user's active frontend sessions in this room.
+    """List all active frontend sessions in this room.
 
-    Frontend sessions are identified by having an entry in the
-    active-cameras hash (pyclients don't get cameras).
-    Ownership is verified via the camera hash (data.owner).
+    Returns every frontend session (identified by having an entry in the
+    active-cameras hash). Optional ``email`` query param filters by user.
     """
     await verify_room(session, room_id)
 
-    # Get all frontend SIDs (those with active cameras)
     all_active: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
         RedisKey.active_cameras(room_id)
     )
     if not all_active:
         return SessionsListResponse(items=[])
 
-    # Batch-fetch camera values to filter by owner
     sids = list(all_active.keys())
     camera_keys = list(all_active.values())
     raw_cameras: list[str | None] = await redis.hmget(  # type: ignore[assignment]
         RedisKey.room_cameras(room_id), camera_keys
     )
-    uid = str(current_user.id)
-    user_sids = []
-    for sid, raw in zip(sids, raw_cameras):
+
+    items: list[SessionItem] = []
+    for sid, cam_key, raw in zip(sids, camera_keys, raw_cameras):
         if raw is None:
             continue
         entry = json.loads(raw)
-        if Camera(**entry["data"]).owner == uid:
-            user_sids.append(sid)
+        entry_email = entry.get("email", "")
+        if email is not None and entry_email != email:
+            continue
+        items.append(SessionItem(sid=sid, email=entry_email, camera_key=cam_key))
 
-    return SessionsListResponse(items=user_sids)
+    return SessionsListResponse(items=items)
 
 
 @router.patch(

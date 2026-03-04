@@ -22,7 +22,7 @@ def test_selection_get(
         cli_runner,
         server_url,
         auth_token,
-        ["selection", "get", test_room],
+        ["selection", "get", "--room", test_room],
     )
     resp = GeometrySelectionResponse.model_validate(data)
     assert isinstance(resp.selection, list)
@@ -36,13 +36,13 @@ def test_selection_set_and_get(
         cli_runner,
         server_url,
         auth_token,
-        ["selection", "set", test_room, "0", "1", "2"],
+        ["selection", "set", "--room", test_room, "0", "1", "2"],
     )
     data = invoke_cli(
         cli_runner,
         server_url,
         auth_token,
-        ["selection", "get", test_room],
+        ["selection", "get", "--room", test_room],
     )
     resp = GeometrySelectionResponse.model_validate(data)
     assert resp.selection == [0, 1, 2]
@@ -57,14 +57,14 @@ def test_selection_clear(
         cli_runner,
         server_url,
         auth_token,
-        ["selection", "set", test_room, "0", "1"],
+        ["selection", "set", "--room", test_room, "0", "1"],
     )
     # Clear it
     data = invoke_cli(
         cli_runner,
         server_url,
         auth_token,
-        ["selection", "clear", test_room],
+        ["selection", "clear", "--room", test_room],
     )
     StatusResponse.model_validate(data)
 
@@ -73,7 +73,7 @@ def test_selection_clear(
         cli_runner,
         server_url,
         auth_token,
-        ["selection", "get", test_room],
+        ["selection", "get", "--room", test_room],
     )
     resp = GeometrySelectionResponse.model_validate(get_data)
     assert resp.selection == []
@@ -87,7 +87,7 @@ def test_selection_with_geometry_option(
         cli_runner,
         server_url,
         auth_token,
-        ["selection", "get", test_room, "--geometry", "particles"],
+        ["selection", "get", "--room", test_room, "--geometry", "particles"],
     )
     resp = GeometrySelectionResponse.model_validate(data)
     assert resp.key == "particles"
@@ -101,7 +101,7 @@ def test_selection_groups_list_empty(
         cli_runner,
         server_url,
         auth_token,
-        ["selection-groups", "list", test_room],
+        ["selection-groups", "list", "--room", test_room],
     )
     resp = SelectionGroupsListResponse.model_validate(data)
     assert isinstance(resp.items, dict)
@@ -111,8 +111,6 @@ def test_selection_groups_set_and_get(
     cli_runner: CliRunner, server_url: str, auth_token: str, test_room: str
 ) -> None:
     """selection-groups set then get should persist the group."""
-    # Read selection_groups.py to understand the set command args
-    # set command takes room, name, and --selections as JSON string
     invoke_cli(
         cli_runner,
         server_url,
@@ -120,6 +118,7 @@ def test_selection_groups_set_and_get(
         [
             "selection-groups",
             "set",
+            "--room",
             test_room,
             "my-group",
             "--data",
@@ -130,7 +129,7 @@ def test_selection_groups_set_and_get(
         cli_runner,
         server_url,
         auth_token,
-        ["selection-groups", "get", test_room, "my-group"],
+        ["selection-groups", "get", "--room", test_room, "my-group"],
     )
     resp = SelectionGroupResponse.model_validate(data)
     assert resp.group["particles"] == [0, 1, 2]
@@ -147,6 +146,7 @@ def test_selection_groups_delete(
         [
             "selection-groups",
             "set",
+            "--room",
             test_room,
             "to-delete",
             "--data",
@@ -157,6 +157,6 @@ def test_selection_groups_delete(
         cli_runner,
         server_url,
         auth_token,
-        ["selection-groups", "delete", test_room, "to-delete"],
+        ["selection-groups", "delete", "--room", test_room, "to-delete"],
     )
     StatusResponse.model_validate(data)

@@ -1,0 +1,68 @@
+{
+    "name": "glossy",
+    "description": "Shiny material with strong specular highlights for presentations",
+    "rules": [
+        {
+            "pattern": "particles*",
+            "config": {
+                "material": "MeshPhysicalMaterial_shiny"
+            }
+        },
+        {
+            "pattern": "bonds",
+            "config": {
+                "material": "MeshPhysicalMaterial_shiny"
+            }
+        },
+        {
+            "pattern": "key-light",
+            "config": {
+                "active": true,
+                "intensity": 1.0,
+                "color": "#ffffff"
+            }
+        },
+        {
+            "pattern": "fill-light",
+            "config": {
+                "active": true,
+                "intensity": 0.4,
+                "color": "#b0d0ff"
+            }
+        },
+        {
+            "pattern": "rim-light",
+            "config": {
+                "active": true,
+                "intensity": 0.7,
+                "color": "#ffffff"
+            }
+        },
+        {
+            "pattern": "hemisphere-light",
+            "config": {
+                "active": true,
+                "intensity": 0.2
+            }
+        },
+        {
+            "pattern": "ambient-light",
+            "config": {
+                "active": true,
+                "intensity": 0.25
+            }
+        },
+        {
+            "pattern": "fog",
+            "config": {
+                "active": false
+            }
+        },
+        {
+            "pattern": "pathtracing",
+            "config": {
+                "active": false
+            }
+        }
+    ]
+}

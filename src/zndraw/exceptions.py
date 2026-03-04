@@ -517,6 +517,51 @@ class StepOutOfBounds(ProblemType):
         raise ValueError(problem.detail or problem.title)
 
 
+class PresetNotFound(ProblemType):
+    """The requested preset does not exist.
+
+    This error occurs when attempting to access a visual preset by name
+    that does not exist in the room.
+    """
+
+    title: ClassVar[str] = "Not Found"
+    status: ClassVar[int] = 404
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise KeyError(problem.detail or problem.title)
+
+
+class PresetAlreadyExists(ProblemType):
+    """A preset with this name already exists.
+
+    This error occurs when attempting to create a preset with a name
+    that is already used by another preset in the same room.
+    """
+
+    title: ClassVar[str] = "Conflict"
+    status: ClassVar[int] = 409
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise ValueError(problem.detail or problem.title)
+
+
+class InvalidPresetRule(ProblemType):
+    """A preset rule contains invalid configuration.
+
+    This error occurs when a preset rule references an unknown geometry
+    type or contains config keys that are not valid for the specified type.
+    """
+
+    title: ClassVar[str] = "Unprocessable Content"
+    status: ClassVar[int] = 422
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise ValueError(problem.detail or problem.title)
+
+
 # Registry of all problem types
 PROBLEM_TYPES: dict[str, type[ProblemType]] = {
     cls.problem_id(): cls
@@ -549,6 +594,9 @@ PROBLEM_TYPES: dict[str, type[ProblemType]] = {
         NoFrontendSession,
         ScreenshotNotPending,
         RoomReadOnly,
+        PresetNotFound,
+        PresetAlreadyExists,
+        InvalidPresetRule,
     ]
 }
 

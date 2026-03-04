@@ -153,13 +153,14 @@ async def lmdb_storage(tmp_path):
 @pytest.mark.asyncio
 async def test_constraints_through_memory_storage(memory_storage: AsebytesStorage):
     """Constraints survive AsebytesStorage extend/get roundtrip."""
+    room_id = uuid.uuid4().hex
     atoms = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
     atoms.set_constraint(FixAtoms(indices=[0, 2]))
 
     frame = encode(atoms)
-    await memory_storage.extend(room_id="room1", frames=[frame])
+    await memory_storage.extend(room_id=room_id, frames=[frame])
 
-    raw = await memory_storage.get(room_id="room1", index=0)
+    raw = await memory_storage.get(room_id=room_id, index=0)
     assert raw is not None
     decoded = decode(raw)
 
@@ -171,13 +172,14 @@ async def test_constraints_through_memory_storage(memory_storage: AsebytesStorag
 @pytest.mark.asyncio
 async def test_constraints_through_lmdb_storage(lmdb_storage: AsebytesStorage):
     """Constraints survive LMDB-backed AsebytesStorage extend/get roundtrip."""
+    room_id = uuid.uuid4().hex
     atoms = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
     atoms.set_constraint(FixAtoms(indices=[0, 2]))
 
     frame = encode(atoms)
-    await lmdb_storage.extend(room_id="room1", frames=[frame])
+    await lmdb_storage.extend(room_id=room_id, frames=[frame])
 
-    raw = await lmdb_storage.get(room_id="room1", index=0)
+    raw = await lmdb_storage.get(room_id=room_id, index=0)
     assert raw is not None
     decoded = decode(raw)
 
@@ -190,6 +192,8 @@ async def _assert_variable_constraints_across_frames(
     storage: AsebytesStorage,
 ) -> None:
     """Verify different constraint types across frames are each preserved."""
+    room_id = uuid.uuid4().hex
+
     # Frame 0: FixAtoms
     atoms0 = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
     atoms0.set_constraint(FixAtoms(indices=[1]))
@@ -203,10 +207,10 @@ async def _assert_variable_constraints_across_frames(
     atoms2.set_constraint(FixedPlane(1, direction=[0, 0, 1]))
 
     frames = [encode(a) for a in [atoms0, atoms1, atoms2]]
-    await storage.extend(room_id="room1", frames=frames)
+    await storage.extend(room_id=room_id, frames=frames)
 
     # Verify frame 0
-    raw0 = await storage.get(room_id="room1", index=0)
+    raw0 = await storage.get(room_id=room_id, index=0)
     assert raw0 is not None
     dec0 = decode(raw0)
     assert len(dec0.constraints) == 1
@@ -214,7 +218,7 @@ async def _assert_variable_constraints_across_frames(
     np.testing.assert_array_equal(dec0.constraints[0].index, [1])
 
     # Verify frame 1
-    raw1 = await storage.get(room_id="room1", index=1)
+    raw1 = await storage.get(room_id=room_id, index=1)
     assert raw1 is not None
     dec1 = decode(raw1)
     assert len(dec1.constraints) == 1
@@ -222,7 +226,7 @@ async def _assert_variable_constraints_across_frames(
     np.testing.assert_allclose(dec1.constraints[0].dir, [1.0, 0.0, 0.0])
 
     # Verify frame 2
-    raw2 = await storage.get(room_id="room1", index=2)
+    raw2 = await storage.get(room_id=room_id, index=2)
     assert raw2 is not None
     dec2 = decode(raw2)
     assert len(dec2.constraints) == 1

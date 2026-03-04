@@ -22,7 +22,10 @@ def test_extensions_list(
 ) -> None:
     """extensions list should return a PaginatedResponse of JobSummary."""
     data = invoke_cli(
-        cli_runner, server_url, auth_token, ["extensions", "list", test_room]
+        cli_runner,
+        server_url,
+        auth_token,
+        ["extensions", "list", "--room", test_room],
     )
     resp = PaginatedResponse[JobSummary].model_validate(data)
     assert resp.total > 0
@@ -34,7 +37,10 @@ def test_extensions_list_contains_builtin(
 ) -> None:
     """extensions list should contain built-in extensions like Delete and All."""
     data = invoke_cli(
-        cli_runner, server_url, auth_token, ["extensions", "list", test_room]
+        cli_runner,
+        server_url,
+        auth_token,
+        ["extensions", "list", "--room", test_room],
     )
     resp = PaginatedResponse[JobSummary].model_validate(data)
     names = {item.name for item in resp.items}
@@ -50,7 +56,13 @@ def test_extensions_describe(
         cli_runner,
         server_url,
         auth_token,
-        ["extensions", "describe", test_room, "@internal:selections:All"],
+        [
+            "extensions",
+            "describe",
+            "--room",
+            test_room,
+            "@internal:selections:All",
+        ],
     )
     resp = JobResponse.model_validate(data)
     assert resp.full_name == "@internal:selections:All"
@@ -66,12 +78,13 @@ def test_extensions_describe_nonexistent(
     result = cli_runner.invoke(
         app,
         [
+            "extensions",
+            "describe",
             "--url",
             server_url,
             "--token",
             auth_token,
-            "extensions",
-            "describe",
+            "--room",
             test_room,
             "@internal:modifiers:DoesNotExist",
         ],
@@ -87,7 +100,13 @@ def test_extensions_run(
         cli_runner,
         server_url,
         auth_token,
-        ["extensions", "run", test_room, "@internal:selections:All"],
+        [
+            "extensions",
+            "run",
+            "--room",
+            test_room,
+            "@internal:selections:All",
+        ],
     )
     resp = TaskResponse.model_validate(data)
     assert resp.job_name == "@internal:selections:All"
@@ -101,12 +120,13 @@ def test_extensions_run_with_args(
     result = cli_runner.invoke(
         app,
         [
+            "extensions",
+            "run",
             "--url",
             server_url,
             "--token",
             auth_token,
-            "extensions",
-            "run",
+            "--room",
             test_room,
             "@internal:selections:Range",
             "--start",

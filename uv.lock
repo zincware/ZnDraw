@@ -4382,7 +4382,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.21.1" },
     { name = "uvicorn", specifier = ">=0.40.0" },
     { name = "vesin", specifier = ">=0.4.2" },
-    { name = "zndraw-auth", specifier = ">=0.2.2" },
+    { name = "zndraw-auth", specifier = ">=0.2.3" },
     { name = "zndraw-joblib", specifier = ">=0.1.4" },
     { name = "zndraw-socketio", specifier = ">=0.1.5" },
     { name = "znh5md", specifier = ">=0.4.8" },
@@ -4412,7 +4412,7 @@ docs = [
 
 [[package]]
 name = "zndraw-auth"
-version = "0.2.2"
+version = "0.2.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiosqlite" },
@@ -4422,9 +4422,9 @@ dependencies = [
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "sqlmodel" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/19/0d/9412bfaceefc4312bf560b6e9dbe46a682d18b1aba30336ee30b9c73ba5e/zndraw_auth-0.2.2.tar.gz", hash = "sha256:95e46a006702b2d4d1e5557fb706de4d406b5d5edab4e69044f76d194e20910a", size = 9111, upload-time = "2026-02-20T14:23:09.691Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/63/1e/1e64e8e48b22cdf358e5ae17144944839710d0a389cca98540afa919c58a/zndraw_auth-0.2.3.tar.gz", hash = "sha256:88e8570a2bf63a118487ba0c931010e8a47cc63db93d045ddf393396de11bcc8", size = 11515, upload-time = "2026-03-01T20:14:17.297Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cc/4f/a4ccc310a968a3c99ca4448f0d126f85b2037a9da88642db0962f7a9e357/zndraw_auth-0.2.2-py3-none-any.whl", hash = "sha256:e3ccb2a526186fa794b25100c30d31c303c23a03709e4fa58db30310002d6040", size = 11361, upload-time = "2026-02-20T14:23:11.504Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/2e/29b031a90b0d332aae20716c696fc45cc4875584cdcf907e45d50e11d3b9/zndraw_auth-0.2.3-py3-none-any.whl", hash = "sha256:c5444504458f3802a57f8c3cb1a6adf39ac9893f907edaf5eb17592cce7f459e", size = 15060, upload-time = "2026-03-01T20:14:16.088Z" },
 ]
 
 [[package]]

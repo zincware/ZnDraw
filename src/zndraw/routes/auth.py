@@ -11,6 +11,7 @@ from zndraw_auth import (
     UserRead,
     UserUpdate,
     auth_backend,
+    cli_login_router,
     fastapi_users,
     get_user_manager,
 )
@@ -54,3 +55,4 @@ router.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
     prefix="/users",
 )
+router.include_router(cli_login_router, prefix="/cli-login")

@@ -7,6 +7,7 @@ Each accessor takes an ``APIManager`` and delegates all I/O to it.
 from __future__ import annotations
 
 import base64
+import json
 import time
 from collections.abc import (
     Iterable,
@@ -22,6 +23,7 @@ from typing import TYPE_CHECKING, Any, overload
 from zndraw.geometries import geometries as geometry_models
 from zndraw.geometries.base import BaseGeometry
 from zndraw.geometries.camera import Camera
+from zndraw.schemas import Preset, PresetApplyResult
 
 if TYPE_CHECKING:
     import plotly.graph_objects as go
@@ -225,6 +227,75 @@ class Figures(MutableMapping[str, "go.Figure"]):
 
 
 # =============================================================================
+# Presets
+# =============================================================================
+
+
+class Presets(MutableMapping[str, Preset]):
+    """Accessor for visual presets stored per-room.
+
+    Provides dict-like access to presets plus ``apply``, ``load``, and ``export``.
+
+    Examples
+    --------
+    >>> vis.presets["matt"]
+    Preset(name="matt", ...)
+
+    >>> vis.presets["custom"] = Preset(
+    ...     name="custom",
+    ...     rules=[PresetRule(pattern="fog", config={"active": True})],
+    ... )
+
+    >>> result = vis.presets.apply("matt")
+    >>> result.geometries_updated
+    ["particles", "bonds", "fog", ...]
+
+    >>> del vis.presets["custom"]
+    """
+
+    def __init__(self, api: APIManager) -> None:
+        self._api = api
+
+    def __getitem__(self, name: str) -> Preset:
+        data = self._api.get_preset(name)
+        if data is None:
+            raise KeyError(name)
+        return Preset(**data)
+
+    def __setitem__(self, name: str, value: Preset) -> None:
+        self._api.update_preset(name, value.model_dump())
+
+    def __delitem__(self, name: str) -> None:
+        self._api.delete_preset(name)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(p["name"] for p in self._api.list_presets())
+
+    def __len__(self) -> int:
+        return len(self._api.list_presets())
+
+    def apply(self, name: str) -> PresetApplyResult:
+        """Apply a preset to all matching geometries in the room."""
+        result = self._api.apply_preset(name)
+        return PresetApplyResult(**result)
+
+    def load(self, path: Path) -> Preset:
+        """Load a preset from a JSON file into the room."""
+        data = json.loads(path.read_text())
+        result = self._api.create_preset(data)
+        return Preset(**result)
+
+    def export(self, name: str, path: Path) -> None:
+        """Export a preset to a JSON file."""
+        data = self._api.get_preset(name)
+        if data is None:
+            raise KeyError(name)
+        data.pop("created_at", None)
+        data.pop("updated_at", None)
+        path.write_text(json.dumps(data, indent=2))
+
+
+# =============================================================================
 # RoomMetadata
 # =============================================================================
 
@@ -266,17 +337,16 @@ class RoomMetadata(MutableMapping[str, str]):
 class Session:
     """Proxy to a single frontend browser session.
 
-    Validates on creation that the session exists and belongs to the
-    current user (raises ``KeyError`` otherwise). Each subsequent
-    property access is a live HTTP call — no caching.
-    Camera access resolves through ``active_camera``.
+    Validates on creation that the session exists (raises ``KeyError``
+    otherwise). Each subsequent property access is a live HTTP call —
+    no caching. Camera access resolves through ``active_camera``.
     """
 
     _api: APIManager = field(repr=False)
     sid: str
 
     def __post_init__(self) -> None:
-        """Validate the session exists and belongs to the current user."""
+        """Validate the session exists in active-cameras."""
         self._api.get_active_camera(self.sid)
 
     @property
@@ -336,7 +406,7 @@ class Session:
 
 @dataclass(frozen=True)
 class Sessions(Mapping[str, Session]):
-    """User-scoped mapping of active frontend sessions.
+    """Room-scoped mapping of active frontend sessions.
 
     Read-only: sessions are created by browsers, not Python.
     """
@@ -349,10 +419,10 @@ class Sessions(Mapping[str, Session]):
     def __contains__(self, key: object) -> bool:
         if not isinstance(key, str):
             return False
-        return key in self._api.list_sessions()
+        return any(item.sid == key for item in self._api.list_sessions())
 
     def __iter__(self) -> Iterator[str]:
-        return iter(self._api.list_sessions())
+        return iter(item.sid for item in self._api.list_sessions())
 
     def __len__(self) -> int:
         return len(self._api.list_sessions())

@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, cast, overload
 
 if TYPE_CHECKING:
     from zndraw.providers.frame_source import FrameSource
+    from zndraw.schemas import SessionItem
     from zndraw.tqdm import ZnDrawTqdm
 
 import ase
@@ -48,6 +49,7 @@ from zndraw.accessors import (
     Extensions,
     Figures,
     Geometries,
+    Presets,
     RoomMetadata,
     ScreenshotImage,
     Screenshots,
@@ -766,6 +768,67 @@ class APIManager:
         self.raise_for_status(response)
 
     # -------------------------------------------------------------------------
+    # Preset Operations
+    # -------------------------------------------------------------------------
+
+    def list_presets(self) -> list[dict[str, Any]]:
+        """List all presets."""
+        response = self.http.get(
+            f"/v1/rooms/{self.room_id}/presets",
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()["items"]
+
+    def get_preset(self, name: str) -> dict[str, Any] | None:
+        """Get a specific preset."""
+        response = self.http.get(
+            f"/v1/rooms/{self.room_id}/presets/{name}",
+            headers=self._headers(),
+        )
+        if response.status_code == 404:
+            return None
+        self.raise_for_status(response)
+        return response.json()
+
+    def create_preset(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Create a new preset."""
+        response = self.http.post(
+            f"/v1/rooms/{self.room_id}/presets",
+            json=data,
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()
+
+    def update_preset(self, name: str, data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a preset."""
+        response = self.http.put(
+            f"/v1/rooms/{self.room_id}/presets/{name}",
+            json=data,
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()
+
+    def delete_preset(self, name: str) -> None:
+        """Delete a preset."""
+        response = self.http.delete(
+            f"/v1/rooms/{self.room_id}/presets/{name}",
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+
+    def apply_preset(self, name: str) -> dict[str, Any]:
+        """Apply a preset to all matching geometries."""
+        response = self.http.post(
+            f"/v1/rooms/{self.room_id}/presets/{name}/apply",
+            headers=self._headers(),
+        )
+        self.raise_for_status(response)
+        return response.json()
+
+    # -------------------------------------------------------------------------
     # Edit Lock Operations
     # -------------------------------------------------------------------------
 
@@ -813,17 +876,29 @@ class APIManager:
         return response.json()
 
     # -------------------------------------------------------------------------
+    # Auth Operations
+    # -------------------------------------------------------------------------
+
+    def get_me(self) -> dict[str, Any]:
+        """Get the current authenticated user's profile."""
+        response = self.http.get("/v1/auth/users/me", headers=self._headers())
+        self.raise_for_status(response)
+        return response.json()
+
+    # -------------------------------------------------------------------------
     # Session Operations
     # -------------------------------------------------------------------------
 
-    def list_sessions(self) -> list[str]:
-        """List the current user's active frontend sessions."""
+    def list_sessions(self) -> list[SessionItem]:
+        """List all active frontend sessions in the room."""
+        from zndraw.schemas import SessionItem, SessionsListResponse
+
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/sessions",
             headers=self._headers(),
         )
         self.raise_for_status(response)
-        return response.json()["items"]
+        return SessionsListResponse.model_validate(response.json()).items
 
     def get_active_camera(self, sid: str) -> str:
         """Get active camera key for a session."""
@@ -1238,6 +1313,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     password: SecretStr | str | None = None
     token: str | None = None
     copy_from: str | None = "@none"
+    create_if_missing: bool = True
     auto_pickup: bool = True
     polling_interval: float = 5.0
     heartbeat_interval: float = 30.0
@@ -1257,6 +1333,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     _geometries: Geometries | None = field(default=None, init=False)
     _figures: Figures | None = field(default=None, init=False)
     _metadata: RoomMetadata | None = field(default=None, init=False)
+    _presets: Presets | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         """Initialize the client (REST-only, socket connects lazily)."""
@@ -1286,6 +1363,8 @@ class ZnDraw(MutableSequence[ase.Atoms]):
 
                 pw = Settings().guest_password
             self.api.login(self.user, pw.get_secret_value())
+        elif self._try_stored_token():
+            pass  # Stored token from ~/.zndraw/tokens.json
         else:
             data = self.api.create_guest_session()
             self.user = data["email"]
@@ -1307,11 +1386,40 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             info = self.api.get_room_info()
             self._cached_length = info.get("frame_count", 0)
         except KeyError:
+            if not self.create_if_missing:
+                raise
             self.api.create_room(copy_from=self.copy_from)
             self._cached_length = 0
 
         # Ensure cleanup on interpreter exit
         atexit.register(self.disconnect)
+
+    def _try_stored_token(self) -> bool:
+        """Try to authenticate using a stored CLI token.
+
+        Returns
+        -------
+        bool
+            True if a valid stored token was found and applied.
+        """
+        import httpx
+
+        from zndraw.server_manager import TokenStore
+
+        store = TokenStore()
+        entry = store.get(self.url)
+        if entry is None:
+            return False
+        resp = httpx.get(
+            f"{self.url}/v1/auth/users/me",
+            headers={"Authorization": f"Bearer {entry.access_token}"},
+        )
+        if resp.status_code == 200:
+            self.api.token = entry.access_token
+            self.user = resp.json().get("email")
+            return True
+        store.delete(self.url)
+        return False
 
     # -------------------------------------------------------------------------
     # Connection Management
@@ -1535,6 +1643,13 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         return self._figures
 
     @property
+    def presets(self) -> Presets:
+        """Visual presets for this room."""
+        if self._presets is None:
+            self._presets = Presets(self.api)
+        return self._presets
+
+    @property
     def metadata(self) -> RoomMetadata:
         """Access room metadata."""
         if self._metadata is None:
@@ -1543,7 +1658,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
 
     @property
     def sessions(self) -> Sessions:
-        """Active frontend browser sessions for this user."""
+        """Active frontend browser sessions in this room."""
         return Sessions(_api=self.api)
 
     @property

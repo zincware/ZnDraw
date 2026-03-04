@@ -12,7 +12,14 @@ from zndraw.schemas import (
     StatusResponse,
 )
 
-from .connection import cli_error_handler, get_zndraw
+from .connection import (
+    RoomOpt,
+    TokenOpt,
+    UrlOpt,
+    cli_error_handler,
+    get_zndraw,
+    resolve_room,
+)
 from .output import json_print
 
 geometries_app = typer.Typer(name="geometries", help="Geometry operations")
@@ -20,12 +27,14 @@ geometries_app = typer.Typer(name="geometries", help="Geometry operations")
 
 @geometries_app.command("list")
 def list_geometries(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """List geometries for a room (compact summary)."""
     with cli_error_handler():
-        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/geometries", headers=vis.api._headers()
         )
@@ -76,13 +85,17 @@ def describe(
 
 @geometries_app.command("get")
 def get(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
-    key: Annotated[str, typer.Argument(help="Geometry key")],
+    key: Annotated[str | None, typer.Argument(help="Geometry key")] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """Get a geometry by key."""
     with cli_error_handler():
-        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        room = resolve_room(room)
+        if key is None:
+            raise typer.BadParameter("Geometry key is required")
+        vis = get_zndraw(url, token, room)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/geometries/{key}", headers=vis.api._headers()
         )
@@ -93,21 +106,44 @@ def get(
 
 @geometries_app.command("set")
 def set_geometry(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
-    key: Annotated[str, typer.Argument(help="Geometry key")],
-    type_name: Annotated[str, typer.Option("--type", help="Geometry type name")],
-    data: Annotated[str, typer.Option(help="Geometry data as JSON string")],
+    key: Annotated[str | None, typer.Argument(help="Geometry key")] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
+    data: Annotated[
+        str | None, typer.Option(help="Geometry data as JSON string")
+    ] = None,
+    type_name: Annotated[
+        str | None,
+        typer.Option("--type", help="Geometry type (omit for partial update)"),
+    ] = None,
 ) -> None:
-    """Set a geometry by key."""
+    """Set a geometry by key.
+
+    With ``--type``: full replace (PUT).
+    Without ``--type``: partial update / deep merge (PATCH).
+    """
     with cli_error_handler():
-        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
-        request = GeometryCreateRequest(type=type_name, data=json.loads(data))
-        resp = vis.api.http.put(
-            f"/v1/rooms/{vis.room}/geometries/{key}",
-            json=request.model_dump(),
-            headers=vis.api._headers(),
-        )
+        room = resolve_room(room)
+        if key is None:
+            raise typer.BadParameter("Geometry key is required")
+        if data is None:
+            raise typer.BadParameter("--data is required")
+        vis = get_zndraw(url, token, room)
+        parsed = json.loads(data)
+        if type_name is not None:
+            request = GeometryCreateRequest(type=type_name, data=parsed)
+            resp = vis.api.http.put(
+                f"/v1/rooms/{vis.room}/geometries/{key}",
+                json=request.model_dump(),
+                headers=vis.api._headers(),
+            )
+        else:
+            resp = vis.api.http.patch(
+                f"/v1/rooms/{vis.room}/geometries/{key}",
+                json={"data": parsed},
+                headers=vis.api._headers(),
+            )
         vis.api.raise_for_status(resp)
         json_print(StatusResponse.model_validate(resp.json()))
         vis.disconnect()
@@ -115,13 +151,17 @@ def set_geometry(
 
 @geometries_app.command("delete")
 def delete(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
-    key: Annotated[str, typer.Argument(help="Geometry key")],
+    key: Annotated[str | None, typer.Argument(help="Geometry key")] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """Delete a geometry by key."""
     with cli_error_handler():
-        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        room = resolve_room(room)
+        if key is None:
+            raise typer.BadParameter("Geometry key is required")
+        vis = get_zndraw(url, token, room)
         resp = vis.api.http.delete(
             f"/v1/rooms/{vis.room}/geometries/{key}", headers=vis.api._headers()
         )

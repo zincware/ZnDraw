@@ -12,7 +12,14 @@ from zndraw.schemas import (
     StatusResponse,
 )
 
-from .connection import cli_error_handler, get_zndraw
+from .connection import (
+    RoomOpt,
+    TokenOpt,
+    UrlOpt,
+    cli_error_handler,
+    get_zndraw,
+    resolve_room,
+)
 from .output import json_print
 
 selection_groups_app = typer.Typer()
@@ -20,12 +27,14 @@ selection_groups_app = typer.Typer()
 
 @selection_groups_app.command("list")
 def list_selection_groups(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """List all selection groups."""
     with cli_error_handler():
-        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/selection-groups", headers=vis.api._headers()
         )
@@ -36,13 +45,17 @@ def list_selection_groups(
 
 @selection_groups_app.command("get")
 def get_selection_group(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
-    name: Annotated[str, typer.Argument(help="Selection group name")],
+    name: Annotated[str | None, typer.Argument(help="Selection group name")] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """Get a selection group by name."""
     with cli_error_handler():
-        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        room = resolve_room(room)
+        if name is None:
+            raise typer.BadParameter("Selection group name is required")
+        vis = get_zndraw(url, token, room)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/selection-groups/{name}",
             headers=vis.api._headers(),
@@ -54,28 +67,47 @@ def get_selection_group(
 
 @selection_groups_app.command("set")
 def set_selection_group(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
-    name: Annotated[str, typer.Argument(help="Selection group name")],
-    data: Annotated[str, typer.Option("--data", help="Selection data as JSON string")],
+    name: Annotated[str | None, typer.Argument(help="Selection group name")] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
+    data: Annotated[
+        str | None, typer.Option("--data", help="Selection data as JSON string")
+    ] = None,
 ) -> None:
-    """Set a selection group."""
+    """Set a selection group.
+
+    ``--data`` accepts either ``{"group": [0,1,2]}`` or a flat ``[0,1,2]``
+    (wrapped automatically with the positional NAME).
+    """
     with cli_error_handler():
-        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
-        result = vis.api.set_selection_group(name, json.loads(data))
+        room = resolve_room(room)
+        if name is None:
+            raise typer.BadParameter("Selection group name is required")
+        if data is None:
+            raise typer.BadParameter("--data is required")
+        vis = get_zndraw(url, token, room)
+        parsed = json.loads(data)
+        if isinstance(parsed, list):
+            parsed = {name: parsed}
+        result = vis.api.set_selection_group(name, parsed)
         json_print(StatusResponse.model_validate(result))
         vis.disconnect()
 
 
 @selection_groups_app.command("delete")
 def delete_selection_group(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
-    name: Annotated[str, typer.Argument(help="Selection group name")],
+    name: Annotated[str | None, typer.Argument(help="Selection group name")] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """Delete a selection group."""
     with cli_error_handler():
-        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        room = resolve_room(room)
+        if name is None:
+            raise typer.BadParameter("Selection group name is required")
+        vis = get_zndraw(url, token, room)
         resp = vis.api.http.delete(
             f"/v1/rooms/{vis.room}/selection-groups/{name}",
             headers=vis.api._headers(),

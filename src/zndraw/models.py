@@ -127,6 +127,25 @@ class Screenshot(SQLModel, table=True):
     )
 
 
+class RoomPreset(SQLModel, table=True):
+    """Visual preset stored per-room.
+
+    Follows the same pattern as RoomGeometry: ``rules`` is a JSON-serialized
+    string, consistent with how ``RoomGeometry.config`` stores geometry state.
+    """
+
+    room_id: str = Field(foreign_key="room.id", primary_key=True)
+    name: str = Field(primary_key=True)
+    description: str = ""
+    rules: str  # JSON-serialized list[PresetRule]
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+    )
+
+
 class ServerSettings(SQLModel, table=True):
     """Singleton table for server-wide configuration.
 

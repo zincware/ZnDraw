@@ -190,6 +190,24 @@ async def get_verified_session_id(
 VerifiedSessionDep = Annotated[str, Depends(get_verified_session_id)]
 
 
+async def get_active_session_cam_id(
+    redis: RedisDep,
+    room_id: str = Path(),
+    session_id: str = Path(),
+) -> str:
+    """Verify session exists in active-cameras (no ownership check).
+
+    Use for read-only access where any room participant may view
+    session state. For mutations, use ``VerifiedSessionDep``.
+    """
+    if not await redis.hexists(RedisKey.active_cameras(room_id), session_id):  # type: ignore[misc]
+        raise SessionNotFound.exception("Session not found")
+    return session_id
+
+
+ActiveSessionCamDep = Annotated[str, Depends(get_active_session_cam_id)]
+
+
 async def get_owner_from_geometry(
     redis: AsyncRedis,  # type: ignore[type-arg]
     session: AsyncSession,

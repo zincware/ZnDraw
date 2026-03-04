@@ -6,7 +6,14 @@ import typer
 
 from zndraw.schemas import MessageResponse, MessagesResponse
 
-from .connection import cli_error_handler, get_zndraw
+from .connection import (
+    RoomOpt,
+    TokenOpt,
+    UrlOpt,
+    cli_error_handler,
+    get_zndraw,
+    resolve_room,
+)
 from .output import json_print
 
 chat_app = typer.Typer()
@@ -14,8 +21,9 @@ chat_app = typer.Typer()
 
 @chat_app.command("list")
 def list_messages(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
     limit: Annotated[
         int | None, typer.Option(help="Maximum number of messages")
     ] = None,
@@ -25,7 +33,8 @@ def list_messages(
 ) -> None:
     """List chat messages."""
     with cli_error_handler():
-        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
         data = vis.api.list_chat_messages(limit=limit, before=before)
         json_print(MessagesResponse.model_validate(data))
         vis.disconnect()
@@ -33,13 +42,19 @@ def list_messages(
 
 @chat_app.command("send")
 def send_message(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
-    message: Annotated[str, typer.Argument(help="Message content")],
+    message: Annotated[str | None, typer.Argument(help="Message content")] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """Send a chat message."""
     with cli_error_handler():
-        vis = get_zndraw(ctx.obj["url"], ctx.obj["token"], room)
+        room = resolve_room(room)
+        if message is None:
+            raise typer.BadParameter("Message content is required")
+        # Reverse zsh shell escaping of ! → \!
+        message = message.replace("\\!", "!")
+        vis = get_zndraw(url, token, room)
         data = vis.api.create_chat_message(message)
         json_print(MessageResponse.model_validate(data))
         vis.disconnect()

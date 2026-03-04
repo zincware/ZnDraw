@@ -2,6 +2,7 @@ import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import CliLoginApprovePage from "./pages/cliLoginApprove";
 import FilesystemBrowserPage from "./pages/filesystemBrowser";
 import MainPage from "./pages/landingPage";
 import RoomListPage from "./pages/roomList";
@@ -27,6 +28,10 @@ const router = createBrowserRouter([
 	{
 		path: "/",
 		element: <TemplateSelectionPage />,
+	},
+	{
+		path: "/auth/cli",
+		element: <CliLoginApprovePage />,
 	},
 	{
 		path: "/rooms",

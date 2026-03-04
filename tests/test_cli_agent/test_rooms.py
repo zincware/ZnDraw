@@ -32,7 +32,9 @@ def test_rooms_info(
     cli_runner: CliRunner, server_url: str, auth_token: str, test_room: str
 ) -> None:
     """rooms info should return valid RoomResponse for the test room."""
-    data = invoke_cli(cli_runner, server_url, auth_token, ["rooms", "info", test_room])
+    data = invoke_cli(
+        cli_runner, server_url, auth_token, ["rooms", "info", "--room", test_room]
+    )
     resp = RoomResponse.model_validate(data)
     assert resp.id == test_room
     assert resp.frame_count >= 0

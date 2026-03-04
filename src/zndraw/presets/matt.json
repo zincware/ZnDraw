@@ -1,0 +1,90 @@
+{
+    "name": "matt",
+    "description": "Matt finish with soft lighting for journal figures",
+    "rules": [
+        {
+            "pattern": "particles*",
+            "config": {
+                "material": {
+                    "material_type": "MeshPhongMaterial",
+                    "specular": "#333333",
+                    "shininess": 25.0
+                }
+            }
+        },
+        {
+            "pattern": "bonds",
+            "config": {
+                "material": {
+                    "material_type": "MeshPhongMaterial",
+                    "specular": "#333333",
+                    "shininess": 25.0
+                }
+            }
+        },
+        {
+            "pattern": "key-light",
+            "config": {
+                "active": true,
+                "intensity": 0.8,
+                "color": "#ffffff",
+                "position": {
+                    "camera_attached": true,
+                    "x": 5.0,
+                    "y": 3.0,
+                    "z": 8.0
+                }
+            }
+        },
+        {
+            "pattern": "fill-light",
+            "config": {
+                "active": true,
+                "intensity": 0.5,
+                "color": "#ffffff",
+                "position": {
+                    "camera_attached": true,
+                    "x": -5.0,
+                    "y": -2.0,
+                    "z": 6.0
+                }
+            }
+        },
+        {
+            "pattern": "rim-light",
+            "config": {
+                "active": true,
+                "intensity": 0.4,
+                "color": "#ffffff"
+            }
+        },
+        {
+            "pattern": "hemisphere-light",
+            "config": {
+                "active": true,
+                "intensity": 0.5,
+                "sky_color": "#ffffff",
+                "ground_color": "#e8e8e8"
+            }
+        },
+        {
+            "pattern": "ambient-light",
+            "config": {
+                "active": true,
+                "intensity": 0.45
+            }
+        },
+        {
+            "pattern": "fog",
+            "config": {
+                "active": false
+            }
+        },
+        {
+            "pattern": "pathtracing",
+            "config": {
+                "active": false
+            }
+        }
+    ]
+}
