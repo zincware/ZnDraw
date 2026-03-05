@@ -9,10 +9,10 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Client Package
 
-- [ ] **CLNT-01**: `client.py` converted to `src/zndraw/client/` package with `__init__.py`
-- [ ] **CLNT-02**: Serialization helpers extracted to `client/serialization.py`
-- [ ] **CLNT-03**: Exception classes extracted to `client/exceptions.py`
-- [ ] **CLNT-04**: `ZnDrawLock` extracted to `client/lock.py`
+- [x] **CLNT-01**: `client.py` converted to `src/zndraw/client/` package with `__init__.py`
+- [x] **CLNT-02**: Serialization helpers extracted to `client/serialization.py`
+- [x] **CLNT-03**: Exception classes extracted to `client/exceptions.py`
+- [x] **CLNT-04**: `ZnDrawLock` extracted to `client/lock.py`
 - [ ] **CLNT-05**: `APIManager` extracted to `client/api.py`
 - [ ] **CLNT-06**: `SocketManager` extracted to `client/socket.py`
 - [ ] **CLNT-07**: `ZnDraw` main class extracted to `client/core.py`
@@ -72,10 +72,10 @@ Deferred to future milestone. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLNT-01 | Phase 1 | Pending |
-| CLNT-02 | Phase 1 | Pending |
-| CLNT-03 | Phase 1 | Pending |
-| CLNT-04 | Phase 1 | Pending |
+| CLNT-01 | Phase 1 | Complete |
+| CLNT-02 | Phase 1 | Complete |
+| CLNT-03 | Phase 1 | Complete |
+| CLNT-04 | Phase 1 | Complete |
 | CLNT-05 | Phase 1 | Pending |
 | CLNT-06 | Phase 1 | Pending |
 | CLNT-07 | Phase 1 | Pending |
