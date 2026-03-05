@@ -13,11 +13,11 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **CLNT-02**: Serialization helpers extracted to `client/serialization.py`
 - [x] **CLNT-03**: Exception classes extracted to `client/exceptions.py`
 - [x] **CLNT-04**: `ZnDrawLock` extracted to `client/lock.py`
-- [ ] **CLNT-05**: `APIManager` extracted to `client/api.py`
-- [ ] **CLNT-06**: `SocketManager` extracted to `client/socket.py`
-- [ ] **CLNT-07**: `ZnDraw` main class extracted to `client/core.py`
-- [ ] **CLNT-08**: `from zndraw import ZnDraw` continues to work
-- [ ] **CLNT-09**: All 499 existing tests pass unchanged
+- [x] **CLNT-05**: `APIManager` extracted to `client/api.py`
+- [x] **CLNT-06**: `SocketManager` extracted to `client/socket.py`
+- [x] **CLNT-07**: `ZnDraw` main class extracted to `client/core.py`
+- [x] **CLNT-08**: `from zndraw import ZnDraw` continues to work
+- [x] **CLNT-09**: All 499 existing tests pass unchanged
 - [ ] **CLNT-10**: Unit tests added for extracted modules
 
 ### Socket Handler Modules
@@ -76,11 +76,11 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | CLNT-02 | Phase 1 | Complete |
 | CLNT-03 | Phase 1 | Complete |
 | CLNT-04 | Phase 1 | Complete |
-| CLNT-05 | Phase 1 | Pending |
-| CLNT-06 | Phase 1 | Pending |
-| CLNT-07 | Phase 1 | Pending |
-| CLNT-08 | Phase 1 | Pending |
-| CLNT-09 | Phase 1 | Pending |
+| CLNT-05 | Phase 1 | Complete |
+| CLNT-06 | Phase 1 | Complete |
+| CLNT-07 | Phase 1 | Complete |
+| CLNT-08 | Phase 1 | Complete |
+| CLNT-09 | Phase 1 | Complete |
 | CLNT-10 | Phase 1 | Pending |
 | SCEN-01 | Phase 2 | Pending |
 | SCEN-02 | Phase 2 | Pending |
