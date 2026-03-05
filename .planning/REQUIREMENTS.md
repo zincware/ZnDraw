@@ -18,7 +18,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [x] **CLNT-07**: `ZnDraw` main class extracted to `client/core.py`
 - [x] **CLNT-08**: `from zndraw import ZnDraw` continues to work
 - [x] **CLNT-09**: All 499 existing tests pass unchanged
-- [ ] **CLNT-10**: Unit tests added for extracted modules
+- [x] **CLNT-10**: Unit tests added for extracted modules
 
 ### Socket Handler Modules
 
@@ -81,7 +81,7 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | CLNT-07 | Phase 1 | Complete |
 | CLNT-08 | Phase 1 | Complete |
 | CLNT-09 | Phase 1 | Complete |
-| CLNT-10 | Phase 1 | Pending |
+| CLNT-10 | Phase 1 | Complete |
 | SCEN-01 | Phase 2 | Pending |
 | SCEN-02 | Phase 2 | Pending |
 | SCEN-03 | Phase 2 | Pending |
