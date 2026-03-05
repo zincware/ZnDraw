@@ -28,11 +28,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. All 499 existing backend tests pass without modification
   4. Unit tests exist for serialization helpers, exception classes, and other extracted modules
   5. The original monolithic `client.py` file no longer exists
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Extract foundations: shared exceptions, serialization, lock, package scaffold
+- [ ] 01-02-PLAN.md -- Extract APIManager, SocketManager, ZnDraw core; wire re-exports; delete legacy file
+- [ ] 01-03-PLAN.md -- Add unit tests for serialization and exception hierarchy
 
 ### Phase 2: Scene Sub-Slices
 **Goal**: The monolithic `sceneSlice.ts` is decomposed into focused sub-slices (geometry, selection, editing, drawing) that compose back into the existing `SceneSlice` interface without changing `store.tsx` or any consuming components
@@ -73,6 +74,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Client Package | 0/? | Not started | - |
+| 1. Client Package | 0/3 | Planned | - |
 | 2. Scene Sub-Slices | 0/? | Not started | - |
 | 3. Socket Handler Modules | 0/? | Not started | - |
