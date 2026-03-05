@@ -237,9 +237,12 @@ def test_capture_orbit_and_curve_mutually_exclusive():
         gif_app,
         [
             "--orbit",
-            "--curve", "some-key",
-            "--curve-step", "0.1",
-            "--room", "test-room",
+            "--curve",
+            "some-key",
+            "--curve-step",
+            "0.1",
+            "--room",
+            "test-room",
         ],
     )
     assert result.exit_code != 0
@@ -267,14 +270,21 @@ def test_capture_orbit_creates_temp_geometries(
     result = runner.invoke(
         gif_app,
         [
-            "-o", str(output),
+            "-o",
+            str(output),
             "--orbit",
-            "--radius", "20",
-            "--curve-step", "0.5",
-            "--delay", "0.0",
-            "--room", "test-room",
+            "--radius",
+            "20",
+            "--curve-step",
+            "0.5",
+            "--delay",
+            "0.0",
+            "--room",
+            "test-room",
         ],
     )
+
+    assert result.exit_code == 0, result.output
 
     # Check that geometries were written (tracked via side_effect)
     written_types = {type(v).__name__ for _, v in geom_writes}
@@ -300,17 +310,23 @@ def test_capture_restores_step(mock_resolve, mock_get_zndraw, tmp_path: Path):
 
     output = tmp_path / "restore.gif"
     runner = CliRunner()
-    runner.invoke(
+    result = runner.invoke(
         gif_app,
         [
-            "-o", str(output),
-            "--traj-start", "0",
-            "--traj-stop", "3",
-            "--delay", "0.0",
-            "--room", "test-room",
+            "-o",
+            str(output),
+            "--traj-start",
+            "0",
+            "--traj-stop",
+            "3",
+            "--delay",
+            "0.0",
+            "--room",
+            "test-room",
         ],
     )
 
+    assert result.exit_code == 0, result.output
     # Step should be restored to original value 7
     assert step_box[0] == 7
 
@@ -336,11 +352,16 @@ def test_capture_cleans_up_on_error(mock_resolve, mock_get_zndraw, tmp_path: Pat
     result = runner.invoke(
         gif_app,
         [
-            "-o", str(output),
-            "--traj-start", "0",
-            "--traj-stop", "3",
-            "--delay", "0.0",
-            "--room", "test-room",
+            "-o",
+            str(output),
+            "--traj-start",
+            "0",
+            "--traj-stop",
+            "3",
+            "--delay",
+            "0.0",
+            "--room",
+            "test-room",
         ],
     )
 
@@ -356,9 +377,5 @@ def test_capture_cleans_up_on_error(mock_resolve, mock_get_zndraw, tmp_path: Pat
 def test_pillow_missing_gives_clear_error(tmp_path: Path):
     """Verify exit when Pillow import fails."""
     with patch.dict("sys.modules", {"PIL": None, "PIL.Image": None}):
-        with patch(
-            "builtins.__import__",
-            side_effect=ImportError("No module named 'PIL'"),
-        ):
-            with pytest.raises(SystemExit):
-                _assemble_gif([b"fake"], tmp_path / "test.gif", 20)
+        with pytest.raises(SystemExit):
+            _assemble_gif([b"fake"], tmp_path / "test.gif", 20)

@@ -7,12 +7,12 @@ import {
 	Button,
 	Card,
 	CardContent,
+	Chip,
 	CircularProgress,
 	Container,
 	Stack,
 	Typography,
 } from "@mui/material";
-import { Chip } from "@mui/material";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -45,7 +45,7 @@ export default function CliLoginApprovePage() {
 		setStatus("approving");
 		setError(null);
 		try {
-			await axios.patch(`/v1/auth/cli-login/${code}`, null, {
+			await axios.patch(`/v1/auth/cli-login/${encodeURIComponent(code)}`, null, {
 				headers: { Authorization: `Bearer ${getToken()}` },
 			});
 			setStatus("approved");
@@ -63,7 +63,7 @@ export default function CliLoginApprovePage() {
 		setStatus("approving");
 		setError(null);
 		try {
-			await axios.delete(`/v1/auth/cli-login/${code}`, {
+			await axios.delete(`/v1/auth/cli-login/${encodeURIComponent(code)}`, {
 				headers: { Authorization: `Bearer ${getToken()}` },
 			});
 			setStatus("denied");

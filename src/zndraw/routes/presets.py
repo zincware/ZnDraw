@@ -1,6 +1,5 @@
 """Presets REST API endpoints for room visual presets."""
 
-import copy
 import fnmatch
 import json
 from datetime import UTC, datetime
@@ -33,7 +32,9 @@ from zndraw.schemas import (
     Preset,
     PresetApplyResult,
     PresetRule,
+    PresetsListResponse,
     StatusResponse,
+    deep_merge,
 )
 from zndraw.socket_events import GeometryInvalidate
 
@@ -69,17 +70,6 @@ def _validate_rules(rules: list[PresetRule]) -> None:
             )
 
 
-def _deep_merge(base: dict, override: dict) -> dict:
-    """Recursively merge override into base. Override wins for leaf values."""
-    result = copy.deepcopy(base)
-    for key, value in override.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = _deep_merge(result[key], value)
-        else:
-            result[key] = copy.deepcopy(value)
-    return result
-
-
 def _row_to_preset(row: RoomPreset) -> Preset:
     """Convert a RoomPreset DB row to a Preset response."""
     rules = [PresetRule.model_validate(r) for r in json.loads(row.rules)]
@@ -100,7 +90,7 @@ async def list_presets(
     session: SessionDep,
     current_user: CurrentUserDep,
     room_id: str,
-) -> dict:
+) -> PresetsListResponse:
     """List all presets for a room.
 
     Merges bundled presets with room-level DB presets.
@@ -117,7 +107,7 @@ async def list_presets(
     for row in rows:
         merged[row.name] = _row_to_preset(row)
 
-    return {"items": [p.model_dump() for p in merged.values()]}
+    return PresetsListResponse(items=list(merged.values()))
 
 
 @router.get(
@@ -312,7 +302,7 @@ async def apply_preset(
 
         current_config = json.loads(geom.config)
         for config in matching_configs:
-            current_config = _deep_merge(current_config, config)
+            current_config = deep_merge(current_config, config)
 
         # Validate merged config against geometry model
         model_cls = geometry_models.get(geom.type)

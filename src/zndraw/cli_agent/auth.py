@@ -11,15 +11,16 @@ import typer
 
 from zndraw.server_manager import TokenEntry, TokenStore
 
-from .connection import TokenOpt, UrlOpt, cli_error_handler, resolve_url
+from .connection import (
+    TokenOpt,
+    UrlOpt,
+    get_token_store,
+    cli_error_handler,
+    resolve_url,
+)
 from .output import json_print
 
 auth_app = typer.Typer()
-
-
-def _get_token_store() -> TokenStore:
-    """Return the default TokenStore (testable seam)."""
-    return TokenStore()
 
 
 @auth_app.command("login")
@@ -34,7 +35,7 @@ def login(
     """Login via browser approval (device-code flow)."""
     with cli_error_handler():
         resolved_url = resolve_url(url)
-        store = _get_token_store()
+        store = get_token_store()
 
         with httpx.Client(base_url=resolved_url, timeout=30.0) as client:
             # 1. Create challenge
@@ -107,7 +108,7 @@ def status(
     """Show current authentication identity."""
     with cli_error_handler():
         resolved_url = resolve_url(url)
-        store = _get_token_store()
+        store = get_token_store()
 
         # Determine token and source — no guest fallback
         if token is not None:
@@ -137,14 +138,18 @@ def status(
         ) as client:
             resp = client.get("/v1/auth/users/me")
             if resp.status_code != 200:
-                store.delete(resolved_url)
+                # Only delete stored token on auth failures, not server errors
+                if resp.status_code in (401, 403) and token_source == "stored":
+                    store.delete(resolved_url)
                 json_print(
                     {
                         "server": resolved_url,
                         "user_id": None,
                         "email": None,
                         "is_superuser": False,
-                        "token_source": "expired",
+                        "token_source": "expired"
+                        if resp.status_code in (401, 403)
+                        else "error",
                     }
                 )
                 return
@@ -168,6 +173,6 @@ def logout(
     """Remove stored token for the current server."""
     with cli_error_handler():
         resolved_url = resolve_url(url)
-        store = _get_token_store()
+        store = get_token_store()
         store.delete(resolved_url)
         typer.echo(f"Logged out from {resolved_url}")

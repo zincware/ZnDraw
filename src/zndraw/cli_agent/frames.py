@@ -164,6 +164,8 @@ def _expand_indices(raw: str) -> str:
     """
     if ":" in raw:
         parts = raw.split(":")
+        if not all(p.lstrip("-").isdigit() for p in parts if p):
+            raise typer.BadParameter(f"Invalid index range: {raw!r}")
         return ",".join(str(i) for i in range(*[int(p) for p in parts]))
     return raw
 

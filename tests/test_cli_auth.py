@@ -29,10 +29,20 @@ def stored_entry():
     )
 
 
+@pytest.fixture
+def mock_httpx_client():
+    """Yield a mock httpx.Client context manager for auth module."""
+    mock_client = MagicMock()
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
+    with patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_client):
+        yield mock_client
+
+
 # ── auth status ──────────────────────────────────────────────────────
 
 
-def test_auth_status_with_stored_token(token_store, stored_entry):
+def test_auth_status_with_stored_token(token_store, stored_entry, mock_httpx_client):
     """auth status should show identity from stored token."""
     token_store.set("http://localhost:8000", stored_entry)
 
@@ -43,18 +53,13 @@ def test_auth_status_with_stored_token(token_store, stored_entry):
         "email": "user@example.com",
         "is_superuser": False,
     }
-
-    mock_client = MagicMock()
-    mock_client.__enter__ = MagicMock(return_value=mock_client)
-    mock_client.__exit__ = MagicMock(return_value=False)
-    mock_client.get.return_value = mock_response
+    mock_httpx_client.get.return_value = mock_response
 
     with (
-        patch("zndraw.cli_agent.auth._get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
         patch(
             "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
         ),
-        patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_client),
     ):
         result = runner.invoke(app, ["auth", "status"])
 
@@ -67,7 +72,7 @@ def test_auth_status_with_stored_token(token_store, stored_entry):
 def test_auth_status_not_logged_in(token_store):
     """auth status with no stored/explicit token should report not logged in."""
     with (
-        patch("zndraw.cli_agent.auth._get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
         patch(
             "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
         ),
@@ -88,7 +93,7 @@ def test_auth_logout_removes_token(token_store, stored_entry):
     token_store.set("http://localhost:8000", stored_entry)
 
     with (
-        patch("zndraw.cli_agent.auth._get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
         patch(
             "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
         ),
@@ -102,7 +107,7 @@ def test_auth_logout_removes_token(token_store, stored_entry):
 def test_auth_logout_no_token(token_store):
     """auth logout when no token is stored should not error."""
     with (
-        patch("zndraw.cli_agent.auth._get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
         patch(
             "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
         ),
@@ -115,7 +120,7 @@ def test_auth_logout_no_token(token_store):
 # ── auth login ───────────────────────────────────────────────────────
 
 
-def test_auth_login_approved(token_store):
+def test_auth_login_approved(token_store, mock_httpx_client):
     """auth login should store token on successful approval."""
     challenge_resp = MagicMock()
     challenge_resp.status_code = 200
@@ -155,22 +160,17 @@ def test_auth_login_approved(token_store):
             return pending_resp if call_count == 1 else approved_resp
         return me_resp
 
+    mock_httpx_client.post.return_value = challenge_resp
+    mock_httpx_client.get.side_effect = mock_get
+
     with (
-        patch("zndraw.cli_agent.auth._get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
         patch(
             "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
         ),
-        patch("zndraw.cli_agent.auth.httpx.Client") as mock_client_cls,
         patch("zndraw.cli_agent.auth.webbrowser.open"),
         patch("zndraw.cli_agent.auth.time.sleep"),
     ):
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post.return_value = challenge_resp
-        mock_client.get.side_effect = mock_get
-        mock_client_cls.return_value = mock_client
-
         result = runner.invoke(app, ["auth", "login"])
 
     assert result.exit_code == 0
@@ -180,7 +180,7 @@ def test_auth_login_approved(token_store):
     assert stored.email == "user@example.com"
 
 
-def test_auth_login_rejected(token_store):
+def test_auth_login_rejected(token_store, mock_httpx_client):
     """auth login should show error when challenge is rejected (404)."""
     challenge_resp = MagicMock()
     challenge_resp.status_code = 200
@@ -194,28 +194,23 @@ def test_auth_login_rejected(token_store):
     rejected_resp = MagicMock()
     rejected_resp.status_code = 404
 
+    mock_httpx_client.post.return_value = challenge_resp
+    mock_httpx_client.get.return_value = rejected_resp
+
     with (
-        patch("zndraw.cli_agent.auth._get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
         patch(
             "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
         ),
-        patch("zndraw.cli_agent.auth.httpx.Client") as mock_client_cls,
         patch("zndraw.cli_agent.auth.webbrowser.open"),
         patch("zndraw.cli_agent.auth.time.sleep"),
     ):
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post.return_value = challenge_resp
-        mock_client.get.return_value = rejected_resp
-        mock_client_cls.return_value = mock_client
-
         result = runner.invoke(app, ["auth", "login"])
 
     assert result.exit_code != 0
 
 
-def test_auth_login_expired(token_store):
+def test_auth_login_expired(token_store, mock_httpx_client):
     """auth login should show error when challenge expires (410)."""
     challenge_resp = MagicMock()
     challenge_resp.status_code = 200
@@ -229,22 +224,17 @@ def test_auth_login_expired(token_store):
     expired_resp = MagicMock()
     expired_resp.status_code = 410
 
+    mock_httpx_client.post.return_value = challenge_resp
+    mock_httpx_client.get.return_value = expired_resp
+
     with (
-        patch("zndraw.cli_agent.auth._get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
         patch(
             "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
         ),
-        patch("zndraw.cli_agent.auth.httpx.Client") as mock_client_cls,
         patch("zndraw.cli_agent.auth.webbrowser.open"),
         patch("zndraw.cli_agent.auth.time.sleep"),
     ):
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post.return_value = challenge_resp
-        mock_client.get.return_value = expired_resp
-        mock_client_cls.return_value = mock_client
-
         result = runner.invoke(app, ["auth", "login"])
 
     assert result.exit_code != 0

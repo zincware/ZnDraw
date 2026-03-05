@@ -128,7 +128,7 @@ def test_preset_list_json_output(
     result = cli_runner.invoke(
         app,
         [
-            "preset",
+            "presets",
             "list",
             "--url",
             server_url,

@@ -46,7 +46,7 @@ app.add_typer(bookmarks_app, name="bookmarks")
 app.add_typer(figures_app, name="figures")
 app.add_typer(screenshots_app, name="screenshots")
 app.add_typer(sessions_app, name="sessions")
-app.add_typer(presets_app, name="preset")
+app.add_typer(presets_app, name="presets")
 
 # Standalone commands
 app.command("mount")(mount_cmd)

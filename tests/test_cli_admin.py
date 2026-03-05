@@ -70,7 +70,7 @@ def test_admin_users_list(admin_token_store):
 
     with (
         patch(
-            "zndraw.cli_agent.connection._get_token_store",
+            "zndraw.cli_agent.connection.get_token_store",
             return_value=admin_token_store,
         ),
         patch(
@@ -118,11 +118,11 @@ def test_admin_users_login(admin_token_store):
 
     with (
         patch(
-            "zndraw.cli_agent.connection._get_token_store",
+            "zndraw.cli_agent.connection.get_token_store",
             return_value=admin_token_store,
         ),
         patch(
-            "zndraw.cli_agent.admin._get_token_store",
+            "zndraw.cli_agent.admin.get_token_store",
             return_value=admin_token_store,
         ),
         patch(

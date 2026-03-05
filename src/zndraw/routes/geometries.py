@@ -1,6 +1,5 @@
 """Geometry REST API endpoints for room geometry management."""
 
-import copy
 import json
 from functools import lru_cache
 from typing import Any
@@ -43,6 +42,7 @@ from zndraw.schemas import (
     GeometryTypesInfo,
     SelectionUpdateRequest,
     StatusResponse,
+    deep_merge,
 )
 from zndraw.socket_events import (
     DefaultCameraInvalidate,
@@ -265,17 +265,6 @@ async def upsert_geometry(
     return StatusResponse()
 
 
-def _deep_merge(base: dict, override: dict) -> dict:
-    """Recursively merge *override* into *base*. Override wins for leaf values."""
-    result = copy.deepcopy(base)
-    for key, value in override.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = _deep_merge(result[key], value)
-        else:
-            result[key] = copy.deepcopy(value)
-    return result
-
-
 @router.patch(
     "/{key:path}",
     responses=problem_responses(
@@ -302,14 +291,14 @@ async def patch_geometry(
     raw = await redis.hget(hash_key, key)  # type: ignore[misc]
     if raw is not None:
         entry = json.loads(raw)
-        entry["data"] = _deep_merge(entry["data"], request.data)
+        entry["data"] = deep_merge(entry["data"], request.data)
         await redis.hset(hash_key, key, json.dumps(entry))  # type: ignore[misc]
     else:
         row = await session.get(RoomGeometry, (room_id, key))
         if row is None:
             raise GeometryNotFound.exception(f"Geometry '{key}' not found")
         current_config = json.loads(row.config)
-        merged = _deep_merge(current_config, request.data)
+        merged = deep_merge(current_config, request.data)
 
         # Validate via Pydantic model if type is known
         model_cls = geometry_models.get(row.type)

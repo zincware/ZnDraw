@@ -8,19 +8,21 @@ from typing import Annotated
 import httpx
 import typer
 
-from zndraw.server_manager import TokenEntry, TokenStore
+from zndraw.server_manager import TokenEntry
 
-from .connection import TokenOpt, UrlOpt, cli_error_handler, resolve_token, resolve_url
+from .connection import (
+    TokenOpt,
+    UrlOpt,
+    get_token_store,
+    cli_error_handler,
+    resolve_token,
+    resolve_url,
+)
 from .output import json_print
 
 admin_app = typer.Typer(name="admin", help="Admin operations (superuser only)")
 users_app = typer.Typer(name="users", help="User management")
 admin_app.add_typer(users_app, name="users")
-
-
-def _get_token_store() -> TokenStore:
-    """Return the default TokenStore (testable seam)."""
-    return TokenStore()
 
 
 @users_app.command("list")
@@ -57,7 +59,7 @@ def login_as_user(
     with cli_error_handler():
         resolved_url = resolve_url(url)
         resolved_token = resolve_token(resolved_url, token)
-        store = _get_token_store()
+        store = get_token_store()
 
         with httpx.Client(
             base_url=resolved_url,

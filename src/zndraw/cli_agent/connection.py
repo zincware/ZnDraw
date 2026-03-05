@@ -37,7 +37,7 @@ RoomOpt = Annotated[
 ]
 
 
-def _get_token_store() -> TokenStore:
+def get_token_store() -> TokenStore:
     """Return the default TokenStore (testable seam)."""
     return TokenStore()
 
@@ -214,7 +214,7 @@ def resolve_token(base_url: str, token: str | None) -> str:
         return token
 
     # Try stored token
-    store = _get_token_store()
+    store = get_token_store()
     entry = store.get(base_url)
     if entry is not None:
         with httpx.Client(

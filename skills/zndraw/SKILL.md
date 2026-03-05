@@ -133,12 +133,13 @@ uv run zndraw-cli gif capture --orbit -o out.gif # orbit GIF
   uv run zndraw-cli gif capture --curve my-curve --curve-step 0.02 -o out.gif  # smaller step = more frames
   uv run zndraw-cli geometries toggle my-curve    # show again after
   ```
-- **Use presets for visual styles** — don't manually create PathTracing/lighting geometries. Use `preset apply pathtracing` instead.
+- **Use presets for visual styles** — don't manually create PathTracing/lighting geometries. Use `presets apply pathtracing` instead.
 - **Increase `--delay` for path tracing** — default `0.02s` is too fast for path tracing to converge. Use `--delay 0.5` or higher:
   ```bash
-  uv run zndraw-cli preset apply pathtracing
+  uv run zndraw-cli presets apply pathtracing
   uv run zndraw-cli gif capture --orbit --delay 0.5 -o pathtraced.gif
   ```
+- **`--center` and `--target`** — `--center x,y,z` sets the orbit center, `--target x,y,z` sets where the camera looks. Default: target = center.
 
 ## CLI Quick Reference
 
@@ -216,12 +217,12 @@ Three extension categories exist: **modifiers** (edit atoms), **selections** (pi
 Named visual styles (materials, lighting, fog) that can be applied to room geometries. Bundled presets (`matt`, `flat`, `glossy`, `pathtracing`) are always available in every room without needing to be created. Creating a room-level preset with the same name overrides the bundled one; deleting the override makes the bundled version reappear.
 
 ```bash
-uv run zndraw-cli preset list                                     # list presets
-uv run zndraw-cli preset apply matt                               # apply bundled preset
-uv run zndraw-cli preset reset                                    # reset to factory defaults
-uv run zndraw-cli preset save my-style -p "particles*" -p "fog"   # save current state
-uv run zndraw-cli preset export my-style ./my-style.json          # export for sharing
-uv run zndraw-cli preset load ./my-style.json                     # import from file
+uv run zndraw-cli presets list                                     # list presets
+uv run zndraw-cli presets apply matt                               # apply bundled preset
+uv run zndraw-cli presets reset                                    # reset to factory defaults
+uv run zndraw-cli presets save my-style -p "particles*" -p "fog"   # save current state
+uv run zndraw-cli presets export my-style ./my-style.json          # export for sharing
+uv run zndraw-cli presets load ./my-style.json                     # import from file
 ```
 
 Presets use fnmatch patterns (`particles*`, `*light*`, `fog`) and optional `geometry_type` filters to target specific geometries. Rules are deep-merged — only specified config keys are overridden.
@@ -407,14 +408,14 @@ uv run zndraw-cli geometries set my-camera --data '{"fov": 45}'
 | "send a chat message" | `uv run zndraw-cli chat send "msg"` or Python: `vis.chat.send("msg")` |
 | "take a screenshot" | Check `auth status` → `auth login` if needed (ask user to approve in browser) → `screenshots request` |
 | "create a GIF / orbit animation" | Check `auth status` → `auth login` if needed (ask user) → ensure room open in browser → `gif capture --orbit -o out.gif` |
-| "create a path-traced GIF" | `preset apply pathtracing` → `gif capture --orbit --delay 0.5 -o out.gif` |
+| "create a path-traced GIF" | `presets apply pathtracing` → `gif capture --orbit --delay 0.5 -o out.gif` |
 | "GIF along a camera path" | Curve must exist as a geometry (created via UI or `geometries set`) → `geometries toggle CURVE` to hide → `gif capture --curve CURVE ...` → toggle CURVE back |
 | "list browser sessions" | `uv run zndraw-cli sessions list` |
 | "who am I / admin check" | `uv run zndraw-cli auth status` |
-| "apply matt style" | `uv run zndraw-cli preset apply matt` or Python: `vis.presets.apply("matt")` |
-| "reset to defaults" | `uv run zndraw-cli preset reset` or Python: `vis.presets.apply("@default")` |
-| "save current look as preset" | `uv run zndraw-cli preset save my-style -p "particles*" -p "fog"` |
-| "share a preset" | `uv run zndraw-cli preset export my-style ./my-style.json` |
+| "apply matt style" | `uv run zndraw-cli presets apply matt` or Python: `vis.presets.apply("matt")` |
+| "reset to defaults" | `uv run zndraw-cli presets reset` or Python: `vis.presets.apply("@default")` |
+| "save current look as preset" | `uv run zndraw-cli presets save my-style -p "particles*" -p "fog"` |
+| "share a preset" | `uv run zndraw-cli presets export my-style ./my-style.json` |
 | "toggle fog off" | `uv run zndraw-cli geometries toggle fog` |
 | "make particles transparent" | `uv run zndraw-cli geometries set-prop particles material.opacity 0.5` |
 | "run extension and wait" | `extensions run EXT --wait` or Python: `vis.run(EXT).wait()` |
@@ -433,6 +434,6 @@ uv run zndraw-cli geometries set my-camera --data '{"fov": 45}'
 - **Wrong room** — `rooms list` to discover, don't guess UUIDs
 - **Piping CLI to Python for mutations** — use the `ZnDraw` client instead; it connects directly and handles serialization
 - **Leaving helper geometries visible in GIFs** — curves, helper lines show up in captures. Toggle them off with `geometries toggle KEY` before `gif capture`.
-- **Manual path tracing setup** — use `preset apply pathtracing`, not manual `geometries set --type PathTracing`. Presets are single-command and correct.
+- **Manual path tracing setup** — use `presets apply pathtracing`, not manual `geometries set --type PathTracing`. Presets are single-command and correct.
 - **Default `--delay` with path tracing** — `0.02s` produces noisy frames. Use `--delay 0.5` or higher for path tracing to accumulate samples.
 - **`screenshots get` instead of `screenshots request`** — `get ID` downloads an existing screenshot by its database ID. `request` captures a new one.

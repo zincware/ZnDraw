@@ -19,7 +19,7 @@ def _invoke_with_env_room(
     auth_token: str,
     room: str,
     args: list[str],
-) -> CliRunner:
+):
     """Invoke a CLI command with ZNDRAW_ROOM set instead of --room."""
     cmd_path = args[:2]
     cmd_args = args[2:]

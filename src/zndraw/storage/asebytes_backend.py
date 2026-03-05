@@ -203,7 +203,5 @@ class AsebytesStorage:
             await io._backend.set(idx, None)  # type: ignore[union-attr]
 
     async def close(self) -> None:
-        """Clean up resources by clearing all room data."""
-        for io in self._rooms.values():
-            await io.clear()
+        """Release in-memory handles without deleting stored data."""
         self._rooms.clear()

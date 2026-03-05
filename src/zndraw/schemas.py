@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 from uuid import UUID
@@ -7,6 +8,18 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from zndraw.models import MemberRole
+
+
+def deep_merge(base: dict, override: dict) -> dict:
+    """Recursively merge *override* into *base*. Override wins for leaf values."""
+    result = copy.deepcopy(base)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = copy.deepcopy(value)
+    return result
+
 
 T = TypeVar("T")
 
@@ -605,8 +618,14 @@ class Preset(BaseModel):
     name: str = Field(pattern=r"^[a-zA-Z0-9_-]+$", max_length=64)
     description: str = ""
     rules: list[PresetRule] = Field(default_factory=list)
-    created_at: datetime | None = Field(default=None, exclude=True)
-    updated_at: datetime | None = Field(default=None, exclude=True)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class PresetsListResponse(BaseModel):
+    """Response for listing presets."""
+
+    items: list[Preset]
 
 
 class PresetApplyResult(BaseModel):

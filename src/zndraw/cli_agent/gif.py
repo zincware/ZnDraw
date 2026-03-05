@@ -14,17 +14,17 @@ import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 
 from .connection import (
+    EXIT_CLIENT_ERROR,
     RoomOpt,
     TokenOpt,
     UrlOpt,
     cli_error_handler,
     die,
-    EXIT_CLIENT_ERROR,
     get_zndraw,
     resolve_room,
 )
@@ -37,7 +37,7 @@ gif_app = typer.Typer(name="gif", help="GIF animation export")
 # ---------------------------------------------------------------------------
 
 
-def _get_session(vis):
+def _get_session(vis: Any) -> Any:
     """Return the first active session or exit with an error."""
     sids = list(vis.sessions)
     if not sids:
@@ -143,26 +143,47 @@ def _parse_center(center_str: str) -> tuple[float, float, float]:
 
 @gif_app.command("capture")
 def capture(
-    output: Annotated[Path, typer.Option("-o", "--output", help="Output GIF path")] = Path("output.gif"),
+    output: Annotated[
+        Path, typer.Option("-o", "--output", help="Output GIF path")
+    ] = Path("output.gif"),
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
     # Camera mode
-    orbit: Annotated[bool, typer.Option("--orbit", help="Auto-create orbit circle")] = False,
-    curve: Annotated[str | None, typer.Option("--curve", help="Existing curve geometry key")] = None,
+    orbit: Annotated[
+        bool, typer.Option("--orbit", help="Auto-create orbit circle")
+    ] = False,
+    curve: Annotated[
+        str | None, typer.Option("--curve", help="Existing curve geometry key")
+    ] = None,
     radius: Annotated[float, typer.Option(help="Orbit radius (with --orbit)")] = 15.0,
-    center: Annotated[str | None, typer.Option(help="Orbit center as x,y,z (default: camera target)")] = None,
+    center: Annotated[
+        str | None, typer.Option(help="Orbit center as x,y,z (default: camera target)")
+    ] = None,
+    target: Annotated[
+        str | None, typer.Option(help="Camera target as x,y,z (default: orbit center)")
+    ] = None,
     # Curve axis
-    curve_start: Annotated[float, typer.Option(help="Curve start progress (0.0-1.0)")] = 0.0,
-    curve_stop: Annotated[float, typer.Option(help="Curve stop progress (0.0-1.0)")] = 1.0,
-    curve_step: Annotated[float, typer.Option(help="Curve step size (0 = no curve)")] = 0.0,
+    curve_start: Annotated[
+        float, typer.Option(help="Curve start progress (0.0-1.0)")
+    ] = 0.0,
+    curve_stop: Annotated[
+        float, typer.Option(help="Curve stop progress (0.0-1.0)")
+    ] = 1.0,
+    curve_step: Annotated[
+        float, typer.Option(help="Curve step size (0 = no curve)")
+    ] = 0.0,
     # Trajectory axis
-    traj_start: Annotated[int | None, typer.Option(help="Trajectory start frame")] = None,
+    traj_start: Annotated[
+        int | None, typer.Option(help="Trajectory start frame")
+    ] = None,
     traj_stop: Annotated[int | None, typer.Option(help="Trajectory stop frame")] = None,
     traj_step: Annotated[int, typer.Option(help="Trajectory step")] = 1,
     # Output options
     fps: Annotated[int, typer.Option(help="Frames per second")] = 20,
-    delay: Annotated[float, typer.Option(help="Delay between captures (seconds)")] = 0.02,
+    delay: Annotated[
+        float, typer.Option(help="Delay between captures (seconds)")
+    ] = 0.02,
 ) -> None:
     """Capture an animated GIF from a ZnDraw room.
 
@@ -199,9 +220,11 @@ def capture(
                 raise typer.BadParameter(msg)
             import numpy as np
 
-            curve_values = np.arange(
-                curve_start, curve_stop + curve_step / 2, curve_step
-            ).clip(0.0, 1.0).tolist()
+            curve_values = (
+                np.arange(curve_start, curve_stop + curve_step / 2, curve_step)
+                .clip(0.0, 1.0)
+                .tolist()
+            )
             if not curve_values:
                 msg = "Curve range is empty"
                 raise typer.BadParameter(msg)
@@ -217,8 +240,8 @@ def capture(
             # Set up camera curve if needed
             camera_curve_key: str | None = None
             if orbit:
-                from zndraw.geometries.circle_curve import CircleCurve
                 from zndraw.geometries.camera import Camera
+                from zndraw.geometries.circle_curve import CircleCurve
                 from zndraw.transformations import CurveAttachment
 
                 # Determine orbit center
@@ -252,16 +275,23 @@ def capture(
 
                 current_cam = session.camera
                 cam_key = f"_gif_cam_{uuid.uuid4().hex[:8]}"
-                target = current_cam.target
-                if isinstance(target, CurveAttachment):
-                    target = (0.0, 0.0, 0.0)
+
+                # Resolve camera target
+                if target is not None:
+                    cam_target = _parse_center(target)
+                elif orbit:
+                    cam_target = orbit_center  # default for orbit: look at center
+                else:
+                    cam_target = current_cam.target
+                    if isinstance(cam_target, CurveAttachment):
+                        cam_target = (0.0, 0.0, 0.0)
 
                 vis.geometries[cam_key] = Camera(
                     position=CurveAttachment(
                         geometry_key=camera_curve_key,
                         progress=0.0,
                     ),
-                    target=target,
+                    target=cam_target,
                     up=current_cam.up,
                     fov=current_cam.fov,
                     near=current_cam.near,
@@ -286,12 +316,22 @@ def capture(
                     prev_traj = t_val
 
                 # Update camera progress
-                if c_val is not None and c_val != prev_curve and temp_camera_key is not None:
+                if (
+                    c_val is not None
+                    and c_val != prev_curve
+                    and temp_camera_key is not None
+                ):
                     from zndraw.geometries.camera import Camera
                     from zndraw.transformations import CurveAttachment
 
                     cam = vis.geometries[temp_camera_key]
-                    assert isinstance(cam, Camera)
+                    if not isinstance(cam, Camera):
+                        die(
+                            "Unexpected Geometry",
+                            f"Expected Camera, got {type(cam).__name__}",
+                            400,
+                            EXIT_CLIENT_ERROR,
+                        )
                     # Camera is frozen, so create a new instance
                     new_pos = CurveAttachment(
                         geometry_key=camera_curve_key,
