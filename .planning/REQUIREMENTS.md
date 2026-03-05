@@ -81,23 +81,23 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | CLNT-07 | Phase 1 | Pending |
 | CLNT-08 | Phase 1 | Pending |
 | CLNT-09 | Phase 1 | Pending |
-| CLNT-10 | Phase 2 | Pending |
-| SOCK-01 | Phase 4 | Pending |
-| SOCK-02 | Phase 4 | Pending |
-| SOCK-03 | Phase 4 | Pending |
-| SOCK-04 | Phase 4 | Pending |
-| SOCK-05 | Phase 4 | Pending |
-| SOCK-06 | Phase 4 | Pending |
-| SOCK-07 | Phase 4 | Pending |
-| SOCK-08 | Phase 5 | Pending |
-| SOCK-09 | Phase 4 | Pending |
-| SCEN-01 | Phase 3 | Pending |
-| SCEN-02 | Phase 3 | Pending |
-| SCEN-03 | Phase 3 | Pending |
-| SCEN-04 | Phase 3 | Pending |
-| SCEN-05 | Phase 3 | Pending |
-| SCEN-06 | Phase 3 | Pending |
-| SCEN-07 | Phase 3 | Pending |
+| CLNT-10 | Phase 1 | Pending |
+| SCEN-01 | Phase 2 | Pending |
+| SCEN-02 | Phase 2 | Pending |
+| SCEN-03 | Phase 2 | Pending |
+| SCEN-04 | Phase 2 | Pending |
+| SCEN-05 | Phase 2 | Pending |
+| SCEN-06 | Phase 2 | Pending |
+| SCEN-07 | Phase 2 | Pending |
+| SOCK-01 | Phase 3 | Pending |
+| SOCK-02 | Phase 3 | Pending |
+| SOCK-03 | Phase 3 | Pending |
+| SOCK-04 | Phase 3 | Pending |
+| SOCK-05 | Phase 3 | Pending |
+| SOCK-06 | Phase 3 | Pending |
+| SOCK-07 | Phase 3 | Pending |
+| SOCK-08 | Phase 3 | Pending |
+| SOCK-09 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 26 total
@@ -106,4 +106,4 @@ Deferred to future milestone. Tracked but not in current roadmap.
 
 ---
 *Requirements defined: 2026-03-05*
-*Last updated: 2026-03-05 after initial definition*
+*Last updated: 2026-03-05 after roadmap creation*
