@@ -61,7 +61,7 @@ from zndraw.accessors import (
     Tasks,
 )
 from zndraw.enrichment import add_colors, add_radii
-from zndraw.exceptions import PROBLEM_TYPES, ProblemDetail
+from zndraw.exceptions import PROBLEM_TYPES, ProblemDetail, RoomLockedError, ZnDrawError
 from zndraw.geometries.camera import Camera
 
 if TYPE_CHECKING:
@@ -167,16 +167,8 @@ def _estimate_frame_size(frame: dict[str, Any]) -> int:
 # =============================================================================
 
 
-class ZnDrawError(Exception):
-    """Base exception for ZnDraw client errors."""
-
-
 class NotConnectedError(ZnDrawError):
     """Raised when operation requires connection but client is disconnected."""
-
-
-class RoomLockedError(ZnDrawError):
-    """Raised when the room is locked (admin lock or edit lock by another user)."""
 
 
 # =============================================================================
