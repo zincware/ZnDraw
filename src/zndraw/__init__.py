@@ -1,6 +1,6 @@
 """ZnDraw - Interactive visualization for atomistic simulations."""
 
-from zndraw._client_legacy import ZnDraw
+from zndraw.client import ZnDraw
 from zndraw.extensions import Category, Extension
 from zndraw.tqdm import ZnDrawTqdm
 
