@@ -34,13 +34,13 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Scene Sub-Slices
 
-- [ ] **SCEN-01**: Geometry sub-slice extracted (`geometrySlice.ts`)
-- [ ] **SCEN-02**: Selection sub-slice extracted (`selectionSlice.ts`)
-- [ ] **SCEN-03**: Editing sub-slice extracted (`editingSlice.ts`)
-- [ ] **SCEN-04**: Drawing sub-slice extracted (`drawingSlice.ts`)
-- [ ] **SCEN-05**: Camera concern handled (separate or merged into geometry)
-- [ ] **SCEN-06**: `SceneSlice` interface composed from sub-interfaces
-- [ ] **SCEN-07**: `createSceneSlice` composes sub-creators following existing pattern
+- [x] **SCEN-01**: Geometry sub-slice extracted (`geometrySlice.ts`)
+- [x] **SCEN-02**: Selection sub-slice extracted (`selectionSlice.ts`)
+- [x] **SCEN-03**: Editing sub-slice extracted (`editingSlice.ts`)
+- [x] **SCEN-04**: Drawing sub-slice extracted (`drawingSlice.ts`)
+- [x] **SCEN-05**: Camera concern handled (separate or merged into geometry)
+- [x] **SCEN-06**: `SceneSlice` interface composed from sub-interfaces
+- [x] **SCEN-07**: `createSceneSlice` composes sub-creators following existing pattern
 
 ## v2 Requirements
 
@@ -82,13 +82,13 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | CLNT-08 | Phase 1 | Complete |
 | CLNT-09 | Phase 1 | Complete |
 | CLNT-10 | Phase 1 | Complete |
-| SCEN-01 | Phase 2 | Pending |
-| SCEN-02 | Phase 2 | Pending |
-| SCEN-03 | Phase 2 | Pending |
-| SCEN-04 | Phase 2 | Pending |
-| SCEN-05 | Phase 2 | Pending |
-| SCEN-06 | Phase 2 | Pending |
-| SCEN-07 | Phase 2 | Pending |
+| SCEN-01 | Phase 2 | Complete |
+| SCEN-02 | Phase 2 | Complete |
+| SCEN-03 | Phase 2 | Complete |
+| SCEN-04 | Phase 2 | Complete |
+| SCEN-05 | Phase 2 | Complete |
+| SCEN-06 | Phase 2 | Complete |
+| SCEN-07 | Phase 2 | Complete |
 | SOCK-01 | Phase 3 | Pending |
 | SOCK-02 | Phase 3 | Pending |
 | SOCK-03 | Phase 3 | Pending |
