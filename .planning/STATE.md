@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
+milestone_name: Split Monolithic Files
 status: completed
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-03-06T09:25:07.514Z"
-last_activity: 2026-03-06 -- Completed 03-03-PLAN.md (barrel index + slim orchestrator)
+stopped_at: Milestone v1.0 shipped
+last_updated: "2026-03-06T10:50:00Z"
+last_activity: 2026-03-06 -- Milestone v1.0 archived
 progress:
   total_phases: 3
   completed_phases: 3
@@ -18,85 +18,49 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-05)
+See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Every extracted module has a single, clear responsibility -- files grouped by concern, not by historical accident.
-**Current focus:** All phases complete
+**Current focus:** Milestone v1.0 complete. Use `/gsd:new-milestone` to start next work.
 
 ## Current Position
 
-Phase: 3 of 3 (Socket Handler Modules) -- COMPLETE
-Plan: 3 of 3 in current phase -- COMPLETE
-Status: Complete
-Last activity: 2026-03-06 -- Completed 03-03-PLAN.md (barrel index + slim orchestrator)
+Milestone v1.0 shipped 2026-03-06.
+All 3 phases complete, 8 plans executed, 26 requirements satisfied.
 
-Progress: [██████████] 100%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 6min
-- Total execution time: 0.48 hours
+- Total plans completed: 8
+- Average duration: ~4min
+- Total execution time: ~30min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-client-package | 3 | 24min | 8min |
-
-**Recent Trend:**
-- Last 5 plans: 01-01 (2min), 01-02 (17min), 01-03 (5min)
-- Trend: Stable -- testing plan fast due to clean extraction in 01-02
-
-*Updated after each plan completion*
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
 | 02-scene-sub-slices | 2 | 5min | 2.5min |
-
-**Recent Trend:**
-- Last 5 plans: 01-01 (2min), 01-02 (17min), 01-03 (5min), 02-01 (3min), 02-02 (2min)
-- Trend: Stable -- store wiring was fast mechanical import path change
-| Phase 03 P01 | 2min | 2 tasks | 5 files |
-| Phase 03 P02 | 4min | 2 tasks | 4 files |
-| Phase 03 P03 | 3min | 1 tasks | 2 files |
+| 03-socket-handler-modules | 3 | 9min | 3min |
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- [Roadmap]: 3-phase structure derived from 3 natural work streams (Python client, Zustand slices, React hooks). Below standard granularity (5-8) but authentic to the work.
-- [Roadmap]: Phase order follows risk gradient -- strongest test coverage first (499 tests), then compiler-verified TypeScript, then most nuanced React lifecycle work last.
-- [01-01]: Renamed client.py to _client_legacy.py to coexist with client/ directory during incremental split
-- [01-01]: ZnDrawError and RoomLockedError placed before ProblemType definitions in exceptions.py
-- [01-02]: ProviderTimeoutError imported lazily inside get_frame/get_frames methods rather than at module top level
-- [01-02]: Kept _decode_raw_frame as a staticmethod on ZnDraw (not extracted to serialization.py)
-- [01-03]: Renamed tests/test_client.py to tests/test_client_integration.py to avoid module collision with tests/test_client/ directory
-- [Phase 02]: editingSubSlice imports only partialUpdateFrame; acquireEditLock/releaseEditLock accessed via get().acquireLock from LockSlice
-- [Phase 02]: Sub-slice creators use (set, get) matching original sceneSlice.ts; barrel forwards (set, get, store) to each
-- [02-02]: E2E tests skipped (require running server); TypeScript compilation verifies structural refactor correctness
-- [Phase 03-01]: HandlerContext uses exact Zustand slice setter signatures (including optional source param on updateGeometry)
-- [Phase 03-02]: RoomJoinResponse union with RoomJoinError replaces `any` for socket callback typing
-- [Phase 03-02]: RoomUpdateEvent uses `as Room` cast for setRoom since server sends full snapshots
-- [Phase 03]: Preserved exact dependency array and selector block from original useSocketManager
-- [Phase 03]: Converted null to undefined for roomId in HandlerContext to satisfy type constraint
+All decisions logged in PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
-- [Research]: Phase 3 handler factory dependency injection pattern needs design during planning. Recommend `/gsd:research-phase` before Phase 3 implementation.
-- [Research]: Verify `Sessions` class is properly re-exported during Phase 1 (found in test imports). -- RESOLVED in 01-02: Sessions re-exported in client/__init__.py
-- [01-02]: Pre-existing test failure in test_storage_asebytes.py::test_close_clears_rooms (causes test pollution). Not related to refactoring.
+None active. Pre-existing test failure in test_storage_asebytes.py::test_close_clears_rooms is unrelated to this milestone.
 
 ## Session Continuity
 
-Last session: 2026-03-06T09:19:09.590Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-03-06
+Stopped at: Milestone v1.0 shipped and archived
 Resume file: None
