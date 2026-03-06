@@ -15,16 +15,25 @@ class FrontendBuildHook(BuildHookInterface):
     def initialize(self, version: str, build_data: dict) -> None:
         """Build the frontend before the Python package is built.
 
-        Note: The 'version' parameter is the build type ('standard' or 'editable'),
-        NOT the package version. Use self.metadata.version for the actual version.
-        """
-        # Get actual package version from metadata
-        pkg_version = self.metadata.version
+        Parameters
+        ----------
+        version : str
+            The build type ('standard' or 'editable'), not the package version.
+        build_data : dict
+            Build metadata passed by hatchling.
 
-        app_dir = os.path.join(self.root, "app")
+        Raises
+        ------
+        RuntimeError
+            If the frontend directory or a package manager is not found.
+        """
+        app_dir = os.path.join(self.root, "frontend")
 
         if not os.path.isdir(app_dir):
-            return
+            raise RuntimeError(
+                f"Frontend directory not found: {app_dir}. "
+                "Every build must include the frontend."
+            )
 
         # Determine which package manager to use
         if shutil.which("bun"):
@@ -38,17 +47,15 @@ class FrontendBuildHook(BuildHookInterface):
         else:
             raise RuntimeError("Neither bun nor npm found. Cannot build frontend.")
 
+        pkg_version = self.metadata.version
         self.app.display_info(
             f"Building frontend with {pkg_manager} (version={pkg_version})..."
         )
 
-        # Install dependencies
         subprocess.run(install_cmd, cwd=app_dir, check=True)
 
-        # Build the frontend with version injected
         env = os.environ.copy()
         env["VITE_APP_VERSION"] = pkg_version
-        # Increase Node.js heap size for memory-constrained environments (e.g., RTD)
         env["NODE_OPTIONS"] = env.get("NODE_OPTIONS", "") + " --max-old-space-size=4096"
         subprocess.run(build_cmd, cwd=app_dir, check=True, env=env)
 

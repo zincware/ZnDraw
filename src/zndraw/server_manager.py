@@ -1,4 +1,10 @@
-"""Server management utilities for ZnDraw CLI."""
+"""Server management utilities for ZnDraw CLI.
+
+This module handles server process discovery, lifecycle management,
+and PID file management for multi-instance support.
+"""
+
+from __future__ import annotations
 
 import json
 import logging
@@ -7,11 +13,11 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-import requests
+import httpx
 
 log = logging.getLogger(__name__)
 
-DEFAULT_PORT = 5000
+DEFAULT_PORT = 8000  # FastAPI default
 
 
 @dataclass
@@ -28,7 +34,6 @@ class ServerInfo:
         Version of ZnDraw the server is running.
     shutdown_token
         Random token for secure shutdown from CLI.
-
     """
 
     pid: int
@@ -41,7 +46,7 @@ class ServerInfo:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ServerInfo":
+    def from_dict(cls, data: dict) -> ServerInfo:
         """Create ServerInfo from dictionary."""
         return cls(**data)
 
@@ -53,7 +58,6 @@ def get_zndraw_dir() -> Path:
     -------
     Path
         Path to ~/.zndraw directory (created if not exists).
-
     """
     zndraw_dir = Path.home() / ".zndraw"
     zndraw_dir.mkdir(exist_ok=True)
@@ -72,7 +76,6 @@ def get_pid_file_path(port: int) -> Path:
     -------
     Path
         Path to ~/.zndraw/server-{port}.pid
-
     """
     return get_zndraw_dir() / f"server-{port}.pid"
 
@@ -89,7 +92,6 @@ def read_server_info(port: int) -> ServerInfo | None:
     -------
     ServerInfo | None
         Server information if the file exists and is valid, None otherwise.
-
     """
     pid_file = get_pid_file_path(port)
     if not pid_file.exists():
@@ -110,7 +112,6 @@ def write_server_info(server_info: ServerInfo) -> None:
     ----------
     server_info
         Server information to write. Port is derived from server_info.port.
-
     """
     pid_file = get_pid_file_path(server_info.port)
     with open(pid_file, "w") as f:
@@ -124,7 +125,6 @@ def remove_server_info(port: int) -> None:
     ----------
     port
         Port number of the server to remove info for.
-
     """
     pid_file = get_pid_file_path(port)
     if pid_file.exists():
@@ -138,7 +138,6 @@ def list_all_pid_files() -> list[Path]:
     -------
     list[Path]
         List of paths to server-{port}.pid files.
-
     """
     zndraw_dir = get_zndraw_dir()
     return sorted(zndraw_dir.glob("server-*.pid"))
@@ -156,7 +155,6 @@ def is_process_running(pid: int) -> bool:
     -------
     bool
         True if the process is running, False otherwise.
-
     """
     try:
         os.kill(pid, 0)
@@ -179,12 +177,12 @@ def is_server_responsive(port: int, timeout: float = 2.0) -> bool:
     -------
     bool
         True if the server responds, False otherwise.
-
     """
     try:
-        response = requests.get(f"http://localhost:{port}/health", timeout=timeout)
-        return response.status_code == 200
-    except requests.RequestException:
+        with httpx.Client(timeout=timeout) as client:
+            response = client.get(f"http://localhost:{port}/v1/health")
+            return response.status_code == 200
+    except httpx.RequestError:
         return False
 
 
@@ -198,7 +196,7 @@ def wait_for_server_ready(
     Parameters
     ----------
     url
-        Base URL of the server (e.g., 'http://localhost:5000').
+        Base URL of the server (e.g., 'http://localhost:8000').
     timeout
         Maximum time to wait in seconds.
     poll_interval
@@ -208,26 +206,26 @@ def wait_for_server_ready(
     -------
     bool
         True if the server became ready within the timeout, False otherwise.
-
     """
     start_time = time.time()
     current_interval = poll_interval
     max_interval = 2.0
     attempt = 0
 
-    while time.time() - start_time < timeout:
-        attempt += 1
-        try:
-            response = requests.get(f"{url}/health", timeout=2.0)
-            if response.status_code == 200:
-                elapsed = time.time() - start_time
-                log.debug(f"Server ready after {elapsed:.2f}s ({attempt} attempts)")
-                return True
-        except requests.RequestException:
-            pass
+    with httpx.Client(timeout=2.0) as client:
+        while time.time() - start_time < timeout:
+            attempt += 1
+            try:
+                response = client.get(f"{url}/v1/health")
+                if response.status_code == 200:
+                    elapsed = time.time() - start_time
+                    log.debug(f"Server ready after {elapsed:.2f}s ({attempt} attempts)")
+                    return True
+            except httpx.RequestError:
+                pass
 
-        time.sleep(current_interval)
-        current_interval = min(current_interval * 1.5, max_interval)
+            time.sleep(current_interval)
+            current_interval = min(current_interval * 1.5, max_interval)
 
     log.warning(f"Server not ready after {timeout}s ({attempt} attempts)")
     return False
@@ -245,7 +243,6 @@ def get_server_status(port: int) -> tuple[bool, ServerInfo | None, str]:
     -------
     tuple[bool, ServerInfo | None, str]
         A tuple of (is_running, server_info, status_message).
-
     """
     server_info = read_server_info(port)
 
@@ -266,7 +263,8 @@ def get_server_status(port: int) -> tuple[bool, ServerInfo | None, str]:
     return (
         True,
         server_info,
-        f"Server running (PID: {server_info.pid}, Port: {port}, Version: {server_info.version})",
+        f"Server running (PID: {server_info.pid}, Port: {port}, "
+        f"Version: {server_info.version})",
     )
 
 
@@ -285,7 +283,6 @@ def find_running_server(port: int | None = None) -> ServerInfo | None:
     -------
     ServerInfo | None
         Server info if a running server is found, None otherwise.
-
     """
     if port is not None:
         is_running, server_info, _ = get_server_status(port)
@@ -332,7 +329,6 @@ def shutdown_server(server_info: ServerInfo) -> bool:
     -------
     bool
         True if the server was successfully shut down, False otherwise.
-
     """
     if not is_process_running(server_info.pid):
         return False
@@ -342,12 +338,12 @@ def shutdown_server(server_info: ServerInfo) -> bool:
         if server_info.shutdown_token:
             headers["X-Shutdown-Token"] = server_info.shutdown_token
 
-        requests.post(
-            f"http://localhost:{server_info.port}/api/shutdown",
-            headers=headers,
-            timeout=5.0,
-        )
-    except requests.RequestException:
+        with httpx.Client(timeout=5.0) as client:
+            client.post(
+                f"http://localhost:{server_info.port}/v1/admin/shutdown",
+                headers=headers,
+            )
+    except httpx.RequestError:
         pass
 
     # Wait for process to exit

@@ -3,6 +3,7 @@
 import typing as t
 
 from pydantic import Field
+from pydantic.json_schema import SkipJsonSchema
 
 from .base import (
     BaseGeometry,
@@ -91,7 +92,7 @@ class Bond(BaseGeometry):
         json_schema_extra={"format": "range", "step": 0.1},
     )
 
-    bond_order_radius_scale: dict[float, float] = Field(
+    bond_order_radius_scale: SkipJsonSchema[dict[float, float]] = Field(
         default={1: 1.0, 1.5: 0.75, 2: 0.75, 3: 0.7},
         description="Radius multiplier per bond order in parallel mode. Maps bond order to scale factor.",
     )

@@ -1,32 +1,109 @@
+"""ZnDraw CLI - Command-line interface for ZnDraw visualization server.
+
+This module provides commands to:
+- Start a ZnDraw server (local or detached)
+- Upload trajectory files to a running server
+- Check server status
+- Shutdown a running server
+- Connect to a remote server
+"""
+
+from __future__ import annotations
+
 import os
+import re
 import secrets
 import sys
+import threading
 import uuid
 import webbrowser
+from pathlib import Path
+from typing import Annotated
 
 import typer
+import uvicorn
 
 from zndraw import __version__
-from zndraw.app.tasks import read_file
-from zndraw.config import (
-    LMDBStorageConfig,
-    MongoDBStorageConfig,
-    ZnDrawConfig,
-    set_config,
-)
-from zndraw.server import create_app, socketio
+from zndraw.client import ZnDraw
 from zndraw.server_manager import (
     DEFAULT_PORT,
     ServerInfo,
     find_running_server,
     remove_server_info,
     shutdown_server,
+    wait_for_server_ready,
     write_server_info,
 )
-from zndraw.start_celery import run_celery_worker
-from zndraw.utils import path_to_room, sanitize_room_name
 
-app = typer.Typer()
+app = typer.Typer(
+    name="zndraw",
+    help="ZnDraw - Interactive visualization for atomistic simulations",
+    no_args_is_help=False,
+)
+
+# Separate CLI for database management (registered as `zndraw-db` entry point)
+db_app = typer.Typer(
+    name="zndraw-db",
+    help="ZnDraw database management utilities",
+)
+
+
+@db_app.command()
+def db_init(
+    database_url: Annotated[
+        str | None,
+        typer.Option(help="Database URL (overrides ZNDRAW_DATABASE_URL)"),
+    ] = None,
+) -> None:
+    """Initialize database tables.
+
+    Run once before starting multiple workers in production:
+
+        zndraw-db
+        gunicorn -w 4 -k uvicorn.workers.UvicornWorker zndraw.app:socket_app
+
+    For development (single worker), init happens automatically on startup.
+    """
+    import asyncio
+
+    from zndraw.database import init_database
+
+    if database_url:
+        os.environ["ZNDRAW_DATABASE_URL"] = database_url
+
+    asyncio.run(init_database())
+    typer.echo("Database initialized successfully")
+
+
+def sanitize_room_name(name: str) -> str:
+    """Convert a string to a valid room name by replacing non-alphanumeric characters.
+
+    Preserves letters, numbers, hyphens, and underscores. Other characters are
+    replaced with underscores.
+    """
+    return re.sub(r"[^a-zA-Z0-9\-_]", "_", name)
+
+
+def path_to_room(path: str, unique: bool = True) -> str:
+    """Convert a file path to a valid room name.
+
+    Parameters
+    ----------
+    path : str
+        The file path to convert.
+    unique : bool
+        If True, append a random UUID suffix to ensure uniqueness.
+        If False, return the sanitized path directly (for append mode).
+
+    Returns
+    -------
+    str
+        A valid room name, optionally with UUID suffix.
+    """
+    room = sanitize_room_name(path)
+    if unique:
+        room = f"{room}_{uuid.uuid4().hex[:4]}"
+    return room
 
 
 def daemonize(log_file: str = "zndraw.log") -> None:
@@ -41,13 +118,13 @@ def daemonize(log_file: str = "zndraw.log") -> None:
         pid = os.fork()
         if pid > 0:
             # Parent process - exit
-            typer.echo(f"✓ Server started in background (PID: {pid})")
+            typer.echo(f"Server started in background (PID: {pid})")
             typer.echo(f"  Logs will be written to: {log_file}")
             typer.echo("  Use 'zndraw --status' to check server status")
             typer.echo("  Use 'zndraw --shutdown' to stop the server")
             sys.exit(0)
     except OSError as e:
-        typer.echo(f"✗ Fork failed: {e}", err=True)
+        typer.echo(f"Fork failed: {e}", err=True)
         sys.exit(1)
 
     # Child process continues here
@@ -74,214 +151,77 @@ def daemonize(log_file: str = "zndraw.log") -> None:
     os.close(devnull)
 
 
-def _build_config(
-    port: int | None,
-    host: str | None,
-    redis_url: str | None,
-    storage_type: str | None,
-    storage_path: str | None,
-    storage_url: str | None,
-    storage_database: str | None,
-    media_path: str | None,
-    simgen: bool | None,
-    file_browser: bool | None,
-    file_browser_root: str | None,
-    celery: bool,
-    verbose: bool,
-) -> ZnDrawConfig:
-    """Build config from CLI arguments.
+def upload_file(
+    file_path: str,
+    server_url: str,
+    room_id: str,
+    start: int | None = None,
+    stop: int | None = None,
+    step: int | None = None,
+) -> None:
+    """Upload a file to the server.
 
-    CLI arguments override environment variables. If a CLI argument is None,
-    pydantic-settings loads the value from environment variables.
+    Streams frames from disk via ``ase.io.iread`` directly into
+    ``client.extend()``, so only one chunk (~2 MB) is in memory at a time.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the file to upload.
+    server_url : str
+        URL of the ZnDraw server.
+    room_id : str
+        Room ID to upload to.
+    start, stop, step : int | None
+        Slice parameters for frame selection.
     """
-    # Build kwargs for config - only include non-None values
-    config_kwargs: dict = {}
+    import ase.io
 
-    # Server settings - only set if explicitly provided
-    if port is not None:
-        config_kwargs["server_port"] = port
-    if host is not None:
-        config_kwargs["server_host"] = host
+    index: str | slice = (
+        slice(start, stop, step)
+        if any(x is not None for x in [start, stop, step])
+        else ":"
+    )
 
-    # Redis
-    if redis_url is not None:
-        config_kwargs["redis_url"] = redis_url
+    try:
+        frames = ase.io.iread(file_path, index=index)  # type: ignore[arg-type]
+    except Exception as e:
+        typer.echo(f"Error reading file {file_path}: {e}", err=True)
+        raise typer.Exit(1) from e
 
-    # Storage - only construct if any storage arg was provided
-    if any([storage_type, storage_path, storage_url, storage_database]):
-        # Determine storage type
-        effective_type = storage_type or "lmdb"
-
-        if effective_type not in ("lmdb", "mongodb"):
-            raise typer.BadParameter(
-                f"--storage-type must be 'lmdb' or 'mongodb', got '{effective_type}'"
-            )
-
-        if effective_type == "mongodb":
-            if storage_url is None:
-                raise typer.BadParameter(
-                    "--storage-url is required when --storage-type=mongodb"
-                )
-            config_kwargs["storage"] = MongoDBStorageConfig(
-                url=storage_url,
-                database=storage_database or "zndraw",
-            )
-        else:
-            config_kwargs["storage"] = LMDBStorageConfig(
-                path=storage_path or "./zndraw-data",
-            )
-
-    # Media path
-    if media_path is not None:
-        config_kwargs["media_path"] = media_path
-
-    # Feature flags - only set if explicitly provided via CLI
-    # When None, pydantic-settings reads from env vars (e.g., ZNDRAW_SIMGEN_ENABLED)
-    if simgen is not None:
-        config_kwargs["simgen_enabled"] = simgen
-    if file_browser is not None:
-        config_kwargs["file_browser_enabled"] = file_browser
-
-    if file_browser_root is not None:
-        config_kwargs["file_browser_root"] = file_browser_root
-
-    # Verbose mode sets DEBUG logging
-    if verbose:
-        config_kwargs["log_level"] = "DEBUG"
-
-    return ZnDrawConfig(**config_kwargs)
+    client = ZnDraw(url=server_url, room=room_id)
+    try:
+        old_len = len(client)
+        client.extend(frames)  # type: ignore[arg-type]
+        uploaded = len(client) - old_len
+        if uploaded == 0:
+            typer.echo(f"No frames found in {file_path}", err=True)
+            raise typer.Exit(1)
+        typer.echo(f"  Uploaded {uploaded} frames to room {room_id}")
+    finally:
+        client.disconnect()
 
 
-@app.command()
-def main(
-    path: list[str] | None = typer.Argument(
-        None, help="Path to file(s) to load on startup (optional)."
-    ),
-    start: int | None = typer.Option(
-        None, help="Start frame (optional, only for certain file types)."
-    ),
-    stop: int | None = typer.Option(
-        None, help="Stop frame (optional, only for certain file types)."
-    ),
-    step: int | None = typer.Option(
-        None, help="Step frame (optional, only for certain file types)."
-    ),
-    append: bool = typer.Option(
-        False,
-        "--append",
-        help="Append to existing room derived from file path (e.g., tmp/s22.xyz -> tmp_s22_xyz). "
-        "Without this flag, a unique room name is generated each time.",
-    ),
-    room: str | None = typer.Option(
-        None,
-        "--room",
-        help="Explicitly specify the room name. All files will be loaded into this room.",
-    ),
-    port: int | None = typer.Option(
-        None,
-        "--port",
-        help="Server port. If specified and server exists on that port, connects to it. "
-        "If specified and no server on that port, starts new server. "
-        "If not specified, auto-discovers running servers (default port first, then smallest).",
-    ),
-    debug: bool = typer.Option(False, help="Enable debug mode."),
-    verbose: bool = typer.Option(False, help="Enable verbose logging."),
-    celery: bool = typer.Option(True, help="Enable Celery task processing."),
-    storage_type: str | None = typer.Option(
-        None,
-        "--storage-type",
-        help="Storage backend type: 'lmdb' (local) or 'mongodb' (distributed).",
-    ),
-    storage_path: str | None = typer.Option(
-        None,
-        "--storage-path",
-        help="Path to storage directory for LMDB files (when storage-type=lmdb).",
-    ),
-    storage_url: str | None = typer.Option(
-        None,
-        "--storage-url",
-        help="MongoDB connection URL (when storage-type=mongodb).",
-    ),
-    storage_database: str | None = typer.Option(
-        None,
-        "--storage-database",
-        help="MongoDB database name (when storage-type=mongodb).",
-    ),
-    media_path: str | None = typer.Option(
-        None,
-        "--media-path",
-        help="Path for local media files (screenshots, etc.).",
-    ),
-    redis_url: str | None = typer.Option(
-        None,
-        help="Redis server URL (e.g., `redis://localhost:6379`). "
-        "If not provided, uses in-memory storage.",
-    ),
-    host: str | None = typer.Option(
-        None,
-        help="Server hostname or IP address (default: localhost).",
-    ),
-    connect: str | None = typer.Option(
-        None,
-        "--connect",
-        help="Connect to a specified remote server (e.g., https://zndraw.myserver.com), "
-        "bypassing local server checks.",
-    ),
-    status: bool = typer.Option(
-        False,
-        "--status",
-        help="Check if a local server is running. Uses --port if specified, otherwise auto-discovers.",
-    ),
-    shutdown: bool = typer.Option(
-        False,
-        "--shutdown",
-        help="Stop the local server. Uses --port if specified, otherwise auto-discovers.",
-    ),
-    browser: bool = typer.Option(
-        True,
-        "--browser/--no-browser",
-        help="Automatically open the web browser.",
-    ),
-    file_browser: bool | None = typer.Option(
-        None,
-        "--file-browser/--no-file-browser",
-        help="Enable local filesystem browser endpoint (default: disabled).",
-    ),
-    file_browser_root: str | None = typer.Option(
-        None,
-        "--file-browser-root",
-        help="Root directory for file browser (defaults to current working directory).",
-    ),
-    detached: bool = typer.Option(
-        False,
-        "--detached",
-        help="Start the server as a detached background process.",
-    ),
-    simgen: bool | None = typer.Option(
-        None,
-        "--simgen/--no-simgen",
-        help="Enable SiMGen molecular generation features (default: disabled).",
-    ),
-):
-    """Start or connect to a ZnDraw server.
+# ── Extracted pipeline helpers ───────────────────────────────────────
 
-    By default, this command will check if a local server is already running and
-    connect to it. If no server is running, it will start a new one on the default
-    port (5000).
 
-    If --port is specified:
-    - If a server is running on that port, connects to it
-    - If no server on that port, starts a new server on that port
-
-    Use --status to check server status or --shutdown to stop the server.
-    """
-    # Validate flag combinations
+def validate_flags(
+    detached: bool,
+    status: bool,
+    shutdown: bool,
+    connect: str | None,
+    append: bool,
+    room: str | None,
+    path: list[str] | None,
+) -> None:
+    """Validate CLI flag combinations."""
     if detached and (status or shutdown or connect):
         typer.echo(
             "Error: --detached cannot be used with --status, --shutdown, or --connect",
             err=True,
         )
         raise typer.Exit(1)
+
     if append and room:
         typer.echo(
             "Error: --append and --room cannot be used together. "
@@ -289,301 +229,394 @@ def main(
             err=True,
         )
         raise typer.Exit(1)
+
     if (append or room) and not path:
         typer.echo(
             "Error: --append and --room require file path(s) to be specified.",
             err=True,
         )
         raise typer.Exit(1)
-    # Handle --status flag
-    if status:
-        server_info = find_running_server(port)
 
-        if server_info is not None:
-            typer.echo(
-                f"✓ Server running (PID: {server_info.pid}, "
-                f"Port: {server_info.port}, Version: {server_info.version})"
-            )
-            typer.echo(f"  Server URL: http://localhost:{server_info.port}")
-            raise typer.Exit(0)
-        else:
-            if port is not None:
-                typer.echo(f"✗ No ZnDraw server running on port {port}")
-            else:
-                typer.echo("✗ No local ZnDraw server is running")
+
+def validate_files_exist(paths: list[str]) -> None:
+    """Validate that all specified files exist."""
+    for p in paths:
+        if not Path(p).exists():
+            typer.echo(f"Error: File not found: {p}", err=True)
             raise typer.Exit(1)
 
-    # Handle --shutdown flag
-    if shutdown:
-        server_info = find_running_server(port)
 
-        if server_info is None:
-            if port is not None:
-                typer.echo(f"No server running on port {port}. Nothing to shut down.")
-            else:
-                typer.echo("No running server found. Nothing to shut down.")
-            raise typer.Exit(0)
-
-        typer.echo(
-            f"Shutting down server (PID: {server_info.pid}, Port: {server_info.port})..."
-        )
-        if shutdown_server(server_info):
-            typer.echo("✓ Server shut down successfully")
-            raise typer.Exit(0)
-        else:
-            typer.echo("✗ Failed to shut down server")
-            raise typer.Exit(1)
-
-    # Helper to compute room names based on flags
-    def get_room_names(paths: list[str]) -> list[str]:
-        """Compute room names for given paths based on --room and --append flags."""
-        if room:
-            # All files go to the same explicitly named room
-            return [sanitize_room_name(room)] * len(paths)
-        elif append:
-            # Each file goes to a deterministic room derived from its path
-            return [path_to_room(p, unique=False) for p in paths]
-        else:
-            # Default: each file gets a unique room name
-            return [path_to_room(p, unique=True) for p in paths]
-
-    # Handle remote connection
-    if connect:
-        typer.echo(f"Connecting to remote server: {connect}")
-
-        if path is not None:
-            # Validate all files exist before proceeding
-            for p in path:
-                if not os.path.exists(p):
-                    typer.echo(f"✗ Error: File not found: {p}", err=True)
-                    raise typer.Exit(1)
-
-            typer.echo("Uploading files to remote server...")
-            make_default = True
-            room_names = get_room_names(path)
-            first_room = room_names[0]
-
-            # Open browser before uploading so user can watch progress
-            if browser:
-                browser_url = f"{connect}/rooms/{first_room}"
-                typer.echo(f"Opening browser at {browser_url}")
-                webbrowser.open(browser_url)
-
-            for p, room_name in zip(path, room_names):
-                typer.echo(f"  Uploading file {p} to room {room_name}")
-                read_file(
-                    file=p,
-                    room=room_name,
-                    server_url=connect,
-                    start=start,
-                    stop=stop,
-                    step=step,
-                    make_default=make_default,
-                )
-                make_default = False
-            typer.echo("✓ Files uploaded successfully")
-
-        else:
-            typer.echo(f"Connected to remote server at {connect}")
-            typer.echo("No files to upload.")
-
-            # Open browser to root if no files
-            if browser:
-                typer.echo(f"Opening browser at {connect}")
-                webbrowser.open(connect)
-
-        raise typer.Exit(0)
-
-    # Check for existing server
-    # If port is specified, only check that port
-    # If port is None, auto-discover (default port first, then smallest)
+def handle_status(port: int | None) -> None:
+    """Handle --status flag. Always raises typer.Exit."""
     server_info = find_running_server(port)
 
     if server_info is not None:
         typer.echo(
-            f"✓ Found existing server (PID: {server_info.pid}, "
+            f"Server running (PID: {server_info.pid}, "
+            f"Port: {server_info.port}, Version: {server_info.version})"
+        )
+        typer.echo(f"  Server URL: http://localhost:{server_info.port}")
+        raise typer.Exit(0)
+
+    if port is not None:
+        typer.echo(f"No ZnDraw server running on port {port}")
+    else:
+        typer.echo("No local ZnDraw server is running")
+    raise typer.Exit(1)
+
+
+def handle_shutdown(port: int | None) -> None:
+    """Handle --shutdown flag. Always raises typer.Exit."""
+    server_info = find_running_server(port)
+
+    if server_info is None:
+        if port is not None:
+            typer.echo(f"No server running on port {port}. Nothing to shut down.")
+        else:
+            typer.echo("No running server found. Nothing to shut down.")
+        raise typer.Exit(0)
+
+    typer.echo(
+        f"Shutting down server (PID: {server_info.pid}, Port: {server_info.port})..."
+    )
+    if shutdown_server(server_info):
+        typer.echo("Server shut down successfully")
+        raise typer.Exit(0)
+
+    typer.echo("Failed to shut down server")
+    raise typer.Exit(1)
+
+
+def get_room_names(
+    paths: list[str],
+    room: str | None,
+    append: bool,
+) -> list[str]:
+    """Compute room names for given paths based on --room and --append flags."""
+    if room:
+        return [sanitize_room_name(room)] * len(paths)
+    if append:
+        return [path_to_room(p, unique=False) for p in paths]
+    return [path_to_room(p, unique=True) for p in paths]
+
+
+def resolve_server(
+    connect: str | None,
+    port: int | None,
+    host: str,
+    detached: bool,
+    verbose: bool,
+) -> tuple[str, uvicorn.Server | None, int]:
+    """Resolve or start a ZnDraw server.
+
+    Returns
+    -------
+    tuple[str, uvicorn.Server | None, int]
+        (server_url, server, effective_port).
+        server is None for remote/existing connections.
+        effective_port is only meaningful when server is not None.
+    """
+    if connect:
+        typer.echo(f"Connecting to remote server: {connect}")
+        return connect, None, 0
+
+    server_info = find_running_server(port)
+    if server_info is not None:
+        typer.echo(
+            f"Found existing server (PID: {server_info.pid}, "
             f"Port: {server_info.port}, Version: {server_info.version})"
         )
         typer.echo(f"  Server URL: http://localhost:{server_info.port}")
 
-        # Check version compatibility
         if server_info.version != __version__:
             typer.echo(
-                f"⚠ Warning: Server version ({server_info.version}) "
+                f"Warning: Server version ({server_info.version}) "
                 f"differs from CLI version ({__version__})"
             )
             typer.echo(
                 "  Consider running 'zndraw --shutdown' and starting a new server."
             )
 
-        # If files are provided, load them into the existing server
-        if path is not None:
-            # Validate all files exist before proceeding
-            for p in path:
-                if not os.path.exists(p):
-                    typer.echo(f"✗ Error: File not found: {p}", err=True)
-                    raise typer.Exit(1)
+        return f"http://localhost:{server_info.port}", None, server_info.port
 
-            typer.echo("Uploading files to existing server...")
-            make_default = True
-            server_url = f"http://localhost:{server_info.port}"
-            room_names = get_room_names(path)
-            first_room = room_names[0]
-
-            # Open browser before uploading so user can watch progress
-            if browser:
-                browser_url = f"http://localhost:{server_info.port}/rooms/{first_room}"
-                typer.echo(f"Opening browser at {browser_url}")
-                webbrowser.open(browser_url)
-
-            for p, room_name in zip(path, room_names):
-                typer.echo(f"  Uploading file {p} to room {room_name}")
-                read_file(
-                    file=p,
-                    room=room_name,
-                    server_url=server_url,
-                    start=start,
-                    stop=stop,
-                    step=step,
-                    make_default=make_default,
-                )
-                make_default = False
-            typer.echo("✓ Files uploaded successfully")
-
-        else:
-            # Open browser to root if no files
-            if browser:
-                browser_url = f"http://localhost:{server_info.port}"
-                typer.echo(f"Opening browser at {browser_url}")
-                webbrowser.open(browser_url)
-
-        typer.echo(f"\nServer is running at http://localhost:{server_info.port}")
-        raise typer.Exit(0)
-
-    # No running server found - start a new one
-    # Validate files exist before starting server
-    if path is not None:
-        for p in path:
-            if not os.path.exists(p):
-                typer.echo(f"✗ Error: File not found: {p}", err=True)
-                raise typer.Exit(1)
-
-    # Determine the port to use
+    # Start new server
     effective_port = port if port is not None else DEFAULT_PORT
+
+    # Write back so Settings() in lifespan reads the actual CLI values
+    os.environ["ZNDRAW_HOST"] = host
+    os.environ["ZNDRAW_PORT"] = str(effective_port)
+
     typer.echo(f"Starting new server on port {effective_port}...")
 
-    # Compute room names upfront (if files provided)
-    room_names = get_room_names(path) if path else []
-    if verbose:
-        typer.echo(f"Rooms: {room_names}" if path else "No files loaded on startup.")
-
-    # Build configuration from CLI args (overrides env vars via pydantic-settings)
-    config = _build_config(
-        port=effective_port,
-        host=host,
-        redis_url=redis_url,
-        storage_type=storage_type,
-        storage_path=storage_path,
-        storage_url=storage_url,
-        storage_database=storage_database,
-        media_path=media_path,
-        simgen=simgen,
-        file_browser=file_browser,
-        file_browser_root=file_browser_root,
-        celery=celery,
-        verbose=verbose,
-    )
-    set_config(config)
-
-    flask_app = create_app(config=config)
-
-    # Track the first room for browser opening
-    first_room = room_names[0] if room_names else None
-
-    # Daemonize if requested (must happen before starting workers and writing PID file)
-    if detached:
-        # Browser opening is not compatible with detached mode
-        if browser:
-            typer.echo("Note: Browser will not be opened in detached mode")
-            browser = False
-        daemonize()
-
-    # Start celery worker after daemonization so its logs go to the log file
-    if celery:
-        worker = run_celery_worker(config)
-
-    # Generate secure shutdown token for CLI-based shutdown
     shutdown_token = secrets.token_urlsafe(32)
 
-    # Store shutdown token in Flask app config for validation
-    flask_app.config["SHUTDOWN_TOKEN"] = shutdown_token
+    if detached:
+        daemonize()
 
-    # Write server info to PID file
-    new_server_info = ServerInfo(
-        pid=os.getpid(),
-        port=config.server_port,
-        version=__version__,
-        shutdown_token=shutdown_token,
+    write_server_info(
+        ServerInfo(
+            pid=os.getpid(),
+            port=effective_port,
+            version=__version__,
+            shutdown_token=shutdown_token,
+        )
     )
-    write_server_info(new_server_info)
-    typer.echo(
-        f"✓ Server started (PID: {new_server_info.pid}, Port: {config.server_port})"
+
+    log_level = "debug" if verbose else "info"
+
+    # Import here to avoid circular imports
+    from zndraw.app import app as fastapi_app, socket_app
+
+    fastapi_app.state.shutdown_token = shutdown_token
+
+    config = uvicorn.Config(
+        socket_app,
+        host=host,
+        port=effective_port,
+        log_level=log_level,
     )
-    typer.echo(f"  Server URL: {config.server_url}")
+    return f"http://{host}:{effective_port}", uvicorn.Server(config), effective_port
 
-    # Queue file loading tasks after worker is started
-    if path is not None:
-        make_default = True
-        for p, room_name in zip(path, room_names):
-            if verbose:
-                typer.echo(f"Loading file {p} into room {room_name}.")
-            read_file.delay(
-                file=p,
-                room=room_name,
-                server_url=config.server_url,
-                start=start,
-                stop=stop,
-                step=step,
-                make_default=make_default,
-            )
-            make_default = False
-    else:
-        # No file provided - just set room name for browser URL
-        # Room will be auto-created with "empty" template when frontend joins
-        workspace_room = f"workspace-{uuid.uuid4().hex[:8]}"
-        first_room = workspace_room
-        if verbose:
-            typer.echo(f"Starting empty workspace: {workspace_room}")
 
-    # Open browser if requested
-    if browser:
-        if first_room:
-            browser_url = f"http://localhost:{config.server_port}/rooms/{first_room}"
-            # When loading files, use template=none so browser creates room with 0 frames
-            # This prevents race condition where browser creates "empty" template before
-            # Celery uploads the actual file data
-            if path is not None:
-                browser_url += "?template=none"
-        else:
-            browser_url = f"http://localhost:{config.server_port}"
-        if verbose:
-            typer.echo(f"Opening browser at {browser_url}")
-        webbrowser.open(browser_url)
+def open_browser_to(
+    server_url: str,
+    room: str | None,
+    browser: bool,
+    *,
+    copy_from: str | None = None,
+) -> None:
+    """Open the browser to the appropriate server URL.
+
+    Parameters
+    ----------
+    server_url : str
+        Base server URL.
+    room : str | None
+        Room to navigate to, or None for root URL.
+    browser : bool
+        Whether to open the browser.
+    copy_from : str | None
+        If set, append ``?copy_from=<value>`` query parameter.
+    """
+    if not browser:
+        return
+    url = server_url
+    if room:
+        url = f"{url}/rooms/{room}"
+        if copy_from:
+            url += f"?copy_from={copy_from}"
+    typer.echo(f"Opening browser at {url}")
+    webbrowser.open(url)
+
+
+def upload_files(
+    paths: list[str],
+    server_url: str,
+    room_names: list[str],
+    start: int | None,
+    stop: int | None,
+    step: int | None,
+) -> None:
+    """Upload multiple files to the server."""
+    if not paths:
+        return
+    typer.echo("Uploading files...")
+    for p, room_name in zip(paths, room_names, strict=True):
+        typer.echo(f"  Uploading {p} to room {room_name}")
+        upload_file(p, server_url, room_name, start, stop, step)
+    typer.echo("Files uploaded successfully")
+
+
+@app.command()
+def main(
+    path: Annotated[
+        list[str] | None,
+        typer.Argument(help="Path to file(s) to load on startup (optional)."),
+    ] = None,
+    start: Annotated[
+        int | None,
+        typer.Option(help="Start frame index for slicing."),
+    ] = None,
+    stop: Annotated[
+        int | None,
+        typer.Option(help="Stop frame index for slicing."),
+    ] = None,
+    step: Annotated[
+        int | None,
+        typer.Option(help="Step for frame slicing."),
+    ] = None,
+    append: Annotated[
+        bool,
+        typer.Option(
+            "--append",
+            help="Append to existing room derived from file path. "
+            "Without this flag, a unique room name is generated each time.",
+        ),
+    ] = False,
+    room: Annotated[
+        str | None,
+        typer.Option(
+            "--room",
+            help="Explicitly specify the room name. "
+            "All files will be loaded into this room.",
+        ),
+    ] = None,
+    port: Annotated[
+        int | None,
+        typer.Option(
+            "--port",
+            help="Server port. If specified and server exists on "
+            "that port, connects to it. "
+            "If specified and no server on that port, starts new server. "
+            "If not specified, auto-discovers running servers.",
+            envvar="ZNDRAW_PORT",
+        ),
+    ] = None,
+    host: Annotated[
+        str,
+        typer.Option(help="Server hostname or IP address.", envvar="ZNDRAW_HOST"),
+    ] = "127.0.0.1",
+    connect: Annotated[
+        str | None,
+        typer.Option(
+            "--connect",
+            help="Connect to a remote server URL, bypassing local server checks.",
+        ),
+    ] = None,
+    status: Annotated[
+        bool,
+        typer.Option(
+            "--status",
+            help="Check if a local server is running.",
+        ),
+    ] = False,
+    shutdown: Annotated[
+        bool,
+        typer.Option(
+            "--shutdown",
+            help="Stop the local server.",
+        ),
+    ] = False,
+    browser: Annotated[
+        bool,
+        typer.Option(
+            "--browser/--no-browser",
+            help="Automatically open the web browser.",
+        ),
+    ] = True,
+    detached: Annotated[
+        bool,
+        typer.Option(
+            "--detached",
+            help="Start the server as a detached background process.",
+        ),
+    ] = False,
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", "-v", help="Enable verbose logging."),
+    ] = False,
+    version: Annotated[
+        bool,
+        typer.Option("--version", "-V", help="Show version and exit."),
+    ] = False,
+) -> None:
+    """Start or connect to a ZnDraw server.
+
+    By default, this command will check if a local server is already running and
+    connect to it. If no server is running, it will start a new one.
+
+    Examples:
+
+        # Start a new server
+        zndraw
+
+        # Load a file into the server
+        zndraw trajectory.xyz
+
+        # Load multiple files
+        zndraw file1.xyz file2.xyz
+
+        # Load specific frames
+        zndraw trajectory.xyz --start 0 --stop 100 --step 2
+
+        # Connect to remote server
+        zndraw --connect https://zndraw.example.com trajectory.xyz
+
+        # Check server status
+        zndraw --status
+
+        # Shutdown running server
+        zndraw --shutdown
+    """
+    if version:
+        typer.echo(f"zndraw {__version__}")
+        raise typer.Exit(0)
+
+    # ── Validate ─────────────────────────────────────────────────────
+    validate_flags(detached, status, shutdown, connect, append, room, path)
+
+    if status:
+        handle_status(port)
+    if shutdown:
+        handle_shutdown(port)
+    if path:
+        validate_files_exist(path)
+
+    if detached and browser:
+        typer.echo("Note: Browser will not be opened in detached mode")
+        browser = False
+
+    # ── Compute rooms ────────────────────────────────────────────────
+    room_names = get_room_names(path or [], room, append)
+    first_room = room_names[0] if room_names else f"workspace-{uuid.uuid4().hex[:8]}"
+    has_files = bool(path)
+
+    if verbose:
+        msg = f"Rooms: {room_names}" if has_files else "No files loaded on startup."
+        typer.echo(msg)
+
+    # ── Resolve server ───────────────────────────────────────────────
+    url, server, effective_port = resolve_server(connect, port, host, detached, verbose)
+
+    if server is None:
+        # Remote or existing server — open browser, upload, done
+        open_browser_to(url, first_room if has_files else None, browser)
+        upload_files(path or [], url, room_names, start, stop, step)
+        if not connect:
+            typer.echo(f"\nServer is running at {url}")
+        return
+
+    # ── New server ───────────────────────────────────────────────────
+    if not (has_files or browser):
+        # Nothing to do post-startup — run server blocking
+        typer.echo(f"Server starting at {url}")
+        try:
+            server.run()
+        except KeyboardInterrupt:
+            typer.echo("\nShutting down...")
+        remove_server_info(effective_port)
+        typer.echo("Server stopped.")
+        return
+
+    # Thread server so we can open browser / upload before it exits
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+
+    if not wait_for_server_ready(url, timeout=30.0):
+        typer.echo("Error: Server failed to start within timeout", err=True)
+        raise typer.Exit(1)
+    typer.echo(f"Server started at {url}")
+
+    open_browser_to(url, first_room, browser, copy_from="@none" if has_files else None)
+    upload_files(path or [], url, room_names, start, stop, step)
 
     try:
-        socketio.run(
-            flask_app, debug=debug, host=config.server_host, port=config.server_port
-        )
-    finally:
-        flask_app.extensions["redis"].flushall()
-        if celery:
-            # Use SIGKILL directly instead of SIGTERM. Celery with eventlet pool
-            # has a bug where the SIGTERM handler tries to print a shutdown message
-            # using eventlet's patched os.write(), which raises RuntimeError
-            # "do not call blocking functions from the mainloop".
-            worker.kill()
-            worker.wait()
-            typer.echo("Celery worker closed.")
-        # Clean up PID file when server stops
-        remove_server_info(config.server_port)
-        typer.echo("Server stopped.")
+        thread.join()
+    except KeyboardInterrupt:
+        typer.echo("\nShutting down...")
+    remove_server_info(effective_port)
+    typer.echo("Server stopped.")
+
+
+if __name__ == "__main__":
+    app()

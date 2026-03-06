@@ -18,8 +18,8 @@ ZnDraw implements a sophisticated real-time communication system that enables co
         end
 
         subgraph "Server Layer"
-            FS[Flask-SocketIO Server<br/>zndraw.app]
-            CEL[Celery Workers<br/>Background Tasks]
+            FS[FastAPI Server<br/>with Socket.IO]
+            TQ[TaskIQ Workers<br/>Background Tasks]
             ZS[ZnSocket Storage<br/>Data Synchronization]
         end
 
@@ -38,7 +38,7 @@ ZnDraw implements a sophisticated real-time communication system that enables co
         WC <--> |ZnSocket Client<br/>Data Sync| ZS
         FS <--> |Storage Layer| ZS
         ZS <--> |Persistence| RED
-        FS <--> |Task Queue| CEL
+        FS <--> |Task Queue| TQ
 
         AS --> PC
         PC --> MOD

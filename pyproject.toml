@@ -1,7 +1,7 @@
 [project]
 name = "zndraw"
 dynamic = ["version"]
-description = "ZnDraw"
+description = "ZnDraw - Interactive visualization for atomistic simulations"
 license = { file = "LICENSE" }
 authors = [
     { name = "Fabian Zills", email = "fzills@icp.uni-stuttgart.de" },
@@ -12,53 +12,86 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "argon2-cffi>=25.1.0",
-    "ase>=3.26.0",
-    "asebytes>=0.1.7",
-    "cachetools>=6.2.0",
-    "celery>=5.5.3",
-    "eventlet>=0.40.3",
-    "flask>=3.1.2",
-    "flask-socketio>=5.5.1",
-    "fsspec>=2025.10.0",
-    "lmdb>=1.7.5",
-    "msgpack>=1.1.1",
+    "ase>=3.27.0",
+    "asebytes[lmdb,h5md]>=0.2.0",
+    "fakeredis>=2.33.0",
+    "fastapi>=0.128.0",
+    "lmdb>=1.5.0",
+    "msgpack>=1.0.0",
     "msgpack-numpy>=0.4.8",
-    "networkx>=3.5",
-    "pandas>=2.3.3",
-    "plotly>=6.3.1",
-    "pydantic>=2.11.9",
-    "pydantic-settings>=2.8.0",
+    "networkx>=3.6.1",
+    "pydantic-settings>=2.0.0",
     "pyjwt>=2.10.1",
-    "python-socketio[client]>=5.13.0",
-    "redis>=6.4.0",
-    "rich>=14.1.0",
+    "python-multipart>=0.0.18",
+    "python-socketio[asyncio_client,client]>=5.16.0",
+    "redis>=7.1.0",
+    "requests>=2.32.5",
     "splines>=0.3.3",
-    "tqdm>=4.67.1",
-    "typer>=0.19.2",
-    "vesin>=0.3.8",
+    "sqlalchemy[asyncio, aiosqlite]>=2.0.46",
+    "sqlmodel>=0.0.31",
+    "sse-starlette>=3.0.0",
+    "zndraw-joblib>=0.1.2",
+    "typer>=0.21.1",
+    "uvicorn>=0.40.0",
+    "vesin>=0.4.2",
+    "zndraw-auth>=0.2.2",
+    "zndraw-socketio>=0.1.5",
+    "pandas>=3.0.0",
+    "plotly>=6.5.2",
+    "rich>=14.3.1",
+    "molify>=0.2.2",
     "znh5md>=0.4.8",
-    "znsocket>=0.3.0",
-    "prometheus-client>=0.23.1",
-    "pymongo>=4.10.0",
-    "dnspython>=2.8.0",
+    "fsspec>=2023",
+    "tqdm>=4.67.3",
+]
+
+[project.scripts]
+zndraw = "zndraw.cli:app"
+zndraw-cli = "zndraw.cli_agent:app"
+zndraw-db = "zndraw.cli:db_app"
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.0-dev"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/zndraw/_version.py"
+
+[tool.hatch.build.hooks.custom]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/zndraw"]
+artifacts = ["src/zndraw/static/"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/*.pyc",
+    "**/.DS_Store",
+    "app/node_modules",
+    "dist",
+    ".git",
+    ".vscode",
+    ".claude",
 ]
 
 [project.optional-dependencies]
-full = ["molify>=0.2.1"]
+full = ["molify>=0.2.2"]
 
 [dependency-groups]
 dev = [
-    "fastmcp>=2.12.4",
-    "ipykernel>=6.30.1",
-    "ipywidgets>=8.1.8",
-    "nbformat>=5.10.4",
-    "pandas>=2.3.3",
+    "httpx>=0.28.0",
+    "ipykernel>=7.1.0",
+    "numpy>=2.4.1",
     "playwright>=1.55.0",
-    "pytest>=8.4.2",
-    "molify>=0.2.1",
+    "pyright>=1.1.408",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
-    "hatchling>=1.28.0",
-    "hatch-vcs>=0.5.0",
+    "ruff>=0.14.14",
 ]
 docs = [
     "furo>=2025.9.25",
@@ -69,60 +102,106 @@ docs = [
     "sphinxcontrib-mermaid>=1.2.3",
 ]
 
-[build-system]
-requires = ["hatchling", "hatch-vcs"]
-build-backend = "hatchling.build"
-
-[project.urls]
-Repository = "https://github.com/zincware/ZnDraw"
-Releases = "https://github.com/zincware/ZnDraw/releases"
-Discord = "https://discord.gg/7ncfwhsnm4"
-Documentation = "https://zndraw.readthedocs.io/"
-
-[tool.hatch.version]
-source = "vcs"
-
-[tool.hatch.build.hooks.vcs]
-version-file = "src/zndraw/_version.py"
-
-[tool.hatch.build.hooks.custom]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/zndraw", "src/zndraw_cli"]
-exclude = [
-    "**/node_modules",
-    "**/__pycache__",
-    "**/*.pyc",
-    "**/.DS_Store",
-    "app/node_modules",
-    "dist",
-    ".git",
-    ".vscode",
-    ".claude",
-]
-
-[tool.hatch.build.targets.sdist]
-exclude = [
-    "**/node_modules",
-    "**/__pycache__",
-    "**/*.pyc",
-    "**/.DS_Store",
-    "app/node_modules",
-    "dist",
-    ".git",
-    ".vscode",
-    ".claude",
-]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
+[tool.ruff]
+target-version = "py311"
+line-length = 88
 
 [tool.ruff.lint]
-select = ["I"]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ASYNC",  # flake8-async
+    "S",      # flake8-bandit (security)
+    "SIM",    # flake8-simplify
+    "RUF",    # Ruff-specific rules
+    "PT",     # flake8-pytest-style
+    "PERF",   # perflint (performance)
+    "TCH",    # flake8-type-checking
+    "FA",     # flake8-future-annotations
+    "FAST",   # FastAPI-specific rules
+    "PIE",    # flake8-pie (misc lints)
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "RET",    # flake8-return
+    "RSE",    # flake8-raise
+    "TRY",    # tryceratops (exception handling)
+    "FLY",    # flynt (f-string conversion)
+    "LOG",    # flake8-logging
+    "DTZ",    # flake8-datetimez (timezone aware datetimes)
+    "ISC",    # flake8-implicit-str-concat
+    "ICN",    # flake8-import-conventions
+    "PGH",    # pygrep-hooks
+    "FBT",    # flake8-boolean-trap
+    "A",      # flake8-builtins
+    "COM",    # flake8-commas
+    "EM",     # flake8-errmsg
+    "G",      # flake8-logging-format
+    "INP",    # flake8-no-pep420
+    "Q",      # flake8-quotes
+    "T20",    # flake8-print
+    "SLF",    # flake8-self
+    "SLOT",   # flake8-slots
+    "TID",    # flake8-tidy-imports
+    "BLE",    # flake8-blind-except
+    "N",      # pep8-naming
+]
+ignore = [
+    "S101",    # assert used (needed for pytest)
+    "S104",    # binding to 0.0.0.0 (expected for servers)
+    "S105",    # hardcoded password (false positive for token literals in tests)
+    "S106",    # hardcoded password (false positive for token_type="bearer")
+    "S108",    # insecure temp file (false positive for test fixtures)
+    "TRY003",  # avoid long messages outside exception class (too strict)
+    "EM101",   # raw string in exception (allow for simplicity)
+    "EM102",   # f-string in exception (allow for simplicity)
+    "FBT001",  # boolean positional arg (common in FastAPI)
+    "FBT002",  # boolean default arg (common in FastAPI)
+    "COM812",  # trailing comma missing (conflicts with formatter)
+    "ISC001",  # implicit string concat (conflicts with formatter)
+]
+fixable = ["ALL"]
+unfixable = [
+    "T20",     # print statements - require manual review
+    "F841",    # unused variables - might be intentional
+]
 
-[tool.codespell]
-skip = "*.lock,bun.lock,todo.md,*.svg"
-ignore-words-list = "nwo,nd,smove"
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
 
-[project.scripts]
-zndraw = "zndraw_cli.cli:app"
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-decorators = ["pydantic.validate_call"]
+runtime-evaluated-base-classes = ["pydantic.BaseModel", "sqlmodel.SQLModel"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["zndraw"]
+combine-as-imports = true
+
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = ["pydantic.validator", "pydantic.root_validator"]
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+mark-parentheses = false
+
+[tool.ruff.lint.pylint]
+max-args = 10  # Allow up to 10 args for FastAPI endpoints
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "ARG001",  # unused function argument (fixtures)
+    "S106",    # hardcoded password in tests
+    "S105",    # hardcoded password string in tests
+    "PLR2004", # magic values in tests are OK
+]
+"__init__.py" = [
+    "F401",    # unused imports in __init__.py (re-exports)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

@@ -5,6 +5,7 @@ import typing as t
 import numpy as np
 import splines
 from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
 
 from .base import (
     BaseGeometry,
@@ -92,7 +93,7 @@ class Curve(BaseGeometry):
         description="Material type (static config, not fetched from server)",
     )
 
-    variant: t.Literal["CatmullRomCurve3"] = Field(
+    variant: SkipJsonSchema[t.Literal["CatmullRomCurve3"]] = Field(
         default="CatmullRomCurve3",
         description="Curve variant type (static config, not fetched from server)",
     )
