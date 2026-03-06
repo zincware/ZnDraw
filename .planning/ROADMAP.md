@@ -56,16 +56,17 @@ Plans:
 **Depends on**: Phase 2
 **Requirements**: SOCK-01, SOCK-02, SOCK-03, SOCK-04, SOCK-05, SOCK-06, SOCK-07, SOCK-08, SOCK-09
 **Success Criteria** (what must be TRUE):
-  1. Handler modules exist for each domain: connection/lifecycle, frames, geometries, chat, scene invalidation, and room/lock/progress
+  1. Handler modules exist for each domain: connection/lifecycle, frames, geometries, chat, scene invalidation, figures, and room/lock/progress
   2. The orchestrator file (`useSocketManager.ts`) is reduced to approximately 150 lines of handler registration and cleanup
   3. All handler parameters use typed interfaces instead of `any`
   4. All `socket.on()`/`socket.off()` calls remain in a single `useEffect` (no split registration)
-  5. All 13 Playwright E2E specs pass unchanged
-**Plans**: TBD
+  5. All Playwright E2E specs pass unchanged
+**Plans:** 3 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md -- Create socketHandlers/ foundation (types, utils) and extract chat, scene invalidation, figure handlers
+- [ ] 03-02-PLAN.md -- Extract connection, frame, geometry, and room handlers
+- [ ] 03-03-PLAN.md -- Create barrel index.ts and rewrite useSocketManager.ts as slim orchestrator
 
 ## Progress
 
@@ -76,4 +77,4 @@ Phases execute in numeric order: 1 -> 2 -> 3
 |-------|----------------|--------|-----------|
 | 1. Client Package | 3/3 | Complete | - |
 | 2. Scene Sub-Slices | 2/2 | Complete | 2026-03-06 |
-| 3. Socket Handler Modules | 0/? | Not started | - |
+| 3. Socket Handler Modules | 0/3 | Not started | - |
