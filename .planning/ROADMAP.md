@@ -61,7 +61,7 @@ Plans:
   3. All handler parameters use typed interfaces instead of `any`
   4. All `socket.on()`/`socket.off()` calls remain in a single `useEffect` (no split registration)
   5. All Playwright E2E specs pass unchanged
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 03-01-PLAN.md -- Create socketHandlers/ foundation (types, utils) and extract chat, scene invalidation, figure handlers
@@ -77,4 +77,4 @@ Phases execute in numeric order: 1 -> 2 -> 3
 |-------|----------------|--------|-----------|
 | 1. Client Package | 3/3 | Complete | - |
 | 2. Scene Sub-Slices | 2/2 | Complete | 2026-03-06 |
-| 3. Socket Handler Modules | 0/3 | Not started | - |
+| 3. Socket Handler Modules | 2/3 | In Progress|  |
