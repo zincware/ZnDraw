@@ -44,12 +44,12 @@ Plans:
   2. `SceneSlice` type is composed from sub-slice interfaces and the composed type matches the original interface
   3. `createSceneSlice` spreads sub-slice creators following the same pattern used by `store.tsx` for top-level slices
   4. Camera state is handled explicitly (separate sub-slice or merged into geometry)
-  5. All 13 Playwright E2E specs pass unchanged
-**Plans**: TBD
+  5. All 12 Playwright E2E specs pass unchanged
+**Plans:** 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- Create four sub-slice files (geometry, selection, editing, drawing) plus barrel index.ts
+- [ ] 02-02-PLAN.md -- Wire store.tsx to scene barrel, delete old sceneSlice.ts, verify E2E
 
 ### Phase 3: Socket Handler Modules
 **Goal**: The monolithic `useSocketManager.ts` is decomposed into domain-grouped handler modules with typed parameters, leaving a slim orchestrator that registers and cleans up handlers in a single `useEffect`
@@ -74,6 +74,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Client Package | 1/3 | In Progress | - |
-| 2. Scene Sub-Slices | 0/? | Not started | - |
+| 1. Client Package | 3/3 | Complete | - |
+| 2. Scene Sub-Slices | 0/2 | Planned | - |
 | 3. Socket Handler Modules | 0/? | Not started | - |
