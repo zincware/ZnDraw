@@ -1,6 +1,10 @@
 import type * as THREE from "three";
 import type { StateCreator } from "zustand";
-import { createGeometry, getGeometry, updateActiveCamera } from "../../../myapi/client";
+import {
+	createGeometry,
+	getGeometry,
+	updateActiveCamera,
+} from "../../../myapi/client";
 import type { AppState } from "../../../store";
 
 /** Returns keys of active curves. */

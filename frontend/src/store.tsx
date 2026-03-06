@@ -5,8 +5,8 @@ import type { LockSlice } from "./stores/slices/lockSlice";
 import { createLockSlice } from "./stores/slices/lockSlice";
 import type { PlaybackSlice } from "./stores/slices/playbackSlice";
 import { createPlaybackSlice } from "./stores/slices/playbackSlice";
-import type { SceneSlice } from "./stores/slices/sceneSlice";
-import { createSceneSlice } from "./stores/slices/sceneSlice";
+import type { SceneSlice } from "./stores/slices/scene";
+import { createSceneSlice } from "./stores/slices/scene";
 import type { UISlice } from "./stores/slices/uiSlice";
 import { createUISlice } from "./stores/slices/uiSlice";
 
@@ -14,7 +14,7 @@ import { createUISlice } from "./stores/slices/uiSlice";
 export {
 	getActiveCurves,
 	selectPreferredCurve,
-} from "./stores/slices/sceneSlice";
+} from "./stores/slices/scene";
 
 /**
  * Progress tracking state — mirrors server ProgressResponse (snake_case).
