@@ -25,11 +25,11 @@ Requirements for this milestone. Each maps to roadmap phases.
 - [ ] **SOCK-01**: Connection/lifecycle handlers extracted to separate module
 - [ ] **SOCK-02**: Frame handlers extracted to separate module
 - [ ] **SOCK-03**: Geometry handlers extracted to separate module
-- [ ] **SOCK-04**: Chat handlers extracted to separate module
-- [ ] **SOCK-05**: Scene invalidation handlers extracted to separate module
+- [x] **SOCK-04**: Chat handlers extracted to separate module
+- [x] **SOCK-05**: Scene invalidation handlers extracted to separate module
 - [ ] **SOCK-06**: Room/lock/progress handlers extracted to separate module
 - [ ] **SOCK-07**: Orchestrator hook reduced to ~150 lines of registration
-- [ ] **SOCK-08**: Handler parameters use typed interfaces instead of `any`
+- [x] **SOCK-08**: Handler parameters use typed interfaces instead of `any`
 - [ ] **SOCK-09**: 13 E2E Playwright specs pass unchanged
 
 ### Scene Sub-Slices
@@ -92,11 +92,11 @@ Deferred to future milestone. Tracked but not in current roadmap.
 | SOCK-01 | Phase 3 | Pending |
 | SOCK-02 | Phase 3 | Pending |
 | SOCK-03 | Phase 3 | Pending |
-| SOCK-04 | Phase 3 | Pending |
-| SOCK-05 | Phase 3 | Pending |
+| SOCK-04 | Phase 3 | Complete |
+| SOCK-05 | Phase 3 | Complete |
 | SOCK-06 | Phase 3 | Pending |
 | SOCK-07 | Phase 3 | Pending |
-| SOCK-08 | Phase 3 | Pending |
+| SOCK-08 | Phase 3 | Complete |
 | SOCK-09 | Phase 3 | Pending |
 
 **Coverage:**
