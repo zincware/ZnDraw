@@ -8,8 +8,6 @@ from zndraw_joblib.schemas import (
     JobResponse,
     JobSummary,
     PaginatedResponse,
-    TaskResponse,
-    TaskSubmitRequest,
 )
 
 from .connection import (
@@ -62,7 +60,11 @@ def describe(
 
 @extensions_app.command(
     "run",
-    context_settings={"allow_extra_args": True, "allow_interspersed_args": True, "ignore_unknown_options": True},
+    context_settings={
+        "allow_extra_args": True,
+        "allow_interspersed_args": True,
+        "ignore_unknown_options": True,
+    },
 )
 def run_extension(
     ctx: typer.Context,

@@ -10,7 +10,6 @@ import pytest
 
 from zndraw.cli_agent.gif import _assemble_gif, _build_schedule, _get_session
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -255,8 +254,6 @@ def test_capture_orbit_creates_temp_geometries(
 ):
     """Verify CircleCurve + Camera created in geom_store when --orbit."""
     from typer.testing import CliRunner
-    from zndraw.geometries.camera import Camera
-    from zndraw.geometries.circle_curve import CircleCurve
 
     from zndraw.cli_agent.gif import gif_app
 

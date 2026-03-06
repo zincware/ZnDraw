@@ -18,7 +18,13 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { type UserInfo, acquireToken, getToken } from "../utils/auth";
 
-type Status = "loading" | "ready" | "approving" | "approved" | "denied" | "error";
+type Status =
+	| "loading"
+	| "ready"
+	| "approving"
+	| "approved"
+	| "denied"
+	| "error";
 
 export default function CliLoginApprovePage() {
 	const [searchParams] = useSearchParams();
@@ -45,13 +51,19 @@ export default function CliLoginApprovePage() {
 		setStatus("approving");
 		setError(null);
 		try {
-			await axios.patch(`/v1/auth/cli-login/${encodeURIComponent(code)}`, null, {
-				headers: { Authorization: `Bearer ${getToken()}` },
-			});
+			await axios.patch(
+				`/v1/auth/cli-login/${encodeURIComponent(code)}`,
+				null,
+				{
+					headers: { Authorization: `Bearer ${getToken()}` },
+				},
+			);
 			setStatus("approved");
 		} catch (err) {
 			if (axios.isAxiosError(err) && err.response?.status === 410) {
-				setError("This login challenge has expired. Please try again from the CLI.");
+				setError(
+					"This login challenge has expired. Please try again from the CLI.",
+				);
 			} else {
 				setError("Failed to approve. Please try again.");
 			}
@@ -88,7 +100,11 @@ export default function CliLoginApprovePage() {
 					<Stack spacing={3} alignItems="center" sx={{ py: 2 }}>
 						<TerminalIcon sx={{ fontSize: 48, color: "text.secondary" }} />
 						<Typography variant="h5">Authorize CLI Access</Typography>
-						<Typography variant="body2" color="text.secondary" textAlign="center">
+						<Typography
+							variant="body2"
+							color="text.secondary"
+							textAlign="center"
+						>
 							A CLI client is requesting access to your account. Verify the code
 							matches what you see in your terminal.
 						</Typography>

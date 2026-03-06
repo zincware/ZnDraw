@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pytest
 
 from zndraw import ZnDraw
-from zndraw.schemas import MessageResponse, ScreenshotListItem
+from zndraw.schemas import MessageResponse
 from zndraw.server_manager import ServerInfo
 
 # =============================================================================

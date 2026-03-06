@@ -1,86 +1,86 @@
 {
-    "name": "pathtracing",
-    "description": "Physically accurate rendering with soft studio lighting",
-    "rules": [
-        {
-            "pattern": "particles*",
-            "config": {
-                "material": {
-                    "material_type": "MeshPhysicalMaterial",
-                    "roughness": 0.85,
-                    "metalness": 0.0,
-                    "reflectivity": 0.1,
-                    "specularIntensity": 0.2,
-                    "clearcoat": 0.0,
-                    "envMapIntensity": 0.1
-                }
-            }
-        },
-        {
-            "pattern": "bonds",
-            "config": {
-                "material": {
-                    "material_type": "MeshPhysicalMaterial",
-                    "roughness": 0.85,
-                    "metalness": 0.0,
-                    "reflectivity": 0.1,
-                    "specularIntensity": 0.2,
-                    "clearcoat": 0.0,
-                    "envMapIntensity": 0.1
-                }
-            }
-        },
-        {
-            "pattern": "pathtracing",
-            "config": {
-                "active": true,
-                "samples": 128,
-                "bounces": 5,
-                "environment_preset": "studio",
-                "environment_intensity": 0.75,
-                "environment_blur": 0.3,
-                "environment_background": false
-            }
-        },
-        {
-            "pattern": "key-light",
-            "config": {
-                "active": false
-            }
-        },
-        {
-            "pattern": "fill-light",
-            "config": {
-                "active": false
-            }
-        },
-        {
-            "pattern": "rim-light",
-            "config": {
-                "active": false
-            }
-        },
-        {
-            "pattern": "hemisphere-light",
-            "config": {
-                "active": true,
-                "intensity": 0.15,
-                "sky_color": "#ffffff",
-                "ground_color": "#f0f0f0"
-            }
-        },
-        {
-            "pattern": "ambient-light",
-            "config": {
-                "active": true,
-                "intensity": 0.15
-            }
-        },
-        {
-            "pattern": "fog",
-            "config": {
-                "active": false
-            }
-        }
-    ]
+	"name": "pathtracing",
+	"description": "Physically accurate rendering with soft studio lighting",
+	"rules": [
+		{
+			"pattern": "particles*",
+			"config": {
+				"material": {
+					"material_type": "MeshPhysicalMaterial",
+					"roughness": 0.85,
+					"metalness": 0.0,
+					"reflectivity": 0.1,
+					"specularIntensity": 0.2,
+					"clearcoat": 0.0,
+					"envMapIntensity": 0.1
+				}
+			}
+		},
+		{
+			"pattern": "bonds",
+			"config": {
+				"material": {
+					"material_type": "MeshPhysicalMaterial",
+					"roughness": 0.85,
+					"metalness": 0.0,
+					"reflectivity": 0.1,
+					"specularIntensity": 0.2,
+					"clearcoat": 0.0,
+					"envMapIntensity": 0.1
+				}
+			}
+		},
+		{
+			"pattern": "pathtracing",
+			"config": {
+				"active": true,
+				"samples": 128,
+				"bounces": 5,
+				"environment_preset": "studio",
+				"environment_intensity": 0.75,
+				"environment_blur": 0.3,
+				"environment_background": false
+			}
+		},
+		{
+			"pattern": "key-light",
+			"config": {
+				"active": false
+			}
+		},
+		{
+			"pattern": "fill-light",
+			"config": {
+				"active": false
+			}
+		},
+		{
+			"pattern": "rim-light",
+			"config": {
+				"active": false
+			}
+		},
+		{
+			"pattern": "hemisphere-light",
+			"config": {
+				"active": true,
+				"intensity": 0.15,
+				"sky_color": "#ffffff",
+				"ground_color": "#f0f0f0"
+			}
+		},
+		{
+			"pattern": "ambient-light",
+			"config": {
+				"active": true,
+				"intensity": 0.15
+			}
+		},
+		{
+			"pattern": "fog",
+			"config": {
+				"active": false
+			}
+		}
+	]
 }

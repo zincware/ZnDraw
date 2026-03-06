@@ -6,7 +6,6 @@ import typer
 
 from zndraw.schemas import (
     GeometrySelectionResponse,
-    SelectionUpdateRequest,
     StatusResponse,
 )
 

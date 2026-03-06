@@ -38,7 +38,6 @@ from zndraw.schemas import (
     FrameSelectionResponse,
     FrameSelectionUpdateRequest,
     FrameSelectionUpdateResponse,
-    StatusResponse,
 )
 from zndraw.socket_events import ActiveCameraUpdate, FrameSelectionUpdate
 

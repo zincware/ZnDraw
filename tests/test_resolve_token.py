@@ -30,9 +30,7 @@ def mock_httpx_client():
     mock_client = MagicMock()
     mock_client.__enter__ = MagicMock(return_value=mock_client)
     mock_client.__exit__ = MagicMock(return_value=False)
-    with patch(
-        "zndraw.cli_agent.connection.httpx.Client", return_value=mock_client
-    ):
+    with patch("zndraw.cli_agent.connection.httpx.Client", return_value=mock_client):
         yield mock_client
 
 
@@ -42,9 +40,7 @@ def test_explicit_token_takes_priority(token_store, stored_entry):
 
     token_store.set("http://localhost:8000", stored_entry)
 
-    with patch(
-        "zndraw.cli_agent.connection.get_token_store", return_value=token_store
-    ):
+    with patch("zndraw.cli_agent.connection.get_token_store", return_value=token_store):
         result = resolve_token("http://localhost:8000", "explicit.flag.token")
 
     assert result == "explicit.flag.token"
@@ -60,9 +56,7 @@ def test_stored_token_used_when_valid(token_store, stored_entry, mock_httpx_clie
     mock_response.status_code = 200
     mock_httpx_client.get.return_value = mock_response
 
-    with patch(
-        "zndraw.cli_agent.connection.get_token_store", return_value=token_store
-    ):
+    with patch("zndraw.cli_agent.connection.get_token_store", return_value=token_store):
         result = resolve_token("http://localhost:8000", None)
 
     assert result == "stored.jwt.token"
@@ -85,9 +79,7 @@ def test_stored_token_deleted_on_401(token_store, stored_entry, mock_httpx_clien
     mock_httpx_client.get.return_value = mock_401
     mock_httpx_client.post.return_value = mock_guest
 
-    with patch(
-        "zndraw.cli_agent.connection.get_token_store", return_value=token_store
-    ):
+    with patch("zndraw.cli_agent.connection.get_token_store", return_value=token_store):
         result = resolve_token("http://localhost:8000", None)
 
     assert result == "guest.token"
@@ -105,9 +97,7 @@ def test_no_stored_token_falls_through_to_guest(token_store, mock_httpx_client):
 
     mock_httpx_client.post.return_value = mock_guest
 
-    with patch(
-        "zndraw.cli_agent.connection.get_token_store", return_value=token_store
-    ):
+    with patch("zndraw.cli_agent.connection.get_token_store", return_value=token_store):
         result = resolve_token("http://localhost:8000", None)
 
     assert result == "guest.token"

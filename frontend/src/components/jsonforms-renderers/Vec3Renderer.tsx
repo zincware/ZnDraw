@@ -114,7 +114,8 @@ export const vec3Tester = rankWith(
 	and(
 		uiTypeIs("Control"),
 		schemaMatches(
-			(schema) => (schema as Record<string, unknown>)["x-custom-type"] === "vec3",
+			(schema) =>
+				(schema as Record<string, unknown>)["x-custom-type"] === "vec3",
 		),
 	),
 );

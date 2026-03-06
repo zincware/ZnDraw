@@ -7,7 +7,6 @@ import typer
 
 from zndraw.schemas import (
     CollectionResponse,
-    FigureCreateRequest,
     FigureCreateResponse,
     FigureData,
     FigureResponse,

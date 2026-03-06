@@ -21,7 +21,6 @@ import warnings
 from collections.abc import (
     Generator,
     Iterable,
-    Iterator,
     MutableSequence,
 )
 from dataclasses import dataclass, field
@@ -51,11 +50,9 @@ from zndraw.accessors import (
     Geometries,
     Presets,
     RoomMetadata,
-    ScreenshotImage,
     Screenshots,
     SelectionGroups,
     Selections,
-    Session,
     Sessions,
     TaskHandle,
     Tasks,
@@ -892,7 +889,7 @@ class APIManager:
 
     def list_sessions(self) -> list[SessionItem]:
         """List all active frontend sessions in the room."""
-        from zndraw.schemas import SessionItem, SessionsListResponse
+        from zndraw.schemas import SessionsListResponse
 
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/sessions",

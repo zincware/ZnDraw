@@ -8,9 +8,8 @@ import pytest
 from typer.testing import CliRunner
 from zndraw_joblib.schemas import JobSummary, PaginatedResponse, TaskResponse
 
-from zndraw.schemas import StepResponse
-
 from zndraw.cli_agent import app
+from zndraw.schemas import StepResponse
 
 
 def _invoke_with_env_room(

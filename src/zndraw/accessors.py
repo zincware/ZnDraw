@@ -451,7 +451,7 @@ class ChatMessages(Sequence["MessageResponse"]):
         self._api = api
 
     def _fetch_all(self) -> list[MessageResponse]:
-        from zndraw.schemas import MessageResponse, MessagesResponse
+        from zndraw.schemas import MessagesResponse
 
         data = self._api.list_chat_messages()
         resp = MessagesResponse.model_validate(data)

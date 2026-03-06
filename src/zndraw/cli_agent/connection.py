@@ -296,7 +296,7 @@ def get_zndraw(
     url: str | None,
     token: str | None,
     room: str,
-) -> "ZnDraw":
+) -> ZnDraw:
     """Create a ZnDraw instance from CLI context.
 
     Parameters
