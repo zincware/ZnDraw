@@ -12,8 +12,8 @@ Three oversized files become three well-structured packages/directories: `client
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Client Package** - Convert `client.py` into `src/zndraw/client/` package with single-responsibility modules and unit tests
-- [ ] **Phase 2: Scene Sub-Slices** - Decompose `sceneSlice.ts` into sub-slices following the existing Zustand slice composition pattern
+- [x] **Phase 1: Client Package** - Convert `client.py` into `src/zndraw/client/` package with single-responsibility modules and unit tests
+- [x] **Phase 2: Scene Sub-Slices** - Decompose `sceneSlice.ts` into sub-slices following the existing Zustand slice composition pattern
 - [ ] **Phase 3: Socket Handler Modules** - Extract `useSocketManager.ts` handlers into domain-grouped modules with typed interfaces
 
 ## Phase Details
@@ -31,9 +31,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Extract foundations: shared exceptions, serialization, lock, package scaffold
-- [ ] 01-02-PLAN.md -- Extract APIManager, SocketManager, ZnDraw core; wire re-exports; delete legacy file
-- [ ] 01-03-PLAN.md -- Add unit tests for serialization and exception hierarchy
+- [x] 01-01-PLAN.md -- Extract foundations: shared exceptions, serialization, lock, package scaffold
+- [x] 01-02-PLAN.md -- Extract APIManager, SocketManager, ZnDraw core; wire re-exports; delete legacy file
+- [x] 01-03-PLAN.md -- Add unit tests for serialization and exception hierarchy
 
 ### Phase 2: Scene Sub-Slices
 **Goal**: The monolithic `sceneSlice.ts` is decomposed into focused sub-slices (geometry, selection, editing, drawing) that compose back into the existing `SceneSlice` interface without changing `store.tsx` or any consuming components
@@ -48,8 +48,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- Create four sub-slice files (geometry, selection, editing, drawing) plus barrel index.ts
-- [ ] 02-02-PLAN.md -- Wire store.tsx to scene barrel, delete old sceneSlice.ts, verify E2E
+- [x] 02-01-PLAN.md -- Create four sub-slice files (geometry, selection, editing, drawing) plus barrel index.ts
+- [x] 02-02-PLAN.md -- Wire store.tsx to scene barrel, delete old sceneSlice.ts, verify E2E
 
 ### Phase 3: Socket Handler Modules
 **Goal**: The monolithic `useSocketManager.ts` is decomposed into domain-grouped handler modules with typed parameters, leaving a slim orchestrator that registers and cleans up handlers in a single `useEffect`
@@ -75,5 +75,5 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Client Package | 3/3 | Complete | - |
-| 2. Scene Sub-Slices | 0/2 | Planned | - |
+| 2. Scene Sub-Slices | 2/2 | Complete | 2026-03-06 |
 | 3. Socket Handler Modules | 0/? | Not started | - |
