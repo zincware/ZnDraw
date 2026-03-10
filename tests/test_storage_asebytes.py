@@ -147,5 +147,3 @@ async def test_room_isolation(storage: AsebytesStorage) -> None:
     assert await storage.get_length(room_b) == 1
     assert await storage.get(room_a, 0) == make_raw_frame({"a": 1})
     assert await storage.get(room_b, 0) == make_raw_frame({"b": 2})
-
-

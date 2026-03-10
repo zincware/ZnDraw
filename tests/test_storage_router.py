@@ -81,21 +81,27 @@ async def test_router_has_mount_false(router: StorageRouter, room: str) -> None:
 
 
 @pytest.mark.asyncio
-async def test_set_frame_count_makes_room_mounted(router: StorageRouter, room: str) -> None:
+async def test_set_frame_count_makes_room_mounted(
+    router: StorageRouter, room: str
+) -> None:
     """set_frame_count marks room as provider-backed."""
     await router.set_frame_count(room, 50)
     assert await router.has_mount(room)
 
 
 @pytest.mark.asyncio
-async def test_get_length_returns_provider_count(router: StorageRouter, room: str) -> None:
+async def test_get_length_returns_provider_count(
+    router: StorageRouter, room: str
+) -> None:
     """get_length returns provider frame count from Redis."""
     await router.set_frame_count(room, 42)
     assert await router.get_length(room) == 42
 
 
 @pytest.mark.asyncio
-async def test_clear_frame_count_removes_mount(router: StorageRouter, room: str) -> None:
+async def test_clear_frame_count_removes_mount(
+    router: StorageRouter, room: str
+) -> None:
     """clear_frame_count removes provider-backed status."""
     await router.set_frame_count(room, 50)
     await router.clear_frame_count(room)
@@ -116,7 +122,9 @@ async def test_extend_raises_on_provider_room(router: StorageRouter, room: str) 
 
 
 @pytest.mark.asyncio
-async def test_set_item_raises_on_provider_room(router: StorageRouter, room: str) -> None:
+async def test_set_item_raises_on_provider_room(
+    router: StorageRouter, room: str
+) -> None:
     """set_item on provider-backed room raises RoomReadOnly."""
     await router.set_frame_count(room, 10)
     with pytest.raises(ProblemException) as exc_info:
@@ -125,7 +133,9 @@ async def test_set_item_raises_on_provider_room(router: StorageRouter, room: str
 
 
 @pytest.mark.asyncio
-async def test_delete_range_raises_on_provider_room(router: StorageRouter, room: str) -> None:
+async def test_delete_range_raises_on_provider_room(
+    router: StorageRouter, room: str
+) -> None:
     """delete_range on provider-backed room raises RoomReadOnly."""
     await router.set_frame_count(room, 10)
     with pytest.raises(ProblemException) as exc_info:
