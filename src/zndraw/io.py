@@ -10,7 +10,7 @@ if t.TYPE_CHECKING:
     import ase
     import asebytes
 
-_ASEBYTES_EXTENSIONS = frozenset({".h5", ".h5md"})
+_ASEBYTES_EXTENSIONS = frozenset({".h5", ".h5md", ".lmdb"})
 
 
 def open_frames(
@@ -22,8 +22,8 @@ def open_frames(
 ) -> asebytes.ASEIO | Iterator[ase.Atoms]:
     """Open a file for frame access.
 
-    Routes ``.h5`` / ``.h5md`` to ``asebytes.ASEIO`` (random-access).
-    Everything else streams via ``ase.io.iread``.
+    Routes ``.h5`` / ``.h5md`` / ``.lmdb`` to ``asebytes.ASEIO``
+    (random-access).  Everything else streams via ``ase.io.iread``.
 
     Parameters
     ----------
@@ -38,9 +38,11 @@ def open_frames(
         Random-access source for asebytes formats, streaming iterator
         for everything else.
     """
-    from pathlib import Path
+    from pathlib import PurePosixPath
+    from urllib.parse import urlsplit
 
-    suffix = Path(path_or_uri).suffix.lower()
+    parsed = urlsplit(path_or_uri)
+    suffix = PurePosixPath(parsed.path or path_or_uri).suffix.lower()
 
     if suffix in _ASEBYTES_EXTENSIONS:
         import asebytes as _asebytes

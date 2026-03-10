@@ -77,7 +77,8 @@ exclude = [
 ]
 
 [project.optional-dependencies]
-mongodb = ["asebytes[mongodb]>=0.3.0"]
+mongodb = ["asebytes[mongodb]>=0.3.1"]
+postgres = ["asyncpg>=0.31.0"]
 full = ["molify>=0.2.2"]
 gif = ["Pillow>=10.0.0"]
 

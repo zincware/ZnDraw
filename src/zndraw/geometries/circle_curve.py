@@ -141,9 +141,9 @@ class CircleCurve(BaseGeometry):
             cz, sz = np.cos(rz), np.sin(rz)
             mat = np.array(
                 [
-                    [cy * cz, sx * sy * cz - cx * sz, cx * sy * cz + sx * sz],
-                    [cy * sz, sx * sy * sz + cx * cz, cx * sy * sz - sx * cz],
-                    [-sy, sx * cy, cx * cy],
+                    [cy * cz, -cy * sz, sy],
+                    [sx * sy * cz + cx * sz, -sx * sy * sz + cx * cz, -sx * cy],
+                    [sx * sz - cx * sy * cz, sx * cz + cx * sy * sz, cx * cy],
                 ]
             )
             points = points @ mat.T

@@ -54,9 +54,10 @@ RUN groupadd --system --gid 999 appuser && \
 
 WORKDIR /app
 
-# Copy wheel and install
+# Copy wheel and install (override EXTRAS for production images)
+ARG EXTRAS=full
 COPY --from=builder /build/dist/*.whl /tmp/
-RUN WHEEL=$(ls /tmp/*.whl) && uv pip install --system --no-cache-dir --prerelease explicit "${WHEEL}[full]" && rm /tmp/*.whl
+RUN WHEEL=$(ls /tmp/*.whl) && uv pip install --system --no-cache-dir --prerelease explicit "${WHEEL}[${EXTRAS}]" && rm /tmp/*.whl
 
 # Set environment
 ENV PYTHONUNBUFFERED=1 \

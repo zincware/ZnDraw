@@ -81,9 +81,9 @@ def test_open_frames_step(xyz_file: Path) -> None:
     assert len(frames) == 2  # frames 0, 2
 
 
-@pytest.mark.parametrize("suffix", [".h5", ".h5md"])
+@pytest.mark.parametrize("suffix", [".h5", ".h5md", ".lmdb"])
 def test_asebytes_extensions_recognized(suffix: str) -> None:
-    """h5/h5md suffixes are in _ASEBYTES_EXTENSIONS."""
+    """h5/h5md/lmdb suffixes are in _ASEBYTES_EXTENSIONS."""
     from zndraw.io import _ASEBYTES_EXTENSIONS
 
     assert suffix in _ASEBYTES_EXTENSIONS
