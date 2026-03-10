@@ -16,7 +16,6 @@ from zndraw.dependencies import (
     SioDep,
     verify_room,
 )
-from zndraw.geometries.camera import Camera
 from zndraw.exceptions import (
     InvalidScreenshotFormat,
     NoFrontendSession,
@@ -27,6 +26,7 @@ from zndraw.exceptions import (
     ScreenshotTooLarge,
     problem_responses,
 )
+from zndraw.geometries.camera import Camera
 from zndraw.models import Screenshot
 from zndraw.redis import RedisKey
 from zndraw.schemas import (
@@ -172,8 +172,7 @@ async def request_capture(
     )
     uid = str(current_user.id)
     owned = any(
-        entry.get("sid") == request.session_id
-        and Camera(**entry["data"]).owner == uid
+        entry.get("sid") == request.session_id and Camera(**entry["data"]).owner == uid
         for raw in all_cameras.values()
         if (entry := json.loads(raw))
     )

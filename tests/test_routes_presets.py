@@ -27,7 +27,6 @@ from zndraw.models import (
     RoomMembership,
     RoomPreset,
 )
-from zndraw.schemas import Preset, PresetApplyResult, PresetRule, StatusResponse
 
 # =============================================================================
 # Test Fixtures

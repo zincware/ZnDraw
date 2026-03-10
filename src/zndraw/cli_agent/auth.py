@@ -9,13 +9,13 @@ from datetime import UTC, datetime
 import httpx
 import typer
 
-from zndraw.server_manager import TokenEntry, TokenStore
+from zndraw.server_manager import TokenEntry
 
 from .connection import (
     TokenOpt,
     UrlOpt,
-    get_token_store,
     cli_error_handler,
+    get_token_store,
     resolve_url,
 )
 from .output import json_print
@@ -29,7 +29,7 @@ def login(
     code: bool = typer.Option(
         False,
         "--code",
-        help="Print URL only, don't open browser",  # noqa: FBT003
+        help="Print URL only, don't open browser",
     ),
 ) -> None:
     """Login via browser approval (device-code flow)."""

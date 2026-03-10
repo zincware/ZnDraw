@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from zndraw.accessors import Presets
-from zndraw.schemas import Preset, PresetApplyResult, PresetRule
+from zndraw.schemas import Preset, PresetApplyResult
 
 
 @pytest.fixture

@@ -406,7 +406,7 @@ async def test_request_capture_rejects_other_users_session(
     mock_redis.hexists = AsyncMock(return_value=True)
     mock_redis.hgetall = AsyncMock(
         return_value={
-            f"cam:bob@test:abcd1234": _make_camera_entry(
+            "cam:bob@test:abcd1234": _make_camera_entry(
                 target_sid, str(user_b.id), user_b.email
             ),
         }

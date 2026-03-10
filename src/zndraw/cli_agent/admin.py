@@ -13,8 +13,8 @@ from zndraw.server_manager import TokenEntry
 from .connection import (
     TokenOpt,
     UrlOpt,
-    get_token_store,
     cli_error_handler,
+    get_token_store,
     resolve_token,
     resolve_url,
 )

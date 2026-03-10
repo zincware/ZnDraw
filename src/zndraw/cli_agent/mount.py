@@ -5,7 +5,13 @@ from typing import Annotated
 
 import typer
 
-from zndraw.cli_agent.connection import RoomOpt, TokenOpt, UrlOpt, resolve_token, resolve_url
+from zndraw.cli_agent.connection import (
+    RoomOpt,
+    TokenOpt,
+    UrlOpt,
+    resolve_token,
+    resolve_url,
+)
 from zndraw.cli_agent.output import json_print
 
 

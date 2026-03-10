@@ -1,10 +1,10 @@
 {
-  "version": 1,
-  "skills": {
-    "zndraw": {
-      "source": "/Users/fzills/tools/zndraw-fastapi",
-      "sourceType": "local",
-      "computedHash": "29f62fd5906e7366cf6257c87619492f651d00258d7fa4f39a939cfdd91fe3ec"
-    }
-  }
+	"version": 1,
+	"skills": {
+		"zndraw": {
+			"source": "/Users/fzills/tools/zndraw-fastapi",
+			"sourceType": "local",
+			"computedHash": "29f62fd5906e7366cf6257c87619492f651d00258d7fa4f39a939cfdd91fe3ec"
+		}
+	}
 }
