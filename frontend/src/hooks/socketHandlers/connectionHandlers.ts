@@ -152,9 +152,7 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 						editLockResponse.msg ?? null,
 					);
 					if (editLockResponse.ttl) {
-						useAppStore
-							.getState()
-							.startLockExpiryTimer(editLockResponse.ttl);
+						useAppStore.getState().startLockExpiryTimer(editLockResponse.ttl);
 					}
 				}
 			}

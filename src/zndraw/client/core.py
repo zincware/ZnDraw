@@ -6,7 +6,7 @@ import contextlib
 import logging
 import uuid
 import warnings
-from collections.abc import Generator, Iterable, Iterator, MutableSequence
+from collections.abc import Generator, Iterable, MutableSequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast, overload
 
@@ -43,13 +43,11 @@ from zndraw.client.serialization import (
     raw_frame_to_atoms,
 )
 from zndraw.client.socket import SocketManager
-from zndraw.exceptions import ZnDrawError
 from zndraw.geometries.camera import Camera
 
 if TYPE_CHECKING:
     from zndraw.extensions.abc import Extension
     from zndraw.providers.frame_source import FrameSource
-    from zndraw.schemas import SessionItem
     from zndraw.tqdm import ZnDrawTqdm
 
 log = logging.getLogger(__name__)

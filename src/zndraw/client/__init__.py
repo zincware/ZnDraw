@@ -20,6 +20,8 @@ from zndraw.client.socket import SocketManager
 from zndraw.exceptions import RoomLockedError, ZnDrawError
 
 __all__ = [
+    "_MAX_CHUNK_FRAMES",
+    "_TARGET_CHUNK_BYTES",
     "APIManager",
     "NotConnectedError",
     "RoomLockedError",
@@ -28,8 +30,6 @@ __all__ = [
     "ZnDraw",
     "ZnDrawError",
     "ZnDrawLock",
-    "_MAX_CHUNK_FRAMES",
-    "_TARGET_CHUNK_BYTES",
     "_estimate_frame_size",
     "atoms_to_json_dict",
     "json_dict_to_atoms",

@@ -55,11 +55,10 @@ export function createFigureHandlers(ctx: HandlerContext) {
 			});
 
 			// Step 3: Auto-open window if not already displaying this figure
-			const openWindowsState =
-				useWindowManagerStore.getState().openWindows;
-			const isWindowDisplayingFigure = Object.values(
-				openWindowsState,
-			).some((window) => window.figureKey === data.key);
+			const openWindowsState = useWindowManagerStore.getState().openWindows;
+			const isWindowDisplayingFigure = Object.values(openWindowsState).some(
+				(window) => window.figureKey === data.key,
+			);
 
 			const openWindowCount = Object.keys(openWindowsState).length;
 

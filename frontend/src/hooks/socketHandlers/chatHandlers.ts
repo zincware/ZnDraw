@@ -31,27 +31,23 @@ export function createChatHandlers(ctx: HandlerContext): ChatHandlersResult {
 	const typingTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
 	function onChatMessageNew(data: MessageNewEvent) {
-		ctx.queryClient.setQueryData(
-			["chat", ctx.roomId],
-			(oldData: any) => {
-				if (!oldData) return oldData;
-				const newPages = [...oldData.pages];
-				const lastPageIndex = newPages.length - 1;
+		ctx.queryClient.setQueryData(["chat", ctx.roomId], (oldData: any) => {
+			if (!oldData) return oldData;
+			const newPages = [...oldData.pages];
+			const lastPageIndex = newPages.length - 1;
 
-				if (lastPageIndex >= 0) {
-					newPages[lastPageIndex] = {
-						...newPages[lastPageIndex],
-						items: [...newPages[lastPageIndex].items, data],
-						metadata: {
-							...newPages[lastPageIndex].metadata,
-							total_count:
-								newPages[lastPageIndex].metadata.total_count + 1,
-						},
-					};
-				}
-				return { ...oldData, pages: newPages };
-			},
-		);
+			if (lastPageIndex >= 0) {
+				newPages[lastPageIndex] = {
+					...newPages[lastPageIndex],
+					items: [...newPages[lastPageIndex].items, data],
+					metadata: {
+						...newPages[lastPageIndex].metadata,
+						total_count: newPages[lastPageIndex].metadata.total_count + 1,
+					},
+				};
+			}
+			return { ...oldData, pages: newPages };
+		});
 
 		// Increment unread count if chat is closed
 		const { chatOpen, incrementChatUnread } = useAppStore.getState();
@@ -61,19 +57,16 @@ export function createChatHandlers(ctx: HandlerContext): ChatHandlersResult {
 	}
 
 	function onChatMessageUpdated(data: MessageEditedEvent) {
-		ctx.queryClient.setQueryData(
-			["chat", ctx.roomId],
-			(oldData: any) => {
-				if (!oldData) return oldData;
-				const newPages = oldData.pages.map((page: any) => ({
-					...page,
-					items: page.items.map((msg: any) =>
-						msg.id === data.id ? { ...msg, ...data } : msg,
-					),
-				}));
-				return { ...oldData, pages: newPages };
-			},
-		);
+		ctx.queryClient.setQueryData(["chat", ctx.roomId], (oldData: any) => {
+			if (!oldData) return oldData;
+			const newPages = oldData.pages.map((page: any) => ({
+				...page,
+				items: page.items.map((msg: any) =>
+					msg.id === data.id ? { ...msg, ...data } : msg,
+				),
+			}));
+			return { ...oldData, pages: newPages };
+		});
 	}
 
 	function onTyping(data: TypingEvent) {

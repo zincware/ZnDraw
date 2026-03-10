@@ -109,8 +109,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		const connection = createConnectionHandlers(ctx);
 		const frames = createFrameHandlers(ctx);
 		const geometries = createGeometryHandlers(ctx);
-		const { handlers: chat, cleanup: chatCleanup } =
-			createChatHandlers(ctx);
+		const { handlers: chat, cleanup: chatCleanup } = createChatHandlers(ctx);
 		const sceneInvalidation = createSceneInvalidationHandlers(ctx);
 		const figures = createFigureHandlers(ctx);
 		const room = createRoomHandlers(ctx);
@@ -195,35 +194,20 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			socket.off("frame_update", frames.onFrameUpdate);
 			socket.off("active_camera_update", geometries.onActiveCameraUpdate);
 			socket.off("invalidate", sceneInvalidation.onInvalidate);
-			socket.off(
-				"schema_invalidate",
-				sceneInvalidation.onSchemaInvalidate,
-			);
-			socket.off(
-				"frame_selection_update",
-				frames.onFrameSelectionUpdate,
-			);
-			socket.off(
-				"bookmarks_invalidate",
-				geometries.onBookmarksInvalidate,
-			);
+			socket.off("schema_invalidate", sceneInvalidation.onSchemaInvalidate);
+			socket.off("frame_selection_update", frames.onFrameSelectionUpdate);
+			socket.off("bookmarks_invalidate", geometries.onBookmarksInvalidate);
 			socket.off("frames_invalidate", frames.onFramesInvalidate);
 			socket.off("message_new", chat.onChatMessageNew);
 			socket.off("message_edited", chat.onChatMessageUpdated);
 			socket.off("typing", chat.onTyping);
-			socket.off(
-				"geometry_invalidate",
-				geometries.onGeometriesInvalidate,
-			);
+			socket.off("geometry_invalidate", geometries.onGeometriesInvalidate);
 			socket.off(
 				"default_camera_invalidate",
 				geometries.onDefaultCameraInvalidate,
 			);
 			socket.off("figure_invalidate", figures.onFiguresInvalidate);
-			socket.off(
-				"selection_invalidate",
-				geometries.onSelectionsInvalidate,
-			);
+			socket.off("selection_invalidate", geometries.onSelectionsInvalidate);
 			socket.off(
 				"selection_groups_invalidate",
 				geometries.onSelectionGroupsInvalidate,
