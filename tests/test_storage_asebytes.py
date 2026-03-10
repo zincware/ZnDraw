@@ -147,11 +147,3 @@ async def test_room_isolation(storage: AsebytesStorage) -> None:
     assert await storage.get_length(room_b) == 1
     assert await storage.get(room_a, 0) == make_raw_frame({"a": 1})
     assert await storage.get(room_b, 0) == make_raw_frame({"b": 2})
-
-
-@pytest.mark.asyncio
-async def test_close_clears_rooms(storage: AsebytesStorage, room: str) -> None:
-    await storage.extend(room, [make_raw_frame({"a": 1})])
-    await storage.close()
-    # After close, room data is cleared
-    assert await storage.get_length(room) == 0

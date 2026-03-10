@@ -9,6 +9,14 @@ from pydantic import BaseModel
 from zndraw_joblib.exceptions import ProviderTimeout
 
 
+class ZnDrawError(Exception):
+    """Base exception for ZnDraw client errors."""
+
+
+class RoomLockedError(ZnDrawError):
+    """Raised when the room is locked (admin lock or edit lock by another user)."""
+
+
 def _camel_to_kebab(name: str) -> str:
     """Convert CamelCase to kebab-case."""
     return re.sub(r"(?<!^)(?=[A-Z])", "-", name).lower()
@@ -333,8 +341,6 @@ class RoomLocked(ProblemType):
 
     @classmethod
     def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
-        from zndraw.client import RoomLockedError
-
         raise RoomLockedError(problem.detail or problem.title)
 
 
