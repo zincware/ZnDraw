@@ -267,16 +267,20 @@ wheels = [
 [[package]]
 name = "asebytes"
 version = "0.3.0"
-source = { editable = "../asebytes" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ase" },
     { name = "msgpack" },
     { name = "msgpack-numpy" },
     { name = "typing-extensions" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/cd/db/af088fdfafef822baddee978999cfa804dc70fc4ba52a08d99ca73caaf61/asebytes-0.3.0.tar.gz", hash = "sha256:c9eea8b389dfd7214f96da6d0698930c5a4532bd67fe538d0ea104beb3e1dcc8", size = 2538455, upload-time = "2026-03-10T16:50:21.229Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/29/d0/cc36db34e2b321e7d1dac0cb59cddb397141c55c06be3ced6fad3825c401/asebytes-0.3.0-py3-none-any.whl", hash = "sha256:4e7d8f94eca6499beca776c5f059002dc8a31619a15b524937b31f0ba38e3581", size = 125472, upload-time = "2026-03-10T16:50:18.242Z" },
+]
 
 [package.optional-dependencies]
-h5md = [
+h5 = [
     { name = "h5py" },
 ]
 lmdb = [
@@ -284,40 +288,6 @@ lmdb = [
 ]
 mongodb = [
     { name = "pymongo" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ase", specifier = ">=3.26.0" },
-    { name = "datasets", marker = "extra == 'hf'", specifier = ">=4.5.0" },
-    { name = "h5py", marker = "extra == 'h5md'", specifier = ">=3.8.0" },
-    { name = "lmdb", marker = "extra == 'lmdb'", specifier = ">=1.7.5" },
-    { name = "msgpack", specifier = ">=1.1.2" },
-    { name = "msgpack-numpy", specifier = ">=0.4.8" },
-    { name = "pymongo", marker = "extra == 'mongodb'", specifier = ">=4.13" },
-    { name = "redis", marker = "extra == 'redis'", specifier = ">=5.0" },
-    { name = "typing-extensions", specifier = ">=4.5.0" },
-    { name = "zarr", marker = "extra == 'zarr'", specifier = ">=3.0" },
-]
-provides-extras = ["lmdb", "hf", "h5md", "zarr", "mongodb", "redis"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "anyio", specifier = ">=4.0" },
-    { name = "ase-db-backends", specifier = ">=0.10.0" },
-    { name = "asebytes", extras = ["h5md"] },
-    { name = "asebytes", extras = ["hf"] },
-    { name = "asebytes", extras = ["lmdb"] },
-    { name = "asebytes", extras = ["mongodb"] },
-    { name = "asebytes", extras = ["redis"] },
-    { name = "asebytes", extras = ["zarr"] },
-    { name = "ipykernel", specifier = ">=7.1.0" },
-    { name = "matplotlib", specifier = ">=3.10.7" },
-    { name = "molify", specifier = ">=0.0.1a0" },
-    { name = "pandas", specifier = ">=2.3.3" },
-    { name = "pytest", specifier = ">=8.4.2" },
-    { name = "pytest-benchmark", specifier = ">=5.2.1" },
-    { name = "znh5md", specifier = ">=0.4.8" },
 ]
 
 [[package]]
@@ -4286,7 +4256,7 @@ source = { editable = "." }
 dependencies = [
     { name = "argon2-cffi" },
     { name = "ase" },
-    { name = "asebytes", extra = ["h5md", "lmdb", "mongodb"] },
+    { name = "asebytes", extra = ["h5", "lmdb", "mongodb"] },
     { name = "asyncpg" },
     { name = "fakeredis" },
     { name = "fastapi" },
@@ -4355,7 +4325,7 @@ docs = [
 requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "ase", specifier = ">=3.27.0" },
-    { name = "asebytes", extras = ["h5md", "lmdb", "mongodb"], editable = "../asebytes" },
+    { name = "asebytes", extras = ["h5", "lmdb", "mongodb"], specifier = ">=0.3.0" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "fakeredis", specifier = ">=2.33.0" },
     { name = "fastapi", specifier = ">=0.128.0" },
@@ -4387,7 +4357,7 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.40.0" },
     { name = "vesin", specifier = ">=0.4.2" },
     { name = "zndraw-auth", specifier = ">=0.2.3" },
-    { name = "zndraw-joblib", editable = "../zndraw-joblib" },
+    { name = "zndraw-joblib", specifier = ">=0.1.4" },
     { name = "zndraw-socketio", specifier = ">=0.1.5" },
     { name = "znh5md", specifier = ">=0.4.8" },
 ]
@@ -4417,7 +4387,7 @@ docs = [
 [[package]]
 name = "zndraw-auth"
 version = "0.2.3"
-source = { editable = "../zndraw-auth" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiosqlite" },
     { name = "fastapi" },
@@ -4426,27 +4396,15 @@ dependencies = [
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "sqlmodel" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiosqlite", specifier = ">=0.19.0" },
-    { name = "fastapi", specifier = ">=0.128.0" },
-    { name = "fastapi-users", extras = ["sqlalchemy"], specifier = ">=14.0.0" },
-    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
-    { name = "pydantic-settings", specifier = ">=2.0.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.0" },
-    { name = "sqlmodel", specifier = ">=0.0.22" },
+sdist = { url = "https://files.pythonhosted.org/packages/63/1e/1e64e8e48b22cdf358e5ae17144944839710d0a389cca98540afa919c58a/zndraw_auth-0.2.3.tar.gz", hash = "sha256:88e8570a2bf63a118487ba0c931010e8a47cc63db93d045ddf393396de11bcc8", size = 11515, upload-time = "2026-03-01T20:14:17.297Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6d/2e/29b031a90b0d332aae20716c696fc45cc4875584cdcf907e45d50e11d3b9/zndraw_auth-0.2.3-py3-none-any.whl", hash = "sha256:c5444504458f3802a57f8c3cb1a6adf39ac9893f907edaf5eb17592cce7f459e", size = 15060, upload-time = "2026-03-01T20:14:16.088Z" },
 ]
-provides-extras = ["dev"]
 
 [[package]]
 name = "zndraw-joblib"
 version = "0.1.4"
-source = { editable = "../zndraw-joblib" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
@@ -4458,26 +4416,9 @@ dependencies = [
     { name = "zndraw-auth" },
     { name = "zndraw-socketio" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "fastapi", specifier = ">=0.128.0" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "pydantic-settings", specifier = ">=2.12.0" },
-    { name = "sqlmodel", specifier = ">=0.0.31" },
-    { name = "taskiq", specifier = ">=0.12.1" },
-    { name = "taskiq-redis", specifier = ">=1.2.2" },
-    { name = "zndraw-auth", editable = "../zndraw-auth" },
-    { name = "zndraw-socketio" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "aiosqlite", specifier = ">=0.21.0" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-asyncio", specifier = ">=1.3.0" },
-    { name = "uvicorn", specifier = ">=0.40.0" },
+sdist = { url = "https://files.pythonhosted.org/packages/3f/1f/4fa40920a5ed7deb8afd8cd97d6c9b53703e4358dca3402f948da32a825b/zndraw_joblib-0.1.4.tar.gz", hash = "sha256:7563490edc098376bcfed17914413e982d68b0e4f8cbd7544eb5a0044e6cd184", size = 243127, upload-time = "2026-03-01T08:25:22.006Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b2/d2/febc79cfa8de5e7095fbd0066d7b2ca3ca765f043321517905b19ce870a8/zndraw_joblib-0.1.4-py3-none-any.whl", hash = "sha256:8963668e0edce4474911b31d9607632c05c8a5762aa9cc59f4c2163c48983312", size = 37522, upload-time = "2026-03-01T08:25:24.017Z" },
 ]
 
 [[package]]
