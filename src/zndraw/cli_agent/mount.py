@@ -23,16 +23,15 @@ def mount_cmd(
 ) -> None:
     """Mount a trajectory file into a room (lazy frame serving).
 
-    Opens the file lazily via asebytes and serves frames on demand
+    Opens the file lazily via open_frames and serves frames on demand
     through the provider system. Blocks until interrupted (Ctrl+C).
     """
-    import asebytes
-
     from zndraw.client import ZnDraw
+    from zndraw.io import open_frames
 
     resolved_url = resolve_url(url)
     resolved_token = resolve_token(resolved_url, token)
-    db = asebytes.ASEIO(file)
+    db = open_frames(file)
 
     vis = ZnDraw(url=resolved_url, room=room, token=resolved_token)
     vis.mount(db)

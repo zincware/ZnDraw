@@ -281,7 +281,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         ----------
         source
             Any object satisfying the ``FrameSource`` protocol
-            (e.g. ``znh5md.IO``, ``list[ase.Atoms]``).
+            (e.g. ``asebytes.ASEIO``, ``list[ase.Atoms]``).
         """
         from zndraw.providers.frame_source import FrameSourceLength, FrameSourceRead
 

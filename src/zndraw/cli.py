@@ -161,8 +161,8 @@ def upload_file(
 ) -> None:
     """Upload a file to the server.
 
-    Streams frames from disk via ``ase.io.iread`` directly into
-    ``client.extend()``, so only one chunk (~2 MB) is in memory at a time.
+    Streams frames from disk directly into ``client.extend()``,
+    so only one chunk (~2 MB) is in memory at a time.
 
     Parameters
     ----------
@@ -175,16 +175,10 @@ def upload_file(
     start, stop, step : int | None
         Slice parameters for frame selection.
     """
-    import ase.io
-
-    index: str | slice = (
-        slice(start, stop, step)
-        if any(x is not None for x in [start, stop, step])
-        else ":"
-    )
+    from zndraw.io import open_frames
 
     try:
-        frames = ase.io.iread(file_path, index=index)  # type: ignore[arg-type]
+        frames = open_frames(file_path, start=start, stop=stop, step=step)
     except Exception as e:
         typer.echo(f"Error reading file {file_path}: {e}", err=True)
         raise typer.Exit(1) from e
