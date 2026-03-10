@@ -15,21 +15,56 @@ services:
     image: pythonf/zndraw:latest
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "8000:8000"
     depends_on:
-      redis:
-        condition: service_healthy
-    command: ["zndraw", "--no-browser", "--room", "template", "/app/templates/ethanol.xyz"]
+      redis: { condition: service_healthy }
+    env_file: .env
     environment:
-      - ZNDRAW_REDIS_URL=redis://redis:6379
-      - ZNDRAW_SERVER_HOST=0.0.0.0
-      - ZNDRAW_SERVER_PORT=5000
-      - ZNDRAW_SERVER_URL=http://zndraw:5000
-      - ZNDRAW_STORAGE__TYPE=lmdb
-      - ZNDRAW_STORAGE__PATH=/app/data/zndraw-data
+      - ZNDRAW_STORAGE=/app/data/zndraw-data.lmdb
     volumes:
       - zndraw-data:/app/data
-      - ./ethanol.xyz:/app/templates/ethanol.xyz:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000').read()"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  taskiq-worker:
+    image: pythonf/zndraw:latest
+    restart: unless-stopped
+    depends_on:
+      redis: { condition: service_healthy }
+    command: ["taskiq", "worker", "zndraw.broker:broker"]
+    env_file: .env
+    environment:
+      - ZNDRAW_STORAGE=/app/data/zndraw-data.lmdb
+      - ZNDRAW_SERVER_URL=http://zndraw:8000
+    volumes:
+      - zndraw-data:/app/data
+
+  template-loader:
+    image: pythonf/zndraw:latest
+    restart: "no"
+    depends_on:
+      zndraw: { condition: service_healthy }
+    env_file: .env
+    environment:
+      - ZNDRAW_URL=http://zndraw:8000
+    command:
+      - sh
+      - -c
+      - |
+        export ZNDRAW_TOKEN=$(zndraw-cli auth login \
+          --user "$ZNDRAW_AUTH_DEFAULT_ADMIN_EMAIL" \
+          --password "$ZNDRAW_AUTH_DEFAULT_ADMIN_PASSWORD" \
+          | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])") &&
+        zndraw-cli rooms create --room-id template --copy-from @none &&
+        zndraw-cli frames extend template --file /app/templates/s22.xyz &&
+        zndraw-cli rooms lock template &&
+        zndraw-cli rooms set-default template
+    volumes:
+      - ./s22.xyz:/app/templates/s22.xyz:ro
 
 volumes:
   redis-data:

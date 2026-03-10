@@ -8,13 +8,18 @@ import typer
 
 from zndraw.schemas import (
     OffsetPage,
-    ScreenshotCaptureCreate,
     ScreenshotListItem,
     ScreenshotResponse,
-    SessionsListResponse,
 )
 
-from .connection import get_connection
+from .connection import (
+    RoomOpt,
+    TokenOpt,
+    UrlOpt,
+    cli_error_handler,
+    get_zndraw,
+    resolve_room,
+)
 from .output import json_print
 
 screenshots_app = typer.Typer(name="screenshots", help="Screenshot operations")
@@ -22,54 +27,83 @@ screenshots_app = typer.Typer(name="screenshots", help="Screenshot operations")
 
 @screenshots_app.command("list")
 def list_screenshots(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """List screenshots for a room."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    resp = conn.get(f"/v1/rooms/{room}/screenshots")
-    json_print(OffsetPage[ScreenshotListItem].model_validate(resp.json()))
+    with cli_error_handler():
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
+        items = vis.api.list_screenshots()
+        json_print(
+            OffsetPage[ScreenshotListItem].model_validate(
+                {"items": items, "total": len(items), "limit": len(items), "offset": 0}
+            )
+        )
+        vis.disconnect()
 
 
 @screenshots_app.command("request")
 def request_screenshot(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
+    session: Annotated[
+        str | None, typer.Option("--session", help="Target session SID")
+    ] = None,
 ) -> None:
-    """Request a screenshot from the first active session in the room."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
+    """Request a screenshot from the current user's first active session."""
+    with cli_error_handler():
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
 
-    sessions_resp = conn.get(f"/v1/rooms/{room}/sessions")
-    sessions = SessionsListResponse.model_validate(sessions_resp.json())
-    if not sessions.items:
-        typer.echo("No active sessions available for this room.", err=True)
-        raise typer.Exit(code=1)
+        if session is not None:
+            target_sid = session
+        else:
+            # Get current user's email, then find their session
+            me = vis.api.get_me()
+            my_email = me.get("email", "")
+            all_sessions = vis.api.list_sessions()
+            own_sessions = [s for s in all_sessions if s.email == my_email]
+            if not own_sessions:
+                typer.echo(
+                    "No active browser sessions for your user in this room.",
+                    err=True,
+                )
+                raise typer.Exit(code=1)
+            target_sid = own_sessions[0].sid
 
-    session_id = sessions.items[0]
-    request = ScreenshotCaptureCreate(session_id=session_id)
-    resp = conn.post(f"/v1/rooms/{room}/screenshots", json=request.model_dump())
-    json_print(ScreenshotResponse.model_validate(resp.json()))
+        result = vis.api.create_screenshot_capture(target_sid)
+        json_print(ScreenshotResponse.model_validate(result))
+        vis.disconnect()
 
 
 @screenshots_app.command("get")
 def get(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
-    id: Annotated[str, typer.Argument(help="Screenshot ID")],
+    id: Annotated[str | None, typer.Argument(help="Screenshot ID")] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
     output: Annotated[
         str | None, typer.Option(help="Path to save screenshot file")
     ] = None,
 ) -> None:
     """Get a screenshot by ID."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    resp = conn.get(f"/v1/rooms/{room}/screenshots/{id}")
-    data = ScreenshotResponse.model_validate(resp.json())
+    with cli_error_handler():
+        room = resolve_room(room)
+        if id is None:
+            raise typer.BadParameter("Screenshot ID is required")
+        vis = get_zndraw(url, token, room)
+        data = vis.api.get_screenshot(int(id))
+        resp = ScreenshotResponse.model_validate(data)
 
-    if output:
-        if data.data is None:
-            typer.echo("Screenshot has no image data.", err=True)
-            raise typer.Exit(code=1)
-        image_data = base64.b64decode(data.data)
-        pathlib.Path(output).write_bytes(image_data)
-    else:
-        json_print(data)
+        if output:
+            if resp.data is None:
+                typer.echo("Screenshot has no image data.", err=True)
+                raise typer.Exit(code=1)
+            image_data = base64.b64decode(resp.data)
+            pathlib.Path(output).write_bytes(image_data)
+        else:
+            json_print(resp)
+        vis.disconnect()

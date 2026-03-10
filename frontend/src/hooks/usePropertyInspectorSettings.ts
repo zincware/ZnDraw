@@ -1,6 +1,6 @@
 /**
  * Hook to access PropertyInspector settings and fetch property values.
- * Integrates with the settings stored on the backend.
+ * PropertyInspector is now a scene geometry object.
  *
  * Performance optimized:
  * - Category filtering to avoid fetching unused properties
@@ -14,7 +14,6 @@ import {
 	useAvailableProperties,
 	usePropertyValues,
 } from "./usePropertyInspector";
-import { useSettings } from "./useSettings";
 
 type PropertyCategory = "per-particle" | "global" | "all";
 
@@ -26,7 +25,7 @@ interface UsePropertyInspectorSettingsOptions {
 }
 
 /**
- * Hook to get the enabled properties from PropertyInspector settings.
+ * Hook to get the enabled properties from PropertyInspector geometry.
  * Returns the list of enabled property keys and their values, optionally filtered by category.
  *
  * @param options - Configuration options for filtering and enabling
@@ -40,16 +39,17 @@ export const usePropertyInspectorSettings = (
 	const roomId = useAppStore((state) => state.roomId);
 	const currentFrame = useAppStore((state) => state.currentFrame);
 	const particleCount = useAppStore((state) => state.particleCount);
+	const geometries = useAppStore((state) => state.geometries);
 
-	// Fetch all settings from backend (schema + data)
-	const { data: settingsResponse, isLoading } = useSettings(roomId || "");
+	// Get PropertyInspector geometry data (key is "property-inspector")
+	const propertyInspectorGeometry = geometries["property-inspector"];
+	const propertyInspectorData = propertyInspectorGeometry?.data;
 
-	// Extract enabled_properties array from property_inspector settings
-	// Backend always returns defaults, so once loaded this is guaranteed to exist
-	const enabledProperties: string[] =
-		isLoading || !settingsResponse || !settingsResponse.data.property_inspector
-			? []
-			: (settingsResponse.data.property_inspector.enabled_properties ?? []);
+	// Extract enabled_properties array from property inspector geometry
+	const enabledProperties: string[] = useMemo(
+		() => propertyInspectorData?.enabled_properties ?? [],
+		[propertyInspectorData?.enabled_properties],
+	);
 
 	// Fetch property categorization metadata (only if enabled and we need filtering)
 	const shouldFetchMetadata =

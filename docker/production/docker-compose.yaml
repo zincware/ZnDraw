@@ -11,16 +11,51 @@ services:
       timeout: 5s
       retries: 5
 
-  nginx:
-    image: nginx:alpine
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=zndraw
+      - POSTGRES_USER=zndraw
+      - POSTGRES_PASSWORD=zndraw
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zndraw"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  db-init:
+    image: pythonf/zndraw:latest
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy }
+    env_file: .env
+    environment:
+      - ZNDRAW_DATABASE_URL=postgresql+asyncpg://zndraw:zndraw@postgres:5432/zndraw
+    command: ["zndraw-db"]
+
+  caddy:
+    image: caddy:2-alpine
     restart: unless-stopped
     ports:
       - "80:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
-      zndraw:
-        condition: service_healthy
+      zndraw: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
       interval: 10s
@@ -31,49 +66,59 @@ services:
     image: pythonf/zndraw:latest
     restart: unless-stopped
     depends_on:
-      redis:
-        condition: service_healthy
+      redis: { condition: service_healthy }
+      mongo: { condition: service_healthy }
+      db-init: { condition: service_completed_successfully }
+    env_file: .env
     environment:
-      - ZNDRAW_REDIS_URL=redis://redis:6379
-      - ZNDRAW_SERVER_HOST=0.0.0.0
-      - ZNDRAW_SERVER_PORT=5000
-      - ZNDRAW_STORAGE__TYPE=lmdb
-      - ZNDRAW_STORAGE__PATH=/app/data/zndraw-data
-      - ZNDRAW_SERVER_URL=http://nginx
-      - ZNDRAW_ADMIN_USERNAME=admin
-      - ZNDRAW_ADMIN_PASSWORD=secure-password
+      - ZNDRAW_STORAGE=mongodb://mongo:27017/zndraw
+      - ZNDRAW_DATABASE_URL=postgresql+asyncpg://zndraw:zndraw@postgres:5432/zndraw
+      - ZNDRAW_INIT_DB_ON_STARTUP=false
     deploy:
       replicas: 3
-    volumes:
-      - zndraw-data:/app/data
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000').read()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000').read()"]
       interval: 30s
       timeout: 10s
       start_period: 60s
       retries: 3
 
-  # One-shot service to load template after zndraw is healthy
+  taskiq-worker:
+    image: pythonf/zndraw:latest
+    restart: unless-stopped
+    depends_on:
+      redis: { condition: service_healthy }
+      mongo: { condition: service_healthy }
+    command: ["taskiq", "worker", "zndraw.broker:broker"]
+    env_file: .env
+    environment:
+      - ZNDRAW_STORAGE=mongodb://mongo:27017/zndraw
+      - ZNDRAW_SERVER_URL=http://caddy
+
   template-loader:
     image: pythonf/zndraw:latest
     restart: "no"
     depends_on:
-      nginx:
-        condition: service_healthy
-    command: ["python", "/app/scripts/load_template.py", "/app/templates/ethanol.xyz"]
+      caddy: { condition: service_healthy }
+    env_file: .env
     environment:
-      - ZNDRAW_REDIS_URL=redis://redis:6379
-      - ZNDRAW_STORAGE__TYPE=lmdb
-      - ZNDRAW_STORAGE__PATH=/app/data/zndraw-data
-      - ZNDRAW_SERVER_URL=http://nginx
-      - ZNDRAW_ADMIN_USERNAME=admin
-      - ZNDRAW_ADMIN_PASSWORD=secure-password
-      - TEMPLATE_ROOM_NAME=template
+      - ZNDRAW_URL=http://caddy
+    command:
+      - sh
+      - -c
+      - |
+        export ZNDRAW_TOKEN=$(zndraw-cli auth login \
+          --user "$ZNDRAW_AUTH_DEFAULT_ADMIN_EMAIL" \
+          --password "$ZNDRAW_AUTH_DEFAULT_ADMIN_PASSWORD" \
+          | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])") &&
+        zndraw-cli rooms create --room-id template --copy-from @none &&
+        zndraw-cli frames extend template --file /app/templates/s22.xyz &&
+        zndraw-cli rooms lock template &&
+        zndraw-cli rooms set-default template
     volumes:
-      - zndraw-data:/app/data
-      - ./ethanol.xyz:/app/templates/ethanol.xyz:ro
-      - ./load_template.py:/app/scripts/load_template.py:ro
+      - ./s22.xyz:/app/templates/s22.xyz:ro
 
 volumes:
   redis-data:
-  zndraw-data:
+  mongo-data:
+  postgres-data:

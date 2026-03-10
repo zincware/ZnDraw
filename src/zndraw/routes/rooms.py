@@ -38,6 +38,16 @@ from zndraw.exceptions import (
     problem_responses,
 )
 from zndraw.geometries import geometries as geometry_models
+from zndraw.geometries.camera import Camera
+from zndraw.geometries.fog import Fog
+from zndraw.geometries.lights import (
+    AmbientLight,
+    DirectionalLight,
+    HemisphereLight,
+    LightPosition,
+)
+from zndraw.geometries.pathtracing import PathTracing
+from zndraw.geometries.property_inspector import PropertyInspector
 from zndraw.materials import MeshBasicMaterial
 from zndraw.models import (
     Room,
@@ -57,6 +67,7 @@ from zndraw.schemas import (
     RoomPatchRequest,
     RoomPatchResponse,
     RoomResponse,
+    SessionItem,
     SessionsListResponse,
 )
 from zndraw.socket_events import FramesInvalidate, RoomUpdate
@@ -71,6 +82,10 @@ def _initialize_default_geometries(session: AsyncSession, room_id: str) -> None:
     Creates the standard geometry set: particles, bonds, curve, cell, floor.
     These geometries use property references (e.g., "arrays.positions") that
     are resolved at render time from frame data.
+
+    Also creates default scene objects for lighting, fog, pathtracing, and
+    property inspector.
+
     Rows are added to the session but NOT committed — caller must commit.
     """
     defaults: dict[str, tuple[str, dict[str, Any]]] = {
@@ -128,6 +143,48 @@ def _initialize_default_geometries(session: AsyncSession, room_id: str) -> None:
                 key=key,
                 type=type_name,
                 config=config_json,
+            )
+        )
+
+    # Scene objects: lights, fog, pathtracing, property inspector
+    scene_objects: dict[str, tuple[str, Any]] = {
+        "key-light": (
+            "DirectionalLight",
+            DirectionalLight(
+                position=LightPosition(x=5.0, y=2.0, z=8.0),
+                intensity=0.7,
+            ),
+        ),
+        "fill-light": (
+            "DirectionalLight",
+            DirectionalLight(
+                position=LightPosition(x=-4.0, y=-1.0, z=6.0),
+                intensity=0.4,
+                color="#a0c4ff",
+            ),
+        ),
+        "rim-light": (
+            "DirectionalLight",
+            DirectionalLight(
+                position=LightPosition(x=0.0, y=0.0, z=-50.0),
+                intensity=0.5,
+                color="#fff0f5",
+            ),
+        ),
+        "ambient-light": ("AmbientLight", AmbientLight(intensity=0.35)),
+        "hemisphere-light": ("HemisphereLight", HemisphereLight(intensity=0.3)),
+        "fog": ("Fog", Fog(active=True, near=180.0, far=300.0)),
+        "pathtracing": ("PathTracing", PathTracing(active=False)),
+        "property-inspector": ("PropertyInspector", PropertyInspector(active=False)),
+    }
+
+    for key, (type_name, model) in scene_objects.items():
+        session.add(
+            RoomGeometry(
+                room_id=room_id,
+                key=key,
+                type=type_name,
+                config=model.model_dump_json(),
             )
         )
 
@@ -429,47 +486,32 @@ async def get_room_presence(
 ) -> PresenceResponse:
     """Get presence (online users) for a room.
 
-    Returns all currently connected sessions in the room.
-    Each session (tab/connection) is listed individually.
+    Derives presence from the camera hash — each frontend session with an
+    active camera is considered present. Pyclients do not have cameras and
+    are not included.
     """
-    # Verify room exists
+    from uuid import UUID as _UUID
+
     await verify_room(session, room_id)
 
-    # Scan for all presence keys for this room
-    pattern = RedisKey.presence_sid_pattern(room_id)
-    sessions: list[PresenceSessionResponse] = []
-
-    async for key in redis.scan_iter(match=pattern):  # type: ignore[misc]
-        # Parse SID from key
-        sid = RedisKey.parse_presence_sid(key)
-        if sid is None:
+    cameras_raw: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
+        RedisKey.room_cameras(room_id)
+    )
+    sessions_list: list[PresenceSessionResponse] = []
+    for _camera_key, raw_value in cameras_raw.items():
+        entry = json.loads(raw_value)
+        camera = Camera(**entry["data"])
+        if camera.owner is None:
             continue
-
-        # Get user_id stored in the key
-        user_id_raw = await redis.get(key)  # type: ignore[misc]
-        if user_id_raw is None:
-            continue
-
-        from uuid import UUID as _UUID
-
-        user_id = _UUID(user_id_raw)
-
-        # Get user info from database
-        from zndraw_auth import User
-
-        user = await session.get(User, user_id)
-        if user is None:
-            continue
-
-        sessions.append(
+        sessions_list.append(
             PresenceSessionResponse(
-                sid=sid,
-                user_id=user_id,
-                email=user.email,
+                sid=entry["sid"],
+                user_id=_UUID(camera.owner),
+                email=entry.get("email"),
             )
         )
 
-    return PresenceResponse(items=sessions)
+    return PresenceResponse(items=sessions_list)
 
 
 @router.get(
@@ -477,35 +519,43 @@ async def get_room_presence(
     response_model=SessionsListResponse,
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
-async def list_user_sessions(
+async def list_sessions(
     session: SessionDep,
     redis: RedisDep,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
+    email: str | None = Query(None, description="Filter by user email"),
 ) -> SessionsListResponse:
-    """List the current user's active frontend sessions in this room.
+    """List all active frontend sessions in this room.
 
-    Frontend sessions are identified by having an entry in the
-    active-cameras hash (pyclients don't get cameras).
+    Returns every frontend session (identified by having an entry in the
+    active-cameras hash). Optional ``email`` query param filters by user.
     """
     await verify_room(session, room_id)
 
-    # Get all frontend SIDs (those with active cameras)
     all_active: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
         RedisKey.active_cameras(room_id)
     )
+    if not all_active:
+        return SessionsListResponse(items=[])
 
-    # Filter to current user's sessions via presence keys (single round-trip)
     sids = list(all_active.keys())
-    if sids:
-        presence_keys = [RedisKey.presence_sid(room_id, sid) for sid in sids]
-        user_ids: list[str | None] = await redis.mget(presence_keys)  # type: ignore[misc]
-        uid = str(current_user.id)
-        user_sids = [sid for sid, owner in zip(sids, user_ids) if owner == uid]
-    else:
-        user_sids = []
+    camera_keys = list(all_active.values())
+    raw_cameras: list[str | None] = await redis.hmget(  # type: ignore[assignment]
+        RedisKey.room_cameras(room_id), camera_keys
+    )
 
-    return SessionsListResponse(items=user_sids)
+    items: list[SessionItem] = []
+    for sid, cam_key, raw in zip(sids, camera_keys, raw_cameras):
+        if raw is None:
+            continue
+        entry = json.loads(raw)
+        entry_email = entry.get("email", "")
+        if email is not None and entry_email != email:
+            continue
+        items.append(SessionItem(sid=sid, email=entry_email, camera_key=cam_key))
+
+    return SessionsListResponse(items=items)
 
 
 @router.patch(

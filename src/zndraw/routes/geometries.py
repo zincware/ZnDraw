@@ -36,11 +36,13 @@ from zndraw.schemas import (
     GeometriesResponse,
     GeometryCreateRequest,
     GeometryData,
+    GeometryPatchRequest,
     GeometryResponse,
     GeometrySelectionResponse,
     GeometryTypesInfo,
     SelectionUpdateRequest,
     StatusResponse,
+    deep_merge,
 )
 from zndraw.socket_events import (
     DefaultCameraInvalidate,
@@ -253,6 +255,60 @@ async def upsert_geometry(
         else:
             row.type = request.type
             row.config = config_json
+        await session.commit()
+
+    await sio.emit(
+        GeometryInvalidate(room_id=room_id, operation="set", key=key),
+        room=room_channel(room_id),
+    )
+
+    return StatusResponse()
+
+
+@router.patch(
+    "/{key:path}",
+    responses=problem_responses(
+        NotAuthenticated, RoomNotFound, GeometryNotFound, RoomLocked, Forbidden
+    ),
+)
+async def patch_geometry(
+    session: SessionDep,
+    redis: RedisDep,
+    sio: SioDep,
+    current_user: CurrentUserDep,
+    _geo_info: WritableGeometryDep,
+    room_id: str,
+    key: str,
+    request: GeometryPatchRequest,
+) -> StatusResponse:
+    """Partially update a geometry (deep merge).
+
+    Merges ``request.data`` into the existing config without replacing
+    unmentioned fields.  Unlike PUT, does not require ``type``.
+    """
+    # Try Redis hash first (session cameras), then SQL
+    hash_key = RedisKey.room_cameras(room_id)
+    raw = await redis.hget(hash_key, key)  # type: ignore[misc]
+    if raw is not None:
+        entry = json.loads(raw)
+        entry["data"] = deep_merge(entry["data"], request.data)
+        await redis.hset(hash_key, key, json.dumps(entry))  # type: ignore[misc]
+    else:
+        row = await session.get(RoomGeometry, (room_id, key))
+        if row is None:
+            raise GeometryNotFound.exception(f"Geometry '{key}' not found")
+        current_config = json.loads(row.config)
+        merged = deep_merge(current_config, request.data)
+
+        # Validate via Pydantic model if type is known
+        model_cls = geometry_models.get(row.type)
+        if model_cls is not None:
+            try:
+                row.config = model_cls(**merged).model_dump_json()
+            except ValidationError as exc:
+                raise InvalidPayload.exception(str(exc)) from exc
+        else:
+            row.config = json.dumps(merged)
         await session.commit()
 
     await sio.emit(

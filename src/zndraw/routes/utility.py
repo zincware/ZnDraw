@@ -11,6 +11,7 @@ from pydantic import BaseModel
 import zndraw
 from zndraw.config import SettingsDep
 from zndraw.dependencies import (
+    ActiveSessionCamDep,
     CurrentUserDep,
     RedisDep,
     SessionDep,
@@ -21,6 +22,7 @@ from zndraw.dependencies import (
     verify_room,
 )
 from zndraw.exceptions import (
+    GeometryNotFound,
     InvalidPayload,
     NotAuthenticated,
     RoomLocked,
@@ -28,6 +30,7 @@ from zndraw.exceptions import (
     SessionNotFound,
     problem_responses,
 )
+from zndraw.models import RoomGeometry
 from zndraw.redis import RedisKey
 from zndraw.schemas import (
     ActiveCameraRequest,
@@ -35,11 +38,8 @@ from zndraw.schemas import (
     FrameSelectionResponse,
     FrameSelectionUpdateRequest,
     FrameSelectionUpdateResponse,
-    SessionSettingsResponse,
-    StatusResponse,
 )
-from zndraw.settings import RoomConfig
-from zndraw.socket_events import FrameSelectionUpdate
+from zndraw.socket_events import ActiveCameraUpdate, FrameSelectionUpdate
 
 router = APIRouter(prefix="/v1", tags=["utility"])
 
@@ -99,40 +99,6 @@ async def get_global_settings(
 
 
 @router.get(
-    "/rooms/{room_id}/sessions/{session_id}/settings",
-    responses=problem_responses(NotAuthenticated, SessionNotFound),
-)
-async def get_session_settings(
-    redis: RedisDep, room_id: str, session_id: VerifiedSessionDep
-) -> SessionSettingsResponse:
-    """Get session-specific settings with JSON schema."""
-    key = RedisKey.session_settings(room_id, session_id)
-    raw = await redis.get(key)  # type: ignore[misc]
-    config = RoomConfig.model_validate_json(raw) if raw else RoomConfig()
-    return SessionSettingsResponse(
-        schema=RoomConfig.model_json_schema(),
-        data=config.model_dump(),
-    )
-
-
-@router.put(
-    "/rooms/{room_id}/sessions/{session_id}/settings",
-    responses=problem_responses(NotAuthenticated, SessionNotFound),
-)
-async def update_session_settings(
-    redis: RedisDep,
-    room_id: str,
-    session_id: VerifiedSessionDep,
-    body: RoomConfig,
-    settings: SettingsDep,
-) -> StatusResponse:
-    """Update session-specific settings."""
-    key = RedisKey.session_settings(room_id, session_id)
-    await redis.set(key, body.model_dump_json(), ex=settings.presence_ttl)  # type: ignore[misc]
-    return StatusResponse()
-
-
-@router.get(
     "/rooms/{room_id}/frame-selection",
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
@@ -183,7 +149,7 @@ async def update_frame_selection(
     responses=problem_responses(NotAuthenticated, SessionNotFound),
 )
 async def get_active_camera(
-    redis: RedisDep, room_id: str, session_id: VerifiedSessionDep
+    redis: RedisDep, room_id: str, session_id: ActiveSessionCamDep
 ) -> ActiveCameraResponse:
     """Get active camera key for a session."""
     key = await redis.hget(RedisKey.active_cameras(room_id), session_id)  # type: ignore[misc]
@@ -192,14 +158,28 @@ async def get_active_camera(
 
 @router.put(
     "/rooms/{room_id}/sessions/{session_id}/active-camera",
-    responses=problem_responses(NotAuthenticated, SessionNotFound),
+    responses=problem_responses(NotAuthenticated, SessionNotFound, GeometryNotFound),
 )
 async def set_active_camera(
     redis: RedisDep,
+    sio: SioDep,
+    session: SessionDep,
     room_id: str,
     session_id: VerifiedSessionDep,
     body: ActiveCameraRequest,
 ) -> ActiveCameraResponse:
     """Set active camera key for a session."""
+    # Check ephemeral session cameras (Redis) first, then persistent (SQL)
+    in_redis = await redis.hexists(RedisKey.room_cameras(room_id), body.active_camera)  # type: ignore[misc]
+    if not in_redis:
+        row = await session.get(RoomGeometry, (room_id, body.active_camera))
+        if row is None or row.type != "Camera":
+            raise GeometryNotFound.exception(
+                f"Camera {body.active_camera!r} not found in room"
+            )
     await redis.hset(RedisKey.active_cameras(room_id), session_id, body.active_camera)  # type: ignore[misc]
+    await sio.emit(
+        ActiveCameraUpdate(active_camera=body.active_camera),
+        to=session_id,
+    )
     return ActiveCameraResponse(active_camera=body.active_camera)

@@ -7,14 +7,40 @@ that wraps httpx.Client with base_url and auth header.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
+from collections.abc import Generator
 from dataclasses import dataclass, field
-from typing import Any, NoReturn
+from typing import TYPE_CHECKING, Annotated, Any, NoReturn
 
 import httpx
+import typer
 
-from zndraw.server_manager import find_running_server
+if TYPE_CHECKING:
+    from zndraw import ZnDraw
+
+from zndraw.server_manager import TokenStore, find_running_server
+
+# Shared type aliases for per-subcommand options
+UrlOpt = Annotated[
+    str | None,
+    typer.Option("--url", envvar="ZNDRAW_URL", help="ZnDraw server URL"),
+]
+TokenOpt = Annotated[
+    str | None,
+    typer.Option("--token", envvar="ZNDRAW_TOKEN", help="Auth token"),
+]
+RoomOpt = Annotated[
+    str | None,
+    typer.Option("--room", envvar="ZNDRAW_ROOM", help="Room ID"),
+]
+
+
+def get_token_store() -> TokenStore:
+    """Return the default TokenStore (testable seam)."""
+    return TokenStore()
+
 
 # Exit codes
 EXIT_OK = 0
@@ -169,18 +195,38 @@ def resolve_url(url: str | None) -> str:
 
 
 def resolve_token(base_url: str, token: str | None) -> str:
-    """Resolve the auth token from flag, env, or guest auth.
+    """Resolve the auth token from flag, env, stored token, or guest auth.
+
+    Resolution order:
+    1. Explicit token (``--token`` flag / ``ZNDRAW_TOKEN`` env var)
+    2. Stored token from ``~/.zndraw/tokens.json`` (validated, removed on 401)
+    3. Guest auth fallback (``POST /v1/auth/guest``)
 
     Parameters
     ----------
     base_url
-        Server URL for guest auth fallback.
+        Server URL for token lookup and guest auth fallback.
     token
         Explicit token from ``--token`` flag or ``ZNDRAW_TOKEN`` env var.
-        ``None`` triggers guest auth.
+        ``None`` triggers stored/guest auth.
     """
     if token is not None:
         return token
+
+    # Try stored token
+    store = get_token_store()
+    entry = store.get(base_url)
+    if entry is not None:
+        with httpx.Client(
+            base_url=base_url,
+            headers={"Authorization": f"Bearer {entry.access_token}"},
+            timeout=10.0,
+        ) as client:
+            resp = client.get("/v1/auth/users/me")
+            if resp.status_code == 200:
+                return entry.access_token
+            # Token invalid — remove and fall through
+            store.delete(base_url)
 
     # Auto-create guest session
     try:
@@ -196,6 +242,25 @@ def resolve_token(base_url: str, token: str | None) -> str:
             401,
             EXIT_CONNECTION_ERROR,
         )
+
+
+def resolve_room(room: str | None) -> str:
+    """Resolve room from ``--room`` option or ``ZNDRAW_ROOM`` env var.
+
+    Parameters
+    ----------
+    room
+        Room value from the ``--room`` option (includes env var fallback
+        via Typer's ``envvar``), or None.
+    """
+    if room is None:
+        die(
+            "Room Required",
+            "Pass --room or set ZNDRAW_ROOM env var.",
+            400,
+            EXIT_CLIENT_ERROR,
+        )
+    return room
 
 
 def get_current_step(conn: Connection, room: str) -> int:
@@ -225,3 +290,81 @@ def get_connection(url: str | None, token: str | None) -> Connection:
     base_url = resolve_url(url)
     resolved_token = resolve_token(base_url, token)
     return Connection(base_url=base_url, token=resolved_token)
+
+
+def get_zndraw(
+    url: str | None,
+    token: str | None,
+    room: str,
+) -> ZnDraw:
+    """Create a ZnDraw instance from CLI context.
+
+    Parameters
+    ----------
+    url
+        From ``--url`` flag / ``ZNDRAW_URL`` env var, or None.
+    token
+        From ``--token`` flag / ``ZNDRAW_TOKEN`` env var, or None.
+    room
+        Room ID.
+    """
+    from zndraw import ZnDraw
+
+    base_url = resolve_url(url)
+    resolved_token = resolve_token(base_url, token)
+    return ZnDraw(
+        url=base_url, room=room, token=resolved_token, create_if_missing=False
+    )
+
+
+@contextlib.contextmanager
+def cli_error_handler() -> Generator[None, None, None]:
+    """Context manager for CLI error handling.
+
+    Catches httpx errors and Python exceptions raised by
+    ``APIManager.raise_for_status`` (KeyError, PermissionError,
+    ValueError, ZnDrawError, RoomLockedError) and prints RFC 9457
+    problem JSON to stderr.
+    """
+    try:
+        yield
+    except httpx.HTTPStatusError as exc:
+        content_type = exc.response.headers.get("content-type", "")
+        if "problem+json" in content_type or "application/json" in content_type:
+            sys.stderr.write(exc.response.text + "\n")
+        else:
+            sys.stderr.write(
+                _problem_json(
+                    exc.response.reason_phrase or "Error",
+                    exc.response.text[:500],
+                    exc.response.status_code,
+                )
+                + "\n"
+            )
+        exit_code = (
+            EXIT_CLIENT_ERROR if exc.response.status_code < 500 else EXIT_SERVER_ERROR
+        )
+        raise SystemExit(exit_code)
+    except httpx.RequestError as exc:
+        die("Connection Error", str(exc), 503, EXIT_CONNECTION_ERROR)
+    except KeyError as exc:
+        die("Not Found", str(exc), 404, EXIT_CLIENT_ERROR)
+    except IndexError as exc:
+        die("Not Found", str(exc), 404, EXIT_CLIENT_ERROR)
+    except PermissionError as exc:
+        die("Forbidden", str(exc), 403, EXIT_CLIENT_ERROR)
+    except ValueError as exc:
+        die("Unprocessable Entity", str(exc), 422, EXIT_CLIENT_ERROR)
+    except _zndraw_exceptions() as exc:
+        from zndraw.client import RoomLockedError
+
+        if isinstance(exc, RoomLockedError):
+            die("Room Locked", str(exc), 423, EXIT_CLIENT_ERROR)
+        die("Server Error", str(exc), 500, EXIT_SERVER_ERROR)
+
+
+def _zndraw_exceptions() -> tuple[type[Exception], ...]:
+    """Lazily import ZnDraw exception types."""
+    from zndraw.client import RoomLockedError, ZnDrawError
+
+    return (ZnDrawError, RoomLockedError)

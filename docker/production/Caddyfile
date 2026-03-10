@@ -1,0 +1,19 @@
+{
+	auto_https off
+}
+
+:80 {
+	# Vite static assets use content hashes — cache immutably
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	reverse_proxy {
+		dynamic a zndraw 8000
+		lb_policy ip_hash
+		health_uri /health
+		health_interval 10s
+
+		# Large file uploads (trajectories)
+		request_buffers 500MB
+	}
+}

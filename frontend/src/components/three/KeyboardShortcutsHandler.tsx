@@ -1,9 +1,9 @@
 import { useThree } from "@react-three/fiber";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import type { TypedArray } from "../../myapi/client";
+import { createGeometry, type TypedArray } from "../../myapi/client";
 import { useAppStore } from "../../store";
 import { isPositionStatic } from "../../utils/geometryEditing";
 
@@ -25,7 +25,6 @@ export const KeyboardShortcutsHandler = () => {
 	const updateSelectionForGeometry = useAppStore(
 		(state) => state.updateSelectionForGeometry,
 	);
-	const toggleInfoBoxes = useAppStore((state) => state.toggleInfoBoxes);
 	const mode = useAppStore((state) => state.mode);
 	const enterDrawingMode = useAppStore((state) => state.enterDrawingMode);
 	const exitDrawingMode = useAppStore((state) => state.exitDrawingMode);
@@ -38,6 +37,23 @@ export const KeyboardShortcutsHandler = () => {
 	const editingSelectedAxis = useAppStore((state) => state.editingSelectedAxis);
 	const roomId = useAppStore((state) => state.roomId);
 	const saveFrameEdits = useAppStore((state) => state.saveFrameEdits);
+
+	// Toggle PropertyInspector active field via API
+	const togglePropertyInspector = useCallback(async () => {
+		if (!roomId) return;
+
+		const piGeometry = geometries["property-inspector"];
+		const currentActive = piGeometry?.data?.active ?? false;
+
+		try {
+			await createGeometry(roomId, "property-inspector", "PropertyInspector", {
+				...piGeometry?.data,
+				active: !currentActive,
+			});
+		} catch (error) {
+			console.error("Failed to toggle PropertyInspector:", error);
+		}
+	}, [roomId, geometries]);
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
@@ -333,7 +349,7 @@ export const KeyboardShortcutsHandler = () => {
 			// Handle i/I for toggle info boxes
 			if (event.key === "i" || event.key === "I") {
 				event.preventDefault();
-				toggleInfoBoxes();
+				void togglePropertyInspector();
 				return;
 			}
 
@@ -407,7 +423,7 @@ export const KeyboardShortcutsHandler = () => {
 		updateSelectionForGeometry,
 		queryClient,
 		currentFrame,
-		toggleInfoBoxes,
+		togglePropertyInspector,
 		mode,
 		enterDrawingMode,
 		exitDrawingMode,

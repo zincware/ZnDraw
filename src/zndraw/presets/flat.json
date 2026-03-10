@@ -1,0 +1,63 @@
+{
+	"name": "flat",
+	"description": "Toon-shaded look for diagrams and schematics",
+	"rules": [
+		{
+			"pattern": "particles*",
+			"config": {
+				"material": "MeshToonMaterial"
+			}
+		},
+		{
+			"pattern": "bonds",
+			"config": {
+				"material": "MeshToonMaterial"
+			}
+		},
+		{
+			"pattern": "key-light",
+			"config": {
+				"active": true,
+				"intensity": 1.0,
+				"color": "#ffffff"
+			}
+		},
+		{
+			"pattern": "fill-light",
+			"config": {
+				"active": false
+			}
+		},
+		{
+			"pattern": "rim-light",
+			"config": {
+				"active": false
+			}
+		},
+		{
+			"pattern": "hemisphere-light",
+			"config": {
+				"active": false
+			}
+		},
+		{
+			"pattern": "ambient-light",
+			"config": {
+				"active": true,
+				"intensity": 0.6
+			}
+		},
+		{
+			"pattern": "fog",
+			"config": {
+				"active": false
+			}
+		},
+		{
+			"pattern": "pathtracing",
+			"config": {
+				"active": false
+			}
+		}
+	]
+}

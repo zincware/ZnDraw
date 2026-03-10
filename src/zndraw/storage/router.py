@@ -6,17 +6,17 @@ from redis.asyncio import Redis as AsyncRedis
 
 from zndraw.exceptions import RoomReadOnly
 from zndraw.redis import RedisKey
-from zndraw.storage.base import RawFrame, StorageBackend
+from zndraw.storage.asebytes_backend import AsebytesStorage, RawFrame
 
 
-class StorageRouter(StorageBackend):
-    """Wraps a default StorageBackend with provider-backed room support.
+class StorageRouter:
+    """Wraps an AsebytesStorage with provider-backed room support.
 
     Provider-backed rooms (via ``set_frame_count``) store their frame count
     in Redis.  Write methods reject modifications to these rooms.
     """
 
-    def __init__(self, default: StorageBackend, redis: AsyncRedis) -> None:  # type: ignore[type-arg]
+    def __init__(self, default: AsebytesStorage, redis: AsyncRedis) -> None:  # type: ignore[type-arg]
         self._default = default
         self._redis = redis
 
@@ -24,7 +24,7 @@ class StorageRouter(StorageBackend):
         """Check if a room has provider-backed frames (read-only)."""
         return await self._redis.exists(RedisKey.provider_frame_count(room_id)) > 0  # type: ignore[misc]
 
-    # -- StorageBackend interface: delegate to default backend -----------------
+    # -- AsebytesStorage interface: delegate to default backend ----------------
 
     async def get(self, room_id: str, index: int) -> RawFrame | None:
         return await self._default.get(room_id, index)

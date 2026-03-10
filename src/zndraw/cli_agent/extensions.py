@@ -8,11 +8,16 @@ from zndraw_joblib.schemas import (
     JobResponse,
     JobSummary,
     PaginatedResponse,
-    TaskResponse,
-    TaskSubmitRequest,
 )
 
-from .connection import get_connection
+from .connection import (
+    RoomOpt,
+    TokenOpt,
+    UrlOpt,
+    cli_error_handler,
+    get_zndraw,
+    resolve_room,
+)
 from .output import json_print
 
 extensions_app = typer.Typer(name="extensions", help="Extension operations")
@@ -20,59 +25,86 @@ extensions_app = typer.Typer(name="extensions", help="Extension operations")
 
 @extensions_app.command("list")
 def list_extensions(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """List available extensions for a room."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    resp = conn.get(f"/v1/joblib/rooms/{room}/jobs")
-    json_print(PaginatedResponse[JobSummary].model_validate(resp.json()))
+    with cli_error_handler():
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
+        data = vis.api.list_extensions()
+        json_print(PaginatedResponse[JobSummary].model_validate(data))
+        vis.disconnect()
 
 
 @extensions_app.command("describe")
 def describe(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
-    name: Annotated[str, typer.Argument(help="Fully qualified extension name")],
+    name: Annotated[
+        str | None, typer.Argument(help="Fully qualified extension name")
+    ] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """Describe an extension by its fully qualified name."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    resp = conn.get(f"/v1/joblib/rooms/{room}/jobs/{name}")
-    json_print(JobResponse.model_validate(resp.json()))
+    with cli_error_handler():
+        room = resolve_room(room)
+        if name is None:
+            raise typer.BadParameter("Extension name is required")
+        vis = get_zndraw(url, token, room)
+        data = vis.api.get_extension(name)
+        json_print(JobResponse.model_validate(data))
+        vis.disconnect()
 
 
 @extensions_app.command(
     "run",
-    context_settings={"allow_extra_args": True, "allow_interspersed_args": False},
+    context_settings={
+        "allow_extra_args": True,
+        "allow_interspersed_args": True,
+        "ignore_unknown_options": True,
+    },
 )
 def run_extension(
     ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
     extension_name: Annotated[
-        str, typer.Argument(help="Fully qualified extension name")
-    ],
+        str | None, typer.Argument(help="Fully qualified extension name")
+    ] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
+    wait: Annotated[
+        bool, typer.Option("--wait", help="Wait for the task to complete")
+    ] = False,
+    timeout: Annotated[
+        float, typer.Option("--timeout", help="Timeout in seconds (with --wait)")
+    ] = 300,
 ) -> None:
     """Run an extension with optional extra parameters passed as --key value pairs."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
+    with cli_error_handler():
+        room = resolve_room(room)
+        if extension_name is None:
+            raise typer.BadParameter("Extension name is required")
+        vis = get_zndraw(url, token, room)
 
-    extra_args = ctx.args
-    payload: dict = {}
-    it = iter(extra_args)
-    for token in it:
-        key = token.lstrip("-")
-        try:
-            raw_value = next(it)
-        except StopIteration:
-            raise typer.BadParameter(f"Missing value for argument --{key}")
-        try:
-            value = json.loads(raw_value)
-        except json.JSONDecodeError:
-            value = raw_value
-        payload[key] = value
+        extra_args = ctx.args
+        payload: dict = {}
+        it = iter(extra_args)
+        for arg_token in it:
+            key = arg_token.lstrip("-")
+            try:
+                raw_value = next(it)
+            except StopIteration:
+                raise typer.BadParameter(f"Missing value for argument --{key}")
+            try:
+                value = json.loads(raw_value)
+            except json.JSONDecodeError:
+                value = raw_value
+            payload[key] = value
 
-    request = TaskSubmitRequest(payload=payload)
-    resp = conn.post(
-        f"/v1/joblib/rooms/{room}/tasks/{extension_name}",
-        json=request.model_dump(),
-    )
-    json_print(TaskResponse.model_validate(resp.json()))
+        task = vis.run(extension_name, **payload)
+        if wait:
+            task.wait(timeout=timeout)
+        json_print(task._fetch())
+        vis.disconnect()

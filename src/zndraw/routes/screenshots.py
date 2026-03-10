@@ -1,6 +1,7 @@
 """Screenshot REST API endpoints for room screenshots."""
 
 import base64
+import json
 from pathlib import Path
 
 from fastapi import APIRouter, Form, Query, Response, UploadFile, status
@@ -25,6 +26,7 @@ from zndraw.exceptions import (
     ScreenshotTooLarge,
     problem_responses,
 )
+from zndraw.geometries.camera import Camera
 from zndraw.models import Screenshot
 from zndraw.redis import RedisKey
 from zndraw.schemas import (
@@ -162,6 +164,21 @@ async def request_capture(
     if not active_cam:
         raise NoFrontendSession.exception(
             f"Session '{request.session_id}' is not an active frontend session"
+        )
+
+    # Verify the requesting user owns the target session
+    all_cameras: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
+        RedisKey.room_cameras(room_id)
+    )
+    uid = str(current_user.id)
+    owned = any(
+        entry.get("sid") == request.session_id and Camera(**entry["data"]).owner == uid
+        for raw in all_cameras.values()
+        if (entry := json.loads(raw))
+    )
+    if not owned:
+        raise NoFrontendSession.exception(
+            f"Session '{request.session_id}' is not owned by the current user"
         )
 
     row = Screenshot(

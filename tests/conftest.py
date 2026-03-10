@@ -25,7 +25,7 @@ from zndraw_auth.settings import AuthSettings
 
 from zndraw.config import Settings
 from zndraw.models import Room
-from zndraw.storage.base import RawFrame
+from zndraw.storage import RawFrame
 
 _password_helper = PasswordHelper()
 
@@ -402,13 +402,6 @@ def server_fixture(server_factory: ServerFactory) -> str:
     return instance.url
 
 
-@pytest.fixture(name="server_short_ttl")
-def server_short_ttl_fixture(server_factory: ServerFactory) -> str:
-    """Start a server with short presence TTL (2s) for testing expiration."""
-    instance = server_factory({"ZNDRAW_PRESENCE_TTL": "2"})
-    return instance.url
-
-
 @pytest.fixture(name="server_auth")
 def server_auth_fixture(server_factory: ServerFactory) -> str:
     """Start a server with authentication enabled (production-like roles).
@@ -439,13 +432,4 @@ async def http_client_auth_fixture(
 ) -> AsyncIterator[AsyncClient]:
     """Provide an async HTTP client for auth-enabled server."""
     async with AsyncClient(base_url=server_auth) as client:
-        yield client
-
-
-@pytest_asyncio.fixture(name="http_client_short_ttl")
-async def http_client_short_ttl_fixture(
-    server_short_ttl: str,
-) -> AsyncIterator[AsyncClient]:
-    """Provide an async HTTP client for short TTL server."""
-    async with AsyncClient(base_url=server_short_ttl) as client:
         yield client

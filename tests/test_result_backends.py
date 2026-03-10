@@ -12,7 +12,7 @@ from zndraw.result_backends import (
     RedisResultBackend,
     StorageResultBackend,
 )
-from zndraw.storage.memory import InMemoryStorage
+from zndraw.storage import AsebytesStorage
 
 # =============================================================================
 # StorageResultBackend
@@ -21,13 +21,13 @@ from zndraw.storage.memory import InMemoryStorage
 
 @pytest.fixture
 def storage_backend():
-    """Fresh InMemoryStorage for each test."""
-    return InMemoryStorage()
+    """Fresh AsebytesStorage for each test."""
+    return AsebytesStorage("memory://")
 
 
 @pytest.fixture
 def backend(storage_backend):
-    """StorageResultBackend wrapping InMemoryStorage."""
+    """StorageResultBackend wrapping AsebytesStorage."""
     return StorageResultBackend(storage_backend)
 
 

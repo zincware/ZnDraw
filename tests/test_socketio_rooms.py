@@ -11,8 +11,6 @@ from zndraw_socketio import wrap
 from zndraw.exceptions import NotInRoom, RoomNotFound
 from zndraw.schemas import PresenceResponse, RoomCreateResponse
 from zndraw.socket_events import (
-    Heartbeat,
-    HeartbeatResponse,
     RoomJoin,
     RoomJoinResponse,
     RoomLeave,
@@ -184,47 +182,6 @@ async def test_socketio_join_system_room_overview(
     assert result.step == 0  # System rooms have no frames
     assert result.frame_count == 0  # System rooms have no frames
     assert result.locked is False  # System rooms are never locked
-
-    await sio_client.disconnect()
-
-
-@pytest.mark.asyncio
-async def test_socketio_heartbeat(server: str, http_client: AsyncClient) -> None:
-    """Test heartbeat updates presence."""
-    token = await _get_user_token(http_client, "heartbeatuser@example.com")
-    room_id = await _create_room(http_client, token)
-
-    sio_client = socketio.AsyncClient()
-    await sio_client.connect(server, auth={"token": token})
-    tsio_client = wrap(sio_client)
-    await tsio_client.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
-
-    result = await tsio_client.call(
-        Heartbeat(room_id=room_id), response_model=HeartbeatResponse
-    )
-    assert result.status == "ok"
-
-    await sio_client.disconnect()
-
-
-@pytest.mark.asyncio
-async def test_socketio_heartbeat_wrong_room(
-    server: str, http_client: AsyncClient
-) -> None:
-    """Test heartbeat for wrong room returns error."""
-    token = await _get_user_token(http_client, "wronghb@example.com")
-    room_id = await _create_room(http_client, token)
-
-    sio_client = socketio.AsyncClient()
-    await sio_client.connect(server, auth={"token": token})
-    tsio_client = wrap(sio_client)
-    await tsio_client.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
-
-    raw_result = await sio_client.call(
-        "heartbeat", {"room_id": "nonexistent-room-99999"}
-    )
-    assert isinstance(raw_result, dict)
-    assert raw_result["type"] == NotInRoom.type_uri()
 
     await sio_client.disconnect()
 
@@ -618,82 +575,6 @@ async def test_session_broadcast_includes_sid(
 # =============================================================================
 # TTL Expiration Tests
 # =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_presence_expires_without_heartbeat(
-    server_short_ttl: str, http_client_short_ttl: AsyncClient
-) -> None:
-    """Test that presence expires after TTL without heartbeat.
-
-    Uses server_short_ttl fixture which configures a 2-second presence TTL.
-    """
-    token = await _get_user_token(http_client_short_ttl, "ttluser@example.com")
-    room_id = await _create_room(http_client_short_ttl, token)
-
-    sio_client = socketio.AsyncClient()
-    await sio_client.connect(server_short_ttl, auth={"token": token})
-    tsio_client = wrap(sio_client)
-    await tsio_client.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
-
-    # Verify presence is set
-    presence_response = await http_client_short_ttl.get(
-        f"/v1/rooms/{room_id}/presence",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert presence_response.status_code == 200
-    presence = PresenceResponse.model_validate(presence_response.json())
-    assert len(presence.items) == 1
-
-    # Wait for TTL to expire (2s TTL + buffer)
-    await asyncio.sleep(2.5)
-
-    # Presence should be empty now (no heartbeat was sent)
-    presence_response = await http_client_short_ttl.get(
-        f"/v1/rooms/{room_id}/presence",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    presence = PresenceResponse.model_validate(presence_response.json())
-    assert len(presence.items) == 0
-
-    await sio_client.disconnect()
-
-
-@pytest.mark.asyncio
-async def test_heartbeat_extends_presence_ttl(
-    server_short_ttl: str, http_client_short_ttl: AsyncClient
-) -> None:
-    """Test that heartbeat keeps presence alive past initial TTL.
-
-    Uses server_short_ttl fixture which configures a 2-second presence TTL.
-    """
-    token = await _get_user_token(http_client_short_ttl, "heartbeatttl@example.com")
-    room_id = await _create_room(http_client_short_ttl, token)
-
-    sio_client = socketio.AsyncClient()
-    await sio_client.connect(server_short_ttl, auth={"token": token})
-    tsio_client = wrap(sio_client)
-    await tsio_client.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
-
-    # Wait 1.5s (less than 2s TTL), then send heartbeat
-    await asyncio.sleep(1.5)
-    result = await tsio_client.call(
-        Heartbeat(room_id=room_id), response_model=HeartbeatResponse
-    )
-    assert result.status == "ok"
-
-    # Wait another 1.5s (total 3s from join, but only 1.5s from heartbeat)
-    await asyncio.sleep(1.5)
-
-    # Presence should still be set (heartbeat refreshed TTL)
-    presence_response = await http_client_short_ttl.get(
-        f"/v1/rooms/{room_id}/presence",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    presence = PresenceResponse.model_validate(presence_response.json())
-    assert len(presence.items) == 1
-
-    await sio_client.disconnect()
 
 
 @pytest.mark.asyncio

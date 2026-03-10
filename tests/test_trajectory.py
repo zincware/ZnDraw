@@ -18,7 +18,7 @@ from zndraw_auth import User
 from zndraw.exceptions import InvalidPayload, ProblemDetail, RoomLocked
 from zndraw.models import MemberRole, Room, RoomMembership
 from zndraw.schemas import FrameBulkResponse
-from zndraw.storage import InMemoryStorage
+from zndraw.storage import AsebytesStorage
 
 # =============================================================================
 # Test Helpers
@@ -60,9 +60,9 @@ def _parse_trajectory(text: str, fmt: str = "extxyz") -> list[ase.Atoms]:
 
 
 @pytest_asyncio.fixture(name="traj_storage")
-async def traj_storage_fixture() -> AsyncIterator[InMemoryStorage]:
-    """Create a fresh InMemoryStorage instance for each test."""
-    storage = InMemoryStorage()
+async def traj_storage_fixture() -> AsyncIterator[AsebytesStorage]:
+    """Create a fresh AsebytesStorage instance for each test."""
+    storage = AsebytesStorage("memory://")
     yield storage
     await storage.close()
 
@@ -70,7 +70,7 @@ async def traj_storage_fixture() -> AsyncIterator[InMemoryStorage]:
 @pytest_asyncio.fixture(name="traj_client")
 async def traj_client_fixture(
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
     redis_client: Any,
 ) -> AsyncIterator[AsyncClient]:
     """Create an async test client with session and storage dependencies overridden."""
@@ -85,7 +85,7 @@ async def traj_client_fixture(
     async def get_session_override() -> AsyncIterator[AsyncSession]:
         yield session
 
-    def get_storage_override() -> InMemoryStorage:
+    def get_storage_override() -> AsebytesStorage:
         return traj_storage
 
     def get_sio_override() -> MockSioServer:
@@ -148,7 +148,7 @@ def _auth_header(token: str) -> dict[str, str]:
 
 
 async def _add_atoms_to_storage(
-    storage: InMemoryStorage, room_id: str, atoms_list: list[ase.Atoms]
+    storage: AsebytesStorage, room_id: str, atoms_list: list[ase.Atoms]
 ) -> None:
     """Encode and store a list of Atoms objects in storage."""
     frames = [encode(a) for a in atoms_list]
@@ -164,7 +164,7 @@ async def _add_atoms_to_storage(
 async def test_download_single_frame(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test downloading a single frame by index."""
     user, token = await _create_user(session)
@@ -188,7 +188,7 @@ async def test_download_single_frame(
 async def test_download_all_frames(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test downloading all frames when no indices specified."""
     user, token = await _create_user(session)
@@ -218,7 +218,7 @@ async def test_download_all_frames(
 async def test_download_specific_indices(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test downloading specific frame indices."""
     user, token = await _create_user(session)
@@ -251,7 +251,7 @@ async def test_download_specific_indices(
 async def test_download_with_atom_selection(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test downloading with atom selection filter."""
     user, token = await _create_user(session)
@@ -277,7 +277,7 @@ async def test_download_with_atom_selection(
 async def test_download_preserves_info(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test that atoms.info is preserved through download."""
     user, token = await _create_user(session)
@@ -319,7 +319,7 @@ async def test_download_empty_room(
 async def test_download_invalid_index(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test downloading with out-of-range index returns 400."""
     user, token = await _create_user(session)
@@ -342,7 +342,7 @@ async def test_download_invalid_index(
 async def test_download_custom_filename(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test that custom filename appears in Content-Disposition header."""
     user, token = await _create_user(session)
@@ -364,7 +364,7 @@ async def test_download_custom_filename(
 async def test_download_formats(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
     fmt: str,
 ) -> None:
     """Test downloading in different supported formats."""
@@ -402,7 +402,7 @@ async def test_download_requires_auth(
 async def test_download_unsupported_format(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test downloading with unsupported format returns 400."""
     user, token = await _create_user(session)
@@ -430,7 +430,7 @@ async def test_download_unsupported_format(
 async def test_upload_extxyz(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test uploading an extxyz trajectory file stores frames."""
     user, token = await _create_user(session)
@@ -462,7 +462,7 @@ async def test_upload_extxyz(
 async def test_upload_xyz(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test uploading an xyz format trajectory file."""
     user, token = await _create_user(session)
@@ -487,7 +487,7 @@ async def test_upload_xyz(
 async def test_upload_format_from_extension(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test that format is inferred from file extension when not specified."""
     user, token = await _create_user(session)
@@ -510,7 +510,7 @@ async def test_upload_format_from_extension(
 async def test_upload_explicit_format(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test that explicit format param overrides extension inference."""
     user, token = await _create_user(session)
@@ -533,7 +533,7 @@ async def test_upload_explicit_format(
 async def test_upload_preserves_positions(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test that positions survive the upload roundtrip."""
     user, token = await _create_user(session)
@@ -563,7 +563,7 @@ async def test_upload_preserves_positions(
 async def test_upload_appends_to_nonempty(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Test that uploading to a room with existing frames appends."""
     user, token = await _create_user(session)
@@ -667,7 +667,7 @@ async def test_upload_locked_room(
 async def test_create_download_token(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """POST creates a download token with default TTL."""
     user, token = await _create_user(session)
@@ -693,7 +693,7 @@ async def test_create_download_token(
 async def test_create_download_token_custom_ttl(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """POST with custom TTL sets that TTL."""
     user, token = await _create_user(session)
@@ -713,7 +713,7 @@ async def test_create_download_token_custom_ttl(
 async def test_create_download_token_ttl_exceeds_max_rejected(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """TTL above server max is rejected by Pydantic validation."""
     user, token = await _create_user(session)
@@ -747,7 +747,7 @@ async def test_create_download_token_requires_auth(
 async def test_download_with_token_no_auth_header(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """GET with valid download token works without Authorization header."""
     user, token = await _create_user(session)
@@ -775,7 +775,7 @@ async def test_download_with_token_no_auth_header(
 async def test_download_with_invalid_token(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """GET with invalid token and no auth header returns 401."""
     user, _ = await _create_user(session)
@@ -792,7 +792,7 @@ async def test_download_with_invalid_token(
 async def test_download_token_wrong_room(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Token for room A cannot download from room B."""
     user, token = await _create_user(session)
@@ -819,7 +819,7 @@ async def test_download_token_wrong_room(
 async def test_download_token_single_use(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Token is consumed after first use."""
     user, token = await _create_user(session)
@@ -849,7 +849,7 @@ async def test_download_token_single_use(
 async def test_upload_enriches_frames(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Uploaded bare atoms get colors, radii, and connectivity added."""
     user, token = await _create_user(session)
@@ -877,7 +877,7 @@ async def test_upload_enriches_frames(
 async def test_upload_malformed_file(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Uploading a non-trajectory file returns 400."""
     user, token = await _create_user(session)
@@ -899,7 +899,7 @@ async def test_upload_malformed_file(
 async def test_download_atom_selection_out_of_range(
     traj_client: AsyncClient,
     session: AsyncSession,
-    traj_storage: InMemoryStorage,
+    traj_storage: AsebytesStorage,
 ) -> None:
     """Atom selection with out-of-range index returns 400."""
     user, token = await _create_user(session)

@@ -2,7 +2,7 @@
 
 Uses app.state pattern to store resources:
 - redis: Redis async client
-- frame_storage: Frame storage backend (InMemory, LMDB, etc.)
+- frame_storage: StorageRouter wrapping AsebytesStorage
 - fake_server: TcpFakeServer instance (when REDIS_URL not configured)
 - tsio: zndraw-socketio typed wrapper
 """
@@ -37,23 +37,17 @@ from zndraw_joblib import (
     register_internal_jobs,
     run_sweeper,
 )
+from zndraw_joblib.registry import ensure_internal_jobs, register_internal_tasks
 from zndraw_joblib.settings import JobLibSettings
 
 import zndraw.models  # noqa: F401 - registers Room, Message, etc.
-from zndraw.config import (
-    LMDBStorage as LMDBStorageConfig,
-    MemoryStorage,
-    MongoDBStorage,
-    Settings,
-    StorageConfig,
-)
+from zndraw.config import Settings
 from zndraw.executor import InternalExtensionExecutor
 from zndraw.extensions.analysis import analysis
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
 from zndraw.socketio import tsio
-from zndraw.storage import InMemoryStorage, LMDBStorage as LMDBStorageBackend
-from zndraw.storage.base import StorageBackend
+from zndraw.storage import AsebytesStorage
 
 
 def _get_free_port() -> int:
@@ -61,17 +55,6 @@ def _get_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
-
-
-def _create_storage_backend(config: StorageConfig) -> StorageBackend:
-    """Create a storage backend based on configuration."""
-    if isinstance(config, MemoryStorage):
-        return InMemoryStorage()
-    if isinstance(config, LMDBStorageConfig):
-        return LMDBStorageBackend(path=config.path, map_size=config.map_size)
-    if isinstance(config, MongoDBStorage):
-        raise NotImplementedError("MongoDB storage is not yet implemented")
-    raise ValueError(f"Unknown storage config type: {type(config)}")
 
 
 def _collect_extensions() -> list[type]:
@@ -186,6 +169,9 @@ async def init_database(engine: AsyncEngine | None = None) -> None:
     async with session_maker() as session:
         await ensure_internal_worker(session, settings.worker_password)
 
+    # Seed @internal Job rows for built-in extensions
+    await ensure_internal_jobs(_collect_extensions(), session_maker)
+
     # Only dispose if we created the engine (CLI mode)
     if own_engine:
         await engine.dispose()
@@ -255,7 +241,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # provider results automatically use the same storage engine.
         from zndraw.storage.router import StorageRouter
 
-        default_storage = _create_storage_backend(settings.storage)
+        default_storage = AsebytesStorage(uri=settings.storage)
         app.state.frame_storage = StorageRouter(
             default=default_storage,
             redis=app.state.redis,
@@ -303,13 +289,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             worker_password=settings.worker_password,
         )
 
-        await register_internal_jobs(
-            app,
-            broker,
-            extensions=_collect_extensions(),
-            executor=executor,
-            session_factory=app.state.session_maker,
-        )
+        if settings.init_db_on_startup:
+            await register_internal_jobs(
+                app,
+                broker,
+                extensions=_collect_extensions(),
+                executor=executor,
+                session_factory=app.state.session_maker,
+            )
+        else:
+            # Production: db-init already seeded Job rows — only register
+            # broker tasks (no DB writes, avoids unique_job race).
+            registry = register_internal_tasks(broker, _collect_extensions(), executor)
+            app.state.internal_registry = registry
         await broker.startup()
 
         # zndraw-joblib: wire ResultBackend for provider caching
@@ -330,8 +322,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.result_backend = result_backend
         app.dependency_overrides[get_result_backend] = lambda: result_backend
 
-        # Spawn in-process TaskIQ worker
-        worker_task = asyncio.create_task(run_receiver_task(broker))
+        # Spawn in-process TaskIQ worker (disabled in Docker — dedicated containers)
+        worker_task = None
+        if settings.worker_enabled:
+            worker_task = asyncio.create_task(run_receiver_task(broker))
 
         # zndraw-joblib: background sweeper for stale workers
         async def get_session():
@@ -355,9 +349,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
 
         # Shutdown in reverse order
-        worker_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await worker_task
+        if worker_task is not None:
+            worker_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await worker_task
 
         await broker.shutdown()
 

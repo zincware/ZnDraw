@@ -12,30 +12,21 @@ from collections.abc import Generator
 import httpx
 import pytest
 
-from zndraw.config import (
-    LMDBStorage as LMDBStorageConfig,
-    MemoryStorage,
-    MongoDBStorage,
-)
-from zndraw.storage import InMemoryStorage, LMDBStorage as LMDBStorageBackend
+from zndraw.storage import AsebytesStorage
 
 
 @pytest.fixture(autouse=True)
 def clean_env() -> Generator[None, None, None]:
     """Clean environment before each test."""
-    # Remove any existing env vars that might interfere
     env_vars_to_clear = [
         "ZNDRAW_REDIS_URL",
         "ZNDRAW_DATABASE_URL",
-        "ZNDRAW_STORAGE__TYPE",
-        "ZNDRAW_STORAGE__PATH",
-        "ZNDRAW_STORAGE__MAP_SIZE",
+        "ZNDRAW_STORAGE",
     ]
     original_values = {k: os.environ.pop(k, None) for k in env_vars_to_clear}
 
     yield
 
-    # Restore original values
     for key, value in original_values.items():
         if value is not None:
             os.environ[key] = value
@@ -48,18 +39,14 @@ class TestLifespanWithoutRedisUrl:
 
     def test_app_starts_without_redis_url(self, server_factory) -> None:
         """App should auto-start TcpFakeServer when REDIS_URL is not set."""
-        # Explicitly unset REDIS_URL
         os.environ.pop("ZNDRAW_REDIS_URL", None)
         os.environ["ZNDRAW_DATABASE_URL"] = "sqlite+aiosqlite://"
 
-        # Create server without REDIS_URL - should work with fake server
         instance = server_factory(
             {
                 "ZNDRAW_DATABASE_URL": "sqlite+aiosqlite://",
             }
         )
-        # Need to unset REDIS_URL after server_factory applies its defaults
-        # The server should have started successfully
 
         response = httpx.get(f"{instance.url}/v1/health", timeout=5.0)
         assert response.status_code == 200
@@ -99,35 +86,10 @@ class TestLifespanWithRedisUrl:
 class TestStorageInitialization:
     """Test storage backend initialization based on config."""
 
-    def test_memory_storage_config_creates_inmemory_backend(self) -> None:
-        """MemoryStorage config should create InMemoryStorage backend."""
-        from zndraw.database import _create_storage_backend
-
-        config = MemoryStorage()
-        backend = _create_storage_backend(config)
-
-        assert isinstance(backend, InMemoryStorage)
-
-    def test_lmdb_storage_config_creates_lmdb_backend(self, tmp_path) -> None:
-        """LMDBStorage config should create LMDBStorage backend."""
-        from zndraw.database import _create_storage_backend
-
-        lmdb_path = tmp_path / "test-lmdb"
-        config = LMDBStorageConfig(path=lmdb_path, map_size=100_000_000)
-        backend = _create_storage_backend(config)
-
-        assert isinstance(backend, LMDBStorageBackend)
-        assert backend.path == lmdb_path
-        assert backend.map_size == 100_000_000
-
-    def test_mongodb_storage_config_raises_not_implemented(self) -> None:
-        """MongoDBStorage config should raise NotImplementedError."""
-        from zndraw.database import _create_storage_backend
-
-        config = MongoDBStorage(url="mongodb://localhost:27017")
-
-        with pytest.raises(NotImplementedError, match="MongoDB storage"):
-            _create_storage_backend(config)
+    def test_memory_storage_creates_asebytes_backend(self) -> None:
+        """memory:// URI should create AsebytesStorage backend."""
+        backend = AsebytesStorage(uri="memory://")
+        assert isinstance(backend, AsebytesStorage)
 
 
 class TestFakeRedisServer:
@@ -145,9 +107,7 @@ class TestFakeRedisServer:
         """_get_free_port should return different ports on successive calls."""
         from zndraw.database import _get_free_port
 
-        # Get multiple ports - they should be different (high probability)
         ports = {_get_free_port() for _ in range(5)}
-        # At least some should be different (very high probability)
         assert len(ports) >= 2
 
 
@@ -164,6 +124,5 @@ class TestCleanupSweeper:
             }
         )
 
-        # Health endpoint works means lifespan completed successfully
         response = httpx.get(f"{instance.url}/v1/health", timeout=5.0)
         assert response.status_code == 200

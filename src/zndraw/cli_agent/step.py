@@ -4,9 +4,16 @@ from typing import Annotated
 
 import typer
 
-from zndraw.schemas import StepResponse, StepUpdateRequest, StepUpdateResponse
+from zndraw.schemas import StepResponse, StepUpdateResponse
 
-from .connection import get_connection
+from .connection import (
+    RoomOpt,
+    TokenOpt,
+    UrlOpt,
+    cli_error_handler,
+    get_zndraw,
+    resolve_room,
+)
 from .output import json_print
 
 step_app = typer.Typer()
@@ -14,23 +21,32 @@ step_app = typer.Typer()
 
 @step_app.command("get")
 def get_step(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """Get the current step."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    response = conn.get(f"/v1/rooms/{room}/step")
-    json_print(StepResponse.model_validate(response.json()))
+    with cli_error_handler():
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
+        data = vis.api.get_step()
+        json_print(StepResponse.model_validate(data))
+        vis.disconnect()
 
 
 @step_app.command("set")
 def set_step(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
-    index: Annotated[int, typer.Argument(help="Step index")],
+    index: Annotated[int | None, typer.Argument(help="Step index")] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
 ) -> None:
     """Set the current step."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    request = StepUpdateRequest(step=index)
-    response = conn.put(f"/v1/rooms/{room}/step", json=request.model_dump())
-    json_print(StepUpdateResponse.model_validate(response.json()))
+    with cli_error_handler():
+        room = resolve_room(room)
+        if index is None:
+            raise typer.BadParameter("Step index is required")
+        vis = get_zndraw(url, token, room)
+        data = vis.api.update_step(index)
+        json_print(StepUpdateResponse.model_validate(data))
+        vis.disconnect()

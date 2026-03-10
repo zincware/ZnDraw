@@ -1,4 +1,4 @@
-"""Socket.IO server with room support and presence tracking."""
+"""Socket.IO server with room support."""
 
 import json
 from uuid import UUID
@@ -15,7 +15,6 @@ from zndraw_joblib.events import emit as joblib_emit
 from zndraw_joblib.models import ProviderRecord
 from zndraw_socketio import EventContext, wrap
 
-from zndraw.config import Settings, get_zndraw_settings
 from zndraw.dependencies import RedisDep, StorageDep, room_channel
 from zndraw.exceptions import (
     NotInRoom,
@@ -31,8 +30,6 @@ from zndraw.schemas import ProgressResponse
 from zndraw.socket_events import (
     FramesInvalidate,
     GeometryInvalidate,
-    Heartbeat,
-    HeartbeatResponse,
     LockUpdate,
     RoomJoin,
     RoomJoinResponse,
@@ -56,12 +53,9 @@ tsio = wrap(socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*"))
 async def _cleanup_session(
     redis: RedisDep, sid: str, sio_session: dict, room_id: str
 ) -> None:
-    """Remove this SID's camera and settings from the room and broadcast deletion."""
+    """Remove this SID's camera from the room and broadcast deletion."""
     # Remove active camera tracking
     await redis.hdel(RedisKey.active_cameras(room_id), sid)  # type: ignore[misc]
-
-    # Remove session settings
-    await redis.delete(RedisKey.session_settings(room_id, sid))
 
     camera_key: str | None = sio_session.get("camera_key")
     if camera_key is None:
@@ -129,14 +123,12 @@ async def on_disconnect(
     redis: RedisDep,
     db_session: SessionDep,
 ) -> None:
-    """Handle disconnect - clean up presence, camera, locks, and workers."""
+    """Handle disconnect - clean up camera, locks, and workers."""
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
     current_room_id: str | None = sio_session.get("current_room_id")
 
     if current_room_id is not None:
-        await redis.delete(RedisKey.presence_sid(current_room_id, sid))
-
         # Delete session camera from room hash
         await _cleanup_session(redis, sid, sio_session, current_room_id)
 
@@ -219,12 +211,11 @@ async def room_join(
     redis: RedisDep,
     storage: StorageDep,
     session: SessionDep,
-    settings: Settings = Depends(get_zndraw_settings),
 ) -> RoomJoinResponse:
     """Join a Socket.IO room for real-time updates.
 
     Supports special system rooms with '@' prefix (e.g., @overview) that skip
-    database validation, presence tracking, and camera creation.
+    database validation and camera creation.
     """
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
@@ -263,9 +254,8 @@ async def room_join(
     old_room_id: str | None = sio_session.get("current_room_id")
     if old_room_id is not None:
         await tsio.leave_room(sid, room_channel(old_room_id))
-        # Clean up presence and camera for non-system rooms
+        # Clean up camera for non-system rooms
         if not old_room_id.startswith("@"):
-            await redis.delete(RedisKey.presence_sid(old_room_id, sid))
             await _cleanup_session(redis, sid, sio_session, old_room_id)
         await tsio.emit(
             SessionLeft(room_id=old_room_id, user_id=user_id, sid=sid),
@@ -282,7 +272,7 @@ async def room_join(
         await tsio.enter_room(sid, "frontend")
         await tsio.enter_room(sid, room_channel("@global"))
 
-    # System rooms (@-prefixed) skip presence, camera, and return minimal data
+    # System rooms (@-prefixed) skip camera and return minimal data
     if is_system_room:
         return RoomJoinResponse(
             room_id=data.room_id,
@@ -294,13 +284,7 @@ async def room_join(
 
     assert room is not None  # is_system_room is False → room was assigned above
 
-    # Regular rooms: set presence, create camera, broadcast join
-    await redis.set(
-        RedisKey.presence_sid(data.room_id, sid),
-        str(user_id),
-        ex=settings.presence_ttl,
-    )
-
+    # Regular rooms: create camera, broadcast join
     await tsio.emit(
         SessionJoined(room_id=data.room_id, user_id=user_id, sid=sid, email=email),
         room=room_channel(data.room_id),
@@ -404,7 +388,6 @@ async def room_leave(sid: str, data: RoomLeave, redis: RedisDep) -> RoomLeaveRes
         return RoomLeaveResponse(room_id=data.room_id)
 
     await tsio.leave_room(sid, room_channel(data.room_id))
-    await redis.delete(RedisKey.presence_sid(data.room_id, sid))
 
     # Clean up camera
     await _cleanup_session(redis, sid, sio_session, data.room_id)
@@ -417,39 +400,6 @@ async def room_leave(sid: str, data: RoomLeave, redis: RedisDep) -> RoomLeaveRes
         room=room_channel(data.room_id),
     )
     return RoomLeaveResponse(room_id=data.room_id)
-
-
-@tsio.on(Heartbeat)
-async def heartbeat(
-    sid: str,
-    data: Heartbeat,
-    redis: RedisDep,
-    settings: Settings = Depends(get_zndraw_settings),
-) -> HeartbeatResponse:
-    """Keep presence alive (should be called every 30s).
-
-    Camera cleanup is explicit (on leave/disconnect), so no TTL refresh needed.
-    """
-    sio_session = await tsio.get_session(sid)
-    user_id: UUID = sio_session["user_id"]
-    current_room_id: str | None = sio_session.get("current_room_id")
-
-    if current_room_id != data.room_id:
-        raise NotInRoom.exception("Not in this room")
-
-    await redis.set(
-        RedisKey.presence_sid(data.room_id, sid),
-        str(user_id),
-        ex=settings.presence_ttl,
-    )
-
-    # Refresh settings TTL alongside presence
-    await redis.expire(  # type: ignore[misc]
-        RedisKey.session_settings(data.room_id, sid),
-        settings.presence_ttl,
-    )
-
-    return HeartbeatResponse()
 
 
 @tsio.on(TypingStart, emits=[Typing])

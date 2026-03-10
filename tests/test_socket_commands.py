@@ -12,8 +12,6 @@ from zndraw.socket_events import (
     FramesInvalidate,
     FrameUpdate,
     GeometryInvalidate,
-    Heartbeat,
-    HeartbeatResponse,
     LockUpdate,
     MessageEdited,
     MessageNew,
@@ -61,8 +59,8 @@ def test_room_join_missing_room_id() -> None:
 
 @pytest.mark.parametrize(
     "model_cls",
-    [RoomLeave, Heartbeat, TypingStart, TypingStop],
-    ids=["RoomLeave", "Heartbeat", "TypingStart", "TypingStop"],
+    [RoomLeave, TypingStart, TypingStop],
+    ids=["RoomLeave", "TypingStart", "TypingStop"],
 )
 def test_room_id_only_request_roundtrip(model_cls: type) -> None:
     """Request models with only room_id serialize/deserialize correctly."""
@@ -118,12 +116,9 @@ def test_room_leave_response_roundtrip() -> None:
     assert RoomLeaveResponse.model_validate(resp.model_dump()).room_id == "room-1"
 
 
-@pytest.mark.parametrize(
-    "model_cls", [HeartbeatResponse, TypingResponse], ids=["Heartbeat", "Typing"]
-)
-def test_ok_response_default(model_cls: type) -> None:
-    """HeartbeatResponse and TypingResponse default to status='ok'."""
-    resp = model_cls()
+def test_ok_response_default() -> None:
+    """TypingResponse defaults to status='ok'."""
+    resp = TypingResponse()
     assert resp.model_dump(mode="json") == {"status": "ok"}
 
 

@@ -15,7 +15,7 @@ from zndraw_auth import User
 from zndraw.models import MemberRole, Room, RoomMembership
 from zndraw.schemas import StepResponse, StepUpdateResponse
 from zndraw.socket_events import FrameUpdate
-from zndraw.storage import InMemoryStorage
+from zndraw.storage import AsebytesStorage
 
 # =============================================================================
 # Test-specific Fixtures
@@ -48,9 +48,9 @@ async def step_session_fixture() -> AsyncIterator[AsyncSession]:
 
 
 @pytest_asyncio.fixture(name="step_storage")
-async def step_storage_fixture() -> AsyncIterator[InMemoryStorage]:
-    """Create a fresh InMemoryStorage instance for each test."""
-    storage = InMemoryStorage()
+async def step_storage_fixture() -> AsyncIterator[AsebytesStorage]:
+    """Create a fresh AsebytesStorage instance for each test."""
+    storage = AsebytesStorage("memory://")
     yield storage
     await storage.close()
 
@@ -66,7 +66,7 @@ async def mock_sio_fixture() -> MagicMock:
 @pytest_asyncio.fixture(name="step_client")
 async def step_client_fixture(
     step_session: AsyncSession,
-    step_storage: InMemoryStorage,
+    step_storage: AsebytesStorage,
     mock_sio: MagicMock,
 ) -> AsyncIterator[AsyncClient]:
     """Create an async test client with dependencies overridden."""
@@ -80,7 +80,7 @@ async def step_client_fixture(
     async def get_session_override() -> AsyncIterator[AsyncSession]:
         yield step_session
 
-    def get_storage_override() -> InMemoryStorage:
+    def get_storage_override() -> AsebytesStorage:
         return step_storage
 
     def get_sio_override() -> MagicMock:
@@ -157,7 +157,7 @@ def _auth_header(token: str) -> dict[str, str]:
 async def test_get_step_returns_zero_initially(
     step_client: AsyncClient,
     step_session: AsyncSession,
-    step_storage: InMemoryStorage,
+    step_storage: AsebytesStorage,
 ) -> None:
     """Test GET returns step=0 for new room with no step set."""
     user, token = await _create_user(step_session)
@@ -181,7 +181,7 @@ async def test_get_step_returns_zero_initially(
 async def test_get_step_returns_current_step(
     step_client: AsyncClient,
     step_session: AsyncSession,
-    step_storage: InMemoryStorage,
+    step_storage: AsebytesStorage,
 ) -> None:
     """Test GET returns previously set step."""
     user, token = await _create_user(step_session)
@@ -210,7 +210,7 @@ async def test_get_step_returns_current_step(
 async def test_set_step_updates_and_returns(
     step_client: AsyncClient,
     step_session: AsyncSession,
-    step_storage: InMemoryStorage,
+    step_storage: AsebytesStorage,
     mock_sio: MagicMock,
 ) -> None:
     """Test PUT updates step and returns new value."""
@@ -246,7 +246,7 @@ async def test_set_step_updates_and_returns(
 async def test_set_step_out_of_bounds_returns_422(
     step_client: AsyncClient,
     step_session: AsyncSession,
-    step_storage: InMemoryStorage,
+    step_storage: AsebytesStorage,
 ) -> None:
     """Test PUT with step > total_frames returns 422."""
     user, token = await _create_user(step_session)
@@ -271,7 +271,7 @@ async def test_set_step_out_of_bounds_returns_422(
 async def test_set_step_empty_room_rejects_nonzero(
     step_client: AsyncClient,
     step_session: AsyncSession,
-    step_storage: InMemoryStorage,
+    step_storage: AsebytesStorage,
 ) -> None:
     """Test PUT to room with no frames rejects non-zero step."""
     user, token = await _create_user(step_session)
@@ -292,7 +292,7 @@ async def test_set_step_empty_room_rejects_nonzero(
 async def test_set_step_negative_returns_422(
     step_client: AsyncClient,
     step_session: AsyncSession,
-    step_storage: InMemoryStorage,
+    step_storage: AsebytesStorage,
 ) -> None:
     """Test PUT with negative step returns 422 (Pydantic ge=0 validation)."""
     user, token = await _create_user(step_session)

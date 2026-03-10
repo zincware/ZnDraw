@@ -147,7 +147,7 @@ from zndraw.geometries import Floor, Box, Curve
 vis = ZnDraw(url='${BASE_URL}', room='${room}')
 del vis[:]
 vis.append(ase.Atoms())
-vis.geometries["floor"] = Floor(active=True, height=-5.0, color="#A0A0A0")
+vis.geometries["floor"] = Floor(active=True, position=(0, -5.0, 0), color="#A0A0A0")
 vis.geometries["box"] = Box(position=[(0, 0, 0)], size=[(10, 10, 10)])
 vis.geometries["curve"] = Curve(
     position=[
@@ -179,7 +179,7 @@ del vis[:]
 vis.append(ase.Atoms())
 for key in list(vis.geometries.keys()):
     del vis.geometries[key]
-vis.geometries["floor"] = Floor(active=True, height=-2.0, color="#808080")
+vis.geometries["floor"] = Floor(active=True, position=(0, -2.0, 0), color="#808080")
 vis.geometries["box"] = Box(
     position=[(0, 2, 0)], size=[(4, 4, 4)], color=["#e74c3c"],
     material="MeshToonMaterial",
@@ -211,7 +211,7 @@ src = ZnDraw(url='${BASE_URL}', room='${prefix}-bmim-source')
 vis = ZnDraw(url='${BASE_URL}', room='${room}')
 del vis[:]
 vis.append(src[0])
-vis.geometries["floor"] = Floor(active=True, height=-5.0, color="#808080")
+vis.geometries["floor"] = Floor(active=True, position=(0, -5.0, 0), color="#808080")
 vis.geometries["my_curve"] = Curve(
     position=[(-10, 0, -10), (0, 10, 0), (10, 0, 10)],
     color="#2ecc71",

@@ -11,7 +11,7 @@ from ase.data.colors import jmol_colors
 from asebytes import decode, encode
 
 from zndraw.connectivity import add_connectivity
-from zndraw.storage.base import RawFrame
+from zndraw.storage import RawFrame
 
 # Pre-computed hex color lookup table indexed by atomic number.
 # Avoids per-atom Python loops — a single numpy fancy-index suffices.

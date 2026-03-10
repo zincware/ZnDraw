@@ -29,7 +29,7 @@ from zndraw.geometries import geometries as geometry_models
 from zndraw.geometries.camera import Camera
 from zndraw.models import Room, RoomGeometry
 from zndraw.redis import RedisKey
-from zndraw.storage.base import StorageBackend
+from zndraw.storage import AsebytesStorage
 from zndraw.storage.router import StorageRouter
 
 # Re-export auth dependencies for convenience
@@ -53,12 +53,12 @@ def get_redis(request: Request) -> AsyncRedis:  # type: ignore[type-arg]
 RedisDep = Annotated[AsyncRedis, Depends(get_redis)]  # type: ignore[type-arg]
 
 
-def get_storage(request: Request) -> StorageBackend:
+def get_storage(request: Request) -> AsebytesStorage:
     """Get frame storage backend from app.state."""
     return request.app.state.frame_storage
 
 
-StorageDep = Annotated[StorageBackend, Depends(get_storage)]
+StorageDep = Annotated[AsebytesStorage, Depends(get_storage)]
 
 
 def get_storage_router(request: Request) -> StorageRouter:
@@ -169,19 +169,43 @@ async def get_verified_session_id(
 ) -> str:
     """Verify session belongs to the current user, or raise 404.
 
-    Checks the presence key to confirm the session exists and is owned
-    by the requesting user. Returns 404 for both missing and non-owned
-    sessions (prevents enumeration).
+    Finds the session's own camera in room_cameras (by SID match) to
+    verify ownership. The active camera may point to another user's
+    camera (sessions can view through any camera in the room), so we
+    cannot use the active_cameras chain for ownership verification.
     """
-    user_id = await redis.get(  # type: ignore[misc]
-        RedisKey.presence_sid(room_id, session_id)
+    if not await redis.hexists(RedisKey.active_cameras(room_id), session_id):  # type: ignore[misc]
+        raise SessionNotFound.exception("Session not found")
+    all_cameras: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
+        RedisKey.room_cameras(room_id)
     )
-    if user_id is None or user_id != str(current_user.id):
+    uid = str(current_user.id)
+    for raw in all_cameras.values():
+        entry = json.loads(raw)
+        if entry.get("sid") == session_id and Camera(**entry["data"]).owner == uid:
+            return session_id
+    raise SessionNotFound.exception("Session not found")
+
+
+VerifiedSessionDep = Annotated[str, Depends(get_verified_session_id)]
+
+
+async def get_active_session_cam_id(
+    redis: RedisDep,
+    room_id: str = Path(),
+    session_id: str = Path(),
+) -> str:
+    """Verify session exists in active-cameras (no ownership check).
+
+    Use for read-only access where any room participant may view
+    session state. For mutations, use ``VerifiedSessionDep``.
+    """
+    if not await redis.hexists(RedisKey.active_cameras(room_id), session_id):  # type: ignore[misc]
         raise SessionNotFound.exception("Session not found")
     return session_id
 
 
-VerifiedSessionDep = Annotated[str, Depends(get_verified_session_id)]
+ActiveSessionCamDep = Annotated[str, Depends(get_active_session_cam_id)]
 
 
 async def get_owner_from_geometry(

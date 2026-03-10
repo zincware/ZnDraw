@@ -5,7 +5,15 @@ from typing import Annotated
 import typer
 from zndraw_joblib.schemas import PaginatedResponse, TaskResponse
 
-from .connection import get_connection
+from .connection import (
+    RoomOpt,
+    TokenOpt,
+    UrlOpt,
+    cli_error_handler,
+    get_connection,
+    get_zndraw,
+    resolve_room,
+)
 from .output import json_print
 
 jobs_app = typer.Typer(name="jobs", help="Job operations")
@@ -13,25 +21,28 @@ jobs_app = typer.Typer(name="jobs", help="Job operations")
 
 @jobs_app.command("status")
 def status(
-    ctx: typer.Context,
     task_id: Annotated[str, typer.Argument(help="Task ID")],
+    url: UrlOpt = None,
+    token: TokenOpt = None,
 ) -> None:
     """Get the status of a task by ID."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    resp = conn.get(f"/v1/joblib/tasks/{task_id}")
-    json_print(TaskResponse.model_validate(resp.json()))
+    with cli_error_handler():
+        conn = get_connection(url, token)
+        resp = conn.get(f"/v1/joblib/tasks/{task_id}")
+        json_print(TaskResponse.model_validate(resp.json()))
 
 
 @jobs_app.command("list")
 def list_jobs(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
     status: Annotated[str | None, typer.Option(help="Filter by status")] = None,
 ) -> None:
     """List tasks for a room."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    params: dict = {}
-    if status:
-        params["status"] = status
-    resp = conn.get(f"/v1/joblib/rooms/{room}/tasks", params=params)
-    json_print(PaginatedResponse[TaskResponse].model_validate(resp.json()))
+    with cli_error_handler():
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
+        data = vis.api.list_tasks(status=status)
+        json_print(PaginatedResponse[TaskResponse].model_validate(data))
+        vis.disconnect()

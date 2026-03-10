@@ -870,11 +870,11 @@ export default function Curve({
 	// Early returns after all hooks (Rules of Hooks)
 	if (!roomId) return null;
 	if (!marker || !virtual_marker) return null;
-	// Don't render if geometry is disabled OR if required keys are not available
-	if (fullData.active === false || !hasRequiredKeys) return null;
-	// Hide curve visuals when pathtracing (Line components not supported by GPU pathtracer)
-	// BUT keep the component mounted so curveRef stays registered for CurveAttachment resolution
-	if (pathtracingEnabled) return <group />;
+	// Don't render if required keys are not available
+	if (!hasRequiredKeys) return null;
+	// Hide curve visuals when pathtracing or inactive
+	// Keep mounted so curveRef stays registered for CurveAttachment resolution
+	if (pathtracingEnabled || fullData.active === false) return <group />;
 
 	// --- Render ---
 	return (

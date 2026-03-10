@@ -92,7 +92,7 @@ export function resolvePosition(
 ): [number, number, number] {
 	if (isCurveAttachment(position)) {
 		const curve = geometries[position.geometry_key];
-		if (!curve || curve.type !== "Curve") {
+		if (!curve || (curve.type !== "Curve" && curve.type !== "CircleCurve")) {
 			console.warn(
 				`CurveAttachment references missing/invalid curve: ${position.geometry_key}`,
 			);

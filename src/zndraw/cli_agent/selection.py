@@ -6,11 +6,17 @@ import typer
 
 from zndraw.schemas import (
     GeometrySelectionResponse,
-    SelectionUpdateRequest,
     StatusResponse,
 )
 
-from .connection import get_connection
+from .connection import (
+    RoomOpt,
+    TokenOpt,
+    UrlOpt,
+    cli_error_handler,
+    get_zndraw,
+    resolve_room,
+)
 from .output import json_print
 
 selection_app = typer.Typer()
@@ -18,44 +24,52 @@ selection_app = typer.Typer()
 
 @selection_app.command("get")
 def get_selection(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
     geometry: Annotated[str, typer.Option(help="Geometry key")] = "particles",
 ) -> None:
     """Get the current selection for a geometry."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    response = conn.get(f"/v1/rooms/{room}/geometries/{geometry}/selection")
-    json_print(GeometrySelectionResponse.model_validate(response.json()))
+    with cli_error_handler():
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
+        data = vis.api.get_selection(geometry)
+        json_print(GeometrySelectionResponse.model_validate(data))
+        vis.disconnect()
 
 
 @selection_app.command("set")
 def set_selection(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
-    indices: Annotated[list[int], typer.Argument(help="Indices to select")],
+    indices: Annotated[
+        list[int] | None, typer.Argument(help="Indices to select")
+    ] = None,
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
     geometry: Annotated[str, typer.Option(help="Geometry key")] = "particles",
 ) -> None:
     """Set the selection for a geometry."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    request = SelectionUpdateRequest(indices=indices)
-    response = conn.put(
-        f"/v1/rooms/{room}/geometries/{geometry}/selection",
-        json=request.model_dump(),
-    )
-    json_print(StatusResponse.model_validate(response.json()))
+    with cli_error_handler():
+        room = resolve_room(room)
+        if indices is None:
+            raise typer.BadParameter("Indices are required")
+        vis = get_zndraw(url, token, room)
+        data = vis.api.update_selection(geometry, list(indices))
+        json_print(StatusResponse.model_validate(data))
+        vis.disconnect()
 
 
 @selection_app.command("clear")
 def clear_selection(
-    ctx: typer.Context,
-    room: Annotated[str, typer.Argument(help="Room ID")],
+    url: UrlOpt = None,
+    token: TokenOpt = None,
+    room: RoomOpt = None,
     geometry: Annotated[str, typer.Option(help="Geometry key")] = "particles",
 ) -> None:
     """Clear the selection for a geometry."""
-    conn = get_connection(ctx.obj["url"], ctx.obj["token"])
-    request = SelectionUpdateRequest(indices=[])
-    response = conn.put(
-        f"/v1/rooms/{room}/geometries/{geometry}/selection",
-        json=request.model_dump(),
-    )
-    json_print(StatusResponse.model_validate(response.json()))
+    with cli_error_handler():
+        room = resolve_room(room)
+        vis = get_zndraw(url, token, room)
+        data = vis.api.update_selection(geometry, [])
+        json_print(StatusResponse.model_validate(data))
+        vis.disconnect()

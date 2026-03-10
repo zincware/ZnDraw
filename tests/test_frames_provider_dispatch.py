@@ -24,8 +24,7 @@ from zndraw_joblib.exceptions import ProviderTimeout
 from zndraw_joblib.models import ProviderRecord, Worker
 
 from zndraw.exceptions import FrameNotFound, ProblemDetail
-from zndraw.storage import InMemoryStorage
-from zndraw.storage.base import RawFrame
+from zndraw.storage import AsebytesStorage, RawFrame
 
 # =============================================================================
 # In-memory ResultBackend for testing
@@ -114,9 +113,9 @@ async def prov_session_fixture(
 
 
 @pytest_asyncio.fixture(name="prov_storage")
-async def prov_storage_fixture() -> AsyncIterator[InMemoryStorage]:
-    """Create a fresh InMemoryStorage."""
-    storage = InMemoryStorage()
+async def prov_storage_fixture() -> AsyncIterator[AsebytesStorage]:
+    """Create a fresh AsebytesStorage."""
+    storage = AsebytesStorage("memory://")
     yield storage
     await storage.close()
 
@@ -131,7 +130,7 @@ def prov_result_backend_fixture() -> InMemoryResultBackend:
 async def prov_client_fixture(
     prov_session: AsyncSession,
     prov_session_factory: async_sessionmaker[AsyncSession],
-    prov_storage: InMemoryStorage,
+    prov_storage: AsebytesStorage,
     prov_result_backend: InMemoryResultBackend,
 ) -> AsyncIterator[AsyncClient]:
     """Create a test client with provider dependencies wired."""
@@ -211,7 +210,7 @@ async def _create_provider(
 async def test_get_frame_storage_hit_ignores_provider(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: InMemoryStorage,
+    prov_storage: AsebytesStorage,
 ) -> None:
     """Frame in storage, provider exists -- returns frame (no provider touch)."""
     user, token = await _create_user(prov_session)
@@ -233,7 +232,7 @@ async def test_get_frame_storage_hit_ignores_provider(
 async def test_get_frame_provider_cache_hit(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: InMemoryStorage,
+    prov_storage: AsebytesStorage,
     prov_result_backend: InMemoryResultBackend,
 ) -> None:
     """Frame in provider cache, storage slot is None -- returns 200 with frame."""
@@ -268,7 +267,7 @@ async def test_get_frame_provider_cache_hit(
 async def test_get_frame_provider_timeout(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: InMemoryStorage,
+    prov_storage: AsebytesStorage,
 ) -> None:
     """Frame not cached, provider exists -- long-poll times out → 504."""
     user, token = await _create_user(prov_session)
@@ -292,7 +291,7 @@ async def test_get_frame_provider_timeout(
 async def test_get_frame_no_provider_returns_404(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: InMemoryStorage,
+    prov_storage: AsebytesStorage,
 ) -> None:
     """Frame missing, no provider registered -- returns 404."""
     user, token = await _create_user(prov_session)
@@ -313,7 +312,7 @@ async def test_get_frame_no_provider_returns_404(
 async def test_get_frame_dispatch_acquires_inflight(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: InMemoryStorage,
+    prov_storage: AsebytesStorage,
     prov_result_backend: InMemoryResultBackend,
 ) -> None:
     """After dispatch, inflight lock is acquired."""
@@ -339,7 +338,7 @@ async def test_get_frame_dispatch_acquires_inflight(
 async def test_get_frame_notify_wakes_long_poll(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: InMemoryStorage,
+    prov_storage: AsebytesStorage,
     prov_result_backend: InMemoryResultBackend,
 ) -> None:
     """Provider uploads result mid-poll — long-poll wakes up and returns 200."""
@@ -388,7 +387,7 @@ async def test_get_frame_notify_wakes_long_poll(
 async def test_list_frames_notify_wakes_concurrent_dispatch(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: InMemoryStorage,
+    prov_storage: AsebytesStorage,
     prov_result_backend: InMemoryResultBackend,
 ) -> None:
     """Multiple missing frames dispatched concurrently — all wake on notify."""

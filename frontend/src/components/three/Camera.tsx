@@ -84,7 +84,7 @@ export default function Camera({
 	 */
 	const resolveToVector3 = (
 		positionData: PositionType,
-		curve: THREE.CatmullRomCurve3 | undefined,
+		curve: THREE.Curve<THREE.Vector3> | undefined,
 		progress: number,
 	): THREE.Vector3 => {
 		// Use curveRef for smooth spline interpolation when available

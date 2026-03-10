@@ -1,7 +1,7 @@
 """Server management utilities for ZnDraw CLI.
 
 This module handles server process discovery, lifecycle management,
-and PID file management for multi-instance support.
+PID file management, and token storage for multi-instance support.
 """
 
 from __future__ import annotations
@@ -9,11 +9,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+import stat
 import time
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 
 import httpx
+from pydantic import BaseModel, TypeAdapter
 
 log = logging.getLogger(__name__)
 
@@ -353,3 +356,68 @@ def shutdown_server(server_info: ServerInfo) -> bool:
             return True
         time.sleep(0.2)
     return False
+
+
+# --- Token Storage ---
+
+_tokens_adapter = TypeAdapter(dict[str, "TokenEntry"])
+
+
+class TokenEntry(BaseModel):
+    """A stored authentication token for a ZnDraw server."""
+
+    access_token: str
+    email: str
+    stored_at: datetime
+
+
+class TokenStore:
+    """Persistent token storage in ``tokens.json``.
+
+    Stores JWT tokens keyed by server URL, analogous to browser localStorage.
+    File permissions are set to 0600 (owner read/write only).
+
+    Parameters
+    ----------
+    directory
+        Directory to store ``tokens.json`` in. Defaults to ``~/.zndraw``.
+    """
+
+    def __init__(self, directory: Path | None = None) -> None:
+        self.directory = directory or get_zndraw_dir()
+
+    @property
+    def path(self) -> Path:
+        """Path to the tokens.json file."""
+        return self.directory / "tokens.json"
+
+    def _read_all(self) -> dict[str, TokenEntry]:
+        if not self.path.exists():
+            return {}
+        try:
+            raw = self.path.read_text()
+            return _tokens_adapter.validate_json(raw)
+        except (json.JSONDecodeError, ValueError):
+            return {}
+
+    def _write_all(self, data: dict[str, TokenEntry]) -> None:
+        raw = _tokens_adapter.dump_json(data, indent=2)
+        self.path.write_bytes(raw)
+        self.path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+    def get(self, server_url: str) -> TokenEntry | None:
+        """Get stored token for a server URL."""
+        return self._read_all().get(server_url)
+
+    def set(self, server_url: str, entry: TokenEntry) -> None:
+        """Store a token for a server URL."""
+        data = self._read_all()
+        data[server_url] = entry
+        self._write_all(data)
+
+    def delete(self, server_url: str) -> None:
+        """Remove stored token for a server URL."""
+        data = self._read_all()
+        if server_url in data:
+            del data[server_url]
+            self._write_all(data)

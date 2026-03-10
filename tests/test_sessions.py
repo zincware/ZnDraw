@@ -1,4 +1,4 @@
-"""Integration tests for vis.sessions (user-scoped session control)."""
+"""Integration tests for vis.sessions (room-scoped session visibility)."""
 
 import json
 import uuid
@@ -12,7 +12,6 @@ from zndraw import ZnDraw
 from zndraw.client import Sessions
 from zndraw.geometries.camera import Camera
 from zndraw.redis import RedisKey
-from zndraw.settings import RoomConfig
 
 
 def _get_user_id(vis: ZnDraw) -> str:
@@ -28,23 +27,25 @@ def _get_user_id(vis: ZnDraw) -> str:
 
 
 def _seed_frontend_session(
-    r: Redis, room_id: str, user_id: str, fake_sid: str, camera_key: str
+    r: Redis,
+    room_id: str,
+    user_id: str,
+    fake_sid: str,
+    camera_key: str,
+    email: str = "test@local.test",
 ) -> None:
     """Seed Redis with a fake frontend session for testing.
 
-    Creates the presence key, active-cameras entry, and a camera geometry
-    so that ``list_sessions`` returns the fake SID and camera operations work.
+    Creates active-cameras entry and a camera geometry so that
+    ``list_sessions`` returns the fake SID and camera operations work.
     """
-    # Presence key (maps SID → user_id)
-    r.set(RedisKey.presence_sid(room_id, fake_sid), user_id, ex=300)
-
     # Active cameras hash (marks SID as frontend)
     r.hset(RedisKey.active_cameras(room_id), fake_sid, camera_key)
 
     # Camera geometry in Redis hash
     camera = Camera(owner=user_id)
     camera_value = json.dumps(
-        {"sid": fake_sid, "email": "test@local.test", "data": camera.model_dump()}
+        {"sid": fake_sid, "email": email, "data": camera.model_dump()}
     )
     r.hset(RedisKey.room_cameras(room_id), camera_key, camera_value)
 
@@ -164,46 +165,22 @@ def test_session_active_camera_roundtrip(server: str):
     session = vis.sessions[fake_sid]
     assert session.active_camera == camera_key
 
-    # Set a different active camera
-    new_key = "custom_camera"
-    session.active_camera = new_key
-    assert session.active_camera == new_key
-
-    r.close()
-    vis.disconnect()
-
-
-def test_session_settings_roundtrip(server: str):
-    """Get/set settings through Session proxy."""
-    room_id = uuid.uuid4().hex
-    vis = ZnDraw(url=server, room=room_id)
-    user_id = _get_user_id(vis)
-
-    r = Redis.from_url("redis://localhost", decode_responses=True)
-    fake_sid = "fake-frontend-003"
-    camera_key = f"cam:test@local.test:{fake_sid[:8]}"
-    _seed_frontend_session(r, room_id, user_id, fake_sid, camera_key)
-
-    session = vis.sessions[fake_sid]
-
-    # Default settings
-    settings = session.settings
-    assert isinstance(settings, RoomConfig)
-    assert settings.studio_lighting.key_light == pytest.approx(0.7)
-
-    # Update settings
-    new_settings = settings.model_copy(
-        update={
-            "studio_lighting": settings.studio_lighting.model_copy(
-                update={"key_light": 1.5}
-            )
-        }
+    # Seed a second camera and switch to it
+    second_key = "cam:other@local.test:second"
+    second_cam = Camera(owner=user_id)
+    r.hset(
+        RedisKey.room_cameras(room_id),
+        second_key,
+        json.dumps(
+            {
+                "sid": "other-sid",
+                "email": "other@local.test",
+                "data": second_cam.model_dump(),
+            }
+        ),
     )
-    session.settings = new_settings
-
-    # Read back
-    updated = session.settings
-    assert updated.studio_lighting.key_light == pytest.approx(1.5)
+    session.active_camera = second_key
+    assert session.active_camera == second_key
 
     r.close()
     vis.disconnect()
@@ -239,23 +216,82 @@ def test_session_camera_roundtrip(server: str):
     vis.disconnect()
 
 
-def test_session_settings_not_accessible_by_other_user(server: str):
-    """Another user cannot access a session's settings (404)."""
+# =============================================================================
+# Cross-User Visibility Tests (room-scoped)
+# =============================================================================
+
+
+def test_cross_user_sees_other_users_sessions(server: str):
+    """User2 can see user1's frontend session in the listing."""
     room_id = uuid.uuid4().hex
     vis1 = ZnDraw(url=server, room=room_id)
     user1_id = _get_user_id(vis1)
 
     r = Redis.from_url("redis://localhost", decode_responses=True)
-    fake_sid = "fake-frontend-005"
-    camera_key = f"cam:test@local.test:{fake_sid[:8]}"
-    _seed_frontend_session(r, room_id, user1_id, fake_sid, camera_key)
+    fake_sid = "fake-frontend-cross-list"
+    camera_key = f"cam:user1@local.test:{fake_sid[:8]}"
+    _seed_frontend_session(
+        r, room_id, user1_id, fake_sid, camera_key, email="user1@local.test"
+    )
 
-    # Create a second user client in the same room
     vis2 = ZnDraw(url=server, room=room_id)
 
-    # vis2 should not see vis1's sessions
-    assert fake_sid not in vis2.sessions
-    assert len(vis2.sessions) == 0
+    # User2 can see user1's session
+    assert fake_sid in vis2.sessions
+    assert len(vis2.sessions) == 1
+
+    # The listing includes email and camera_key
+    items = vis2.api.list_sessions()
+    assert len(items) == 1
+    assert items[0].sid == fake_sid
+    assert items[0].email == "user1@local.test"
+    assert items[0].camera_key == camera_key
+
+    r.close()
+    vis2.disconnect()
+    vis1.disconnect()
+
+
+def test_cross_user_can_read_active_camera(server: str):
+    """User2 can read user1's session active camera (shared state)."""
+    room_id = uuid.uuid4().hex
+    vis1 = ZnDraw(url=server, room=room_id)
+    user1_id = _get_user_id(vis1)
+
+    r = Redis.from_url("redis://localhost", decode_responses=True)
+    fake_sid = "fake-frontend-cross-read"
+    camera_key = f"cam:user1@local.test:{fake_sid[:8]}"
+    _seed_frontend_session(r, room_id, user1_id, fake_sid, camera_key)
+
+    vis2 = ZnDraw(url=server, room=room_id)
+    active = vis2.api.get_active_camera(fake_sid)
+    assert active == camera_key
+
+    r.close()
+    vis2.disconnect()
+    vis1.disconnect()
+
+
+def test_cross_user_cannot_set_active_camera(server: str):
+    """User2 cannot set active camera on user1's session (KeyError from SessionNotFound)."""
+    room_id = uuid.uuid4().hex
+    vis1 = ZnDraw(url=server, room=room_id)
+    user1_id = _get_user_id(vis1)
+
+    r = Redis.from_url("redis://localhost", decode_responses=True)
+    fake_sid = "fake-frontend-cross-write"
+    camera_key = f"cam:user1@local.test:{fake_sid[:8]}"
+    _seed_frontend_session(r, room_id, user1_id, fake_sid, camera_key)
+
+    vis2 = ZnDraw(url=server, room=room_id)
+
+    # Can see the session and read it
+    session = vis2.sessions[fake_sid]
+    assert session.active_camera == camera_key
+
+    # Cannot set active camera (VerifiedSessionDep rejects — raises KeyError)
+    with pytest.raises(KeyError):
+        session.active_camera = camera_key
 
     r.close()
     vis2.disconnect()

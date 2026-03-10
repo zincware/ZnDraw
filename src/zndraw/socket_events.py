@@ -31,12 +31,6 @@ class RoomLeave(BaseModel):
     room_id: str
 
 
-class Heartbeat(BaseModel):
-    """Keep presence alive."""
-
-    room_id: str
-
-
 class UserGet(BaseModel):
     """Get authenticated user info."""
 
@@ -75,12 +69,6 @@ class RoomLeaveResponse(BaseModel):
     """Response for room leave."""
 
     room_id: str
-
-
-class HeartbeatResponse(BaseModel):
-    """Response for heartbeat."""
-
-    status: Literal["ok"] = "ok"
 
 
 class UserGetResponse(BaseModel):
@@ -148,6 +136,12 @@ class GeometryInvalidate(BaseModel):
     room_id: str
     operation: Literal["set", "delete"]
     key: str
+
+
+class ActiveCameraUpdate(BaseModel):
+    """Sent to a specific session when its active camera changes."""
+
+    active_camera: str
 
 
 class DefaultCameraInvalidate(BaseModel):
