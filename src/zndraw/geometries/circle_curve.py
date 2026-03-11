@@ -5,7 +5,6 @@ import typing as t
 
 import numpy as np
 from pydantic import Field, field_validator
-from scipy.spatial.transform import Rotation
 
 from .base import BaseGeometry, InteractionSettings, Vec3
 
@@ -134,11 +133,20 @@ class CircleCurve(BaseGeometry):
         points[:, 1] *= sy
         points[:, 2] *= sz
 
-        # Apply rotation
+        # Apply rotation (Euler XYZ intrinsic)
         rx, ry, rz = self.rotation[0]
         if rx != 0.0 or ry != 0.0 or rz != 0.0:
-            rot = Rotation.from_euler("xyz", [rx, ry, rz])
-            points = rot.apply(points)
+            cx, sx = np.cos(rx), np.sin(rx)
+            cy, sy = np.cos(ry), np.sin(ry)
+            cz, sz = np.cos(rz), np.sin(rz)
+            mat = np.array(
+                [
+                    [cy * cz, -cy * sz, sy],
+                    [sx * sy * cz + cx * sz, -sx * sy * sz + cx * cz, -sx * cy],
+                    [sx * sz - cx * sy * cz, sx * cz + cx * sy * sz, cx * cy],
+                ]
+            )
+            points = points @ mat.T
 
         # Apply translation
         points += np.array(self.position[0])

@@ -13,11 +13,10 @@ requires-python = ">=3.11"
 dependencies = [
     "argon2-cffi>=25.1.0",
     "ase>=3.27.0",
-    "asebytes[h5,lmdb,mongodb]>=0.3.0",
+    "asebytes[h5,lmdb]>=0.3.1",
     "fakeredis>=2.33.0",
     "fastapi>=0.128.0",
     "httpx>=0.28.0",
-    "lmdb>=1.5.0",
     "msgpack>=1.0.0",
     "msgpack-numpy>=0.4.8",
     "networkx>=3.6.1",
@@ -30,7 +29,6 @@ dependencies = [
     "splines>=0.3.3",
     "sqlalchemy[asyncio, aiosqlite]>=2.0.46",
     "sqlmodel>=0.0.31",
-    "sse-starlette>=3.0.0",
     "zndraw-joblib>=0.1.4",
     "typer>=0.21.1",
     "uvicorn>=0.40.0",
@@ -41,12 +39,9 @@ dependencies = [
     "plotly>=6.5.2",
     "rich>=14.3.1",
     "molify>=0.2.2",
-    "znh5md>=0.4.8",
-    "fsspec>=2023",
     "tqdm>=4.67.3",
-    "asyncpg>=0.31.0",
-    "scipy>=1.17.0",
 ]
+
 
 [project.scripts]
 zndraw = "zndraw.cli:app"
@@ -82,11 +77,14 @@ exclude = [
 ]
 
 [project.optional-dependencies]
+mongodb = ["asebytes[mongodb]>=0.3.1"]
+postgres = ["asyncpg>=0.31.0"]
 full = ["molify>=0.2.2"]
 gif = ["Pillow>=10.0.0"]
 
 [dependency-groups]
 dev = [
+    "fsspec>=2023",
     "httpx>=0.28.0",
     "ipykernel>=7.1.0",
     "numpy>=2.4.1",

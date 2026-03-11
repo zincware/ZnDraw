@@ -266,7 +266,7 @@ wheels = [
 
 [[package]]
 name = "asebytes"
-version = "0.3.0"
+version = "0.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ase" },
@@ -274,9 +274,9 @@ dependencies = [
     { name = "msgpack-numpy" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cd/db/af088fdfafef822baddee978999cfa804dc70fc4ba52a08d99ca73caaf61/asebytes-0.3.0.tar.gz", hash = "sha256:c9eea8b389dfd7214f96da6d0698930c5a4532bd67fe538d0ea104beb3e1dcc8", size = 2538455, upload-time = "2026-03-10T16:50:21.229Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bc/e5/3e78d0c5a400a263101cfbdecc868a3d6efb4d06117551eb680fae5aad91/asebytes-0.3.1.tar.gz", hash = "sha256:790dd6f1df2fb80efece74b137582e06dd2aae4752394ee4d283fb46bff37d75", size = 2541280, upload-time = "2026-03-10T21:05:37.534Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/29/d0/cc36db34e2b321e7d1dac0cb59cddb397141c55c06be3ced6fad3825c401/asebytes-0.3.0-py3-none-any.whl", hash = "sha256:4e7d8f94eca6499beca776c5f059002dc8a31619a15b524937b31f0ba38e3581", size = 125472, upload-time = "2026-03-10T16:50:18.242Z" },
+    { url = "https://files.pythonhosted.org/packages/db/9e/f32913c3dbc235b01b77fc27de5ceb8e4e251d649e97a4ed7a62f75263df/asebytes-0.3.1-py3-none-any.whl", hash = "sha256:611ee9ab21375ab7064b5170751eb3ccf72cf41ec3a4503f6fe6a3c608ca4cca", size = 125860, upload-time = "2026-03-10T21:05:39.028Z" },
 ]
 
 [package.optional-dependencies]
@@ -3833,19 +3833,6 @@ wheels = [
 ]
 
 [[package]]
-name = "sse-starlette"
-version = "3.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "anyio" },
-    { name = "starlette" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/8b/8d/00d280c03ffd39aaee0e86ec81e2d3b9253036a0f93f51d10503adef0e65/sse_starlette-3.2.0.tar.gz", hash = "sha256:8127594edfb51abe44eac9c49e59b0b01f1039d0c7461c6fd91d4e03b70da422", size = 27253, upload-time = "2026-01-17T13:11:05.62Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/7f/832f015020844a8b8f7a9cbc103dd76ba8e3875004c41e08440ea3a2b41a/sse_starlette-3.2.0-py3-none-any.whl", hash = "sha256:5876954bd51920fc2cd51baee47a080eb88a37b5b784e615abb0b283f801cdbf", size = 12763, upload-time = "2026-01-17T13:11:03.775Z" },
-]
-
-[[package]]
 name = "stack-data"
 version = "0.6.3"
 source = { registry = "https://pypi.org/simple" }
@@ -4256,13 +4243,10 @@ source = { editable = "." }
 dependencies = [
     { name = "argon2-cffi" },
     { name = "ase" },
-    { name = "asebytes", extra = ["h5", "lmdb", "mongodb"] },
-    { name = "asyncpg" },
+    { name = "asebytes", extra = ["h5", "lmdb"] },
     { name = "fakeredis" },
     { name = "fastapi" },
-    { name = "fsspec" },
     { name = "httpx" },
-    { name = "lmdb" },
     { name = "molify" },
     { name = "msgpack" },
     { name = "msgpack-numpy" },
@@ -4276,11 +4260,9 @@ dependencies = [
     { name = "redis" },
     { name = "requests" },
     { name = "rich" },
-    { name = "scipy" },
     { name = "splines" },
     { name = "sqlalchemy", extra = ["aiosqlite", "asyncio"] },
     { name = "sqlmodel" },
-    { name = "sse-starlette" },
     { name = "tqdm" },
     { name = "typer" },
     { name = "uvicorn" },
@@ -4288,7 +4270,6 @@ dependencies = [
     { name = "zndraw-auth" },
     { name = "zndraw-joblib" },
     { name = "zndraw-socketio" },
-    { name = "znh5md" },
 ]
 
 [package.optional-dependencies]
@@ -4298,9 +4279,16 @@ full = [
 gif = [
     { name = "pillow" },
 ]
+mongodb = [
+    { name = "asebytes", extra = ["mongodb"] },
+]
+postgres = [
+    { name = "asyncpg" },
+]
 
 [package.dev-dependencies]
 dev = [
+    { name = "fsspec" },
     { name = "httpx" },
     { name = "ipykernel" },
     { name = "numpy" },
@@ -4325,13 +4313,12 @@ docs = [
 requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "ase", specifier = ">=3.27.0" },
-    { name = "asebytes", extras = ["h5", "lmdb", "mongodb"], specifier = ">=0.3.0" },
-    { name = "asyncpg", specifier = ">=0.31.0" },
+    { name = "asebytes", extras = ["h5", "lmdb"], specifier = ">=0.3.1" },
+    { name = "asebytes", extras = ["mongodb"], marker = "extra == 'mongodb'", specifier = ">=0.3.1" },
+    { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.31.0" },
     { name = "fakeredis", specifier = ">=2.33.0" },
     { name = "fastapi", specifier = ">=0.128.0" },
-    { name = "fsspec", specifier = ">=2023" },
     { name = "httpx", specifier = ">=0.28.0" },
-    { name = "lmdb", specifier = ">=1.5.0" },
     { name = "molify", specifier = ">=0.2.2" },
     { name = "molify", marker = "extra == 'full'", specifier = ">=0.2.2" },
     { name = "msgpack", specifier = ">=1.0.0" },
@@ -4347,11 +4334,9 @@ requires-dist = [
     { name = "redis", specifier = ">=7.1.0" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "rich", specifier = ">=14.3.1" },
-    { name = "scipy", specifier = ">=1.17.0" },
     { name = "splines", specifier = ">=0.3.3" },
     { name = "sqlalchemy", extras = ["aiosqlite", "asyncio"], specifier = ">=2.0.46" },
     { name = "sqlmodel", specifier = ">=0.0.31" },
-    { name = "sse-starlette", specifier = ">=3.0.0" },
     { name = "tqdm", specifier = ">=4.67.3" },
     { name = "typer", specifier = ">=0.21.1" },
     { name = "uvicorn", specifier = ">=0.40.0" },
@@ -4359,12 +4344,12 @@ requires-dist = [
     { name = "zndraw-auth", specifier = ">=0.2.3" },
     { name = "zndraw-joblib", specifier = ">=0.1.4" },
     { name = "zndraw-socketio", specifier = ">=0.1.5" },
-    { name = "znh5md", specifier = ">=0.4.8" },
 ]
-provides-extras = ["full", "gif"]
+provides-extras = ["full", "gif", "mongodb", "postgres"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "fsspec", specifier = ">=2023" },
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "ipykernel", specifier = ">=7.1.0" },
     { name = "numpy", specifier = ">=2.4.1" },
@@ -4433,19 +4418,4 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e5/bc/81b6c0a1dd06c84a49294b0a10c78be6ee8e7dda15f964e861de64b56db5/zndraw_socketio-0.1.5.tar.gz", hash = "sha256:dc7fa8c0b3cff30eb46e2f6cc0714ec98e311498dba56cef7bd4deba91533904", size = 200947, upload-time = "2026-02-14T16:10:06.595Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/11/fb/8bd73053f02d9055d361ba855397084f634f30fec6bdee56a098a984d238/zndraw_socketio-0.1.5-py3-none-any.whl", hash = "sha256:ce56528a3e3767767476422f057e879078113eeaa65e88e2d1f788f210df3ce6", size = 20075, upload-time = "2026-02-14T16:10:08.704Z" },
-]
-
-[[package]]
-name = "znh5md"
-version = "0.4.8"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "ase" },
-    { name = "h5py" },
-    { name = "tqdm" },
-    { name = "typer" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/93/d4/50b9ad618d799983823ef4087033dcb7e90ffe95cb02fbdda01cd7fa0d66/znh5md-0.4.8.tar.gz", hash = "sha256:9dd02d45b5ed766e2f6a0c5b8c926cd15e5a8b9c3a80cab0303f518b129f16ac", size = 203729, upload-time = "2025-07-09T10:09:33.353Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/03/4ceb3cec2f1b466c2c4dc609fd236dc064a1da1c612c89c12d2afeeaf0a0/znh5md-0.4.8-py3-none-any.whl", hash = "sha256:83e7c82424ae94e6b4d8a1704447c32eb7303e0c11c4d73605482fe0911ce267", size = 24424, upload-time = "2025-07-09T10:09:32.385Z" },
 ]
