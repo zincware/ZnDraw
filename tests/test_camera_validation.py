@@ -18,13 +18,13 @@ def test_defaults_are_valid():
 
 def test_far_greater_than_near():
     """far <= near raises ValidationError."""
-    with pytest.raises(ValidationError, match="far.*must be greater than near"):
+    with pytest.raises(ValidationError, match=r"far.*must be greater than near"):
         Camera(near=10.0, far=5.0)
 
 
 def test_far_equal_to_near():
     """far == near raises ValidationError."""
-    with pytest.raises(ValidationError, match="far.*must be greater than near"):
+    with pytest.raises(ValidationError, match=r"far.*must be greater than near"):
         Camera(near=10.0, far=10.0)
 
 

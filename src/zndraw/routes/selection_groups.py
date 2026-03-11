@@ -39,7 +39,7 @@ router = APIRouter(
 )
 async def list_selection_groups(
     session: SessionDep,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
 ) -> SelectionGroupsListResponse:
     """List all selection groups for a room."""
@@ -63,7 +63,7 @@ async def list_selection_groups(
 )
 async def get_selection_group(
     session: SessionDep,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
     group_name: str,
 ) -> SelectionGroupResponse:
@@ -84,7 +84,7 @@ async def get_selection_group(
 async def update_selection_group(
     session: SessionDep,
     sio: SioDep,
-    room: WritableRoomDep,
+    _room: WritableRoomDep,
     room_id: str,
     group_name: str,
     request: SelectionGroupUpdateRequest,
@@ -117,7 +117,7 @@ async def update_selection_group(
 async def delete_selection_group(
     session: SessionDep,
     sio: SioDep,
-    room: WritableRoomDep,
+    _room: WritableRoomDep,
     room_id: str,
     group_name: str,
 ) -> StatusResponse:

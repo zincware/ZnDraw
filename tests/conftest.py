@@ -47,7 +47,7 @@ def make_raw_frame(data: dict) -> RawFrame:
 
 def create_test_user_model(
     email: str = "testuser@local.test",
-    password: str = "testpassword",
+    password: str = "testpassword",  # noqa: S107
     is_superuser: bool = False,
 ) -> User:
     """Create a User model instance with hashed password for tests."""
@@ -194,9 +194,9 @@ class MockSioServer:
         data: Any = None,
         *,
         room: str | None = None,
-        skip_sid: str | None = None,
+        _skip_sid: str | None = None,
         to: str | None = None,
-        **kwargs: Any,
+        **_kwargs: Any,
     ) -> None:
         if isinstance(event_or_model, BaseModel):
             # zndraw-socketio pattern: model class name -> snake_case event

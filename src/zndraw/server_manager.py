@@ -101,7 +101,7 @@ def read_server_info(port: int) -> ServerInfo | None:
         return None
 
     try:
-        with open(pid_file) as f:
+        with pid_file.open() as f:
             data = json.load(f)
         return ServerInfo.from_dict(data)
     except (json.JSONDecodeError, KeyError, ValueError, TypeError):
@@ -117,7 +117,7 @@ def write_server_info(server_info: ServerInfo) -> None:
         Server information to write. Port is derived from server_info.port.
     """
     pid_file = get_pid_file_path(server_info.port)
-    with open(pid_file, "w") as f:
+    with pid_file.open("w") as f:
         json.dump(server_info.to_dict(), f)
 
 
@@ -161,9 +161,10 @@ def is_process_running(pid: int) -> bool:
     """
     try:
         os.kill(pid, 0)
-        return True
     except (OSError, ProcessLookupError):
         return False
+    else:
+        return True
 
 
 def is_server_responsive(port: int, timeout: float = 2.0) -> bool:
@@ -222,7 +223,11 @@ def wait_for_server_ready(
                 response = client.get(f"{url}/v1/health")
                 if response.status_code == 200:
                     elapsed = time.time() - start_time
-                    log.debug(f"Server ready after {elapsed:.2f}s ({attempt} attempts)")
+                    log.debug(
+                        "Server ready after %.2fs (%s attempts)",
+                        elapsed,
+                        attempt,
+                    )
                     return True
             except httpx.RequestError:
                 pass
@@ -230,7 +235,7 @@ def wait_for_server_ready(
             time.sleep(current_interval)
             current_interval = min(current_interval * 1.5, max_interval)
 
-    log.warning(f"Server not ready after {timeout}s ({attempt} attempts)")
+    log.warning("Server not ready after %ss (%s attempts)", timeout, attempt)
     return False
 
 

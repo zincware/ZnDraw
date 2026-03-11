@@ -59,9 +59,11 @@ def test_list_rooms_autodiscover(server: str):
 
 def test_list_rooms_no_server_raises():
     """list_rooms raises ConnectionError when no server is found."""
-    with patch("zndraw.server_manager.find_running_server", return_value=None):
-        with pytest.raises(ConnectionError):
-            ZnDraw.list_rooms()
+    with (
+        patch("zndraw.server_manager.find_running_server", return_value=None),
+        pytest.raises(ConnectionError),
+    ):
+        ZnDraw.list_rooms()
 
 
 # =============================================================================
@@ -95,9 +97,11 @@ def test_login_autodiscover(server_auth: str):
 
 def test_login_no_server_raises():
     """login raises ConnectionError when no server is found."""
-    with patch("zndraw.server_manager.find_running_server", return_value=None):
-        with pytest.raises(ConnectionError):
-            ZnDraw.login(username="x", password="y")
+    with (
+        patch("zndraw.server_manager.find_running_server", return_value=None),
+        pytest.raises(ConnectionError),
+    ):
+        ZnDraw.login(username="x", password="y")
 
 
 # =============================================================================
@@ -117,9 +121,11 @@ def test_constructor_autodiscover(server: str):
 
 def test_constructor_no_server_raises():
     """ZnDraw() raises ConnectionError when no server is found."""
-    with patch("zndraw.server_manager.find_running_server", return_value=None):
-        with pytest.raises(ConnectionError):
-            ZnDraw()
+    with (
+        patch("zndraw.server_manager.find_running_server", return_value=None),
+        pytest.raises(ConnectionError),
+    ):
+        ZnDraw()
 
 
 def test_constructor_explicit_url_still_works(server: str):

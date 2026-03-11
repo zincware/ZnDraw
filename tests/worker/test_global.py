@@ -521,7 +521,7 @@ def test_auto_serve_completes_task_on_submit(server, wait_for_task):
     class AutoOnly(Extension):
         category: ClassVar[Category] = Category.MODIFIER
 
-        def run(self, vis: Any, **kwargs: Any) -> None:
+        def run(self, vis: Any, **_kwargs: Any) -> None:
             vis.bookmarks[0] = "auto"
 
     AutoOnly.__name__ = "AutoOnly"

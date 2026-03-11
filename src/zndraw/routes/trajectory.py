@@ -172,11 +172,11 @@ async def download_trajectory(
     else:
         filename = re.sub(r"[^\w\-.]", "_", filename)
 
-    _DOWNLOAD_BATCH = 100
+    download_batch = 100
 
     async def _generate():
-        for batch_start in range(0, len(index_list), _DOWNLOAD_BATCH):
-            batch_indices = index_list[batch_start : batch_start + _DOWNLOAD_BATCH]
+        for batch_start in range(0, len(index_list), download_batch):
+            batch_indices = index_list[batch_start : batch_start + download_batch]
             raw_frames = await storage.get_many(room_id, batch_indices)
             for raw_frame in raw_frames:
                 if raw_frame is None:

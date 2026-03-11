@@ -31,7 +31,7 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/step", tags=["step"])
 async def get_step(
     session: SessionDep,
     storage: StorageDep,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
 ) -> StepResponse:
     """Get current step (frame index) for a room.

@@ -8,7 +8,7 @@ import pytest_asyncio
 from conftest import make_raw_frame
 from redis.asyncio import Redis as AsyncRedis
 
-from zndraw.exceptions import ProblemException, RoomReadOnly
+from zndraw.exceptions import ProblemError, RoomReadOnly
 from zndraw.storage import AsebytesStorage
 from zndraw.storage.router import StorageRouter
 
@@ -116,7 +116,7 @@ async def test_clear_frame_count_removes_mount(
 async def test_extend_raises_on_provider_room(router: StorageRouter, room: str) -> None:
     """extend on provider-backed room raises RoomReadOnly."""
     await router.set_frame_count(room, 10)
-    with pytest.raises(ProblemException) as exc_info:
+    with pytest.raises(ProblemError) as exc_info:
         await router.extend(room, [])
     assert exc_info.value.problem.status == RoomReadOnly.status
 
@@ -127,7 +127,7 @@ async def test_set_item_raises_on_provider_room(
 ) -> None:
     """set_item on provider-backed room raises RoomReadOnly."""
     await router.set_frame_count(room, 10)
-    with pytest.raises(ProblemException) as exc_info:
+    with pytest.raises(ProblemError) as exc_info:
         await router.set_item(room, 0, {})
     assert exc_info.value.problem.status == RoomReadOnly.status
 
@@ -138,7 +138,7 @@ async def test_delete_range_raises_on_provider_room(
 ) -> None:
     """delete_range on provider-backed room raises RoomReadOnly."""
     await router.set_frame_count(room, 10)
-    with pytest.raises(ProblemException) as exc_info:
+    with pytest.raises(ProblemError) as exc_info:
         await router.delete_range(room, 0, 1)
     assert exc_info.value.problem.status == RoomReadOnly.status
 

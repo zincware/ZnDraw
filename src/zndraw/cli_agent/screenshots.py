@@ -81,7 +81,7 @@ def request_screenshot(
 
 @screenshots_app.command("get")
 def get(
-    id: Annotated[str | None, typer.Argument(help="Screenshot ID")] = None,
+    screenshot_id: Annotated[str | None, typer.Argument(help="Screenshot ID")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
@@ -92,10 +92,10 @@ def get(
     """Get a screenshot by ID."""
     with cli_error_handler():
         room = resolve_room(room)
-        if id is None:
+        if screenshot_id is None:
             raise typer.BadParameter("Screenshot ID is required")
         vis = get_zndraw(url, token, room)
-        data = vis.api.get_screenshot(int(id))
+        data = vis.api.get_screenshot(int(screenshot_id))
         resp = ScreenshotResponse.model_validate(data)
 
         if output:

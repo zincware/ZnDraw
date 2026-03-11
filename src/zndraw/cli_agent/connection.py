@@ -345,7 +345,7 @@ def cli_error_handler() -> Generator[None, None, None]:
         exit_code = (
             EXIT_CLIENT_ERROR if exc.response.status_code < 500 else EXIT_SERVER_ERROR
         )
-        raise SystemExit(exit_code)
+        raise SystemExit(exit_code) from exc
     except httpx.RequestError as exc:
         die("Connection Error", str(exc), 503, EXIT_CONNECTION_ERROR)
     except KeyError as exc:

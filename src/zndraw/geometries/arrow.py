@@ -19,7 +19,9 @@ class Arrow(BaseGeometry):
 
     position: PositionProp = Field(
         default="arrays.positions",
-        description="Arrow start positions [(x,y,z), ...]. String for dynamic data key.",
+        description=(
+            "Arrow start positions [(x,y,z), ...]. String for dynamic data key."
+        ),
         json_schema_extra={
             "x-custom-type": "dynamic-enum",
             "x-features": ["dynamic-atom-props", "editable-array"],
@@ -28,7 +30,11 @@ class Arrow(BaseGeometry):
 
     direction: PositionProp = Field(
         default="calc.forces",
-        description="Direction vectors [(x,y,z), ...]. Defines arrow orientation and length. String for dynamic data key.",
+        description=(
+            "Direction vectors [(x,y,z), ...]."
+            " Defines arrow orientation and length."
+            " String for dynamic data key."
+        ),
         json_schema_extra={
             "x-custom-type": "dynamic-enum",
             "x-features": ["dynamic-atom-props", "editable-array"],
@@ -45,7 +51,10 @@ class Arrow(BaseGeometry):
 
     scale: ScaleProp = Field(
         default=[(1.0, 1.0, 1.0)],
-        description="Scale factors [(sx, sy, sz), ...]. First component used as length multiplier.",
+        description=(
+            "Scale factors [(sx, sy, sz), ...]."
+            " First component used as length multiplier."
+        ),
         json_schema_extra={
             "x-custom-type": "dynamic-enum",
             "x-features": ["dynamic-atom-props", "editable-array"],

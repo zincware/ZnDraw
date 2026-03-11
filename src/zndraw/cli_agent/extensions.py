@@ -96,7 +96,9 @@ def run_extension(
             try:
                 raw_value = next(it)
             except StopIteration:
-                raise typer.BadParameter(f"Missing value for argument --{key}")
+                raise typer.BadParameter(
+                    f"Missing value for argument --{key}"
+                ) from None
             try:
                 value = json.loads(raw_value)
             except json.JSONDecodeError:
@@ -106,5 +108,5 @@ def run_extension(
         task = vis.run(extension_name, **payload)
         if wait:
             task.wait(timeout=timeout)
-        json_print(task._fetch())
+        json_print(task.fetch())
         vis.disconnect()

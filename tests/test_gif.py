@@ -50,8 +50,8 @@ def _make_vis_and_session(*, step_val: int = 0):
     # Track step changes
     step_box = [step_val]
     type(vis).step = PropertyMock(
-        fget=lambda self: step_box[0],
-        fset=lambda self, v: step_box.__setitem__(0, v),
+        fget=lambda _self: step_box[0],
+        fset=lambda _self, v: step_box.__setitem__(0, v),
     )
 
     # Track geometry writes/deletes (MagicMock dunder tracking is unreliable)
@@ -376,6 +376,8 @@ def test_capture_cleans_up_on_error(mock_resolve, mock_get_zndraw, tmp_path: Pat
 
 def test_pillow_missing_gives_clear_error(tmp_path: Path):
     """Verify exit when Pillow import fails."""
-    with patch.dict("sys.modules", {"PIL": None, "PIL.Image": None}):
-        with pytest.raises(SystemExit):
-            _assemble_gif([b"fake"], tmp_path / "test.gif", 20)
+    with (
+        patch.dict("sys.modules", {"PIL": None, "PIL.Image": None}),
+        pytest.raises(SystemExit),
+    ):
+        _assemble_gif([b"fake"], tmp_path / "test.gif", 20)

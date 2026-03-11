@@ -245,7 +245,7 @@ async def test_variable_constraints_across_frames_memory(
 
 @pytest.mark.asyncio
 async def test_variable_constraints_across_frames_lmdb(lmdb_storage: AsebytesStorage):
-    """Different constraint types across LMDB-backed AsebytesStorage frames are preserved."""
+    """Different constraint types across LMDB-backed frames are preserved."""
     await _assert_variable_constraints_across_frames(lmdb_storage)
 
 

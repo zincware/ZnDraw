@@ -9,8 +9,6 @@ import logging
 import re
 from typing import Annotated, Any
 
-logger = logging.getLogger(__name__)
-
 from fastapi import APIRouter, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -72,6 +70,8 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import FramesInvalidate, RoomUpdate
 from zndraw.transformations import InArrayTransform
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/rooms", tags=["rooms"])
 
@@ -340,10 +340,10 @@ async def create_room(
         copy_from = default_room_id if default_room_id else "@empty"
 
     # Reject unknown @-prefixed presets
-    _PRESETS = {"@empty", "@none"}
-    if copy_from.startswith("@") and copy_from not in _PRESETS:
+    presets = {"@empty", "@none"}
+    if copy_from.startswith("@") and copy_from not in presets:
         raise UnprocessableContent.exception(
-            f"Unknown preset '{copy_from}'. Valid presets: {', '.join(sorted(_PRESETS))}"
+            f"Unknown preset '{copy_from}'. Valid presets: {', '.join(sorted(presets))}"
         )
 
     # Try to resolve source room for room-id copyFrom
@@ -563,7 +563,8 @@ async def update_room(
     storage: StorageDep,
     sio: SioDep,
     room: WritableRoomDep,
-    updates: RoomPatchRequest, room_id,
+    updates: RoomPatchRequest,
+    room_id: str,  # noqa: ARG001
 ) -> RoomPatchResponse:
     """Update room metadata (description, locked, frame_count).
 
@@ -588,10 +589,10 @@ async def update_room(
                 await storage.set_frame_count(room.id, count)
             else:
                 await storage.clear_frame_count(room.id)
-        except NotImplementedError:
+        except NotImplementedError as err:
             raise Forbidden.exception(
                 "Storage backend does not support external frame counts"
-            )
+            ) from err
         await sio.emit(
             FramesInvalidate(room_id=room.id, action="clear", count=count),
             room=room_channel(room.id),

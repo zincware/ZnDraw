@@ -84,10 +84,7 @@ def set_figure(
         if file is None and data is None:
             raise typer.BadParameter("Either --file or --data is required")
         vis = get_zndraw(url, token, room)
-        if data is not None:
-            file_contents = data
-        else:
-            file_contents = pathlib.Path(file).read_text()  # type: ignore[arg-type]
+        file_contents = data if data is not None else pathlib.Path(file).read_text()  # type: ignore[arg-type]
         figure_data = FigureData(data=file_contents)
         result = vis.api.set_figure(key, figure_data.model_dump())
         json_print(FigureCreateResponse.model_validate(result))

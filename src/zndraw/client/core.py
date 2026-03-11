@@ -114,7 +114,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     api: APIManager = field(init=False)
     socket: SocketManager = field(init=False)
     _jobs: JobManager = field(init=False)
-    _cached_length: int | None = field(default=None, init=False, repr=False)
+    cached_length: int | None = field(default=None, init=False, repr=False)
     _mount: FrameSource | None = field(default=None, init=False, repr=False)
     _mount_name: str | None = field(default=None, init=False, repr=False)
 
@@ -167,7 +167,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         # Create job manager (zero-cost until first register())
         self._jobs = JobManager(
             api=self.api,
-            tsio=self.socket._tsio,
+            tsio=self.socket.tsio,
             execute=self._execute_task if self.auto_pickup else None,
             heartbeat_interval=self.heartbeat_interval,
             polling_interval=self.polling_interval,
@@ -176,12 +176,12 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         # Verify/create room via REST and seed frame count cache
         try:
             info = self.api.get_room_info()
-            self._cached_length = info.get("frame_count", 0)
+            self.cached_length = info.get("frame_count", 0)
         except KeyError:
             if not self.create_if_missing:
                 raise
             self.api.create_room(copy_from=self.copy_from)
-            self._cached_length = 0
+            self.cached_length = 0
 
         # Ensure cleanup on interpreter exit
         atexit.register(self.disconnect)
@@ -314,7 +314,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             FrameSourceLength, name=mount_name, handler=source, room=self.room
         )
         self.api.update_room({"frame_count": length})
-        self._cached_length = length
+        self.cached_length = length
 
     def unmount(self) -> None:
         """Unmount the current source. Room returns to empty.
@@ -332,7 +332,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         self.api.update_room({"frame_count": 0})
         self._mount = None
         self._mount_name = None
-        self._cached_length = 0
+        self.cached_length = 0
 
     # -------------------------------------------------------------------------
     # Properties
@@ -534,7 +534,8 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         if server_info is not None:
             return f"http://localhost:{server_info.port}"
         raise ConnectionError(
-            "No running zndraw server found. Start one with `uv run zndraw` or pass `url`."
+            "No running zndraw server found."
+            " Start one with `uv run zndraw` or pass `url`."
         )
 
     @classmethod
@@ -705,11 +706,11 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         ``FramesInvalidate`` events and local mutations).  Without socket,
         always queries the server to avoid stale reads.
         """
-        if self._cached_length is not None and self.socket.connected:
-            return self._cached_length
+        if self.cached_length is not None and self.socket.connected:
+            return self.cached_length
         info = self.api.get_room_info()
         length = info.get("frame_count", 0)
-        self._cached_length = length
+        self.cached_length = length
         return length
 
     @overload
@@ -786,7 +787,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             if index < 0:
                 index = len(self) + index
             self.api.delete_frame(index)
-            self._cached_length = None
+            self.cached_length = None
 
         elif isinstance(index, slice):
             length = len(self)
@@ -794,12 +795,12 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             indices = sorted(range(start, stop, step), reverse=True)
             for idx in indices:
                 self.api.delete_frame(idx)
-            self._cached_length = None
+            self.cached_length = None
 
         else:
             raise TypeError(f"Index must be int or slice, not {type(index).__name__}")
 
-    def insert(self, index: int, value: ase.Atoms) -> None:
+    def insert(self, _index: int, value: ase.Atoms) -> None:
         """Insert an ase.Atoms frame at the given index.
 
         Note: Due to API limitations, this appends and then reorders.
@@ -808,14 +809,14 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             raise TypeError("Value must be an ase.Atoms object")
         # For simplicity, just append (true insert requires server support)
         result = self.api.append_frames([atoms_to_json_dict(value)])
-        self._cached_length = result.get("total")
+        self.cached_length = result.get("total")
 
     def append(self, value: ase.Atoms) -> None:
         """Append an ase.Atoms frame to the end."""
         if not isinstance(value, ase.Atoms):
             raise TypeError("Value must be an ase.Atoms object")
         result = self.api.append_frames([atoms_to_json_dict(value)])
-        self._cached_length = result.get("total")
+        self.cached_length = result.get("total")
 
     @contextlib.contextmanager
     @typing_extensions.deprecated(
@@ -914,7 +915,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             progress.close()
 
         if result:
-            self._cached_length = result.get("total")
+            self.cached_length = result.get("total")
 
     @staticmethod
     def _decode_raw_frame(frame: dict[bytes, bytes]) -> dict[str, Any]:

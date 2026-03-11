@@ -81,7 +81,7 @@ class InternalExtensionExecutor:
                     if task is not None:
                         vis.jobs.fail(task, str(e))
                     else:
-                        vis.jobs._update_task(task_id, TaskStatus.FAILED, str(e))
+                        vis.jobs._update_task(task_id, TaskStatus.FAILED, str(e))  # noqa: SLF001
                 except Exception:
                     logger.exception("Could not report failure for task %s", task_id)
                 raise

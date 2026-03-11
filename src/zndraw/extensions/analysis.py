@@ -37,8 +37,10 @@ class Distance(Analysis):
         if len(selection) != 2:
             raise ValueError("Please select exactly 2 atoms")
 
-        for atoms in atoms_lst:
-            distances.append(atoms.get_distance(selection[0], selection[1], mic=True))
+        distances = [
+            atoms.get_distance(selection[0], selection[1], mic=True)
+            for atoms in atoms_lst
+        ]
 
         df = pd.DataFrame({"step": list(range(len(atoms_lst))), "distance": distances})
 
@@ -103,10 +105,9 @@ class DihedralAngle(Analysis):
 
         if len(selection) != 4:
             raise ValueError("Please select exactly 4 atoms")
-        for atoms in atoms_lst:
-            dihedral_angles.append(
-                atoms.get_dihedrals(indices=[selection], mic=True)[0]
-            )
+        dihedral_angles = [
+            atoms.get_dihedrals(indices=[selection], mic=True)[0] for atoms in atoms_lst
+        ]
         df = pd.DataFrame(
             {"step": list(range(len(atoms_lst))), "dihedral": dihedral_angles}
         )

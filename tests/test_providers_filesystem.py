@@ -261,7 +261,7 @@ def test_ls_root_slash_returns_relative_paths(relative_fs):
     provider = FilesystemRead(path="/")
     result = provider.read(relative_fs)
 
-    # Verify that we actually get results (the fs is browseable from /)
+    # Verify that we actually get results (the fs is browsable from /)
     names = {r["name"] for r in result}
     assert "top.xyz" in names
     assert "sub" in names

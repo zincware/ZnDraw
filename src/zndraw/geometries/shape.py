@@ -35,7 +35,9 @@ class Shape(BaseGeometry):
 
     vertices: list[tuple[float, float]] = Field(
         default=[(0.0, 0.0), (1.0, 0.0), (0.5, 0.866)],
-        description="Shape vertices in 2D [(x,y), ...]. Connected by lines, auto-closed.",
+        description=(
+            "Shape vertices in 2D [(x,y), ...]. Connected by lines, auto-closed."
+        ),
         json_schema_extra={"x-custom-type": "vertices-2d"},
     )
 
@@ -50,7 +52,10 @@ class Shape(BaseGeometry):
 
     rotation: RotationProp = Field(
         default=[(0.0, 0.0, 0.0)],
-        description="Rotation as Euler angles [(x, y, z), ...] in radians. String for dynamic data key.",
+        description=(
+            "Rotation as Euler angles [(x, y, z), ...]"
+            " in radians. String for dynamic data key."
+        ),
         json_schema_extra={
             "x-custom-type": "dynamic-enum",
             "x-features": ["dynamic-atom-props", "editable-array"],

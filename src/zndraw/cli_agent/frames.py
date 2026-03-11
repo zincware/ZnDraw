@@ -45,7 +45,10 @@ def get(
     keys: Annotated[
         str | None, typer.Option(help="Comma-separated keys to include")
     ] = None,
-    format: Annotated[str, typer.Option(help="Output format: json or xyz")] = "json",
+    fmt: Annotated[
+        str,
+        typer.Option("--format", help="Output format: json or xyz"),
+    ] = "json",
 ) -> None:
     """Get a single frame by index."""
     import ase.io
@@ -74,7 +77,7 @@ def get(
         frame_raw = frames_raw[0] if isinstance(frames_raw, list) else frames_raw
         atoms = asebytes.decode(frame_raw)
 
-        if format == "xyz":
+        if fmt == "xyz":
             buf = StringIO()
             ase.io.write(buf, atoms, format="extxyz")
             text_print(buf.getvalue())
@@ -93,7 +96,10 @@ def list_frames(
     keys: Annotated[
         str | None, typer.Option(help="Comma-separated keys to include")
     ] = None,
-    format: Annotated[str, typer.Option(help="Output format: json or xyz")] = "json",
+    fmt: Annotated[
+        str,
+        typer.Option("--format", help="Output format: json or xyz"),
+    ] = "json",
 ) -> None:
     """List frames in the room."""
     import ase.io
@@ -120,7 +126,7 @@ def list_frames(
         frames_raw = msgpack.unpackb(resp.content, raw=True)
         atoms_list = [asebytes.decode(f) for f in frames_raw]
 
-        if format == "xyz":
+        if fmt == "xyz":
             buf = StringIO()
             ase.io.write(buf, atoms_list, format="extxyz")
             text_print(buf.getvalue())
@@ -175,7 +181,10 @@ def export(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
-    format: Annotated[str, typer.Option(help="Output format (default: xyz)")] = "xyz",
+    fmt: Annotated[
+        str,
+        typer.Option("--format", help="Output format (default: xyz)"),
+    ] = "xyz",
     indices: Annotated[
         str | None, typer.Option(help="Index range, e.g. '0:10'")
     ] = None,
@@ -196,7 +205,7 @@ def export(
             if sel:
                 selection_param = ",".join(str(i) for i in sel)
 
-        if format == "json":
+        if fmt == "json":
             import asebytes
             import msgpack
             from asebytes import atoms_to_dict
@@ -216,7 +225,7 @@ def export(
             frames_raw = msgpack.unpackb(resp.content, raw=True)
             json_print([atoms_to_dict(asebytes.decode(f)) for f in frames_raw])
         else:
-            params = {"format": format}
+            params = {"format": fmt}
             if expanded_indices:
                 params["indices"] = expanded_indices
             if selection_param:

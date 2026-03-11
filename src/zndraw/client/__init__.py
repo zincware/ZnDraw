@@ -1,6 +1,7 @@
 """ZnDraw Python client package."""
 
-# Re-export accessors that were previously importable via `from zndraw.client import Sessions`
+# Re-export accessors previously importable via
+# `from zndraw.client import Sessions`
 from zndraw.accessors import Sessions
 from zndraw.client.api import APIManager
 from zndraw.client.core import ZnDraw

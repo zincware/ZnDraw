@@ -369,7 +369,7 @@ async def test_refresh_with_expired_lock_returns_409(
 async def test_acquire_without_token_when_lock_exists_returns_423(
     el_client: AsyncClient, el_session: AsyncSession
 ) -> None:
-    """Test PUT without Lock-Token when lock exists returns 423 (no silent re-create)."""
+    """PUT without Lock-Token when lock exists returns 423."""
     user, token = await _create_user(el_session)
     room = await _create_room(el_session, user)
 

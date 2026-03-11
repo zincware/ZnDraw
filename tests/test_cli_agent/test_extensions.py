@@ -153,7 +153,7 @@ def test_extensions_run_with_args(
 def test_extensions_run_with_smiles(
     cli_runner: CliRunner, server_url: str, auth_token: str, test_room: str
 ) -> None:
-    """extensions run should accept SMILES strings containing special chars like ( ) =."""
+    """extensions run accepts SMILES with special chars like ( ) =."""
     result = cli_runner.invoke(
         app,
         [

@@ -21,7 +21,7 @@ class _Echo(Extension):
     category: ClassVar[Category] = Category.MODIFIER
     value: str = "hello"
 
-    def run(self, vis: Any, **kwargs: Any) -> None:
+    def run(self, vis: Any, **_kwargs: Any) -> None:
         vis.bookmarks[0] = self.value
 
 
@@ -34,7 +34,7 @@ class _EchoAnalysis(Extension):
     category: ClassVar[Category] = Category.ANALYSIS
     value: float = 0.0
 
-    def run(self, vis: Any, **kwargs: Any) -> None:
+    def run(self, vis: Any, **_kwargs: Any) -> None:
         import plotly.graph_objects as go
 
         fig = go.Figure(layout={"title": str(self.value)})
@@ -49,7 +49,7 @@ class _FailingExtension(Extension):
 
     category: ClassVar[Category] = Category.MODIFIER
 
-    def run(self, vis: Any, **kwargs: Any) -> None:
+    def run(self, _vis: Any, **_kwargs: Any) -> None:
         raise RuntimeError("intentional failure")
 
 
@@ -62,19 +62,19 @@ _FailingExtension.__name__ = "FailingExtension"
 
 
 @pytest.fixture
-def Echo() -> type[_Echo]:
+def Echo() -> type[_Echo]:  # noqa: N802
     """The Echo test extension class."""
     return _Echo
 
 
 @pytest.fixture
-def EchoAnalysis() -> type[_EchoAnalysis]:
+def EchoAnalysis() -> type[_EchoAnalysis]:  # noqa: N802
     """The EchoAnalysis test extension class."""
     return _EchoAnalysis
 
 
 @pytest.fixture
-def FailingExtension() -> type[_FailingExtension]:
+def FailingExtension() -> type[_FailingExtension]:  # noqa: N802
     """The FailingExtension test extension class."""
     return _FailingExtension
 
@@ -150,13 +150,13 @@ def run_worker_loop() -> Callable[..., tuple[threading.Thread, threading.Event]]
                     vis = ZnDraw(url=server_url, room=task.room_id)
                     try:
                         task.extension.run(vis)
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         worker.jobs.fail(task, str(e))
                     else:
                         worker.jobs.complete(task)
                     finally:
                         vis.disconnect()
-            except Exception:  # noqa: S110
+            except Exception:  # noqa: BLE001, S110
                 pass  # Worker disconnected — stop gracefully
 
         thread = threading.Thread(target=_loop, daemon=True)

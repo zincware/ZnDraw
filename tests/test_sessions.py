@@ -85,7 +85,7 @@ def test_sessions_str_empty(server: str):
 
 
 def test_sessions_getitem_missing_raises_key_error(server: str):
-    """Accessing non-existent session raises KeyError (validated in Session.__post_init__)."""
+    """Accessing non-existent session raises KeyError."""
     vis = ZnDraw(url=server, room=uuid.uuid4().hex)
     with pytest.raises(KeyError):
         vis.sessions["nonexistent-sid"]
@@ -273,7 +273,7 @@ def test_cross_user_can_read_active_camera(server: str):
 
 
 def test_cross_user_cannot_set_active_camera(server: str):
-    """User2 cannot set active camera on user1's session (KeyError from SessionNotFound)."""
+    """User2 cannot set active camera on user1's session."""
     room_id = uuid.uuid4().hex
     vis1 = ZnDraw(url=server, room=room_id)
     user1_id = _get_user_id(vis1)

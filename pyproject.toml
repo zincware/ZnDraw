@@ -200,10 +200,24 @@ max-args = 10  # Allow up to 10 args for FastAPI endpoints
     "S106",    # hardcoded password in tests
     "S105",    # hardcoded password string in tests
     "PLR2004", # magic values in tests are OK
+    "INP001",  # tests don't need __init__.py
+    "N803",    # fixture names matching class names (e.g. Echo)
+    "SLF001",  # accessing internals for testing
+]
+"docs/**/*.py" = [
+    "INP001",  # docs don't need __init__.py
+    "A001",    # copyright shadows builtin (Sphinx convention)
+]
+"hatch_build.py" = [
+    "ARG002",  # unused args (framework interface)
 ]
 "__init__.py" = [
     "F401",    # unused imports in __init__.py (re-exports)
 ]
+
+[tool.codespell]
+skip = "frontend/bun.lock,docs/source/_static/*.svg,.planning/*"
+ignore-words-list = "nd,trough"
 
 [tool.ruff.format]
 quote-style = "double"

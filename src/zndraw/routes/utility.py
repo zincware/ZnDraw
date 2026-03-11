@@ -104,7 +104,7 @@ async def get_global_settings(
 )
 async def get_frame_selection(
     session: SessionDep,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
 ) -> FrameSelectionResponse:
     """Get selected frame indices for a room."""

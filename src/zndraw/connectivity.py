@@ -60,11 +60,9 @@ def add_connectivity(atoms: ase.Atoms, scale: float = 1.2) -> None:
     for i, j, d in zip(i_list, j_list, d_list, strict=False):
         # To avoid double counting (e.g., adding both (0,1) and (1,0)), we only
         # consider pairs where the first index is smaller than the second.
-        if i < j:
-            # Check if the distance is within the specific cutoff for this atom pair
-            if d < pairwise_cutoffs[i, j]:
-                # Bond is found, add it to the list with bond order 1
-                connectivity.append((i, j, 1))
+        if i < j and d < pairwise_cutoffs[i, j]:
+            # Bond is found, add it to the list with bond order 1
+            connectivity.append((i, j, 1))
 
     # there is a bug, that connectivity must be an array, otherwise it fails!
     atoms.info["connectivity"] = np.array(connectivity, dtype=np.int32)

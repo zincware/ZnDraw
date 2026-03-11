@@ -275,7 +275,7 @@ async def patch_geometry(
     session: SessionDep,
     redis: RedisDep,
     sio: SioDep,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     _geo_info: WritableGeometryDep,
     room_id: str,
     key: str,

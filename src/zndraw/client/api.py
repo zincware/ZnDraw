@@ -49,14 +49,6 @@ class APIManager:
         return self.url
 
     def get_headers(self) -> dict[str, str]:
-        """Build request headers (satisfies ApiManager protocol)."""
-        return self.get_headers()
-
-    def close(self) -> None:
-        """Close the HTTP client."""
-        self.http.close()
-
-    def _headers(self) -> dict[str, str]:
         """Build request headers."""
         headers: dict[str, str] = {}
         if self.token:
@@ -64,6 +56,10 @@ class APIManager:
         if self.session_id:
             headers["X-Session-ID"] = self.session_id
         return headers
+
+    def close(self) -> None:
+        """Close the HTTP client."""
+        self.http.close()
 
     def raise_for_status(self, response: httpx.Response) -> None:
         """Raise appropriate exception for error responses.

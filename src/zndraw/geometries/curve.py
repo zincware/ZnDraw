@@ -64,7 +64,11 @@ class Curve(BaseGeometry):
 
     position: PositionProp = Field(
         default_factory=list,
-        description="Control points: list of [x,y,z]. String for dynamic data key, list of tuples/lists for static values.",
+        description=(
+            "Control points: list of [x,y,z]."
+            " String for dynamic data key,"
+            " list of tuples/lists for static values."
+        ),
         json_schema_extra={
             "x-custom-type": "dynamic-enum",
             "x-features": ["dynamic-atom-props", "editable-array"],
@@ -108,7 +112,9 @@ class Curve(BaseGeometry):
 
     thickness: float = Field(
         default=2.0,
-        description="Thickness of the line (not implemented in Three.js LineBasicMaterial)",
+        description=(
+            "Thickness of the line (not implemented in Three.js LineBasicMaterial)"
+        ),
         ge=0.5,
         le=10,
         json_schema_extra={"format": "range", "step": 0.5},
@@ -121,7 +127,9 @@ class Curve(BaseGeometry):
 
     virtual_marker: CurveMarker = Field(
         default_factory=lambda: CurveMarker(size=0.08, color="default", opacity=0.5),
-        description="Virtual marker between two existing markers (for adding new points)",
+        description=(
+            "Virtual marker between two existing markers (for adding new points)"
+        ),
     )
 
     def get_interpolated_points(self) -> np.ndarray:

@@ -120,7 +120,7 @@ def unlock_room(
 @rooms_app.command("open")
 def open_room(
     url: UrlOpt = None,
-    token: TokenOpt = None,
+    _token: TokenOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Open a room in the browser."""

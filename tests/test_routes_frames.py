@@ -790,7 +790,8 @@ async def test_merge_frame_preserves_msgpack_str_type(
     )
 
     # PATCH with float32 positions (what the frontend sends after editing)
-    # Frontend's packBinary produces: {str"arrays.positions": {str"nd": true, str"type": str"<f4", ...}}
+    # Frontend's packBinary produces:
+    # {str"arrays.positions": {str"nd": true, str"type": str"<f4", ...}}
     edited_positions = struct.pack("<9f", *[float(x) for x in range(9)])
     patch_body = msgpack.packb(
         {
@@ -816,7 +817,8 @@ async def test_merge_frame_preserves_msgpack_str_type(
 
     # The stored value must preserve msgpack str/bin distinction.
     # Frontend decodes dtype as JS string only if it's msgpack str type.
-    # With raw=True re-packing, strings become bytes (msgpack bin) — breaking the frontend.
+    # With raw=True re-packing, strings become bytes
+    # (msgpack bin) — breaking the frontend.
     stored_positions_bytes = stored_frame[b"arrays.positions"]
 
     # Decode with raw=False: msgpack str → Python str, msgpack bin → Python bytes

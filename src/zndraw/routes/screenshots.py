@@ -53,11 +53,11 @@ def _screenshot_path(media_path: Path, room_id: str, row: Screenshot) -> Path:
     return _screenshot_dir(media_path, room_id) / f"{row.id}.{row.format}"
 
 
-def _validate_upload(format: str, file_bytes: bytes) -> bytes:
+def _validate_upload(fmt: str, file_bytes: bytes) -> bytes:
     """Validate screenshot format and size, returning the bytes on success."""
-    if format not in _ALLOWED_FORMATS:
+    if fmt not in _ALLOWED_FORMATS:
         raise InvalidScreenshotFormat.exception(
-            f"Format '{format}' is not supported. "
+            f"Format '{fmt}' is not supported. "
             f"Use one of: {', '.join(sorted(_ALLOWED_FORMATS))}"
         )
     if len(file_bytes) > _MAX_FILE_SIZE:
@@ -101,18 +101,18 @@ async def upload_screenshot(
     media_path: MediaPathDep,
     room_id: str,
     file: UploadFile,
-    format: Annotated[str, Form()] = "png",
+    fmt: Annotated[str, Form(alias="format")] = "png",
     width: Annotated[int | None, Form()] = None,
     height: Annotated[int | None, Form()] = None,
 ) -> ScreenshotResponse:
     """Upload a screenshot file directly."""
     await verify_room(session, room_id)
 
-    file_bytes = _validate_upload(format, await file.read())
+    file_bytes = _validate_upload(fmt, await file.read())
 
     row = Screenshot(
         room_id=room_id,
-        format=format,
+        format=fmt,
         size=len(file_bytes),
         width=width,
         height=height,
@@ -319,7 +319,7 @@ async def complete_screenshot(
     room_id: str,
     screenshot_id: int,
     file: UploadFile,
-    format: Annotated[str, Form()] = "png",
+    fmt: Annotated[str, Form(alias="format")] = "png",
     width: Annotated[int | None, Form()] = None,
     height: Annotated[int | None, Form()] = None,
 ) -> ScreenshotResponse:
@@ -335,11 +335,11 @@ async def complete_screenshot(
             f"Screenshot {screenshot_id} is already completed"
         )
 
-    file_bytes = _validate_upload(format, await file.read())
+    file_bytes = _validate_upload(fmt, await file.read())
 
     row.status = "completed"
     row.size = len(file_bytes)
-    row.format = format
+    row.format = fmt
     row.width = width
     row.height = height
 

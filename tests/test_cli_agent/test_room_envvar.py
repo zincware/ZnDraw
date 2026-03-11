@@ -85,7 +85,7 @@ def test_frames_count_via_envvar(
 def test_missing_room_errors(
     cli_runner: CliRunner, server_url: str, auth_token: str
 ) -> None:
-    """Command should fail with helpful error when neither --room nor ZNDRAW_ROOM is set."""
+    """Fail with helpful error when neither --room nor ZNDRAW_ROOM."""
     result = cli_runner.invoke(
         app,
         ["extensions", "list", "--url", server_url, "--token", auth_token],

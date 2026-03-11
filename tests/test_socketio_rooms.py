@@ -26,7 +26,9 @@ from zndraw.socket_events import (
 
 
 async def _get_user_token(
-    http_client: AsyncClient, email: str, password: str = "testpassword"
+    http_client: AsyncClient,
+    email: str,
+    password: str = "testpassword",  # noqa: S107
 ) -> str:
     """Register a user and get their auth token."""
     reg_response = await http_client.post(

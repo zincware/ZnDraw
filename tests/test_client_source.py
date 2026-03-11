@@ -151,7 +151,7 @@ def test_append_on_mounted_room_raises(server: str) -> None:
         source = FakeSource([_make_atoms() for _ in range(5)])
         vis.mount(source)
 
-        with pytest.raises(Exception):
+        with pytest.raises(PermissionError, match="mounted source"):
             vis.append(_make_atoms())
     finally:
         vis.disconnect()
@@ -219,7 +219,7 @@ def test_update_frame_count_via_room_patch(server: str) -> None:
 
         vis.api.update_room({"frame_count": 10})
         # Server stores new count in Redis; client re-queries length
-        vis._cached_length = None  # force re-query
+        vis.cached_length = None  # force re-query
         assert len(vis) == 10
     finally:
         vis.disconnect()
@@ -379,7 +379,7 @@ def test_provider_disconnect_clears_frame_count(server: str) -> None:
     try:
         deadline = time.monotonic() + 5.0
         while time.monotonic() < deadline:
-            observer._cached_length = None  # force re-query
+            observer.cached_length = None  # force re-query
             if len(observer) == 0:
                 break
             time.sleep(0.3)
