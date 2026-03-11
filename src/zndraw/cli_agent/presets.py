@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fnmatch
+import pathlib  # noqa: TC003 — Typer evals annotations at runtime
 from typing import TYPE_CHECKING, Annotated
 
 import typer
@@ -20,8 +21,6 @@ from .connection import (
 from .output import json_print
 
 if TYPE_CHECKING:
-    import pathlib
-
     from zndraw.geometries.base import BaseGeometry
 
 presets_app = typer.Typer(name="preset", help="Visual preset operations")
