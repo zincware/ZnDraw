@@ -116,7 +116,7 @@ class StorageResultBackend:
     def __init__(self, storage: AsebytesStorage) -> None:
         self._storage = storage
 
-    async def store(self, key: str, data: bytes, ttl: int) -> None:
+    async def store(self, key: str, data: bytes, ttl: int) -> None:  # noqa: ARG002
         await self._storage.clear(key)
         # Wrap in msgpack so the blob↔object adapter round-trip works
         packed = msgpack.packb(data)
