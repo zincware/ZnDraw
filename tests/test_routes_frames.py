@@ -781,7 +781,7 @@ async def test_merge_frame_preserves_msgpack_str_type(
     )
     await frame_storage.extend(
         room.id,
-        [  # type: ignore[arg-type][arg-type]  # raw bytes frames bypass extend's str API
+        [  # type: ignore[arg-type]  # raw bytes frames bypass extend's str API
             {
                 b"arrays.positions": original_numpy,
                 b"arrays.numbers": msgpack.packb([1, 1, 1]),

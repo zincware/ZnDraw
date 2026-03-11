@@ -247,7 +247,7 @@ async def list_frames(
         if provider is None:
             missing = [
                 idx
-                for idx, f in zip(requested_indices, frames_or_none, strict=False)
+                for idx, f in zip(requested_indices, frames_or_none, strict=True)
                 if f is None
             ]
             _raise_frame_not_found(missing, total)
@@ -257,7 +257,7 @@ async def list_frames(
         missing_tasks: dict[int, asyncio.Task[RawFrame]] = {}
         async with asyncio.TaskGroup() as tg:
             for i, (idx, f) in enumerate(
-                zip(requested_indices, frames_or_none, strict=False)
+                zip(requested_indices, frames_or_none, strict=True)
             ):
                 if f is None:
                     missing_tasks[i] = tg.create_task(

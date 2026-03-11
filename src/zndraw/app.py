@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
 from zndraw_joblib import (
-    ProblemError as JoblibProblemError,
+    ProblemException as JoblibProblemError,
     problem_exception_handler as joblib_problem_exception_handler,
     router as joblib_router,
 )
