@@ -151,7 +151,7 @@ def test_append_on_mounted_room_raises(server: str) -> None:
         source = FakeSource([_make_atoms() for _ in range(5)])
         vis.mount(source)
 
-        with pytest.raises(PermissionError, match="mounted source"):
+        with pytest.raises(PermissionError, match="provider-backed"):
             vis.append(_make_atoms())
     finally:
         vis.disconnect()
