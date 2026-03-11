@@ -25,7 +25,7 @@ def _lock_room(vis: ZnDraw) -> None:
     response = vis.api.http.patch(
         f"/v1/rooms/{vis.room}",
         json={"locked": True},
-        headers=vis.api._headers(),
+        headers=vis.api.get_headers(),
     )
     vis.api.raise_for_status(response)
 

@@ -50,7 +50,7 @@ class APIManager:
 
     def get_headers(self) -> dict[str, str]:
         """Build request headers (satisfies ApiManager protocol)."""
-        return self._headers()
+        return self.get_headers()
 
     def close(self) -> None:
         """Close the HTTP client."""
@@ -154,7 +154,7 @@ class APIManager:
         response = self.http.post(
             "/v1/rooms",
             json=payload,
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -163,7 +163,7 @@ class APIManager:
         """Get room information."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -179,7 +179,7 @@ class APIManager:
         response = self.http.patch(
             f"/v1/rooms/{self.room_id}",
             json=updates,
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -207,7 +207,7 @@ class APIManager:
         while True:
             response = self.http.get(
                 f"/v1/rooms/{self.room_id}/frames/{index}",
-                headers=self._headers(),
+                headers=self.get_headers(),
             )
             try:
                 self.raise_for_status(response)
@@ -252,7 +252,7 @@ class APIManager:
             response = self.http.get(
                 f"/v1/rooms/{self.room_id}/frames",
                 params=params,
-                headers=self._headers(),
+                headers=self.get_headers(),
             )
             try:
                 self.raise_for_status(response)
@@ -267,7 +267,7 @@ class APIManager:
         response = self.http.post(
             f"/v1/rooms/{self.room_id}/frames",
             json={"frames": frames},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -277,7 +277,7 @@ class APIManager:
         response = self.http.put(
             f"/v1/rooms/{self.room_id}/frames/{index}",
             json={"data": data},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -286,7 +286,7 @@ class APIManager:
         """Delete a single frame."""
         response = self.http.delete(
             f"/v1/rooms/{self.room_id}/frames/{index}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
 
@@ -298,7 +298,7 @@ class APIManager:
         """Get current step."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/step",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -308,7 +308,7 @@ class APIManager:
         response = self.http.put(
             f"/v1/rooms/{self.room_id}/step",
             json={"step": step},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -321,7 +321,7 @@ class APIManager:
         """Get selected frame indices."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/frame-selection",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()["frame_selection"]
@@ -331,7 +331,7 @@ class APIManager:
         response = self.http.put(
             f"/v1/rooms/{self.room_id}/frame-selection",
             json={"indices": indices},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -344,7 +344,7 @@ class APIManager:
         """List all geometries."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/geometries",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()["items"]
@@ -353,7 +353,7 @@ class APIManager:
         """Get a specific geometry."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/geometries/{key}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         if response.status_code == 404:
             return None
@@ -367,7 +367,7 @@ class APIManager:
         response = self.http.put(
             f"/v1/rooms/{self.room_id}/geometries/{key}",
             json={"type": geometry_type, "data": data},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -376,7 +376,7 @@ class APIManager:
         """Delete a geometry."""
         response = self.http.delete(
             f"/v1/rooms/{self.room_id}/geometries/{key}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
 
@@ -388,7 +388,7 @@ class APIManager:
         """Get the default camera key for the room."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/default-camera",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()["default_camera"]
@@ -398,7 +398,7 @@ class APIManager:
         response = self.http.put(
             f"/v1/rooms/{self.room_id}/default-camera",
             json={"default_camera": camera_key},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
 
@@ -410,7 +410,7 @@ class APIManager:
         """Get selection for a specific geometry."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/geometries/{geometry}/selection",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -420,7 +420,7 @@ class APIManager:
         response = self.http.put(
             f"/v1/rooms/{self.room_id}/geometries/{geometry}/selection",
             json={"indices": indices},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -429,7 +429,7 @@ class APIManager:
         """List all selection groups."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/selection-groups",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()["items"]
@@ -438,7 +438,7 @@ class APIManager:
         """Get a selection group."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/selection-groups/{group_name}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -450,7 +450,7 @@ class APIManager:
         response = self.http.put(
             f"/v1/rooms/{self.room_id}/selection-groups/{group_name}",
             json={"selections": selections},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -459,7 +459,7 @@ class APIManager:
         """Delete a selection group."""
         response = self.http.delete(
             f"/v1/rooms/{self.room_id}/selection-groups/{group_name}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
 
@@ -471,7 +471,7 @@ class APIManager:
         """Get all bookmarks."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/bookmarks",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()["items"]
@@ -480,7 +480,7 @@ class APIManager:
         """Get a specific bookmark."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/bookmarks/{index}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -490,7 +490,7 @@ class APIManager:
         response = self.http.put(
             f"/v1/rooms/{self.room_id}/bookmarks/{index}",
             json={"label": label},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -499,7 +499,7 @@ class APIManager:
         """Delete a bookmark."""
         response = self.http.delete(
             f"/v1/rooms/{self.room_id}/bookmarks/{index}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
 
@@ -511,7 +511,7 @@ class APIManager:
         """List all figure keys."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/figures",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()["items"]
@@ -520,7 +520,7 @@ class APIManager:
         """Get a specific figure."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/figures/{key}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         if response.status_code == 404:
             return None
@@ -532,7 +532,7 @@ class APIManager:
         response = self.http.post(
             f"/v1/rooms/{self.room_id}/figures/{key}",
             json={"figure": figure},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -541,7 +541,7 @@ class APIManager:
         """Delete a figure."""
         response = self.http.delete(
             f"/v1/rooms/{self.room_id}/figures/{key}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
 
@@ -553,7 +553,7 @@ class APIManager:
         """List all presets."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/presets",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()["items"]
@@ -562,7 +562,7 @@ class APIManager:
         """Get a specific preset."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/presets/{name}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         if response.status_code == 404:
             return None
@@ -574,7 +574,7 @@ class APIManager:
         response = self.http.post(
             f"/v1/rooms/{self.room_id}/presets",
             json=data,
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -584,7 +584,7 @@ class APIManager:
         response = self.http.put(
             f"/v1/rooms/{self.room_id}/presets/{name}",
             json=data,
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -593,7 +593,7 @@ class APIManager:
         """Delete a preset."""
         response = self.http.delete(
             f"/v1/rooms/{self.room_id}/presets/{name}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
 
@@ -601,7 +601,7 @@ class APIManager:
         """Apply a preset to all matching geometries."""
         response = self.http.post(
             f"/v1/rooms/{self.room_id}/presets/{name}/apply",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -615,7 +615,7 @@ class APIManager:
         response = self.http.put(
             f"/v1/rooms/{self.room_id}/edit-lock",
             json={"msg": msg},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -624,7 +624,7 @@ class APIManager:
         self, lock_token: str, msg: str | None = None
     ) -> dict[str, Any]:
         """Refresh an existing edit lock using its token."""
-        headers = {**self._headers(), "Lock-Token": lock_token}
+        headers = {**self.get_headers(), "Lock-Token": lock_token}
         response = self.http.put(
             f"/v1/rooms/{self.room_id}/edit-lock",
             json={"msg": msg},
@@ -635,7 +635,7 @@ class APIManager:
 
     def edit_lock_release(self, lock_token: str | None = None) -> None:
         """Release the room edit lock."""
-        headers = self._headers()
+        headers = self.get_headers()
         if lock_token:
             headers["Lock-Token"] = lock_token
         response = self.http.delete(
@@ -648,7 +648,7 @@ class APIManager:
         """Get the room edit lock status."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/edit-lock",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -659,7 +659,7 @@ class APIManager:
 
     def get_me(self) -> dict[str, Any]:
         """Get the current authenticated user's profile."""
-        response = self.http.get("/v1/auth/users/me", headers=self._headers())
+        response = self.http.get("/v1/auth/users/me", headers=self.get_headers())
         self.raise_for_status(response)
         return response.json()
 
@@ -673,7 +673,7 @@ class APIManager:
 
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/sessions",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return SessionsListResponse.model_validate(response.json()).items
@@ -682,7 +682,7 @@ class APIManager:
         """Get active camera key for a session."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/sessions/{sid}/active-camera",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         active = response.json()["active_camera"]
@@ -695,7 +695,7 @@ class APIManager:
         response = self.http.put(
             f"/v1/rooms/{self.room_id}/sessions/{sid}/active-camera",
             json={"active_camera": camera_key},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
 
@@ -708,7 +708,7 @@ class APIManager:
         response = self.http.post(
             f"/v1/rooms/{self.room_id}/chat/messages",
             json={"content": content},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -722,7 +722,7 @@ class APIManager:
         response = self.http.post(
             f"/v1/rooms/{self.room_id}/screenshots",
             json={"session_id": session_id},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -731,7 +731,7 @@ class APIManager:
         """Get a screenshot by ID."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/screenshots/{screenshot_id}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -751,7 +751,7 @@ class APIManager:
                 "description": description,
                 "unit": unit,
             },
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -780,7 +780,7 @@ class APIManager:
         response = self.http.patch(
             f"/v1/rooms/{self.room_id}/progress/{progress_id}",
             json=payload,
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -789,7 +789,7 @@ class APIManager:
         """Complete and remove a progress tracker."""
         response = self.http.delete(
             f"/v1/rooms/{self.room_id}/progress/{progress_id}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
 
@@ -805,7 +805,7 @@ class APIManager:
         response = self.http.get(
             "/v1/rooms",
             params=params,
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()["items"]
@@ -828,7 +828,7 @@ class APIManager:
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/chat/messages",
             params=params,
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -841,7 +841,7 @@ class APIManager:
         """List screenshots for the room."""
         response = self.http.get(
             f"/v1/rooms/{self.room_id}/screenshots",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()["items"]
@@ -855,7 +855,7 @@ class APIManager:
         job_room = room or "@internal"
         response = self.http.get(
             f"/v1/joblib/rooms/{job_room}/jobs",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -870,7 +870,7 @@ class APIManager:
         job_room = parts[0]
         response = self.http.get(
             f"/v1/joblib/rooms/{job_room}/jobs/{full_name}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -880,7 +880,7 @@ class APIManager:
         response = self.http.post(
             f"/v1/joblib/rooms/{self.room_id}/tasks/{full_name}",
             json={"payload": payload},
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -897,7 +897,7 @@ class APIManager:
         response = self.http.get(
             f"/v1/joblib/rooms/{self.room_id}/tasks",
             params=params,
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()
@@ -906,7 +906,7 @@ class APIManager:
         """Get task details by ID."""
         response = self.http.get(
             f"/v1/joblib/tasks/{task_id}",
-            headers=self._headers(),
+            headers=self.get_headers(),
         )
         self.raise_for_status(response)
         return response.json()

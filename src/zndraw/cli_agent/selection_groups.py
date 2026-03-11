@@ -35,7 +35,7 @@ def list_selection_groups(
         room = resolve_room(room)
         vis = get_zndraw(url, token, room)
         resp = vis.api.http.get(
-            f"/v1/rooms/{vis.room}/selection-groups", headers=vis.api._headers()
+            f"/v1/rooms/{vis.room}/selection-groups", headers=vis.api.get_headers()
         )
         vis.api.raise_for_status(resp)
         json_print(SelectionGroupsListResponse.model_validate(resp.json()))
@@ -57,7 +57,7 @@ def get_selection_group(
         vis = get_zndraw(url, token, room)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/selection-groups/{name}",
-            headers=vis.api._headers(),
+            headers=vis.api.get_headers(),
         )
         vis.api.raise_for_status(resp)
         json_print(SelectionGroupResponse.model_validate(resp.json()))
@@ -107,7 +107,7 @@ def delete_selection_group(
         vis = get_zndraw(url, token, room)
         resp = vis.api.http.delete(
             f"/v1/rooms/{vis.room}/selection-groups/{name}",
-            headers=vis.api._headers(),
+            headers=vis.api.get_headers(),
         )
         vis.api.raise_for_status(resp)
         json_print(StatusResponse.model_validate(resp.json()))

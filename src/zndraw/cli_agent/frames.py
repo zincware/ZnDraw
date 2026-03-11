@@ -66,7 +66,7 @@ def get(
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/frames/{index}",
             params=params,
-            headers=vis.api._headers(),
+            headers=vis.api.get_headers(),
         )
         vis.api.raise_for_status(resp)
 
@@ -113,7 +113,7 @@ def list_frames(
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/frames",
             params=params,
-            headers=vis.api._headers(),
+            headers=vis.api.get_headers(),
         )
         vis.api.raise_for_status(resp)
 
@@ -149,7 +149,7 @@ def extend(
             resp = vis.api.http.post(
                 f"/v1/rooms/{vis.room}/trajectory",
                 files={"file": (path.name, f, "application/octet-stream")},
-                headers=vis.api._headers(),
+                headers=vis.api.get_headers(),
             )
         vis.api.raise_for_status(resp)
         json_print(FrameBulkResponse.model_validate(resp.json()))
@@ -210,7 +210,7 @@ def export(
             resp = vis.api.http.get(
                 f"/v1/rooms/{vis.room}/frames",
                 params=params,
-                headers=vis.api._headers(),
+                headers=vis.api.get_headers(),
             )
             vis.api.raise_for_status(resp)
             frames_raw = msgpack.unpackb(resp.content, raw=True)
@@ -225,7 +225,7 @@ def export(
             resp = vis.api.http.get(
                 f"/v1/rooms/{vis.room}/trajectory",
                 params=params,
-                headers=vis.api._headers(),
+                headers=vis.api.get_headers(),
             )
             vis.api.raise_for_status(resp)
             text_print(resp.text)

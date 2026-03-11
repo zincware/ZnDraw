@@ -47,7 +47,7 @@ def list_rooms(
             params: dict[str, str] = {}
             if search is not None:
                 params["search"] = search
-            resp = api.http.get("/v1/rooms", params=params, headers=api._headers())
+            resp = api.http.get("/v1/rooms", params=params, headers=api.get_headers())
             api.raise_for_status(resp)
             json_print(CollectionResponse[RoomResponse].model_validate(resp.json()))
         finally:

@@ -218,7 +218,7 @@ class TestProperties1D:
             # Discover keys from metadata endpoint (same as frontend dropdown)
             resp = vis.api.http.get(
                 f"/v1/rooms/{vis.room}/frames/0/metadata",
-                headers=vis.api._headers(),
+                headers=vis.api.get_headers(),
             )
             metadata_keys = list(resp.json()["metadata"].keys())
             assert "info.energy" in metadata_keys
@@ -263,7 +263,7 @@ class TestProperties2D:
 
             resp = vis.api.http.get(
                 f"/v1/rooms/{vis.room}/frames/0/metadata",
-                headers=vis.api._headers(),
+                headers=vis.api.get_headers(),
             )
             metadata_keys = list(resp.json()["metadata"].keys())
             assert "info.energy" in metadata_keys
