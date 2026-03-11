@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-
-from typer.testing import CliRunner
+from typing import TYPE_CHECKING
 
 from zndraw.cli_agent import app
 from zndraw.schemas import FrameBulkResponse, StatusResponse, StepResponse
 
 from .conftest import invoke_cli
+
+if TYPE_CHECKING:
+    from typer.testing import CliRunner
 
 
 def test_frames_count(

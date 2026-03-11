@@ -11,10 +11,12 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pydantic import SecretStr
 from zndraw_joblib.models import TaskStatus
+
+if TYPE_CHECKING:
+    from pydantic import SecretStr
 
 logger = logging.getLogger(__name__)
 

@@ -86,7 +86,6 @@ async def list_users(
 
 @router.get(
     "/users/{user_id}",
-    response_model=AdminUserResponse,
     responses=problem_responses(Forbidden, UserNotFound),
 )
 async def get_user(
@@ -106,7 +105,6 @@ async def get_user(
 
 @router.patch(
     "/users/{user_id}",
-    response_model=AdminUserResponse,
     responses=problem_responses(Forbidden, UserNotFound),
 )
 async def update_user(
@@ -179,7 +177,6 @@ async def delete_user(
 
 @router.post(
     "/shutdown",
-    response_model=ShutdownResponse,
     responses=problem_responses(Forbidden),
 )
 async def shutdown_server(

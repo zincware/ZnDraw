@@ -124,7 +124,7 @@ async def _create_room(
     """Create a room with user as owner."""
     room = Room(
         description=description,
-        created_by_id=user.id,  # type: ignore
+        created_by_id=user.id,  # type: ignore[arg-type]
         is_public=True,
         step=step,
     )
@@ -133,8 +133,8 @@ async def _create_room(
     await session.refresh(room)
 
     membership = RoomMembership(
-        room_id=room.id,  # type: ignore
-        user_id=user.id,  # type: ignore
+        room_id=room.id,  # type: ignore[arg-type]
+        user_id=user.id,  # type: ignore[arg-type]
         role=MemberRole.OWNER,
     )
     session.add(membership)
@@ -164,7 +164,7 @@ async def test_get_step_returns_zero_initially(
     room = await _create_room(step_session, user)
 
     # Add some frames to the room
-    await step_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore
+    await step_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore[arg-type]
 
     response = await step_client.get(
         f"/v1/rooms/{room.id}/step",
@@ -188,7 +188,7 @@ async def test_get_step_returns_current_step(
     room = await _create_room(step_session, user, step=2)
 
     # Add frames
-    await step_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore
+    await step_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore[arg-type]
 
     response = await step_client.get(
         f"/v1/rooms/{room.id}/step",
@@ -218,7 +218,7 @@ async def test_set_step_updates_and_returns(
     room = await _create_room(step_session, user)
 
     # Add frames
-    await step_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore
+    await step_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore[arg-type]
 
     response = await step_client.put(
         f"/v1/rooms/{room.id}/step",
@@ -253,7 +253,7 @@ async def test_set_step_out_of_bounds_returns_422(
     room = await _create_room(step_session, user)
 
     # Add 3 frames (indices 0, 1, 2)
-    await step_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore
+    await step_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore[arg-type]
 
     # Request step=100 — should return 422
     response = await step_client.put(
@@ -298,7 +298,7 @@ async def test_set_step_negative_returns_422(
     user, token = await _create_user(step_session)
     room = await _create_room(step_session, user)
 
-    await step_storage.extend(room.id, [{"a": 1}])  # type: ignore
+    await step_storage.extend(room.id, [{"a": 1}])  # type: ignore[arg-type]
 
     response = await step_client.put(
         f"/v1/rooms/{room.id}/step",

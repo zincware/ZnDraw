@@ -133,10 +133,7 @@ class Center(UpdateScene):
             vis.log("Please select at least one atom.")
             raise ValueError("No atoms selected for centering.")
 
-        if not self.dynamic:
-            center = vis.atoms[selection].get_center_of_mass()
-        else:
-            center = None
+        center = vis.atoms[selection].get_center_of_mass() if not self.dynamic else None
 
         if self.all:
             for idx, atoms in enumerate(vis):

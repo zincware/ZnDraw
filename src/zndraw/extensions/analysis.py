@@ -56,7 +56,7 @@ class Distance(Analysis):
             y=df["distance"],
             mode="lines",
             name="trend",
-            line=dict(color="rgba(0, 0, 0, 0.1)"),
+            line={"color": "rgba(0, 0, 0, 0.1)"},
             hoverinfo="skip",
             showlegend=False,
         )
@@ -66,7 +66,7 @@ class Distance(Analysis):
         # Set up customdata and interactions schema
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
-            selector=dict(mode="markers"),
+            selector={"mode": "markers"},
             meta={
                 "interactions": [
                     {
@@ -125,7 +125,7 @@ class DihedralAngle(Analysis):
             y=df["dihedral"],
             mode="lines",
             name="trend",
-            line=dict(color="rgba(0, 0, 0, 0.1)"),
+            line={"color": "rgba(0, 0, 0, 0.1)"},
             hoverinfo="skip",
             showlegend=False,
         )
@@ -134,7 +134,7 @@ class DihedralAngle(Analysis):
 
         fig.update_traces(
             customdata=np.stack([meta_step], axis=-1),
-            selector=dict(mode="markers"),
+            selector={"mode": "markers"},
             meta={
                 "interactions": [
                     {

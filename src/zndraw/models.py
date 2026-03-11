@@ -1,6 +1,6 @@
 import uuid as uuid_mod
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 from sqlalchemy import Column, ForeignKey, String, TypeDecorator
@@ -27,7 +27,7 @@ class UTCDateTime(TypeDecorator):
         return value
 
 
-class MemberRole(str, Enum):
+class MemberRole(StrEnum):
     MEMBER = "member"
     MODERATOR = "moderator"
     OWNER = "owner"

@@ -131,7 +131,7 @@ async def _create_room(
     """Create a room with user as owner."""
     room = Room(
         description=description,
-        created_by_id=user.id,  # type: ignore
+        created_by_id=user.id,  # type: ignore[arg-type]
         is_public=True,
     )
     session.add(room)
@@ -139,8 +139,8 @@ async def _create_room(
     await session.refresh(room)
 
     membership = RoomMembership(
-        room_id=room.id,  # type: ignore
-        user_id=user.id,  # type: ignore
+        room_id=room.id,  # type: ignore[arg-type]
+        user_id=user.id,  # type: ignore[arg-type]
         role=MemberRole.OWNER,
     )
     session.add(membership)
@@ -401,8 +401,8 @@ async def test_acquire_edit_lock_conflict_with_other_user(
 
     # Give user2 room membership
     membership = RoomMembership(
-        room_id=room.id,  # type: ignore
-        user_id=user2.id,  # type: ignore
+        room_id=room.id,  # type: ignore[arg-type]
+        user_id=user2.id,  # type: ignore[arg-type]
         role=MemberRole.MEMBER,
     )
     el_session.add(membership)
@@ -455,8 +455,8 @@ async def test_lock_auto_expires_after_ttl(
     room = await _create_room(el_session, user1)
 
     membership = RoomMembership(
-        room_id=room.id,  # type: ignore
-        user_id=user2.id,  # type: ignore
+        room_id=room.id,  # type: ignore[arg-type]
+        user_id=user2.id,  # type: ignore[arg-type]
         role=MemberRole.MEMBER,
     )
     el_session.add(membership)
@@ -628,8 +628,8 @@ async def test_release_edit_lock_forbidden_for_non_holder(
     room = await _create_room(el_session, user1)
 
     membership = RoomMembership(
-        room_id=room.id,  # type: ignore
-        user_id=user2.id,  # type: ignore
+        room_id=room.id,  # type: ignore[arg-type]
+        user_id=user2.id,  # type: ignore[arg-type]
         role=MemberRole.MEMBER,
     )
     el_session.add(membership)
@@ -660,8 +660,8 @@ async def test_admin_can_release_any_lock(
 
     # Give admin membership
     membership = RoomMembership(
-        room_id=room.id,  # type: ignore
-        user_id=admin.id,  # type: ignore
+        room_id=room.id,  # type: ignore[arg-type]
+        user_id=admin.id,  # type: ignore[arg-type]
         role=MemberRole.MEMBER,
     )
     el_session.add(membership)
@@ -742,8 +742,8 @@ async def test_writable_room_blocks_non_holder(
     room = await _create_room(el_session, user1)
 
     membership = RoomMembership(
-        room_id=room.id,  # type: ignore
-        user_id=user2.id,  # type: ignore
+        room_id=room.id,  # type: ignore[arg-type]
+        user_id=user2.id,  # type: ignore[arg-type]
         role=MemberRole.MEMBER,
     )
     el_session.add(membership)
@@ -849,8 +849,8 @@ async def test_writable_room_allows_get_when_locked(
     room = await _create_room(el_session, user1)
 
     membership = RoomMembership(
-        room_id=room.id,  # type: ignore
-        user_id=user2.id,  # type: ignore
+        room_id=room.id,  # type: ignore[arg-type]
+        user_id=user2.id,  # type: ignore[arg-type]
         role=MemberRole.MEMBER,
     )
     el_session.add(membership)

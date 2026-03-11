@@ -24,7 +24,7 @@ class ConvertMoleculeToImageResponse(BaseModel):
     status: str
 
 
-@router.post("/rdkit-img", response_model=ConvertMoleculeToImageResponse)
+@router.post("/rdkit-img")
 async def rdkit_image(
     body: ConvertMoleculeToImageRequest,
 ) -> ConvertMoleculeToImageResponse:

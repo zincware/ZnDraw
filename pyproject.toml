@@ -163,6 +163,7 @@ ignore = [
     "EM102",   # f-string in exception (allow for simplicity)
     "FBT001",  # boolean positional arg (common in FastAPI)
     "FBT002",  # boolean default arg (common in FastAPI)
+    "FBT003",  # boolean positional value (third-party APIs: typer, ASE)
     "COM812",  # trailing comma missing (conflicts with formatter)
     "ISC001",  # implicit string concat (conflicts with formatter)
 ]

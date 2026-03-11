@@ -287,7 +287,6 @@ async def build_room_update(
 
 @router.post(
     "",
-    response_model=RoomCreateResponse,
     status_code=status.HTTP_201_CREATED,
     responses=problem_responses(NotAuthenticated, RoomReadOnly),
 )
@@ -450,7 +449,6 @@ async def list_rooms(
 
 @router.get(
     "/{room_id}",
-    response_model=RoomResponse,
     responses=problem_responses(RoomNotFound),
 )
 async def get_room(
@@ -475,7 +473,6 @@ async def get_room(
 
 @router.get(
     "/{room_id}/presence",
-    response_model=PresenceResponse,
     responses=problem_responses(RoomNotFound),
 )
 async def get_room_presence(
@@ -498,7 +495,7 @@ async def get_room_presence(
         RedisKey.room_cameras(room_id)
     )
     sessions_list: list[PresenceSessionResponse] = []
-    for _camera_key, raw_value in cameras_raw.items():
+    for raw_value in cameras_raw.values():
         entry = json.loads(raw_value)
         camera = Camera(**entry["data"])
         if camera.owner is None:
@@ -516,7 +513,6 @@ async def get_room_presence(
 
 @router.get(
     "/{room_id}/sessions",
-    response_model=SessionsListResponse,
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def list_sessions(
@@ -524,7 +520,7 @@ async def list_sessions(
     redis: RedisDep,
     _current_user: CurrentUserDep,
     room_id: str,
-    email: str | None = Query(None, description="Filter by user email"),
+    email: Annotated[str | None, Query(description="Filter by user email")] = None,
 ) -> SessionsListResponse:
     """List all active frontend sessions in this room.
 
@@ -546,7 +542,7 @@ async def list_sessions(
     )
 
     items: list[SessionItem] = []
-    for sid, cam_key, raw in zip(sids, camera_keys, raw_cameras):
+    for sid, cam_key, raw in zip(sids, camera_keys, raw_cameras, strict=False):
         if raw is None:
             continue
         entry = json.loads(raw)
@@ -567,7 +563,7 @@ async def update_room(
     storage: StorageDep,
     sio: SioDep,
     room: WritableRoomDep,
-    updates: RoomPatchRequest,
+    updates: RoomPatchRequest, room_id,
 ) -> RoomPatchResponse:
     """Update room metadata (description, locked, frame_count).
 

@@ -9,6 +9,7 @@ If an axis is omitted it stays fixed at its current value throughout.
 
 from __future__ import annotations
 
+import contextlib
 import math
 import sys
 import time
@@ -88,7 +89,7 @@ def _build_schedule(
 
     stretched_traj = _stretch(traj_values, total) if traj_values else [None] * total
     stretched_curve = _stretch(curve_values, total) if curve_values else [None] * total
-    return list(zip(stretched_traj, stretched_curve))
+    return list(zip(stretched_traj, stretched_curve, strict=False))
 
 
 def _assemble_gif(frames: list[bytes], output: Path, fps: int) -> None:
@@ -363,9 +364,7 @@ def capture(
 
             # Clean up temp geometries
             for key in temp_keys:
-                try:
+                with contextlib.suppress(Exception):
                     del vis.geometries[key]
-                except Exception:
-                    pass
 
             vis.disconnect()

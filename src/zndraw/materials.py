@@ -17,12 +17,12 @@ class BaseMaterial(BaseModel, ABC):
     """
 
     wireframe: bool = Field(default=False, description="Render geometry as wireframe")
-    flatShading: bool = Field(
+    flatShading: bool = Field(  # noqa: N815
         default=False, description="Use flat shading instead of smooth"
     )
     transparent: bool = Field(default=False, description="Enable transparency")
-    polygonOffset: bool = Field(default=False, description="Enable polygon offset")
-    polygonOffsetFactor: float = Field(default=0, description="Polygon offset factor")
+    polygonOffset: bool = Field(default=False, description="Enable polygon offset")  # noqa: N815
+    polygonOffsetFactor: float = Field(default=0, description="Polygon offset factor")  # noqa: N815
 
     @abstractmethod
     def to_three_type(self) -> str:
@@ -41,7 +41,7 @@ class MeshBasicMaterial(BaseMaterial):
     material_type: Literal["MeshBasicMaterial"] = Field(
         default="MeshBasicMaterial", description="Material type discriminator"
     )
-    toneMapped: bool = Field(
+    toneMapped: bool = Field(  # noqa: N815
         default=True, description="Whether material is affected by tone mapping"
     )
 
@@ -70,7 +70,7 @@ class MeshStandardMaterial(BaseMaterial):
     emissive: str = Field(
         default="#000000", description="Emissive (light) color in hex format"
     )
-    emissiveIntensity: float = Field(
+    emissiveIntensity: float = Field(  # noqa: N815
         default=1.0, ge=0.0, description="Intensity of emissive color"
     )
 
@@ -101,26 +101,26 @@ class MeshPhysicalMaterial(MeshStandardMaterial):
     clearcoat: float = Field(
         default=0.0, ge=0.0, le=1.0, description="Clearcoat layer intensity"
     )
-    clearcoatRoughness: float = Field(
+    clearcoatRoughness: float = Field(  # noqa: N815
         default=0.0, ge=0.0, le=1.0, description="Clearcoat layer roughness"
     )
     sheen: float = Field(
         default=0.0, ge=0.0, le=1.0, description="Sheen layer intensity (fabric effect)"
     )
-    sheenRoughness: float = Field(
+    sheenRoughness: float = Field(  # noqa: N815
         default=1.0, ge=0.0, le=1.0, description="Sheen layer roughness"
     )
-    sheenColor: str = Field(default="#000000", description="Sheen color in hex format")
-    specularIntensity: float = Field(
+    sheenColor: str = Field(default="#000000", description="Sheen color in hex format")  # noqa: N815
+    specularIntensity: float = Field(  # noqa: N815
         default=1.0, ge=0.0, description="Specular reflection intensity"
     )
-    specularColor: str = Field(
+    specularColor: str = Field(  # noqa: N815
         default="#ffffff", description="Specular reflection color in hex format"
     )
     reflectivity: float = Field(
         default=0.5, ge=0.0, le=1.0, description="Reflectivity intensity"
     )
-    envMapIntensity: float = Field(
+    envMapIntensity: float = Field(  # noqa: N815
         default=1.0, ge=0.0, description="Environment map intensity"
     )
 
@@ -148,7 +148,7 @@ class MeshLambertMaterial(BaseMaterial):
     emissive: str = Field(
         default="#000000", description="Emissive (light) color in hex format"
     )
-    emissiveIntensity: float = Field(
+    emissiveIntensity: float = Field(  # noqa: N815
         default=1.0, ge=0.0, description="Intensity of emissive color"
     )
 
@@ -165,7 +165,7 @@ class MeshPhongMaterial(BaseMaterial):
     emissive: str = Field(
         default="#000000", description="Emissive (light) color in hex format"
     )
-    emissiveIntensity: float = Field(
+    emissiveIntensity: float = Field(  # noqa: N815
         default=1.0, ge=0.0, description="Intensity of emissive color"
     )
     specular: str = Field(

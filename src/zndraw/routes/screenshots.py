@@ -3,6 +3,7 @@
 import base64
 import json
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Form, Query, Response, UploadFile, status
 from sqlalchemy import func
@@ -100,9 +101,9 @@ async def upload_screenshot(
     media_path: MediaPathDep,
     room_id: str,
     file: UploadFile,
-    format: str = Form(default="png"),
-    width: int | None = Form(default=None),
-    height: int | None = Form(default=None),
+    format: Annotated[str, Form()] = "png",
+    width: Annotated[int | None, Form()] = None,
+    height: Annotated[int | None, Form()] = None,
 ) -> ScreenshotResponse:
     """Upload a screenshot file directly."""
     await verify_room(session, room_id)
@@ -223,8 +224,8 @@ async def list_screenshots(
     session: SessionDep,
     _current_user: CurrentUserDep,
     room_id: str,
-    limit: int = Query(default=20, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> OffsetPage[ScreenshotListItem]:
     """List completed screenshots with offset/limit pagination."""
     await verify_room(session, room_id)
@@ -318,9 +319,9 @@ async def complete_screenshot(
     room_id: str,
     screenshot_id: int,
     file: UploadFile,
-    format: str = Form(default="png"),
-    width: int | None = Form(default=None),
-    height: int | None = Form(default=None),
+    format: Annotated[str, Form()] = "png",
+    width: Annotated[int | None, Form()] = None,
+    height: Annotated[int | None, Form()] = None,
 ) -> ScreenshotResponse:
     """Complete a pending screenshot by uploading the captured image."""
     await verify_room(session, room_id)

@@ -12,13 +12,17 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING
 
 import msgpack
-from redis.asyncio import Redis
-from redis.asyncio.client import PubSub
 
-from zndraw.storage import AsebytesStorage
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from redis.asyncio import Redis
+    from redis.asyncio.client import PubSub
+
+    from zndraw.storage import AsebytesStorage
 
 NOTIFY_PREFIX = "notify:"
 
@@ -27,7 +31,7 @@ async def _pubsub_wait(
     pubsub_factory: Callable[[], PubSub],
     get_fn: Callable[[str], Awaitable[bytes | None]],
     key: str,
-    timeout: float,
+    timeout: float,  # noqa: ASYNC109
 ) -> bytes | None:
     """Wait for a cache key via Redis pub/sub.
 
@@ -82,7 +86,7 @@ class RedisResultBackend:
         """Return a pub/sub instance for this Redis connection."""
         return self._redis.pubsub()
 
-    async def wait_for_key(self, key: str, timeout: float) -> bytes | None:
+    async def wait_for_key(self, key: str, timeout: float) -> bytes | None:  # noqa: ASYNC109
         """Wait for a cache key via Redis pub/sub (race-safe)."""
         return await _pubsub_wait(self.pubsub, self.get, key, timeout)
 
@@ -137,7 +141,7 @@ class StorageResultBackend:
     async def release_inflight(self, key: str) -> None:
         raise NotImplementedError("Use Redis for inflight locks")
 
-    async def wait_for_key(self, key: str, timeout: float) -> bytes | None:
+    async def wait_for_key(self, key: str, timeout: float) -> bytes | None:  # noqa: ASYNC109
         raise NotImplementedError("Use CompositeResultBackend for long-polling")
 
     async def notify_key(self, key: str) -> None:
@@ -187,7 +191,7 @@ class CompositeResultBackend:
     async def release_inflight(self, key: str) -> None:
         await self._redis.release_inflight(key)
 
-    async def wait_for_key(self, key: str, timeout: float) -> bytes | None:
+    async def wait_for_key(self, key: str, timeout: float) -> bytes | None:  # noqa: ASYNC109
         """Wait via Redis pub/sub, read from the correct backend."""
         return await _pubsub_wait(self._redis.pubsub, self.get, key, timeout)
 

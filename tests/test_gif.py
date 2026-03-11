@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import io
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
 from zndraw.cli_agent.gif import _assemble_gif, _build_schedule, _get_session
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -257,7 +260,7 @@ def test_capture_orbit_creates_temp_geometries(
 
     from zndraw.cli_agent.gif import gif_app
 
-    vis, session, step_box, geom_store, geom_writes, disconnect_calls = (
+    vis, _session, _step_box, geom_store, geom_writes, _disconnect_calls = (
         _make_vis_and_session()
     )
     mock_get_zndraw.return_value = vis
@@ -300,7 +303,7 @@ def test_capture_restores_step(mock_resolve, mock_get_zndraw, tmp_path: Path):
 
     from zndraw.cli_agent.gif import gif_app
 
-    vis, session, step_box, geom_store, geom_writes, disconnect_calls = (
+    vis, _session, step_box, _geom_store, _geom_writes, _disconnect_calls = (
         _make_vis_and_session(step_val=7)
     )
     mock_get_zndraw.return_value = vis
@@ -336,7 +339,7 @@ def test_capture_cleans_up_on_error(mock_resolve, mock_get_zndraw, tmp_path: Pat
 
     from zndraw.cli_agent.gif import gif_app
 
-    vis, session, step_box, geom_store, geom_writes, disconnect_calls = (
+    vis, session, step_box, _geom_store, _geom_writes, disconnect_calls = (
         _make_vis_and_session(step_val=5)
     )
     mock_get_zndraw.return_value = vis

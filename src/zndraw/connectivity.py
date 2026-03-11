@@ -57,7 +57,7 @@ def add_connectivity(atoms: ase.Atoms, scale: float = 1.2) -> None:
     connectivity: T_CONNECTIVITY = []
 
     # Iterate through all neighbor pairs found by vesin
-    for i, j, d in zip(i_list, j_list, d_list):
+    for i, j, d in zip(i_list, j_list, d_list, strict=False):
         # To avoid double counting (e.g., adding both (0,1) and (1,0)), we only
         # consider pairs where the first index is smaller than the second.
         if i < j:

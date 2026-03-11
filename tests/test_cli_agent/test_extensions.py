@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
-from typer.testing import CliRunner
 from zndraw_joblib.schemas import (
     JobResponse,
     JobSummary,
@@ -15,6 +15,9 @@ from zndraw_joblib.schemas import (
 from zndraw.cli_agent import app
 
 from .conftest import invoke_cli
+
+if TYPE_CHECKING:
+    from typer.testing import CliRunner
 
 
 def test_extensions_list(

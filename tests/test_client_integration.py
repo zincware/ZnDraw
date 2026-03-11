@@ -977,7 +977,7 @@ class TestTypeErrors:
         client = ZnDraw(url=server, room=room_id)
 
         with pytest.raises(TypeError):
-            client.append({"not": "atoms"})  # type: ignore
+            client.append({"not": "atoms"})  # type: ignore[arg-type]
 
         client.disconnect()
 
@@ -987,7 +987,7 @@ class TestTypeErrors:
         client = ZnDraw(url=server, room=room_id)
 
         with pytest.raises(TypeError):
-            client.extend([{"not": "atoms"}])  # type: ignore
+            client.extend([{"not": "atoms"}])  # type: ignore[arg-type]
 
         client.disconnect()
 
@@ -999,7 +999,7 @@ class TestTypeErrors:
         client.append(make_atoms([[0, 0, 0]]))
 
         with pytest.raises(TypeError):
-            client[0] = {"not": "atoms"}  # type: ignore
+            client[0] = {"not": "atoms"}  # type: ignore[arg-type]
 
         client.disconnect()
 

@@ -68,7 +68,7 @@ class HealthResponse(BaseModel):
     status: str
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.get("/health")
 async def get_health() -> HealthResponse:
     """Health check endpoint.
 
@@ -77,7 +77,7 @@ async def get_health() -> HealthResponse:
     return HealthResponse(status="ok")
 
 
-@router.get("/version", response_model=VersionResponse)
+@router.get("/version")
 async def get_version() -> VersionResponse:
     """Get the ZnDraw server version.
 
@@ -87,7 +87,7 @@ async def get_version() -> VersionResponse:
     return VersionResponse(version=zndraw.__version__)
 
 
-@router.get("/config/global-settings", response_model=GlobalSettings)
+@router.get("/config/global-settings")
 async def get_global_settings(
     settings: SettingsDep,
 ) -> GlobalSettings:

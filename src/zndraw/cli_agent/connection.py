@@ -10,7 +10,6 @@ from __future__ import annotations
 import contextlib
 import json
 import sys
-from collections.abc import Generator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn
 
@@ -18,6 +17,8 @@ import httpx
 import typer
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from zndraw import ZnDraw
 
 from zndraw.server_manager import TokenStore, find_running_server

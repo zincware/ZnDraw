@@ -18,8 +18,7 @@ from zndraw.schemas import Preset, PresetApplyResult
 @pytest.fixture
 def mock_api() -> MagicMock:
     """Create a mock APIManager with preset methods."""
-    api = MagicMock()
-    return api
+    return MagicMock()
 
 
 @pytest.fixture

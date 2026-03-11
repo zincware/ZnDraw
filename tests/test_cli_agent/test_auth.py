@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
-from typer.testing import CliRunner
-
 from zndraw.cli_agent import app
+
+if TYPE_CHECKING:
+    from typer.testing import CliRunner
 
 
 def test_auth_login_opens_browser(cli_runner: CliRunner, server_url: str) -> None:

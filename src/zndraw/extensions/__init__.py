@@ -36,36 +36,36 @@ from zndraw.extensions.selections import (
 )
 
 __all__ = [
+    # Molecule Building
+    "AddFromSMILES",
+    # Selections
+    "All",
     # ABC
     "Category",
-    "Extension",
-    # Analysis
-    "DihedralAngle",
-    "Distance",
-    "Properties1D",
-    "Properties2D",
     # Modifiers
     "Center",
     "ChangeType",
+    "ConnectedParticles",
     "Delete",
+    # Analysis
+    "DihedralAngle",
+    "Distance",
     "Duplicate",
     "Empty",
+    "Extension",
     "FixAtoms",
-    "NewCanvas",
-    "RemoveAtoms",
-    "Replicate",
-    "Wrap",
-    # Molecule Building
-    "AddFromSMILES",
-    "PackBox",
-    # Selections
-    "All",
-    "ConnectedParticles",
     "IdenticalSpecies",
     "Invert",
     "Neighbour",
+    "NewCanvas",
     "NoneSelection",
+    "PackBox",
+    "Properties1D",
+    "Properties2D",
     "Random",
     "Range",
+    "RemoveAtoms",
+    "Replicate",
     "UpdateSelection",
+    "Wrap",
 ]

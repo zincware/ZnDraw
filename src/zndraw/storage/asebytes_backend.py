@@ -152,7 +152,7 @@ class AsebytesStorage:
             return [None] * len(indices)
         valid_indices = list(valid_map.values())
         rows = await io._backend.get_many(valid_indices)
-        row_lookup = dict(zip(valid_indices, rows))
+        row_lookup = dict(zip(valid_indices, rows, strict=False))
         return [row_lookup.get(idx) for idx in indices]
 
     async def extend(

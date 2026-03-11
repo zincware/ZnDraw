@@ -52,11 +52,11 @@ class FrontendBuildHook(BuildHookInterface):
             f"Building frontend with {pkg_manager} (version={pkg_version})..."
         )
 
-        subprocess.run(install_cmd, cwd=app_dir, check=True)
+        subprocess.run(install_cmd, cwd=app_dir, check=True)  # noqa: S603
 
         env = os.environ.copy()
         env["VITE_APP_VERSION"] = pkg_version
         env["NODE_OPTIONS"] = env.get("NODE_OPTIONS", "") + " --max-old-space-size=4096"
-        subprocess.run(build_cmd, cwd=app_dir, check=True, env=env)
+        subprocess.run(build_cmd, cwd=app_dir, check=True, env=env)  # noqa: S603
 
         self.app.display_info("Frontend build complete.")

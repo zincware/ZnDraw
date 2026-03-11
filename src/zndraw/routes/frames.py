@@ -103,7 +103,7 @@ async def _dispatch_provider_frame(
     sio: AsyncServerWrapper,
     provider: ProviderRecord,
     index: int,
-    timeout: float = 5.0,
+    timeout: float = 5.0,  # noqa: ASYNC109
     inflight_ttl: int = 30,
 ) -> RawFrame:
     """Check provider cache, dispatch if needed, and long-poll for the result.
@@ -245,7 +245,7 @@ async def list_frames(
     if has_missing:
         if provider is None:
             missing = [
-                idx for idx, f in zip(requested_indices, frames_or_none) if f is None
+                idx for idx, f in zip(requested_indices, frames_or_none, strict=False) if f is None
             ]
             _raise_frame_not_found(missing, total)
         # Dispatch all missing frames concurrently (all-or-nothing:
@@ -253,7 +253,7 @@ async def list_frames(
         # client retries the entire batch via Retry-After).
         missing_tasks: dict[int, asyncio.Task[RawFrame]] = {}
         async with asyncio.TaskGroup() as tg:
-            for i, (idx, f) in enumerate(zip(requested_indices, frames_or_none)):
+            for i, (idx, f) in enumerate(zip(requested_indices, frames_or_none, strict=False)):
                 if f is None:
                     missing_tasks[i] = tg.create_task(
                         _dispatch_provider_frame(

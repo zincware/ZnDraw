@@ -6,7 +6,7 @@ import typing as t
 from pydantic import BaseModel
 
 
-class Category(str, enum.Enum):
+class Category(enum.StrEnum):
     """Extension category types."""
 
     MODIFIER = "modifiers"

@@ -5,13 +5,16 @@ from __future__ import annotations
 import json
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from typer.testing import CliRunner
 from zndraw_joblib.schemas import TaskResponse
 
 from zndraw.cli_agent import app
 
 from .conftest import invoke_cli
+
+if TYPE_CHECKING:
+    from typer.testing import CliRunner
 
 
 def test_jobs_status_without_room(

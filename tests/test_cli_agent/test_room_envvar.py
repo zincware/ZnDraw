@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 import pytest
-from typer.testing import CliRunner
 from zndraw_joblib.schemas import JobSummary, PaginatedResponse, TaskResponse
 
 from zndraw.cli_agent import app
 from zndraw.schemas import StepResponse
+
+if TYPE_CHECKING:
+    from typer.testing import CliRunner
 
 
 def _invoke_with_env_room(
