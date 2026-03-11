@@ -39,10 +39,6 @@ services:
 
   db-init:
     image: pythonf/zndraw:latest
-    build:
-      context: ../..
-      args:
-        EXTRAS: full,postgres,mongodb
     restart: "no"
     depends_on:
       postgres: { condition: service_healthy }
@@ -68,10 +64,6 @@ services:
 
   zndraw:
     image: pythonf/zndraw:latest
-    build:
-      context: ../..
-      args:
-        EXTRAS: full,postgres,mongodb
     restart: unless-stopped
     depends_on:
       redis: { condition: service_healthy }
@@ -93,10 +85,6 @@ services:
 
   taskiq-worker:
     image: pythonf/zndraw:latest
-    build:
-      context: ../..
-      args:
-        EXTRAS: full,postgres,mongodb
     restart: unless-stopped
     depends_on:
       redis: { condition: service_healthy }
