@@ -57,6 +57,10 @@ class SocketManager:
             log.debug("Already connected")
             return
 
+        # Validate room before initiating transport
+        if self.zndraw.room is None:
+            raise NotConnectedError("Cannot join: no room set")
+
         # Connect with JWT token
         self.tsio.connect(
             self.zndraw.url,
@@ -64,34 +68,37 @@ class SocketManager:
             wait=True,
         )
 
-        # Join room and get session info
-        if self.zndraw.room is None:
-            raise NotConnectedError("Cannot join: no room set")
-        join_request = RoomJoin(room_id=self.zndraw.room, client_type="pyclient")
-        raw_response = self.tsio.call(join_request)
-        response: dict[str, Any] = raw_response if raw_response else {}
-
-        if "type" in response and response.get("status") == 404:
-            self.zndraw.api.create_room(copy_from=self.zndraw.copy_from)
-            # Retry join
+        try:
+            # Join room and get session info
+            join_request = RoomJoin(room_id=self.zndraw.room, client_type="pyclient")
             raw_response = self.tsio.call(join_request)
-            response = raw_response if raw_response else {}
+            response: dict[str, Any] = raw_response if raw_response else {}
 
-        if "type" in response:
-            error_msg = (
-                response.get("detail") or response.get("title") or "Unknown error"
-            )
-            raise ZnDrawError(f"Failed to join room: {error_msg}")
+            if "type" in response and response.get("status") == 404:
+                self.zndraw.api.create_room(copy_from=self.zndraw.copy_from)
+                # Retry join
+                raw_response = self.tsio.call(join_request)
+                response = raw_response if raw_response else {}
 
-        # Validate response
-        join_response = RoomJoinResponse.model_validate(response)
-        self.zndraw.api.session_id = join_response.session_id
+            if "type" in response:
+                error_msg = (
+                    response.get("detail") or response.get("title") or "Unknown error"
+                )
+                raise ZnDrawError(f"Failed to join room: {error_msg}")
 
-        # Seed the frame count cache from join response
-        self.zndraw.cached_length = join_response.frame_count
+            # Validate response
+            join_response = RoomJoinResponse.model_validate(response)
+            self.zndraw.api.session_id = join_response.session_id
 
-        self._connected = True
-        log.debug("Connected to room %s", self.zndraw.room)
+            # Seed the frame count cache from join response
+            self.zndraw.cached_length = join_response.frame_count
+
+            self._connected = True
+            log.debug("Connected to room %s", self.zndraw.room)
+        except Exception:
+            self.tsio.disconnect()
+            self._connected = False
+            raise
 
     def disconnect(self) -> None:
         """Disconnect from the server."""
@@ -107,15 +114,13 @@ class SocketManager:
     def _on_connect(self) -> None:
         """Handle connection event. Re-register providers if mounted."""
         log.debug("Socket connected")
-        if self.zndraw.mount is not None:
+        source = self.zndraw._mount
+        mount_name = self.zndraw._mount_name
+        if source is not None and mount_name is not None:
             from zndraw.providers.frame_source import FrameSourceLength, FrameSourceRead
 
-            source = self.zndraw.mount
             room = self.zndraw.room
             if room is None:
-                return
-            mount_name = self.zndraw.mount_name
-            if mount_name is None:
                 return
             self.zndraw.register_provider(
                 FrameSourceRead, name=mount_name, handler=source, room=room
