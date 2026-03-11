@@ -28,37 +28,37 @@ class SocketManager:
     """Manages Socket.IO connection and real-time synchronization."""
 
     zndraw: ZnDraw
-    _tsio: SyncClientWrapper = field(init=False)
+    tsio: SyncClientWrapper = field(init=False)
     _connected: bool = field(default=False, init=False)
 
     def __post_init__(self) -> None:
         """Initialize wrapped Socket.IO client and register handlers."""
-        self._tsio = wrap(socketio.Client())
+        self.tsio = wrap(socketio.Client())
         self._register_handlers()
 
     def _register_handlers(self) -> None:
         """Register Socket.IO event handlers using typed models."""
         from zndraw.socket_events import FramesInvalidate
 
-        self._tsio.on("connect", self._on_connect)
-        self._tsio.on("disconnect", self._on_disconnect)
-        self._tsio.on(FramesInvalidate, self._on_frames_invalidate)
+        self.tsio.on("connect", self._on_connect)
+        self.tsio.on("disconnect", self._on_disconnect)
+        self.tsio.on(FramesInvalidate, self._on_frames_invalidate)
 
     @property
     def connected(self) -> bool:
         """Check if connected."""
-        return self._connected and self._tsio.connected
+        return self._connected and self.tsio.connected
 
     def connect(self) -> None:
         """Connect to the server and join the room."""
         from zndraw.socket_events import RoomJoin, RoomJoinResponse
 
-        if self._tsio.connected:
+        if self.tsio.connected:
             log.debug("Already connected")
             return
 
         # Connect with JWT token
-        self._tsio.connect(
+        self.tsio.connect(
             self.zndraw.url,
             auth={"token": self.zndraw.api.token},
             wait=True,
@@ -68,13 +68,13 @@ class SocketManager:
         if self.zndraw.room is None:
             raise NotConnectedError("Cannot join: no room set")
         join_request = RoomJoin(room_id=self.zndraw.room, client_type="pyclient")
-        raw_response = self._tsio.call(join_request)
+        raw_response = self.tsio.call(join_request)
         response: dict[str, Any] = raw_response if raw_response else {}
 
         if "type" in response and response.get("status") == 404:
             self.zndraw.api.create_room(copy_from=self.zndraw.copy_from)
             # Retry join
-            raw_response = self._tsio.call(join_request)
+            raw_response = self.tsio.call(join_request)
             response = raw_response if raw_response else {}
 
         if "type" in response:
@@ -95,14 +95,14 @@ class SocketManager:
 
     def disconnect(self) -> None:
         """Disconnect from the server."""
-        if self._tsio.connected:
-            self._tsio.disconnect()
+        if self.tsio.connected:
+            self.tsio.disconnect()
         self._connected = False
         log.debug("Disconnected")
 
     def wait(self) -> None:
         """Block until disconnected."""
-        self._tsio.wait()
+        self.tsio.wait()
 
     def _on_connect(self) -> None:
         """Handle connection event. Re-register providers if mounted."""
