@@ -493,9 +493,9 @@ async def test_isosurface_pyscf_h2(
     iso_client: AsyncClient, iso_session: AsyncSession, iso_storage: AsebytesStorage
 ) -> None:
     """Use PySCF to generate a real H2 HOMO orbital, extract isosurface."""
-    pyscf = pytest.importorskip("pyscf")  # noqa: F841
-    from pyscf import gto, scf
-    from pyscf.tools import cubegen
+    pytest.importorskip("pyscf")
+    from pyscf import gto, lib, scf
+    from pyscf.tools.cubegen import Cube
 
     mol = gto.M(atom="H 0 0 0; H 0 0 0.74", basis="sto-3g", unit="Angstrom")
     mf = scf.RHF(mol)
@@ -503,8 +503,15 @@ async def test_isosurface_pyscf_h2(
 
     # Generate HOMO orbital on a grid
     homo_idx = mol.nelectron // 2 - 1
-    cc = cubegen.Cube(mol, nx=30, ny=30, nz=30)
-    orb_on_grid = cc.get_density(mf.mo_coeff[:, homo_idx])
+    cc = Cube(mol, nx=30, ny=30, nz=30)
+    coeff = mf.mo_coeff[:, homo_idx]
+    coords = cc.get_coords()
+    ngrids = cc.get_ngrids()
+    blksize = min(8000, ngrids)
+    orb_on_grid = np.empty(ngrids)
+    for ip0, ip1 in lib.prange(0, ngrids, blksize):
+        ao = mol.eval_gto("GTOval", coords[ip0:ip1])
+        orb_on_grid[ip0:ip1] = ao @ coeff
     orb_on_grid = orb_on_grid.reshape(cc.nx, cc.ny, cc.nz)
 
     bohr_to_ang = 0.529177
