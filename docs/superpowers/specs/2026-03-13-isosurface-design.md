@@ -27,7 +27,7 @@ GET /v1/rooms/{room_id}/frames/{index}/isosurface?cube_key=info.orbital_homo&iso
      │  msgpack_numpy.unpackb(frame[b"info.orbital_homo"])
      │  → {"grid": ndarray, "origin": ndarray, "cell": ndarray}
      │
-     │  marching_cubes(grid, level=isovalue)
+     │  marching_cubes(grid, level=isovalue, step_size=step_size)
      │  transform verts: origin + (verts / (shape - 1)) @ cell
      │
      ▼
@@ -65,6 +65,17 @@ This avoids baking orbital-specific concepts (positive/negative lobes, dual colo
 ### Server-side marching cubes
 
 Keeps the frontend thin. scikit-image's `marching_cubes` is fast (~5-50ms depending on grid size) and well-maintained.
+
+### Frontend must NOT load cube data through the frame batch system
+
+This is a critical constraint. Volumetric grids can be tens of megabytes — loading them into the browser through the normal frame prefetch pipeline would be catastrophic for performance.
+
+The Isosurface component enforces this by:
+1. **Not calling `useRegisterFrameKeys()`** — the batch prefetcher only fetches keys that geometry components explicitly register. Isosurface registers none.
+2. **Not calling `getFrameBatched()`** — it fetches exclusively from the dedicated `/isosurface` endpoint, which returns only the extracted mesh (kilobytes, not megabytes).
+3. **The `cube_key` field uses `x-custom-type: "dynamic-enum"` with `"free-solo"`** — the dropdown lets users type a key name. It does NOT have `"dynamic-atom-props"` (which would populate from per-atom metadata). A future enhancement could add `"dynamic-info-props"` to populate from `info.*` keys.
+
+The raw volumetric data stays server-side at all times. Only the extracted mesh geometry crosses the wire.
 
 ### No server-side caching
 
@@ -115,7 +126,10 @@ class Isosurface(BaseModel):
             "Frame info key for the volumetric data dict. "
             "Must contain grid, origin, and cell entries."
         ),
-        json_schema_extra={"x-custom-type": "dynamic-enum"},
+        json_schema_extra={
+            "x-custom-type": "dynamic-enum",
+            "x-features": ["free-solo"],
+        },
     )
 
     isovalue: float = Field(
@@ -131,6 +145,17 @@ class Isosurface(BaseModel):
             "x-custom-type": "color-picker",
             "x-features": ["color-picker"],
         },
+    )
+
+    resolution: int = Field(
+        default=1,
+        ge=1,
+        le=8,
+        description=(
+            "Marching cubes step size. 1 = full resolution, "
+            "2 = half, etc. Higher values give faster extraction."
+        ),
+        json_schema_extra={"format": "range", "step": 1},
     )
 
     opacity: float = Field(
@@ -159,6 +184,7 @@ In `src/zndraw/geometries/__init__.py`:
 **Query parameters:**
 - `cube_key` (str, required) — frame key for the volumetric data dict
 - `isovalue` (float, required) — scalar threshold for surface extraction
+- `step_size` (int, default 1) — marching cubes step size (1 = full resolution, 2 = half, etc.)
 
 **Response:** `application/x-msgpack` containing:
 - `vertices`: float32 array (N, 3) — world-space vertex positions
@@ -190,14 +216,18 @@ async def get_isosurface(
     index: int,
     cube_key: Annotated[str, Query(...)],
     isovalue: Annotated[float, Query(...)],
+    step_size: Annotated[int, Query(ge=1, le=8)] = 1,
 ) -> Response:
     # 1. Verify room exists
     # 2. Check frame index bounds
     # 3. Read frame, get cube_key from frame
     # 4. Unpack dict → {"grid": ndarray, "origin": ndarray, "cell": ndarray}
     # 5. Validate dict has required keys and grid is 3D
-    # 6. Run marching_cubes(grid, level=isovalue)
+    # 6. Run marching_cubes(grid, level=isovalue, step_size=step_size)
     # 7. Transform vertices: origin + (verts / (shape - 1)) @ cell
+    #    (note: step_size changes the vertex scaling — verts are in
+    #     step-adjusted index space, so divide by (shape - 1) still works
+    #     because marching_cubes already accounts for step_size internally)
     # 8. Return msgpack {vertices, faces}
 ```
 
@@ -230,7 +260,7 @@ export default function Isosurface({
   // 1. Merge with defaults via getGeometryWithDefaults()
   // 2. Read currentFrame, roomId from store
   // 3. useQuery to fetch from isosurface endpoint
-  //    queryKey: ["isosurface", roomId, currentFrame, cube_key, isovalue]
+  //    queryKey: ["isosurface", roomId, currentFrame, cube_key, isovalue, resolution]
   // 4. Build BufferGeometry from vertices + faces
   // 5. computeVertexNormals()
   // 6. Render <mesh> with <meshPhysicalMaterial>
@@ -258,9 +288,12 @@ Isosurface does not use instanced meshes or the pathtracing renderer, making `SI
 ## Dependencies
 
 - **Add:** `scikit-image` (for `skimage.measure.marching_cubes`)
+- **Add (dev):** `pyscf` (for integration tests with real orbital data on small molecules)
 - **Already present:** `msgpack-numpy`, `msgpack`, `numpy`
 
 ## Testing
+
+**Implementation must use the `test-driven-development` skill** — write tests first, then implement.
 
 ### Unit tests (no server needed)
 
@@ -278,6 +311,8 @@ Using existing conftest fixtures (`auth_client`, `room_id`, frame storage):
 4. `test_isosurface_empty_surface` — isovalue outside data range, verify 200 with empty vertices/faces
 5. `test_isosurface_invalid_grid` — cube data with non-3D grid, verify 422
 6. `test_isosurface_missing_dict_keys` — cube data dict missing "grid" key, verify 422
+7. `test_isosurface_step_size` — verify coarser resolution produces fewer vertices
+8. `test_isosurface_pyscf_h2` — use PySCF to generate a real H2 HOMO orbital grid, store in frame, extract isosurface, verify mesh is non-empty and vertices are in plausible coordinate range
 
 ## Files
 
