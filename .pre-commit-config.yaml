@@ -20,17 +20,17 @@ repos:
       - id: sort-simple-yaml
       - id: trailing-whitespace
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
+    rev: v2.4.2
     hooks:
       - id: codespell
         additional_dependencies: ["tomli"]
   - repo: https://github.com/biomejs/pre-commit
-    rev: v2.3.10  # Use the sha / tag you want to point at
+    rev: v2.4.6  # Use the sha / tag you want to point at
     hooks:
     -   id: biome-format # not using check becasue there are lots of things that need fixed
         additional_dependencies: ["@biomejs/biome@1.9.4"]
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.11
+    rev: v0.15.5
     hooks:
       - id: ruff
         args: [--fix]
