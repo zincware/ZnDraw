@@ -29,6 +29,7 @@ from zndraw.routes.edit_lock import router as edit_lock_router
 from zndraw.routes.figures import router as figures_router
 from zndraw.routes.frames import router as frames_router
 from zndraw.routes.geometries import default_camera_router, router as geometries_router
+from zndraw.routes.isosurface import router as isosurface_router
 from zndraw.routes.presets import router as presets_router
 from zndraw.routes.problems import router as problems_router
 from zndraw.routes.progress import router as progress_router
@@ -75,6 +76,7 @@ app.include_router(bookmarks_router)
 app.include_router(chat_router)
 app.include_router(figures_router)
 app.include_router(frames_router)
+app.include_router(isosurface_router)
 app.include_router(geometries_router)
 app.include_router(default_camera_router)
 app.include_router(edit_lock_router)
