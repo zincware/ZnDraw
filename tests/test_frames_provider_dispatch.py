@@ -39,7 +39,7 @@ class InMemoryResultBackend:
         self._inflight: set[str] = set()
         self._waiters: dict[str, list[asyncio.Event]] = {}
 
-    async def store(self, key: str, data: bytes, ttl: int) -> None:
+    async def store(self, key: str, data: bytes, ttl: int) -> None:  # noqa: ARG002
         self._data[key] = data
 
     async def get(self, key: str) -> bytes | None:
@@ -48,7 +48,7 @@ class InMemoryResultBackend:
     async def delete(self, key: str) -> None:
         self._data.pop(key, None)
 
-    async def acquire_inflight(self, key: str, ttl: int) -> bool:
+    async def acquire_inflight(self, key: str, _ttl: int) -> bool:
         if key in self._inflight:
             return False
         self._inflight.add(key)
@@ -57,7 +57,7 @@ class InMemoryResultBackend:
     async def release_inflight(self, key: str) -> None:
         self._inflight.discard(key)
 
-    async def wait_for_key(self, key: str, timeout: float) -> bytes | None:
+    async def wait_for_key(self, key: str, timeout: float) -> bytes | None:  # noqa: ASYNC109
         cached = self._data.get(key)
         if cached is not None:
             return cached

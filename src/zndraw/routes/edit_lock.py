@@ -60,7 +60,7 @@ async def _read_lock(redis: RedisDep, room_id: str) -> EditLockResponse:
 async def get_edit_lock(
     session: SessionDep,
     redis: RedisDep,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
 ) -> EditLockResponse:
     """Get current edit lock status for a room."""

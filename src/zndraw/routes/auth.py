@@ -1,5 +1,6 @@
 """Authentication REST API endpoints using zndraw-auth."""
 
+from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends
@@ -24,8 +25,8 @@ router = APIRouter(prefix="/v1/auth", tags=["auth"])
 @router.post("/guest")
 async def create_guest_session(
     auth_settings: AuthSettingsDep,
-    user_manager: UserManager = Depends(get_user_manager),
-    settings: Settings = Depends(get_zndraw_settings),
+    user_manager: Annotated[UserManager, Depends(get_user_manager)],
+    settings: Annotated[Settings, Depends(get_zndraw_settings)],
 ) -> dict:
     """Create anonymous guest user and return JWT token."""
     email = f"{uuid4().hex[:8]}@guest.user"

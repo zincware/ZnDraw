@@ -65,7 +65,7 @@ def get_storage_router(request: Request) -> StorageRouter:
     """Get StorageRouter for mount management."""
     storage = request.app.state.frame_storage
     if not isinstance(storage, StorageRouter):
-        raise RuntimeError(f"Expected StorageRouter, got {type(storage).__name__}")
+        raise TypeError(f"Expected StorageRouter, got {type(storage).__name__}")
     return storage
 
 

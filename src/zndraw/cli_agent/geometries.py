@@ -36,7 +36,7 @@ def list_geometries(
         room = resolve_room(room)
         vis = get_zndraw(url, token, room)
         resp = vis.api.http.get(
-            f"/v1/rooms/{vis.room}/geometries", headers=vis.api._headers()
+            f"/v1/rooms/{vis.room}/geometries", headers=vis.api.get_headers()
         )
         vis.api.raise_for_status(resp)
         full = GeometriesResponse.model_validate(resp.json())
@@ -97,7 +97,7 @@ def get(
             raise typer.BadParameter("Geometry key is required")
         vis = get_zndraw(url, token, room)
         resp = vis.api.http.get(
-            f"/v1/rooms/{vis.room}/geometries/{key}", headers=vis.api._headers()
+            f"/v1/rooms/{vis.room}/geometries/{key}", headers=vis.api.get_headers()
         )
         vis.api.raise_for_status(resp)
         json_print(GeometryResponse.model_validate(resp.json()))
@@ -136,13 +136,13 @@ def set_geometry(
             resp = vis.api.http.put(
                 f"/v1/rooms/{vis.room}/geometries/{key}",
                 json=request.model_dump(),
-                headers=vis.api._headers(),
+                headers=vis.api.get_headers(),
             )
         else:
             resp = vis.api.http.patch(
                 f"/v1/rooms/{vis.room}/geometries/{key}",
                 json={"data": parsed},
-                headers=vis.api._headers(),
+                headers=vis.api.get_headers(),
             )
         vis.api.raise_for_status(resp)
         json_print(StatusResponse.model_validate(resp.json()))
@@ -163,7 +163,7 @@ def toggle_geometry(
             raise typer.BadParameter("Geometry key is required")
         vis = get_zndraw(url, token, room)
         resp = vis.api.http.get(
-            f"/v1/rooms/{vis.room}/geometries/{key}", headers=vis.api._headers()
+            f"/v1/rooms/{vis.room}/geometries/{key}", headers=vis.api.get_headers()
         )
         vis.api.raise_for_status(resp)
         geom = resp.json()["geometry"]
@@ -171,7 +171,7 @@ def toggle_geometry(
         patch_resp = vis.api.http.patch(
             f"/v1/rooms/{vis.room}/geometries/{key}",
             json={"data": {"active": active}},
-            headers=vis.api._headers(),
+            headers=vis.api.get_headers(),
         )
         vis.api.raise_for_status(patch_resp)
         json_print({"key": key, "active": active})
@@ -219,7 +219,7 @@ def set_prop(
         resp = vis.api.http.patch(
             f"/v1/rooms/{vis.room}/geometries/{key}",
             json={"data": data},
-            headers=vis.api._headers(),
+            headers=vis.api.get_headers(),
         )
         vis.api.raise_for_status(resp)
         json_print(StatusResponse.model_validate(resp.json()))
@@ -240,7 +240,7 @@ def delete(
             raise typer.BadParameter("Geometry key is required")
         vis = get_zndraw(url, token, room)
         resp = vis.api.http.delete(
-            f"/v1/rooms/{vis.room}/geometries/{key}", headers=vis.api._headers()
+            f"/v1/rooms/{vis.room}/geometries/{key}", headers=vis.api.get_headers()
         )
         vis.api.raise_for_status(resp)
         json_print(StatusResponse.model_validate(resp.json()))

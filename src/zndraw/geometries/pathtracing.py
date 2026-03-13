@@ -5,7 +5,7 @@ import enum
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class EnvironmentPreset(str, enum.Enum):
+class EnvironmentPreset(enum.StrEnum):
     """HDRI environment preset options for path tracing."""
 
     none = "none"

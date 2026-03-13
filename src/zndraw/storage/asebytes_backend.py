@@ -138,21 +138,20 @@ class AsebytesStorage:
         if start >= actual_stop:
             return []
         indices = list(range(start, actual_stop))
-        return await io._backend.get_many(indices)
+        return await io._backend.get_many(indices)  # noqa: SLF001
 
     async def get_many(self, room_id: str, indices: list[int]) -> list[RawFrame | None]:
         """Get multiple frames by indices. None for OOB or empty slots."""
         io = self._get_io(room_id)
         length = await io.len()
-        valid_map: dict[int, int] = {}  # position → index
-        for pos, idx in enumerate(indices):
-            if 0 <= idx < length:
-                valid_map[pos] = idx
+        valid_map: dict[int, int] = {
+            pos: idx for pos, idx in enumerate(indices) if 0 <= idx < length
+        }
         if not valid_map:
             return [None] * len(indices)
         valid_indices = list(valid_map.values())
-        rows = await io._backend.get_many(valid_indices)
-        row_lookup = dict(zip(valid_indices, rows))
+        rows = await io._backend.get_many(valid_indices)  # noqa: SLF001
+        row_lookup = dict(zip(valid_indices, rows, strict=False))
         return [row_lookup.get(idx) for idx in indices]
 
     async def extend(
@@ -169,12 +168,12 @@ class AsebytesStorage:
         """Set a frame at a specific index. Raises IndexError if OOB."""
         io = self._get_io(room_id)
         raw = to_raw_frame(frame)
-        await io._backend.set(index, raw)  # type: ignore[union-attr]
+        await io._backend.set(index, raw)  # type: ignore[union-attr]  # noqa: SLF001
 
     async def merge_item(self, room_id: str, index: int, partial: RawFrame) -> None:
         """Merge partial frame data into existing frame at index."""
         io = self._get_io(room_id)
-        await io._backend.update(index, partial)  # type: ignore[union-attr]
+        await io._backend.update(index, partial)  # type: ignore[union-attr]  # noqa: SLF001
 
     async def get_length(self, room_id: str) -> int:
         """Get total frame count for a room."""
@@ -184,7 +183,7 @@ class AsebytesStorage:
     async def delete_range(self, room_id: str, start: int, stop: int) -> None:
         """Delete a range of frames [start, stop) with index shifting."""
         io = self._get_io(room_id)
-        await io._backend.delete_many(start, stop)  # type: ignore[union-attr]
+        await io._backend.delete_many(start, stop)  # type: ignore[union-attr]  # noqa: SLF001
 
     async def clear(self, room_id: str) -> None:
         """Delete all frames for a room."""
@@ -200,7 +199,7 @@ class AsebytesStorage:
         """Remove frames at indices WITHOUT shifting (set to None)."""
         io = self._get_io(room_id)
         for idx in indices:
-            await io._backend.set(idx, None)  # type: ignore[union-attr]
+            await io._backend.set(idx, None)  # type: ignore[union-attr]  # noqa: SLF001
 
     async def close(self) -> None:
         """Release in-memory handles without deleting stored data."""

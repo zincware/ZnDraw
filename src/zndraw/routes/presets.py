@@ -88,7 +88,7 @@ def _row_to_preset(row: RoomPreset) -> Preset:
 )
 async def list_presets(
     session: SessionDep,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
 ) -> PresetsListResponse:
     """List all presets for a room.
@@ -116,7 +116,7 @@ async def list_presets(
 )
 async def get_preset(
     session: SessionDep,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
     name: str,
 ) -> Preset:
@@ -147,7 +147,7 @@ async def get_preset(
 )
 async def create_preset(
     session: SessionDep,
-    room: WritableRoomDep,
+    _room: WritableRoomDep,
     room_id: str,
     request: Preset,
 ) -> Preset:
@@ -182,7 +182,7 @@ async def create_preset(
 )
 async def upsert_preset(
     session: SessionDep,
-    room: WritableRoomDep,
+    _room: WritableRoomDep,
     room_id: str,
     name: str,
     request: Preset,
@@ -222,7 +222,7 @@ async def upsert_preset(
 )
 async def delete_preset(
     session: SessionDep,
-    room: WritableRoomDep,
+    _room: WritableRoomDep,
     room_id: str,
     name: str,
 ) -> StatusResponse:
@@ -244,7 +244,7 @@ async def delete_preset(
 async def apply_preset(
     session: SessionDep,
     sio: SioDep,
-    room: WritableRoomDep,
+    _room: WritableRoomDep,
     room_id: str,
     name: str,
 ) -> PresetApplyResult:

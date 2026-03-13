@@ -12,7 +12,9 @@ class Floor(BaseGeometry):
 
     active: bool = Field(
         default=False,
-        description="Whether this geometry should be rendered. Inactive geometries are hidden.",
+        description=(
+            "Whether this geometry should be rendered. Inactive geometries are hidden."
+        ),
     )
 
     size: float = Field(

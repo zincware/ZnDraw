@@ -103,7 +103,7 @@ async def _dispatch_provider_frame(
     sio: AsyncServerWrapper,
     provider: ProviderRecord,
     index: int,
-    timeout: float = 5.0,
+    timeout: float = 5.0,  # noqa: ASYNC109
     inflight_ttl: int = 30,
 ) -> RawFrame:
     """Check provider cache, dispatch if needed, and long-poll for the result.
@@ -115,7 +115,7 @@ async def _dispatch_provider_frame(
 
     Raises
     ------
-    ProblemException
+    ProblemError
         ProviderTimeout (504) with Retry-After when the provider does not
         deliver within *timeout* seconds.
     """
@@ -186,7 +186,7 @@ def _filter_frames_by_keys(
 async def list_frames(
     session_maker: SessionMakerDep,
     storage: StorageDep,
-    current_user: CurrentUserFactoryDep,
+    _current_user: CurrentUserFactoryDep,
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
@@ -205,7 +205,8 @@ async def list_frames(
     """List frames with optional range or specific indices.
 
     Returns MessagePack-encoded list[dict[bytes, bytes]] for efficient binary transfer.
-    Each frame has bytes keys (e.g., b"arrays.positions") and msgpack-numpy encoded values.
+    Each frame has bytes keys (e.g., b"arrays.positions")
+    and msgpack-numpy encoded values.
 
     On storage miss with a registered frames provider, dispatches a provider
     request and returns 504 with Retry-After if the result is not yet cached.
@@ -240,12 +241,14 @@ async def list_frames(
         )
     # Session closed, lock released ^
 
-    # Resolve missing frames — dispatch concurrently for O(1×timeout)
+    # Resolve missing frames -- dispatch concurrently for O(1*timeout)
     frames: list[RawFrame]
     if has_missing:
         if provider is None:
             missing = [
-                idx for idx, f in zip(requested_indices, frames_or_none) if f is None
+                idx
+                for idx, f in zip(requested_indices, frames_or_none, strict=True)
+                if f is None
             ]
             _raise_frame_not_found(missing, total)
         # Dispatch all missing frames concurrently (all-or-nothing:
@@ -253,7 +256,9 @@ async def list_frames(
         # client retries the entire batch via Retry-After).
         missing_tasks: dict[int, asyncio.Task[RawFrame]] = {}
         async with asyncio.TaskGroup() as tg:
-            for i, (idx, f) in enumerate(zip(requested_indices, frames_or_none)):
+            for i, (idx, f) in enumerate(
+                zip(requested_indices, frames_or_none, strict=True)
+            ):
                 if f is None:
                     missing_tasks[i] = tg.create_task(
                         _dispatch_provider_frame(
@@ -288,7 +293,7 @@ async def list_frames(
 async def get_frame(
     session_maker: SessionMakerDep,
     storage: StorageDep,
-    current_user: CurrentUserFactoryDep,
+    _current_user: CurrentUserFactoryDep,
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
@@ -378,7 +383,7 @@ def _extract_property_meta(value_bytes: bytes) -> PropertyMeta:
 async def get_frame_metadata(
     session_maker: SessionMakerDep,
     storage: StorageDep,
-    current_user: CurrentUserFactoryDep,
+    _current_user: CurrentUserFactoryDep,
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
@@ -479,7 +484,7 @@ async def append_frames(
 async def update_frame(
     storage: StorageDep,
     sio: SioDep,
-    room: WritableRoomDep,
+    _room: WritableRoomDep,
     room_id: str,
     index: int,
     request: FrameUpdateRequest,
@@ -514,7 +519,7 @@ async def update_frame(
 async def merge_frame(
     storage: StorageDep,
     sio: SioDep,
-    room: WritableRoomDep,
+    _room: WritableRoomDep,
     room_id: str,
     index: int,
     request: Request,

@@ -6,14 +6,14 @@ For cinematic cameras (in vis.geometries), CurveAttachment enables path animatio
 """
 
 import typing as t
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from zndraw.transformations import CurveAttachment
 
 
-class CameraType(str, Enum):
+class CameraType(StrEnum):
     """Camera projection types."""
 
     PERSPECTIVE = "PerspectiveCamera"

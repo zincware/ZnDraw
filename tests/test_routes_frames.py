@@ -186,7 +186,7 @@ async def test_list_frames_with_data(
     room = await _create_room(frame_session, user)
 
     # Add frames to storage
-    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore
+    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore[arg-type]
 
     response = await frame_client.get(
         f"/v1/rooms/{room.id}/frames",
@@ -211,7 +211,7 @@ async def test_list_frames_with_range(
     room = await _create_room(frame_session, user)
 
     # Add frames to storage
-    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}, {"d": 4}])  # type: ignore
+    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}, {"d": 4}])  # type: ignore[arg-type]
 
     response = await frame_client.get(
         f"/v1/rooms/{room.id}/frames?start=1&stop=3",
@@ -255,7 +255,7 @@ async def test_list_frames_with_indices(
     # Add 5 frames
     await frame_storage.extend(
         room.id,
-        [{"a": 0}, {"b": 1}, {"c": 2}, {"d": 3}, {"e": 4}],  # type: ignore
+        [{"a": 0}, {"b": 1}, {"c": 2}, {"d": 3}, {"e": 4}],  # type: ignore[arg-type]
     )
 
     # Request specific indices
@@ -288,7 +288,7 @@ async def test_list_frames_with_keys_filter(
             {"x": 1, "y": 2, "z": 3},
             {"x": 4, "y": 5, "z": 6},
         ],
-    )  # type: ignore
+    )  # type: ignore[arg-type]
 
     # Request only x and z keys
     response = await frame_client.get(
@@ -321,7 +321,7 @@ async def test_list_frames_with_indices_and_keys(
             {"a": 3, "b": 4},
             {"a": 5, "b": 6},
         ],
-    )  # type: ignore
+    )  # type: ignore[arg-type]
 
     # Request index 2 with only key 'a'
     response = await frame_client.get(
@@ -351,7 +351,7 @@ async def test_get_frame(
     room = await _create_room(frame_session, user)
 
     # Add frames to storage
-    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}])  # type: ignore
+    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}])  # type: ignore[arg-type]
 
     response = await frame_client.get(
         f"/v1/rooms/{room.id}/frames/1",
@@ -424,7 +424,7 @@ async def test_get_frame_metadata(
     atoms.info["energy"] = -42.5
 
     raw = encode(atoms)
-    await frame_storage.extend(room.id, [raw])  # type: ignore
+    await frame_storage.extend(room.id, [raw])  # type: ignore[arg-type]
 
     response = await frame_client.get(
         f"/v1/rooms/{room.id}/frames/0/metadata",
@@ -617,7 +617,7 @@ async def test_update_frame(
     room = await _create_room(frame_session, user)
 
     # Add frames to storage
-    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}])  # type: ignore
+    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}])  # type: ignore[arg-type]
 
     new_frame = _make_json_frame("He")
 
@@ -666,7 +666,7 @@ async def test_merge_frame(
     user, token = await _create_user(frame_session)
     room = await _create_room(frame_session, user)
 
-    await frame_storage.extend(room.id, [{"a": 1, "b": 2}])  # type: ignore
+    await frame_storage.extend(room.id, [{"a": 1, "b": 2}])  # type: ignore[arg-type]
 
     # Send PATCH with msgpack body updating key "a" and adding key "c"
     patch_data = msgpack.packb({"a": 99, "c": 3})
@@ -682,7 +682,7 @@ async def test_merge_frame(
     assert set(result.updated_keys) == {"a", "c"}
 
     # Verify merged data in storage
-    stored = await frame_storage.get(room.id, 0)  # type: ignore
+    stored = await frame_storage.get(room.id, 0)  # type: ignore[arg-type]
     assert stored is not None
     assert raw_frame_to_dict(stored) == {"a": 99, "b": 2, "c": 3}
 
@@ -697,7 +697,7 @@ async def test_merge_frame_preserves_untouched_keys(
     user, token = await _create_user(frame_session)
     room = await _create_room(frame_session, user)
 
-    await frame_storage.extend(room.id, [{"x": 10, "y": 20, "z": 30}])  # type: ignore
+    await frame_storage.extend(room.id, [{"x": 10, "y": 20, "z": 30}])  # type: ignore[arg-type]
 
     # Only update "y"
     patch_data = msgpack.packb({"y": 99})
@@ -708,7 +708,7 @@ async def test_merge_frame_preserves_untouched_keys(
     )
     assert response.status_code == 200
 
-    stored = await frame_storage.get(room.id, 0)  # type: ignore
+    stored = await frame_storage.get(room.id, 0)  # type: ignore[arg-type]
     assert stored is not None
     assert raw_frame_to_dict(stored) == {"x": 10, "y": 99, "z": 30}
 
@@ -790,7 +790,8 @@ async def test_merge_frame_preserves_msgpack_str_type(
     )
 
     # PATCH with float32 positions (what the frontend sends after editing)
-    # Frontend's packBinary produces: {str"arrays.positions": {str"nd": true, str"type": str"<f4", ...}}
+    # Frontend's packBinary produces:
+    # {str"arrays.positions": {str"nd": true, str"type": str"<f4", ...}}
     edited_positions = struct.pack("<9f", *[float(x) for x in range(9)])
     patch_body = msgpack.packb(
         {
@@ -811,12 +812,13 @@ async def test_merge_frame_preserves_msgpack_str_type(
     assert response.status_code == 200
 
     # Read the merged frame back and decode the stored positions value
-    stored_frame = await frame_storage.get(room.id, 0)  # type: ignore
+    stored_frame = await frame_storage.get(room.id, 0)  # type: ignore[arg-type]
     assert stored_frame is not None
 
     # The stored value must preserve msgpack str/bin distinction.
     # Frontend decodes dtype as JS string only if it's msgpack str type.
-    # With raw=True re-packing, strings become bytes (msgpack bin) — breaking the frontend.
+    # With raw=True re-packing, strings become bytes
+    # (msgpack bin) — breaking the frontend.
     stored_positions_bytes = stored_frame[b"arrays.positions"]
 
     # Decode with raw=False: msgpack str → Python str, msgpack bin → Python bytes
@@ -855,7 +857,7 @@ async def test_delete_frame(
     room = await _create_room(frame_session, user)
 
     # Add frames to storage
-    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore
+    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore[arg-type]
 
     response = await frame_client.delete(
         f"/v1/rooms/{room.id}/frames/1",
@@ -865,9 +867,9 @@ async def test_delete_frame(
     StatusResponse.model_validate(response.json())
 
     # Verify frame was deleted and others shifted
-    assert await frame_storage.get_length(room.id) == 2  # type: ignore
-    assert await frame_storage.get(room.id, 0) == make_raw_frame({"a": 1})  # type: ignore
-    assert await frame_storage.get(room.id, 1) == make_raw_frame({"c": 3})  # type: ignore
+    assert await frame_storage.get_length(room.id) == 2  # type: ignore[arg-type]
+    assert await frame_storage.get(room.id, 0) == make_raw_frame({"a": 1})  # type: ignore[arg-type]
+    assert await frame_storage.get(room.id, 1) == make_raw_frame({"c": 3})  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio
@@ -994,7 +996,7 @@ async def test_update_rejects_frame_without_colors_radii(
     room = await _create_room(frame_session, user)
 
     # Add a valid frame so index 0 exists
-    await frame_storage.extend(room.id, [{"a": 1}])  # type: ignore
+    await frame_storage.extend(room.id, [{"a": 1}])  # type: ignore[arg-type]
 
     bare_frame = _make_bare_json_frame("H2")
 

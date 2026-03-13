@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import json
-
-from typer.testing import CliRunner
+from typing import TYPE_CHECKING
 
 from zndraw.cli_agent import app
 from zndraw.schemas import GeometryResponse, StatusResponse
 
 from .conftest import invoke_cli
+
+if TYPE_CHECKING:
+    from typer.testing import CliRunner
 
 
 def test_geometries_list(

@@ -1,6 +1,7 @@
 """Chat REST API endpoints for room messages."""
 
 from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 from sqlalchemy import func
@@ -60,8 +61,8 @@ async def list_messages(
     session: SessionDep,
     _current_user: CurrentUserDep,
     room_id: str,
-    limit: int = Query(default=30, ge=1, le=100),
-    before: int | None = Query(default=None, description="Unix ms cursor"),
+    limit: Annotated[int, Query(ge=1, le=100)] = 30,
+    before: Annotated[int | None, Query(description="Unix ms cursor")] = None,
 ) -> MessagesResponse:
     """List messages with cursor pagination (newest first)."""
     await verify_room(session, room_id)

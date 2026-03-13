@@ -50,8 +50,8 @@ class ZnDrawLock:
             self._refresh_thread.join(timeout=2.0)
         try:
             self.api.edit_lock_release(self._lock_token)
-        except Exception as e:
-            log.warning(f"Failed to release edit lock: {e}")
+        except Exception as e:  # noqa: BLE001
+            log.warning("Failed to release edit lock: %s", e)
         self._lock_token = None
         return False
 
@@ -64,8 +64,8 @@ class ZnDrawLock:
                 break
             try:
                 self.api.edit_lock_refresh(self._lock_token, self.msg)
-            except Exception as e:
-                log.warning(f"Failed to refresh edit lock: {e}")
+            except Exception as e:  # noqa: BLE001
+                log.warning("Failed to refresh edit lock: %s", e)
                 break
 
     @property

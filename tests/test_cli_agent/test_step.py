@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typer.testing import CliRunner
+from typing import TYPE_CHECKING
 
 from zndraw.schemas import StepResponse, StepUpdateResponse
 
 from .conftest import invoke_cli
+
+if TYPE_CHECKING:
+    from typer.testing import CliRunner
 
 
 def test_step_get(

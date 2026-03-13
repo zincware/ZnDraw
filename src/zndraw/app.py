@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
 from zndraw_joblib import (
-    ProblemException as JoblibProblemException,
+    ProblemException as JoblibProblemError,
     problem_exception_handler as joblib_problem_exception_handler,
     router as joblib_router,
 )
@@ -17,7 +17,7 @@ from zndraw_joblib.dependencies import (
 from zndraw.database import lifespan
 from zndraw.dependencies import get_writable_room_id
 from zndraw.exceptions import (
-    ProblemException,
+    ProblemError,
     UnprocessableContent,
     problem_exception_handler,
 )
@@ -48,8 +48,8 @@ app = FastAPI(title="ZnDraw API", lifespan=lifespan)
 app.dependency_overrides[joblib_verify_writable_room] = get_writable_room_id
 
 # Register exception handlers
-app.add_exception_handler(ProblemException, problem_exception_handler)
-app.add_exception_handler(JoblibProblemException, joblib_problem_exception_handler)
+app.add_exception_handler(ProblemError, problem_exception_handler)
+app.add_exception_handler(JoblibProblemError, joblib_problem_exception_handler)
 
 
 @app.exception_handler(RequestValidationError)
@@ -100,7 +100,7 @@ if _static_dir.is_dir():
 
     # SPA catch-all: any path not matched by API routers serves index.html
     @app.get("/{path:path}", include_in_schema=False)
-    async def _spa_catch_all(path: str) -> FileResponse:
+    async def _spa_catch_all(path: str) -> FileResponse:  # noqa: ARG001
         return FileResponse(_static_dir / "index.html")
 
 

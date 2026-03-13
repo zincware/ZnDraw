@@ -7,7 +7,7 @@ from zndraw.exceptions import RoomLockedError, ZnDrawError
 
 
 @pytest.mark.parametrize(
-    "cls, parent",
+    ("cls", "parent"),
     [
         (ZnDrawError, Exception),
         (RoomLockedError, ZnDrawError),

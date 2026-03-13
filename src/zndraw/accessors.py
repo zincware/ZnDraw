@@ -541,8 +541,8 @@ class Extensions(Mapping[str, dict[str, Any]]):
     def __getitem__(self, full_name: str) -> dict[str, Any]:
         try:
             return self._api.get_extension(full_name)
-        except Exception:
-            raise KeyError(full_name)
+        except Exception:  # noqa: BLE001
+            raise KeyError(full_name) from None
 
     def __iter__(self) -> Iterator[str]:
         data = self._api.list_extensions()
@@ -571,19 +571,19 @@ class TaskHandle:
     @property
     def status(self) -> str:
         """Current task status."""
-        return self._fetch().status
+        return self.fetch().status
 
     def wait(self, *, timeout: float = 300, poll: float = 0.5) -> TaskHandle:
         """Poll until completed/failed. Returns self. Raises TimeoutError."""
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            data = self._fetch()
+            data = self.fetch()
             if data.status in ("completed", "failed"):
                 return self
             time.sleep(poll)
         raise TimeoutError(f"Task {self.id} did not complete within {timeout}s")
 
-    def _fetch(self) -> Any:
+    def fetch(self) -> Any:
         from zndraw_joblib.schemas import TaskResponse
 
         return TaskResponse.model_validate(self._api.get_task(self.id))
@@ -611,8 +611,8 @@ class Tasks(Mapping[str, Any]):
     def __getitem__(self, task_id: str) -> TaskHandle:
         try:
             self._api.get_task(task_id)
-        except Exception:
-            raise KeyError(task_id)
+        except Exception:  # noqa: BLE001
+            raise KeyError(task_id) from None
         return TaskHandle(id=task_id, _api=self._api)
 
     def __iter__(self) -> Iterator[str]:

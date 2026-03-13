@@ -40,7 +40,11 @@ class Bond(BaseGeometry):
 
     connectivity: ConnectivityProp = Field(
         default="info.connectivity",
-        description="Connectivity information. String for dynamic data key, list of tuples for static value.",
+        description=(
+            "Connectivity information."
+            " String for dynamic data key,"
+            " list of tuples for static value."
+        ),
         json_schema_extra={
             "x-custom-type": "dynamic-enum",
             "x-features": ["dynamic-atom-props", "editable-array"],
@@ -59,7 +63,10 @@ class Bond(BaseGeometry):
         default=16,
         ge=4,
         le=64,
-        description="Bond geometry resolution (number of segments). Higher values = smoother bond.",
+        description=(
+            "Bond geometry resolution (number of segments)."
+            " Higher values = smoother bond."
+        ),
         json_schema_extra={"format": "range", "step": 1},
     )
 
@@ -81,20 +88,31 @@ class Bond(BaseGeometry):
 
     bond_order_mode: t.Literal["parallel", "ignore"] = Field(
         default="parallel",
-        description="Bond order visualization mode. 'parallel': render multiple cylinders for double/triple bonds. 'ignore': render all bonds as single cylinders.",
+        description=(
+            "Bond order visualization mode."
+            " 'parallel': render multiple cylinders"
+            " for double/triple bonds."
+            " 'ignore': render all bonds as single cylinders."
+        ),
     )
 
     bond_order_offset: float = Field(
         default=3,
         ge=0.0,
         le=10,
-        description="Spacing between parallel cylinders in parallel mode, as fraction of bond radius.",
+        description=(
+            "Spacing between parallel cylinders in parallel"
+            " mode, as fraction of bond radius."
+        ),
         json_schema_extra={"format": "range", "step": 0.1},
     )
 
     bond_order_radius_scale: SkipJsonSchema[dict[float, float]] = Field(
         default={1: 1.0, 1.5: 0.75, 2: 0.75, 3: 0.7},
-        description="Radius multiplier per bond order in parallel mode. Maps bond order to scale factor.",
+        description=(
+            "Radius multiplier per bond order in parallel"
+            " mode. Maps bond order to scale factor."
+        ),
     )
 
     selecting: InteractionSettings = Field(

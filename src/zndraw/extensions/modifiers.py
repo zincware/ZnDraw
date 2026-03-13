@@ -25,7 +25,7 @@ class UpdateScene(Extension):
 class Delete(UpdateScene):
     """Delete the selected atoms."""
 
-    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         import ase
 
         atom_ids = vis.selection
@@ -52,7 +52,7 @@ class Duplicate(UpdateScene):
     z: float = Field(0.5, le=5, ge=0, description="Z offset")
     symbol: Symbols = Field(Symbols.X, description="Symbol of the new atoms")
 
-    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         import ase
         import numpy as np
 
@@ -78,7 +78,7 @@ class ChangeType(UpdateScene):
 
     symbol: Symbols = Field(..., description="New symbol for selected atoms")
 
-    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         if len(vis) > vis.step + 1:
             del vis[vis.step + 1 :]
 
@@ -100,7 +100,7 @@ class Wrap(UpdateScene):
     recompute_bonds: bool = Field(True, description="Recompute bonds after wrapping")
     all: bool = Field(False, description="Apply to the full trajectory")
 
-    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         if self.all:
             for idx, atoms in enumerate(vis):
                 atoms.wrap()
@@ -125,7 +125,7 @@ class Center(UpdateScene):
     wrap: bool = Field(True, description="Wrap atoms to the cell after centering")
     all: bool = Field(False, description="Apply to the full trajectory")
 
-    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         import numpy as np
 
         selection = vis.selection
@@ -133,10 +133,7 @@ class Center(UpdateScene):
             vis.log("Please select at least one atom.")
             raise ValueError("No atoms selected for centering.")
 
-        if not self.dynamic:
-            center = vis.atoms[selection].get_center_of_mass()
-        else:
-            center = None
+        center = vis.atoms[selection].get_center_of_mass() if not self.dynamic else None
 
         if self.all:
             for idx, atoms in enumerate(vis):
@@ -170,7 +167,7 @@ class Replicate(UpdateScene):
     keep_box: bool = Field(False, description="Keep the original box size")
     all: bool = Field(False, description="Apply to the full trajectory")
 
-    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         if self.all:
             for idx, atoms in enumerate(vis):
                 original_cell = atoms.cell.copy()
@@ -190,7 +187,7 @@ class Replicate(UpdateScene):
 class NewCanvas(UpdateScene):
     """Clear the scene and start fresh."""
 
-    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         import ase
 
         from zndraw.geometries import Curve, Plane
@@ -213,7 +210,7 @@ class NewCanvas(UpdateScene):
 class RemoveAtoms(UpdateScene):
     """Remove the current frame from the trajectory."""
 
-    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         del vis[vis.step]
 
 
@@ -224,7 +221,7 @@ class FixAtoms(UpdateScene):
     If no atoms are selected, removes all constraints.
     """
 
-    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         import ase.constraints
 
         selection = vis.selection
@@ -240,7 +237,7 @@ class FixAtoms(UpdateScene):
 class Empty(UpdateScene):
     """Add an empty frame (no atoms)."""
 
-    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         import ase
 
         vis.append(ase.Atoms())

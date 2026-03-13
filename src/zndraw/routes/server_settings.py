@@ -62,7 +62,6 @@ async def get_server_settings(session: AsyncSession) -> ServerSettings:
 
 @router.get(
     "/default-room",
-    response_model=DefaultRoomResponse,
 )
 async def get_default_room(
     session: SessionDep,
@@ -79,7 +78,6 @@ async def get_default_room(
 
 @router.put(
     "/default-room",
-    response_model=DefaultRoomResponse,
     responses=problem_responses(Forbidden, RoomNotFound),
 )
 async def set_default_room(

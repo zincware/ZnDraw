@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
-from typer.testing import CliRunner
 from zndraw_joblib.schemas import (
     JobResponse,
     JobSummary,
@@ -15,6 +15,9 @@ from zndraw_joblib.schemas import (
 from zndraw.cli_agent import app
 
 from .conftest import invoke_cli
+
+if TYPE_CHECKING:
+    from typer.testing import CliRunner
 
 
 def test_extensions_list(
@@ -150,7 +153,7 @@ def test_extensions_run_with_args(
 def test_extensions_run_with_smiles(
     cli_runner: CliRunner, server_url: str, auth_token: str, test_room: str
 ) -> None:
-    """extensions run should accept SMILES strings containing special chars like ( ) =."""
+    """extensions run accepts SMILES with special chars like ( ) =."""
     result = cli_runner.invoke(
         app,
         [

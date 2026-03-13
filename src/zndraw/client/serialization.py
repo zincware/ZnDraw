@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import base64
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import ase
 from asebytes import decode, encode
 
 from zndraw.enrichment import add_colors, add_radii
+
+if TYPE_CHECKING:
+    import ase
 
 # =============================================================================
 # Frame Serialization Helpers

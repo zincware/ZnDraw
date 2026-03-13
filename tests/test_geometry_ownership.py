@@ -25,7 +25,7 @@ def _lock_room(vis: ZnDraw) -> None:
     response = vis.api.http.patch(
         f"/v1/rooms/{vis.room}",
         json={"locked": True},
-        headers=vis.api._headers(),
+        headers=vis.api.get_headers(),
     )
     vis.api.raise_for_status(response)
 
@@ -266,7 +266,8 @@ def test_admin_locked_claiming_non_superuser_blocked(server_auth: str) -> None:
     # Admin locks room
     _lock_room(admin)
 
-    # Guest tries to claim → blocked (admin lock blocks all non-superuser edits on unowned)
+    # Guest tries to claim → blocked
+    # (admin lock blocks all non-superuser edits on unowned)
     with pytest.raises(RoomLockedError):
         guest.geometries["sphere"] = Sphere(owner=guest_id)
 

@@ -20,6 +20,9 @@ from zndraw.schemas import OffsetPage, StatusResponse
 
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
 
+# prevent GC of fire-and-forget tasks (https://docs.python.org/3/library/asyncio-task.html#creating-tasks)
+_background_tasks: set[asyncio.Task] = set()  # type: ignore[type-arg]
+
 
 # =============================================================================
 # Response Schemas
@@ -86,7 +89,6 @@ async def list_users(
 
 @router.get(
     "/users/{user_id}",
-    response_model=AdminUserResponse,
     responses=problem_responses(Forbidden, UserNotFound),
 )
 async def get_user(
@@ -106,7 +108,6 @@ async def get_user(
 
 @router.patch(
     "/users/{user_id}",
-    response_model=AdminUserResponse,
     responses=problem_responses(Forbidden, UserNotFound),
 )
 async def update_user(
@@ -179,7 +180,6 @@ async def delete_user(
 
 @router.post(
     "/shutdown",
-    response_model=ShutdownResponse,
     responses=problem_responses(Forbidden),
 )
 async def shutdown_server(
@@ -197,7 +197,9 @@ async def shutdown_server(
         await asyncio.sleep(0.5)  # Small delay to allow response to be sent
         os.kill(os.getpid(), signal.SIGTERM)
 
-    asyncio.create_task(delayed_shutdown())
+    task = asyncio.create_task(delayed_shutdown())
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
     return ShutdownResponse()
 

@@ -324,7 +324,7 @@ async def test_delete_progress(
     mock_sio: MockSioServer,
     mock_redis: AsyncMock,
 ) -> None:
-    """DELETE removes tracker, returns 204, emits progress_complete, removed from Redis."""
+    """DELETE removes tracker, returns 204, emits progress_complete."""
     user, token = await create_test_user_in_db(progress_session)
     room = await create_test_room(progress_session, user)
 

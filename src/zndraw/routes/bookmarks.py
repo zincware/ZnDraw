@@ -36,7 +36,7 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/bookmarks", tags=["bookmarks"])
 )
 async def list_bookmarks(
     session: SessionDep,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
 ) -> BookmarksResponse:
     """Get all bookmarks for a room."""
@@ -55,7 +55,7 @@ async def list_bookmarks(
 )
 async def get_bookmark(
     session: SessionDep,
-    current_user: CurrentUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
     index: int,
 ) -> BookmarkResponse:
@@ -74,7 +74,7 @@ async def get_bookmark(
 async def set_bookmark(
     session: SessionDep,
     sio: SioDep,
-    room: WritableRoomDep,
+    _room: WritableRoomDep,
     room_id: str,
     index: int,
     request: BookmarkCreateRequest,
@@ -106,7 +106,7 @@ async def set_bookmark(
 async def delete_bookmark(
     session: SessionDep,
     sio: SioDep,
-    room: WritableRoomDep,
+    _room: WritableRoomDep,
     room_id: str,
     index: int,
 ) -> StatusResponse:

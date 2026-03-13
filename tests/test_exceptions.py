@@ -8,7 +8,7 @@ from zndraw.exceptions import (
     NotAuthenticated,
     NotInRoom,
     ProblemDetail,
-    ProblemException,
+    ProblemError,
     ProblemType,
     RoomNotFound,
     UsernameExists,
@@ -82,10 +82,10 @@ class TestProblemTypeException:
     """Tests for ProblemType.exception() method."""
 
     def test_exception_creates_problem_exception(self) -> None:
-        """Test that exception() returns a ProblemException."""
+        """Test that exception() returns a ProblemError."""
         exc = InvalidCredentials.exception(detail="Test error")
 
-        assert isinstance(exc, ProblemException)
+        assert isinstance(exc, ProblemError)
         assert exc.problem.type == "/v1/problems/invalid-credentials"
         assert exc.problem.detail == "Test error"
 
@@ -97,13 +97,13 @@ class TestProblemTypeException:
             headers=headers,
         )
 
-        assert isinstance(exc, ProblemException)
+        assert isinstance(exc, ProblemError)
         assert exc.headers == headers
         assert exc.problem.detail == "Token required"
 
     def test_exception_is_raisable(self) -> None:
         """Test that the exception can be raised and caught."""
-        with pytest.raises(ProblemException) as exc_info:
+        with pytest.raises(ProblemError) as exc_info:
             raise InvalidCredentials.exception(detail="Bad credentials")
 
         assert exc_info.value.problem.status == 401

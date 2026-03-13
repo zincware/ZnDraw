@@ -19,7 +19,7 @@ class AddFromSMILES(Extension):
         },
     )
 
-    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         import molify
 
         atoms = molify.smiles2atoms(self.smiles)
@@ -54,7 +54,7 @@ class PackBox(Extension):
     )
     density: float = Field(1000, ge=0.0, description="Density in g/L")
 
-    def run(self, vis: t.Any, **kwargs: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         import molify
 
         conformers = [

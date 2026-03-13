@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 
-from zndraw.exceptions import PROBLEM_TYPES, ProblemDetail, ProblemException
+from zndraw.exceptions import PROBLEM_TYPES, ProblemDetail, ProblemError
 
 router = APIRouter(prefix="/v1/problems", tags=["problems"])
 
@@ -22,7 +22,7 @@ def get_problem_type(problem_id: str) -> str:
     """Get documentation for a specific problem type."""
     problem_type = PROBLEM_TYPES.get(problem_id)
     if problem_type is None:
-        raise ProblemException(
+        raise ProblemError(
             ProblemDetail(
                 type="about:blank",
                 title="Not Found",

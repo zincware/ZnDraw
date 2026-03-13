@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import io
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
 from zndraw.cli_agent.gif import _assemble_gif, _build_schedule, _get_session
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -47,8 +50,8 @@ def _make_vis_and_session(*, step_val: int = 0):
     # Track step changes
     step_box = [step_val]
     type(vis).step = PropertyMock(
-        fget=lambda self: step_box[0],
-        fset=lambda self, v: step_box.__setitem__(0, v),
+        fget=lambda _self: step_box[0],
+        fset=lambda _self, v: step_box.__setitem__(0, v),
     )
 
     # Track geometry writes/deletes (MagicMock dunder tracking is unreliable)
@@ -257,7 +260,7 @@ def test_capture_orbit_creates_temp_geometries(
 
     from zndraw.cli_agent.gif import gif_app
 
-    vis, session, step_box, geom_store, geom_writes, disconnect_calls = (
+    vis, _session, _step_box, geom_store, geom_writes, _disconnect_calls = (
         _make_vis_and_session()
     )
     mock_get_zndraw.return_value = vis
@@ -300,7 +303,7 @@ def test_capture_restores_step(mock_resolve, mock_get_zndraw, tmp_path: Path):
 
     from zndraw.cli_agent.gif import gif_app
 
-    vis, session, step_box, geom_store, geom_writes, disconnect_calls = (
+    vis, _session, step_box, _geom_store, _geom_writes, _disconnect_calls = (
         _make_vis_and_session(step_val=7)
     )
     mock_get_zndraw.return_value = vis
@@ -336,7 +339,7 @@ def test_capture_cleans_up_on_error(mock_resolve, mock_get_zndraw, tmp_path: Pat
 
     from zndraw.cli_agent.gif import gif_app
 
-    vis, session, step_box, geom_store, geom_writes, disconnect_calls = (
+    vis, session, step_box, _geom_store, _geom_writes, disconnect_calls = (
         _make_vis_and_session(step_val=5)
     )
     mock_get_zndraw.return_value = vis
@@ -373,6 +376,8 @@ def test_capture_cleans_up_on_error(mock_resolve, mock_get_zndraw, tmp_path: Pat
 
 def test_pillow_missing_gives_clear_error(tmp_path: Path):
     """Verify exit when Pillow import fails."""
-    with patch.dict("sys.modules", {"PIL": None, "PIL.Image": None}):
-        with pytest.raises(SystemExit):
-            _assemble_gif([b"fake"], tmp_path / "test.gif", 20)
+    with (
+        patch.dict("sys.modules", {"PIL": None, "PIL.Image": None}),
+        pytest.raises(SystemExit),
+    ):
+        _assemble_gif([b"fake"], tmp_path / "test.gif", 20)

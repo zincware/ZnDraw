@@ -10,7 +10,6 @@ from __future__ import annotations
 import contextlib
 import json
 import sys
-from collections.abc import Generator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn
 
@@ -18,6 +17,8 @@ import httpx
 import typer
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from zndraw import ZnDraw
 
 from zndraw.server_manager import TokenStore, find_running_server
@@ -344,7 +345,7 @@ def cli_error_handler() -> Generator[None, None, None]:
         exit_code = (
             EXIT_CLIENT_ERROR if exc.response.status_code < 500 else EXIT_SERVER_ERROR
         )
-        raise SystemExit(exit_code)
+        raise SystemExit(exit_code) from exc
     except httpx.RequestError as exc:
         die("Connection Error", str(exc), 503, EXIT_CONNECTION_ERROR)
     except KeyError as exc:

@@ -9,8 +9,6 @@ import logging
 import re
 from typing import Annotated, Any
 
-logger = logging.getLogger(__name__)
-
 from fastapi import APIRouter, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -72,6 +70,8 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import FramesInvalidate, RoomUpdate
 from zndraw.transformations import InArrayTransform
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/rooms", tags=["rooms"])
 
@@ -287,7 +287,6 @@ async def build_room_update(
 
 @router.post(
     "",
-    response_model=RoomCreateResponse,
     status_code=status.HTTP_201_CREATED,
     responses=problem_responses(NotAuthenticated, RoomReadOnly),
 )
@@ -341,10 +340,10 @@ async def create_room(
         copy_from = default_room_id if default_room_id else "@empty"
 
     # Reject unknown @-prefixed presets
-    _PRESETS = {"@empty", "@none"}
-    if copy_from.startswith("@") and copy_from not in _PRESETS:
+    presets = {"@empty", "@none"}
+    if copy_from.startswith("@") and copy_from not in presets:
         raise UnprocessableContent.exception(
-            f"Unknown preset '{copy_from}'. Valid presets: {', '.join(sorted(_PRESETS))}"
+            f"Unknown preset '{copy_from}'. Valid presets: {', '.join(sorted(presets))}"
         )
 
     # Try to resolve source room for room-id copyFrom
@@ -450,7 +449,6 @@ async def list_rooms(
 
 @router.get(
     "/{room_id}",
-    response_model=RoomResponse,
     responses=problem_responses(RoomNotFound),
 )
 async def get_room(
@@ -475,7 +473,6 @@ async def get_room(
 
 @router.get(
     "/{room_id}/presence",
-    response_model=PresenceResponse,
     responses=problem_responses(RoomNotFound),
 )
 async def get_room_presence(
@@ -498,7 +495,7 @@ async def get_room_presence(
         RedisKey.room_cameras(room_id)
     )
     sessions_list: list[PresenceSessionResponse] = []
-    for _camera_key, raw_value in cameras_raw.items():
+    for raw_value in cameras_raw.values():
         entry = json.loads(raw_value)
         camera = Camera(**entry["data"])
         if camera.owner is None:
@@ -516,7 +513,6 @@ async def get_room_presence(
 
 @router.get(
     "/{room_id}/sessions",
-    response_model=SessionsListResponse,
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def list_sessions(
@@ -524,7 +520,7 @@ async def list_sessions(
     redis: RedisDep,
     _current_user: CurrentUserDep,
     room_id: str,
-    email: str | None = Query(None, description="Filter by user email"),
+    email: Annotated[str | None, Query(description="Filter by user email")] = None,
 ) -> SessionsListResponse:
     """List all active frontend sessions in this room.
 
@@ -546,7 +542,7 @@ async def list_sessions(
     )
 
     items: list[SessionItem] = []
-    for sid, cam_key, raw in zip(sids, camera_keys, raw_cameras):
+    for sid, cam_key, raw in zip(sids, camera_keys, raw_cameras, strict=False):
         if raw is None:
             continue
         entry = json.loads(raw)
@@ -568,6 +564,7 @@ async def update_room(
     sio: SioDep,
     room: WritableRoomDep,
     updates: RoomPatchRequest,
+    room_id: str,  # noqa: ARG001
 ) -> RoomPatchResponse:
     """Update room metadata (description, locked, frame_count).
 
@@ -592,10 +589,10 @@ async def update_room(
                 await storage.set_frame_count(room.id, count)
             else:
                 await storage.clear_frame_count(room.id)
-        except NotImplementedError:
+        except NotImplementedError as err:
             raise Forbidden.exception(
                 "Storage backend does not support external frame counts"
-            )
+            ) from err
         await sio.emit(
             FramesInvalidate(room_id=room.id, action="clear", count=count),
             room=room_channel(room.id),

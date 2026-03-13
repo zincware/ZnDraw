@@ -76,7 +76,7 @@ async def get_figure(
 async def create_figure(
     session: SessionDep,
     sio: SioDep,
-    room: WritableRoomDep,
+    _room: WritableRoomDep,
     room_id: str,
     key: str,
     request: FigureCreateRequest,
@@ -112,7 +112,7 @@ async def create_figure(
 async def delete_figure(
     session: SessionDep,
     sio: SioDep,
-    room: WritableRoomDep,
+    _room: WritableRoomDep,
     room_id: str,
     key: str,
 ) -> StatusResponse:

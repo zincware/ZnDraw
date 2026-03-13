@@ -135,7 +135,7 @@ def test_modifier_delete_e2e(server):
 
 
 def test_internal_task_with_invalid_payload_fails(server, wait_for_task):
-    """Submitting an @internal extension with invalid payload reaches 'failed' status."""
+    """@internal extension with invalid payload reaches 'failed'."""
     vis = ZnDraw(url=server)
     try:
         vis.append(ase.Atoms("H"))

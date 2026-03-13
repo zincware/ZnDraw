@@ -37,7 +37,7 @@ def list_figures(
         room = resolve_room(room)
         vis = get_zndraw(url, token, room)
         resp = vis.api.http.get(
-            f"/v1/rooms/{vis.room}/figures", headers=vis.api._headers()
+            f"/v1/rooms/{vis.room}/figures", headers=vis.api.get_headers()
         )
         vis.api.raise_for_status(resp)
         json_print(CollectionResponse[str].model_validate(resp.json()))
@@ -58,7 +58,7 @@ def get(
             raise typer.BadParameter("Figure key is required")
         vis = get_zndraw(url, token, room)
         resp = vis.api.http.get(
-            f"/v1/rooms/{vis.room}/figures/{key}", headers=vis.api._headers()
+            f"/v1/rooms/{vis.room}/figures/{key}", headers=vis.api.get_headers()
         )
         vis.api.raise_for_status(resp)
         json_print(FigureResponse.model_validate(resp.json()))
@@ -84,10 +84,7 @@ def set_figure(
         if file is None and data is None:
             raise typer.BadParameter("Either --file or --data is required")
         vis = get_zndraw(url, token, room)
-        if data is not None:
-            file_contents = data
-        else:
-            file_contents = pathlib.Path(file).read_text()  # type: ignore[arg-type]
+        file_contents = data if data is not None else pathlib.Path(file).read_text()  # type: ignore[arg-type]
         figure_data = FigureData(data=file_contents)
         result = vis.api.set_figure(key, figure_data.model_dump())
         json_print(FigureCreateResponse.model_validate(result))
@@ -108,7 +105,7 @@ def delete(
             raise typer.BadParameter("Figure key is required")
         vis = get_zndraw(url, token, room)
         resp = vis.api.http.delete(
-            f"/v1/rooms/{vis.room}/figures/{key}", headers=vis.api._headers()
+            f"/v1/rooms/{vis.room}/figures/{key}", headers=vis.api.get_headers()
         )
         vis.api.raise_for_status(resp)
         json_print(StatusResponse.model_validate(resp.json()))

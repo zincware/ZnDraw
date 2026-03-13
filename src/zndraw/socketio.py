@@ -19,7 +19,7 @@ from zndraw.dependencies import RedisDep, StorageDep, room_channel
 from zndraw.exceptions import (
     NotInRoom,
     NotRoomMember,
-    ProblemException,
+    ProblemError,
     RoomNotFound,
     UserNotFound,
 )
@@ -74,9 +74,9 @@ async def _cleanup_session(
 # =============================================================================
 
 
-@tsio.exception_handler(ProblemException)
-async def handle_problem(ctx: EventContext, exc: ProblemException) -> dict:
-    """Convert ProblemException to RFC 9457 response dict."""
+@tsio.exception_handler(ProblemError)
+async def handle_problem(_ctx: EventContext, exc: ProblemError) -> dict:
+    """Convert ProblemError to RFC 9457 response dict."""
     return exc.problem.model_dump(exclude_none=True)
 
 
@@ -88,7 +88,7 @@ async def handle_problem(ctx: EventContext, exc: ProblemException) -> dict:
 @tsio.on("connect")
 async def on_connect(
     sid: str,
-    environ: dict,
+    _environ: dict,
     auth: dict | None = None,
     auth_settings: AuthSettings = Depends(get_auth_settings),
 ) -> bool:
@@ -119,7 +119,7 @@ async def on_connect(
 )
 async def on_disconnect(
     sid: str,
-    reason: str,
+    _reason: str,
     redis: RedisDep,
     db_session: SessionDep,
 ) -> None:
@@ -192,7 +192,7 @@ async def on_disconnect(
 
 
 @tsio.on(UserGet)
-async def user_get(sid: str, data: UserGet, session: SessionDep) -> UserGetResponse:
+async def user_get(sid: str, _data: UserGet, session: SessionDep) -> UserGetResponse:
     """Return the authenticated user's information."""
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
@@ -294,7 +294,8 @@ async def room_join(
     # Capture room state before potential commit
     room_step = room.step
 
-    # Create session camera in Redis hash (frontend only — pyclients don't need a viewport)
+    # Create session camera in Redis hash
+    # (frontend only — pyclients don't need a viewport)
     camera_key: str | None = None
     if data.client_type == "frontend":
         camera_key = f"cam:{email}:{sid[:8]}"

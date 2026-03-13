@@ -3,6 +3,7 @@
 import os
 import shutil
 import subprocess
+from pathlib import Path
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
@@ -27,9 +28,9 @@ class FrontendBuildHook(BuildHookInterface):
         RuntimeError
             If the frontend directory or a package manager is not found.
         """
-        app_dir = os.path.join(self.root, "frontend")
+        app_dir = Path(self.root) / "frontend"
 
-        if not os.path.isdir(app_dir):
+        if not app_dir.is_dir():
             raise RuntimeError(
                 f"Frontend directory not found: {app_dir}. "
                 "Every build must include the frontend."
@@ -52,11 +53,11 @@ class FrontendBuildHook(BuildHookInterface):
             f"Building frontend with {pkg_manager} (version={pkg_version})..."
         )
 
-        subprocess.run(install_cmd, cwd=app_dir, check=True)
+        subprocess.run(install_cmd, cwd=app_dir, check=True)  # noqa: S603
 
         env = os.environ.copy()
         env["VITE_APP_VERSION"] = pkg_version
         env["NODE_OPTIONS"] = env.get("NODE_OPTIONS", "") + " --max-old-space-size=4096"
-        subprocess.run(build_cmd, cwd=app_dir, check=True, env=env)
+        subprocess.run(build_cmd, cwd=app_dir, check=True, env=env)  # noqa: S603
 
         self.app.display_info("Frontend build complete.")

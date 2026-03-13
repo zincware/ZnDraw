@@ -1,6 +1,6 @@
 import uuid as uuid_mod
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 from sqlalchemy import Column, ForeignKey, String, TypeDecorator
@@ -20,14 +20,14 @@ class UTCDateTime(TypeDecorator):
     cache_ok = True
 
     def process_result_value(
-        self, value: datetime | None, dialect: object
+        self, value: datetime | None, _dialect: object
     ) -> datetime | None:
         if value is not None and value.tzinfo is None:
             return value.replace(tzinfo=UTC)
         return value
 
 
-class MemberRole(str, Enum):
+class MemberRole(StrEnum):
     MEMBER = "member"
     MODERATOR = "moderator"
     OWNER = "owner"

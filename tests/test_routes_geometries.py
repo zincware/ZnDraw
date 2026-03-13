@@ -119,7 +119,7 @@ async def _create_room(
     """Create a room with user as owner."""
     room = Room(
         description=description,
-        created_by_id=user.id,  # type: ignore
+        created_by_id=user.id,  # type: ignore[arg-type]
         is_public=True,
     )
     session.add(room)
@@ -127,8 +127,8 @@ async def _create_room(
     await session.refresh(room)
 
     membership = RoomMembership(
-        room_id=room.id,  # type: ignore
-        user_id=user.id,  # type: ignore
+        room_id=room.id,  # type: ignore[arg-type]
+        user_id=user.id,  # type: ignore[arg-type]
         role=MemberRole.OWNER,
     )
     session.add(membership)

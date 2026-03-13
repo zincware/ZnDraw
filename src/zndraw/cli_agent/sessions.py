@@ -49,7 +49,7 @@ def get_camera(
         vis = get_zndraw(url, token, room)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/sessions/{session_id}/active-camera",
-            headers=vis.api._headers(),
+            headers=vis.api.get_headers(),
         )
         vis.api.raise_for_status(resp)
         json_print(ActiveCameraResponse.model_validate(resp.json()))
@@ -77,7 +77,7 @@ def set_camera(
         resp = vis.api.http.put(
             f"/v1/rooms/{vis.room}/sessions/{session_id}/active-camera",
             json={"active_camera": camera_key},
-            headers=vis.api._headers(),
+            headers=vis.api.get_headers(),
         )
         vis.api.raise_for_status(resp)
         json_print(ActiveCameraResponse.model_validate(resp.json()))

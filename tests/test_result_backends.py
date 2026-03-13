@@ -1,4 +1,4 @@
-"""Unit tests for StorageResultBackend, CompositeResultBackend, and RedisResultBackend."""
+"""Unit tests for Storage, Composite, and Redis result backends."""
 
 import asyncio
 from unittest.mock import AsyncMock

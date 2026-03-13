@@ -119,7 +119,7 @@ async def _create_room(
     """Create a room with user as owner."""
     room = Room(
         description=description,
-        created_by_id=user.id,  # type: ignore
+        created_by_id=user.id,  # type: ignore[arg-type]
         is_public=True,
     )
     session.add(room)
@@ -127,8 +127,8 @@ async def _create_room(
     await session.refresh(room)
 
     membership = RoomMembership(
-        room_id=room.id,  # type: ignore
-        user_id=user.id,  # type: ignore
+        room_id=room.id,  # type: ignore[arg-type]
+        user_id=user.id,  # type: ignore[arg-type]
         role=MemberRole.OWNER,
     )
     session.add(membership)
@@ -262,7 +262,7 @@ async def test_list_presets_room_not_found(
     pr_session: AsyncSession,
 ) -> None:
     """GET /presets returns 404 for nonexistent room."""
-    user, token = await _create_user(pr_session)
+    _user, token = await _create_user(pr_session)
 
     response = await pr_client.get(
         "/v1/rooms/nonexistent/presets",
@@ -512,7 +512,7 @@ async def test_put_preset_updates_existing(
     assert response.json()["description"] == "New description"
 
     await pr_session.refresh(
-        await pr_session.get(RoomPreset, (room.id, "existing"))  # type: ignore
+        await pr_session.get(RoomPreset, (room.id, "existing"))  # type: ignore[arg-type]
     )
     row = await pr_session.get(RoomPreset, (room.id, "existing"))
     assert row is not None
