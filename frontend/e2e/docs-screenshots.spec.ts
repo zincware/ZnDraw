@@ -822,6 +822,68 @@ vis.selections["curve"] = [1, 3]
 			await page.screenshot({ path: path.join(outDir, "curve_editing.png") });
 		});
 
+		test("isosurface", async ({ page }) => {
+			const room = `${prefix}-isosurface`;
+			PY(`
+import numpy as np
+from pyscf import gto, lib, scf
+from pyscf.tools.cubegen import Cube
+from zndraw import ZnDraw
+from zndraw.geometries import Isosurface, Camera
+import ase
+
+mol = gto.M(atom="O 0 0 0; H 0 0 0.96; H 0 0.96 0", basis="sto-3g")
+mf = scf.RHF(mol)
+mf.kernel()
+
+homo_idx = mol.nelectron // 2 - 1
+cc = Cube(mol, nx=40, ny=40, nz=40)
+coeff = mf.mo_coeff[:, homo_idx]
+coords = cc.get_coords()
+ngrids = cc.get_ngrids()
+blksize = min(8000, ngrids)
+orb_on_grid = np.empty(ngrids)
+for ip0, ip1 in lib.prange(0, ngrids, blksize):
+    ao = mol.eval_gto("GTOval", coords[ip0:ip1])
+    orb_on_grid[ip0:ip1] = ao @ coeff
+orb_on_grid = orb_on_grid.reshape(cc.nx, cc.ny, cc.nz)
+
+bohr_to_ang = 0.529177
+cube_data = {
+    "grid": orb_on_grid,
+    "origin": cc.boxorig * bohr_to_ang,
+    "cell": cc.box * bohr_to_ang,
+}
+
+atoms = ase.Atoms(
+    "OH2",
+    positions=[(0, 0, 0), (0, 0, 0.96), (0, 0.96, 0)],
+)
+atoms.info["orbital_homo"] = cube_data
+
+vis = ZnDraw(url='${BASE_URL}', room='${room}')
+del vis[:]
+vis.append(atoms)
+vis.geometries["homo_pos"] = Isosurface(
+    cube_key="info.orbital_homo", isovalue=0.02, color="#2244CC", opacity=0.6,
+)
+vis.geometries["homo_neg"] = Isosurface(
+    cube_key="info.orbital_homo", isovalue=-0.02, color="#CC4422", opacity=0.6,
+)
+cx, cy, cz = [float(x) for x in atoms.positions.mean(axis=0)]
+vis.geometries["close-cam"] = Camera(
+    position=(cx, cy + 3, cz + 8),
+    target=(cx, cy, cz),
+    fov=50,
+)
+vis.default_camera = "close-cam"
+`);
+			await page.goto(`${BASE_URL}/rooms/${room}`);
+			await waitForScene(page);
+			await page.waitForTimeout(3000);
+			await page.screenshot({ path: path.join(outDir, "isosurface.png") });
+		});
+
 		test("chat_smiles", async ({ page }) => {
 			const room = `${prefix}-chat-smiles`;
 			PY(`

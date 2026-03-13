@@ -564,6 +564,54 @@ Editor shows a dropdown of all constraints in the current frame — select one
 to switch which atoms are highlighted.
 
 
+Isosurface
+^^^^^^^^^^
+
+.. image:: /_static/screenshots/lightmode/isosurface.png
+   :class: only-light
+   :alt: Isosurface visualization of a molecular orbital
+
+.. image:: /_static/screenshots/darkmode/isosurface.png
+   :class: only-dark
+   :alt: Isosurface visualization of a molecular orbital
+
+Visualize volumetric data (e.g. molecular orbitals, electron densities) as 3D isosurfaces.
+The ``cube_key`` points to a frame info key containing a dict with:
+
+- ``grid``: 3D float array of shape ``(Nx, Ny, Nz)`` — scalar field values
+- ``origin``: 3-vector — world-space origin of the grid (Angstrom)
+- ``cell``: ``(3, 3)`` matrix — axis vectors spanning the grid (Angstrom)
+
+.. code:: python
+
+    import numpy as np
+    from zndraw.geometries import Isosurface
+
+    # Store volumetric data in a frame
+    atoms.info["orbital_homo"] = {
+        "grid": orbital_data,     # np.ndarray (Nx, Ny, Nz)
+        "origin": origin,         # np.ndarray (3,)
+        "cell": cell_vectors,     # np.ndarray (3, 3)
+    }
+    vis.append(atoms)
+
+    # Create positive and negative lobes
+    vis.geometries["homo_pos"] = Isosurface(
+        cube_key="info.orbital_homo", isovalue=0.02, color="#2244CC",
+    )
+    vis.geometries["homo_neg"] = Isosurface(
+        cube_key="info.orbital_homo", isovalue=-0.02, color="#CC4422",
+    )
+
+Parameters:
+
+- ``cube_key``: Frame info key for the volumetric data dict (dynamic dropdown in UI)
+- ``isovalue``: Scalar threshold for surface extraction (default ``0.02``, range ``-0.25`` to ``0.25``)
+- ``resolution``: Mesh resolution, ``0`` = coarse/fast, ``1`` = fine/slow (default ``1.0``)
+- ``opacity``: Surface transparency, ``0`` = invisible, ``1`` = opaque (default ``0.6``)
+- ``color``: Surface color as hex string (default ``#2244CC``)
+
+
 Analysis & Figures
 ------------------
 

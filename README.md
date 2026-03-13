@@ -114,10 +114,25 @@ from zndraw.geometries import Box, Sphere, Arrow, Camera, Curve
 vis.geometries["box"] = Box(position=(0, 1, 2))
 ```
 
-Available geometry types: `Sphere`, `Arrow`, `Bond`, `Curve`, `Cell`, `Floor`, `Box`, `Plane`, `Shape`, `Camera`.
+Available geometry types: `Sphere`, `Arrow`, `Bond`, `Curve`, `Cell`, `Floor`, `Box`, `Plane`, `Shape`, `Camera`, `Isosurface`.
 
 ![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/darkmode/geometries.png#gh-dark-mode-only "ZnDraw Geometries")
 ![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/lightmode/geometries.png#gh-light-mode-only "ZnDraw Geometries")
+
+### Isosurface
+
+Visualize volumetric data (e.g. molecular orbitals) as 3D isosurfaces:
+
+```python
+from zndraw.geometries import Isosurface
+
+# atoms.info["orbital_homo"] must contain:
+# {"grid": np.ndarray (Nx,Ny,Nz), "origin": np.ndarray (3,), "cell": np.ndarray (3,3)}
+vis.geometries["homo"] = Isosurface(cube_key="info.orbital_homo", isovalue=0.02)
+```
+
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/darkmode/isosurface.png#gh-dark-mode-only "ZnDraw Isosurface")
+![ZnDraw UI](https://raw.githubusercontent.com/zincware/ZnDraw/main/docs/source/_static/screenshots/lightmode/isosurface.png#gh-light-mode-only "ZnDraw Isosurface")
 
 ## Analysis
 

@@ -186,6 +186,26 @@ Use `<command> --help` for full options. Key patterns:
 - `toggle KEY` flips a geometry's `active` state (on/off)
 - `set-prop KEY material.opacity 0.5` sets a single property using dot notation (builds nested PATCH)
 
+### Isosurface data contract
+
+`Isosurface` renders a 3D surface from volumetric data stored in a frame's `atoms.info` dict.
+
+- `cube_key`: dotted path to the info key (e.g. `info.orbital_homo`)
+- The referenced dict must contain:
+  - `grid`: `np.ndarray` of shape `(Nx, Ny, Nz)` — scalar field values
+  - `origin`: `np.ndarray` of shape `(3,)` — world-space origin (Angstrom)
+  - `cell`: `np.ndarray` of shape `(3, 3)` — axis vectors spanning the grid (Angstrom)
+- Parameters: `isovalue` (float, default `0.02`), `resolution` (0–1, default `1.0`), `opacity` (0–1, default `0.6`), `color` (hex, default `#2244CC`)
+
+```python
+from zndraw import ZnDraw
+from zndraw.geometries import Isosurface
+vis = ZnDraw(room="ROOM")
+vis.geometries["homo"] = Isosurface(cube_key="info.orbital_homo", isovalue=0.02)
+```
+
+Use positive and negative isovalues to show both lobes of an orbital.
+
 ## Extensions: Discover → Describe → Run
 
 ```bash
@@ -419,6 +439,7 @@ uv run zndraw-cli geometries set my-camera --data '{"fov": 45}'
 | "toggle fog off" | `uv run zndraw-cli geometries toggle fog` |
 | "make particles transparent" | `uv run zndraw-cli geometries set-prop particles material.opacity 0.5` |
 | "run extension and wait" | `extensions run EXT --wait` or Python: `vis.run(EXT).wait()` |
+| "visualize volumetric data / orbitals" | `geometries set KEY --type Isosurface --data '{"cube_key": "info.KEY", "isovalue": 0.02}'` |
 | "what can I do?" | `extensions list` + `--help` on each resource group |
 
 ## Common Mistakes
