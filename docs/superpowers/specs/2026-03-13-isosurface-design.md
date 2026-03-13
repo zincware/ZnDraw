@@ -73,7 +73,7 @@ This is a critical constraint. Volumetric grids can be tens of megabytes — loa
 The Isosurface component enforces this by:
 1. **Not calling `useRegisterFrameKeys()`** — the batch prefetcher only fetches keys that geometry components explicitly register. Isosurface registers none.
 2. **Not calling `getFrameBatched()`** — it fetches exclusively from the dedicated `/isosurface` endpoint, which returns only the extracted mesh (kilobytes, not megabytes).
-3. **The `cube_key` field uses `x-custom-type: "dynamic-enum"` with `"free-solo"`** — the dropdown lets users type a key name. It does NOT have `"dynamic-atom-props"` (which would populate from per-atom metadata). A future enhancement could add `"dynamic-info-props"` to populate from `info.*` keys.
+3. **The `cube_key` field uses `x-custom-type: "dynamic-enum"` with `"dynamic-atom-props"`** — the dropdown is populated from frame metadata (via `useAvailableProperties`), which includes both per-atom keys (`arrays.*`) and global keys (`info.*`). The `info.orbital_homo` key will appear in the dropdown. Selecting it only stores the string value — the `DynamicEnumRenderer` never auto-fetches frame data (`enabled: false`).
 
 The raw volumetric data stays server-side at all times. Only the extracted mesh geometry crosses the wire.
 
@@ -128,7 +128,7 @@ class Isosurface(BaseModel):
         ),
         json_schema_extra={
             "x-custom-type": "dynamic-enum",
-            "x-features": ["free-solo"],
+            "x-features": ["dynamic-atom-props"],
         },
     )
 
