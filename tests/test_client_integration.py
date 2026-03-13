@@ -896,7 +896,7 @@ class TestStep:
         for i in range(3):
             client.append(make_atoms([[i, 0, 0]]))
 
-        with pytest.raises(ValueError, match="(?i)step"):
+        with pytest.raises(ValueError, match=r"(?i)step"):
             client.step = 10  # Out of bounds
 
         client.disconnect()

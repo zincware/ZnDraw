@@ -39,7 +39,7 @@ class InMemoryResultBackend:
         self._inflight: set[str] = set()
         self._waiters: dict[str, list[asyncio.Event]] = {}
 
-    async def store(self, key: str, data: bytes, ttl: int) -> None:
+    async def store(self, key: str, data: bytes, _ttl: int) -> None:
         self._data[key] = data
 
     async def get(self, key: str) -> bytes | None:

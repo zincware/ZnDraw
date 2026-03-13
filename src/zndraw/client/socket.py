@@ -84,7 +84,7 @@ class SocketManager:
                 error_msg = (
                     response.get("detail") or response.get("title") or "Unknown error"
                 )
-                raise ZnDrawError(f"Failed to join room: {error_msg}")
+                raise ZnDrawError(f"Failed to join room: {error_msg}")  # noqa: TRY301
 
             # Validate response
             join_response = RoomJoinResponse.model_validate(response)
@@ -114,8 +114,8 @@ class SocketManager:
     def _on_connect(self) -> None:
         """Handle connection event. Re-register providers if mounted."""
         log.debug("Socket connected")
-        source = self.zndraw._mount
-        mount_name = self.zndraw._mount_name
+        source = self.zndraw._mount  # noqa: SLF001
+        mount_name = self.zndraw._mount_name  # noqa: SLF001
         if source is not None and mount_name is not None:
             from zndraw.providers.frame_source import FrameSourceLength, FrameSourceRead
 
