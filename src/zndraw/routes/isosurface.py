@@ -115,10 +115,10 @@ async def get_isosurface(
         frame[key_bytes], object_hook=msgpack_numpy.decode, raw=False
     )
 
-    _REQUIRED_KEYS = {"grid", "origin", "cell"}
+    required_keys = {"grid", "origin", "cell"}
     if not isinstance(cube_dict, dict):
         raise UnprocessableContent.exception(f"Key '{cube_key}' is not a dict")
-    missing = _REQUIRED_KEYS - cube_dict.keys()
+    missing = required_keys - cube_dict.keys()
     if missing:
         raise UnprocessableContent.exception(
             f"Cube data missing keys: {', '.join(sorted(missing))}"

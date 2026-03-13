@@ -65,10 +65,12 @@ def test_isosurface_custom_values():
 
 def test_isosurface_frozen():
     """Model is immutable (frozen=True)."""
+    from pydantic import ValidationError
+
     from zndraw.geometries.isosurface import Isosurface
 
     iso = Isosurface()
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         iso.isovalue = 0.5  # type: ignore[misc]
 
 
@@ -478,7 +480,7 @@ async def test_isosurface_room_not_found(
     iso_client: AsyncClient, iso_session: AsyncSession
 ) -> None:
     """GET isosurface for non-existent room returns 404."""
-    user, token = await create_test_user_in_db(iso_session)
+    _, token = await create_test_user_in_db(iso_session)
 
     response = await iso_client.get(
         "/v1/rooms/nonexistent-room/frames/0/isosurface",
