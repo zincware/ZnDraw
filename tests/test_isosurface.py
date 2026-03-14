@@ -264,9 +264,16 @@ async def iso_client_fixture(
 
     from zndraw_auth import get_session
     from zndraw_auth.settings import AuthSettings
+    from zndraw_joblib.settings import JobLibSettings
 
     from zndraw.app import app
-    from zndraw.dependencies import get_redis, get_storage, get_tsio
+    from zndraw.dependencies import (
+        get_joblib_settings,
+        get_redis,
+        get_result_backend,
+        get_storage,
+        get_tsio,
+    )
 
     mock_sio = MockSioServer()
 
@@ -283,6 +290,8 @@ async def iso_client_fixture(
     app.dependency_overrides[get_storage] = lambda: iso_storage
     app.dependency_overrides[get_tsio] = lambda: mock_sio
     app.dependency_overrides[get_redis] = lambda: AsyncMock()
+    app.dependency_overrides[get_result_backend] = lambda: AsyncMock()
+    app.dependency_overrides[get_joblib_settings] = lambda: JobLibSettings()
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"

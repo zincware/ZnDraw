@@ -11,7 +11,10 @@ from fastapi import APIRouter, Query, Response
 
 from zndraw.dependencies import (
     CurrentUserFactoryDep,
+    JobLibSettingsDep,
+    ResultBackendDep,
     SessionMakerDep,
+    SioDep,
     StorageDep,
     verify_room,
 )
@@ -21,6 +24,7 @@ from zndraw.exceptions import (
     UnprocessableContent,
     problem_responses,
 )
+from zndraw.routes.frames import _dispatch_provider_frame, _find_frames_provider
 
 router = APIRouter(
     prefix="/v1/rooms/{room_id}/frames/{index}/isosurface",
@@ -82,6 +86,9 @@ def _extract_mesh(
 async def get_isosurface(
     session_maker: SessionMakerDep,
     storage: StorageDep,
+    sio: SioDep,
+    result_backend: ResultBackendDep,
+    joblib_settings: JobLibSettingsDep,
     _current_user: CurrentUserFactoryDep,
     room_id: str,
     index: int,
@@ -98,9 +105,22 @@ async def get_isosurface(
         if index < 0 or index >= total:
             FrameNotFound.raise_out_of_range(index, total)
 
-    frame = await storage.get(room_id, index)
+        frame = await storage.get(room_id, index)
+        provider = (
+            await _find_frames_provider(session, room_id) if frame is None else None
+        )
+
     if frame is None:
-        raise FrameNotFound.exception(f"Frame at index {index} is empty")
+        if provider is None:
+            raise FrameNotFound.exception(f"Frame at index {index} is empty")
+        frame = await _dispatch_provider_frame(
+            result_backend,
+            sio,
+            provider,
+            index,
+            timeout=joblib_settings.provider_long_poll_default_seconds,
+            inflight_ttl=joblib_settings.provider_inflight_ttl_seconds,
+        )
 
     key_bytes = cube_key.encode()
     if key_bytes not in frame:
