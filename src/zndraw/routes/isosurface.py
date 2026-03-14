@@ -96,10 +96,7 @@ async def get_isosurface(
         await verify_room(session, room_id)
         total = await storage.get_length(room_id)
         if index < 0 or index >= total:
-            range_str = f"0-{total - 1}" if total > 0 else "no frames"
-            raise FrameNotFound.exception(
-                f"Frame index {index} out of range ({range_str})"
-            )
+            FrameNotFound.raise_out_of_range(index, total)
 
     frame = await storage.get(room_id, index)
     if frame is None:

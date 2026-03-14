@@ -7,13 +7,11 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useAppStore } from "../../store";
 import { getGeometryWithDefaults } from "../../utils/geometryDefaults";
-import { unpackBinary } from "../../utils/msgpack-numpy";
-import axios from "axios";
-import { getToken } from "../../utils/auth";
+import { fetchIsosurface } from "../../myapi/client";
 
 interface IsosurfaceData {
 	active: boolean;
@@ -22,35 +20,6 @@ interface IsosurfaceData {
 	color: string;
 	resolution: number; // 0..1 float, converted to step_size server-side
 	opacity: number;
-}
-
-async function fetchIsosurface(
-	roomId: string,
-	frame: number,
-	cubeKey: string,
-	isovalue: number,
-	resolution: number,
-): Promise<{
-	vertices: number[][] | Float32Array;
-	faces: number[][] | Uint32Array;
-}> {
-	const params = new URLSearchParams({
-		cube_key: cubeKey,
-		isovalue: isovalue.toString(),
-		resolution: resolution.toString(),
-	});
-	const token = getToken();
-	const response = await axios.get(
-		`/v1/rooms/${roomId}/frames/${frame}/isosurface?${params.toString()}`,
-		{
-			responseType: "arraybuffer",
-			headers: token ? { Authorization: `Bearer ${token}` } : {},
-		},
-	);
-	return unpackBinary(new Uint8Array(response.data)) as {
-		vertices: number[][] | Float32Array;
-		faces: number[][] | Uint32Array;
-	};
 }
 
 export default function Isosurface({
@@ -90,6 +59,8 @@ export default function Isosurface({
 		staleTime: 30000,
 	});
 
+	const geometryRef = useRef<THREE.BufferGeometry | null>(null);
+
 	const geometry = useMemo(() => {
 		if (!meshData || meshData.vertices.length === 0) return null;
 
@@ -119,6 +90,20 @@ export default function Isosurface({
 		geo.computeVertexNormals();
 		return geo;
 	}, [meshData]);
+
+	useEffect(() => {
+		const prev = geometryRef.current;
+		geometryRef.current = geometry;
+		if (prev && prev !== geometry) {
+			prev.dispose();
+		}
+	}, [geometry]);
+
+	useEffect(() => {
+		return () => {
+			geometryRef.current?.dispose();
+		};
+	}, []);
 
 	if (!fullData.active || !geometry) return null;
 

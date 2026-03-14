@@ -21,9 +21,6 @@ from sqlmodel import SQLModel
 
 from zndraw.storage import AsebytesStorage
 
-msgpack_numpy.patch()
-
-
 # =============================================================================
 # Model Validation Tests
 # =============================================================================

@@ -10,7 +10,7 @@ Frame data format: list[dict[bytes, bytes]] where:
 """
 
 import asyncio
-from typing import Annotated, NoReturn
+from typing import Annotated
 
 import msgpack
 from fastapi import APIRouter, Query, Request, Response, status
@@ -71,13 +71,7 @@ def _validate_frame_keys(frame: RawFrame) -> None:
         raise UnprocessableContent.exception(f"Frame missing required keys: {names}")
 
 
-def _raise_frame_not_found(index: int | list[int], total: int) -> NoReturn:
-    """Raise FrameNotFound with a consistent message."""
-    range_str = f"0-{total - 1}" if total > 0 else "no frames"
-    label = (
-        f"Frame index {index}" if isinstance(index, int) else f"Frame indices {index}"
-    )
-    raise FrameNotFound.exception(f"{label} out of range ({range_str})")
+_raise_frame_not_found = FrameNotFound.raise_out_of_range
 
 
 # =============================================================================
