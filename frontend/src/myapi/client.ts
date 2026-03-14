@@ -697,6 +697,7 @@ export const fetchIsosurface = async (
 	cubeKey: string,
 	isovalue: number,
 	resolution: number,
+	signal?: AbortSignal,
 ): Promise<IsosurfaceMesh> => {
 	const params = new URLSearchParams({
 		cube_key: cubeKey,
@@ -705,7 +706,7 @@ export const fetchIsosurface = async (
 	});
 	const response = await apiClient.get(
 		`/v1/rooms/${roomId}/frames/${frame}/isosurface?${params.toString()}`,
-		{ responseType: "arraybuffer" },
+		{ responseType: "arraybuffer", signal },
 	);
 	return unpackBinary(new Uint8Array(response.data)) as IsosurfaceMesh;
 };

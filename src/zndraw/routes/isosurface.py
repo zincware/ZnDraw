@@ -126,7 +126,15 @@ async def get_isosurface(
         raise UnprocessableContent.exception(f"Grid must be 3D, got {grid.ndim}D")
 
     origin = np.asarray(cube_dict["origin"], dtype=np.float64)
+    if origin.shape != (3,):
+        raise UnprocessableContent.exception(
+            f"Origin must have shape (3,), got {origin.shape}"
+        )
     cell = np.asarray(cube_dict["cell"], dtype=np.float64)
+    if cell.shape != (3, 3):
+        raise UnprocessableContent.exception(
+            f"Cell must have shape (3, 3), got {cell.shape}"
+        )
 
     # resolution 1.0 → step_size 1, resolution 0.0 → step_size 8
     step_size = max(1, round(1 + (1 - resolution) * 7))

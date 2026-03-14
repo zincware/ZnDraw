@@ -47,13 +47,14 @@ export default function Isosurface({
 			fullData.isovalue,
 			fullData.resolution,
 		],
-		queryFn: () =>
+		queryFn: ({ signal }) =>
 			fetchIsosurface(
 				roomId!,
 				currentFrame,
 				fullData.cube_key,
 				fullData.isovalue,
 				fullData.resolution,
+				signal,
 			),
 		enabled: !!roomId && !!fullData.cube_key && fullData.active,
 		staleTime: 30000,
