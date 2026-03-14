@@ -684,6 +684,33 @@ export const partialUpdateFrame = async (
 	return data;
 };
 
+// ==================== Isosurface API ====================
+
+export interface IsosurfaceMesh {
+	vertices: number[][] | Float32Array;
+	faces: number[][] | Uint32Array;
+}
+
+export const fetchIsosurface = async (
+	roomId: string,
+	frame: number,
+	cubeKey: string,
+	isovalue: number,
+	resolution: number,
+	signal?: AbortSignal,
+): Promise<IsosurfaceMesh> => {
+	const params = new URLSearchParams({
+		cube_key: cubeKey,
+		isovalue: isovalue.toString(),
+		resolution: resolution.toString(),
+	});
+	const response = await apiClient.get(
+		`/v1/rooms/${roomId}/frames/${frame}/isosurface?${params.toString()}`,
+		{ responseType: "arraybuffer", signal },
+	);
+	return unpackBinary(new Uint8Array(response.data)) as IsosurfaceMesh;
+};
+
 // ==================== Chat API ====================
 
 export const getChatMessages = async (

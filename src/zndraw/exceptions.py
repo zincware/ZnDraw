@@ -268,6 +268,17 @@ class FrameNotFound(ProblemType):
     def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
         raise IndexError(problem.detail or "Frame not found")
 
+    @classmethod
+    def raise_out_of_range(cls, index: int | list[int], total: int) -> NoReturn:
+        """Raise FrameNotFound with a consistent out-of-range message."""
+        range_str = f"0-{total - 1}" if total > 0 else "no frames"
+        label = (
+            f"Frame index {index}"
+            if isinstance(index, int)
+            else f"Frame indices {index}"
+        )
+        raise cls.exception(f"{label} out of range ({range_str})")
+
 
 class GeometryNotFound(ProblemType):
     """The requested geometry does not exist.

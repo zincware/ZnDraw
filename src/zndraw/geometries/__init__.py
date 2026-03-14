@@ -14,6 +14,7 @@ from zndraw.geometries.circle_curve import CircleCurve
 from zndraw.geometries.curve import Curve, CurveMarker
 from zndraw.geometries.floor import Floor
 from zndraw.geometries.fog import Fog
+from zndraw.geometries.isosurface import Isosurface
 from zndraw.geometries.lights import (
     AmbientLight,
     DirectionalLight,
@@ -37,6 +38,7 @@ Curve.model_rebuild()
 Floor.model_rebuild()
 Plane.model_rebuild()
 Shape.model_rebuild()
+Isosurface.model_rebuild()
 
 
 geometries = {
@@ -58,6 +60,7 @@ geometries = {
     "Fog": Fog,
     "PathTracing": PathTracing,
     "PropertyInspector": PropertyInspector,
+    "Isosurface": Isosurface,
 }
 
 __all__ = [
@@ -79,6 +82,7 @@ __all__ = [
     "HemisphereLight",
     "InArrayTransform",
     "InteractionSettings",
+    "Isosurface",
     "LightPosition",
     "PathTracing",
     "Plane",

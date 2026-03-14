@@ -31,6 +31,7 @@ import EditingIndicator from "./three/EditingIndicator";
 import { Floor } from "./three/Floor";
 import { Fog } from "./three/Fog";
 import { GeometryErrorBoundary } from "./three/GeometryErrorBoundary";
+import Isosurface from "./three/Isosurface";
 import HoverInfoBox from "./three/HoverInfoBox";
 import { KeyboardShortcutsHandler } from "./three/KeyboardShortcutsHandler";
 import {
@@ -71,6 +72,7 @@ const SIMPLE_GEOMETRY_COMPONENTS = {
 	AmbientLight: AmbientLight,
 	HemisphereLight: HemisphereLight,
 	Fog: Fog,
+	Isosurface: Isosurface,
 } as const;
 
 /**
