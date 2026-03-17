@@ -98,7 +98,7 @@ async def get_isosurface(
         float, Query(ge=0.0, le=1.0, description="Mesh resolution (0=coarse, 1=fine)")
     ] = 1.0,
     sigma: Annotated[
-        float, Query(ge=0.0, description="Gaussian smoothing sigma (0=disabled)")
+        float, Query(ge=0.0, le=5.0, description="Gaussian smoothing sigma (0=disabled)")
     ] = 0.0,
 ) -> Response:
     """Extract an isosurface mesh from volumetric frame data."""

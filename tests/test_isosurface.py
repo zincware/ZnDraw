@@ -173,7 +173,7 @@ def test_isosurface_schema_editable_range():
 
 
 def test_isosurface_schema_hidden_fields():
-    """isovalue_min, isovalue_max, and sigma are hidden from the form."""
+    """isovalue_min and isovalue_max are hidden from the form."""
     from zndraw.geometries.isosurface import Isosurface
 
     schema = Isosurface.model_json_schema()

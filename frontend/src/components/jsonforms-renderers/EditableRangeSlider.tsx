@@ -40,8 +40,8 @@ const EditableRangeSlider = ({
 	const maxField = ext["x-max-field"] as string;
 	const step = (ext.step as number) || 0.001;
 
-	const min = Number(rootData[minField] ?? -0.25);
-	const max = Number(rootData[maxField] ?? 0.25);
+	const min = Number(rootData[minField] ?? 0);
+	const max = Number(rootData[maxField] ?? 0);
 	const value = Number(data ?? schema.default ?? min);
 
 	const [editingMin, setEditingMin] = useState(false);
@@ -53,25 +53,25 @@ const EditableRangeSlider = ({
 
 	const commitMin = useCallback(() => {
 		const parsed = Number.parseFloat(minDraft);
-		if (!Number.isNaN(parsed)) {
+		if (!Number.isNaN(parsed) && parsed <= max) {
 			handleChange(minField, parsed);
 			if (value < parsed) {
 				handleChange(path, parsed);
 			}
 		}
 		setEditingMin(false);
-	}, [minDraft, handleChange, minField, path, value]);
+	}, [minDraft, handleChange, minField, path, value, max]);
 
 	const commitMax = useCallback(() => {
 		const parsed = Number.parseFloat(maxDraft);
-		if (!Number.isNaN(parsed)) {
+		if (!Number.isNaN(parsed) && parsed >= min) {
 			handleChange(maxField, parsed);
 			if (value > parsed) {
 				handleChange(path, parsed);
 			}
 		}
 		setEditingMax(false);
-	}, [maxDraft, handleChange, maxField, path, value]);
+	}, [maxDraft, handleChange, maxField, path, value, min]);
 
 	const commitValue = useCallback(() => {
 		const parsed = Number.parseFloat(valueDraft);
@@ -132,7 +132,7 @@ const EditableRangeSlider = ({
 					max={max}
 					step={step}
 					sx={{ flexGrow: 1 }}
-					aria-labelledby="editable-range-slider"
+					aria-label={label}
 				/>
 
 				{/* Max label — click to edit */}

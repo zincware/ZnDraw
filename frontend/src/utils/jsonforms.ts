@@ -72,8 +72,8 @@ export const customRenderers = [
 	}, // Priority 10 - Legacy renderer (will be removed)
 	{ tester: customSmilesPackEditorTester, renderer: CustomSmilesPackEditor }, // Priority 6 - SMILES pack editor
 	{ tester: customSmilesEditorTester, renderer: CustomSmilesEditor }, // Priority 5 - SMILES editor
-	{ tester: customColorPickerTester, renderer: CustomColorPicker }, // Priority 5
 	{ tester: editableRangeSliderTester, renderer: EditableRangeSlider }, // Priority 10 - Editable range slider with click-to-edit bounds
+	{ tester: customColorPickerTester, renderer: CustomColorPicker }, // Priority 5
 	{ tester: customRangeSliderTester, renderer: CustomRangeSlider },
 ];
 
