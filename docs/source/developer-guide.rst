@@ -240,21 +240,21 @@ User interactions in the web interface can trigger actions in the Python client,
         participant WC as Web Client
         participant ZS as ZnSocket
         participant PY as Python Client
-        participant CEL as Celery Worker
+        participant TQ as TaskIQ Worker
 
-        Note over UI, CEL: User Selection and Analysis
+        Note over UI, TQ: User Selection and Analysis
         UI->>WC: User selects atoms
         WC->>ZS: Update selection dict
         ZS-->>PY: Selection change callback
         PY->>PY: Check modifier queue
 
-        Note over UI, CEL: Background Task Execution
+        Note over UI, TQ: Background Task Execution
         UI->>WC: Trigger analysis task
         WC->>ZS: Add task to queue
         ZS-->>PY: Queue update callback
-        PY->>CEL: Submit Celery task
-        CEL->>CEL: Execute computation
-        CEL->>ZS: Store results
+        PY->>TQ: Submit TaskIQ task
+        TQ->>TQ: Execute computation
+        TQ->>ZS: Store results
         ZS-->>WC: Results available
         WC->>UI: Display analysis results
 

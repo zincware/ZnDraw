@@ -58,9 +58,7 @@ def list_rooms(
 def create_room(
     url: UrlOpt = None,
     token: TokenOpt = None,
-    room_id: Annotated[
-        str | None, typer.Option(help="Room ID (generated if not given)")
-    ] = None,
+    room: RoomOpt = None,
     copy_from: Annotated[
         str | None, typer.Option("--copy-from", help="Copy from existing room ID")
     ] = None,
@@ -68,7 +66,7 @@ def create_room(
     """Create a new room."""
     with cli_error_handler():
         conn = get_connection(url, token)
-        request = RoomCreate(room_id=room_id or str(uuid.uuid4()), copy_from=copy_from)
+        request = RoomCreate(room_id=room or str(uuid.uuid4()), copy_from=copy_from)
         response = conn.post("/v1/rooms", json=request.model_dump())
         json_print(RoomCreateResponse.model_validate(response.json()))
 

@@ -9,7 +9,7 @@ cd standalone
 docker compose up -d
 ```
 
-Access at http://localhost:5000
+Access at http://localhost:8000
 
 Best for: Personal use, small teams, development.
 
@@ -29,7 +29,7 @@ Best for: Production, high load, multiple concurrent users.
 | Feature | Standalone | Production |
 |---------|------------|--------|
 | ZnDraw instances | 1 | 3+ (configurable) |
-| Celery workers | 1 | 2+ (configurable) |
-| Load balancer | No | Nginx |
-| Port | 5000 | 80 |
+| TaskIQ workers | 1 | 2+ (configurable) |
+| Load balancer | No | Caddy |
+| Port | 8000 | 80 |
 | Complexity | Simple | Moderate |

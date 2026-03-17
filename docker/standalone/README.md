@@ -1,6 +1,6 @@
 # ZnDraw Standalone Deployment
 
-Simple single-instance deployment with Redis and Celery worker.
+Simple single-instance deployment with Redis and TaskIQ worker.
 
 ## Quick Start
 
@@ -8,7 +8,7 @@ Simple single-instance deployment with Redis and Celery worker.
 docker compose up -d
 ```
 
-Access at http://localhost:5000
+Access at http://localhost:8000
 
 ## With Custom Templates
 
@@ -35,10 +35,9 @@ Edit `docker-compose.yaml` to customize:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZNDRAW_REDIS_URL` | Redis connection | `redis://redis:6379` |
-| `ZNDRAW_SERVER_PORT` | Server port | `5000` |
-| `FLASK_SECRET_KEY` | Session secret | Change in production! |
-| `ZNDRAW_ADMIN_USERNAME` | Admin user | Disabled |
-| `ZNDRAW_ADMIN_PASSWORD` | Admin password | Disabled |
+| `ZNDRAW_AUTH_SECRET_KEY` | JWT secret | Change in production! |
+| `ZNDRAW_AUTH_DEFAULT_ADMIN_EMAIL` | Admin email | Disabled |
+| `ZNDRAW_AUTH_DEFAULT_ADMIN_PASSWORD` | Admin password | Disabled |
 
 ## Commands
 

@@ -1,6 +1,6 @@
 """FastAPI dependencies for database sessions, Redis, and authentication.
 
-All resources are accessed from request.app.state following Flask/Celery pattern.
+All resources are accessed from request.app.state.
 Authentication uses zndraw-auth package.
 """
 

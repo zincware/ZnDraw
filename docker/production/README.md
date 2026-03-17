@@ -1,6 +1,6 @@
 # ZnDraw Production Deployment
 
-Horizontal scaling deployment with Nginx load balancer and multiple ZnDraw instances.
+Horizontal scaling deployment with Caddy load balancer and multiple ZnDraw instances.
 
 ## Quick Start
 
@@ -14,28 +14,28 @@ Access at http://localhost
 
 ```mermaid
 flowchart TB
-    nginx[Nginx :80]
+    caddy[Caddy :80]
 
-    nginx --> zndraw1[ZnDraw]
-    nginx --> zndraw2[ZnDraw]
-    nginx --> zndraw3[ZnDraw]
+    caddy --> zndraw1[ZnDraw]
+    caddy --> zndraw2[ZnDraw]
+    caddy --> zndraw3[ZnDraw]
 
     zndraw1 --> redis[(Redis)]
     zndraw2 --> redis
     zndraw3 --> redis
 
-    redis --> celery1[Celery Worker]
-    redis --> celery2[Celery Worker]
+    redis --> worker1[TaskIQ Worker]
+    redis --> worker2[TaskIQ Worker]
 
-    subgraph "ZnDraw Replicas (×3)"
+    subgraph "ZnDraw Replicas (x3)"
         zndraw1
         zndraw2
         zndraw3
     end
 
-    subgraph "Celery Workers (×2)"
-        celery1
-        celery2
+    subgraph "TaskIQ Workers (x2)"
+        worker1
+        worker2
     end
 ```
 
@@ -49,21 +49,9 @@ services:
     deploy:
       replicas: 5  # Increase for higher load
 
-  celery-worker:
+  taskiq-worker:
     deploy:
       replicas: 4  # Increase for more background tasks
-```
-
-## With Custom Templates
-
-Mount a local templates directory:
-
-```yaml
-services:
-  zndraw:
-    volumes:
-      - zndraw-data:/app/data
-      - ./templates:/app/templates:ro
 ```
 
 ## Configuration
@@ -71,9 +59,9 @@ services:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZNDRAW_REDIS_URL` | Redis connection | `redis://redis:6379` |
-| `FLASK_SECRET_KEY` | Session secret | Change in production! |
-| `ZNDRAW_ADMIN_USERNAME` | Admin user | Disabled |
-| `ZNDRAW_ADMIN_PASSWORD` | Admin password | Disabled |
+| `ZNDRAW_AUTH_SECRET_KEY` | JWT secret | Change in production! |
+| `ZNDRAW_AUTH_DEFAULT_ADMIN_EMAIL` | Admin email | Disabled |
+| `ZNDRAW_AUTH_DEFAULT_ADMIN_PASSWORD` | Admin password | Disabled |
 
 ## Commands
 
@@ -82,7 +70,7 @@ services:
 docker compose up -d
 
 # Scale on the fly
-docker compose up -d --scale zndraw=5 --scale celery-worker=3
+docker compose up -d --scale zndraw=5 --scale taskiq-worker=3
 
 # View logs
 docker compose logs -f

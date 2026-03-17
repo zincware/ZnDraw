@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 import sys
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn
@@ -201,7 +202,8 @@ def resolve_token(base_url: str, token: str | None) -> str:
     Resolution order:
     1. Explicit token (``--token`` flag / ``ZNDRAW_TOKEN`` env var)
     2. Stored token from ``~/.zndraw/tokens.json`` (validated, removed on 401)
-    3. Guest auth fallback (``POST /v1/auth/guest``)
+    3. Email/password login (``ZNDRAW_EMAIL`` + ``ZNDRAW_PASSWORD`` env vars)
+    4. Guest auth fallback (``POST /v1/auth/guest``)
 
     Parameters
     ----------
@@ -228,6 +230,30 @@ def resolve_token(base_url: str, token: str | None) -> str:
                 return entry.access_token
             # Token invalid — remove and fall through
             store.delete(base_url)
+
+    # Try email/password login (headless / Docker / CI)
+    email = os.environ.get("ZNDRAW_EMAIL")
+    password = os.environ.get("ZNDRAW_PASSWORD")
+    if email and password:
+        try:
+            with httpx.Client(base_url=base_url, timeout=10.0) as client:
+                resp = client.post(
+                    "/auth/jwt/login",
+                    data={
+                        "username": email,
+                        "password": password,
+                        "grant_type": "password",
+                    },
+                )
+                resp.raise_for_status()
+                return resp.json()["access_token"]
+        except (httpx.RequestError, httpx.HTTPStatusError, KeyError) as exc:
+            die(
+                "Authentication Failed",
+                f"Email/password login failed: {exc}",
+                401,
+                EXIT_CLIENT_ERROR,
+            )
 
     # Auto-create guest session
     try:
