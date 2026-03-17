@@ -33,6 +33,9 @@ def test_isosurface_defaults():
     iso = Isosurface()
     assert iso.cube_key == ""
     assert iso.isovalue == 0.02
+    assert iso.isovalue_min == -0.25
+    assert iso.isovalue_max == 0.25
+    assert iso.sigma == 0.0
     assert iso.color == "#2244CC"
     assert iso.resolution == 1.0
     assert iso.opacity == 0.6
@@ -58,6 +61,55 @@ def test_isosurface_custom_values():
     assert iso.resolution == 0.5
     assert iso.opacity == 0.8
     assert iso.owner == "user123"
+
+
+def test_isosurface_custom_range():
+    """Construction with custom isovalue range for SDF data."""
+    from zndraw.geometries.isosurface import Isosurface
+
+    iso = Isosurface(
+        isovalue=5.0,
+        isovalue_min=0.0,
+        isovalue_max=30.0,
+    )
+    assert iso.isovalue == 5.0
+    assert iso.isovalue_min == 0.0
+    assert iso.isovalue_max == 30.0
+
+
+@pytest.mark.parametrize(
+    "isovalue, isovalue_min, isovalue_max",
+    [
+        (-1.0, -0.25, 0.25),  # isovalue below min
+        (1.0, -0.25, 0.25),  # isovalue above max
+        (0.0, 0.5, -0.5),  # min > max
+    ],
+)
+def test_isosurface_range_validation(
+    isovalue: float, isovalue_min: float, isovalue_max: float
+):
+    """Isovalue must be within [isovalue_min, isovalue_max], and min <= max."""
+    from pydantic import ValidationError
+
+    from zndraw.geometries.isosurface import Isosurface
+
+    with pytest.raises(ValidationError):
+        Isosurface(
+            isovalue=isovalue,
+            isovalue_min=isovalue_min,
+            isovalue_max=isovalue_max,
+        )
+
+
+def test_isosurface_sigma_positive():
+    """Sigma must be non-negative."""
+    from pydantic import ValidationError
+
+    from zndraw.geometries.isosurface import Isosurface
+
+    Isosurface(sigma=1.5)  # valid
+    with pytest.raises(ValidationError):
+        Isosurface(sigma=-0.1)
 
 
 def test_isosurface_frozen():
@@ -103,6 +155,30 @@ def test_isosurface_schema_has_dynamic_enum():
     cube_key_props = schema["properties"]["cube_key"]
     assert cube_key_props["x-custom-type"] == "dynamic-enum"
     assert "dynamic-atom-props" in cube_key_props["x-features"]
+
+
+def test_isosurface_schema_editable_range():
+    """isovalue field schema uses editable-range with min/max field refs."""
+    from zndraw.geometries.isosurface import Isosurface
+
+    schema = Isosurface.model_json_schema()
+    iso_props = schema["properties"]["isovalue"]
+    assert iso_props["x-custom-type"] == "editable-range"
+    assert iso_props["x-min-field"] == "isovalue_min"
+    assert iso_props["x-max-field"] == "isovalue_max"
+    assert iso_props["step"] == 0.001
+    # No ge/le constraints — validation is via model validator
+    assert "minimum" not in iso_props
+    assert "maximum" not in iso_props
+
+
+def test_isosurface_schema_hidden_fields():
+    """isovalue_min, isovalue_max, and sigma are hidden from the form."""
+    from zndraw.geometries.isosurface import Isosurface
+
+    schema = Isosurface.model_json_schema()
+    for field_name in ("isovalue_min", "isovalue_max"):
+        assert schema["properties"][field_name]["x-hidden"] is True
 
 
 def test_isosurface_in_geometries_dict():
@@ -479,6 +555,57 @@ async def test_isosurface_resolution(
     )
 
     assert len(data_coarse["vertices"]) < len(data_fine["vertices"])
+
+
+@pytest.mark.asyncio
+async def test_isosurface_sigma_smoothing(
+    iso_client: AsyncClient, iso_session: AsyncSession, iso_storage: AsebytesStorage
+) -> None:
+    """Gaussian smoothing with sigma > 0 produces a valid mesh from noisy data."""
+    user, token = await create_test_user_in_db(iso_session)
+    room = await create_test_room(iso_session, user)
+
+    # Create a noisy sphere grid that fragments without smoothing
+    rng = np.random.default_rng(42)
+    n = 30
+    lin = np.linspace(-1, 1, n)
+    x, y, z = np.meshgrid(lin, lin, lin, indexing="ij")
+    grid = np.sqrt(x**2 + y**2 + z**2) - 0.5 + rng.normal(0, 0.3, (n, n, n))
+    cube_data = {
+        "grid": grid,
+        "origin": np.array([-1.0, -1.0, -1.0]),
+        "cell": np.array([[2.0, 0, 0], [0, 2.0, 0], [0, 0, 2.0]]),
+    }
+    frame = {
+        b"info.noisy": msgpack.packb(cube_data, default=msgpack_numpy.encode),
+    }
+    await iso_storage.extend(room.id, [frame])  # type: ignore[arg-type]
+
+    # Without smoothing
+    resp_raw = await iso_client.get(
+        f"/v1/rooms/{room.id}/frames/0/isosurface",
+        params={"cube_key": "info.noisy", "isovalue": "0.0"},
+        headers=auth_header(token),
+    )
+    assert resp_raw.status_code == 200
+
+    # With smoothing
+    resp_smooth = await iso_client.get(
+        f"/v1/rooms/{room.id}/frames/0/isosurface",
+        params={"cube_key": "info.noisy", "isovalue": "0.0", "sigma": "1.0"},
+        headers=auth_header(token),
+    )
+    assert resp_smooth.status_code == 200
+
+    data_raw = msgpack.unpackb(
+        resp_raw.content, object_hook=msgpack_numpy.decode, raw=False
+    )
+    data_smooth = msgpack.unpackb(
+        resp_smooth.content, object_hook=msgpack_numpy.decode, raw=False
+    )
+    # Smoothed mesh should have fewer vertices (less fragmented)
+    assert len(data_smooth["vertices"]) > 0
+    assert len(data_smooth["vertices"]) < len(data_raw["vertices"])
 
 
 @pytest.mark.asyncio

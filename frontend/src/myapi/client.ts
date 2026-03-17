@@ -697,12 +697,14 @@ export const fetchIsosurface = async (
 	cubeKey: string,
 	isovalue: number,
 	resolution: number,
+	sigma: number,
 	signal?: AbortSignal,
 ): Promise<IsosurfaceMesh> => {
 	const params = new URLSearchParams({
 		cube_key: cubeKey,
 		isovalue: isovalue.toString(),
 		resolution: resolution.toString(),
+		sigma: sigma.toString(),
 	});
 	const response = await apiClient.get(
 		`/v1/rooms/${roomId}/frames/${frame}/isosurface?${params.toString()}`,
