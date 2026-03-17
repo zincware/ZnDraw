@@ -1,8 +1,5 @@
 import { type ControlProps, rankWith, schemaMatches } from "@jsonforms/core";
-import {
-	useJsonForms,
-	withJsonFormsControlProps,
-} from "@jsonforms/react";
+import { useJsonForms, withJsonFormsControlProps } from "@jsonforms/react";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import {
 	Box,
