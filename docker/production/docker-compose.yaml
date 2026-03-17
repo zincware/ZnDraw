@@ -111,8 +111,8 @@ services:
       - |
         zndraw-cli rooms create --room template --copy-from @none &&
         zndraw-cli frames extend --room template /app/templates/s22.xyz &&
-        zndraw-cli rooms lock template &&
-        zndraw-cli rooms set-default template
+        zndraw-cli rooms lock --room template &&
+        zndraw-cli rooms set-default --room template
     volumes:
       - ./s22.xyz:/app/templates/s22.xyz:ro
 

@@ -66,7 +66,10 @@ def create_room(
     """Create a new room."""
     with cli_error_handler():
         conn = get_connection(url, token)
-        request = RoomCreate(room_id=room or str(uuid.uuid4()), copy_from=copy_from)
+        request = RoomCreate(
+            room_id=room if room is not None else str(uuid.uuid4()),
+            copy_from=copy_from,
+        )
         response = conn.post("/v1/rooms", json=request.model_dump())
         json_print(RoomCreateResponse.model_validate(response.json()))
 

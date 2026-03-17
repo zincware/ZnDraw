@@ -234,23 +234,26 @@ def resolve_token(base_url: str, token: str | None) -> str:
     # Try email/password login (headless / Docker / CI)
     email = os.environ.get("ZNDRAW_EMAIL")
     password = os.environ.get("ZNDRAW_PASSWORD")
+    if bool(email) != bool(password):
+        die(
+            "Incomplete Credentials",
+            "Both ZNDRAW_EMAIL and ZNDRAW_PASSWORD must be set.",
+            400,
+            EXIT_CLIENT_ERROR,
+        )
     if email and password:
         try:
             with httpx.Client(base_url=base_url, timeout=10.0) as client:
                 resp = client.post(
-                    "/auth/jwt/login",
-                    data={
-                        "username": email,
-                        "password": password,
-                        "grant_type": "password",
-                    },
+                    "/v1/auth/jwt/login",
+                    data={"username": email, "password": password},
                 )
                 resp.raise_for_status()
                 return resp.json()["access_token"]
         except (httpx.RequestError, httpx.HTTPStatusError, KeyError) as exc:
             die(
                 "Authentication Failed",
-                f"Email/password login failed: {exc}",
+                f"Email/password login failed for {email}: {type(exc).__name__}",
                 401,
                 EXIT_CLIENT_ERROR,
             )
