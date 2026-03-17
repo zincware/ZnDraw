@@ -78,7 +78,7 @@ def test_isosurface_custom_range():
 
 
 @pytest.mark.parametrize(
-    "isovalue, isovalue_min, isovalue_max",
+    ("isovalue", "isovalue_min", "isovalue_max"),
     [
         (-1.0, -0.25, 0.25),  # isovalue below min
         (1.0, -0.25, 0.25),  # isovalue above max
