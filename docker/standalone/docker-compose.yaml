@@ -51,18 +51,16 @@ services:
     env_file: .env
     environment:
       - ZNDRAW_URL=http://zndraw:8000
+      - ZNDRAW_EMAIL=${ZNDRAW_AUTH_DEFAULT_ADMIN_EMAIL}
+      - ZNDRAW_PASSWORD=${ZNDRAW_AUTH_DEFAULT_ADMIN_PASSWORD}
     command:
       - sh
       - -c
       - |
-        export ZNDRAW_TOKEN=$(zndraw-cli auth login \
-          --user "$ZNDRAW_AUTH_DEFAULT_ADMIN_EMAIL" \
-          --password "$ZNDRAW_AUTH_DEFAULT_ADMIN_PASSWORD" \
-          | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])") &&
-        zndraw-cli rooms create --room-id template --copy-from @none &&
-        zndraw-cli frames extend template --file /app/templates/s22.xyz &&
-        zndraw-cli rooms lock template &&
-        zndraw-cli rooms set-default template
+        zndraw-cli rooms create --room template --copy-from @none &&
+        zndraw-cli frames extend --room template /app/templates/s22.xyz &&
+        zndraw-cli rooms lock --room template &&
+        zndraw-cli rooms set-default --room template
     volumes:
       - ./s22.xyz:/app/templates/s22.xyz:ro
 

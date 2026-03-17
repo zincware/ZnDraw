@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 from zndraw.server_manager import TokenEntry, TokenStore
@@ -101,3 +102,98 @@ def test_no_stored_token_falls_through_to_guest(token_store, mock_httpx_client):
         result = resolve_token("http://localhost:8000", None)
 
     assert result == "guest.token"
+
+
+def test_email_password_login_success(token_store, mock_httpx_client, monkeypatch):
+    """ZNDRAW_EMAIL + ZNDRAW_PASSWORD should POST to /v1/auth/jwt/login."""
+    from zndraw.cli_agent.connection import resolve_token
+
+    monkeypatch.setenv("ZNDRAW_EMAIL", "admin@example.com")
+    monkeypatch.setenv("ZNDRAW_PASSWORD", "secret")
+
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.json.return_value = {"access_token": "email.jwt.token"}
+    mock_httpx_client.post.return_value = mock_resp
+
+    with patch("zndraw.cli_agent.connection.get_token_store", return_value=token_store):
+        result = resolve_token("http://localhost:8000", None)
+
+    assert result == "email.jwt.token"
+    mock_httpx_client.post.assert_called_once_with(
+        "/v1/auth/jwt/login",
+        data={"username": "admin@example.com", "password": "secret"},
+    )
+
+
+def test_email_password_login_failure_exits(
+    token_store, mock_httpx_client, monkeypatch
+):
+    """Failed email/password login should exit, not fall through to guest."""
+    from zndraw.cli_agent.connection import resolve_token
+
+    monkeypatch.setenv("ZNDRAW_EMAIL", "admin@example.com")
+    monkeypatch.setenv("ZNDRAW_PASSWORD", "wrong")
+
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "401", request=MagicMock(), response=MagicMock()
+    )
+    mock_httpx_client.post.return_value = mock_resp
+
+    with (
+        patch("zndraw.cli_agent.connection.get_token_store", return_value=token_store),
+        pytest.raises(SystemExit, match="1"),
+    ):
+        resolve_token("http://localhost:8000", None)
+
+
+@pytest.mark.parametrize(
+    ("email", "password"),
+    [("admin@example.com", None), (None, "secret")],
+    ids=["email-only", "password-only"],
+)
+def test_partial_credentials_exits(token_store, monkeypatch, email, password):
+    """Setting only one of ZNDRAW_EMAIL/ZNDRAW_PASSWORD should exit."""
+    from zndraw.cli_agent.connection import resolve_token
+
+    if email:
+        monkeypatch.setenv("ZNDRAW_EMAIL", email)
+    else:
+        monkeypatch.delenv("ZNDRAW_EMAIL", raising=False)
+    if password:
+        monkeypatch.setenv("ZNDRAW_PASSWORD", password)
+    else:
+        monkeypatch.delenv("ZNDRAW_PASSWORD", raising=False)
+
+    with (
+        patch("zndraw.cli_agent.connection.get_token_store", return_value=token_store),
+        pytest.raises(SystemExit, match="1"),
+    ):
+        resolve_token("http://localhost:8000", None)
+
+
+def test_email_password_error_does_not_leak_password(
+    token_store, mock_httpx_client, monkeypatch, capsys
+):
+    """Error message should contain email but not password."""
+    from zndraw.cli_agent.connection import resolve_token
+
+    monkeypatch.setenv("ZNDRAW_EMAIL", "admin@example.com")
+    monkeypatch.setenv("ZNDRAW_PASSWORD", "super-secret-pass")
+
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "401", request=MagicMock(), response=MagicMock()
+    )
+    mock_httpx_client.post.return_value = mock_resp
+
+    with (
+        patch("zndraw.cli_agent.connection.get_token_store", return_value=token_store),
+        pytest.raises(SystemExit),
+    ):
+        resolve_token("http://localhost:8000", None)
+
+    stderr = capsys.readouterr().err
+    assert "admin@example.com" in stderr
+    assert "super-secret-pass" not in stderr
