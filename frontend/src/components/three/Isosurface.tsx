@@ -20,6 +20,7 @@ interface IsosurfaceData {
 	color: string;
 	resolution: number; // 0..1 float, converted to step_size server-side
 	opacity: number;
+	sigma: number; // Gaussian smoothing (0 = disabled)
 }
 
 export default function Isosurface({
@@ -46,6 +47,7 @@ export default function Isosurface({
 			fullData.cube_key,
 			fullData.isovalue,
 			fullData.resolution,
+			fullData.sigma,
 		],
 		queryFn: ({ signal }) =>
 			fetchIsosurface(
@@ -54,6 +56,7 @@ export default function Isosurface({
 				fullData.cube_key,
 				fullData.isovalue,
 				fullData.resolution,
+				fullData.sigma,
 				signal,
 			),
 		enabled: !!roomId && !!fullData.cube_key && fullData.active,

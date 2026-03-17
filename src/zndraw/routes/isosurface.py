@@ -97,6 +97,10 @@ async def get_isosurface(
     resolution: Annotated[
         float, Query(ge=0.0, le=1.0, description="Mesh resolution (0=coarse, 1=fine)")
     ] = 1.0,
+    sigma: Annotated[
+        float,
+        Query(ge=0.0, le=5.0, description="Gaussian smoothing sigma (0=disabled)"),
+    ] = 0.0,
 ) -> Response:
     """Extract an isosurface mesh from volumetric frame data."""
     async with session_maker() as session:
@@ -155,6 +159,11 @@ async def get_isosurface(
         raise UnprocessableContent.exception(
             f"Cell must have shape (3, 3), got {cell.shape}"
         )
+
+    if sigma > 0:
+        from scipy.ndimage import gaussian_filter
+
+        grid = gaussian_filter(grid, sigma=sigma)
 
     # resolution 1.0 → step_size 1, resolution 0.0 → step_size 8
     step_size = max(1, round(1 + (1 - resolution) * 7))

@@ -8,6 +8,12 @@ import CustomDynamicEnumWithColorPicker, {
 import CustomRangeSlider, {
 	customRangeSliderTester,
 } from "../components/jsonforms-renderers/CustomRangeSlider";
+import EditableRangeSlider, {
+	editableRangeSliderTester,
+} from "../components/jsonforms-renderers/EditableRangeSlider";
+import HiddenRenderer, {
+	hiddenRendererTester,
+} from "../components/jsonforms-renderers/HiddenRenderer";
 import CustomSmilesEditor, {
 	customSmilesEditorTester,
 } from "../components/jsonforms-renderers/CustomSmilesEditor";
@@ -45,6 +51,7 @@ import Vertices2DRenderer, {
  */
 export const customRenderers = [
 	...materialRenderers,
+	{ tester: hiddenRendererTester, renderer: HiddenRenderer }, // Priority 100 - Hides x-hidden fields
 	{ tester: ownershipToggleTester, renderer: OwnershipToggleRenderer }, // Priority 10 - Ownership claim/release toggle
 	{ tester: vec3Tester, renderer: Vec3Renderer }, // Priority 10 - Vec3 (x-custom-type: "vec3")
 	{ tester: vertices2DRendererTester, renderer: Vertices2DRenderer }, // Priority 10 - 2D vertices editor for Shape
@@ -65,6 +72,7 @@ export const customRenderers = [
 	}, // Priority 10 - Legacy renderer (will be removed)
 	{ tester: customSmilesPackEditorTester, renderer: CustomSmilesPackEditor }, // Priority 6 - SMILES pack editor
 	{ tester: customSmilesEditorTester, renderer: CustomSmilesEditor }, // Priority 5 - SMILES editor
+	{ tester: editableRangeSliderTester, renderer: EditableRangeSlider }, // Priority 10 - Editable range slider with click-to-edit bounds
 	{ tester: customColorPickerTester, renderer: CustomColorPicker }, // Priority 5
 	{ tester: customRangeSliderTester, renderer: CustomRangeSlider },
 ];

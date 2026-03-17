@@ -1,6 +1,8 @@
 """Isosurface geometry for volumetric data visualization."""
 
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Self
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Isosurface(BaseModel):
@@ -37,13 +39,33 @@ class Isosurface(BaseModel):
 
     isovalue: float = Field(
         default=0.02,
-        ge=-0.25,
-        le=0.25,
         description="Scalar threshold for surface extraction.",
         json_schema_extra={
-            "format": "range",
+            "x-custom-type": "editable-range",
             "step": 0.001,
+            "x-min-field": "isovalue_min",
+            "x-max-field": "isovalue_max",
         },
+    )
+
+    isovalue_min: float = Field(
+        default=-0.25,
+        description="Minimum isovalue for the slider.",
+        json_schema_extra={"x-hidden": True},
+    )
+
+    isovalue_max: float = Field(
+        default=0.25,
+        description="Maximum isovalue for the slider.",
+        json_schema_extra={"x-hidden": True},
+    )
+
+    sigma: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=5.0,
+        description="Gaussian smoothing sigma. 0 = disabled.",
+        json_schema_extra={"format": "range", "step": 0.1},
     )
 
     color: str = Field(
@@ -69,3 +91,17 @@ class Isosurface(BaseModel):
     )
 
     active: bool = Field(default=True, description="Show or hide this isosurface.")
+
+    @model_validator(mode="after")
+    def _check_isovalue_range(self) -> Self:
+        if self.isovalue_min > self.isovalue_max:
+            raise ValueError(
+                f"isovalue_min ({self.isovalue_min}) must be <= "
+                f"isovalue_max ({self.isovalue_max})"
+            )
+        if not (self.isovalue_min <= self.isovalue <= self.isovalue_max):
+            raise ValueError(
+                f"isovalue ({self.isovalue}) must be within "
+                f"[{self.isovalue_min}, {self.isovalue_max}]"
+            )
+        return self
