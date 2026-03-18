@@ -18,7 +18,9 @@ The current storage layer wraps `AsyncBlobIO` in two classes (`AsebytesStorage` 
    is needed (e.g., isosurface loads entire frame for one cube key).
 4. **Have broken typing** — `StorageDep` is typed as `AsebytesStorage` but the runtime object
    is `StorageRouter`; routes call `StorageRouter`-only methods on the wrong type.
-5. **Contain dead code** — `reserve()` and `remove_items()` are never called from routes.
+5. **Contain dead code** — `reserve()` and `remove_items()` are never called from
+   production code. Provider mounts use `set_frame_count()` in Redis, not
+   pre-allocated storage slots. Test-only usage simulates provider scenarios.
 6. **Perform redundant conversion** — `to_raw_frame()` is called by both routes and storage
    methods; the storage call is a no-op because routes already convert.
 
@@ -27,6 +29,34 @@ The current storage layer wraps `AsyncBlobIO` in two classes (`AsebytesStorage` 
 Replace `AsebytesStorage` + `StorageRouter` with a thin `FrameStorage` registry class.
 All frame I/O goes through `AsyncBlobIO` public API directly. Zero `_backend` access.
 Selective key loading at call sites that benefit from it.
+
+## AsyncBlobIO API Reference
+
+Routes use `AsyncBlobIO` directly. Key patterns:
+
+| Syntax | Axis | Returns |
+|--------|------|---------|
+| `io.get(i)` | row | full row dict |
+| `io.get(i, keys=[...])` | row, filtered | partial row dict |
+| `io[i]` | row (lazy) | `AsyncSingleRowView` -- same as above on `await` |
+| `io[key]` | column (lazy) | `AsyncColumnView` -- values on `await`/`.to_list()` |
+
+Efficiency by access pattern:
+
+| Pattern | Best approach | Backend calls |
+|---------|--------------|---------------|
+| 1 key, 1 row | `await io[b"key"][0]` | 1 (`get_column`) |
+| N keys, 1 row | `await io.get(i, keys=[...])` | 1 (`get`) |
+| 1 key, N rows | `await io[b"key"].to_list()` | 1 (`get_column`) |
+| N rows (full) | `await io[a:b].to_list()` | 1 (`get_many`) |
+| Sparse rows | `await io[[a,b,c]].to_list()` | 1 (`get_many`) |
+
+Key distinctions:
+
+- `io[b"_"][0]` returns **scalar value** (bytes)
+- `io.get(0, keys=[b"_"])` returns **dict** (`{b"_": bytes}`)
+- `__getitem__` is always sync and returns a lazy view -- backend is only hit on
+  `await` / `.to_list()` / `async for`
 
 ## Design
 
@@ -221,11 +251,13 @@ frame = await io.get(index, keys=list(key_bytes))
 ```
 
 **Note:** When the storage returns `None` and the frame is fetched via provider
-dispatch, the provider returns a full frame. Post-load `_filter_frames_by_keys`
-is still needed for the provider-fallback path in `get_frame`. The selective
-`io.get(keys=...)` optimization applies only when the frame is already in storage.
+dispatch, the provider returns a full frame (it unconditionally enriches with
+colors, radii, connectivity before caching). Passing `keys` through the dispatch
+chain is not worth it: it would create separate cache entries per key subset,
+and the provider still loads the full source object. Post-load
+`_filter_frames_by_keys` is kept for the provider-fallback path.
 
-**Result backend** — full migration of `StorageResultBackend`:
+**Result backend** — use column view API for direct scalar access:
 ```python
 # Before (store):
 await self._storage.clear(key)
@@ -242,10 +274,8 @@ await io.extend([{b"_": packed}])
 frame = await self._storage.get(key, 0)
 packed = frame.get(b"_")
 
-# After (get):
-io = self._storage[key]
-frame = await io.get(0, keys=[b"_"])
-packed = frame.get(b"_") if frame else None
+# After (get) — column view returns scalar directly:
+packed = await self._storage[key][b"_"][0]
 
 # Before (delete):
 await self._storage.clear(key)
@@ -253,6 +283,9 @@ await self._storage.clear(key)
 # After (delete):
 await self._storage[key].clear()
 ```
+
+Uses `io[b"_"][0]` (column view → `AsyncSingleColumnView`) which returns the
+raw bytes value directly via `_read_column`. No dict unpacking needed.
 
 `StorageResultBackend` takes `FrameStorage` but only uses `__getitem__` to get
 `AsyncBlobIO` instances. It never calls `get_length`, `has_mount`, or provider
