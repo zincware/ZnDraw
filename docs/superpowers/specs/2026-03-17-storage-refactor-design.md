@@ -450,9 +450,74 @@ if len(frames) < (actual_stop - start) and await storage.has_mount(room_id):
   `AsyncBlobIO` are async.
 - Tests using `storage._get_io(room_id)` migrate to `storage[room_id]`.
 - `build_room_update()` type annotation changes from `storage: Any` to
-  `storage: FrameStorage`.
+  `storage: FrameStorage`. All callers must be updated in the same PR.
 - `_rooms` dict concurrency: `__getitem__` does check-then-write which is safe in a
   single-event-loop async context (no preemption between check and write).
+
+### OOB index handling
+
+`AsebytesStorage.get()` currently checks bounds and returns `None` for out-of-range
+indices. After migration, `await io[index]` raises `IndexError` for OOB. All route
+handlers already validate bounds before storage access (e.g., `if index < 0 or
+index >= total: raise FrameNotFound`), so this is safe. The behavior change is
+actually better — silent `None` for OOB masked bugs.
+
+For the sparse-indices path (`list_frames` with `?indices=`), the route already
+pre-filters indices against `total`. No OOB indices reach the `AsyncBlobIO`.
+
+### `create_room` migration
+
+`create_room` currently takes two storage deps (`StorageDep` + `StorageRouterDep`)
+for the same object. After refactor, collapses to one `FrameStorageDep`:
+
+```python
+# Before:
+storage: StorageDep,
+storage_router: StorageRouterDep,
+# ...
+if await storage_router.has_mount(copy_from):
+    raise RoomReadOnly.exception(...)
+source_frames = await storage.get_range(copy_from, 0, None)
+await storage.extend(room_id, source_frames)
+
+# After:
+storage: FrameStorageDep,
+# ...
+if await storage.has_mount(copy_from):
+    raise RoomReadOnly.exception(...)
+source_frames = await storage[copy_from][0:].to_list()
+source_frames = [f for f in source_frames if f is not None]
+await storage[room_id].extend(source_frames)
+```
+
+### `trajectory.py` migration
+
+Remove `isinstance(storage, StorageRouter)` guard — `FrameStorage` always has
+`has_mount`:
+
+```python
+# Before:
+if isinstance(storage, StorageRouter) and await storage.has_mount(room_id):
+    raise InvalidPayload.exception(...)
+
+# After:
+if await storage.has_mount(room_id):
+    raise InvalidPayload.exception(...)
+```
+
+### `update_room` `frame_count` patch
+
+The `try/except NotImplementedError` wrapper is removed. `FrameStorage` always
+supports `set_frame_count`/`clear_frame_count`. Setting `frame_count` on a
+provider-backed room is intentional — this is how providers declare their count
+via `PATCH /rooms/{id}`.
+
+### Slice views add one extra `len()` call
+
+`io[start:stop]` creates a `_DeferredSliceRowView` that calls `await io.len()` to
+resolve the slice before reading rows. This is 2 backend round-trips (len + get_many),
+not 1. For explicit indices (`io[[0, 5, 9]]`), it is truly 1 call. This overhead is
+negligible for the use cases in this codebase.
 
 ## Success Criteria
 
