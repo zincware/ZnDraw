@@ -27,36 +27,107 @@ The current storage layer wraps `AsyncBlobIO` in two classes (`AsebytesStorage` 
 ## Goal
 
 Replace `AsebytesStorage` + `StorageRouter` with a thin `FrameStorage` registry class.
-All frame I/O goes through `AsyncBlobIO` public API directly. Zero `_backend` access.
-Selective key loading at call sites that benefit from it.
+All frame I/O goes through `AsyncBlobIO`'s **pandas-like subscript API** directly.
+Zero `_backend` access. Selective key loading at call sites that benefit from it.
 
-## AsyncBlobIO API Reference
+### Design Principle: Prefer the Subscript API
 
-Routes use `AsyncBlobIO` directly. Key patterns:
+`AsyncBlobIO` provides a pandas/xarray-style `__getitem__` API that returns lazy
+views. **This is the idiomatic asebytes interface and MUST be preferred throughout
+the codebase.** The subscript API is expressive, chainable, and maps directly to
+efficient backend operations.
 
-| Syntax | Axis | Returns |
-|--------|------|---------|
-| `io.get(i)` | row | full row dict |
-| `io.get(i, keys=[...])` | row, filtered | partial row dict |
-| `io[i]` | row (lazy) | `AsyncSingleRowView` -- same as above on `await` |
-| `io[key]` | column (lazy) | `AsyncColumnView` -- values on `await`/`.to_list()` |
+```python
+# PREFERRED — subscript/view API (pandas-like)
+frame   = await io[index]                   # single row
+frames  = await io[start:stop].to_list()    # range of rows
+frames  = await io[[0, 5, 9]].to_list()     # sparse rows
+value   = await io[b"cube_key"][index]       # single column value
+values  = await io[b"energy"].to_list()      # full column
+await io[index].set(data)                    # write row
+await io[start:stop].delete()                # delete range
+await io[index].update(partial)              # merge into row
 
-Efficiency by access pattern:
+# ACCEPTABLE — .get() when you need a filtered dict back
+frame = await io.get(index, keys=[...])      # partial row as dict
+
+# FORBIDDEN — private backend access
+rows = await io._backend.get_many(indices)   # NEVER
+```
+
+**When to use `.get(index, keys=[...])`:** Only when the caller needs a
+`dict[bytes, bytes]` with a subset of keys (e.g., the `?keys=` query parameter
+on frame endpoints, where the response format is a frame dict). For single-value
+extraction, use the column view: `await io[b"key"][index]`.
+
+## AsyncBlobIO Subscript API Reference
+
+`AsyncBlobIO` uses a pandas-like `__getitem__` API. Subscript is always **sync**
+and returns a lazy view. The backend is only hit on `await` / `.to_list()` /
+`async for`.
+
+### Row access (subscript with int, slice, or list[int])
+
+| Syntax | View type | Materialized result |
+|--------|-----------|-------------------|
+| `io[i]` | `AsyncSingleRowView` | `await` -> `dict[bytes, bytes] \| None` |
+| `io[a:b]` | `AsyncRowView` | `.to_list()` -> `list[dict \| None]` |
+| `io[[0, 5, 9]]` | `AsyncRowView` | `.to_list()` -> `list[dict \| None]` |
+
+### Column access — single key (subscript with `bytes`)
+
+| Syntax | View type | Materialized result |
+|--------|-----------|-------------------|
+| `io[b"key"]` | `AsyncColumnView` | `.to_list()` -> `list[bytes]` |
+| `io[b"key"][i]` | `AsyncSingleColumnView` | `await` -> `bytes` (scalar) |
+| `io[b"key"][a:b]` | `AsyncColumnView` | `.to_list()` -> `list[bytes]` |
+
+### Multi-key access (subscript with `list[bytes]`)
+
+| Syntax | View type | Materialized result |
+|--------|-----------|-------------------|
+| `io[[b"k1", b"k2"]][i]` | `AsyncSingleColumnView` | `await` -> `[val1, val2]` |
+| `io[[b"k1", b"k2"]][a:b]` | `AsyncColumnView` | `.to_list()` -> `[[v1, v2], ...]` |
+| `io[[b"k1", b"k2"]]` | `AsyncColumnView` | `.to_dict()` -> `{b"k1": [...], b"k2": [...]}` |
+
+Multi-key subscript calls `_read_rows(indices, keys=...)` on the backend —
+**only the requested keys are loaded from storage**. This is the most efficient
+way to load a known subset of keys across multiple rows.
+
+`.to_dict()` returns a **column-oriented** dict (key -> list of values across rows).
+`.to_list()` returns **row-oriented** lists of values (one list per row).
+
+### Mutations (on views)
+
+| Syntax | Effect |
+|--------|--------|
+| `await io[i].set(data)` | Replace row at index |
+| `await io[i].set(None)` | Soft-delete (placeholder) |
+| `await io[i].update(partial)` | Merge partial dict into row |
+| `await io[a:b].delete()` | Delete range with index shifting |
+| `await io.update(i, partial)` | Same as `io[i].update(partial)` |
+| `await io.extend(frames)` | Append rows |
+
+### Efficiency by access pattern
 
 | Pattern | Best approach | Backend calls |
 |---------|--------------|---------------|
-| 1 key, 1 row | `await io[b"key"][0]` | 1 (`get_column`) |
-| N keys, 1 row | `await io.get(i, keys=[...])` | 1 (`get`) |
+| 1 key, 1 row | `await io[b"key"][i]` | 1 (`get_column`) |
+| N keys, 1 row (values) | `await io[[b"k1", b"k2"]][i]` | 1 (`get`) |
+| N keys, 1 row (as dict) | `await io.get(i, keys=[...])` | 1 (`get`) |
 | 1 key, N rows | `await io[b"key"].to_list()` | 1 (`get_column`) |
+| N keys, N rows | `await io[[b"k1", b"k2"]][a:b].to_list()` | 1 (`get_many`) |
 | N rows (full) | `await io[a:b].to_list()` | 1 (`get_many`) |
-| Sparse rows | `await io[[a,b,c]].to_list()` | 1 (`get_many`) |
+| Sparse rows | `await io[[0, 5, 9]].to_list()` | 1 (`get_many`) |
 
-Key distinctions:
+### When to use which
 
-- `io[b"_"][0]` returns **scalar value** (bytes)
-- `io.get(0, keys=[b"_"])` returns **dict** (`{b"_": bytes}`)
-- `__getitem__` is always sync and returns a lazy view -- backend is only hit on
-  `await` / `.to_list()` / `async for`
+- **`io[b"key"][i]`** — extracting a single value (isosurface cube data, result backend)
+- **`io[[b"k1", b"k2"]][i]`** — extracting multiple known values from one row
+- **`io[[b"k1", b"k2"]][a:b].to_list()`** — sparse batch load of specific keys
+- **`io.get(i, keys=[...])`** — only when caller needs a `dict[bytes, bytes]` back
+  (e.g., `?keys=` query param where response format is a frame dict)
+- **`io[a:b].to_list()`** — full row batch (rendering, trajectory export)
 
 ## Design
 
@@ -200,12 +271,13 @@ app.state.frame_storage = FrameStorage(uri=settings.storage, redis=app.state.red
 
 ## Call Site Migration
 
-### Reads — use AsyncBlobIO public API
+### Reads — subscript API
 
-| Before | After |
-|--------|-------|
-| `storage.get(room_id, index)` | `storage[room_id].get(index)` |
-| `storage.get(room_id, index)` then `_filter_frames_by_keys` | `storage[room_id].get(index, keys=[...])` |
+| Before | After (subscript) |
+|--------|-------------------|
+| `storage.get(room_id, index)` | `await storage[room_id][index]` |
+| `storage.get(room_id, index)` + extract 1 key | `await storage[room_id][b"key"][index]` |
+| `storage.get(room_id, index)` + filter N keys as dict | `await storage[room_id].get(index, keys=[...])` |
 | `storage.get_range(room_id, start, stop)` | `await storage[room_id][start:stop].to_list()` |
 | `storage.get_many(room_id, indices)` | `await storage[room_id][indices].to_list()` |
 | `storage.get_length(room_id)` | `storage.get_length(room_id)` (unchanged) |
@@ -213,13 +285,13 @@ app.state.frame_storage = FrameStorage(uri=settings.storage, redis=app.state.red
 | `storage.set_frame_count(room_id, n)` | `storage.set_frame_count(room_id, n)` (unchanged) |
 | `storage.clear_frame_count(room_id)` | `storage.clear_frame_count(room_id)` (unchanged) |
 
-### Writes — use AsyncBlobIO public API + write guard dependency
+### Writes — subscript API + write guard dependency
 
-| Before | After |
-|--------|-------|
+| Before | After (subscript) |
+|--------|-------------------|
 | `storage.extend(room_id, frames)` | `await storage[room_id].extend(frames)` |
 | `storage.set_item(room_id, index, frame)` | `await storage[room_id][index].set(frame)` |
-| `storage.merge_item(room_id, index, partial)` | `await storage[room_id].update(index, partial)` |
+| `storage.merge_item(room_id, index, partial)` | `await storage[room_id][index].update(partial)` |
 | `storage.delete_range(room_id, start, stop)` | `await storage[room_id][start:stop].delete()` |
 
 Write endpoints add `RequireWritableDep` to their signatures. The guard runs before
@@ -229,14 +301,13 @@ the handler body, so no write code executes for provider-backed rooms.
 
 **Isosurface** — biggest win, cube data can be megabytes:
 ```python
-# Before: loads ENTIRE frame
+# Before: loads ENTIRE frame for one key
 frame = await storage.get(room_id, index)
-cube_data = frame[cube_key.encode()]
+cube_data = msgpack.unpackb(frame[cube_key.encode()], ...)
 
-# After: loads ONLY the requested key
-io = storage[room_id]
-frame = await io.get(index, keys=[cube_key.encode()])
-cube_data = frame[cube_key.encode()]
+# After: column view extracts the single value directly
+cube_raw = await storage[room_id][cube_key.encode()][index]
+cube_data = msgpack.unpackb(cube_raw, ...)
 ```
 
 **Single frame with `keys` query param** — selective load on storage-hit path:
@@ -245,9 +316,19 @@ cube_data = frame[cube_key.encode()]
 frame = await storage.get(room_id, index)
 frames = _filter_frames_by_keys([frame], key_bytes)
 
-# After: selective load at backend (storage-hit path)
-io = storage[room_id]
-frame = await io.get(index, keys=list(key_bytes))
+# After: filtered get returns partial dict
+frame = await storage[room_id].get(index, keys=list(key_bytes))
+```
+
+**Trajectory validation** — only needs atom count, not full frame:
+```python
+# Before: loads entire frame to count atoms
+first_frame = await storage.get(room_id, index_list[0])
+n_atoms = len(decode(first_frame))
+
+# After: subscript row view
+first_frame = await storage[room_id][index_list[0]]
+n_atoms = len(decode(first_frame))
 ```
 
 **Note:** When the storage returns `None` and the frame is fetched via provider
@@ -337,7 +418,7 @@ if len(frames) < (actual_stop - start) and await storage.has_mount(room_id):
 | `routes/step.py` | Trivial — only uses `get_length` |
 | `routes/server_settings.py` | Trivial — only passes storage to `build_room_update()` |
 | `socketio.py` | Trivial — only uses `get_length` |
-| `result_backends.py` | Use `storage[key].get(0, keys=[b"_"])` |
+| `result_backends.py` | Use `storage[key][b"_"][0]` column view for get; `storage[key].extend/clear` for store/delete |
 | `tests/` | Update all storage tests to new API |
 
 ## What Gets Deleted
@@ -378,10 +459,14 @@ if len(frames) < (actual_stop - start) and await storage.has_mount(room_id):
 1. All existing tests pass (adapted to new API).
 2. Zero `_backend` access / `SLF001` suppressions.
 3. `FrameStorage` has no read or write wrapper methods — only registry + provider metadata.
-4. Isosurface endpoint loads only the requested cube key, not the full frame.
-5. Single-frame `keys` query parameter uses `io.get(keys=...)` instead of post-load filter.
-6. Single `FrameStorageDep` replaces both `StorageDep` and `StorageRouterDep`.
-7. Write guard enforced via `RequireWritableDep` FastAPI dependency.
+4. **All call sites use the pandas-like subscript API** (`io[...]`, `.to_list()`,
+   `.to_dict()`) as the primary interface. `.get(keys=...)` only where a filtered
+   dict is explicitly required.
+5. Isosurface uses `io[cube_key][index]` — column view, single value.
+6. Result backend uses `io[b"_"][0]` — column view, single value.
+7. Batch reads use `io[start:stop].to_list()` / `io[indices].to_list()`.
+8. Single `FrameStorageDep` replaces both `StorageDep` and `StorageRouterDep`.
+9. Write guard enforced via `RequireWritableDep` FastAPI dependency.
 
 ## Non-Goals
 
