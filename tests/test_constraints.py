@@ -10,7 +10,7 @@ from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms, FixBondLengths, FixedLine, FixedPlane
 from asebytes import decode, encode
 
-from zndraw.storage import AsebytesStorage
+from zndraw.storage import FrameStorage
 
 # =============================================================================
 # Section 1: Unit tests (encode/decode roundtrip, no server needed)
@@ -134,33 +134,45 @@ def test_constraints_with_calculator():
 # =============================================================================
 
 
+def _make_mock_redis():
+    """Create a mock Redis client for tests that don't need real Redis."""
+    from unittest.mock import AsyncMock
+
+    mock = AsyncMock()
+    mock.get = AsyncMock(return_value=None)
+    mock.exists = AsyncMock(return_value=0)
+    mock.set = AsyncMock()
+    mock.delete = AsyncMock()
+    return mock
+
+
 @pytest_asyncio.fixture
 async def memory_storage():
-    """Create a fresh AsebytesStorage instance."""
-    storage = AsebytesStorage("memory://")
+    """Create a fresh FrameStorage instance."""
+    storage = FrameStorage("memory://", _make_mock_redis())
     yield storage
     await storage.close()
 
 
 @pytest_asyncio.fixture
 async def lmdb_storage(tmp_path):
-    """Create a fresh AsebytesStorage with LMDB backend."""
-    storage = AsebytesStorage(str(tmp_path / "test.lmdb"))
+    """Create a fresh FrameStorage with LMDB backend."""
+    storage = FrameStorage(str(tmp_path / "test.lmdb"), _make_mock_redis())
     yield storage
     await storage.close()
 
 
 @pytest.mark.asyncio
-async def test_constraints_through_memory_storage(memory_storage: AsebytesStorage):
-    """Constraints survive AsebytesStorage extend/get roundtrip."""
+async def test_constraints_through_memory_storage(memory_storage: FrameStorage):
+    """Constraints survive FrameStorage extend/get roundtrip."""
     room_id = uuid.uuid4().hex
     atoms = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
     atoms.set_constraint(FixAtoms(indices=[0, 2]))
 
     frame = encode(atoms)
-    await memory_storage.extend(room_id=room_id, frames=[frame])
+    await memory_storage[room_id].extend([frame])
 
-    raw = await memory_storage.get(room_id=room_id, index=0)
+    raw = await memory_storage[room_id][0]
     assert raw is not None
     decoded = decode(raw)
 
@@ -170,16 +182,16 @@ async def test_constraints_through_memory_storage(memory_storage: AsebytesStorag
 
 
 @pytest.mark.asyncio
-async def test_constraints_through_lmdb_storage(lmdb_storage: AsebytesStorage):
-    """Constraints survive LMDB-backed AsebytesStorage extend/get roundtrip."""
+async def test_constraints_through_lmdb_storage(lmdb_storage: FrameStorage):
+    """Constraints survive LMDB-backed FrameStorage extend/get roundtrip."""
     room_id = uuid.uuid4().hex
     atoms = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
     atoms.set_constraint(FixAtoms(indices=[0, 2]))
 
     frame = encode(atoms)
-    await lmdb_storage.extend(room_id=room_id, frames=[frame])
+    await lmdb_storage[room_id].extend([frame])
 
-    raw = await lmdb_storage.get(room_id=room_id, index=0)
+    raw = await lmdb_storage[room_id][0]
     assert raw is not None
     decoded = decode(raw)
 
@@ -189,7 +201,7 @@ async def test_constraints_through_lmdb_storage(lmdb_storage: AsebytesStorage):
 
 
 async def _assert_variable_constraints_across_frames(
-    storage: AsebytesStorage,
+    storage: FrameStorage,
 ) -> None:
     """Verify different constraint types across frames are each preserved."""
     room_id = uuid.uuid4().hex
@@ -207,10 +219,10 @@ async def _assert_variable_constraints_across_frames(
     atoms2.set_constraint(FixedPlane(1, direction=[0, 0, 1]))
 
     frames = [encode(a) for a in [atoms0, atoms1, atoms2]]
-    await storage.extend(room_id=room_id, frames=frames)
+    await storage[room_id].extend(frames)
 
     # Verify frame 0
-    raw0 = await storage.get(room_id=room_id, index=0)
+    raw0 = await storage[room_id][0]
     assert raw0 is not None
     dec0 = decode(raw0)
     assert len(dec0.constraints) == 1
@@ -218,7 +230,7 @@ async def _assert_variable_constraints_across_frames(
     np.testing.assert_array_equal(dec0.constraints[0].index, [1])
 
     # Verify frame 1
-    raw1 = await storage.get(room_id=room_id, index=1)
+    raw1 = await storage[room_id][1]
     assert raw1 is not None
     dec1 = decode(raw1)
     assert len(dec1.constraints) == 1
@@ -226,7 +238,7 @@ async def _assert_variable_constraints_across_frames(
     np.testing.assert_allclose(dec1.constraints[0].dir, [1.0, 0.0, 0.0])
 
     # Verify frame 2
-    raw2 = await storage.get(room_id=room_id, index=2)
+    raw2 = await storage[room_id][2]
     assert raw2 is not None
     dec2 = decode(raw2)
     assert len(dec2.constraints) == 1
@@ -237,14 +249,14 @@ async def _assert_variable_constraints_across_frames(
 
 @pytest.mark.asyncio
 async def test_variable_constraints_across_frames_memory(
-    memory_storage: AsebytesStorage,
+    memory_storage: FrameStorage,
 ):
-    """Different constraint types across AsebytesStorage frames are preserved."""
+    """Different constraint types across FrameStorage frames are preserved."""
     await _assert_variable_constraints_across_frames(memory_storage)
 
 
 @pytest.mark.asyncio
-async def test_variable_constraints_across_frames_lmdb(lmdb_storage: AsebytesStorage):
+async def test_variable_constraints_across_frames_lmdb(lmdb_storage: FrameStorage):
     """Different constraint types across LMDB-backed frames are preserved."""
     await _assert_variable_constraints_across_frames(lmdb_storage)
 

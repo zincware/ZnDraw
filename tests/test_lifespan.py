@@ -8,11 +8,12 @@ Tests verify:
 
 import os
 from collections.abc import Generator
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
 
-from zndraw.storage import AsebytesStorage
+from zndraw.storage import FrameStorage
 
 
 @pytest.fixture(autouse=True)
@@ -86,10 +87,11 @@ class TestLifespanWithRedisUrl:
 class TestStorageInitialization:
     """Test storage backend initialization based on config."""
 
-    def test_memory_storage_creates_asebytes_backend(self) -> None:
-        """memory:// URI should create AsebytesStorage backend."""
-        backend = AsebytesStorage(uri="memory://")
-        assert isinstance(backend, AsebytesStorage)
+    def test_memory_storage_creates_frame_storage(self) -> None:
+        """memory:// URI should create FrameStorage backend."""
+        mock_redis = AsyncMock()
+        backend = FrameStorage(uri="memory://", redis=mock_redis)
+        assert isinstance(backend, FrameStorage)
 
 
 class TestFakeRedisServer:

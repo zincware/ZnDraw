@@ -12,7 +12,7 @@ from zndraw.result_backends import (
     RedisResultBackend,
     StorageResultBackend,
 )
-from zndraw.storage import AsebytesStorage
+from zndraw.storage import FrameStorage
 
 # =============================================================================
 # StorageResultBackend
@@ -21,13 +21,18 @@ from zndraw.storage import AsebytesStorage
 
 @pytest.fixture
 def storage_backend():
-    """Fresh AsebytesStorage for each test."""
-    return AsebytesStorage("memory://")
+    """Fresh FrameStorage for each test."""
+    mock_redis = AsyncMock()
+    mock_redis.get = AsyncMock(return_value=None)
+    mock_redis.exists = AsyncMock(return_value=0)
+    mock_redis.set = AsyncMock()
+    mock_redis.delete = AsyncMock()
+    return FrameStorage("memory://", mock_redis)
 
 
 @pytest.fixture
 def backend(storage_backend):
-    """StorageResultBackend wrapping AsebytesStorage."""
+    """StorageResultBackend wrapping FrameStorage."""
     return StorageResultBackend(storage_backend)
 
 
