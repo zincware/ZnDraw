@@ -109,7 +109,11 @@ async def get_isosurface(
         if index < 0 or index >= total:
             FrameNotFound.raise_out_of_range(index, total)
 
-        frame = await storage[room_id][index]
+        io = storage[room_id]
+        try:
+            frame = await io.get(index)
+        except IndexError:
+            frame = None
         provider = (
             await _find_frames_provider(session, room_id) if frame is None else None
         )

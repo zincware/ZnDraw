@@ -220,10 +220,15 @@ async def list_frames(
             invalid = [i for i in requested_indices if i < 0 or i >= total]
             if invalid:
                 _raise_frame_not_found(invalid, total)
-            frames_or_none = await storage[room_id][requested_indices].to_list()
-            expected = len(requested_indices)
-            if len(frames_or_none) < expected and await storage.has_mount(room_id):
-                frames_or_none.extend([None] * (expected - len(frames_or_none)))
+            io = storage[room_id]
+            io_len = await io.len()
+            in_bounds = [i for i in requested_indices if i < io_len]
+            if in_bounds:
+                fetched = await io[in_bounds].to_list()
+                lookup = dict(zip(in_bounds, fetched, strict=False))
+            else:
+                lookup = {}
+            frames_or_none = [lookup.get(i) for i in requested_indices]
         else:
             effective_stop = stop if stop is not None else total
             effective_start = min(start, total)
@@ -318,7 +323,11 @@ async def get_frame(
         if index < 0 or index >= total:
             _raise_frame_not_found(index, total)
 
-        frame = await storage[room_id][index]
+        io = storage[room_id]
+        try:
+            frame = await io.get(index)
+        except IndexError:
+            frame = None
         if frame is None:
             provider = await _find_frames_provider(session, room_id)
         else:
@@ -405,7 +414,11 @@ async def get_frame_metadata(
         if index < 0 or index >= total:
             _raise_frame_not_found(index, total)
 
-        frame = await storage[room_id][index]
+        io = storage[room_id]
+        try:
+            frame = await io.get(index)
+        except IndexError:
+            frame = None
         provider = (
             await _find_frames_provider(session, room_id) if frame is None else None
         )
