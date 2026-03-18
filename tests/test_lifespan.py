@@ -8,7 +8,6 @@ Tests verify:
 
 import os
 from collections.abc import Generator
-from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -87,10 +86,9 @@ class TestLifespanWithRedisUrl:
 class TestStorageInitialization:
     """Test storage backend initialization based on config."""
 
-    def test_memory_storage_creates_frame_storage(self) -> None:
+    def test_memory_storage_creates_frame_storage(self, redis_client) -> None:
         """memory:// URI should create FrameStorage backend."""
-        mock_redis = AsyncMock()
-        backend = FrameStorage(uri="memory://", redis=mock_redis)
+        backend = FrameStorage(uri="memory://", redis=redis_client)
         assert isinstance(backend, FrameStorage)
 
 

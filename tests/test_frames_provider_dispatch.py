@@ -113,19 +113,6 @@ async def prov_session_fixture(
         yield session
 
 
-@pytest_asyncio.fixture(name="prov_storage")
-async def prov_storage_fixture() -> AsyncIterator[FrameStorage]:
-    """Create a fresh FrameStorage with mock Redis."""
-    mock_redis = AsyncMock()
-    mock_redis.get = AsyncMock(return_value=None)
-    mock_redis.exists = AsyncMock(return_value=0)
-    mock_redis.set = AsyncMock()
-    mock_redis.delete = AsyncMock()
-    storage = FrameStorage("memory://", mock_redis)
-    yield storage
-    await storage.close()
-
-
 @pytest.fixture(name="prov_result_backend")
 def prov_result_backend_fixture() -> InMemoryResultBackend:
     """Create an InMemoryResultBackend."""
@@ -136,7 +123,7 @@ def prov_result_backend_fixture() -> InMemoryResultBackend:
 async def prov_client_fixture(
     prov_session: AsyncSession,
     prov_session_factory: async_sessionmaker[AsyncSession],
-    prov_storage: FrameStorage,
+    frame_storage: FrameStorage,
     prov_result_backend: InMemoryResultBackend,
 ) -> AsyncIterator[AsyncClient]:
     """Create a test client with provider dependencies wired."""
@@ -162,7 +149,7 @@ async def prov_client_fixture(
     app.state.auth_settings = AuthSettings()
     app.dependency_overrides[get_session] = get_session_override
     app.dependency_overrides[get_session_maker] = lambda: prov_session_factory
-    app.dependency_overrides[get_frame_storage] = lambda: prov_storage
+    app.dependency_overrides[get_frame_storage] = lambda: frame_storage
     app.dependency_overrides[get_tsio] = lambda: mock_sio
     app.dependency_overrides[get_redis] = lambda: mock_redis
     app.dependency_overrides[get_result_backend] = lambda: prov_result_backend
@@ -216,14 +203,14 @@ async def _create_provider(
 async def test_get_frame_storage_hit_ignores_provider(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: FrameStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Frame in storage, provider exists -- returns frame (no provider touch)."""
     user, token = await _create_user(prov_session)
     room = await _create_room(prov_session, user)
     await _create_provider(prov_session, room.id, user)
 
-    await prov_storage[room.id].extend([make_raw_frame({"a": 1})])
+    await frame_storage[room.id].extend([make_raw_frame({"a": 1})])
 
     response = await prov_client.get(
         f"/v1/rooms/{room.id}/frames/0", headers=_auth(token)
@@ -238,7 +225,7 @@ async def test_get_frame_storage_hit_ignores_provider(
 async def test_get_frame_provider_cache_hit(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: FrameStorage,
+    frame_storage: FrameStorage,
     prov_result_backend: InMemoryResultBackend,
 ) -> None:
     """Frame in provider cache, storage slot is None -- returns 200 with frame."""
@@ -247,7 +234,7 @@ async def test_get_frame_provider_cache_hit(
     provider = await _create_provider(prov_session, room.id, user)
 
     # Reserve slots (provider has 3 frames), slot 0 is None
-    await prov_storage[room.id].reserve(3)
+    await frame_storage[room.id].reserve(3)
 
     # Pre-populate provider cache
     positions_packed = msgpack.packb([1, 2, 3])
@@ -273,7 +260,7 @@ async def test_get_frame_provider_cache_hit(
 async def test_get_frame_provider_timeout(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: FrameStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Frame not cached, provider exists -- long-poll times out → 504."""
     user, token = await _create_user(prov_session)
@@ -281,7 +268,7 @@ async def test_get_frame_provider_timeout(
     await _create_provider(prov_session, room.id, user)
 
     # Reserve slots, leave them empty
-    await prov_storage[room.id].reserve(5)
+    await frame_storage[room.id].reserve(5)
 
     response = await prov_client.get(
         f"/v1/rooms/{room.id}/frames/2", headers=_auth(token)
@@ -297,14 +284,14 @@ async def test_get_frame_provider_timeout(
 async def test_get_frame_no_provider_returns_404(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: FrameStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Frame missing, no provider registered -- returns 404."""
     user, token = await _create_user(prov_session)
     room = await _create_room(prov_session, user)
 
     # Reserve slots but no provider registered
-    await prov_storage[room.id].reserve(3)
+    await frame_storage[room.id].reserve(3)
 
     response = await prov_client.get(
         f"/v1/rooms/{room.id}/frames/1", headers=_auth(token)
@@ -318,7 +305,7 @@ async def test_get_frame_no_provider_returns_404(
 async def test_get_frame_dispatch_acquires_inflight(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: FrameStorage,
+    frame_storage: FrameStorage,
     prov_result_backend: InMemoryResultBackend,
 ) -> None:
     """After dispatch, inflight lock is acquired."""
@@ -326,7 +313,7 @@ async def test_get_frame_dispatch_acquires_inflight(
     room = await _create_room(prov_session, user)
     provider = await _create_provider(prov_session, room.id, user)
 
-    await prov_storage[room.id].reserve(3)
+    await frame_storage[room.id].reserve(3)
 
     response = await prov_client.get(
         f"/v1/rooms/{room.id}/frames/0", headers=_auth(token)
@@ -344,7 +331,7 @@ async def test_get_frame_dispatch_acquires_inflight(
 async def test_get_frame_notify_wakes_long_poll(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: FrameStorage,
+    frame_storage: FrameStorage,
     prov_result_backend: InMemoryResultBackend,
 ) -> None:
     """Provider uploads result mid-poll — long-poll wakes up and returns 200."""
@@ -352,7 +339,7 @@ async def test_get_frame_notify_wakes_long_poll(
     room = await _create_room(prov_session, user)
     provider = await _create_provider(prov_session, room.id, user)
 
-    await prov_storage[room.id].reserve(3)
+    await frame_storage[room.id].reserve(3)
 
     # Build the cache key that _dispatch_provider_frame will wait on
     params = {"index": "1"}
@@ -393,7 +380,7 @@ async def test_get_frame_notify_wakes_long_poll(
 async def test_list_frames_notify_wakes_concurrent_dispatch(
     prov_client: AsyncClient,
     prov_session: AsyncSession,
-    prov_storage: FrameStorage,
+    frame_storage: FrameStorage,
     prov_result_backend: InMemoryResultBackend,
 ) -> None:
     """Multiple missing frames dispatched concurrently — all wake on notify."""
@@ -402,8 +389,8 @@ async def test_list_frames_notify_wakes_concurrent_dispatch(
     provider = await _create_provider(prov_session, room.id, user)
 
     # Reserve 3 slots, fill only index 1
-    await prov_storage[room.id].reserve(3)
-    await prov_storage[room.id][1].set(make_raw_frame({"existing": 1}))
+    await frame_storage[room.id].reserve(3)
+    await frame_storage[room.id][1].set(make_raw_frame({"existing": 1}))
 
     # Build cache keys for the missing frames (index 0 and 2)
     def _cache_key(idx: int) -> str:

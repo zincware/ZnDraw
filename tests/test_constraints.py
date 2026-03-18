@@ -134,45 +134,25 @@ def test_constraints_with_calculator():
 # =============================================================================
 
 
-def _make_mock_redis():
-    """Create a mock Redis client for tests that don't need real Redis."""
-    from unittest.mock import AsyncMock
-
-    mock = AsyncMock()
-    mock.get = AsyncMock(return_value=None)
-    mock.exists = AsyncMock(return_value=0)
-    mock.set = AsyncMock()
-    mock.delete = AsyncMock()
-    return mock
-
-
 @pytest_asyncio.fixture
-async def memory_storage():
-    """Create a fresh FrameStorage instance."""
-    storage = FrameStorage("memory://", _make_mock_redis())
-    yield storage
-    await storage.close()
-
-
-@pytest_asyncio.fixture
-async def lmdb_storage(tmp_path):
+async def lmdb_storage(tmp_path, redis_client):
     """Create a fresh FrameStorage with LMDB backend."""
-    storage = FrameStorage(str(tmp_path / "test.lmdb"), _make_mock_redis())
+    storage = FrameStorage(str(tmp_path / "test.lmdb"), redis_client)
     yield storage
     await storage.close()
 
 
 @pytest.mark.asyncio
-async def test_constraints_through_memory_storage(memory_storage: FrameStorage):
+async def test_constraints_through_frame_storage(frame_storage: FrameStorage):
     """Constraints survive FrameStorage extend/get roundtrip."""
     room_id = uuid.uuid4().hex
     atoms = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
     atoms.set_constraint(FixAtoms(indices=[0, 2]))
 
     frame = encode(atoms)
-    await memory_storage[room_id].extend([frame])
+    await frame_storage[room_id].extend([frame])
 
-    raw = await memory_storage[room_id][0]
+    raw = await frame_storage[room_id][0]
     assert raw is not None
     decoded = decode(raw)
 
@@ -249,10 +229,10 @@ async def _assert_variable_constraints_across_frames(
 
 @pytest.mark.asyncio
 async def test_variable_constraints_across_frames_memory(
-    memory_storage: FrameStorage,
+    frame_storage: FrameStorage,
 ):
     """Different constraint types across FrameStorage frames are preserved."""
-    await _assert_variable_constraints_across_frames(memory_storage)
+    await _assert_variable_constraints_across_frames(frame_storage)
 
 
 @pytest.mark.asyncio

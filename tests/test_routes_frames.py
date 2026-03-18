@@ -81,19 +81,6 @@ async def frame_session_fixture() -> AsyncIterator[AsyncSession]:
         await engine.dispose()
 
 
-@pytest_asyncio.fixture(name="frame_storage")
-async def frame_storage_fixture() -> AsyncIterator[FrameStorage]:
-    """Create a fresh FrameStorage instance for each test."""
-    mock_redis = AsyncMock()
-    mock_redis.get = AsyncMock(return_value=None)
-    mock_redis.exists = AsyncMock(return_value=0)
-    mock_redis.set = AsyncMock()
-    mock_redis.delete = AsyncMock()
-    storage = FrameStorage("memory://", mock_redis)
-    yield storage
-    await storage.close()
-
-
 @pytest_asyncio.fixture(name="frame_client")
 async def frame_client_fixture(
     frame_session: AsyncSession, frame_storage: FrameStorage
