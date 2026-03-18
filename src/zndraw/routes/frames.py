@@ -24,12 +24,13 @@ from zndraw_socketio import AsyncServerWrapper
 
 from zndraw.dependencies import (
     CurrentUserFactoryDep,
+    FrameStorageDep,
     JobLibSettingsDep,
+    RequireWritableDep,
     ResultBackendDep,
     SessionDep,
     SessionMakerDep,
     SioDep,
-    StorageDep,
     WritableRoomDep,
     room_channel,
     verify_room,
@@ -179,7 +180,7 @@ def _filter_frames_by_keys(
 )
 async def list_frames(
     session_maker: SessionMakerDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     _current_user: CurrentUserFactoryDep,
     sio: SioDep,
     result_backend: ResultBackendDep,
@@ -219,15 +220,21 @@ async def list_frames(
             invalid = [i for i in requested_indices if i < 0 or i >= total]
             if invalid:
                 _raise_frame_not_found(invalid, total)
-            frames_or_none = await storage.get_many(room_id, requested_indices)
+            frames_or_none = await storage[room_id][requested_indices].to_list()
+            expected = len(requested_indices)
+            if len(frames_or_none) < expected and await storage.has_mount(room_id):
+                frames_or_none.extend([None] * (expected - len(frames_or_none)))
         else:
             effective_stop = stop if stop is not None else total
             effective_start = min(start, total)
             effective_stop = min(effective_stop, total)
             requested_indices = list(range(effective_start, effective_stop))
-            frames_or_none = await storage.get_range(
-                room_id, effective_start, effective_stop
-            )
+            frames_or_none = await storage[room_id][
+                effective_start:effective_stop
+            ].to_list()
+            expected = effective_stop - effective_start
+            if len(frames_or_none) < expected and await storage.has_mount(room_id):
+                frames_or_none.extend([None] * (expected - len(frames_or_none)))
 
         has_missing = any(f is None for f in frames_or_none)
         provider = (
@@ -286,7 +293,7 @@ async def list_frames(
 )
 async def get_frame(
     session_maker: SessionMakerDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     _current_user: CurrentUserFactoryDep,
     sio: SioDep,
     result_backend: ResultBackendDep,
@@ -311,7 +318,7 @@ async def get_frame(
         if index < 0 or index >= total:
             _raise_frame_not_found(index, total)
 
-        frame = await storage.get(room_id, index)
+        frame = await storage[room_id][index]
         if frame is None:
             provider = await _find_frames_provider(session, room_id)
         else:
@@ -376,7 +383,7 @@ def _extract_property_meta(value_bytes: bytes) -> PropertyMeta:
 )
 async def get_frame_metadata(
     session_maker: SessionMakerDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     _current_user: CurrentUserFactoryDep,
     sio: SioDep,
     result_backend: ResultBackendDep,
@@ -398,7 +405,7 @@ async def get_frame_metadata(
         if index < 0 or index >= total:
             _raise_frame_not_found(index, total)
 
-        frame = await storage.get(room_id, index)
+        frame = await storage[room_id][index]
         provider = (
             await _find_frames_provider(session, room_id) if frame is None else None
         )
@@ -433,9 +440,10 @@ async def get_frame_metadata(
 )
 async def append_frames(
     session: SessionDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     sio: SioDep,
     room: WritableRoomDep,
+    _: RequireWritableDep,
     room_id: str,
     request: FrameCreateRequest,
 ) -> FrameBulkResponse:
@@ -450,7 +458,7 @@ async def append_frames(
         _validate_frame_keys(frame)
 
     old_total = await storage.get_length(room_id)
-    new_total = await storage.extend(room_id, raw_frames)
+    new_total = await storage[room_id].extend(raw_frames)
 
     # Broadcast invalidation to room with new total frame count
     await sio.emit(
@@ -476,9 +484,10 @@ async def append_frames(
     ),
 )
 async def update_frame(
-    storage: StorageDep,
+    storage: FrameStorageDep,
     sio: SioDep,
     _room: WritableRoomDep,
+    _writable: RequireWritableDep,
     room_id: str,
     index: int,
     request: FrameUpdateRequest,
@@ -494,7 +503,7 @@ async def update_frame(
 
     raw_frame = to_raw_frame(request.data)
     _validate_frame_keys(raw_frame)
-    await storage.set_item(room_id, index, raw_frame)
+    await storage[room_id][index].set(raw_frame)
 
     await sio.emit(
         FramesInvalidate(room_id=room_id, action="modify", indices=[index]),
@@ -511,9 +520,10 @@ async def update_frame(
     ),
 )
 async def merge_frame(
-    storage: StorageDep,
+    storage: FrameStorageDep,
     sio: SioDep,
     _room: WritableRoomDep,
+    _writable: RequireWritableDep,
     room_id: str,
     index: int,
     request: Request,
@@ -542,7 +552,7 @@ async def merge_frame(
         packed = msgpack.packb(v, use_bin_type=True)
         partial[key] = packed  # type: ignore[assignment]  # packb returns bytes, stubs say bytes | None
 
-    await storage.merge_item(room_id, index, partial)
+    await storage[room_id][index].update(partial)
 
     await sio.emit(
         FramesInvalidate(room_id=room_id, action="modify", indices=[index]),
@@ -562,9 +572,10 @@ async def merge_frame(
 )
 async def delete_frame(
     session: SessionDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     sio: SioDep,
     room: WritableRoomDep,
+    _: RequireWritableDep,
     room_id: str,
     index: int,
 ) -> StatusResponse:
@@ -578,7 +589,7 @@ async def delete_frame(
     if index < 0 or index >= total:
         _raise_frame_not_found(index, total)
 
-    await storage.delete_range(room_id, index, index + 1)
+    await storage[room_id][index : index + 1].delete()
 
     # Get new total after deletion for broadcast
     new_total = await storage.get_length(room_id)

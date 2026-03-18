@@ -15,7 +15,7 @@ from zndraw_joblib.events import emit as joblib_emit
 from zndraw_joblib.models import ProviderRecord
 from zndraw_socketio import EventContext, wrap
 
-from zndraw.dependencies import RedisDep, StorageDep, room_channel
+from zndraw.dependencies import FrameStorageDep, RedisDep, room_channel
 from zndraw.exceptions import (
     NotInRoom,
     NotRoomMember,
@@ -209,7 +209,7 @@ async def room_join(
     sid: str,
     data: RoomJoin,
     redis: RedisDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     session: SessionDep,
 ) -> RoomJoinResponse:
     """Join a Socket.IO room for real-time updates.

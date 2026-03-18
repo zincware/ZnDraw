@@ -19,11 +19,11 @@ from pydantic import BaseModel, Field
 from zndraw.connectivity import add_connectivity
 from zndraw.dependencies import (
     CurrentUserDep,
+    FrameStorageDep,
     OptionalUserDep,
     RedisDep,
     SessionDep,
     SioDep,
-    StorageDep,
     WritableRoomDep,
     room_channel,
     verify_room,
@@ -40,7 +40,6 @@ from zndraw.redis import RedisKey
 from zndraw.routes.rooms import build_room_update
 from zndraw.schemas import FrameBulkResponse
 from zndraw.socket_events import FramesInvalidate
-from zndraw.storage.router import StorageRouter
 
 router = APIRouter(prefix="/v1/rooms/{room_id}/trajectory", tags=["trajectory"])
 
@@ -84,7 +83,7 @@ class DownloadTokenResponse(BaseModel):
 )
 async def download_trajectory(
     session: SessionDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     redis: RedisDep,
     user: OptionalUserDep,
     room_id: str,
@@ -126,7 +125,7 @@ async def download_trajectory(
     if total == 0:
         raise InvalidPayload.exception("Room has no frames to download")
 
-    if isinstance(storage, StorageRouter) and await storage.has_mount(room_id):
+    if await storage.has_mount(room_id):
         raise InvalidPayload.exception(
             "Trajectory download not supported for provider-backed rooms"
         )
@@ -157,7 +156,7 @@ async def download_trajectory(
 
     # Validate atom selection against the first frame (before streaming starts)
     if atom_indices is not None:
-        first_frame = await storage.get(room_id, index_list[0])
+        first_frame = await storage[room_id][index_list[0]]
         if first_frame is not None:
             n_atoms = len(decode(first_frame))
             invalid_atoms = [i for i in atom_indices if i < 0 or i >= n_atoms]
@@ -177,7 +176,7 @@ async def download_trajectory(
     async def _generate():
         for batch_start in range(0, len(index_list), download_batch):
             batch_indices = index_list[batch_start : batch_start + download_batch]
-            raw_frames = await storage.get_many(room_id, batch_indices)
+            raw_frames = await storage[room_id][batch_indices].to_list()
             for raw_frame in raw_frames:
                 if raw_frame is None:
                     continue
@@ -236,7 +235,7 @@ async def create_download_token(
 )
 async def upload_trajectory(
     session: SessionDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     sio: SioDep,
     room: WritableRoomDep,
     room_id: str,
@@ -306,7 +305,7 @@ async def upload_trajectory(
             if len(atoms) < 100 and "connectivity" not in atoms.info:
                 add_connectivity(atoms)
         frames = [encode(atoms) for atoms in batch]
-        new_total = await storage.extend(room_id, frames)
+        new_total = await storage[room_id].extend(frames)
 
     # Broadcast invalidation
     await sio.emit(
