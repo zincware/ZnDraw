@@ -79,13 +79,20 @@ def resolve_token(
     httpx.HTTPStatusError
         On failed login or guest session creation.
     """
-    # --- Migration warning ---
-    if os.environ.get("ZNDRAW_EMAIL") and not os.environ.get("ZNDRAW_USER"):
+    # --- Migration: bridge ZNDRAW_EMAIL → user ---
+    legacy_user = os.environ.get("ZNDRAW_EMAIL")
+    if (
+        token is None
+        and user is None
+        and legacy_user
+        and not os.environ.get("ZNDRAW_USER")
+    ):
         warnings.warn(
             "ZNDRAW_EMAIL is deprecated, use ZNDRAW_USER instead.",
             DeprecationWarning,
             stacklevel=2,
         )
+        user = legacy_user
 
     # --- Validation (fail fast) ---
     validate_credentials(token, user, password)
@@ -122,7 +129,10 @@ def resolve_token(
             resp = client.get("/v1/auth/users/me")
             if resp.status_code == 200:
                 return entry.access_token
-            store.delete(base_url)
+            if resp.status_code in {401, 403}:
+                store.delete(base_url)
+            else:
+                resp.raise_for_status()
 
     # --- Tier 3: Guest fallback ---
     with httpx.Client(base_url=base_url, timeout=10.0) as client:

@@ -226,7 +226,10 @@ def resolve_token(
     except ValueError as exc:
         die(str(exc), str(exc), 400, EXIT_CLIENT_ERROR)
     except httpx.HTTPStatusError as exc:
-        die("Authentication Failed", str(exc), 401, EXIT_CLIENT_ERROR)
+        status = exc.response.status_code
+        title = "Authentication Failed" if status < 500 else "Server Error"
+        exit_code = EXIT_CLIENT_ERROR if status < 500 else EXIT_SERVER_ERROR
+        die(title, str(exc), status, exit_code)
     except (httpx.RequestError, KeyError) as exc:
         die(
             "Authentication Failed",

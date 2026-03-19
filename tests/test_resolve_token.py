@@ -39,36 +39,22 @@ def mock_httpx_client():
 # --- Validation tests ---
 
 
-def test_token_and_user_raises():
-    """Cannot combine --token with --user/--password."""
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"token": "t", "user": "u", "password": "p"}, "Cannot combine"),
+        ({"token": "t", "password": "p"}, "Cannot combine"),
+        ({"user": "u"}, "Missing --password"),
+        ({"password": "p"}, "Missing --user"),
+    ],
+    ids=["token+user+password", "token+password", "user-only", "password-only"],
+)
+def test_invalid_credential_combinations_raise(kwargs: dict, match: str):
+    """Invalid credential combinations should fail fast."""
     from zndraw.auth_utils import resolve_token
 
-    with pytest.raises(ValueError, match="Cannot combine"):
-        resolve_token("http://localhost:8000", token="t", user="u", password="p")
-
-
-def test_token_and_password_raises():
-    """Cannot combine --token with --password alone."""
-    from zndraw.auth_utils import resolve_token
-
-    with pytest.raises(ValueError, match="Cannot combine"):
-        resolve_token("http://localhost:8000", token="t", password="p")
-
-
-def test_user_without_password_raises():
-    """--user without --password should fail."""
-    from zndraw.auth_utils import resolve_token
-
-    with pytest.raises(ValueError, match="Missing --password"):
-        resolve_token("http://localhost:8000", user="u")
-
-
-def test_password_without_user_raises():
-    """--password without --user should fail."""
-    from zndraw.auth_utils import resolve_token
-
-    with pytest.raises(ValueError, match="Missing --user"):
-        resolve_token("http://localhost:8000", password="p")
+    with pytest.raises(ValueError, match=match):
+        resolve_token("http://localhost:8000", **kwargs)
 
 
 def test_secretstr_password_accepted(mock_httpx_client):
@@ -169,6 +155,28 @@ def test_stored_token_deleted_on_401(token_store, stored_entry, mock_httpx_clien
     assert token_store.get("http://localhost:8000") is None
 
 
+def test_stored_token_preserved_on_5xx(token_store, stored_entry, mock_httpx_client):
+    """Transient 5xx should not delete stored token — raise instead."""
+    from zndraw.auth_utils import resolve_token
+
+    token_store.set("http://localhost:8000", stored_entry)
+
+    mock_500 = MagicMock()
+    mock_500.status_code = 500
+    mock_500.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "500", request=MagicMock(), response=mock_500
+    )
+    mock_httpx_client.get.return_value = mock_500
+
+    with (
+        patch("zndraw.auth_utils.get_token_store", return_value=token_store),
+        pytest.raises(httpx.HTTPStatusError),
+    ):
+        resolve_token("http://localhost:8000")
+
+    assert token_store.get("http://localhost:8000") is not None
+
+
 def test_no_stored_token_falls_through_to_guest(token_store, mock_httpx_client):
     """When no stored token exists, should create guest session."""
     from zndraw.auth_utils import resolve_token
@@ -203,12 +211,26 @@ def test_user_password_login_failure_raises(mock_httpx_client):
         )
 
 
-def test_migration_warning_when_zndraw_email_set(monkeypatch):
-    """Emits DeprecationWarning if ZNDRAW_EMAIL set but ZNDRAW_USER is not."""
+def test_migration_warning_bridges_zndraw_email(monkeypatch, mock_httpx_client):
+    """ZNDRAW_EMAIL is bridged to user with a deprecation warning."""
     from zndraw.auth_utils import resolve_token
 
     monkeypatch.setenv("ZNDRAW_EMAIL", "old@example.com")
     monkeypatch.delenv("ZNDRAW_USER", raising=False)
 
-    with pytest.warns(DeprecationWarning, match="ZNDRAW_EMAIL is deprecated"):
-        resolve_token("http://localhost:8000", token="t")
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.json.return_value = {"access_token": "login.token"}
+    mock_httpx_client.post.return_value = mock_resp
+
+    with (
+        patch("zndraw.auth_utils.get_token_store"),
+        pytest.warns(DeprecationWarning, match="ZNDRAW_EMAIL is deprecated"),
+    ):
+        result = resolve_token("http://localhost:8000", password="secret")
+
+    assert result == "login.token"
+    mock_httpx_client.post.assert_called_once_with(
+        "/v1/auth/jwt/login",
+        data={"username": "old@example.com", "password": "secret"},
+    )
