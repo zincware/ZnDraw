@@ -3,7 +3,9 @@
 import os
 
 import httpx
+import socketio as socketio_lib
 from socketio import AsyncRedisManager
+from zndraw_socketio import wrap
 
 
 class TestSocketIOClientManager:
@@ -14,6 +16,28 @@ class TestSocketIOClientManager:
         # This tests that the import and basic instantiation works
         manager = AsyncRedisManager("redis://localhost:6379")
         assert manager is not None
+
+    def test_manager_initialized_not_set_prematurely(self) -> None:
+        """manager_initialized must stay False so python-socketio calls initialize().
+
+        python-socketio lazily calls manager.initialize() on the first client
+        connection — but only if _sio.manager_initialized is False.
+        initialize() starts the Redis pub/sub listener that enables
+        cross-replica event delivery.  If the flag is True before the first
+        connection, the listener never starts and events stay local.
+
+        This test replicates the setup from database.py lifespan.
+        """
+        server = socketio_lib.AsyncServer(async_mode="asgi")
+        tsio = wrap(server)
+
+        mgr = AsyncRedisManager("redis://localhost:6379")
+        mgr.set_server(tsio)
+        tsio.manager = mgr
+
+        # The underlying server must report False so that
+        # _handle_eio_connect triggers manager.initialize().
+        assert server.manager_initialized is False
 
     def test_app_starts_with_client_manager(self, server_factory) -> None:
         """App should start successfully with AsyncRedisManager configured."""

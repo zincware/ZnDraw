@@ -246,7 +246,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         client_manager = socketio_lib.AsyncRedisManager(redis_url)
         client_manager.set_server(tsio)
         tsio.manager = client_manager
-        tsio.manager_initialized = True
         tsio.app = app  # Enable DI in socket handlers (resolved at event time)
         app.state.tsio = tsio
 

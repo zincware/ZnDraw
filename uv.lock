@@ -4457,7 +4457,7 @@ requires-dist = [
     { name = "msgpack", specifier = ">=1.0.0" },
     { name = "msgpack-numpy", specifier = ">=0.4.8" },
     { name = "networkx", specifier = ">=3.6.1" },
-    { name = "pandas", specifier = ">=3.0.0" },
+    { name = "pandas", specifier = ">=2.0.0" },
     { name = "pillow", marker = "extra == 'gif'", specifier = ">=10.0.0" },
     { name = "plotly", specifier = ">=6.5.2" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
@@ -4478,7 +4478,7 @@ requires-dist = [
     { name = "vesin", specifier = ">=0.4.2" },
     { name = "zndraw-auth", specifier = ">=0.2.3" },
     { name = "zndraw-joblib", specifier = ">=0.1.4" },
-    { name = "zndraw-socketio", specifier = ">=0.1.5" },
+    { name = "zndraw-socketio", specifier = ">=0.1.6" },
 ]
 provides-extras = ["full", "gif", "mongodb", "postgres"]
 
@@ -4544,14 +4544,14 @@ wheels = [
 
 [[package]]
 name = "zndraw-socketio"
-version = "0.1.5"
+version = "0.1.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-socketio" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e5/bc/81b6c0a1dd06c84a49294b0a10c78be6ee8e7dda15f964e861de64b56db5/zndraw_socketio-0.1.5.tar.gz", hash = "sha256:dc7fa8c0b3cff30eb46e2f6cc0714ec98e311498dba56cef7bd4deba91533904", size = 200947, upload-time = "2026-02-14T16:10:06.595Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ab/db/91abcc3fff41f4c61c89dcd76df8c66a08932cf319d8f6dc9d48a743ef9f/zndraw_socketio-0.1.6.tar.gz", hash = "sha256:42cf5d572e0326552de58424a03b465b2f79ac84728225bf9cb534fa15bb6954", size = 203115, upload-time = "2026-03-19T14:18:50.394Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/11/fb/8bd73053f02d9055d361ba855397084f634f30fec6bdee56a098a984d238/zndraw_socketio-0.1.5-py3-none-any.whl", hash = "sha256:ce56528a3e3767767476422f057e879078113eeaa65e88e2d1f788f210df3ce6", size = 20075, upload-time = "2026-02-14T16:10:08.704Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/bd/b781170790ecff50714833b2649417afa339594066cedf88dd0d0635801e/zndraw_socketio-0.1.6-py3-none-any.whl", hash = "sha256:b4910b1f9e981dc085c3d3f457df4746638664335bf36f4ef64c488f3ec589d5", size = 20634, upload-time = "2026-03-19T14:18:48.691Z" },
 ]
