@@ -71,10 +71,9 @@ Env vars: `ZNDRAW_URL`, `ZNDRAW_TOKEN`, `ZNDRAW_ROOM`
 ## Authentication
 
 The CLI auto-discovers tokens in this order:
-1. `--token` flag or `ZNDRAW_TOKEN` env var
+1. `--token` flag / `ZNDRAW_TOKEN` env var, OR `--user` / `ZNDRAW_USER` + `--password` / `ZNDRAW_PASSWORD` flags (mutually exclusive)
 2. Stored token in `~/.zndraw/tokens.json` (validated on use, removed on 401)
-3. Email/password login via `ZNDRAW_EMAIL` + `ZNDRAW_PASSWORD` env vars (headless/Docker/CI)
-4. Guest token (anonymous fallback)
+3. Guest token (anonymous fallback)
 
 ```bash
 uv run zndraw-cli auth status           # check current identity

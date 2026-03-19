@@ -103,7 +103,7 @@ services:
     env_file: .env
     environment:
       - ZNDRAW_URL=http://caddy
-      - ZNDRAW_EMAIL=${ZNDRAW_AUTH_DEFAULT_ADMIN_EMAIL}
+      - ZNDRAW_USER=${ZNDRAW_AUTH_DEFAULT_ADMIN_EMAIL}
       - ZNDRAW_PASSWORD=${ZNDRAW_AUTH_DEFAULT_ADMIN_PASSWORD}
     command:
       - sh
