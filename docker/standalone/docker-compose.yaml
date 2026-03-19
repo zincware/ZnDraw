@@ -43,10 +43,7 @@ services:
     volumes:
       - zndraw-data:/app/data
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'taskiq worker'"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      test: ["NONE"]
 
   template-loader:
     image: pythonf/zndraw:latest
