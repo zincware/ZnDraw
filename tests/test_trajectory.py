@@ -15,7 +15,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from zndraw_auth import User
 
-from zndraw.exceptions import InvalidPayload, ProblemDetail, RoomLocked
+from zndraw.exceptions import InvalidPayload, ProblemDetail, RoomLocked, RoomReadOnly
 from zndraw.models import MemberRole, Room, RoomMembership
 from zndraw.schemas import FrameBulkResponse
 from zndraw.storage import FrameStorage
@@ -648,6 +648,32 @@ async def test_upload_locked_room(
 
     problem = ProblemDetail.model_validate(response.json())
     assert problem.type == RoomLocked.type_uri()
+
+
+@pytest.mark.asyncio
+async def test_upload_provider_backed_readonly(
+    traj_client: AsyncClient,
+    session: AsyncSession,
+    frame_storage: FrameStorage,
+) -> None:
+    """Upload to a provider-backed room returns 409 RoomReadOnly."""
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
+
+    await frame_storage.set_frame_count(room.id, 10)
+
+    atoms = _make_atoms("H2", [[0, 0, 0], [1, 0, 0]])
+    content = _atoms_to_file_bytes([atoms], "extxyz")
+
+    response = await traj_client.post(
+        f"/v1/rooms/{room.id}/trajectory",
+        files={"file": ("traj.extxyz", content, "application/octet-stream")},
+        headers=_auth_header(token),
+    )
+    assert response.status_code == 409
+
+    problem = ProblemDetail.model_validate(response.json())
+    assert problem.type == RoomReadOnly.type_uri()
 
 
 # =============================================================================

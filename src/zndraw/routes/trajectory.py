@@ -35,6 +35,7 @@ from zndraw.exceptions import (
     NotAuthenticated,
     RoomLocked,
     RoomNotFound,
+    RoomReadOnly,
     problem_responses,
 )
 from zndraw.redis import RedisKey
@@ -231,7 +232,7 @@ async def create_download_token(
     "",
     status_code=status.HTTP_201_CREATED,
     responses=problem_responses(
-        NotAuthenticated, RoomNotFound, RoomLocked, InvalidPayload
+        NotAuthenticated, RoomNotFound, RoomLocked, RoomReadOnly, InvalidPayload
     ),
 )
 async def upload_trajectory(
