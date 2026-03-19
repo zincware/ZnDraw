@@ -12,8 +12,10 @@ import typer
 from zndraw.server_manager import TokenEntry
 
 from .connection import (
+    PasswordOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_token_store,
     resolve_url,
@@ -104,16 +106,38 @@ def login(
 def status(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
 ) -> None:
     """Show current authentication identity."""
     with cli_error_handler():
         resolved_url = resolve_url(url)
         store = get_token_store()
 
+        # Validate mutual exclusion
+        if token is not None and (user is not None or password is not None):
+            msg = "Cannot combine --token with --user/--password"
+            raise ValueError(msg)
+        if user is not None and password is None:
+            msg = "Missing --password (required when --user is provided)"
+            raise ValueError(msg)
+        if password is not None and user is None:
+            msg = "Missing --user (required when --password is provided)"
+            raise ValueError(msg)
+
         # Determine token and source — no guest fallback
         if token is not None:
             active_token = token
             token_source = "flag"
+        elif user is not None and password is not None:
+            with httpx.Client(base_url=resolved_url, timeout=10.0) as client:
+                resp = client.post(
+                    "/v1/auth/jwt/login",
+                    data={"username": user, "password": password},
+                )
+                resp.raise_for_status()
+                active_token = resp.json()["access_token"]
+            token_source = "login"
         else:
             entry = store.get(resolved_url)
             if entry is not None:
@@ -153,14 +177,14 @@ def status(
                     }
                 )
                 return
-            user = resp.json()
+            user_data = resp.json()
 
         json_print(
             {
                 "server": resolved_url,
-                "user_id": user.get("id"),
-                "email": user.get("email"),
-                "is_superuser": user.get("is_superuser", False),
+                "user_id": user_data.get("id"),
+                "email": user_data.get("email"),
+                "is_superuser": user_data.get("is_superuser", False),
                 "token_source": token_source,
             }
         )
