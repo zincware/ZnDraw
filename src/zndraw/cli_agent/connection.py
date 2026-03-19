@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
     from zndraw import ZnDraw
 
+from zndraw.auth_utils import get_token_store
 from zndraw.server_manager import find_running_server
 
 # Shared type aliases for per-subcommand options
