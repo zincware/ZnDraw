@@ -13,9 +13,11 @@ from zndraw.schemas import (
 )
 
 from .connection import (
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_zndraw,
     resolve_room,
@@ -30,11 +32,13 @@ def list_screenshots(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
 ) -> None:
     """List screenshots for a room."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         items = vis.api.list_screenshots()
         json_print(
             OffsetPage[ScreenshotListItem].model_validate(
@@ -49,6 +53,8 @@ def request_screenshot(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     session: Annotated[
         str | None, typer.Option("--session", help="Target session SID")
     ] = None,
@@ -56,7 +62,7 @@ def request_screenshot(
     """Request a screenshot from the current user's first active session."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
 
         if session is not None:
             target_sid = session
@@ -85,6 +91,8 @@ def get(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     output: Annotated[
         str | None, typer.Option(help="Path to save screenshot file")
     ] = None,
@@ -94,7 +102,7 @@ def get(
         room = resolve_room(room)
         if screenshot_id is None:
             raise typer.BadParameter("Screenshot ID is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         data = vis.api.get_screenshot(int(screenshot_id))
         resp = ScreenshotResponse.model_validate(data)
 

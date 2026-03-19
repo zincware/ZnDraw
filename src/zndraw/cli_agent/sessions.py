@@ -7,9 +7,11 @@ import typer
 from zndraw.schemas import ActiveCameraResponse, SessionsListResponse
 
 from .connection import (
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_zndraw,
     resolve_room,
@@ -23,12 +25,14 @@ sessions_app = typer.Typer()
 def list_sessions(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """List all active frontend sessions in a room."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         items = vis.api.list_sessions()
         json_print(SessionsListResponse(items=items))
         vis.disconnect()
@@ -39,6 +43,8 @@ def get_camera(
     session_id: Annotated[str | None, typer.Argument(help="Session SID")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Get the active camera key for a session."""
@@ -46,7 +52,7 @@ def get_camera(
         room = resolve_room(room)
         if session_id is None:
             raise typer.BadParameter("Session ID is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/sessions/{session_id}/active-camera",
             headers=vis.api.get_headers(),
@@ -64,6 +70,8 @@ def set_camera(
     ] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Set the active camera for a session."""
@@ -73,7 +81,7 @@ def set_camera(
             raise typer.BadParameter("Session ID is required")
         if camera_key is None:
             raise typer.BadParameter("Camera key is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.put(
             f"/v1/rooms/{vis.room}/sessions/{session_id}/active-camera",
             json={"active_camera": camera_key},

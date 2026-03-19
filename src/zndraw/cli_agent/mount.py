@@ -6,9 +6,11 @@ from typing import Annotated
 import typer
 
 from zndraw.cli_agent.connection import (
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     resolve_token,
     resolve_url,
 )
@@ -19,6 +21,8 @@ def mount_cmd(
     file: Annotated[str, typer.Argument(help="Path to trajectory file")],
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Mount a trajectory file into a room (lazy frame serving).
@@ -32,7 +36,7 @@ def mount_cmd(
     from zndraw.io import open_frames
 
     resolved_url = resolve_url(url)
-    resolved_token = resolve_token(resolved_url, token)
+    resolved_token = resolve_token(resolved_url, token, user, password)
     source = open_frames(file)
     # mount() requires random-access (len + __getitem__);
     # materialise streaming iterators into a list.

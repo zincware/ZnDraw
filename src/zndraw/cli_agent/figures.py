@@ -14,9 +14,11 @@ from zndraw.schemas import (
 )
 
 from .connection import (
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_zndraw,
     resolve_room,
@@ -30,12 +32,14 @@ figures_app = typer.Typer(name="figures", help="Figure operations")
 def list_figures(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """List figures for a room."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/figures", headers=vis.api.get_headers()
         )
@@ -49,6 +53,8 @@ def get(
     key: Annotated[str | None, typer.Argument(help="Figure key")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Get a figure by key."""
@@ -56,7 +62,7 @@ def get(
         room = resolve_room(room)
         if key is None:
             raise typer.BadParameter("Figure key is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/figures/{key}", headers=vis.api.get_headers()
         )
@@ -70,6 +76,8 @@ def set_figure(
     key: Annotated[str | None, typer.Argument(help="Figure key")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
     file: Annotated[
         str | None, typer.Option(help="Path to JSON file with plotly figure data")
@@ -83,7 +91,7 @@ def set_figure(
             raise typer.BadParameter("Figure key is required")
         if file is None and data is None:
             raise typer.BadParameter("Either --file or --data is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         file_contents = data if data is not None else pathlib.Path(file).read_text()  # type: ignore[arg-type]
         figure_data = FigureData(data=file_contents)
         result = vis.api.set_figure(key, figure_data.model_dump())
@@ -96,6 +104,8 @@ def delete(
     key: Annotated[str | None, typer.Argument(help="Figure key")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Delete a figure by key."""
@@ -103,7 +113,7 @@ def delete(
         room = resolve_room(room)
         if key is None:
             raise typer.BadParameter("Figure key is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.delete(
             f"/v1/rooms/{vis.room}/figures/{key}", headers=vis.api.get_headers()
         )

@@ -15,9 +15,11 @@ from zndraw.schemas import (
 )
 
 from .connection import (
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_connection,
     get_zndraw,
@@ -34,6 +36,8 @@ rooms_app = typer.Typer()
 def list_rooms(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     search: Annotated[str | None, typer.Option(help="Search query")] = None,
 ) -> None:
     """List all rooms."""
@@ -41,7 +45,7 @@ def list_rooms(
         from zndraw.client import APIManager
 
         resolved_url = resolve_url(url)
-        resolved_token = resolve_token(resolved_url, token)
+        resolved_token = resolve_token(resolved_url, token, user, password)
         api = APIManager(url=resolved_url, room_id="", token=resolved_token)
         try:
             params: dict[str, str] = {}
@@ -58,6 +62,8 @@ def list_rooms(
 def create_room(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
     copy_from: Annotated[
         str | None, typer.Option("--copy-from", help="Copy from existing room ID")
@@ -65,7 +71,7 @@ def create_room(
 ) -> None:
     """Create a new room."""
     with cli_error_handler():
-        conn = get_connection(url, token)
+        conn = get_connection(url, token, user, password)
         request = RoomCreate(
             room_id=room if room is not None else str(uuid.uuid4()),
             copy_from=copy_from,
@@ -78,12 +84,14 @@ def create_room(
 def room_info(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Get room info."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         json_print(RoomResponse.model_validate(vis.api.get_room_info()))
         vis.disconnect()
 
@@ -92,12 +100,14 @@ def room_info(
 def lock_room(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Lock a room (prevent edits by non-admin users)."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         vis.locked = True
         json_print(RoomPatchResponse.model_validate(vis.api.get_room_info()))
         vis.disconnect()
@@ -107,12 +117,14 @@ def lock_room(
 def unlock_room(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Unlock a room (allow edits again)."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         vis.locked = False
         json_print(RoomPatchResponse.model_validate(vis.api.get_room_info()))
         vis.disconnect()
@@ -122,6 +134,8 @@ def unlock_room(
 def open_room(
     url: UrlOpt = None,
     _token: TokenOpt = None,
+    _user: UserOpt = None,
+    _password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Open a room in the browser."""
@@ -137,11 +151,13 @@ def open_room(
 def set_default_room(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Set a room as the default template for new rooms."""
     with cli_error_handler():
         room = resolve_room(room)
-        conn = get_connection(url, token)
+        conn = get_connection(url, token, user, password)
         response = conn.put("/v1/server-settings/default-room", json={"room_id": room})
         json_print(response.json())

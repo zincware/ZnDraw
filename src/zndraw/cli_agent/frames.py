@@ -6,9 +6,11 @@ from typing import Annotated
 import typer
 
 from zndraw.cli_agent.connection import (
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_zndraw,
     resolve_room,
@@ -23,12 +25,14 @@ frames_app = typer.Typer(name="frames", help="Frame operations")
 def count(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Get total number of frames in the room."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         data = vis.api.get_step()
         json_print(StepResponse.model_validate(data))
         vis.disconnect()
@@ -41,6 +45,8 @@ def get(
     ] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
     keys: Annotated[
         str | None, typer.Option(help="Comma-separated keys to include")
@@ -58,7 +64,7 @@ def get(
 
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         if index is None:
             index = vis.step
         params = {}
@@ -90,6 +96,8 @@ def get(
 def list_frames(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
     start: Annotated[int, typer.Option(help="Start index")] = 0,
     stop: Annotated[int | None, typer.Option(help="Stop index (exclusive)")] = None,
@@ -109,7 +117,7 @@ def list_frames(
 
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         params: dict = {"start": start}
         if stop is not None:
             params["stop"] = stop
@@ -140,6 +148,8 @@ def extend(
     file: Annotated[str | None, typer.Argument(help="Path to trajectory file")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Extend the room trajectory with frames from a file."""
@@ -149,7 +159,7 @@ def extend(
         room = resolve_room(room)
         if file is None:
             raise typer.BadParameter("FILE is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         path = pathlib.Path(file)
         with path.open("rb") as f:
             resp = vis.api.http.post(
@@ -180,6 +190,8 @@ def _expand_indices(raw: str) -> str:
 def export(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
     fmt: Annotated[
         str,
@@ -193,7 +205,7 @@ def export(
     """Export trajectory from room to stdout."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
 
         # Expand colon range to comma-separated indices
         expanded_indices = _expand_indices(indices) if indices else None
@@ -248,12 +260,14 @@ def delete(
     ] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Delete a frame by index."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         if index is None:
             index = vis.step
         vis.api.delete_frame(index)

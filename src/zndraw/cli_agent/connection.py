@@ -38,9 +38,7 @@ RoomOpt = Annotated[
 ]
 UserOpt = Annotated[
     str | None,
-    typer.Option(
-        "--user", envvar="ZNDRAW_USER", help="User email for authentication"
-    ),
+    typer.Option("--user", envvar="ZNDRAW_USER", help="User email for authentication"),
 ]
 PasswordOpt = Annotated[
     str | None,

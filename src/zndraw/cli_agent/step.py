@@ -7,9 +7,11 @@ import typer
 from zndraw.schemas import StepResponse, StepUpdateResponse
 
 from .connection import (
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_zndraw,
     resolve_room,
@@ -23,12 +25,14 @@ step_app = typer.Typer()
 def get_step(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Get the current step."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         data = vis.api.get_step()
         json_print(StepResponse.model_validate(data))
         vis.disconnect()
@@ -39,6 +43,8 @@ def set_step(
     index: Annotated[int | None, typer.Argument(help="Step index")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Set the current step."""
@@ -46,7 +52,7 @@ def set_step(
         room = resolve_room(room)
         if index is None:
             raise typer.BadParameter("Step index is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         data = vis.api.update_step(index)
         json_print(StepUpdateResponse.model_validate(data))
         vis.disconnect()

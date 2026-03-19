@@ -12,9 +12,11 @@ from zndraw.schemas import (
 )
 
 from .connection import (
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_zndraw,
     resolve_room,
@@ -28,12 +30,14 @@ bookmarks_app = typer.Typer()
 def list_bookmarks(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """List all bookmarks."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/bookmarks", headers=vis.api.get_headers()
         )
@@ -49,6 +53,8 @@ def set_bookmark(
     ] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
     label: Annotated[
         str | None, typer.Argument(help="Bookmark label (auto-generated if omitted)")
@@ -57,7 +63,7 @@ def set_bookmark(
     """Set a bookmark."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         if index is None:
             index = vis.step
         if label is None:
@@ -75,12 +81,14 @@ def delete_bookmark(
     ] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Delete a bookmark."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         if index is None:
             index = vis.step
         resp = vis.api.http.delete(
