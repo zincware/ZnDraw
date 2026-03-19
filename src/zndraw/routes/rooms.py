@@ -15,12 +15,11 @@ from sqlmodel import select
 
 from zndraw.dependencies import (
     CurrentUserDep,
+    FrameStorageDep,
     OptionalUserDep,
     RedisDep,
     SessionDep,
     SioDep,
-    StorageDep,
-    StorageRouterDep,
     WritableRoomDep,
     room_channel,
     verify_room,
@@ -69,6 +68,7 @@ from zndraw.schemas import (
     SessionsListResponse,
 )
 from zndraw.socket_events import FramesInvalidate, RoomUpdate
+from zndraw.storage import FrameStorage
 from zndraw.transformations import InArrayTransform
 
 logger = logging.getLogger(__name__)
@@ -265,7 +265,7 @@ async def _get_default_room_id(session: AsyncSession) -> str | None:
 
 async def build_room_update(
     session: AsyncSession,
-    storage: Any,
+    storage: FrameStorage,
     room: Room,
 ) -> RoomUpdate:
     """Build a full RoomUpdate snapshot from DB + storage."""
@@ -292,8 +292,7 @@ async def build_room_update(
 )
 async def create_room(
     session: SessionDep,
-    storage: StorageDep,
-    storage_router: StorageRouterDep,
+    storage: FrameStorageDep,
     sio: SioDep,
     current_user: CurrentUserDep,
     request: RoomCreate,
@@ -350,7 +349,7 @@ async def create_room(
     source_room: Room | None = None
     if not copy_from.startswith("@"):
         source_room = await session.get(Room, copy_from)
-        if source_room is not None and await storage_router.has_mount(copy_from):
+        if source_room is not None and await storage.has_mount(copy_from):
             raise RoomReadOnly.exception(
                 "Cannot copy from a room with a mounted source"
             )
@@ -368,19 +367,19 @@ async def create_room(
     if copy_from == "@none":
         pass  # zero frames
     elif copy_from == "@empty":
-        await storage.extend(room_id, [{}])
+        await storage[room_id].extend([{}])
         frame_count = 1
     elif source_room is not None:
         # Deep copy from existing room: frames + all state
-        source_frames_or_none = await storage.get_range(copy_from, 0, None)
+        source_frames_or_none = await storage[copy_from][0:].to_list()
         source_frames = [f for f in source_frames_or_none if f is not None]
         if source_frames:
-            await storage.extend(room_id, source_frames)
+            await storage[room_id].extend(source_frames)
             frame_count = len(source_frames)
         await _copy_room_state(session, copy_from, room_id)
     else:
         # copyFrom refers to a non-existent room — fall back to empty
-        await storage.extend(room_id, [{}])
+        await storage[room_id].extend([{}])
         frame_count = 1
 
     # Only create default geometries when NOT copying from an existing room
@@ -404,7 +403,7 @@ async def create_room(
 @router.get("")
 async def list_rooms(
     session: SessionDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     _current_user: OptionalUserDep,
     search: Annotated[str | None, Query(description="Search pattern")] = None,
 ) -> CollectionResponse[RoomResponse]:
@@ -453,7 +452,7 @@ async def list_rooms(
 )
 async def get_room(
     session: SessionDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     _current_user: CurrentUserDep,
     room_id: str,
 ) -> RoomResponse:
@@ -560,7 +559,7 @@ async def list_sessions(
 )
 async def update_room(
     session: SessionDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     sio: SioDep,
     room: WritableRoomDep,
     updates: RoomPatchRequest,
@@ -569,9 +568,8 @@ async def update_room(
     """Update room metadata (description, locked, frame_count).
 
     Requires writable access (room must not be locked by another user).
-    Setting ``frame_count`` stores an external frame count in the storage
-    backend (only supported by ``StorageRouter`` with Redis).  Use 0 to
-    clear the external count.
+    Setting ``frame_count`` stores an external frame count in Redis
+    (used by provider-backed rooms).  Use 0 to clear the external count.
     """
     changed = False
     if updates.description is not None:
@@ -584,15 +582,10 @@ async def update_room(
 
     if updates.frame_count is not None:
         count = updates.frame_count
-        try:
-            if count > 0:
-                await storage.set_frame_count(room.id, count)
-            else:
-                await storage.clear_frame_count(room.id)
-        except NotImplementedError as err:
-            raise Forbidden.exception(
-                "Storage backend does not support external frame counts"
-            ) from err
+        if count > 0:
+            await storage.set_frame_count(room.id, count)
+        else:
+            await storage.clear_frame_count(room.id)
         await sio.emit(
             FramesInvalidate(room_id=room.id, action="clear", count=count),
             room=room_channel(room.id),

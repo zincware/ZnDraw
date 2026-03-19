@@ -4,9 +4,9 @@ from fastapi import APIRouter
 
 from zndraw.dependencies import (
     CurrentUserDep,
+    FrameStorageDep,
     SessionDep,
     SioDep,
-    StorageDep,
     WritableRoomDep,
     room_channel,
     verify_room,
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/step", tags=["step"])
 )
 async def get_step(
     session: SessionDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     _current_user: CurrentUserDep,
     room_id: str,
 ) -> StepResponse:
@@ -60,7 +60,7 @@ async def get_step(
 )
 async def set_step(
     session: SessionDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     sio: SioDep,
     room: WritableRoomDep,
     room_id: str,

@@ -2,7 +2,7 @@
 
 Uses app.state pattern to store resources:
 - redis: Redis async client
-- frame_storage: StorageRouter wrapping AsebytesStorage
+- frame_storage: FrameStorage (room-scoped AsyncBlobIO registry)
 - fake_server: TcpFakeServer instance (when REDIS_URL not configured)
 - tsio: zndraw-socketio typed wrapper
 """
@@ -47,7 +47,6 @@ from zndraw.extensions.analysis import analysis
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
 from zndraw.socketio import tsio
-from zndraw.storage import AsebytesStorage
 
 
 def _get_free_port() -> int:
@@ -236,15 +235,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             redis_url, decode_responses=True, **redis_kwargs
         )
 
-        # Frame storage (wrapped in StorageRouter for virtual mount support)
-        # The underlying backend is shared with the provider cache so frame
-        # provider results automatically use the same storage engine.
-        from zndraw.storage.router import StorageRouter
+        # Frame storage: room-scoped AsyncBlobIO registry
+        from zndraw.storage import FrameStorage
 
-        default_storage = AsebytesStorage(uri=settings.storage)
-        app.state.frame_storage = StorageRouter(
-            default=default_storage,
-            redis=app.state.redis,
+        app.state.frame_storage = FrameStorage(
+            uri=settings.storage, redis=app.state.redis
         )
 
         # Socket.IO with AsyncRedisManager
@@ -317,7 +312,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         redis_raw = redis_client.from_url(redis_url, **redis_kwargs)
         redis_backend = RedisResultBackend(redis_raw)
-        frame_cache = StorageResultBackend(default_storage)
+        frame_cache = StorageResultBackend(app.state.frame_storage)
         result_backend = CompositeResultBackend(redis=redis_backend, frames=frame_cache)
         app.state.result_backend = result_backend
         app.dependency_overrides[get_result_backend] = lambda: result_backend

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
-from conftest import create_test_token, create_test_user_model
+from conftest import create_test_token, create_test_user_model, make_raw_frame
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -15,7 +15,7 @@ from zndraw_auth import User
 from zndraw.models import MemberRole, Room, RoomMembership
 from zndraw.schemas import StepResponse, StepUpdateResponse
 from zndraw.socket_events import FrameUpdate
-from zndraw.storage import AsebytesStorage
+from zndraw.storage import FrameStorage
 
 # =============================================================================
 # Test-specific Fixtures
@@ -47,14 +47,6 @@ async def step_session_fixture() -> AsyncIterator[AsyncSession]:
         await engine.dispose()
 
 
-@pytest_asyncio.fixture(name="step_storage")
-async def step_storage_fixture() -> AsyncIterator[AsebytesStorage]:
-    """Create a fresh AsebytesStorage instance for each test."""
-    storage = AsebytesStorage("memory://")
-    yield storage
-    await storage.close()
-
-
 @pytest_asyncio.fixture(name="mock_sio")
 async def mock_sio_fixture() -> MagicMock:
     """Create a mock Socket.IO server for testing."""
@@ -66,7 +58,7 @@ async def mock_sio_fixture() -> MagicMock:
 @pytest_asyncio.fixture(name="step_client")
 async def step_client_fixture(
     step_session: AsyncSession,
-    step_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
     mock_sio: MagicMock,
 ) -> AsyncIterator[AsyncClient]:
     """Create an async test client with dependencies overridden."""
@@ -75,13 +67,13 @@ async def step_client_fixture(
 
     from zndraw.app import app
     from zndraw.config import Settings
-    from zndraw.dependencies import get_redis, get_storage, get_tsio
+    from zndraw.dependencies import get_frame_storage, get_redis, get_tsio
 
     async def get_session_override() -> AsyncIterator[AsyncSession]:
         yield step_session
 
-    def get_storage_override() -> AsebytesStorage:
-        return step_storage
+    def get_storage_override() -> FrameStorage:
+        return frame_storage
 
     def get_sio_override() -> MagicMock:
         return mock_sio
@@ -91,7 +83,7 @@ async def step_client_fixture(
     mock_redis.get = AsyncMock(return_value=None)
 
     app.dependency_overrides[get_session] = get_session_override
-    app.dependency_overrides[get_storage] = get_storage_override
+    app.dependency_overrides[get_frame_storage] = get_storage_override
     app.dependency_overrides[get_tsio] = get_sio_override
     app.dependency_overrides[get_redis] = lambda: mock_redis
     app.state.settings = Settings()
@@ -157,14 +149,16 @@ def _auth_header(token: str) -> dict[str, str]:
 async def test_get_step_returns_zero_initially(
     step_client: AsyncClient,
     step_session: AsyncSession,
-    step_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test GET returns step=0 for new room with no step set."""
     user, token = await _create_user(step_session)
     room = await _create_room(step_session, user)
 
     # Add some frames to the room
-    await step_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore[arg-type]
+    await frame_storage[room.id].extend(
+        [make_raw_frame({"a": 1}), make_raw_frame({"b": 2}), make_raw_frame({"c": 3})]
+    )
 
     response = await step_client.get(
         f"/v1/rooms/{room.id}/step",
@@ -181,14 +175,16 @@ async def test_get_step_returns_zero_initially(
 async def test_get_step_returns_current_step(
     step_client: AsyncClient,
     step_session: AsyncSession,
-    step_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test GET returns previously set step."""
     user, token = await _create_user(step_session)
     room = await _create_room(step_session, user, step=2)
 
     # Add frames
-    await step_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore[arg-type]
+    await frame_storage[room.id].extend(
+        [make_raw_frame({"a": 1}), make_raw_frame({"b": 2}), make_raw_frame({"c": 3})]
+    )
 
     response = await step_client.get(
         f"/v1/rooms/{room.id}/step",
@@ -210,7 +206,7 @@ async def test_get_step_returns_current_step(
 async def test_set_step_updates_and_returns(
     step_client: AsyncClient,
     step_session: AsyncSession,
-    step_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
     mock_sio: MagicMock,
 ) -> None:
     """Test PUT updates step and returns new value."""
@@ -218,7 +214,9 @@ async def test_set_step_updates_and_returns(
     room = await _create_room(step_session, user)
 
     # Add frames
-    await step_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore[arg-type]
+    await frame_storage[room.id].extend(
+        [make_raw_frame({"a": 1}), make_raw_frame({"b": 2}), make_raw_frame({"c": 3})]
+    )
 
     response = await step_client.put(
         f"/v1/rooms/{room.id}/step",
@@ -246,14 +244,16 @@ async def test_set_step_updates_and_returns(
 async def test_set_step_out_of_bounds_returns_422(
     step_client: AsyncClient,
     step_session: AsyncSession,
-    step_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test PUT with step > total_frames returns 422."""
     user, token = await _create_user(step_session)
     room = await _create_room(step_session, user)
 
     # Add 3 frames (indices 0, 1, 2)
-    await step_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore[arg-type]
+    await frame_storage[room.id].extend(
+        [make_raw_frame({"a": 1}), make_raw_frame({"b": 2}), make_raw_frame({"c": 3})]
+    )
 
     # Request step=100 — should return 422
     response = await step_client.put(
@@ -271,7 +271,7 @@ async def test_set_step_out_of_bounds_returns_422(
 async def test_set_step_empty_room_rejects_nonzero(
     step_client: AsyncClient,
     step_session: AsyncSession,
-    step_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test PUT to room with no frames rejects non-zero step."""
     user, token = await _create_user(step_session)
@@ -292,13 +292,13 @@ async def test_set_step_empty_room_rejects_nonzero(
 async def test_set_step_negative_returns_422(
     step_client: AsyncClient,
     step_session: AsyncSession,
-    step_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test PUT with negative step returns 422 (Pydantic ge=0 validation)."""
     user, token = await _create_user(step_session)
     room = await _create_room(step_session, user)
 
-    await step_storage.extend(room.id, [{"a": 1}])  # type: ignore[arg-type]
+    await frame_storage[room.id].extend([make_raw_frame({"a": 1})])
 
     response = await step_client.put(
         f"/v1/rooms/{room.id}/step",

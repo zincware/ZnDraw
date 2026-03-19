@@ -11,11 +11,11 @@ from fastapi import APIRouter, Query, Response
 
 from zndraw.dependencies import (
     CurrentUserFactoryDep,
+    FrameStorageDep,
     JobLibSettingsDep,
     ResultBackendDep,
     SessionMakerDep,
     SioDep,
-    StorageDep,
     verify_room,
 )
 from zndraw.exceptions import (
@@ -85,7 +85,7 @@ def _extract_mesh(
 )
 async def get_isosurface(
     session_maker: SessionMakerDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
@@ -109,7 +109,11 @@ async def get_isosurface(
         if index < 0 or index >= total:
             FrameNotFound.raise_out_of_range(index, total)
 
-        frame = await storage.get(room_id, index)
+        io = storage[room_id]
+        try:
+            frame = await io.get(index)
+        except IndexError:
+            frame = None
         provider = (
             await _find_frames_provider(session, room_id) if frame is None else None
         )

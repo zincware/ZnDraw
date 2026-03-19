@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
-from zndraw.storage import AsebytesStorage
+from zndraw.storage import FrameStorage
 
 # =============================================================================
 # Model Validation Tests
@@ -323,17 +323,9 @@ async def iso_session_fixture() -> AsyncIterator[AsyncSession]:
         await engine.dispose()
 
 
-@pytest_asyncio.fixture(name="iso_storage")
-async def iso_storage_fixture() -> AsyncIterator[AsebytesStorage]:
-    """Create a fresh AsebytesStorage."""
-    storage = AsebytesStorage("memory://")
-    yield storage
-    await storage.close()
-
-
 @pytest_asyncio.fixture(name="iso_client")
 async def iso_client_fixture(
-    iso_session: AsyncSession, iso_storage: AsebytesStorage
+    iso_session: AsyncSession, frame_storage: FrameStorage
 ) -> AsyncIterator[AsyncClient]:
     """Create an async test client with storage + session overrides."""
     from contextlib import asynccontextmanager
@@ -344,10 +336,10 @@ async def iso_client_fixture(
 
     from zndraw.app import app
     from zndraw.dependencies import (
+        get_frame_storage,
         get_joblib_settings,
         get_redis,
         get_result_backend,
-        get_storage,
         get_tsio,
     )
 
@@ -363,7 +355,7 @@ async def iso_client_fixture(
     app.state.auth_settings = AuthSettings()
     app.state.session_maker = test_session_maker
     app.dependency_overrides[get_session] = get_session_override
-    app.dependency_overrides[get_storage] = lambda: iso_storage
+    app.dependency_overrides[get_frame_storage] = lambda: frame_storage
     app.dependency_overrides[get_tsio] = lambda: mock_sio
     app.dependency_overrides[get_redis] = lambda: AsyncMock()
     app.dependency_overrides[get_result_backend] = lambda: AsyncMock()
@@ -384,14 +376,14 @@ async def iso_client_fixture(
 
 @pytest.mark.asyncio
 async def test_isosurface_basic(
-    iso_client: AsyncClient, iso_session: AsyncSession, iso_storage: AsebytesStorage
+    iso_client: AsyncClient, iso_session: AsyncSession, frame_storage: FrameStorage
 ) -> None:
     """Store cube data, GET isosurface, verify 200 with vertices/faces."""
     user, token = await create_test_user_in_db(iso_session)
     room = await create_test_room(iso_session, user)
 
     frame = _make_frame_with_cube("info.orbital_homo")
-    await iso_storage.extend(room.id, [frame])  # type: ignore[arg-type]
+    await frame_storage[room.id].extend([frame])
 
     response = await iso_client.get(
         f"/v1/rooms/{room.id}/frames/0/isosurface",
@@ -412,14 +404,14 @@ async def test_isosurface_basic(
 
 @pytest.mark.asyncio
 async def test_isosurface_missing_cube_key(
-    iso_client: AsyncClient, iso_session: AsyncSession, iso_storage: AsebytesStorage
+    iso_client: AsyncClient, iso_session: AsyncSession, frame_storage: FrameStorage
 ) -> None:
     """GET with nonexistent cube key returns 422."""
     user, token = await create_test_user_in_db(iso_session)
     room = await create_test_room(iso_session, user)
 
     frame = _make_frame_with_cube("info.orbital_homo")
-    await iso_storage.extend(room.id, [frame])  # type: ignore[arg-type]
+    await frame_storage[room.id].extend([frame])
 
     response = await iso_client.get(
         f"/v1/rooms/{room.id}/frames/0/isosurface",
@@ -447,14 +439,14 @@ async def test_isosurface_frame_not_found(
 
 @pytest.mark.asyncio
 async def test_isosurface_empty_surface(
-    iso_client: AsyncClient, iso_session: AsyncSession, iso_storage: AsebytesStorage
+    iso_client: AsyncClient, iso_session: AsyncSession, frame_storage: FrameStorage
 ) -> None:
     """Isovalue outside data range returns 200 with empty vertices/faces."""
     user, token = await create_test_user_in_db(iso_session)
     room = await create_test_room(iso_session, user)
 
     frame = _make_frame_with_cube("info.orbital_homo")
-    await iso_storage.extend(room.id, [frame])  # type: ignore[arg-type]
+    await frame_storage[room.id].extend([frame])
 
     response = await iso_client.get(
         f"/v1/rooms/{room.id}/frames/0/isosurface",
@@ -472,7 +464,7 @@ async def test_isosurface_empty_surface(
 
 @pytest.mark.asyncio
 async def test_isosurface_invalid_grid(
-    iso_client: AsyncClient, iso_session: AsyncSession, iso_storage: AsebytesStorage
+    iso_client: AsyncClient, iso_session: AsyncSession, frame_storage: FrameStorage
 ) -> None:
     """Cube data with non-3D grid returns 422."""
     user, token = await create_test_user_in_db(iso_session)
@@ -486,7 +478,7 @@ async def test_isosurface_invalid_grid(
     frame = {
         b"info.bad": msgpack.packb(bad_cube, default=msgpack_numpy.encode),
     }
-    await iso_storage.extend(room.id, [frame])  # type: ignore[arg-type]
+    await frame_storage[room.id].extend([frame])
 
     response = await iso_client.get(
         f"/v1/rooms/{room.id}/frames/0/isosurface",
@@ -498,7 +490,7 @@ async def test_isosurface_invalid_grid(
 
 @pytest.mark.asyncio
 async def test_isosurface_missing_dict_keys(
-    iso_client: AsyncClient, iso_session: AsyncSession, iso_storage: AsebytesStorage
+    iso_client: AsyncClient, iso_session: AsyncSession, frame_storage: FrameStorage
 ) -> None:
     """Cube data dict missing 'grid' key returns 422."""
     user, token = await create_test_user_in_db(iso_session)
@@ -508,7 +500,7 @@ async def test_isosurface_missing_dict_keys(
     frame = {
         b"info.bad": msgpack.packb(bad_cube, default=msgpack_numpy.encode),
     }
-    await iso_storage.extend(room.id, [frame])  # type: ignore[arg-type]
+    await frame_storage[room.id].extend([frame])
 
     response = await iso_client.get(
         f"/v1/rooms/{room.id}/frames/0/isosurface",
@@ -520,7 +512,7 @@ async def test_isosurface_missing_dict_keys(
 
 @pytest.mark.asyncio
 async def test_isosurface_resolution(
-    iso_client: AsyncClient, iso_session: AsyncSession, iso_storage: AsebytesStorage
+    iso_client: AsyncClient, iso_session: AsyncSession, frame_storage: FrameStorage
 ) -> None:
     """Higher resolution produces more vertices."""
     user, token = await create_test_user_in_db(iso_session)
@@ -531,7 +523,7 @@ async def test_isosurface_resolution(
     frame = {
         b"info.orb": msgpack.packb(cube_data, default=msgpack_numpy.encode),
     }
-    await iso_storage.extend(room.id, [frame])  # type: ignore[arg-type]
+    await frame_storage[room.id].extend([frame])
 
     resp_fine = await iso_client.get(
         f"/v1/rooms/{room.id}/frames/0/isosurface",
@@ -559,7 +551,7 @@ async def test_isosurface_resolution(
 
 @pytest.mark.asyncio
 async def test_isosurface_sigma_smoothing(
-    iso_client: AsyncClient, iso_session: AsyncSession, iso_storage: AsebytesStorage
+    iso_client: AsyncClient, iso_session: AsyncSession, frame_storage: FrameStorage
 ) -> None:
     """Gaussian smoothing with sigma > 0 produces a valid mesh from noisy data."""
     user, token = await create_test_user_in_db(iso_session)
@@ -579,7 +571,7 @@ async def test_isosurface_sigma_smoothing(
     frame = {
         b"info.noisy": msgpack.packb(cube_data, default=msgpack_numpy.encode),
     }
-    await iso_storage.extend(room.id, [frame])  # type: ignore[arg-type]
+    await frame_storage[room.id].extend([frame])
 
     # Without smoothing
     resp_raw = await iso_client.get(
@@ -625,7 +617,7 @@ async def test_isosurface_room_not_found(
 
 @pytest.mark.asyncio
 async def test_isosurface_pyscf_h2(
-    iso_client: AsyncClient, iso_session: AsyncSession, iso_storage: AsebytesStorage
+    iso_client: AsyncClient, iso_session: AsyncSession, frame_storage: FrameStorage
 ) -> None:
     """Use PySCF to generate a real H2 HOMO orbital, extract isosurface."""
     pytest.importorskip("pyscf")
@@ -661,7 +653,7 @@ async def test_isosurface_pyscf_h2(
 
     user, token = await create_test_user_in_db(iso_session)
     room = await create_test_room(iso_session, user)
-    await iso_storage.extend(room.id, [frame])  # type: ignore[arg-type]
+    await frame_storage[room.id].extend([frame])
 
     response = await iso_client.get(
         f"/v1/rooms/{room.id}/frames/0/isosurface",

@@ -24,13 +24,18 @@ from zndraw_joblib.dependencies import ResultBackend, validate_room_id
 from zndraw_joblib.settings import JobLibSettings
 from zndraw_socketio import AsyncServerWrapper
 
-from zndraw.exceptions import Forbidden, RoomLocked, RoomNotFound, SessionNotFound
+from zndraw.exceptions import (
+    Forbidden,
+    RoomLocked,
+    RoomNotFound,
+    RoomReadOnly,
+    SessionNotFound,
+)
 from zndraw.geometries import geometries as geometry_models
 from zndraw.geometries.camera import Camera
 from zndraw.models import Room, RoomGeometry
 from zndraw.redis import RedisKey
-from zndraw.storage import AsebytesStorage
-from zndraw.storage.router import StorageRouter
+from zndraw.storage import FrameStorage
 
 # Re-export auth dependencies for convenience
 CurrentUserDep = Annotated[User, Depends(current_active_user)]
@@ -53,23 +58,24 @@ def get_redis(request: Request) -> AsyncRedis:  # type: ignore[type-arg]
 RedisDep = Annotated[AsyncRedis, Depends(get_redis)]  # type: ignore[type-arg]
 
 
-def get_storage(request: Request) -> AsebytesStorage:
-    """Get frame storage backend from app.state."""
+def get_frame_storage(request: Request) -> FrameStorage:
+    """Get frame storage registry from app.state."""
     return request.app.state.frame_storage
 
 
-StorageDep = Annotated[AsebytesStorage, Depends(get_storage)]
+FrameStorageDep = Annotated[FrameStorage, Depends(get_frame_storage)]
 
 
-def get_storage_router(request: Request) -> StorageRouter:
-    """Get StorageRouter for mount management."""
-    storage = request.app.state.frame_storage
-    if not isinstance(storage, StorageRouter):
-        raise TypeError(f"Expected StorageRouter, got {type(storage).__name__}")
-    return storage
+async def require_writable_room(
+    storage: FrameStorageDep,
+    room_id: str = Path(),
+) -> None:
+    """Raise RoomReadOnly if the room has a provider mount."""
+    if await storage.has_mount(room_id):
+        raise RoomReadOnly.exception("Room is provider-backed (read-only)")
 
 
-StorageRouterDep = Annotated[StorageRouter, Depends(get_storage_router)]
+RequireWritableDep = Annotated[None, Depends(require_writable_room)]
 
 
 def get_tsio(request: Request) -> AsyncServerWrapper:

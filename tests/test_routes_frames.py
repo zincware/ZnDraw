@@ -29,7 +29,7 @@ from zndraw.schemas import (
     FrameResponse,
     StatusResponse,
 )
-from zndraw.storage import AsebytesStorage, RawFrame
+from zndraw.storage import FrameStorage, RawFrame
 
 
 def _make_json_frame(formula: str = "H2") -> dict[str, Any]:
@@ -81,17 +81,9 @@ async def frame_session_fixture() -> AsyncIterator[AsyncSession]:
         await engine.dispose()
 
 
-@pytest_asyncio.fixture(name="frame_storage")
-async def frame_storage_fixture() -> AsyncIterator[AsebytesStorage]:
-    """Create a fresh AsebytesStorage instance for each test."""
-    storage = AsebytesStorage("memory://")
-    yield storage
-    await storage.close()
-
-
 @pytest_asyncio.fixture(name="frame_client")
 async def frame_client_fixture(
-    frame_session: AsyncSession, frame_storage: AsebytesStorage
+    frame_session: AsyncSession, frame_storage: FrameStorage
 ) -> AsyncIterator[AsyncClient]:
     """Create an async test client with session and storage dependencies overridden."""
     from contextlib import asynccontextmanager
@@ -102,10 +94,10 @@ async def frame_client_fixture(
 
     from zndraw.app import app
     from zndraw.dependencies import (
+        get_frame_storage,
         get_joblib_settings,
         get_redis,
         get_result_backend,
-        get_storage,
         get_tsio,
     )
 
@@ -118,7 +110,7 @@ async def frame_client_fixture(
     async def test_session_maker():
         yield frame_session
 
-    def get_storage_override() -> AsebytesStorage:
+    def get_storage_override() -> FrameStorage:
         return frame_storage
 
     def get_sio_override() -> MockSioServer:
@@ -131,7 +123,7 @@ async def frame_client_fixture(
     app.state.auth_settings = AuthSettings()
     app.state.session_maker = test_session_maker
     app.dependency_overrides[get_session] = get_session_override
-    app.dependency_overrides[get_storage] = get_storage_override
+    app.dependency_overrides[get_frame_storage] = get_storage_override
     app.dependency_overrides[get_tsio] = get_sio_override
     app.dependency_overrides[get_redis] = lambda: mock_redis
     app.dependency_overrides[get_result_backend] = lambda: AsyncMock()
@@ -179,15 +171,16 @@ async def test_list_frames_empty_room(
 async def test_list_frames_with_data(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test listing frames with data returns all frames."""
     user, token = await _create_user(frame_session)
     room = await _create_room(frame_session, user)
 
     # Add frames to storage
-    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore[arg-type]
-
+    await frame_storage[room.id].extend(
+        [make_raw_frame({"a": 1}), make_raw_frame({"b": 2}), make_raw_frame({"c": 3})]
+    )
     response = await frame_client.get(
         f"/v1/rooms/{room.id}/frames",
         headers=_auth_header(token),
@@ -204,15 +197,21 @@ async def test_list_frames_with_data(
 async def test_list_frames_with_range(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test listing frames with range query params."""
     user, token = await _create_user(frame_session)
     room = await _create_room(frame_session, user)
 
     # Add frames to storage
-    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}, {"d": 4}])  # type: ignore[arg-type]
-
+    await frame_storage[room.id].extend(
+        [
+            make_raw_frame({"a": 1}),
+            make_raw_frame({"b": 2}),
+            make_raw_frame({"c": 3}),
+            make_raw_frame({"d": 4}),
+        ]
+    )
     response = await frame_client.get(
         f"/v1/rooms/{room.id}/frames?start=1&stop=3",
         headers=_auth_header(token),
@@ -246,16 +245,21 @@ async def test_list_frames_room_not_found(
 async def test_list_frames_with_indices(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test listing specific frames by indices parameter."""
     user, token = await _create_user(frame_session)
     room = await _create_room(frame_session, user)
 
     # Add 5 frames
-    await frame_storage.extend(
-        room.id,
-        [{"a": 0}, {"b": 1}, {"c": 2}, {"d": 3}, {"e": 4}],  # type: ignore[arg-type]
+    await frame_storage[room.id].extend(
+        [
+            make_raw_frame({"a": 0}),
+            make_raw_frame({"b": 1}),
+            make_raw_frame({"c": 2}),
+            make_raw_frame({"d": 3}),
+            make_raw_frame({"e": 4}),
+        ]
     )
 
     # Request specific indices
@@ -275,21 +279,19 @@ async def test_list_frames_with_indices(
 async def test_list_frames_with_keys_filter(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test listing frames with keys parameter to filter frame data."""
     user, token = await _create_user(frame_session)
     room = await _create_room(frame_session, user)
 
     # Add frames with multiple keys
-    await frame_storage.extend(
-        room.id,
+    await frame_storage[room.id].extend(
         [
-            {"x": 1, "y": 2, "z": 3},
-            {"x": 4, "y": 5, "z": 6},
-        ],
-    )  # type: ignore[arg-type]
-
+            make_raw_frame({"x": 1, "y": 2, "z": 3}),
+            make_raw_frame({"x": 4, "y": 5, "z": 6}),
+        ]
+    )
     # Request only x and z keys
     response = await frame_client.get(
         f"/v1/rooms/{room.id}/frames?keys=x,z",
@@ -307,22 +309,20 @@ async def test_list_frames_with_keys_filter(
 async def test_list_frames_with_indices_and_keys(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test listing specific indices with keys filter."""
     user, token = await _create_user(frame_session)
     room = await _create_room(frame_session, user)
 
     # Add frames
-    await frame_storage.extend(
-        room.id,
+    await frame_storage[room.id].extend(
         [
-            {"a": 1, "b": 2},
-            {"a": 3, "b": 4},
-            {"a": 5, "b": 6},
-        ],
-    )  # type: ignore[arg-type]
-
+            make_raw_frame({"a": 1, "b": 2}),
+            make_raw_frame({"a": 3, "b": 4}),
+            make_raw_frame({"a": 5, "b": 6}),
+        ]
+    )
     # Request index 2 with only key 'a'
     response = await frame_client.get(
         f"/v1/rooms/{room.id}/frames?indices=2&keys=a",
@@ -344,15 +344,16 @@ async def test_list_frames_with_indices_and_keys(
 async def test_get_frame(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test getting a single frame by index."""
     user, token = await _create_user(frame_session)
     room = await _create_room(frame_session, user)
 
     # Add frames to storage
-    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}])  # type: ignore[arg-type]
-
+    await frame_storage[room.id].extend(
+        [make_raw_frame({"a": 1}), make_raw_frame({"b": 2})]
+    )
     response = await frame_client.get(
         f"/v1/rooms/{room.id}/frames/1",
         headers=_auth_header(token),
@@ -410,7 +411,7 @@ async def test_get_frame_room_not_found(
 async def test_get_frame_metadata(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test getting metadata for a frame with mixed scalar and array data."""
     from ase import Atoms
@@ -424,8 +425,7 @@ async def test_get_frame_metadata(
     atoms.info["energy"] = -42.5
 
     raw = encode(atoms)
-    await frame_storage.extend(room.id, [raw])  # type: ignore[arg-type]
-
+    await frame_storage[room.id].extend([raw])
     response = await frame_client.get(
         f"/v1/rooms/{room.id}/frames/0/metadata",
         headers=_auth_header(token),
@@ -610,15 +610,16 @@ async def test_append_frames_exceeds_max_length(
 async def test_update_frame(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test updating a frame at specific index."""
     user, token = await _create_user(frame_session)
     room = await _create_room(frame_session, user)
 
     # Add frames to storage
-    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}])  # type: ignore[arg-type]
-
+    await frame_storage[room.id].extend(
+        [make_raw_frame({"a": 1}), make_raw_frame({"b": 2})]
+    )
     new_frame = _make_json_frame("He")
 
     response = await frame_client.put(
@@ -660,14 +661,13 @@ async def test_update_frame_not_found(
 async def test_merge_frame(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test partial update merges new keys into existing frame."""
     user, token = await _create_user(frame_session)
     room = await _create_room(frame_session, user)
 
-    await frame_storage.extend(room.id, [{"a": 1, "b": 2}])  # type: ignore[arg-type]
-
+    await frame_storage[room.id].extend([make_raw_frame({"a": 1, "b": 2})])
     # Send PATCH with msgpack body updating key "a" and adding key "c"
     patch_data = msgpack.packb({"a": 99, "c": 3})
     response = await frame_client.patch(
@@ -682,7 +682,7 @@ async def test_merge_frame(
     assert set(result.updated_keys) == {"a", "c"}
 
     # Verify merged data in storage
-    stored = await frame_storage.get(room.id, 0)  # type: ignore[arg-type]
+    stored = await frame_storage[room.id][0]
     assert stored is not None
     assert raw_frame_to_dict(stored) == {"a": 99, "b": 2, "c": 3}
 
@@ -691,14 +691,13 @@ async def test_merge_frame(
 async def test_merge_frame_preserves_untouched_keys(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test partial update does not remove keys not in the patch."""
     user, token = await _create_user(frame_session)
     room = await _create_room(frame_session, user)
 
-    await frame_storage.extend(room.id, [{"x": 10, "y": 20, "z": 30}])  # type: ignore[arg-type]
-
+    await frame_storage[room.id].extend([make_raw_frame({"x": 10, "y": 20, "z": 30})])
     # Only update "y"
     patch_data = msgpack.packb({"y": 99})
     response = await frame_client.patch(
@@ -708,7 +707,7 @@ async def test_merge_frame_preserves_untouched_keys(
     )
     assert response.status_code == 200
 
-    stored = await frame_storage.get(room.id, 0)  # type: ignore[arg-type]
+    stored = await frame_storage[room.id][0]
     assert stored is not None
     assert raw_frame_to_dict(stored) == {"x": 10, "y": 99, "z": 30}
 
@@ -756,7 +755,7 @@ async def test_merge_frame_room_not_found(
 async def test_merge_frame_preserves_msgpack_str_type(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test that PATCH preserves msgpack str/bin distinction for numpy arrays.
 
@@ -779,14 +778,13 @@ async def test_merge_frame_preserves_msgpack_str_type(
         {"nd": True, "type": "<f8", "shape": [3, 3], "data": original_positions},
         use_bin_type=True,
     )
-    await frame_storage.extend(
-        room.id,
-        [  # type: ignore[arg-type]  # raw bytes frames bypass extend's str API
+    await frame_storage[room.id].extend(
+        [
             {
                 b"arrays.positions": original_numpy,
                 b"arrays.numbers": msgpack.packb([1, 1, 1]),
             }
-        ],
+        ]
     )
 
     # PATCH with float32 positions (what the frontend sends after editing)
@@ -812,7 +810,7 @@ async def test_merge_frame_preserves_msgpack_str_type(
     assert response.status_code == 200
 
     # Read the merged frame back and decode the stored positions value
-    stored_frame = await frame_storage.get(room.id, 0)  # type: ignore[arg-type]
+    stored_frame = await frame_storage[room.id][0]
     assert stored_frame is not None
 
     # The stored value must preserve msgpack str/bin distinction.
@@ -850,15 +848,16 @@ async def test_merge_frame_preserves_msgpack_str_type(
 async def test_delete_frame(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """Test deleting a frame at specific index."""
     user, token = await _create_user(frame_session)
     room = await _create_room(frame_session, user)
 
     # Add frames to storage
-    await frame_storage.extend(room.id, [{"a": 1}, {"b": 2}, {"c": 3}])  # type: ignore[arg-type]
-
+    await frame_storage[room.id].extend(
+        [make_raw_frame({"a": 1}), make_raw_frame({"b": 2}), make_raw_frame({"c": 3})]
+    )
     response = await frame_client.delete(
         f"/v1/rooms/{room.id}/frames/1",
         headers=_auth_header(token),
@@ -867,9 +866,9 @@ async def test_delete_frame(
     StatusResponse.model_validate(response.json())
 
     # Verify frame was deleted and others shifted
-    assert await frame_storage.get_length(room.id) == 2  # type: ignore[arg-type]
-    assert await frame_storage.get(room.id, 0) == make_raw_frame({"a": 1})  # type: ignore[arg-type]
-    assert await frame_storage.get(room.id, 1) == make_raw_frame({"c": 3})  # type: ignore[arg-type]
+    assert await frame_storage.get_length(room.id) == 2
+    assert await frame_storage[room.id][0] == make_raw_frame({"a": 1})
+    assert await frame_storage[room.id][1] == make_raw_frame({"c": 3})
 
 
 @pytest.mark.asyncio
@@ -989,15 +988,14 @@ async def test_append_rejects_frames_without_colors_radii(
 async def test_update_rejects_frame_without_colors_radii(
     frame_client: AsyncClient,
     frame_session: AsyncSession,
-    frame_storage: AsebytesStorage,
+    frame_storage: FrameStorage,
 ) -> None:
     """PUT /frames/{index} rejects frames missing arrays.colors and arrays.radii."""
     user, token = await _create_user(frame_session)
     room = await _create_room(frame_session, user)
 
     # Add a valid frame so index 0 exists
-    await frame_storage.extend(room.id, [{"a": 1}])  # type: ignore[arg-type]
-
+    await frame_storage[room.id].extend([make_raw_frame({"a": 1})])
     bare_frame = _make_bare_json_frame("H2")
 
     response = await frame_client.put(

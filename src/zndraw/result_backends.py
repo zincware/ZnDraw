@@ -1,7 +1,7 @@
 """Result backends for the zndraw-joblib provider system.
 
 - ``RedisResultBackend`` — general-purpose, for small JSON payloads.
-- ``StorageResultBackend`` — adapts ``AsebytesStorage`` to the
+- ``StorageResultBackend`` — adapts ``FrameStorage`` to the
   ``ResultBackend`` protocol.  Reuses the same storage infrastructure
   as the main frame storage (memory, LMDB, MongoDB, …).
 - ``CompositeResultBackend`` — routes by cache-key pattern: frame
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from redis.asyncio import Redis
     from redis.asyncio.client import PubSub
 
-    from zndraw.storage import AsebytesStorage
+    from zndraw.storage import FrameStorage
 
 NOTIFY_PREFIX = "notify:"
 
@@ -96,7 +96,7 @@ class RedisResultBackend:
 
 
 class StorageResultBackend:
-    """Adapt ``AsebytesStorage`` to the ``ResultBackend`` protocol.
+    """Adapt ``FrameStorage`` to the ``ResultBackend`` protocol.
 
     Uses cache keys as room_ids and stores raw bytes as a single-entry
     frame (``{b"_": data}``).  This means the provider cache
@@ -109,31 +109,32 @@ class StorageResultBackend:
     Parameters
     ----------
     storage
-        The storage backend to delegate to (same instance as the main
-        frame storage is fine — cache keys are namespaced).
+        The FrameStorage registry to delegate to (same instance as the
+        main frame storage is fine — cache keys are namespaced).
     """
 
-    def __init__(self, storage: AsebytesStorage) -> None:
+    def __init__(self, storage: FrameStorage) -> None:
         self._storage = storage
 
     async def store(self, key: str, data: bytes, ttl: int) -> None:  # noqa: ARG002
-        await self._storage.clear(key)
+        io = self._storage[key]
+        await io.clear()
         # Wrap in msgpack so the blob↔object adapter round-trip works
         packed = msgpack.packb(data)
         assert packed is not None
-        await self._storage.extend(key, [{b"_": packed}])
+        await io.extend([{b"_": packed}])
 
     async def get(self, key: str) -> bytes | None:
-        frame = await self._storage.get(key, 0)
-        if frame is None:
+        io = self._storage[key]
+        if await io.len() == 0:
             return None
-        packed = frame.get(b"_")
+        packed = await io[b"_"][0]
         if packed is None:
             return None
         return msgpack.unpackb(packed)
 
     async def delete(self, key: str) -> None:
-        await self._storage.clear(key)
+        await self._storage[key].clear()
 
     async def acquire_inflight(self, key: str, ttl: int) -> bool:
         raise NotImplementedError("Use Redis for inflight locks")

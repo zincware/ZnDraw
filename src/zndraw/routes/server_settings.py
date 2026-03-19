@@ -11,9 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from zndraw.dependencies import (
     AdminUserDep,
     CurrentUserDep,
+    FrameStorageDep,
     SessionDep,
     SioDep,
-    StorageDep,
 )
 from zndraw.exceptions import Forbidden, RoomNotFound, problem_responses
 from zndraw.models import Room, ServerSettings
@@ -82,7 +82,7 @@ async def get_default_room(
 )
 async def set_default_room(
     session: SessionDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     sio: SioDep,
     _admin: AdminUserDep,
     request: DefaultRoomSetRequest,
@@ -123,7 +123,7 @@ async def set_default_room(
 )
 async def unset_default_room(
     session: SessionDep,
-    storage: StorageDep,
+    storage: FrameStorageDep,
     sio: SioDep,
     _admin: AdminUserDep,
 ) -> StatusResponse:

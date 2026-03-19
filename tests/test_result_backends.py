@@ -12,7 +12,6 @@ from zndraw.result_backends import (
     RedisResultBackend,
     StorageResultBackend,
 )
-from zndraw.storage import AsebytesStorage
 
 # =============================================================================
 # StorageResultBackend
@@ -20,15 +19,9 @@ from zndraw.storage import AsebytesStorage
 
 
 @pytest.fixture
-def storage_backend():
-    """Fresh AsebytesStorage for each test."""
-    return AsebytesStorage("memory://")
-
-
-@pytest.fixture
-def backend(storage_backend):
-    """StorageResultBackend wrapping AsebytesStorage."""
-    return StorageResultBackend(storage_backend)
+def backend(frame_storage):
+    """StorageResultBackend wrapping FrameStorage."""
+    return StorageResultBackend(frame_storage)
 
 
 @pytest.mark.asyncio

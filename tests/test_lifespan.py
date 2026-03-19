@@ -12,7 +12,7 @@ from collections.abc import Generator
 import httpx
 import pytest
 
-from zndraw.storage import AsebytesStorage
+from zndraw.storage import FrameStorage
 
 
 @pytest.fixture(autouse=True)
@@ -86,10 +86,10 @@ class TestLifespanWithRedisUrl:
 class TestStorageInitialization:
     """Test storage backend initialization based on config."""
 
-    def test_memory_storage_creates_asebytes_backend(self) -> None:
-        """memory:// URI should create AsebytesStorage backend."""
-        backend = AsebytesStorage(uri="memory://")
-        assert isinstance(backend, AsebytesStorage)
+    def test_memory_storage_creates_frame_storage(self, redis_client) -> None:
+        """memory:// URI should create FrameStorage backend."""
+        backend = FrameStorage(uri="memory://", redis=redis_client)
+        assert isinstance(backend, FrameStorage)
 
 
 class TestFakeRedisServer:

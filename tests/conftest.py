@@ -25,7 +25,7 @@ from zndraw_auth.settings import AuthSettings
 
 from zndraw.config import Settings
 from zndraw.models import Room
-from zndraw.storage import RawFrame
+from zndraw.storage import FrameStorage, RawFrame
 
 _password_helper = PasswordHelper()
 
@@ -288,6 +288,16 @@ async def redis_client_fixture():
     yield redis
     await redis.flushdb()
     await redis.aclose()
+
+
+@pytest_asyncio.fixture(name="frame_storage")
+async def frame_storage_fixture(
+    redis_client,
+) -> AsyncIterator[FrameStorage]:
+    """FrameStorage backed by real Redis (flushed per test)."""
+    storage = FrameStorage("memory://", redis_client)
+    yield storage
+    await storage.close()
 
 
 # =============================================================================
