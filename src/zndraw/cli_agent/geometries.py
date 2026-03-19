@@ -13,9 +13,11 @@ from zndraw.schemas import (
 )
 
 from .connection import (
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_zndraw,
     resolve_room,
@@ -30,11 +32,13 @@ def list_geometries(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
 ) -> None:
     """List geometries for a room (compact summary)."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/geometries", headers=vis.api.get_headers()
         )
@@ -89,13 +93,15 @@ def get(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
 ) -> None:
     """Get a geometry by key."""
     with cli_error_handler():
         room = resolve_room(room)
         if key is None:
             raise typer.BadParameter("Geometry key is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/geometries/{key}", headers=vis.api.get_headers()
         )
@@ -110,6 +116,8 @@ def set_geometry(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     data: Annotated[
         str | None, typer.Option(help="Geometry data as JSON string")
     ] = None,
@@ -129,7 +137,7 @@ def set_geometry(
             raise typer.BadParameter("Geometry key is required")
         if data is None:
             raise typer.BadParameter("--data is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         parsed = json.loads(data)
         if type_name is not None:
             request = GeometryCreateRequest(type=type_name, data=parsed)
@@ -155,13 +163,15 @@ def toggle_geometry(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
 ) -> None:
     """Toggle a geometry's active state."""
     with cli_error_handler():
         room = resolve_room(room)
         if key is None:
             raise typer.BadParameter("Geometry key is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/geometries/{key}", headers=vis.api.get_headers()
         )
@@ -188,6 +198,8 @@ def set_prop(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
 ) -> None:
     """Set a single property on a geometry using dot notation.
 
@@ -215,7 +227,7 @@ def set_prop(
             current = current[part]
         current[parts[-1]] = parsed_value
 
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.patch(
             f"/v1/rooms/{vis.room}/geometries/{key}",
             json={"data": data},
@@ -232,13 +244,15 @@ def delete(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
 ) -> None:
     """Delete a geometry by key."""
     with cli_error_handler():
         room = resolve_room(room)
         if key is None:
             raise typer.BadParameter("Geometry key is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.delete(
             f"/v1/rooms/{vis.room}/geometries/{key}", headers=vis.api.get_headers()
         )

@@ -11,8 +11,10 @@ import typer
 from zndraw.server_manager import TokenEntry
 
 from .connection import (
+    PasswordOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_token_store,
     resolve_token,
@@ -29,13 +31,15 @@ admin_app.add_typer(users_app, name="users")
 def list_users(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     limit: Annotated[int, typer.Option(help="Max results")] = 100,
     offset: Annotated[int, typer.Option(help="Pagination offset")] = 0,
 ) -> None:
     """List all users (superuser only)."""
     with cli_error_handler():
         resolved_url = resolve_url(url)
-        resolved_token = resolve_token(resolved_url, token)
+        resolved_token = resolve_token(resolved_url, token, user, password)
 
         with httpx.Client(
             base_url=resolved_url,
@@ -54,11 +58,13 @@ def login_as_user(
     user_id: Annotated[str, typer.Argument(help="User ID to mint token for")],
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
 ) -> None:
     """Mint a token as another user (superuser only)."""
     with cli_error_handler():
         resolved_url = resolve_url(url)
-        resolved_token = resolve_token(resolved_url, token)
+        resolved_token = resolve_token(resolved_url, token, user, password)
         store = get_token_store()
 
         with httpx.Client(

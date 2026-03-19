@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import contextlib
 import json
-import os
 import sys
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Annotated, Any, NoReturn
@@ -37,10 +36,20 @@ RoomOpt = Annotated[
     str | None,
     typer.Option("--room", envvar="ZNDRAW_ROOM", help="Room ID"),
 ]
+UserOpt = Annotated[
+    str | None,
+    typer.Option("--user", envvar="ZNDRAW_USER", help="User email for authentication"),
+]
+PasswordOpt = Annotated[
+    str | None,
+    typer.Option(
+        "--password", envvar="ZNDRAW_PASSWORD", help="Password for authentication"
+    ),
+]
 
 
 def get_token_store() -> TokenStore:
-    """Return the default TokenStore (testable seam)."""
+    """Return the default TokenStore."""
     return TokenStore()
 
 
@@ -196,79 +205,40 @@ def resolve_url(url: str | None) -> str:
     )
 
 
-def resolve_token(base_url: str, token: str | None) -> str:
-    """Resolve the auth token from flag, env, stored token, or guest auth.
-
-    Resolution order:
-    1. Explicit token (``--token`` flag / ``ZNDRAW_TOKEN`` env var)
-    2. Stored token from ``~/.zndraw/tokens.json`` (validated, removed on 401)
-    3. Email/password login (``ZNDRAW_EMAIL`` + ``ZNDRAW_PASSWORD`` env vars)
-    4. Guest auth fallback (``POST /v1/auth/guest``)
+def resolve_token(
+    base_url: str,
+    token: str | None,
+    user: str | None = None,
+    password: str | None = None,
+) -> str:
+    """Resolve auth token — CLI wrapper around shared auth_utils.
 
     Parameters
     ----------
     base_url
-        Server URL for token lookup and guest auth fallback.
+        Server URL.
     token
-        Explicit token from ``--token`` flag or ``ZNDRAW_TOKEN`` env var.
-        ``None`` triggers stored/guest auth.
+        Explicit token from ``--token`` / ``ZNDRAW_TOKEN``.
+    user
+        User email from ``--user`` / ``ZNDRAW_USER``.
+    password
+        Password from ``--password`` / ``ZNDRAW_PASSWORD``.
     """
-    if token is not None:
-        return token
+    from zndraw.auth_utils import resolve_token as _resolve_token
 
-    # Try stored token
-    store = get_token_store()
-    entry = store.get(base_url)
-    if entry is not None:
-        with httpx.Client(
-            base_url=base_url,
-            headers={"Authorization": f"Bearer {entry.access_token}"},
-            timeout=10.0,
-        ) as client:
-            resp = client.get("/v1/auth/users/me")
-            if resp.status_code == 200:
-                return entry.access_token
-            # Token invalid — remove and fall through
-            store.delete(base_url)
-
-    # Try email/password login (headless / Docker / CI)
-    email = os.environ.get("ZNDRAW_EMAIL")
-    password = os.environ.get("ZNDRAW_PASSWORD")
-    if bool(email) != bool(password):
-        die(
-            "Incomplete Credentials",
-            "Both ZNDRAW_EMAIL and ZNDRAW_PASSWORD must be set.",
-            400,
-            EXIT_CLIENT_ERROR,
-        )
-    if email and password:
-        try:
-            with httpx.Client(base_url=base_url, timeout=10.0) as client:
-                resp = client.post(
-                    "/v1/auth/jwt/login",
-                    data={"username": email, "password": password},
-                )
-                resp.raise_for_status()
-                return resp.json()["access_token"]
-        except (httpx.RequestError, httpx.HTTPStatusError, KeyError) as exc:
-            die(
-                "Authentication Failed",
-                f"Email/password login failed for {email}: {type(exc).__name__}",
-                401,
-                EXIT_CLIENT_ERROR,
-            )
-
-    # Auto-create guest session
     try:
-        with httpx.Client(base_url=base_url, timeout=10.0) as client:
-            resp = client.post("/v1/auth/guest")
-            resp.raise_for_status()
-            data = resp.json()
-            return data["access_token"]
-    except (httpx.RequestError, httpx.HTTPStatusError, KeyError) as exc:
+        return _resolve_token(base_url, token=token, user=user, password=password)
+    except ValueError as exc:
+        die(str(exc), str(exc), 400, EXIT_CLIENT_ERROR)
+    except httpx.HTTPStatusError as exc:
+        status = exc.response.status_code
+        title = "Authentication Failed" if status < 500 else "Server Error"
+        exit_code = EXIT_CLIENT_ERROR if status < 500 else EXIT_SERVER_ERROR
+        die(title, str(exc), status, exit_code)
+    except (httpx.RequestError, KeyError) as exc:
         die(
             "Authentication Failed",
-            f"Failed to create guest session: {exc}",
+            f"Failed to authenticate: {exc}",
             401,
             EXIT_CONNECTION_ERROR,
         )
@@ -307,7 +277,12 @@ def get_current_step(conn: Connection, room: str) -> int:
     return resp.json()["step"]
 
 
-def get_connection(url: str | None, token: str | None) -> Connection:
+def get_connection(
+    url: str | None,
+    token: str | None,
+    user: str | None = None,
+    password: str | None = None,
+) -> Connection:
     """Create a Connection from resolved URL and token.
 
     Parameters
@@ -316,9 +291,13 @@ def get_connection(url: str | None, token: str | None) -> Connection:
         From ``--url`` flag / ``ZNDRAW_URL`` env var, or None.
     token
         From ``--token`` flag / ``ZNDRAW_TOKEN`` env var, or None.
+    user
+        From ``--user`` flag / ``ZNDRAW_USER`` env var, or None.
+    password
+        From ``--password`` flag / ``ZNDRAW_PASSWORD`` env var, or None.
     """
     base_url = resolve_url(url)
-    resolved_token = resolve_token(base_url, token)
+    resolved_token = resolve_token(base_url, token, user=user, password=password)
     return Connection(base_url=base_url, token=resolved_token)
 
 
@@ -326,6 +305,8 @@ def get_zndraw(
     url: str | None,
     token: str | None,
     room: str,
+    user: str | None = None,
+    password: str | None = None,
 ) -> ZnDraw:
     """Create a ZnDraw instance from CLI context.
 
@@ -337,11 +318,15 @@ def get_zndraw(
         From ``--token`` flag / ``ZNDRAW_TOKEN`` env var, or None.
     room
         Room ID.
+    user
+        From ``--user`` flag / ``ZNDRAW_USER`` env var, or None.
+    password
+        From ``--password`` flag / ``ZNDRAW_PASSWORD`` env var, or None.
     """
     from zndraw import ZnDraw
 
     base_url = resolve_url(url)
-    resolved_token = resolve_token(base_url, token)
+    resolved_token = resolve_token(base_url, token, user=user, password=password)
     return ZnDraw(
         url=base_url, room=room, token=resolved_token, create_if_missing=False
     )

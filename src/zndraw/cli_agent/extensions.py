@@ -11,9 +11,11 @@ from zndraw_joblib.schemas import (
 )
 
 from .connection import (
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_zndraw,
     resolve_room,
@@ -28,11 +30,13 @@ def list_extensions(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
 ) -> None:
     """List available extensions for a room."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         data = vis.api.list_extensions()
         json_print(PaginatedResponse[JobSummary].model_validate(data))
         vis.disconnect()
@@ -46,13 +50,15 @@ def describe(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
 ) -> None:
     """Describe an extension by its fully qualified name."""
     with cli_error_handler():
         room = resolve_room(room)
         if name is None:
             raise typer.BadParameter("Extension name is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         data = vis.api.get_extension(name)
         json_print(JobResponse.model_validate(data))
         vis.disconnect()
@@ -74,6 +80,8 @@ def run_extension(
     url: UrlOpt = None,
     token: TokenOpt = None,
     room: RoomOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     wait: Annotated[
         bool, typer.Option("--wait", help="Wait for the task to complete")
     ] = False,
@@ -86,7 +94,7 @@ def run_extension(
         room = resolve_room(room)
         if extension_name is None:
             raise typer.BadParameter("Extension name is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
 
         extra_args = ctx.args
         payload: dict = {}

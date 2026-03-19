@@ -11,9 +11,11 @@ import typer
 from zndraw.schemas import Preset, PresetRule
 
 from .connection import (
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_zndraw,
     resolve_room,
@@ -30,12 +32,14 @@ presets_app = typer.Typer(name="preset", help="Visual preset operations")
 def list_presets(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """List all presets in a room (name + description summary)."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         json_print(
             [
                 {"name": name, "description": vis.presets[name].description}
@@ -50,6 +54,8 @@ def get_preset(
     name: Annotated[str | None, typer.Argument(help="Preset name")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Get a preset by name."""
@@ -57,7 +63,7 @@ def get_preset(
         room = resolve_room(room)
         if name is None:
             raise typer.BadParameter("Preset name is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         json_print(vis.presets[name])
         vis.disconnect()
 
@@ -69,6 +75,8 @@ def load_preset(
     ] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Load a preset from a JSON file into the room."""
@@ -76,7 +84,7 @@ def load_preset(
         room = resolve_room(room)
         if path is None:
             raise typer.BadParameter("Path to preset JSON file is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         preset = vis.presets.load(path)
         json_print(preset)
         vis.disconnect()
@@ -87,6 +95,8 @@ def apply_preset(
     name: Annotated[str | None, typer.Argument(help="Preset name")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Apply a preset to the room's geometries."""
@@ -94,7 +104,7 @@ def apply_preset(
         room = resolve_room(room)
         if name is None:
             raise typer.BadParameter("Preset name is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         result = vis.presets.apply(name)
         json_print(result)
         vis.disconnect()
@@ -105,6 +115,8 @@ def save_preset(
     name: Annotated[str | None, typer.Argument(help="Preset name to create")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
     patterns: Annotated[
         list[str] | None,
@@ -124,7 +136,7 @@ def save_preset(
         room = resolve_room(room)
         if name is None:
             raise typer.BadParameter("Preset name is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
 
         patterns = patterns or ["*"]
         rules: list[PresetRule] = []
@@ -159,12 +171,14 @@ def save_preset(
 def reset_preset(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Reset all geometries to factory defaults."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         result = vis.presets.apply("@default")
         json_print(result)
         vis.disconnect()
@@ -178,6 +192,8 @@ def export_preset(
     ] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Export a preset from the room to a JSON file for sharing."""
@@ -187,7 +203,7 @@ def export_preset(
             raise typer.BadParameter("Preset name is required")
         if output is None:
             raise typer.BadParameter("Output path is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         vis.presets.export(name, output)
         typer.echo(f"Exported preset '{name}' to {output}")
         vis.disconnect()
@@ -198,6 +214,8 @@ def delete_preset(
     name: Annotated[str | None, typer.Argument(help="Preset name")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Delete a preset from the room."""
@@ -205,7 +223,7 @@ def delete_preset(
         room = resolve_room(room)
         if name is None:
             raise typer.BadParameter("Preset name is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         del vis.presets[name]
         typer.echo(f"Deleted preset '{name}'")
         vis.disconnect()

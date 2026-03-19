@@ -6,9 +6,11 @@ import typer
 from zndraw_joblib.schemas import PaginatedResponse, TaskResponse
 
 from .connection import (
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_connection,
     get_zndraw,
@@ -24,10 +26,12 @@ def status(
     task_id: Annotated[str, typer.Argument(help="Task ID")],
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
 ) -> None:
     """Get the status of a task by ID."""
     with cli_error_handler():
-        conn = get_connection(url, token)
+        conn = get_connection(url, token, user, password)
         resp = conn.get(f"/v1/joblib/tasks/{task_id}")
         json_print(TaskResponse.model_validate(resp.json()))
 
@@ -36,13 +40,15 @@ def status(
 def list_jobs(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
     status: Annotated[str | None, typer.Option(help="Filter by status")] = None,
 ) -> None:
     """List tasks for a room."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         data = vis.api.list_tasks(status=status)
         json_print(PaginatedResponse[TaskResponse].model_validate(data))
         vis.disconnect()

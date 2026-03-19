@@ -21,9 +21,11 @@ import typer
 
 from .connection import (
     EXIT_CLIENT_ERROR,
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     die,
     get_zndraw,
@@ -149,6 +151,8 @@ def capture(
     ] = Path("output.gif"),
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
     # Camera mode
     orbit: Annotated[
@@ -198,7 +202,7 @@ def capture(
             raise typer.BadParameter(msg)
 
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         session = _get_session(vis)
 
         # Build trajectory range

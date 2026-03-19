@@ -12,9 +12,11 @@ from zndraw.schemas import (
 )
 
 from .connection import (
+    PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
+    UserOpt,
     cli_error_handler,
     get_zndraw,
     resolve_room,
@@ -28,12 +30,14 @@ selection_groups_app = typer.Typer()
 def list_selection_groups(
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """List all selection groups."""
     with cli_error_handler():
         room = resolve_room(room)
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/selection-groups", headers=vis.api.get_headers()
         )
@@ -47,6 +51,8 @@ def get_selection_group(
     name: Annotated[str | None, typer.Argument(help="Selection group name")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Get a selection group by name."""
@@ -54,7 +60,7 @@ def get_selection_group(
         room = resolve_room(room)
         if name is None:
             raise typer.BadParameter("Selection group name is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.get(
             f"/v1/rooms/{vis.room}/selection-groups/{name}",
             headers=vis.api.get_headers(),
@@ -69,6 +75,8 @@ def set_selection_group(
     name: Annotated[str | None, typer.Argument(help="Selection group name")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
     data: Annotated[
         str | None, typer.Option("--data", help="Selection data as JSON string")
@@ -85,7 +93,7 @@ def set_selection_group(
             raise typer.BadParameter("Selection group name is required")
         if data is None:
             raise typer.BadParameter("--data is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         parsed = json.loads(data)
         result = vis.api.set_selection_group(name, parsed)
         json_print(StatusResponse.model_validate(result))
@@ -97,6 +105,8 @@ def delete_selection_group(
     name: Annotated[str | None, typer.Argument(help="Selection group name")] = None,
     url: UrlOpt = None,
     token: TokenOpt = None,
+    user: UserOpt = None,
+    password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Delete a selection group."""
@@ -104,7 +114,7 @@ def delete_selection_group(
         room = resolve_room(room)
         if name is None:
             raise typer.BadParameter("Selection group name is required")
-        vis = get_zndraw(url, token, room)
+        vis = get_zndraw(url, token, room, user, password)
         resp = vis.api.http.delete(
             f"/v1/rooms/{vis.room}/selection-groups/{name}",
             headers=vis.api.get_headers(),
