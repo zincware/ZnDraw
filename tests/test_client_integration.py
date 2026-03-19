@@ -102,14 +102,13 @@ class TestConstructorAPI:
             json={"email": email, "password": password},
         ).raise_for_status()
 
-        client = ZnDraw(url=server, user=email)
+        client = ZnDraw(url=server, user=email, password=password)
         assert client.user == email
         client.disconnect()
 
-    def test_login_with_user_and_default_password(self, server: str):
-        """user='email' logs in with the default guest password."""
+    def test_login_with_user_and_password(self, server: str):
+        """user='email' + password logs in explicitly."""
         email = f"testuser-{uuid.uuid4().hex[:8]}@example.com"
-        # Pre-register the user with the default guest password
         from zndraw.config import Settings
 
         password = Settings().guest_password.get_secret_value()
@@ -118,7 +117,7 @@ class TestConstructorAPI:
             json={"email": email, "password": password},
         ).raise_for_status()
 
-        client = ZnDraw(url=server, user=email)
+        client = ZnDraw(url=server, user=email, password=password)
         assert not client.connected
         assert client.api.token is not None
         client.disconnect()
@@ -136,10 +135,8 @@ class TestConstructorAPI:
 
     def test_login_nonexistent_user_raises(self, server: str):
         """user='nonexistent' raises an error if user doesn't exist."""
-        from zndraw.client import ZnDrawError
-
-        with pytest.raises(ZnDrawError, match="LOGIN_BAD_CREDENTIALS"):
-            ZnDraw(url=server, user="nonexistent@example.com")
+        with pytest.raises(httpx.HTTPStatusError):
+            ZnDraw(url=server, user="nonexistent@example.com", password="any")
 
     def test_login_wrong_password_raises(self, server: str):
         """Wrong password raises an error."""
@@ -150,27 +147,13 @@ class TestConstructorAPI:
             json={"email": email, "password": "correct-password"},
         ).raise_for_status()
 
-        from zndraw.client import ZnDrawError
-
-        with pytest.raises(ZnDrawError, match="LOGIN_BAD_CREDENTIALS"):
+        with pytest.raises(httpx.HTTPStatusError):
             ZnDraw(url=server, user=email, password="wrong-password")
 
-    def test_password_inferred_from_settings(self, server: str):
-        """Default password is inferred from Settings.guest_password."""
-        from zndraw.config import Settings
-
-        email = f"inferred-{uuid.uuid4().hex[:8]}@example.com"
-        guest_password = Settings().guest_password.get_secret_value()
-        httpx.post(
-            f"{server}/v1/auth/register",
-            json={"email": email, "password": guest_password},
-        ).raise_for_status()
-
-        # No password= argument — should infer from Settings
-        client = ZnDraw(url=server, user=email)
-        assert not client.connected
-        assert client.api.token is not None
-        client.disconnect()
+    def test_user_without_password_raises(self, server: str):
+        """user= without password= raises ValueError."""
+        with pytest.raises(ValueError, match="Missing --password"):
+            ZnDraw(url=server, user="any@example.com")
 
 
 class TestClientConnection:

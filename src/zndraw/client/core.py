@@ -156,7 +156,8 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         )
 
         # Populate self.user for guest/stored-token sessions
-        if self.user is None:
+        # Skip when token was explicitly provided (caller already knows identity)
+        if self.user is None and self.token is None:
             resp = self.api.http.get(
                 "/v1/auth/users/me",
                 headers={"Authorization": f"Bearer {self.api.token}"},
@@ -1054,8 +1055,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         task_vis = ZnDraw(
             url=self.url,
             room=task.room_id,
-            user=self.user,
-            password=self.password,
+            token=self.api.token,
         )
         try:
             task.extension.run(task_vis, providers=self.jobs.handlers)
