@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
     from zndraw import ZnDraw
 
-from zndraw.server_manager import find_running_server
+from zndraw.server_manager import TokenStore, find_running_server
 
 # Shared type aliases for per-subcommand options
 UrlOpt = Annotated[
@@ -46,6 +46,11 @@ PasswordOpt = Annotated[
         "--password", envvar="ZNDRAW_PASSWORD", help="Password for authentication"
     ),
 ]
+
+
+def get_token_store() -> TokenStore:
+    """Return the default TokenStore."""
+    return TokenStore()
 
 
 # Exit codes
