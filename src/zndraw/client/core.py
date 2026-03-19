@@ -131,6 +131,8 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         """Initialize the client (REST-only, socket connects lazily)."""
         import atexit
 
+        from zndraw.auth_utils import resolve_token
+
         # Normalize password to SecretStr
         if isinstance(self.password, str):
             self.password = SecretStr(self.password)
@@ -142,24 +144,25 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         # Resolve URL (auto-discover if None)
         self.url = self._resolve_url(self.url)
 
-        # Create API manager
+        # Create API manager (token may be None initially)
         self.api = APIManager(url=self.url, room_id=self.room, token=self.token)
 
-        # Authenticate
-        if self.token is not None:
-            pass  # Token already set on APIManager
-        elif self.user is not None:
-            pw = self.password  # SecretStr | None after normalization above
-            if pw is None:
-                from zndraw.config import Settings
+        # Authenticate via shared resolve_token
+        self.api.token = resolve_token(
+            self.url,
+            token=self.token,
+            user=self.user,
+            password=self.password,
+        )
 
-                pw = Settings().guest_password
-            self.api.login(self.user, pw.get_secret_value())
-        elif self._try_stored_token():
-            pass  # Stored token from ~/.zndraw/tokens.json
-        else:
-            data = self.api.create_guest_session()
-            self.user = data["email"]
+        # Populate self.user for guest/stored-token sessions
+        if self.user is None:
+            resp = self.api.http.get(
+                "/v1/auth/users/me",
+                headers={"Authorization": f"Bearer {self.api.token}"},
+            )
+            if resp.status_code == 200:
+                self.user = resp.json().get("email")
 
         # Create socket manager (no connection yet -- connects lazily)
         self.socket = SocketManager(zndraw=self)
@@ -185,31 +188,6 @@ class ZnDraw(MutableSequence[ase.Atoms]):
 
         # Ensure cleanup on interpreter exit
         atexit.register(self.disconnect)
-
-    def _try_stored_token(self) -> bool:
-        """Try to authenticate using a stored CLI token.
-
-        Returns
-        -------
-        bool
-            True if a valid stored token was found and applied.
-        """
-        from zndraw.server_manager import TokenStore
-
-        store = TokenStore()
-        entry = store.get(self.url)
-        if entry is None:
-            return False
-        resp = httpx.get(
-            f"{self.url}/v1/auth/users/me",
-            headers={"Authorization": f"Bearer {entry.access_token}"},
-        )
-        if resp.status_code == 200:
-            self.api.token = entry.access_token
-            self.user = resp.json().get("email")
-            return True
-        store.delete(self.url)
-        return False
 
     # -------------------------------------------------------------------------
     # Connection Management
@@ -553,15 +531,16 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         url
             Server URL. If None, auto-discovers via PID file.
         token
-            JWT token. If None, creates a guest session.
+            JWT token. If None, uses stored token or creates guest session.
         search
             Optional search filter.
         """
+        from zndraw.auth_utils import resolve_token
+
         resolved = cls._resolve_url(url)
-        api = APIManager(url=resolved, room_id="", token=token)
+        resolved_token = resolve_token(resolved, token=token)
+        api = APIManager(url=resolved, room_id="", token=resolved_token)
         try:
-            if token is None:
-                api.create_guest_session()
             return api.list_rooms(search=search)
         finally:
             api.close()
@@ -589,13 +568,10 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         str
             JWT access token.
         """
+        from zndraw.auth_utils import resolve_token
+
         resolved = cls._resolve_url(url)
-        api = APIManager(url=resolved, room_id="")
-        try:
-            data = api.login(username, password)
-            return data["access_token"]
-        finally:
-            api.close()
+        return resolve_token(resolved, user=username, password=password)
 
     @property
     def jobs(self) -> JobManager:
