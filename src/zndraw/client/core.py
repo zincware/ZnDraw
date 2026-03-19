@@ -11,7 +11,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast, overload
 
 import ase
-import httpx
 import msgpack
 import typing_extensions
 from pydantic import SecretStr
