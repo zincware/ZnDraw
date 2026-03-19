@@ -281,8 +281,8 @@ async def upload_trajectory(
         )
 
     # Parse trajectory (ASE text-based formats need StringIO)
-    buf = io.StringIO(content.decode("utf-8"))
     try:
+        buf = io.StringIO(content.decode("utf-8"))
         atoms_list = ase.io.read(buf, index=":", format=fmt)
     except Exception as exc:
         raise InvalidPayload.exception(
