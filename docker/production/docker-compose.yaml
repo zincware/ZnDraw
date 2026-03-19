@@ -94,6 +94,11 @@ services:
     environment:
       - ZNDRAW_STORAGE=mongodb://mongo:27017/zndraw
       - ZNDRAW_SERVER_URL=http://caddy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'taskiq worker'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   template-loader:
     image: pythonf/zndraw:latest

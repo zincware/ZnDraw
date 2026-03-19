@@ -42,6 +42,11 @@ services:
       - ZNDRAW_SERVER_URL=http://zndraw:8000
     volumes:
       - zndraw-data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'taskiq worker'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   template-loader:
     image: pythonf/zndraw:latest
