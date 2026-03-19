@@ -22,6 +22,29 @@ def get_token_store() -> TokenStore:
     return TokenStore()
 
 
+def validate_credentials(
+    token: str | None,
+    user: str | None,
+    password: SecretStr | str | None,
+) -> None:
+    """Validate credential combinations (fail fast, before any network call).
+
+    Raises
+    ------
+    ValueError
+        On invalid credential combinations.
+    """
+    if token is not None and (user is not None or password is not None):
+        msg = "Cannot combine --token with --user/--password"
+        raise ValueError(msg)
+    if user is not None and password is None:
+        msg = "Missing --password (required when --user is provided)"
+        raise ValueError(msg)
+    if password is not None and user is None:
+        msg = "Missing --user (required when --password is provided)"
+        raise ValueError(msg)
+
+
 def resolve_token(
     base_url: str,
     token: str | None = None,
@@ -65,15 +88,7 @@ def resolve_token(
         )
 
     # --- Validation (fail fast) ---
-    if token is not None and (user is not None or password is not None):
-        msg = "Cannot combine --token with --user/--password"
-        raise ValueError(msg)
-    if user is not None and password is None:
-        msg = "Missing --password (required when --user is provided)"
-        raise ValueError(msg)
-    if password is not None and user is None:
-        msg = "Missing --user (required when --password is provided)"
-        raise ValueError(msg)
+    validate_credentials(token, user, password)
 
     # Unwrap SecretStr
     raw_password: str | None = None

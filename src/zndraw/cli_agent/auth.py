@@ -111,19 +111,12 @@ def status(
 ) -> None:
     """Show current authentication identity."""
     with cli_error_handler():
+        from zndraw.auth_utils import validate_credentials
+
         resolved_url = resolve_url(url)
         store = get_token_store()
 
-        # Validate mutual exclusion
-        if token is not None and (user is not None or password is not None):
-            msg = "Cannot combine --token with --user/--password"
-            raise ValueError(msg)
-        if user is not None and password is None:
-            msg = "Missing --password (required when --user is provided)"
-            raise ValueError(msg)
-        if password is not None and user is None:
-            msg = "Missing --user (required when --password is provided)"
-            raise ValueError(msg)
+        validate_credentials(token, user, password)
 
         # Determine token and source — no guest fallback
         if token is not None:

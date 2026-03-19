@@ -74,7 +74,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         User email for authentication. If None, creates a guest session.
     password : SecretStr | str | None
         Password for login. Accepts ``str`` (auto-wrapped to ``SecretStr``)
-        or ``SecretStr``. If None, inferred from ``Settings.guest_password``.
+        or ``SecretStr``. Required when ``user`` is provided.
     copy_from : str | None
         Room ID to copy frames from when creating a new room, or an @-prefixed
         preset (``@empty`` for one empty frame, ``@none`` for zero frames).

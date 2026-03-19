@@ -134,8 +134,6 @@ def unlock_room(
 def open_room(
     url: UrlOpt = None,
     _token: TokenOpt = None,
-    _user: UserOpt = None,
-    _password: PasswordOpt = None,
     room: RoomOpt = None,
 ) -> None:
     """Open a room in the browser."""
