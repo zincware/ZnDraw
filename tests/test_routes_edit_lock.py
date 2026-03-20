@@ -524,32 +524,6 @@ async def test_release_edit_lock_with_token(
 
 
 @pytest.mark.asyncio
-async def test_release_edit_lock_by_user_id_fallback(
-    el_client: AsyncClient, el_session: AsyncSession, el_redis: Redis
-) -> None:
-    """Test DELETE without Lock-Token falls back to user_id check."""
-    user, token = await _create_user(el_session)
-    room = await _create_room(el_session, user)
-
-    # Acquire
-    await el_client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
-        json={"msg": "temp"},
-        headers=_auth(token),
-    )
-
-    # Release without Lock-Token (user_id fallback)
-    response = await el_client.delete(
-        f"/v1/rooms/{room.id}/edit-lock", headers=_auth(token)
-    )
-    assert response.status_code == 200
-    StatusResponse.model_validate(response.json())
-
-    raw = await el_redis.get(RedisKey.edit_lock(room.id))
-    assert raw is None
-
-
-@pytest.mark.asyncio
 async def test_release_edit_lock_broadcasts_lock_update(
     el_client: AsyncClient,
     el_session: AsyncSession,
@@ -787,30 +761,6 @@ async def test_writable_room_allows_lock_holder_with_token(
         f"/v1/rooms/{room.id}/bookmarks/0",
         json={"label": "allowed"},
         headers={**_auth(token), "Lock-Token": lock_token},
-    )
-    assert response.status_code == 200
-
-
-@pytest.mark.asyncio
-async def test_writable_room_allows_lock_holder_by_user_id(
-    el_client: AsyncClient, el_session: AsyncSession
-) -> None:
-    """Test lock holder can mutate by user_id fallback (no Lock-Token)."""
-    user, token = await _create_user(el_session)
-    room = await _create_room(el_session, user)
-
-    # Acquire lock
-    await el_client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
-        json={"msg": "editing"},
-        headers=_auth(token),
-    )
-
-    # Holder can mutate without Lock-Token (user_id fallback)
-    response = await el_client.put(
-        f"/v1/rooms/{room.id}/bookmarks/0",
-        json={"label": "allowed"},
-        headers=_auth(token),
     )
     assert response.status_code == 200
 

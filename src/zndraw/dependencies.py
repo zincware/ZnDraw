@@ -137,12 +137,10 @@ async def _check_locks(
     raw = await redis.get(RedisKey.edit_lock(room_id))
     if raw is not None:
         holder = json.loads(raw)
-        if lock_token is not None:
-            if holder["lock_token"] != lock_token:
-                raise RoomLocked.exception("Room is being edited by another session")
-        else:
-            if holder["user_id"] != str(user.id):
-                raise RoomLocked.exception("Room is being edited by another user")
+        if lock_token is None:
+            raise RoomLocked.exception("Room is being edited; Lock-Token required")
+        if holder["lock_token"] != lock_token:
+            raise RoomLocked.exception("Room is being edited by another session")
 
 
 async def get_writable_room(

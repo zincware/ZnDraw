@@ -187,15 +187,10 @@ async def release_edit_lock(
 
     # Admin can always release
     if not current_user.is_superuser:
-        if lock_token is not None:
-            if holder["lock_token"] != lock_token:
-                raise Forbidden.exception("Lock token does not match")
-        else:
-            # Fallback: user_id check for backwards compat during migration
-            if holder["user_id"] != str(current_user.id):
-                raise Forbidden.exception(
-                    "Only the lock holder or an admin can release"
-                )
+        if lock_token is None:
+            raise Forbidden.exception("Lock-Token header is required to release a lock")
+        if holder["lock_token"] != lock_token:
+            raise Forbidden.exception("Lock token does not match")
 
     await redis.delete(key)
 
