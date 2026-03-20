@@ -25,19 +25,19 @@ ColorProp = t.Union[str, list[str], "Transform"]
 SizeProp = t.Union[str, list[float], "Transform"]
 
 # 2D size for plane (width, height): always per-instance list
-Size2DProp = t.Union[str, list[Vec2]]  # noqa: UP007
+Size2DProp = str | list[Vec2]
 
 # 3D size for box (width, height, depth): always per-instance list
-Size3DProp = t.Union[str, list[Vec3]]  # noqa: UP007
+Size3DProp = str | list[Vec3]
 
 # Rotation: always per-instance list of Euler angles (radians)
-RotationProp = t.Union[str, list[Vec3]]  # noqa: UP007
+RotationProp = str | list[Vec3]
 
 # Scale: always per-instance list of 3D scale factors
-ScaleProp = t.Union[str, list[Vec3]]  # noqa: UP007
+ScaleProp = str | list[Vec3]
 
 # Connectivity for bonds: per-bond indices and properties
-ConnectivityProp = t.Union[str, list[tuple[float, float, float | None]]]  # noqa: UP007
+ConnectivityProp = str | list[tuple[float, float, float | None]]
 
 
 def coerce_numpy_arrays(data: dict[str, t.Any]) -> dict[str, t.Any]:

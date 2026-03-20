@@ -43,7 +43,7 @@ class CurveAttachment(BaseModel):
     )
 
 
-def is_curve_attachment(value) -> bool:
+def is_curve_attachment(value: object) -> bool:
     """Check if value is a CurveAttachment dict.
 
     Parameters

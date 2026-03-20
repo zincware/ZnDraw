@@ -403,27 +403,34 @@ async def room_leave(sid: str, data: RoomLeave, redis: RedisDep) -> RoomLeaveRes
     return RoomLeaveResponse(room_id=data.room_id)
 
 
-@tsio.on(TypingStart, emits=[Typing])
-async def typing_start(
-    sid: str, data: TypingStart, session: SessionDep
+async def _handle_typing(
+    sid: str, room_id: str, session: SessionDep, *, is_typing: bool
 ) -> TypingResponse:
-    """Broadcast that user started typing."""
+    """Broadcast typing status change to room."""
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
     current_room_id: str | None = sio_session.get("current_room_id")
 
-    if current_room_id != data.room_id:
+    if current_room_id != room_id:
         raise NotInRoom.exception("Not in this room")
 
     user = await session.get(User, user_id)
     email = user.email if user else None
 
     await tsio.emit(
-        Typing(room_id=data.room_id, user_id=user_id, email=email, is_typing=True),
-        room=room_channel(data.room_id),
+        Typing(room_id=room_id, user_id=user_id, email=email, is_typing=is_typing),
+        room=room_channel(room_id),
         skip_sid=sid,
     )
     return TypingResponse()
+
+
+@tsio.on(TypingStart, emits=[Typing])
+async def typing_start(
+    sid: str, data: TypingStart, session: SessionDep
+) -> TypingResponse:
+    """Broadcast that user started typing."""
+    return await _handle_typing(sid, data.room_id, session, is_typing=True)
 
 
 @tsio.on(TypingStop, emits=[Typing])
@@ -431,19 +438,4 @@ async def typing_stop(
     sid: str, data: TypingStop, session: SessionDep
 ) -> TypingResponse:
     """Broadcast that user stopped typing."""
-    sio_session = await tsio.get_session(sid)
-    user_id: UUID = sio_session["user_id"]
-    current_room_id: str | None = sio_session.get("current_room_id")
-
-    if current_room_id != data.room_id:
-        raise NotInRoom.exception("Not in this room")
-
-    user = await session.get(User, user_id)
-    email = user.email if user else None
-
-    await tsio.emit(
-        Typing(room_id=data.room_id, user_id=user_id, email=email, is_typing=False),
-        room=room_channel(data.room_id),
-        skip_sid=sid,
-    )
-    return TypingResponse()
+    return await _handle_typing(sid, data.room_id, session, is_typing=False)

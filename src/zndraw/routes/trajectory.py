@@ -45,6 +45,9 @@ from zndraw.socket_events import FramesInvalidate
 
 router = APIRouter(prefix="/v1/rooms/{room_id}/trajectory", tags=["trajectory"])
 
+_UPLOAD_BATCH_SIZE = 500
+_CONNECTIVITY_ATOM_LIMIT = 100
+
 # Supported formats and their MIME types / file extensions
 # MIME type and file extension per format.
 # extxyz and xyz share "chemical/x-xyz" — no registered MIME for extxyz.
@@ -297,15 +300,17 @@ async def upload_trajectory(
 
     # Convert to storage format and store in batches
     old_total = await storage.get_length(room_id)
-    batch_size = 500
     new_total = old_total
 
-    for i in range(0, len(atoms_list), batch_size):
-        batch = atoms_list[i : i + batch_size]
+    for i in range(0, len(atoms_list), _UPLOAD_BATCH_SIZE):
+        batch = atoms_list[i : i + _UPLOAD_BATCH_SIZE]
         for atoms in batch:
             add_colors(atoms)
             add_radii(atoms)
-            if len(atoms) < 100 and "connectivity" not in atoms.info:
+            if (
+                len(atoms) < _CONNECTIVITY_ATOM_LIMIT
+                and "connectivity" not in atoms.info
+            ):
                 add_connectivity(atoms)
         frames = [encode(atoms) for atoms in batch]
         new_total = await storage[room_id].extend(frames)

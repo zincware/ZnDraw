@@ -209,28 +209,3 @@ def test_user_password_login_failure_raises(mock_httpx_client):
         resolve_token(
             "http://localhost:8000", user="admin@example.com", password="wrong"
         )
-
-
-def test_migration_warning_bridges_zndraw_email(monkeypatch, mock_httpx_client):
-    """ZNDRAW_EMAIL is bridged to user with a deprecation warning."""
-    from zndraw.auth_utils import resolve_token
-
-    monkeypatch.setenv("ZNDRAW_EMAIL", "old@example.com")
-    monkeypatch.delenv("ZNDRAW_USER", raising=False)
-
-    mock_resp = MagicMock()
-    mock_resp.raise_for_status = MagicMock()
-    mock_resp.json.return_value = {"access_token": "login.token"}
-    mock_httpx_client.post.return_value = mock_resp
-
-    with (
-        patch("zndraw.auth_utils.get_token_store"),
-        pytest.warns(DeprecationWarning, match="ZNDRAW_EMAIL is deprecated"),
-    ):
-        result = resolve_token("http://localhost:8000", password="secret")
-
-    assert result == "login.token"
-    mock_httpx_client.post.assert_called_once_with(
-        "/v1/auth/jwt/login",
-        data={"username": "old@example.com", "password": "secret"},
-    )

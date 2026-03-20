@@ -541,7 +541,7 @@ class Extensions(Mapping[str, dict[str, Any]]):
     def __getitem__(self, full_name: str) -> dict[str, Any]:
         try:
             return self._api.get_extension(full_name)
-        except Exception:  # noqa: BLE001
+        except KeyError:
             raise KeyError(full_name) from None
 
     def __iter__(self) -> Iterator[str]:
@@ -611,7 +611,7 @@ class Tasks(Mapping[str, Any]):
     def __getitem__(self, task_id: str) -> TaskHandle:
         try:
             self._api.get_task(task_id)
-        except Exception:  # noqa: BLE001
+        except KeyError:
             raise KeyError(task_id) from None
         return TaskHandle(id=task_id, _api=self._api)
 

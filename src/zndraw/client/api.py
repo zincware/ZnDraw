@@ -36,6 +36,7 @@ class APIManager:
     session_id: str | None = None
     user_id: int | None = None
     username: str | None = None
+    lock_token: str | None = field(default=None, init=False)
 
     http: httpx.Client = field(init=False)
 
@@ -55,6 +56,8 @@ class APIManager:
             headers["Authorization"] = f"Bearer {self.token}"
         if self.session_id:
             headers["X-Session-ID"] = self.session_id
+        if self.lock_token:
+            headers["Lock-Token"] = self.lock_token
         return headers
 
     def close(self) -> None:

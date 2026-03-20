@@ -114,8 +114,8 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     socket: SocketManager = field(init=False)
     _jobs: JobManager = field(init=False)
     cached_length: int | None = field(default=None, init=False, repr=False)
-    _mount: FrameSource | None = field(default=None, init=False, repr=False)
-    _mount_name: str | None = field(default=None, init=False, repr=False)
+    mounted_source: FrameSource | None = field(default=None, init=False, repr=False)
+    mounted_source_name: str | None = field(default=None, init=False, repr=False)
 
     # Accessors (lazy initialized)
     _selections: Selections | None = field(default=None, init=False)
@@ -272,7 +272,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
                 "call db._backend.count_frames() before mounting."
             ) from None
 
-        if self._mount is not None:
+        if self.mounted_source is not None:
             raise RuntimeError("Room already has a mount")
         if len(self) != 0:
             raise RuntimeError("Room must be empty before mounting")
@@ -280,11 +280,11 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             raise NotConnectedError("Cannot mount: no room set")
 
         self._ensure_socket_connected()
-        self._mount = source
+        self.mounted_source = source
         # UUID ensures each mount gets fresh provider cache keys --
         # prevents stale results from a previous mount being served.
         mount_name = f"mount-{uuid.uuid4().hex[:12]}"
-        self._mount_name = mount_name
+        self.mounted_source_name = mount_name
         self.register_provider(
             FrameSourceRead, name=mount_name, handler=source, room=self.room
         )
@@ -299,17 +299,17 @@ class ZnDraw(MutableSequence[ase.Atoms]):
 
         Unregisters both providers and clears the external frame count.
         """
-        if self._mount is None:
+        if self.mounted_source is None:
             raise RuntimeError("No mount to remove")
 
         if self.room is None:
             raise NotConnectedError("Cannot unmount: no room set")
-        mount_name = self._mount_name
+        mount_name = self.mounted_source_name
         self.jobs.unregister_provider(f"{self.room}:frames:{mount_name}")
         self.jobs.unregister_provider(f"{self.room}:frames_meta:{mount_name}")
         self.api.update_room({"frame_count": 0})
-        self._mount = None
-        self._mount_name = None
+        self.mounted_source = None
+        self.mounted_source_name = None
         self.cached_length = 0
 
     # -------------------------------------------------------------------------

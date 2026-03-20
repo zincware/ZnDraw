@@ -71,7 +71,7 @@ from zndraw.socket_events import FramesInvalidate, RoomUpdate
 from zndraw.storage import FrameStorage
 from zndraw.transformations import InArrayTransform
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/rooms", tags=["rooms"])
 
@@ -416,7 +416,7 @@ async def list_rooms(
     default_room_id = await _get_default_room_id(session)
 
     # Get all rooms (for PoC, show all public rooms)
-    statement = select(Room).where(Room.is_public == True)  # noqa: E712
+    statement = select(Room).where(Room.is_public.is_(True))
     result = await session.execute(statement)
     rooms = list(result.scalars().all())
 
@@ -596,7 +596,7 @@ async def update_room(
 
     if changed:
         event = await build_room_update(session, storage, room)
-        logger.debug("Broadcasting RoomUpdate: %s", event.model_dump())
+        log.debug("Broadcasting RoomUpdate: %s", event.model_dump())
         await sio.emit(event, room=f"room:{room.id}")
         await sio.emit(event, room="room:@overview")
 
