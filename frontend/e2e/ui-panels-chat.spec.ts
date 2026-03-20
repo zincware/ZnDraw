@@ -7,7 +7,7 @@ test.describe("UI Panels & Chat", () => {
 	test.describe.configure({ mode: "serial" });
 
 	test.beforeAll(() => {
-		CLI(`rooms create --room-id ${ROOM}`);
+		CLI(`rooms create --room ${ROOM}`);
 		PY(`
 from zndraw import ZnDraw
 import ase
@@ -123,23 +123,33 @@ vis.log("Check frame @0 for details")
 
 		// Verify the dialog contains connection instructions
 		await expect(
-			page.getByText(
-				"You can connect a Python kernel to this ZnDraw session using:",
-			),
+			page.getByText("Connect a Python kernel to this room:"),
 		).toBeVisible();
 
-		// Verify the Python code snippet contains key elements
+		// Verify the Python code snippet contains key elements but no user= param
 		await expect(
 			page.locator("code").filter({ hasText: "from zndraw import ZnDraw" }),
 		).toBeVisible();
 		await expect(
 			page.locator("code").filter({ hasText: `room="${ROOM}"` }),
 		).toBeVisible();
-
-		// Verify a copy button exists (dialog may have multiple copy buttons)
 		await expect(
-			page.getByRole("button", { name: "Copy to clipboard" }).first(),
+			page.locator("code").filter({ hasText: "user=" }),
+		).not.toBeVisible();
+
+		// Verify the login hint is shown with the CLI command
+		await expect(page.getByText(/instead of a guest/)).toBeVisible();
+		await expect(
+			page.locator("code").filter({ hasText: "zndraw-cli auth login" }),
 		).toBeVisible();
+
+		// Verify session section mentions login requirement
+		await expect(page.getByText("requires login above")).toBeVisible();
+
+		// Verify copy buttons exist (one per section)
+		await expect(
+			page.getByRole("button", { name: "Copy to clipboard" }),
+		).toHaveCount(3);
 
 		await page.screenshot({
 			path: "e2e/screenshots/ui-connection-info.png",

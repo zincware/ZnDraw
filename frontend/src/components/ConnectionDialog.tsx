@@ -23,7 +23,11 @@ const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
 	const sessionId = useAppStore((state) => state.sessionId);
 	const { mode } = useColorScheme();
 
-	const connectionCode = `from zndraw import ZnDraw\n\nvis = ZnDraw(\n  url="${window.location.origin}/",\n  room="${roomId}",\n  user="${userName}"\n)`;
+	const syntaxStyle = mode === "dark" ? oneDark : oneLight;
+
+	const connectionCode = `from zndraw import ZnDraw\n\nvis = ZnDraw(\n  url="${window.location.origin}/",\n  room="${roomId}",\n)`;
+
+	const loginCommand = `zndraw-cli auth login --url ${window.location.origin}/`;
 
 	const sessionCode = sessionId
 		? `ses = vis.sessions["${sessionId}"]`
@@ -31,6 +35,10 @@ const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
 
 	const handleCopyCode = () => {
 		navigator.clipboard.writeText(connectionCode);
+	};
+
+	const handleCopyLoginCommand = () => {
+		navigator.clipboard.writeText(loginCommand);
 	};
 
 	const handleCopySessionCode = () => {
@@ -42,12 +50,12 @@ const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
 			<DialogTitle>Connect to this ZnDraw session</DialogTitle>
 			<DialogContent>
 				<Typography variant="body2" sx={{ mb: 2 }}>
-					You can connect a Python kernel to this ZnDraw session using:
+					Connect a Python kernel to this room:
 				</Typography>
 				<Box sx={{ position: "relative" }}>
 					<SyntaxHighlighter
 						language="python"
-						style={mode === "dark" ? oneDark : oneLight}
+						style={syntaxStyle}
 						customStyle={{
 							margin: 0,
 							borderRadius: "4px",
@@ -68,12 +76,48 @@ const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
 					</Button>
 				</Box>
 				<Typography variant="body2" sx={{ mt: 3, mb: 2 }}>
-					Access this browser session:
+					{userName ? (
+						<>
+							To connect as <strong>{userName}</strong> instead of a guest, run
+							this <em>before</em> creating the ZnDraw object:
+						</>
+					) : (
+						<>
+							To connect as your browser user instead of a guest, run this{" "}
+							<em>before</em> creating the ZnDraw object:
+						</>
+					)}
+				</Typography>
+				<Box sx={{ position: "relative" }}>
+					<SyntaxHighlighter
+						language="bash"
+						style={syntaxStyle}
+						customStyle={{
+							margin: 0,
+							borderRadius: "4px",
+						}}
+					>
+						{loginCommand}
+					</SyntaxHighlighter>
+					<Button
+						startIcon={<ContentCopyIcon />}
+						onClick={handleCopyLoginCommand}
+						sx={{
+							mt: 1,
+						}}
+						variant="outlined"
+						size="small"
+					>
+						Copy to clipboard
+					</Button>
+				</Box>
+				<Typography variant="body2" sx={{ mt: 3, mb: 2 }}>
+					Access your browser session (requires login above):
 				</Typography>
 				<Box sx={{ position: "relative" }}>
 					<SyntaxHighlighter
 						language="python"
-						style={mode === "dark" ? oneDark : oneLight}
+						style={syntaxStyle}
 						customStyle={{
 							margin: 0,
 							borderRadius: "4px",

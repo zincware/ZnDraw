@@ -18,7 +18,7 @@ test.describe("Frames & Navigation", () => {
 	test.describe.configure({ mode: "serial" });
 
 	test.beforeAll(() => {
-		CLI(`rooms create --room-id ${ROOM}`);
+		CLI(`rooms create --room ${ROOM}`);
 		// Clear any existing data from previous runs and set up fresh
 		PY(`
 from zndraw import ZnDraw

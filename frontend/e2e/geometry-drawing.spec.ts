@@ -19,7 +19,7 @@ async function openGeometryPanel(page: import("@playwright/test").Page) {
 }
 
 function setupRoom(room: string) {
-	CLI(`rooms create --room-id ${room}`);
+	CLI(`rooms create --room ${room}`);
 	PY(`
 from zndraw import ZnDraw
 import ase

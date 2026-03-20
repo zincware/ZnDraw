@@ -8,8 +8,9 @@ export const BASE_URL = process.env.ZNDRAW_URL || "http://localhost:8000";
 
 /** Run a zndraw-cli command and return stdout. */
 export function CLI(cmd: string): string {
-	return execSync(`uv run zndraw-cli --url ${BASE_URL} ${cmd}`, {
+	return execSync(`uv run zndraw-cli ${cmd}`, {
 		encoding: "utf-8",
+		env: { ...process.env, ZNDRAW_URL: BASE_URL },
 	});
 }
 
