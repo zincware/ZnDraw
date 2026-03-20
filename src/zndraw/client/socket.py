@@ -114,8 +114,8 @@ class SocketManager:
     def _on_connect(self) -> None:
         """Handle connection event. Re-register providers if mounted."""
         log.debug("Socket connected")
-        source = self.zndraw._mount  # noqa: SLF001
-        mount_name = self.zndraw._mount_name  # noqa: SLF001
+        source = self.zndraw.mounted_source
+        mount_name = self.zndraw.mounted_source_name
         if source is not None and mount_name is not None:
             from zndraw.providers.frame_source import FrameSourceLength, FrameSourceRead
 
