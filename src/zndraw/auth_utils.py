@@ -8,9 +8,6 @@ Single source of truth for the authentication fallback chain:
 
 from __future__ import annotations
 
-import os
-import warnings
-
 import httpx
 from pydantic import SecretStr
 
@@ -79,21 +76,6 @@ def resolve_token(
     httpx.HTTPStatusError
         On failed login or guest session creation.
     """
-    # --- Migration: bridge ZNDRAW_EMAIL → user ---
-    legacy_user = os.environ.get("ZNDRAW_EMAIL")
-    if (
-        token is None
-        and user is None
-        and legacy_user
-        and not os.environ.get("ZNDRAW_USER")
-    ):
-        warnings.warn(
-            "ZNDRAW_EMAIL is deprecated, use ZNDRAW_USER instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        user = legacy_user
-
     # --- Validation (fail fast) ---
     validate_credentials(token, user, password)
 
