@@ -300,11 +300,10 @@ async def upload_trajectory(
 
     # Convert to storage format and store in batches
     old_total = await storage.get_length(room_id)
-    batch_size = _UPLOAD_BATCH_SIZE
     new_total = old_total
 
-    for i in range(0, len(atoms_list), batch_size):
-        batch = atoms_list[i : i + batch_size]
+    for i in range(0, len(atoms_list), _UPLOAD_BATCH_SIZE):
+        batch = atoms_list[i : i + _UPLOAD_BATCH_SIZE]
         for atoms in batch:
             add_colors(atoms)
             add_radii(atoms)

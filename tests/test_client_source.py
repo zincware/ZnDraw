@@ -43,7 +43,7 @@ def test_mount_stores_source(server: str) -> None:
         source = FakeSource([_make_atoms() for _ in range(10)])
         vis.mount(source)
 
-        assert vis._mount is source
+        assert vis.mounted_source is source
         assert len(vis) == 10
     finally:
         vis.disconnect()
@@ -88,7 +88,7 @@ def test_unmount_clears_mount(server: str) -> None:
         vis.mount(source)
         vis.unmount()
 
-        assert vis._mount is None
+        assert vis.mounted_source is None
         assert len(vis) == 0
     finally:
         vis.disconnect()
@@ -199,7 +199,7 @@ def test_mount_read_unmount_lifecycle(server: str) -> None:
 
         vis.unmount()
         assert len(vis) == 0
-        assert vis._mount is None
+        assert vis.mounted_source is None
     finally:
         vis.disconnect()
 
