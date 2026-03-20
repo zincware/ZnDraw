@@ -123,9 +123,7 @@ vis.log("Check frame @0 for details")
 
 		// Verify the dialog contains connection instructions
 		await expect(
-			page.getByText(
-				"You can connect a Python kernel to this ZnDraw session using:",
-			),
+			page.getByText("Connect a Python kernel to this room:"),
 		).toBeVisible();
 
 		// Verify the Python code snippet contains key elements but no user= param
@@ -140,13 +138,13 @@ vis.log("Check frame @0 for details")
 		).not.toBeVisible();
 
 		// Verify the login hint is shown with the CLI command
-		await expect(page.getByText("To authenticate as")).toBeVisible();
+		await expect(page.getByText(/instead of a guest/)).toBeVisible();
 		await expect(
 			page.locator("code").filter({ hasText: "zndraw-cli auth login" }),
 		).toBeVisible();
 
-		// Verify session section mentions authentication requirement
-		await expect(page.getByText("requires authentication")).toBeVisible();
+		// Verify session section mentions login requirement
+		await expect(page.getByText("requires login above")).toBeVisible();
 
 		// Verify copy buttons exist (one per section)
 		await expect(

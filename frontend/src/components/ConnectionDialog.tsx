@@ -50,7 +50,7 @@ const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
 			<DialogTitle>Connect to this ZnDraw session</DialogTitle>
 			<DialogContent>
 				<Typography variant="body2" sx={{ mb: 2 }}>
-					You can connect a Python kernel to this ZnDraw session using:
+					Connect a Python kernel to this room:
 				</Typography>
 				<Box sx={{ position: "relative" }}>
 					<SyntaxHighlighter
@@ -76,13 +76,10 @@ const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
 					</Button>
 				</Box>
 				<Typography variant="body2" sx={{ mt: 3, mb: 2 }}>
-					{userName ? (
-						<>
-							To authenticate as <strong>{userName}</strong>, run:
-						</>
-					) : (
-						<>To authenticate, run:</>
-					)}
+					{userName
+						? <>To connect as <strong>{userName}</strong> instead of a guest, run this <em>before</em> creating the ZnDraw object:</>
+						: <>To connect as your browser user instead of a guest, run this <em>before</em> creating the ZnDraw object:</>
+					}
 				</Typography>
 				<Box sx={{ position: "relative" }}>
 					<SyntaxHighlighter
@@ -108,7 +105,7 @@ const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
 					</Button>
 				</Box>
 				<Typography variant="body2" sx={{ mt: 3, mb: 2 }}>
-					Access this browser session (requires authentication):
+					Access your browser session (requires login above):
 				</Typography>
 				<Box sx={{ position: "relative" }}>
 					<SyntaxHighlighter
