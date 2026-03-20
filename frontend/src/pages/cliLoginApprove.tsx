@@ -48,6 +48,7 @@ export default function CliLoginApprovePage() {
 	}, []);
 
 	const handleApprove = async () => {
+		if (!code) return;
 		setStatus("approving");
 		setError(null);
 		try {
@@ -72,6 +73,7 @@ export default function CliLoginApprovePage() {
 	};
 
 	const handleDeny = async () => {
+		if (!code) return;
 		setStatus("approving");
 		setError(null);
 		try {
