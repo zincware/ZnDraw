@@ -32,10 +32,14 @@ class MessagePackResponse(Response):
     def render(self, content: Any) -> bytes:
         """Render content to MessagePack bytes.
 
-        Args:
-            content: Python object to serialize, or raw bytes to return as-is.
+        Parameters
+        ----------
+        content : Any
+            Python object to serialize, or raw bytes to return as-is.
 
-        Returns:
+        Returns
+        -------
+        bytes
             MessagePack-encoded bytes.
         """
         # If content is already bytes (pre-packed data), return as-is
