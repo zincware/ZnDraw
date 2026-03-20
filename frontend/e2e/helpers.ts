@@ -4,8 +4,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import type { Page, Browser, BrowserContext } from "@playwright/test";
 
-export const BASE_URL =
-	process.env.ZNDRAW_URL || process.env.BASE_URL || "http://localhost:8000";
+export const BASE_URL = process.env.ZNDRAW_URL || "http://localhost:8000";
 
 /** Run a zndraw-cli command and return stdout. */
 export function CLI(cmd: string): string {

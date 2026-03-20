@@ -9,8 +9,7 @@ export default defineConfig({
 	retries: 0,
 	reporter: [["html", { open: "never" }]],
 	use: {
-		baseURL:
-			process.env.ZNDRAW_URL || process.env.BASE_URL || "http://localhost:8000",
+		baseURL: process.env.ZNDRAW_URL || "http://localhost:8000",
 		screenshot: "only-on-failure",
 		trace: "retain-on-failure",
 		viewport: { width: 1280, height: 720 },

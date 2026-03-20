@@ -5,7 +5,7 @@ const ROOM = "test-editing";
 const ROOM_LOCK = "test-editing-lock";
 
 function setupRoom(room: string) {
-	CLI(`rooms create --room-id ${room}`);
+	CLI(`rooms create --room ${room}`);
 	PY(`
 from zndraw import ZnDraw
 import ase

@@ -18,7 +18,7 @@ test.describe("Registration", () => {
 	test("register_job makes extension appear in modifier panel", async ({
 		page,
 	}) => {
-		CLI(`rooms create --room-id ${ROOM_EXT}`);
+		CLI(`rooms create --room ${ROOM_EXT}`);
 		PY(`
 from zndraw import ZnDraw
 import ase
@@ -83,7 +83,7 @@ time.sleep(60)
 	test("register_fs enables file browser with browse and load", async ({
 		page,
 	}) => {
-		CLI(`rooms create --room-id ${ROOM_FS}`);
+		CLI(`rooms create --room ${ROOM_FS}`);
 		PY(`
 from zndraw import ZnDraw
 import ase
@@ -187,7 +187,7 @@ time.sleep(120)
 	});
 
 	test("mount serves frames on demand", async ({ page }) => {
-		CLI(`rooms create --room-id ${ROOM_MOUNT}`);
+		CLI(`rooms create --room ${ROOM_MOUNT}`);
 
 		// Spawn background process that mounts a frame source
 		const bg = spawnPY(`

@@ -16,7 +16,7 @@ async function openGeometryPanel(page: import("@playwright/test").Page) {
 }
 
 function setupConstraintRoom() {
-	CLI(`rooms create --room-id ${ROOM}`);
+	CLI(`rooms create --room ${ROOM}`);
 	PY(`
 from zndraw import ZnDraw
 from molify import smiles2conformers

@@ -76,7 +76,10 @@ const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
 					</Button>
 				</Box>
 				<Typography variant="body2" sx={{ mt: 3, mb: 2 }}>
-					To authenticate as <strong>{userName}</strong>, run:
+					{userName
+						? <>To authenticate as <strong>{userName}</strong>, run:</>
+						: <>To authenticate, run:</>
+					}
 				</Typography>
 				<Box sx={{ position: "relative" }}>
 					<SyntaxHighlighter

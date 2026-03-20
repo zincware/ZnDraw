@@ -48,7 +48,7 @@ test.describe("Extensions & Analysis", () => {
 	test.describe.configure({ mode: "serial" });
 
 	test.beforeAll(() => {
-		CLI(`rooms create --room-id ${ROOM}`);
+		CLI(`rooms create --room ${ROOM}`);
 		PY(`
 from zndraw import ZnDraw
 import ase
