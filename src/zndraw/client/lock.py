@@ -38,6 +38,7 @@ class ZnDrawLock:
         """Acquire the edit lock."""
         result = self.api.edit_lock_acquire(self.msg)
         self._lock_token = result["lock_token"]
+        self.api.lock_token = self._lock_token
         self._stop.clear()
         self._refresh_thread = threading.Thread(target=self._refresh, daemon=True)
         self._refresh_thread.start()
@@ -53,6 +54,7 @@ class ZnDrawLock:
         except Exception as e:  # noqa: BLE001
             log.warning("Failed to release edit lock: %s", e)
         self._lock_token = None
+        self.api.lock_token = None
         return False
 
     def _refresh(self) -> None:
