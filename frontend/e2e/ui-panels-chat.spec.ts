@@ -140,17 +140,13 @@ vis.log("Check frame @0 for details")
 		).not.toBeVisible();
 
 		// Verify the login hint is shown with the CLI command
-		await expect(
-			page.getByText("To authenticate as"),
-		).toBeVisible();
+		await expect(page.getByText("To authenticate as")).toBeVisible();
 		await expect(
 			page.locator("code").filter({ hasText: "zndraw-cli auth login" }),
 		).toBeVisible();
 
 		// Verify session section mentions authentication requirement
-		await expect(
-			page.getByText("requires authentication"),
-		).toBeVisible();
+		await expect(page.getByText("requires authentication")).toBeVisible();
 
 		// Verify copy buttons exist (one per section)
 		await expect(
