@@ -76,10 +76,17 @@ const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
 					</Button>
 				</Box>
 				<Typography variant="body2" sx={{ mt: 3, mb: 2 }}>
-					{userName
-						? <>To connect as <strong>{userName}</strong> instead of a guest, run this <em>before</em> creating the ZnDraw object:</>
-						: <>To connect as your browser user instead of a guest, run this <em>before</em> creating the ZnDraw object:</>
-					}
+					{userName ? (
+						<>
+							To connect as <strong>{userName}</strong> instead of a guest, run
+							this <em>before</em> creating the ZnDraw object:
+						</>
+					) : (
+						<>
+							To connect as your browser user instead of a guest, run this{" "}
+							<em>before</em> creating the ZnDraw object:
+						</>
+					)}
 				</Typography>
 				<Box sx={{ position: "relative" }}>
 					<SyntaxHighlighter
