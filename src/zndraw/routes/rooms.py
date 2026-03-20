@@ -416,7 +416,7 @@ async def list_rooms(
     default_room_id = await _get_default_room_id(session)
 
     # Get all rooms (for PoC, show all public rooms)
-    statement = select(Room).where(Room.is_public == True)  # noqa: E712
+    statement = select(Room).where(Room.is_public.is_(True))
     result = await session.execute(statement)
     rooms = list(result.scalars().all())
 
