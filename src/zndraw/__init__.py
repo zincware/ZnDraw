@@ -14,9 +14,9 @@ except ImportError:
     __version_tuple__ = (0, 0, 0, "dev")
 
 __all__ = [
+    "GLOBAL_ROOM",
     "Category",
     "Extension",
-    "GLOBAL_ROOM",
     "ZnDraw",
     "ZnDrawTqdm",
     "__version__",
