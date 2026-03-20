@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from zndraw.models import MemberRole
 
@@ -65,7 +65,7 @@ class RoomResponse(BaseModel):
     is_default: bool = False
     metadata: dict[str, str] | None = None
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RoomCreateResponse(BaseModel):
@@ -99,7 +99,7 @@ class RoomMemberResponse(BaseModel):
     role: MemberRole
     joined_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MessageCreate(BaseModel):
@@ -125,7 +125,7 @@ class MessageResponse(BaseModel):
     updated_at: datetime | None = None
     email: str | None = None
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MessagesMetadata(BaseModel):

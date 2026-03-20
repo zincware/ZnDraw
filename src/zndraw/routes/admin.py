@@ -10,7 +10,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlmodel import func, select
 from zndraw_auth import User, admin_token_router
 
@@ -36,7 +36,7 @@ class AdminUserResponse(BaseModel):
     email: str
     is_superuser: bool
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserUpdateRequest(BaseModel):
