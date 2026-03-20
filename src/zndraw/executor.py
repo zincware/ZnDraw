@@ -18,7 +18,7 @@ from zndraw_joblib.models import TaskStatus
 if TYPE_CHECKING:
     from pydantic import SecretStr
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -83,7 +83,7 @@ class InternalExtensionExecutor:
                     else:
                         vis.jobs._update_task(task_id, TaskStatus.FAILED, str(e))  # noqa: SLF001
                 except Exception:
-                    logger.exception("Could not report failure for task %s", task_id)
+                    log.exception("Could not report failure for task %s", task_id)
                 raise
             else:
                 vis.jobs.complete(task)

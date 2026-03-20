@@ -71,7 +71,7 @@ from zndraw.socket_events import FramesInvalidate, RoomUpdate
 from zndraw.storage import FrameStorage
 from zndraw.transformations import InArrayTransform
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/rooms", tags=["rooms"])
 
@@ -596,7 +596,7 @@ async def update_room(
 
     if changed:
         event = await build_room_update(session, storage, room)
-        logger.debug("Broadcasting RoomUpdate: %s", event.model_dump())
+        log.debug("Broadcasting RoomUpdate: %s", event.model_dump())
         await sio.emit(event, room=f"room:{room.id}")
         await sio.emit(event, room="room:@overview")
 
