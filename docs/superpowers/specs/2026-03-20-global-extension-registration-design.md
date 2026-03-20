@@ -46,16 +46,25 @@ def register_job(
 
 Logic:
 
-1. If both `room` and `public` are provided, raise `ValueError`.
-2. If `public` is `True`, set `room = GLOBAL_ROOM`.
+1. If `public is True` and `room` is also set, raise `ValueError`.
+2. If `public is True`, emit `DeprecationWarning` via `warnings.warn` and set
+   `room = GLOBAL_ROOM`.
 3. If `room == GLOBAL_ROOM`, pass it directly to `self.jobs.register()`.
 4. Otherwise, use `self._resolve_room(room)` (falls back to `self.room`).
 
+Note: `public=False` (explicit) is treated the same as `public=None` (default) —
+only `public=True` triggers the conflict check and deprecation path.
+
 ```python
 def register_job(self, cls, *, room=None, public=None):
-    if public is not None and room is not None:
+    if public and room is not None:
         raise ValueError("Cannot specify both 'room' and 'public'")
     if public:
+        warnings.warn(
+            "public=True is deprecated, use room='@global' instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         room = GLOBAL_ROOM
     elif room != GLOBAL_ROOM:
         room = self._resolve_room(room)
