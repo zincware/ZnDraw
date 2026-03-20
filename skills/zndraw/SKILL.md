@@ -230,7 +230,7 @@ uv run zndraw-cli jobs status JOB_ID
 
 Three extension categories exist: **modifiers** (edit atoms), **selections** (pick atoms), **analysis** (create plots). Discover which are available via `extensions list`.
 
-**Note:** Custom extensions registered via `vis.register_job()` are scoped to the room they were registered in.
+**Note:** Custom extensions registered via `vis.register_job()` are scoped to the room they were registered in. Use `vis.register_job(cls, room="@global")` for global registration (admin-only, visible in all rooms).
 
 ## Visual Presets
 
