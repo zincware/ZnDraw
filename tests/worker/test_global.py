@@ -115,7 +115,7 @@ def test_full_lifecycle(server, Echo, run_worker_loop, wait_for_task):
         worker.jobs.register(Echo)
         submitter.append(ase.Atoms("H"))
 
-        thread, stop = run_worker_loop(worker, server)
+        thread, stop = run_worker_loop(worker)
 
         task_id = submitter.jobs.submit(
             Echo(value="proof"), room=submitter.room, job_room="@global"
@@ -160,7 +160,7 @@ def test_vis_connected_to_submitter_room(server, Echo, run_worker_loop, wait_for
         room_a.append(ase.Atoms("H"))
         room_b.append(ase.Atoms("H"))
 
-        thread, stop = run_worker_loop(worker, server)
+        thread, stop = run_worker_loop(worker)
 
         # Submit from room_a only
         task_id = room_a.jobs.submit(
@@ -217,7 +217,7 @@ def test_worker_claims_from_multiple_jobs(
         worker.jobs.register(EchoAnalysis)
         submitter.append(ase.Atoms("H"))
 
-        thread, stop = run_worker_loop(worker, server)
+        thread, stop = run_worker_loop(worker)
 
         tid1 = submitter.jobs.submit(
             Echo(value="echo_proof"), room=submitter.room, job_room="@global"
@@ -281,8 +281,8 @@ def test_two_workers_claim_different_tasks(
         w2.jobs.register(Echo)
         submitter.append(ase.Atoms("H"))
 
-        t1, stop1 = run_worker_loop(w1, server)
-        t2, stop2 = run_worker_loop(w2, server)
+        t1, stop1 = run_worker_loop(w1)
+        t2, stop2 = run_worker_loop(w2)
 
         tid1 = submitter.jobs.submit(
             Echo(value="task1"), room=submitter.room, job_room="@global"
@@ -328,8 +328,8 @@ def test_two_workers_two_jobs(
         w_analysis.jobs.register(EchoAnalysis)
         submitter.append(ase.Atoms("H"))
 
-        t1, stop1 = run_worker_loop(w_echo, server)
-        t2, stop2 = run_worker_loop(w_analysis, server)
+        t1, stop1 = run_worker_loop(w_echo)
+        t2, stop2 = run_worker_loop(w_analysis)
 
         tid1 = submitter.jobs.submit(
             Echo(value="echo_val"), room=submitter.room, job_room="@global"
@@ -412,7 +412,7 @@ def test_invalid_state_transition_409(server, Echo, run_worker_loop, wait_for_ta
         worker.jobs.register(Echo)
         submitter.append(ase.Atoms("H"))
 
-        thread, stop = run_worker_loop(worker, server)
+        thread, stop = run_worker_loop(worker)
 
         task_id = submitter.jobs.submit(
             Echo(value="x"), room=submitter.room, job_room="@global"
@@ -451,7 +451,7 @@ def test_fail_records_error_message(
         worker.jobs.register(FailingExtension)
         submitter.append(ase.Atoms("H"))
 
-        thread, stop = run_worker_loop(worker, server)
+        thread, stop = run_worker_loop(worker)
 
         task_id = submitter.jobs.submit(
             FailingExtension(), room=submitter.room, job_room="@global"
@@ -629,7 +629,7 @@ def test_admin_full_lifecycle(server_auth, Echo, run_worker_loop, wait_for_task)
     try:
         guest.append(ase.Atoms("H"))
 
-        thread, stop = run_worker_loop(admin, server_auth)
+        thread, stop = run_worker_loop(admin)
 
         task_id = guest.jobs.submit(
             Echo(value="admin_proof"), room=guest.room, job_room="@global"

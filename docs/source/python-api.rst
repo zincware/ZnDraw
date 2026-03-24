@@ -1148,6 +1148,62 @@ The worker sends heartbeats to the server. On disconnect, all registered jobs
 are cleaned up automatically.
 
 
+Providers
+^^^^^^^^^
+
+Providers are read-only data source handlers that let extensions access
+external resources (filesystems, databases, etc.) through the worker process.
+
+**Filesystem provider (convenience)**
+
+``register_fs()`` registers an `fsspec <https://filesystem-spec.readthedocs.io>`_
+filesystem and the built-in ``LoadFile`` extension in one call:
+
+.. code:: python
+
+    import fsspec
+
+    vis = ZnDraw()
+    vis.register_fs(fsspec.filesystem("file"), name="local")
+    vis.wait()
+
+Users can then load files from the UI via the ``LoadFile`` modifier.
+
+**Custom providers**
+
+Subclass ``Provider``, implement ``read(handler)``, and register with
+``register_provider()``:
+
+.. code:: python
+
+    from zndraw_joblib import Provider
+
+    class DBLookup(Provider):
+        category = "database"
+        query: str = ""
+
+        def read(self, handler):
+            # handler is whatever you pass to register_provider()
+            return handler.execute(self.query).fetchall()
+
+    vis.register_provider(DBLookup, name="my-db", handler=db_connection)
+
+Extensions access providers via the ``providers`` kwarg passed to ``run()``:
+
+.. code:: python
+
+    class MyExtension(Extension):
+        category = Category.MODIFIER
+
+        def run(self, vis, **kwargs):
+            providers = kwargs.get("providers") or {}
+            db = providers.get(f"{vis.room}:database:my-db")
+            rows = db.execute("SELECT ...").fetchall()
+            ...
+
+Provider names follow the pattern ``{room}:{category}:{name}``.
+
+
 Schema Customization
 ^^^^^^^^^^^^^^^^^^^^
 

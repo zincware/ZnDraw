@@ -138,24 +138,19 @@ def run_worker_loop() -> Callable[..., tuple[threading.Thread, threading.Event]]
     to shut down.
     """
 
-    def _start(
-        worker: ZnDraw, server_url: str
-    ) -> tuple[threading.Thread, threading.Event]:
+    def _start(worker: ZnDraw) -> tuple[threading.Thread, threading.Event]:
         stop = threading.Event()
 
         def _loop() -> None:
             try:
                 for task in worker.jobs.listen(polling_interval=0.5, stop_event=stop):
                     worker.jobs.start(task)
-                    vis = ZnDraw(url=server_url, room=task.room_id)
                     try:
-                        task.extension.run(vis, **task.run_kwargs)
+                        worker._execute_task(task)
                     except Exception as e:  # noqa: BLE001
                         worker.jobs.fail(task, str(e))
                     else:
                         worker.jobs.complete(task)
-                    finally:
-                        vis.disconnect()
             except Exception:  # noqa: BLE001, S110
                 pass  # Worker disconnected — stop gracefully
 

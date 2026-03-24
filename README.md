@@ -174,6 +174,13 @@ model = torch.load("model.pt")
 vis.register_job(Predict, run_kwargs={"model": model})
 ```
 
+Register filesystem providers so users can load files from the UI:
+
+```python
+import fsspec
+vis.register_fs(fsspec.filesystem("file"), name="local")
+```
+
 ## Hosted Version
 
 A hosted version is available at https://zndraw.icp.uni-stuttgart.de
