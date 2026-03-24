@@ -970,12 +970,12 @@ Custom Extensions
    :alt: Custom modifier interface
 
 ZnDraw supports custom extensions for modifiers, selections, and analysis.
-Register your own Python classes to extend the UI:
+Subclass ``Extension``, set a ``category``, and implement ``run()``:
 
 .. code:: python
 
     from pydantic import Field
-    from zndraw.extensions import Extension, Category
+    from zndraw import ZnDraw, Extension, Category
 
     class ScaleAtoms(Extension):
         """Scale atom positions by a factor."""
@@ -999,9 +999,6 @@ Register your own Python classes to extend the UI:
             vis.append(atoms)
             vis.step = len(vis) - 1
 
-    # Register the extension
-    vis.register_extension(ScaleAtoms)
-
 
 Extension Categories
 ^^^^^^^^^^^^^^^^^^^^
@@ -1011,6 +1008,110 @@ Extensions are categorized by their purpose:
 - ``Category.MODIFIER``: Modify atomic structures (e.g., delete, rotate, translate)
 - ``Category.SELECTION``: Select atoms (e.g., by type, neighbors, random)
 - ``Category.ANALYSIS``: Analyze data and create plots (e.g., properties, correlations)
+
+
+Registering Extensions
+^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``register_job()`` to make an extension available in the UI.
+
+**Room-scoped (default):**
+
+.. code:: python
+
+    vis = ZnDraw()
+    vis.register_job(ScaleAtoms)  # visible only in vis.room
+    vis.wait()
+
+**Global (admin-only):**
+
+Global extensions are visible in **all rooms**. Only admin users can register them —
+non-admin users receive a ``PermissionError`` (HTTP 403).
+
+.. code:: python
+
+    from zndraw import GLOBAL_ROOM
+
+    vis = ZnDraw(url="http://localhost:4567", user="admin@example.com", password="...")
+    vis.register_job(ScaleAtoms, room=GLOBAL_ROOM)  # visible in all rooms
+    vis.wait()
+
+**Explicit room:**
+
+.. code:: python
+
+    vis.register_job(ScaleAtoms, room="my-room-id")
+
+
+Extension Scopes
+^^^^^^^^^^^^^^^^
+
+Every extension is prefixed by its scope:
+
++---------------------+---------------------------------------------------+
+| Scope               | Description                                       |
++=====================+===================================================+
+| ``@internal:``      | Built-in extensions shipped with ZnDraw.          |
+|                     | Always available, executed server-side.            |
++---------------------+---------------------------------------------------+
+| ``@global:``        | Registered by an admin via                        |
+|                     | ``register_job(cls, room="@global")``.            |
+|                     | Visible in all rooms.                             |
++---------------------+---------------------------------------------------+
+| ``<room-id>:``      | Registered by any user via ``register_job(cls)``. |
+|                     | Visible only in that room.                        |
++---------------------+---------------------------------------------------+
+
+The full name of an extension follows the pattern
+``<scope>:<category>:<name>``, e.g. ``@global:modifiers:ScaleAtoms``.
+
+
+Running Extensions
+^^^^^^^^^^^^^^^^^^
+
+Submit an extension for execution via ``vis.run()``. This returns a
+``TaskHandle`` that can be polled or awaited:
+
+.. code:: python
+
+    # Run a built-in extension
+    task = vis.run("@internal:modifiers:Delete")
+    task.wait(timeout=30)
+
+    # Run with parameters
+    task = vis.run("@global:modifiers:ScaleAtoms", factor=2.0, center_first=True)
+    task.wait()
+
+    # Check status
+    print(task.status)  # "completed" or "failed"
+
+Discover available extensions with ``vis.extensions``:
+
+.. code:: python
+
+    # List all extension names
+    list(vis.extensions)
+
+    # Get schema for a specific extension
+    vis.extensions["@internal:modifiers:Delete"]
+
+
+Worker Lifecycle
+^^^^^^^^^^^^^^^^
+
+When you call ``register_job()``, the client connects via Socket.IO and starts
+a background worker that claims and executes tasks. Call ``vis.wait()`` to block
+until the process is interrupted:
+
+.. code:: python
+
+    vis = ZnDraw()
+    vis.register_job(ExtensionA)
+    vis.register_job(ExtensionB)
+    vis.wait()  # blocks until Ctrl+C
+
+The worker sends heartbeats to the server. On disconnect, all registered jobs
+are cleaned up automatically.
 
 
 Schema Customization

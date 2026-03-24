@@ -4,6 +4,8 @@ from zndraw.client import ZnDraw
 from zndraw.extensions import Category, Extension
 from zndraw.tqdm import ZnDrawTqdm
 
+GLOBAL_ROOM = "@global"
+
 try:
     from zndraw._version import __version__, __version_tuple__
 except ImportError:
@@ -12,6 +14,7 @@ except ImportError:
     __version_tuple__ = (0, 0, 0, "dev")
 
 __all__ = [
+    "GLOBAL_ROOM",
     "Category",
     "Extension",
     "ZnDraw",

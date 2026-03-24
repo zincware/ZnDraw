@@ -149,21 +149,23 @@ ZnDraw integrates with [Plotly](https://plotly.com/) for interactive data visual
 Create custom tools accessible via the ZnDraw UI:
 
 ```python
-from zndraw import Extension
 from molify import smiles2atoms
+from zndraw import ZnDraw, Extension, Category
 
 class AddMolecule(Extension):
+    category = Category.MODIFIER
     smiles: str
 
     def run(self, vis, **kwargs) -> None:
         vis.append(smiles2atoms(self.smiles))
         vis.step = len(vis) - 1
 
-vis.register(AddMolecule, public=True)
+vis = ZnDraw()
+vis.register_job(AddMolecule)  # room-scoped (default)
 vis.wait()
 ```
 
-Extensions can be registered as `public` (available to all clients) or private (only to the registering client).
+Extensions can be registered as room-scoped (default, visible only in the current room) or global (`vis.register_job(cls, room="@global")`, admin-only, visible in all rooms).
 
 ## Hosted Version
 
