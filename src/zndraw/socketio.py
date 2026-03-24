@@ -7,12 +7,8 @@ import socketio
 from fastapi import Depends
 from fastapi_users.jwt import decode_jwt
 from jwt import InvalidTokenError
-from sqlalchemy import select as sa_select
 from sqlmodel import and_, select
 from zndraw_auth import AuthSettings, SessionDep, User, get_auth_settings
-from zndraw_joblib import Worker, cleanup_worker
-from zndraw_joblib.events import emit as joblib_emit
-from zndraw_joblib.models import ProviderRecord
 from zndraw_socketio import EventContext, wrap
 
 from zndraw.dependencies import FrameStorageDep, RedisDep, room_channel
@@ -28,7 +24,6 @@ from zndraw.models import Room, RoomGeometry, RoomMembership
 from zndraw.redis import RedisKey
 from zndraw.schemas import ProgressResponse
 from zndraw.socket_events import (
-    FramesInvalidate,
     GeometryInvalidate,
     LockUpdate,
     RoomJoin,
@@ -115,15 +110,14 @@ async def on_connect(
 
 @tsio.on(
     "disconnect",
-    emits=[GeometryInvalidate, LockUpdate, SessionLeft, FramesInvalidate],
+    emits=[GeometryInvalidate, LockUpdate, SessionLeft],
 )
 async def on_disconnect(
     sid: str,
     _reason: str,
     redis: RedisDep,
-    db_session: SessionDep,
 ) -> None:
-    """Handle disconnect - clean up camera, locks, and workers."""
+    """Handle disconnect - clean up camera and locks."""
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
     current_room_id: str | None = sio_session.get("current_room_id")
@@ -152,37 +146,6 @@ async def on_disconnect(
                         sid=sid,
                     ),
                     room=room_channel(current_room_id),
-                )
-
-    # Worker cleanup — fail tasks, remove links, soft-delete orphan jobs
-    worker_id = sio_session.get("worker_id")
-    if worker_id:
-        worker = await db_session.get(Worker, UUID(worker_id))
-        if worker:
-            # Find rooms with frames providers BEFORE cleanup deletes them
-            result = await db_session.execute(
-                sa_select(ProviderRecord.room_id).where(
-                    ProviderRecord.worker_id == worker.id,
-                    ProviderRecord.category == "frames",
-                )
-            )
-            frame_provider_rooms = result.scalars().all()
-
-            emissions = await cleanup_worker(db_session, worker)
-            await db_session.commit()
-            await joblib_emit(tsio, emissions)
-
-            # Clear provider frame counts and notify frontends
-            for rid in frame_provider_rooms:
-                await redis.delete(RedisKey.provider_frame_count(rid))  # type: ignore[misc]
-                await tsio.emit(
-                    FramesInvalidate(
-                        room_id=rid,
-                        action="clear",
-                        count=0,
-                        reason="provider_disconnected",
-                    ),
-                    room=room_channel(rid),
                 )
 
 
