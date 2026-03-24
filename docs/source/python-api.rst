@@ -1043,6 +1043,40 @@ non-admin users receive a ``PermissionError`` (HTTP 403).
     vis.register_job(ScaleAtoms, room="my-room-id")
 
 
+Passing Runtime State (``run_kwargs``)
+""""""""""""""""""""""""""""""""""""""
+
+Heavy objects that should live in worker memory (e.g. ML models, database
+connections) can be passed at registration time via ``run_kwargs``.
+These kwargs are forwarded to ``extension.run()`` on every task execution
+without being serialized:
+
+.. code:: python
+
+    import torch
+
+    model = torch.load("model.pt")
+
+    class Predict(Extension):
+        category = Category.MODIFIER
+        temperature: float = 1.0
+
+        def run(self, vis, *, model=None, **kwargs):
+            atoms = vis[vis.step]
+            result = model(atoms, self.temperature)
+            vis.append(result)
+            vis.step = len(vis) - 1
+
+    vis = ZnDraw()
+    vis.register_job(Predict, run_kwargs={"model": model})
+    vis.wait()
+
+The ``run_kwargs`` dict is stored in the worker process and never sent to the
+server. This means values can be non-serializable (torch models, open file
+handles, etc.). Each invocation of ``run()`` receives the same object
+references.
+
+
 Extension Scopes
 ^^^^^^^^^^^^^^^^
 
@@ -1112,6 +1146,62 @@ until the process is interrupted:
 
 The worker sends heartbeats to the server. On disconnect, all registered jobs
 are cleaned up automatically.
+
+
+Providers
+^^^^^^^^^
+
+Providers are read-only data source handlers that let extensions access
+external resources (filesystems, databases, etc.) through the worker process.
+
+**Filesystem provider (convenience)**
+
+``register_fs()`` registers an `fsspec <https://filesystem-spec.readthedocs.io>`_
+filesystem and the built-in ``LoadFile`` extension in one call:
+
+.. code:: python
+
+    import fsspec
+
+    vis = ZnDraw()
+    vis.register_fs(fsspec.filesystem("file"), name="local")
+    vis.wait()
+
+Users can then load files from the UI via the ``LoadFile`` modifier.
+
+**Custom providers**
+
+Subclass ``Provider``, implement ``read(handler)``, and register with
+``register_provider()``:
+
+.. code:: python
+
+    from zndraw_joblib import Provider
+
+    class DBLookup(Provider):
+        category = "database"
+        query: str = ""
+
+        def read(self, handler):
+            # handler is whatever you pass to register_provider()
+            return handler.execute(self.query).fetchall()
+
+    vis.register_provider(DBLookup, name="my-db", handler=db_connection)
+
+Extensions access providers via the ``providers`` kwarg passed to ``run()``:
+
+.. code:: python
+
+    class MyExtension(Extension):
+        category = Category.MODIFIER
+
+        def run(self, vis, **kwargs):
+            providers = kwargs.get("providers") or {}
+            db = providers.get(f"{vis.room}:database:my-db")
+            rows = db.execute("SELECT ...").fetchall()
+            ...
+
+Provider names follow the pattern ``{room}:{category}:{name}``.
 
 
 Schema Customization

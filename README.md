@@ -167,6 +167,20 @@ vis.wait()
 
 Extensions can be registered as room-scoped (default, visible only in the current room) or global (`vis.register_job(cls, room="@global")`, admin-only, visible in all rooms).
 
+Pass heavy, pre-loaded objects (e.g. ML models) via `run_kwargs` — they stay in worker memory and are forwarded to `run()` on every task:
+
+```python
+model = torch.load("model.pt")
+vis.register_job(Predict, run_kwargs={"model": model})
+```
+
+Register filesystem providers so users can load files from the UI:
+
+```python
+import fsspec
+vis.register_fs(fsspec.filesystem("file"), name="local")
+```
+
 ## Hosted Version
 
 A hosted version is available at https://zndraw.icp.uni-stuttgart.de

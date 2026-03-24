@@ -107,7 +107,7 @@ def test_full_room_lifecycle(server, Echo, run_worker_loop, wait_for_task):
         worker.jobs.register(Echo, room=worker.room)
         submitter.append(ase.Atoms("H"))
 
-        thread, stop = run_worker_loop(worker, server)
+        thread, stop = run_worker_loop(worker)
 
         task_id = submitter.jobs.submit(
             Echo(value="room_proof"),
@@ -143,8 +143,8 @@ def test_two_workers_same_room_job(server, Echo, run_worker_loop, wait_for_task)
         w2.jobs.register(Echo, room=room_id_shared)
         submitter.append(ase.Atoms("H"))
 
-        t1, stop1 = run_worker_loop(w1, server)
-        t2, stop2 = run_worker_loop(w2, server)
+        t1, stop1 = run_worker_loop(w1)
+        t2, stop2 = run_worker_loop(w2)
 
         tid1 = submitter.jobs.submit(
             Echo(value="t1"), room=room_id_shared, job_room=room_id_shared
@@ -181,8 +181,8 @@ def test_two_workers_submit_and_complete(server, Echo, run_worker_loop, wait_for
         w2.jobs.register(Echo, room=room_id_shared)
         submitter.append(ase.Atoms("H"))
 
-        t1, stop1 = run_worker_loop(w1, server)
-        t2, stop2 = run_worker_loop(w2, server)
+        t1, stop1 = run_worker_loop(w1)
+        t2, stop2 = run_worker_loop(w2)
 
         tid1 = submitter.jobs.submit(
             Echo(value="first"), room=room_id_shared, job_room=room_id_shared
@@ -318,8 +318,8 @@ def test_two_rooms_two_workers(server, Echo, run_worker_loop, wait_for_task):
         sub_a.append(ase.Atoms("H"))
         sub_b.append(ase.Atoms("H"))
 
-        ta, stop_a = run_worker_loop(w_a, server)
-        tb, stop_b = run_worker_loop(w_b, server)
+        ta, stop_a = run_worker_loop(w_a)
+        tb, stop_b = run_worker_loop(w_b)
 
         tid_a = sub_a.jobs.submit(
             Echo(value="proof_a"), room=w_a.room, job_room=w_a.room
@@ -376,7 +376,7 @@ def test_guest_room_full_lifecycle(server_auth, Echo, run_worker_loop, wait_for_
         worker.jobs.register(Echo, room=worker.room)
         submitter.append(ase.Atoms("H"))
 
-        thread, stop = run_worker_loop(worker, server_auth)
+        thread, stop = run_worker_loop(worker)
 
         task_id = submitter.jobs.submit(
             Echo(value="guest_proof"),

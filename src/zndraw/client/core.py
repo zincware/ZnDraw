@@ -594,6 +594,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         cls: type,
         *,
         room: Literal["@global"] | str | None = None,
+        run_kwargs: dict[str, Any] | None = None,
         public: Annotated[
             bool | None,
             typing_extensions.deprecated("Use room='@global' instead of public=True"),
@@ -608,6 +609,10 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         room
             Room scope. Use ``"@global"`` for global registration (admin-only).
             Defaults to ``self.room``.
+        run_kwargs
+            Extra keyword arguments passed to ``extension.run()`` at
+            execution time. Useful for heavy, pre-loaded objects (e.g.
+            torch models) that live in worker memory.
         public
             .. deprecated::
                 Use ``room='@global'`` instead.
@@ -624,8 +629,10 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         elif room != "@global":
             room = self._resolve_room(room)
 
+        if run_kwargs is not None and "providers" in run_kwargs:
+            raise ValueError("'providers' is reserved and injected by the worker")
         self._ensure_socket_connected()
-        self.jobs.register(cls, room=room)
+        self.jobs.register(cls, room=room, run_kwargs=run_kwargs)
 
     @typing_extensions.deprecated(
         "Use register_job(cls, room='@global') for global, "
@@ -640,13 +647,14 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             Use :meth:`register_job` instead.
         """
         room = kwargs.pop("room", None)
+        run_kwargs = kwargs.pop("run_kwargs", None)
         if kwargs:
             unexpected = ", ".join(sorted(kwargs))
             raise TypeError(f"Unexpected keyword argument(s): {unexpected}")
         if public and room is not None:
             raise ValueError("Cannot specify both 'room' and 'public'")
         room = "@global" if public else room
-        self.register_job(cls, room=room)
+        self.register_job(cls, room=room, run_kwargs=run_kwargs)
 
     def register_provider(
         self,
@@ -1103,6 +1111,8 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             token=self.api.token,
         )
         try:
-            task.extension.run(task_vis, providers=self.jobs.handlers)
+            task.extension.run(
+                task_vis, providers=self.jobs.handlers, **task.run_kwargs
+            )
         finally:
             task_vis.disconnect()
