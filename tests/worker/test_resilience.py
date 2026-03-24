@@ -16,7 +16,6 @@ from zndraw_joblib.client import Category, Extension
 
 from zndraw import ZnDraw
 
-
 # =============================================================================
 # Test extensions
 # =============================================================================
@@ -86,10 +85,12 @@ def test_worker_exits_on_server_restart_fresh_db(server_factory):
     time.sleep(1)
 
     # Start a NEW server on the same port — fresh in-memory DB (new users)
-    new_instance = server_factory({
-        "ZNDRAW_HOST": "127.0.0.1",
-        "ZNDRAW_PORT": str(port),
-    })
+    new_instance = server_factory(
+        {
+            "ZNDRAW_HOST": "127.0.0.1",
+            "ZNDRAW_PORT": str(port),
+        }
+    )
 
     # Wait for the worker thread to exit — it should fail because
     # the old user/worker no longer exists in the new DB
