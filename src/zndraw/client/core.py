@@ -629,6 +629,8 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         elif room != "@global":
             room = self._resolve_room(room)
 
+        if run_kwargs is not None and "providers" in run_kwargs:
+            raise ValueError("'providers' is reserved and injected by the worker")
         self._ensure_socket_connected()
         self.jobs.register(cls, room=room, run_kwargs=run_kwargs)
 

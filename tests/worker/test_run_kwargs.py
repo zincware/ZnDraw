@@ -68,6 +68,16 @@ def test_register_job_with_run_kwargs(server, KwargsCapture, get_job_list):
         worker.disconnect()
 
 
+def test_register_job_rejects_providers_in_run_kwargs(server, KwargsCapture):
+    """run_kwargs={'providers': ...} should raise immediately, not at execution."""
+    worker = ZnDraw(url=server)
+    try:
+        with pytest.raises(ValueError, match="'providers' is reserved"):
+            worker.register_job(KwargsCapture, run_kwargs={"providers": object()})
+    finally:
+        worker.disconnect()
+
+
 # =============================================================================
 # register_extension shim forwards run_kwargs
 # =============================================================================
@@ -85,6 +95,9 @@ def test_register_extension_with_run_kwargs(server, KwargsCapture, get_job_list)
         jobs = get_job_list(worker, room_id=worker.room)
         names = {j.name for j in jobs}
         assert "KwargsCapture" in names
+        # Verify shim actually forwarded run_kwargs
+        full_name = f"{worker.room}:modifiers:KwargsCapture"
+        assert worker.jobs.get_run_kwargs(full_name) == {"model": model}
     finally:
         worker.jobs.disconnect()
         worker.disconnect()
@@ -136,15 +149,12 @@ def test_execute_task_unpacks_run_kwargs(server, KwargsCapture):
                         polling_interval=0.5, stop_event=stop
                     ):
                         worker.jobs.start(task)
-                        vis = ZnDraw(url=server, room=task.room_id)
                         try:
-                            task.extension.run(vis, **task.run_kwargs)
+                            worker._execute_task(task)
                         except Exception as e:  # noqa: BLE001
                             worker.jobs.fail(task, str(e))
                         else:
                             worker.jobs.complete(task)
-                        finally:
-                            vis.disconnect()
                 except Exception:  # noqa: BLE001, S110
                     pass
 
