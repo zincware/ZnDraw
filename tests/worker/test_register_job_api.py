@@ -7,6 +7,8 @@ Covers:
 - ValueError when both room and public are specified
 - Global extension visibility from any room
 - Auth guards (guest cannot, admin can register global)
+- register_extension(cls) room-scoped default path
+- register_extension(cls, unexpected_kwarg=...) raises TypeError
 """
 
 import warnings
@@ -82,14 +84,51 @@ def test_register_job_public_deprecated(server, Echo, get_job_list):
 # =============================================================================
 
 
-def test_register_job_room_and_public_raises(server, Echo):
-    """Passing both room= and public=True raises ValueError."""
+@pytest.mark.parametrize("public", [True, False])
+def test_register_job_room_and_public_raises(server, Echo, public):
+    """Passing both room= and public= (any value) raises ValueError."""
     vis = ZnDraw(url=server)
     try:
         with pytest.raises(ValueError, match="Cannot specify both"):
-            vis.register_job(Echo, room=vis.room, public=True)
+            vis.register_job(Echo, room=vis.room, public=public)
     finally:
         vis.disconnect()
+
+
+# =============================================================================
+# Deprecated register_extension — room-scoped default
+# =============================================================================
+
+
+def test_register_extension_room_scoped(server, Echo, get_job_list):
+    """register_extension(cls) without public registers in the worker's room."""
+    worker = ZnDraw(url=server)
+    try:
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            worker.register_extension(Echo)
+            assert any(issubclass(x.category, DeprecationWarning) for x in w)
+        jobs = get_job_list(worker, room_id=worker.room)
+        names = {j.name for j in jobs}
+        assert "Echo" in names
+    finally:
+        worker.jobs.disconnect()
+        worker.disconnect()
+
+
+# =============================================================================
+# register_extension — unexpected kwargs
+# =============================================================================
+
+
+def test_register_extension_unexpected_kwargs_raises(server, Echo):
+    """register_extension(cls, foo='bar') raises TypeError."""
+    worker = ZnDraw(url=server)
+    try:
+        with pytest.raises(TypeError, match="Unexpected keyword argument"):
+            worker.register_extension(Echo, foo="bar")
+    finally:
+        worker.disconnect()
 
 
 # =============================================================================

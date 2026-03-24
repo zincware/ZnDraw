@@ -612,7 +612,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             .. deprecated::
                 Use ``room='@global'`` instead.
         """
-        if public and room is not None:
+        if public is not None and room is not None:
             raise ValueError("Cannot specify both 'room' and 'public'")
         if public:
             warnings.warn(

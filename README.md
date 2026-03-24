@@ -149,6 +149,7 @@ ZnDraw integrates with [Plotly](https://plotly.com/) for interactive data visual
 Create custom tools accessible via the ZnDraw UI:
 
 ```python
+from molify import smiles2atoms
 from zndraw import ZnDraw, Extension, Category
 
 class AddMolecule(Extension):
