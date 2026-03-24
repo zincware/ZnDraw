@@ -6,7 +6,11 @@ from typing import Any, ClassVar, NoReturn
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from zndraw_joblib.exceptions import ProviderTimeout
+from zndraw_joblib.exceptions import (
+    ProviderTimeout,
+    TaskNotFound as JoblibTaskNotFound,
+    WorkerNotFound as JoblibWorkerNotFound,
+)
 
 
 class ZnDrawError(Exception):
@@ -624,7 +628,11 @@ def register_problem_types(*types: type[ProblemType]) -> None:
         PROBLEM_TYPES[cls.problem_id()] = cls
 
 
-register_problem_types(ProviderTimeout)  # type: ignore[arg-type]
+register_problem_types(
+    ProviderTimeout,  # type: ignore[arg-type]
+    JoblibWorkerNotFound,  # type: ignore[arg-type]
+    JoblibTaskNotFound,  # type: ignore[arg-type]
+)
 
 
 def problem_responses(
