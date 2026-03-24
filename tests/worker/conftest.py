@@ -149,7 +149,7 @@ def run_worker_loop() -> Callable[..., tuple[threading.Thread, threading.Event]]
                     worker.jobs.start(task)
                     vis = ZnDraw(url=server_url, room=task.room_id)
                     try:
-                        task.extension.run(vis)
+                        task.extension.run(vis, **task.run_kwargs)
                     except Exception as e:  # noqa: BLE001
                         worker.jobs.fail(task, str(e))
                     else:
