@@ -222,6 +222,9 @@ max-args = 10  # Allow up to 10 args for FastAPI endpoints
 skip = "frontend/bun.lock,docs/source/_static/*.svg,.planning/*"
 ignore-words-list = "nd,trough"
 
+[tool.uv.sources]
+zndraw-joblib = { path = "../zndraw-joblib", editable = true }
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
