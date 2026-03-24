@@ -12,6 +12,8 @@
 
 ---
 
+## Tasks
+
 ### Task 1: Export `GLOBAL_ROOM` constant
 
 **Files:**

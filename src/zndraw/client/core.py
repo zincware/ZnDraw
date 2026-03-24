@@ -639,7 +639,13 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         .. deprecated::
             Use :meth:`register_job` instead.
         """
-        room = "@global" if public else kwargs.get("room")
+        room = kwargs.pop("room", None)
+        if kwargs:
+            unexpected = ", ".join(sorted(kwargs))
+            raise TypeError(f"Unexpected keyword argument(s): {unexpected}")
+        if public and room is not None:
+            raise ValueError("Cannot specify both 'room' and 'public'")
+        room = "@global" if public else room
         self.register_job(cls, room=room)
 
     def register_provider(
