@@ -1043,6 +1043,40 @@ non-admin users receive a ``PermissionError`` (HTTP 403).
     vis.register_job(ScaleAtoms, room="my-room-id")
 
 
+Passing Runtime State (``run_kwargs``)
+""""""""""""""""""""""""""""""""""""""
+
+Heavy objects that should live in worker memory (e.g. ML models, database
+connections) can be passed at registration time via ``run_kwargs``.
+These kwargs are forwarded to ``extension.run()`` on every task execution
+without being serialized:
+
+.. code:: python
+
+    import torch
+
+    model = torch.load("model.pt")
+
+    class Predict(Extension):
+        category = Category.MODIFIER
+        temperature: float = 1.0
+
+        def run(self, vis, *, model=None, **kwargs):
+            atoms = vis[vis.step]
+            result = model(atoms, self.temperature)
+            vis.append(result)
+            vis.step = len(vis) - 1
+
+    vis = ZnDraw()
+    vis.register_job(Predict, run_kwargs={"model": model})
+    vis.wait()
+
+The ``run_kwargs`` dict is stored in the worker process and never sent to the
+server. This means values can be non-serializable (torch models, open file
+handles, etc.). Each invocation of ``run()`` receives the same object
+references.
+
+
 Extension Scopes
 ^^^^^^^^^^^^^^^^
 
