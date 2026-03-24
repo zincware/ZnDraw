@@ -46,6 +46,8 @@ from zndraw.executor import InternalExtensionExecutor
 from zndraw.extensions.analysis import analysis
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
+from zndraw.redis import RedisKey
+from zndraw.socket_events import FramesInvalidate
 from zndraw.socketio import tsio
 
 
@@ -301,7 +303,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # zndraw-joblib: wire ResultBackend for provider caching
         # Frame data is too large for Redis — route to the same storage
         # backend used for frame storage.  Everything else stays in Redis.
-        from zndraw_joblib.dependencies import get_result_backend
+        from zndraw_joblib.dependencies import (
+            get_frame_room_cleanup,
+            get_result_backend,
+        )
 
         from zndraw.result_backends import (
             CompositeResultBackend,
@@ -316,6 +321,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.result_backend = result_backend
         app.dependency_overrides[get_result_backend] = lambda: result_backend
 
+        # zndraw-joblib: frame room cleanup callback
+        # Deletes Redis provider frame count keys and emits FramesInvalidate
+        # when frame providers are removed (DELETE worker or sweeper).
+        async def frame_room_cleanup(room_ids: set[str]) -> None:
+            for rid in room_ids:
+                await app.state.redis.delete(  # type: ignore[misc]
+                    RedisKey.provider_frame_count(rid)
+                )
+                await tsio.emit(
+                    FramesInvalidate(
+                        room_id=rid,
+                        action="clear",
+                        count=0,
+                        reason="provider_disconnected",
+                    ),
+                    room=f"room:{rid}",
+                )
+
+        app.dependency_overrides[get_frame_room_cleanup] = lambda: frame_room_cleanup
+
         # Spawn in-process TaskIQ worker (disabled in Docker — dedicated containers)
         worker_task = None
         if settings.worker_enabled:
@@ -327,7 +352,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 yield session
 
         sweeper_task = asyncio.create_task(
-            run_sweeper(get_session=get_session, settings=joblib_settings, tsio=tsio)
+            run_sweeper(
+                get_session=get_session,
+                settings=joblib_settings,
+                tsio=tsio,
+                on_frame_rooms=frame_room_cleanup,
+            )
         )
 
         # Warm heavy optional imports in a background thread so first
