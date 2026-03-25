@@ -182,3 +182,67 @@ class TestGlobalSettingsEndpoint:
             assert response.json() == {"simgen": {"enabled": True}}
         finally:
             app.state.settings = original
+
+
+def test_settings_from_pyproject_toml(tmp_path, monkeypatch):
+    """Settings should load from [tool.zndraw.server] in pyproject.toml."""
+    toml_content = """\
+[tool.zndraw.server]
+port = 9999
+host = "192.168.1.1"
+storage = "/data/frames.lmdb"
+"""
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(toml_content)
+    monkeypatch.chdir(tmp_path)
+
+    from zndraw.config import Settings
+
+    settings = Settings()
+    assert settings.port == 9999
+    assert settings.host == "192.168.1.1"
+    assert settings.storage == "/data/frames.lmdb"
+
+
+def test_env_overrides_pyproject_toml(tmp_path, monkeypatch):
+    """Env vars should take priority over pyproject.toml."""
+    toml_content = """\
+[tool.zndraw.server]
+port = 9999
+"""
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(toml_content)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ZNDRAW_SERVER_PORT", "7777")
+
+    from zndraw.config import Settings
+
+    settings = Settings()
+    assert settings.port == 7777
+
+
+def test_init_overrides_env_and_pyproject(tmp_path, monkeypatch):
+    """Init args should take priority over env and pyproject.toml."""
+    toml_content = """\
+[tool.zndraw.server]
+port = 9999
+"""
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(toml_content)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ZNDRAW_SERVER_PORT", "7777")
+
+    from zndraw.config import Settings
+
+    settings = Settings(port=5555)
+    assert settings.port == 5555
+
+
+def test_missing_pyproject_toml_is_silent(tmp_path, monkeypatch):
+    """Settings should work fine without a pyproject.toml."""
+    monkeypatch.chdir(tmp_path)
+
+    from zndraw.config import Settings
+
+    settings = Settings()
+    assert settings.port == 8000
