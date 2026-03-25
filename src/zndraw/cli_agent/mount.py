@@ -11,8 +11,7 @@ from zndraw.cli_agent.connection import (
     TokenOpt,
     UrlOpt,
     UserOpt,
-    resolve_token,
-    resolve_url,
+    get_connection,
 )
 from zndraw.cli_agent.output import json_print
 
@@ -35,20 +34,19 @@ def mount_cmd(
     from zndraw.client import ZnDraw
     from zndraw.io import open_frames
 
-    resolved_url = resolve_url(url)
-    resolved_token = resolve_token(resolved_url, token, user, password)
+    conn = get_connection(url, token, user, password)
     source = open_frames(file)
     # mount() requires random-access (len + __getitem__);
     # materialise streaming iterators into a list.
     db = list(source) if isinstance(source, Iterator) else source
 
-    vis = ZnDraw(url=resolved_url, room=room, token=resolved_token)
+    vis = ZnDraw(url=conn.base_url, room=room, token=conn.token)
     vis.mount(db)
 
     json_print(
         {
             "room_id": vis.room,
-            "url": f"{resolved_url}/room/{vis.room}",
+            "url": f"{conn.base_url}/room/{vis.room}",
             "frame_count": len(db),
         }
     )
@@ -60,3 +58,4 @@ def mount_cmd(
         pass
     finally:
         vis.disconnect()
+        conn.close()

@@ -1,5 +1,7 @@
 """Tests for ZnDraw CLI."""
 
+from datetime import UTC, datetime
+
 import pytest
 from typer.testing import CliRunner
 
@@ -12,7 +14,7 @@ from zndraw.cli import (
     sanitize_room_name,
 )
 from zndraw.config import Settings
-from zndraw.server_manager import ServerInfo
+from zndraw.state_file import ServerEntry, StateFile
 
 runner = CliRunner()
 
@@ -144,31 +146,43 @@ def test_file_not_found():
 # ── 4. --status / --shutdown tests ──────────────────────────────────
 
 
-def test_status_no_server(monkeypatch):
-    monkeypatch.setattr("zndraw.cli.find_running_server", lambda _port: None)
+def _empty_state(monkeypatch, tmp_path):
+    """Point StateFile at an empty tmp dir and disable health checks."""
+    monkeypatch.setattr("zndraw.cli.StateFile", lambda: StateFile(directory=tmp_path))
+    monkeypatch.setattr("zndraw.cli._is_url_healthy", lambda _url: False)
+
+
+def test_status_no_server(monkeypatch, tmp_path):
+    _empty_state(monkeypatch, tmp_path)
     result = runner.invoke(app, ["--status"])
     assert result.exit_code == 1
     assert "No local ZnDraw server is running" in result.output
 
 
-def test_status_no_server_specific_port(monkeypatch):
-    monkeypatch.setattr("zndraw.cli.find_running_server", lambda _port: None)
+def test_status_no_server_specific_port(monkeypatch, tmp_path):
+    _empty_state(monkeypatch, tmp_path)
     result = runner.invoke(app, ["--status", "--port", "9999"])
     assert result.exit_code == 1
     assert "No ZnDraw server running on port 9999" in result.output
 
 
-def test_status_server_running(monkeypatch):
-    info = ServerInfo(pid=1234, port=8000, version="1.0.0")
-    monkeypatch.setattr("zndraw.cli.find_running_server", lambda _port: info)
+def test_status_server_running(monkeypatch, tmp_path):
+    state = StateFile(directory=tmp_path)
+    now = datetime.now(UTC)
+    state.add_server(
+        "http://localhost:8000",
+        ServerEntry(added_at=now, last_used=now, pid=1234, version="1.0.0"),
+    )
+    monkeypatch.setattr("zndraw.cli.StateFile", lambda: state)
+    monkeypatch.setattr("zndraw.cli._is_url_healthy", lambda _url: True)
+
     result = runner.invoke(app, ["--status"])
     assert result.exit_code == 0
     assert "PID: 1234" in result.output
-    assert "Port: 8000" in result.output
 
 
-def test_shutdown_no_server(monkeypatch):
-    monkeypatch.setattr("zndraw.cli.find_running_server", lambda _port: None)
+def test_shutdown_no_server(monkeypatch, tmp_path):
+    _empty_state(monkeypatch, tmp_path)
     result = runner.invoke(app, ["--shutdown"])
     assert result.exit_code == 0
     assert "Nothing to shut down" in result.output
@@ -183,8 +197,11 @@ def test_browser_before_upload_new_server(monkeypatch, tmp_path):
     dummy.write_text("dummy")
 
     call_order: list[str] = []
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
 
-    monkeypatch.setattr("zndraw.cli.find_running_server", lambda _port: None)
+    monkeypatch.setattr("zndraw.cli.StateFile", lambda: StateFile(directory=state_dir))
+    monkeypatch.setattr("zndraw.cli._is_url_healthy", lambda _url: False)
     monkeypatch.setattr("zndraw.cli.wait_for_server_ready", lambda *_a, **_kw: True)
     monkeypatch.setattr("uvicorn.Server.run", lambda _self: None)
     monkeypatch.setattr(
@@ -205,8 +222,15 @@ def test_browser_before_upload_existing_server(monkeypatch, tmp_path):
     dummy.write_text("dummy")
 
     call_order: list[str] = []
-    info = ServerInfo(pid=1234, port=8000, version=__version__)
-    monkeypatch.setattr("zndraw.cli.find_running_server", lambda _port: info)
+    state_dir = tmp_path / "state"
+    state = StateFile(directory=state_dir)
+    now = datetime.now(UTC)
+    state.add_server(
+        "http://localhost:8000",
+        ServerEntry(added_at=now, last_used=now, pid=1234, version=__version__),
+    )
+    monkeypatch.setattr("zndraw.cli.StateFile", lambda: state)
+    monkeypatch.setattr("zndraw.cli._is_url_healthy", lambda _url: True)
     monkeypatch.setattr(
         "zndraw.cli.webbrowser.open", lambda _url: call_order.append("browser")
     )
@@ -241,7 +265,7 @@ def test_browser_before_upload_remote(monkeypatch, tmp_path):
 
 
 @pytest.fixture
-def capture_settings(monkeypatch):
+def capture_settings(monkeypatch, tmp_path):
     """Spy on Settings instantiation and stub out server startup."""
     captured: list[Settings] = []
     original_init = Settings.__init__
@@ -252,7 +276,10 @@ def capture_settings(monkeypatch):
 
     monkeypatch.setattr(Settings, "__init__", spy_init)
     monkeypatch.setattr("uvicorn.Server.run", lambda _self: None)
-    monkeypatch.setattr("zndraw.cli.find_running_server", lambda _port: None)
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    monkeypatch.setattr("zndraw.cli.StateFile", lambda: StateFile(directory=state_dir))
+    monkeypatch.setattr("zndraw.cli._is_url_healthy", lambda _url: False)
     return captured
 
 

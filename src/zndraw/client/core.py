@@ -130,41 +130,68 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         """Initialize the client (REST-only, socket connects lazily)."""
         import atexit
 
-        from zndraw.auth_utils import resolve_token
+        from zndraw.auth_utils import (
+            guest_login,
+            login_with_credentials,
+            validate_credentials,
+        )
+        from zndraw.client.settings import ClientSettings
 
         # Normalize password to SecretStr
         if isinstance(self.password, str):
             self.password = SecretStr(self.password)
 
-        # Generate room ID if not provided
-        if self.room is None:
-            self.room = str(uuid.uuid4())
+        # Validate credential combinations (fail fast)
+        validate_credentials(self.token, self.user, self.password)
 
-        # Resolve URL (auto-discover if None)
-        self.url = self._resolve_url(self.url)
+        # Resolve via pydantic-settings chain
+        overrides = {
+            k: v
+            for k, v in {
+                "url": self.url,
+                "room": self.room,
+                "user": self.user,
+                "password": self.password,
+                "token": self.token,
+            }.items()
+            if v is not None
+        }
+        resolved = ClientSettings(**overrides)
 
-        # Create API manager (token may be None initially)
+        # url is required — if still None after full chain, error out
+        if resolved.url is None:
+            raise ConnectionError(
+                "No ZnDraw server found. Pass url=, set ZNDRAW_URL, "
+                "add [tool.zndraw] url to pyproject.toml, or start a local server."
+            )
+        self.url = resolved.url
+        self.room = resolved.room or str(uuid.uuid4())
+
+        # Token resolution: settings chain > user/password login > guest
+        if resolved.token is not None:
+            self.token = resolved.token
+        elif resolved.user and resolved.password:
+            self.token = login_with_credentials(
+                self.url, resolved.user, resolved.password
+            )
+        else:
+            self.token = guest_login(self.url)
+
+        # Create API manager
         self.api = APIManager(url=self.url, room_id=self.room, token=self.token)
 
-        # Authenticate via shared resolve_token
-        self.api.token = resolve_token(
-            self.url,
-            token=self.token,
-            user=self.user,
-            password=self.password,
-        )
-
         # Populate self.user for guest/stored-token sessions
-        # Skip when token was explicitly provided (caller already knows identity)
-        if self.user is None and self.token is None:
+        # Skip when token was explicitly provided by the caller
+        explicit_token = overrides.get("token") is not None
+        if self.user is None and not explicit_token:
             resp = self.api.http.get(
                 "/v1/auth/users/me",
-                headers={"Authorization": f"Bearer {self.api.token}"},
+                headers={"Authorization": f"Bearer {self.token}"},
             )
             if resp.status_code == 200:
                 self.user = resp.json().get("email")
 
-        # Create socket manager (no connection yet -- connects lazily)
+        # Create socket manager (no connection yet — connects lazily)
         self.socket = SocketManager(zndraw=self)
 
         # Create job manager (zero-cost until first register())
@@ -186,7 +213,6 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             self.api.create_room(copy_from=self.copy_from)
             self.cached_length = 0
 
-        # Ensure cleanup on interpreter exit
         atexit.register(self.disconnect)
 
     # -------------------------------------------------------------------------
@@ -490,32 +516,6 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     # Class Methods (server-level, no room needed)
     # -------------------------------------------------------------------------
 
-    @staticmethod
-    def _resolve_url(url: str | None) -> str:
-        """Resolve the server URL from argument or PID file auto-discovery.
-
-        Parameters
-        ----------
-        url
-            Explicit URL, or None to auto-discover via PID file.
-
-        Raises
-        ------
-        ConnectionError
-            If no running server is found.
-        """
-        if url is not None:
-            return url.rstrip("/")
-        from zndraw.server_manager import find_running_server
-
-        server_info = find_running_server()
-        if server_info is not None:
-            return f"http://localhost:{server_info.port}"
-        raise ConnectionError(
-            "No running zndraw server found."
-            " Start one with `uv run zndraw` or pass `url`."
-        )
-
     @classmethod
     def list_rooms(
         cls,
@@ -529,17 +529,25 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         Parameters
         ----------
         url
-            Server URL. If None, auto-discovers via PID file.
+            Server URL. If None, auto-discovers via state file.
         token
             JWT token. If None, uses stored token or creates guest session.
         search
             Optional search filter.
         """
-        from zndraw.auth_utils import resolve_token
+        from zndraw.auth_utils import guest_login
+        from zndraw.client.settings import ClientSettings
 
-        resolved = cls._resolve_url(url)
-        resolved_token = resolve_token(resolved, token=token)
-        api = APIManager(url=resolved, room_id="", token=resolved_token)
+        overrides = {
+            k: v for k, v in {"url": url, "token": token}.items() if v is not None
+        }
+        resolved = ClientSettings(**overrides)
+        if resolved.url is None:
+            raise ConnectionError(
+                "No ZnDraw server found. Pass url= or start a local server."
+            )
+        resolved_token = resolved.token or guest_login(resolved.url)
+        api = APIManager(url=resolved.url, room_id="", token=resolved_token)
         try:
             return api.list_rooms(search=search)
         finally:
@@ -557,21 +565,22 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         Parameters
         ----------
         url
-            Server URL. If None, auto-discovers via PID file.
+            Server URL. If None, auto-discovers via state file.
         username
             User email.
         password
             User password.
-
-        Returns
-        -------
-        str
-            JWT access token.
         """
-        from zndraw.auth_utils import resolve_token
+        from zndraw.auth_utils import login_with_credentials
+        from zndraw.client.settings import ClientSettings
 
-        resolved = cls._resolve_url(url)
-        return resolve_token(resolved, user=username, password=password)
+        overrides = {k: v for k, v in {"url": url}.items() if v is not None}
+        resolved = ClientSettings(**overrides)
+        if resolved.url is None:
+            raise ConnectionError(
+                "No ZnDraw server found. Pass url= or start a local server."
+            )
+        return login_with_credentials(resolved.url, username, password)
 
     @property
     def jobs(self) -> JobManager:

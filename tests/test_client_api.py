@@ -12,7 +12,6 @@ import pytest
 
 from zndraw import ZnDraw
 from zndraw.schemas import MessageResponse
-from zndraw.server_manager import ServerInfo
 
 # =============================================================================
 # ZnDraw.list_rooms classmethod
@@ -47,20 +46,18 @@ def test_list_rooms_search_filters(server: str):
     assert room_name in room_ids
 
 
-def test_list_rooms_autodiscover(server: str):
-    """list_rooms with url=None uses PID file auto-discovery."""
-    # Extract port from server URL (e.g. "http://127.0.0.1:12345")
-    port = int(server.rsplit(":", 1)[1])
-    fake_info = ServerInfo(pid=0, port=port, version="")
-    with patch("zndraw.server_manager.find_running_server", return_value=fake_info):
-        rooms = ZnDraw.list_rooms()
+def test_list_rooms_autodiscover(server: str, monkeypatch: pytest.MonkeyPatch):
+    """list_rooms with url=None uses env-based auto-discovery."""
+    monkeypatch.setenv("ZNDRAW_URL", server)
+    rooms = ZnDraw.list_rooms()
     assert isinstance(rooms, list)
 
 
-def test_list_rooms_no_server_raises():
+def test_list_rooms_no_server_raises(monkeypatch: pytest.MonkeyPatch):
     """list_rooms raises ConnectionError when no server is found."""
+    monkeypatch.delenv("ZNDRAW_URL", raising=False)
     with (
-        patch("zndraw.server_manager.find_running_server", return_value=None),
+        patch("zndraw.settings_sources.StateFileSource.__call__", return_value={}),
         pytest.raises(ConnectionError),
     ):
         ZnDraw.list_rooms()
@@ -82,23 +79,22 @@ def test_login_returns_token(server_auth: str):
     assert len(token) > 0
 
 
-def test_login_autodiscover(server_auth: str):
-    """login with url=None uses PID file auto-discovery."""
-    port = int(server_auth.rsplit(":", 1)[1])
-    fake_info = ServerInfo(pid=0, port=port, version="")
-    with patch("zndraw.server_manager.find_running_server", return_value=fake_info):
-        token = ZnDraw.login(
-            username="admin@local.test",
-            password="adminpassword",
-        )
+def test_login_autodiscover(server_auth: str, monkeypatch: pytest.MonkeyPatch):
+    """login with url=None uses env-based auto-discovery."""
+    monkeypatch.setenv("ZNDRAW_URL", server_auth)
+    token = ZnDraw.login(
+        username="admin@local.test",
+        password="adminpassword",
+    )
     assert isinstance(token, str)
     assert len(token) > 0
 
 
-def test_login_no_server_raises():
+def test_login_no_server_raises(monkeypatch: pytest.MonkeyPatch):
     """login raises ConnectionError when no server is found."""
+    monkeypatch.delenv("ZNDRAW_URL", raising=False)
     with (
-        patch("zndraw.server_manager.find_running_server", return_value=None),
+        patch("zndraw.settings_sources.StateFileSource.__call__", return_value={}),
         pytest.raises(ConnectionError),
     ):
         ZnDraw.login(username="x", password="y")
@@ -109,20 +105,19 @@ def test_login_no_server_raises():
 # =============================================================================
 
 
-def test_constructor_autodiscover(server: str):
-    """ZnDraw() with url=None uses PID file auto-discovery."""
-    port = int(server.rsplit(":", 1)[1])
-    fake_info = ServerInfo(pid=0, port=port, version="")
-    with patch("zndraw.server_manager.find_running_server", return_value=fake_info):
-        vis = ZnDraw()
-    assert vis.url == f"http://localhost:{port}"
+def test_constructor_autodiscover(server: str, monkeypatch: pytest.MonkeyPatch):
+    """ZnDraw() with url=None uses env-based auto-discovery."""
+    monkeypatch.setenv("ZNDRAW_URL", server)
+    vis = ZnDraw()
+    assert vis.url == server
     vis.disconnect()
 
 
-def test_constructor_no_server_raises():
+def test_constructor_no_server_raises(monkeypatch: pytest.MonkeyPatch):
     """ZnDraw() raises ConnectionError when no server is found."""
+    monkeypatch.delenv("ZNDRAW_URL", raising=False)
     with (
-        patch("zndraw.server_manager.find_running_server", return_value=None),
+        patch("zndraw.settings_sources.StateFileSource.__call__", return_value={}),
         pytest.raises(ConnectionError),
     ):
         ZnDraw()

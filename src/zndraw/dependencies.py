@@ -26,6 +26,7 @@ from zndraw_socketio import AsyncServerWrapper
 
 from zndraw.exceptions import (
     Forbidden,
+    NotAuthenticated,
     RoomLocked,
     RoomNotFound,
     RoomReadOnly,
@@ -41,6 +42,41 @@ from zndraw.storage import FrameStorage
 CurrentUserDep = Annotated[User, Depends(current_active_user)]
 AdminUserDep = Annotated[User, Depends(current_superuser)]
 OptionalUserDep = Annotated[User | None, Depends(current_optional_user)]
+
+
+async def get_local_token_or_admin(
+    request: Request,
+    user: OptionalUserDep,
+) -> User:
+    """Accept local_token as superuser OR require normal admin auth.
+
+    When the request carries ``Authorization: Bearer <local_token>`` and
+    it matches ``app.state.local_token``, a synthetic superuser identity
+    is returned without touching the database.
+
+    Otherwise, falls through to normal JWT auth via ``OptionalUserDep``.
+    """
+    # Path 1: Normal JWT auth succeeded -> check superuser
+    if user is not None:
+        if not user.is_superuser:
+            raise Forbidden.exception("Not a superuser")
+        return user
+
+    # Path 2: Check local admin token
+    local_token: str | None = getattr(request.app.state, "local_token", None)
+    if local_token is not None:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header == f"Bearer {local_token}":
+            return User(
+                email="local-admin@localhost",
+                hashed_password="",
+                is_superuser=True,
+            )
+
+    raise NotAuthenticated.exception("Not authenticated")
+
+
+LocalTokenOrAdminDep = Annotated[User, Depends(get_local_token_or_admin)]
 
 # Scoped-session variants — session closed before endpoint body runs,
 # so the SQLite asyncio.Lock is NOT held during long-polling.

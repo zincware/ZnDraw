@@ -17,6 +17,7 @@ import sys
 import threading
 import uuid
 import webbrowser
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -25,14 +26,9 @@ import uvicorn
 
 from zndraw import __version__
 from zndraw.client import ZnDraw
-from zndraw.server_manager import (
-    ServerInfo,
-    find_running_server,
-    remove_server_info,
-    shutdown_server,
-    wait_for_server_ready,
-    write_server_info,
-)
+from zndraw.server_manager import shutdown_server, wait_for_server_ready
+from zndraw.settings_sources import _is_url_healthy
+from zndraw.state_file import ServerEntry, StateFile
 
 app = typer.Typer(
     name="zndraw",
@@ -241,15 +237,18 @@ def validate_files_exist(paths: list[str]) -> None:
 
 def handle_status(port: int | None) -> None:
     """Handle --status flag. Always raises typer.Exit."""
-    server_info = find_running_server(port)
+    state = StateFile()
+    data = state.read()
 
-    if server_info is not None:
-        typer.echo(
-            f"Server running (PID: {server_info.pid}, "
-            f"Port: {server_info.port}, Version: {server_info.version})"
-        )
-        typer.echo(f"  Server URL: http://localhost:{server_info.port}")
-        raise typer.Exit(0)
+    for url, entry in data.servers.items():
+        if port is not None and not url.endswith(f":{port}"):
+            continue
+        if _is_url_healthy(url):
+            typer.echo(
+                f"Server running (PID: {entry.pid}, "
+                f"URL: {url}, Version: {entry.version})"
+            )
+            raise typer.Exit(0)
 
     if port is not None:
         typer.echo(f"No ZnDraw server running on port {port}")
@@ -260,19 +259,30 @@ def handle_status(port: int | None) -> None:
 
 def handle_shutdown(port: int | None) -> None:
     """Handle --shutdown flag. Always raises typer.Exit."""
-    server_info = find_running_server(port)
+    state = StateFile()
+    data = state.read()
 
-    if server_info is None:
+    target_url: str | None = None
+    target_entry: ServerEntry | None = None
+
+    for url, entry in data.servers.items():
+        if port is not None and not url.endswith(f":{port}"):
+            continue
+        if _is_url_healthy(url):
+            target_url = url
+            target_entry = entry
+            break
+
+    if target_url is None or target_entry is None:
         if port is not None:
             typer.echo(f"No server running on port {port}. Nothing to shut down.")
         else:
             typer.echo("No running server found. Nothing to shut down.")
         raise typer.Exit(0)
 
-    typer.echo(
-        f"Shutting down server (PID: {server_info.pid}, Port: {server_info.port})..."
-    )
-    if shutdown_server(server_info):
+    typer.echo(f"Shutting down server at {target_url}...")
+    if shutdown_server(target_url, local_token=target_entry.local_token):
+        state.remove_server(target_url)
         typer.echo("Server shut down successfully")
         raise typer.Exit(0)
 
@@ -299,38 +309,43 @@ def resolve_server(
     host: str | None,
     detached: bool,
     verbose: bool,
-) -> tuple[str, uvicorn.Server | None, int]:
+) -> tuple[str, uvicorn.Server | None, str]:
     """Resolve or start a ZnDraw server.
 
     Returns
     -------
-    tuple[str, uvicorn.Server | None, int]
-        (server_url, server, effective_port).
+    tuple[str, uvicorn.Server | None, str]
+        (server_url, server, server_url).
         server is None for remote/existing connections.
-        effective_port is only meaningful when server is not None.
+        The third element is the server URL used for StateFile cleanup.
     """
     if connect:
         typer.echo(f"Connecting to remote server: {connect}")
-        return connect, None, 0
+        return connect, None, connect
 
-    server_info = find_running_server(port)
-    if server_info is not None:
-        typer.echo(
-            f"Found existing server (PID: {server_info.pid}, "
-            f"Port: {server_info.port}, Version: {server_info.version})"
-        )
-        typer.echo(f"  Server URL: http://localhost:{server_info.port}")
+    state = StateFile()
+    data = state.read()
 
-        if server_info.version != __version__:
+    # Health-check-based discovery of existing servers
+    for url, entry in data.servers.items():
+        if port is not None and not url.endswith(f":{port}"):
+            continue
+        if _is_url_healthy(url):
             typer.echo(
-                f"Warning: Server version ({server_info.version}) "
-                f"differs from CLI version ({__version__})"
-            )
-            typer.echo(
-                "  Consider running 'zndraw --shutdown' and starting a new server."
+                f"Found existing server (PID: {entry.pid}, "
+                f"URL: {url}, Version: {entry.version})"
             )
 
-        return f"http://localhost:{server_info.port}", None, server_info.port
+            if entry.version != __version__:
+                typer.echo(
+                    f"Warning: Server version ({entry.version}) "
+                    f"differs from CLI version ({__version__})"
+                )
+                typer.echo(
+                    "  Consider running 'zndraw --shutdown' and starting a new server."
+                )
+
+            return url, None, url
 
     # Start new server — build Settings from CLI overrides
     from zndraw.config import Settings
@@ -353,20 +368,24 @@ def resolve_server(
     else:
         client_host = bind_host
 
+    server_url = f"http://{client_host}:{effective_port}"
     typer.echo(f"Starting new server on port {effective_port}...")
 
-    shutdown_token = secrets.token_urlsafe(32)
+    local_token = secrets.token_urlsafe(32)
 
     if detached:
         daemonize()
 
-    write_server_info(
-        ServerInfo(
+    now = datetime.now(UTC)
+    state.add_server(
+        server_url,
+        ServerEntry(
+            added_at=now,
+            last_used=now,
             pid=os.getpid(),
-            port=effective_port,
             version=__version__,
-            shutdown_token=shutdown_token,
-        )
+            local_token=local_token,
+        ),
     )
 
     log_level = "debug" if verbose else "info"
@@ -374,7 +393,7 @@ def resolve_server(
     # Import here to avoid circular imports
     from zndraw.app import app as fastapi_app, socket_app
 
-    fastapi_app.state.shutdown_token = shutdown_token
+    fastapi_app.state.local_token = local_token
     fastapi_app.state.settings_overrides = settings_kwargs
 
     config = uvicorn.Config(
@@ -384,9 +403,9 @@ def resolve_server(
         log_level=log_level,
     )
     return (
-        f"http://{client_host}:{effective_port}",
+        server_url,
         uvicorn.Server(config),
-        effective_port,
+        server_url,
     )
 
 
@@ -590,7 +609,7 @@ def main(
         typer.echo(msg)
 
     # ── Resolve server ───────────────────────────────────────────────
-    url, server, effective_port = resolve_server(connect, port, host, detached, verbose)
+    url, server, server_url = resolve_server(connect, port, host, detached, verbose)
 
     if server is None:
         # Remote or existing server — open browser, upload, done
@@ -608,7 +627,7 @@ def main(
             server.run()
         except KeyboardInterrupt:
             typer.echo("\nShutting down...")
-        remove_server_info(effective_port)
+        StateFile().remove_server(server_url)
         typer.echo("Server stopped.")
         return
 
@@ -628,7 +647,7 @@ def main(
         thread.join()
     except KeyboardInterrupt:
         typer.echo("\nShutting down...")
-    remove_server_info(effective_port)
+    StateFile().remove_server(server_url)
     typer.echo("Server stopped.")
 
 
