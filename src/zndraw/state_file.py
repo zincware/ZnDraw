@@ -220,3 +220,56 @@ class StateFile:
             The token entry, or None if not found.
         """
         return self.read().tokens.get(url)
+
+    # --- Migration ---
+
+    def migrate_if_needed(self) -> None:
+        """Migrate old PID files and tokens.json to state.json.
+
+        Called on first access. Old files are deleted after migration.
+        Old shutdown_token values are dropped (never validated server-side).
+        """
+        pid_files = sorted(self.directory.glob("server-*.pid"))
+        tokens_file = self.directory / "tokens.json"
+
+        if not pid_files and not tokens_file.exists():
+            return
+
+        data = self.read()
+        now = datetime.now(UTC)
+
+        # Migrate PID files
+        for pid_file in pid_files:
+            try:
+                raw = json.loads(pid_file.read_text())
+                port = raw["port"]
+                url = f"http://localhost:{port}"
+                data.servers[url] = ServerEntry(
+                    added_at=now,
+                    last_used=now,
+                    pid=raw.get("pid"),
+                    version=raw.get("version"),
+                    # shutdown_token dropped intentionally
+                )
+            except (json.JSONDecodeError, KeyError, ValueError):
+                log.warning("Skipping corrupt PID file: %s", pid_file)
+            pid_file.unlink()
+
+        # Migrate tokens.json
+        if tokens_file.exists():
+            try:
+                raw_tokens = json.loads(tokens_file.read_text())
+                for url, entry_data in raw_tokens.items():
+                    data.tokens[url] = TokenEntry(**entry_data)
+                    # Also register as a server if not already known
+                    if url not in data.servers:
+                        data.servers[url] = ServerEntry(
+                            added_at=now,
+                            last_used=now,
+                        )
+            except (json.JSONDecodeError, KeyError, ValueError):
+                log.warning("Skipping corrupt tokens.json")
+            tokens_file.unlink()
+
+        if data.servers or data.tokens:
+            self._write(data)
