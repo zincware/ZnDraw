@@ -238,7 +238,6 @@ def validate_files_exist(paths: list[str]) -> None:
 def handle_status(port: int | None) -> None:
     """Handle --status flag. Always raises typer.Exit."""
     state = StateFile()
-    state.migrate_if_needed()
     data = state.read()
 
     for url, entry in data.servers.items():
@@ -261,7 +260,6 @@ def handle_status(port: int | None) -> None:
 def handle_shutdown(port: int | None) -> None:
     """Handle --shutdown flag. Always raises typer.Exit."""
     state = StateFile()
-    state.migrate_if_needed()
     data = state.read()
 
     target_url: str | None = None
@@ -326,7 +324,6 @@ def resolve_server(
         return connect, None, connect
 
     state = StateFile()
-    state.migrate_if_needed()
     data = state.read()
 
     # Health-check-based discovery of existing servers

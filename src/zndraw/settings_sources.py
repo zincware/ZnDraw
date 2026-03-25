@@ -125,7 +125,6 @@ class StateFileSource(PydanticBaseSettingsSource):
         dict[str, Any]
             Resolved settings (url, token) or empty dict.
         """
-        self._state_file.migrate_if_needed()
         result: dict[str, Any] = {}
 
         # Check if URL was already resolved by a higher-priority source
