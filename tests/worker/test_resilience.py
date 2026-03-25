@@ -7,9 +7,12 @@ does not break the system:
 - Server restart with fresh DB causes worker to get 401/404.
 """
 
+import logging
 import threading
 import time
 from typing import ClassVar
+
+logger = logging.getLogger(__name__)
 
 import pytest
 from zndraw_joblib.client import Category, Extension
@@ -61,9 +64,9 @@ def test_worker_exits_on_server_restart_fresh_db(server_factory):
 
     def _listen_loop():
         try:
-            for task in worker.jobs.listen(polling_interval=0.5):
+            for _task in worker.jobs.listen(polling_interval=0.5):
                 pass  # never expect a task
-        except (PermissionError, KeyError, Exception) as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
             thread_error.append(exc)
         finally:
             thread_exited.set()
@@ -104,11 +107,11 @@ def test_worker_exits_on_server_restart_fresh_db(server_factory):
     try:
         worker.jobs.disconnect()
     except Exception:  # noqa: BLE001
-        pass
+        logger.debug("Expected: jobs.disconnect() failed (stale token)", exc_info=True)
     try:
         worker.disconnect()
     except Exception:  # noqa: BLE001
-        pass
+        logger.debug("Expected: disconnect() failed (stale token)", exc_info=True)
 
 
 # =============================================================================

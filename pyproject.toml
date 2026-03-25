@@ -31,7 +31,7 @@ dependencies = [
     "splines>=0.3.3",
     "sqlalchemy[asyncio, aiosqlite]>=2.0.46",
     "sqlmodel>=0.0.31",
-    "zndraw-joblib>=0.1.6",
+    "zndraw-joblib>=0.1.7",
     "typer>=0.21.1",
     "uvicorn>=0.40.0",
     "vesin>=0.4.2",
@@ -223,7 +223,6 @@ skip = "frontend/bun.lock,docs/source/_static/*.svg,.planning/*"
 ignore-words-list = "nd,trough"
 
 [tool.uv.sources]
-zndraw-joblib = { path = "../zndraw-joblib", editable = true }
 
 [tool.ruff.format]
 quote-style = "double"
