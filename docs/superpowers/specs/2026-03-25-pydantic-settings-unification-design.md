@@ -165,11 +165,13 @@ class ClientSettings(BaseSettings):
     url: str | None = None
     room: str | None = None
     user: str | None = None
-    password: SecretStr | None = None
+    password: SecretStr | str | None = None  # str auto-coerced to SecretStr by pydantic
     token: str | None = None
 ```
 
 `ClientSettings` reads from `[tool.zndraw]` (the top-level table). Server-side `Settings` reads from `[tool.zndraw.server]`. No table overlap, no `extra="ignore"` needed.
+
+**Env prefix sharing:** Both `Settings` and `ClientSettings` use `env_prefix="ZNDRAW_"`. This is safe because their field names are non-overlapping (`Settings` has `host`, `port`, `database_url`, etc.; `ClientSettings` has `url`, `room`, `user`, `password`, `token`). Pydantic-settings silently ignores env vars that don't match a field. `env_nested_delimiter` is omitted from `ClientSettings` since it has no nested fields.
 
 ### Priority Chain
 
@@ -218,7 +220,19 @@ Replaces both `ServerInfo` + `TokenStore` with a single `~/.zndraw/state.json` (
 }
 ```
 
-Both `servers` and `tokens` use the full URL as key. Local servers have `pid`, `version`, and `local_token`. All entries have `added_at` (creation time) and `last_used` (updated on each successful connection). Resolution orders by `last_used` descending — most recently used server is tried first.
+Both `servers` and `tokens` use the full URL as key. All entries share a common schema with optional local-only fields:
+
+```python
+class ServerEntry(BaseModel):
+    added_at: datetime
+    last_used: datetime
+    # Local-only fields (None for remote servers)
+    pid: int | None = None
+    version: str | None = None
+    local_token: str | None = None
+```
+
+A server is considered "local" if it has a `pid`. Resolution orders by `last_used` descending — most recently used server is tried first.
 
 Key changes from current state:
 - **Merged**: PID files + tokens.json into one file.
@@ -294,7 +308,12 @@ flowchart TD
 
 "Points to local server" means the resolved URL matches a localhost entry in `state.json → servers` that passed the health check. In that case, `local_token` is used directly — it grants superuser access, bypassing the normal auth chain.
 
-**Implementation detail:** Token resolution depends on the already-resolved `url`. In `StateFileSource.__call__`, the source accesses `self.current_state["url"]` (populated by higher-priority sources or the source's own URL resolution) to determine which token to return. If `url` is still `None` in `current_state`, no token is returned.
+**Implementation detail:** Token resolution depends on the already-resolved `url`. `PydanticBaseSettingsSource` does not provide cross-field access to higher-priority values. Instead, `StateFileSource.__call__` uses a two-pass approach internally:
+
+1. **Resolve URL** from `state.json → servers` (health check, partition, sort).
+2. **Resolve token** using the URL found in step 1 (or `None` if no URL from this source). If a higher-priority source provides `url`, the source's own URL is discarded during merge, but the token it returned is still valid as long as it was looked up against its own resolved URL (which is the same server the higher source also points to) or is simply overridden by a higher-priority token.
+
+If the source cannot determine a URL (no healthy servers), it returns `{"url": None, "token": None}` and both fields fall through to higher sources or error handling.
 
 ### Local Admin Token
 
@@ -312,7 +331,7 @@ Auth endpoint or middleware:
 - This replaces the unused `X-Shutdown-Token` mechanism.
 - Normal JWT auth continues to work for all other tokens (guests, logged-in users, remote clients).
 
-`shutdown_server()` (in `server_manager.py`) is updated to read `local_token` from `state.json` and send it as `Authorization: Bearer <local_token>` instead of the old `X-Shutdown-Token` header. This means local shutdown now uses the same auth mechanism as all other local admin operations.
+`shutdown_server()` (in `server_manager.py`) is updated to read `local_token` from `state.json` and send it as `Authorization: Bearer <local_token>`. The old `X-Shutdown-Token` header logic is removed entirely (it was never validated server-side). Local shutdown now uses the same auth mechanism as all other local admin operations.
 
 #### Client-Side
 
@@ -451,7 +470,7 @@ flowchart TD
     subgraph "zndraw-cli auth login --url URL"
         L1["Resolve URL"] --> L2["Device-code flow"]
         L2 --> L3["Store token in<br/>state.json → tokens[url]"]
-        L3 --> L4["Add url to<br/>state.json → servers[url]<br/>with added_at = now"]
+        L3 --> L4["Add url to<br/>state.json → servers[url]<br/>with added_at = last_used = now"]
     end
 
     subgraph "zndraw-cli auth logout --url URL"
@@ -460,7 +479,7 @@ flowchart TD
     end
 
     subgraph "zndraw server start"
-        S1["Generate local_token"] --> S2["Write to state.json → servers[url]<br/>with pid, local_token, added_at"]
+        S1["Generate local_token"] --> S2["Write to state.json → servers[url]<br/>with pid, local_token,<br/>added_at = last_used = now"]
         S2 --> S3["Store local_token in app.state"]
     end
 
