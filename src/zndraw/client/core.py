@@ -130,12 +130,19 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         """Initialize the client (REST-only, socket connects lazily)."""
         import atexit
 
-        from zndraw.auth_utils import guest_login, login_with_credentials
+        from zndraw.auth_utils import (
+            guest_login,
+            login_with_credentials,
+            validate_credentials,
+        )
         from zndraw.client.settings import ClientSettings
 
         # Normalize password to SecretStr
         if isinstance(self.password, str):
             self.password = SecretStr(self.password)
+
+        # Validate credential combinations (fail fast)
+        validate_credentials(self.token, self.user, self.password)
 
         # Resolve via pydantic-settings chain
         overrides = {
