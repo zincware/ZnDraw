@@ -1,7 +1,7 @@
 """Connection management for zndraw-cli.
 
-Handles server URL resolution (flag -> env -> PID file) and token
-resolution (flag -> env -> guest auth). Provides a Connection dataclass
+Handles server URL resolution and token resolution via ClientSettings
+(pydantic-settings source chain). Provides a Connection dataclass
 that wraps httpx.Client with base_url and auth header.
 """
 
@@ -21,36 +21,27 @@ if TYPE_CHECKING:
 
     from zndraw import ZnDraw
 
-from zndraw.server_manager import TokenStore, find_running_server
-
 # Shared type aliases for per-subcommand options
 UrlOpt = Annotated[
     str | None,
-    typer.Option("--url", envvar="ZNDRAW_URL", help="ZnDraw server URL"),
+    typer.Option("--url", help="ZnDraw server URL [env: ZNDRAW_URL]."),
 ]
 TokenOpt = Annotated[
     str | None,
-    typer.Option("--token", envvar="ZNDRAW_TOKEN", help="Auth token"),
+    typer.Option("--token", help="Auth token [env: ZNDRAW_TOKEN]."),
 ]
 RoomOpt = Annotated[
     str | None,
-    typer.Option("--room", envvar="ZNDRAW_ROOM", help="Room ID"),
+    typer.Option("--room", help="Room ID [env: ZNDRAW_ROOM]."),
 ]
 UserOpt = Annotated[
     str | None,
-    typer.Option("--user", envvar="ZNDRAW_USER", help="User email for authentication"),
+    typer.Option("--user", help="User email [env: ZNDRAW_USER]."),
 ]
 PasswordOpt = Annotated[
     str | None,
-    typer.Option(
-        "--password", envvar="ZNDRAW_PASSWORD", help="Password for authentication"
-    ),
+    typer.Option("--password", help="Password [env: ZNDRAW_PASSWORD]."),
 ]
-
-
-def get_token_store() -> TokenStore:
-    """Return the default TokenStore."""
-    return TokenStore()
 
 
 # Exit codes
@@ -181,86 +172,33 @@ class Connection:
         self.client.close()
 
 
-def resolve_url(url: str | None) -> str:
-    """Resolve the server URL from flag, env, or PID file.
-
-    Parameters
-    ----------
-    url
-        Explicit URL from ``--url`` flag or ``ZNDRAW_URL`` env var.
-        ``None`` triggers PID file auto-discovery.
-    """
-    if url is not None:
-        return url.rstrip("/")
-
-    server_info = find_running_server()
-    if server_info is not None:
-        return f"http://localhost:{server_info.port}"
-
-    die(
-        "No Server Found",
-        "No running zndraw server found. Start one with `zndraw` or pass `--url`.",
-        503,
-        EXIT_CONNECTION_ERROR,
-    )
-
-
-def resolve_token(
-    base_url: str,
-    token: str | None,
-    user: str | None = None,
-    password: str | None = None,
-) -> str:
-    """Resolve auth token — CLI wrapper around shared auth_utils.
-
-    Parameters
-    ----------
-    base_url
-        Server URL.
-    token
-        Explicit token from ``--token`` / ``ZNDRAW_TOKEN``.
-    user
-        User email from ``--user`` / ``ZNDRAW_USER``.
-    password
-        Password from ``--password`` / ``ZNDRAW_PASSWORD``.
-    """
-    from zndraw.auth_utils import resolve_token as _resolve_token
-
-    try:
-        return _resolve_token(base_url, token=token, user=user, password=password)
-    except ValueError as exc:
-        die(str(exc), str(exc), 400, EXIT_CLIENT_ERROR)
-    except httpx.HTTPStatusError as exc:
-        status = exc.response.status_code
-        title = "Authentication Failed" if status < 500 else "Server Error"
-        exit_code = EXIT_CLIENT_ERROR if status < 500 else EXIT_SERVER_ERROR
-        die(title, str(exc), status, exit_code)
-    except (httpx.RequestError, KeyError) as exc:
-        die(
-            "Authentication Failed",
-            f"Failed to authenticate: {exc}",
-            401,
-            EXIT_CONNECTION_ERROR,
-        )
-
-
 def resolve_room(room: str | None) -> str:
-    """Resolve room from ``--room`` option or ``ZNDRAW_ROOM`` env var.
+    """Resolve room from ``--room`` flag, env var, or ClientSettings.
 
     Parameters
     ----------
     room
-        Room value from the ``--room`` option (includes env var fallback
-        via Typer's ``envvar``), or None.
+        Room value from the ``--room`` flag, or None.
     """
-    if room is None:
-        die(
-            "Room Required",
-            "Pass --room or set ZNDRAW_ROOM env var.",
-            400,
-            EXIT_CLIENT_ERROR,
-        )
-    return room
+    if room is not None:
+        return room
+
+    from zndraw.client.settings import ClientSettings
+
+    try:
+        settings = ClientSettings()
+    except Exception:
+        pass
+    else:
+        if settings.room is not None:
+            return settings.room
+
+    die(
+        "Room Required",
+        "Pass --room or set ZNDRAW_ROOM env var.",
+        400,
+        EXIT_CLIENT_ERROR,
+    )
 
 
 def get_current_step(conn: Connection, room: str) -> int:
@@ -283,22 +221,62 @@ def get_connection(
     user: str | None = None,
     password: str | None = None,
 ) -> Connection:
-    """Create a Connection from resolved URL and token.
+    """Create a Connection using ClientSettings for resolution.
 
     Parameters
     ----------
     url
-        From ``--url`` flag / ``ZNDRAW_URL`` env var, or None.
+        From ``--url`` flag, or None.
     token
-        From ``--token`` flag / ``ZNDRAW_TOKEN`` env var, or None.
+        From ``--token`` flag, or None.
     user
-        From ``--user`` flag / ``ZNDRAW_USER`` env var, or None.
+        From ``--user`` flag, or None.
     password
-        From ``--password`` flag / ``ZNDRAW_PASSWORD`` env var, or None.
+        From ``--password`` flag, or None.
     """
-    base_url = resolve_url(url)
-    resolved_token = resolve_token(base_url, token, user=user, password=password)
-    return Connection(base_url=base_url, token=resolved_token)
+    from zndraw.auth_utils import guest_login, login_with_credentials
+    from zndraw.client.settings import ClientSettings
+
+    overrides = {
+        k: v
+        for k, v in {
+            "url": url,
+            "token": token,
+            "user": user,
+            "password": password,
+        }.items()
+        if v is not None
+    }
+
+    try:
+        settings = ClientSettings(**overrides)
+    except Exception as exc:
+        die("Configuration Error", str(exc), 400, EXIT_CLIENT_ERROR)
+
+    if settings.url is None:
+        die(
+            "No Server Found",
+            "No running zndraw server found. Start one with `uv run zndraw` or pass `--url`.",
+            503,
+            EXIT_CONNECTION_ERROR,
+        )
+
+    if settings.token is not None:
+        resolved_token = settings.token
+    elif settings.user and settings.password:
+        try:
+            resolved_token = login_with_credentials(
+                settings.url, settings.user, settings.password
+            )
+        except (httpx.HTTPStatusError, httpx.RequestError, KeyError) as exc:
+            die("Authentication Failed", str(exc), 401, EXIT_CONNECTION_ERROR)
+    else:
+        try:
+            resolved_token = guest_login(settings.url)
+        except (httpx.HTTPStatusError, httpx.RequestError, KeyError) as exc:
+            die("Authentication Failed", str(exc), 401, EXIT_CONNECTION_ERROR)
+
+    return Connection(base_url=settings.url, token=resolved_token)
 
 
 def get_zndraw(
@@ -313,22 +291,25 @@ def get_zndraw(
     Parameters
     ----------
     url
-        From ``--url`` flag / ``ZNDRAW_URL`` env var, or None.
+        From ``--url`` flag, or None.
     token
-        From ``--token`` flag / ``ZNDRAW_TOKEN`` env var, or None.
+        From ``--token`` flag, or None.
     room
         Room ID.
     user
-        From ``--user`` flag / ``ZNDRAW_USER`` env var, or None.
+        From ``--user`` flag, or None.
     password
-        From ``--password`` flag / ``ZNDRAW_PASSWORD`` env var, or None.
+        From ``--password`` flag, or None.
     """
     from zndraw import ZnDraw
 
-    base_url = resolve_url(url)
-    resolved_token = resolve_token(base_url, token, user=user, password=password)
     return ZnDraw(
-        url=base_url, room=room, token=resolved_token, create_if_missing=False
+        url=url,
+        room=room,
+        token=token,
+        user=user,
+        password=password,
+        create_if_missing=False,
     )
 
 

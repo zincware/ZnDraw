@@ -24,8 +24,6 @@ from .connection import (
     get_connection,
     get_zndraw,
     resolve_room,
-    resolve_token,
-    resolve_url,
 )
 from .output import json_print
 
@@ -42,20 +40,15 @@ def list_rooms(
 ) -> None:
     """List all rooms."""
     with cli_error_handler():
-        from zndraw.client import APIManager
-
-        resolved_url = resolve_url(url)
-        resolved_token = resolve_token(resolved_url, token, user, password)
-        api = APIManager(url=resolved_url, room_id="", token=resolved_token)
+        conn = get_connection(url, token, user, password)
         try:
             params: dict[str, str] = {}
             if search is not None:
                 params["search"] = search
-            resp = api.http.get("/v1/rooms", params=params, headers=api.get_headers())
-            api.raise_for_status(resp)
+            resp = conn.get("/v1/rooms", params=params)
             json_print(CollectionResponse[RoomResponse].model_validate(resp.json()))
         finally:
-            api.close()
+            conn.close()
 
 
 @rooms_app.command("create")
@@ -138,9 +131,25 @@ def open_room(
 ) -> None:
     """Open a room in the browser."""
     with cli_error_handler():
+        from zndraw.client.settings import ClientSettings
+
+        from .connection import EXIT_CLIENT_ERROR, EXIT_CONNECTION_ERROR, die
+
         room = resolve_room(room)
-        resolved_url = resolve_url(url)
-        room_url = f"{resolved_url}/rooms/{room}"
+        overrides = {"url": url} if url is not None else {}
+        try:
+            settings = ClientSettings(**overrides)
+        except Exception as exc:
+            die("Configuration Error", str(exc), 400, EXIT_CLIENT_ERROR)
+
+        if settings.url is None:
+            die(
+                "No Server Found",
+                "No running zndraw server found. Start one with `uv run zndraw` or pass `--url`.",
+                503,
+                EXIT_CONNECTION_ERROR,
+            )
+        room_url = f"{settings.url}/rooms/{room}"
         typer.echo(room_url)
         webbrowser.open(room_url)
 

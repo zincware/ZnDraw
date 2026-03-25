@@ -9,20 +9,47 @@ from datetime import UTC, datetime
 import httpx
 import typer
 
-from zndraw.server_manager import TokenEntry
+from zndraw.state_file import StateFile, TokenEntry
 
 from .connection import (
+    EXIT_CLIENT_ERROR,
+    EXIT_CONNECTION_ERROR,
     PasswordOpt,
     TokenOpt,
     UrlOpt,
     UserOpt,
     cli_error_handler,
-    get_token_store,
-    resolve_url,
+    die,
 )
 from .output import json_print
 
 auth_app = typer.Typer()
+
+
+def _resolve_url(url: str | None) -> str:
+    """Resolve the server URL using ClientSettings.
+
+    Parameters
+    ----------
+    url
+        Explicit URL from ``--url`` flag, or None.
+    """
+    from zndraw.client.settings import ClientSettings
+
+    overrides = {"url": url} if url is not None else {}
+    try:
+        settings = ClientSettings(**overrides)
+    except Exception as exc:
+        die("Configuration Error", str(exc), 400, EXIT_CLIENT_ERROR)
+
+    if settings.url is None:
+        die(
+            "No Server Found",
+            "No running zndraw server found. Start one with `uv run zndraw` or pass `--url`.",
+            503,
+            EXIT_CONNECTION_ERROR,
+        )
+    return settings.url
 
 
 @auth_app.command("login")
@@ -36,8 +63,8 @@ def login(
 ) -> None:
     """Login via browser approval (device-code flow)."""
     with cli_error_handler():
-        resolved_url = resolve_url(url)
-        store = get_token_store()
+        resolved_url = _resolve_url(url)
+        state = StateFile()
 
         with httpx.Client(base_url=resolved_url, timeout=30.0) as client:
             # 1. Create challenge
@@ -86,7 +113,7 @@ def login(
                     )
                     email = me_resp.json().get("email", "unknown")
 
-                    store.set(
+                    state.add_token(
                         resolved_url,
                         TokenEntry(
                             access_token=token,
@@ -95,7 +122,7 @@ def login(
                         ),
                     )
                     typer.echo(f"Logged in as {email}")
-                    typer.echo(f"Token saved to {store.path}")
+                    typer.echo(f"Token saved to {state.path}")
                     return
 
             typer.echo("Login timed out.", err=True)
@@ -113,8 +140,8 @@ def status(
     with cli_error_handler():
         from zndraw.auth_utils import validate_credentials
 
-        resolved_url = resolve_url(url)
-        store = get_token_store()
+        resolved_url = _resolve_url(url)
+        state = StateFile()
 
         validate_credentials(token, user, password)
 
@@ -132,7 +159,7 @@ def status(
                 active_token = resp.json()["access_token"]
             token_source = "login"
         else:
-            entry = store.get(resolved_url)
+            entry = state.get_token(resolved_url)
             if entry is not None:
                 active_token = entry.access_token
                 token_source = "stored"
@@ -157,7 +184,7 @@ def status(
             if resp.status_code != 200:
                 # Only delete stored token on auth failures, not server errors
                 if resp.status_code in (401, 403) and token_source == "stored":
-                    store.delete(resolved_url)
+                    state.remove_token(resolved_url)
                 json_print(
                     {
                         "server": resolved_url,
@@ -189,7 +216,8 @@ def logout(
 ) -> None:
     """Remove stored token for the current server."""
     with cli_error_handler():
-        resolved_url = resolve_url(url)
-        store = get_token_store()
-        store.delete(resolved_url)
+        resolved_url = _resolve_url(url)
+        state = StateFile()
+        state.remove_token(resolved_url)
+        state.remove_server(resolved_url)
         typer.echo(f"Logged out from {resolved_url}")

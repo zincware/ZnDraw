@@ -10,14 +10,14 @@ import pytest
 from typer.testing import CliRunner
 
 from zndraw.cli_agent import app
-from zndraw.server_manager import TokenEntry, TokenStore
+from zndraw.state_file import StateFile, TokenEntry
 
 runner = CliRunner()
 
 
 @pytest.fixture
-def token_store(tmp_path):
-    return TokenStore(directory=tmp_path)
+def state_file(tmp_path):
+    return StateFile(directory=tmp_path)
 
 
 @pytest.fixture
@@ -39,12 +39,12 @@ def mock_httpx_client():
         yield mock_client
 
 
-# ── auth status ──────────────────────────────────────────────────────
+# -- auth status --------------------------------------------------------------
 
 
-def test_auth_status_with_stored_token(token_store, stored_entry, mock_httpx_client):
+def test_auth_status_with_stored_token(state_file, stored_entry, mock_httpx_client):
     """auth status should show identity from stored token."""
-    token_store.set("http://localhost:8000", stored_entry)
+    state_file.add_token("http://localhost:8000", stored_entry)
 
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -56,9 +56,10 @@ def test_auth_status_with_stored_token(token_store, stored_entry, mock_httpx_cli
     mock_httpx_client.get.return_value = mock_response
 
     with (
-        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
         patch(
-            "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
+            "zndraw.cli_agent.auth._resolve_url",
+            return_value="http://localhost:8000",
         ),
     ):
         result = runner.invoke(app, ["auth", "status"])
@@ -69,12 +70,13 @@ def test_auth_status_with_stored_token(token_store, stored_entry, mock_httpx_cli
     assert "server" in data
 
 
-def test_auth_status_not_logged_in(token_store):
+def test_auth_status_not_logged_in(state_file):
     """auth status with no stored/explicit token should report not logged in."""
     with (
-        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
         patch(
-            "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
+            "zndraw.cli_agent.auth._resolve_url",
+            return_value="http://localhost:8000",
         ),
     ):
         result = runner.invoke(app, ["auth", "status"])
@@ -85,31 +87,33 @@ def test_auth_status_not_logged_in(token_store):
     assert data["email"] is None
 
 
-# ── auth logout ──────────────────────────────────────────────────────
+# -- auth logout ---------------------------------------------------------------
 
 
-def test_auth_logout_removes_token(token_store, stored_entry):
+def test_auth_logout_removes_token(state_file, stored_entry):
     """auth logout should remove the stored token for the server."""
-    token_store.set("http://localhost:8000", stored_entry)
+    state_file.add_token("http://localhost:8000", stored_entry)
 
     with (
-        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
         patch(
-            "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
+            "zndraw.cli_agent.auth._resolve_url",
+            return_value="http://localhost:8000",
         ),
     ):
         result = runner.invoke(app, ["auth", "logout"])
 
     assert result.exit_code == 0
-    assert token_store.get("http://localhost:8000") is None
+    assert state_file.get_token("http://localhost:8000") is None
 
 
-def test_auth_logout_no_token(token_store):
+def test_auth_logout_no_token(state_file):
     """auth logout when no token is stored should not error."""
     with (
-        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
         patch(
-            "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
+            "zndraw.cli_agent.auth._resolve_url",
+            return_value="http://localhost:8000",
         ),
     ):
         result = runner.invoke(app, ["auth", "logout"])
@@ -117,10 +121,10 @@ def test_auth_logout_no_token(token_store):
     assert result.exit_code == 0
 
 
-# ── auth login ───────────────────────────────────────────────────────
+# -- auth login ----------------------------------------------------------------
 
 
-def test_auth_login_approved(token_store, mock_httpx_client):
+def test_auth_login_approved(state_file, mock_httpx_client):
     """auth login should store token on successful approval."""
     challenge_resp = MagicMock()
     challenge_resp.status_code = 200
@@ -164,9 +168,10 @@ def test_auth_login_approved(token_store, mock_httpx_client):
     mock_httpx_client.get.side_effect = mock_get
 
     with (
-        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
         patch(
-            "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
+            "zndraw.cli_agent.auth._resolve_url",
+            return_value="http://localhost:8000",
         ),
         patch("zndraw.cli_agent.auth.webbrowser.open"),
         patch("zndraw.cli_agent.auth.time.sleep"),
@@ -174,13 +179,13 @@ def test_auth_login_approved(token_store, mock_httpx_client):
         result = runner.invoke(app, ["auth", "login"])
 
     assert result.exit_code == 0
-    stored = token_store.get("http://localhost:8000")
+    stored = state_file.get_token("http://localhost:8000")
     assert stored is not None
     assert stored.access_token == "approved.jwt.token"
     assert stored.email == "user@example.com"
 
 
-def test_auth_login_rejected(token_store, mock_httpx_client):
+def test_auth_login_rejected(state_file, mock_httpx_client):
     """auth login should show error when challenge is rejected (404)."""
     challenge_resp = MagicMock()
     challenge_resp.status_code = 200
@@ -198,9 +203,10 @@ def test_auth_login_rejected(token_store, mock_httpx_client):
     mock_httpx_client.get.return_value = rejected_resp
 
     with (
-        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
         patch(
-            "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
+            "zndraw.cli_agent.auth._resolve_url",
+            return_value="http://localhost:8000",
         ),
         patch("zndraw.cli_agent.auth.webbrowser.open"),
         patch("zndraw.cli_agent.auth.time.sleep"),
@@ -210,7 +216,7 @@ def test_auth_login_rejected(token_store, mock_httpx_client):
     assert result.exit_code != 0
 
 
-def test_auth_login_expired(token_store, mock_httpx_client):
+def test_auth_login_expired(state_file, mock_httpx_client):
     """auth login should show error when challenge expires (410)."""
     challenge_resp = MagicMock()
     challenge_resp.status_code = 200
@@ -228,9 +234,10 @@ def test_auth_login_expired(token_store, mock_httpx_client):
     mock_httpx_client.get.return_value = expired_resp
 
     with (
-        patch("zndraw.cli_agent.auth.get_token_store", return_value=token_store),
+        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
         patch(
-            "zndraw.cli_agent.auth.resolve_url", return_value="http://localhost:8000"
+            "zndraw.cli_agent.auth._resolve_url",
+            return_value="http://localhost:8000",
         ),
         patch("zndraw.cli_agent.auth.webbrowser.open"),
         patch("zndraw.cli_agent.auth.time.sleep"),
