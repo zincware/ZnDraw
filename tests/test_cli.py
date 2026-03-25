@@ -240,79 +240,43 @@ def test_browser_before_upload_remote(monkeypatch, tmp_path):
 # ── 6. Settings propagation tests ────────────────────────────────────
 
 
-def test_cli_passes_host_and_port_to_settings(monkeypatch):
-    """CLI --host and --port are forwarded to Settings via app.state."""
-    captured_settings: list[Settings] = []
-
-    def fake_server_run(_self):
-        pass
-
-    monkeypatch.setattr("uvicorn.Server.run", fake_server_run)
-    monkeypatch.setattr("zndraw.cli.find_running_server", lambda _port: None)
-
+@pytest.fixture
+def capture_settings(monkeypatch):
+    """Spy on Settings instantiation and stub out server startup."""
+    captured: list[Settings] = []
     original_init = Settings.__init__
 
     def spy_init(self, **kwargs):
         original_init(self, **kwargs)
-        captured_settings.append(self)
+        captured.append(self)
 
     monkeypatch.setattr(Settings, "__init__", spy_init)
+    monkeypatch.setattr("uvicorn.Server.run", lambda _self: None)
+    monkeypatch.setattr("zndraw.cli.find_running_server", lambda _port: None)
+    return captured
 
+
+def test_cli_passes_host_and_port_to_settings(capture_settings):
+    """CLI --host and --port are forwarded to Settings via app.state."""
     result = runner.invoke(
         app, ["--port", "9999", "--host", "127.0.0.1", "--no-browser"]
     )
     assert result.exit_code == 0
-
-    # The Settings created inside resolve_server should have CLI values
-    assert any(s.host == "127.0.0.1" and s.port == 9999 for s in captured_settings)
+    assert any(s.host == "127.0.0.1" and s.port == 9999 for s in capture_settings)
 
 
-def test_cli_default_port_from_settings(monkeypatch):
+def test_cli_default_port_from_settings(capture_settings):
     """When --port is not specified, Settings default (8000) is used."""
-    captured_settings: list[Settings] = []
-
-    def fake_server_run(_self):
-        pass
-
-    monkeypatch.setattr("uvicorn.Server.run", fake_server_run)
-    monkeypatch.setattr("zndraw.cli.find_running_server", lambda _port: None)
-
-    original_init = Settings.__init__
-
-    def spy_init(self, **kwargs):
-        original_init(self, **kwargs)
-        captured_settings.append(self)
-
-    monkeypatch.setattr(Settings, "__init__", spy_init)
-
     result = runner.invoke(app, ["--no-browser"])
     assert result.exit_code == 0
+    assert any(s.port == 8000 for s in capture_settings)
 
-    assert any(s.port == 8000 for s in captured_settings)
 
-
-def test_cli_reads_host_from_env(monkeypatch):
+def test_cli_reads_host_from_env(monkeypatch, capture_settings):
     """Settings reads ZNDRAW_SERVER_HOST from env when --host is not specified."""
     monkeypatch.setenv("ZNDRAW_SERVER_HOST", "192.168.1.1")
     monkeypatch.delenv("ZNDRAW_SERVER_PORT", raising=False)
 
-    captured_settings: list[Settings] = []
-
-    def fake_server_run(_self):
-        pass
-
-    monkeypatch.setattr("uvicorn.Server.run", fake_server_run)
-    monkeypatch.setattr("zndraw.cli.find_running_server", lambda _port: None)
-
-    original_init = Settings.__init__
-
-    def spy_init(self, **kwargs):
-        original_init(self, **kwargs)
-        captured_settings.append(self)
-
-    monkeypatch.setattr(Settings, "__init__", spy_init)
-
     result = runner.invoke(app, ["--no-browser"])
     assert result.exit_code == 0
-
-    assert any(s.host == "192.168.1.1" for s in captured_settings)
+    assert any(s.host == "192.168.1.1" for s in capture_settings)
