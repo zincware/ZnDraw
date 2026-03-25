@@ -197,7 +197,7 @@ Replaces both `ServerInfo` + `TokenStore` with a single `~/.zndraw/state.json` (
 {
   "default_url": "https://zndraw.icp.uni-stuttgart.de",
   "servers": {
-    "8000": {
+    "http://localhost:8000": {
       "pid": 12345,
       "version": "0.5.0",
       "local_token": "random-per-start"
@@ -212,6 +212,8 @@ Replaces both `ServerInfo` + `TokenStore` with a single `~/.zndraw/state.json` (
   }
 }
 ```
+
+Both `servers` and `tokens` use the full URL as key. The server writes `http://{host}:{port}` on startup. `StateFileSource` uses the key directly as the resolved `url`.
 
 Key changes from current state:
 - **Merged**: PID files + tokens.json into one file.
@@ -279,7 +281,7 @@ The server generates a `local_token` on every start and writes it to `state.json
 
 On startup (`cli.py`):
 1. Generate `local_token = secrets.token_urlsafe(32)` (replaces `shutdown_token`).
-2. Write to `state.json → servers → {port} → local_token`.
+2. Write to `state.json → servers → {url} → local_token`.
 3. Store `local_token` in `app.state.local_token`.
 
 Auth endpoint or middleware:
@@ -435,12 +437,12 @@ flowchart TD
     end
 
     subgraph "zndraw server start"
-        S1["Generate local_token"] --> S2["Write to state.json → servers[port]"]
+        S1["Generate local_token"] --> S2["Write to state.json → servers[url]"]
         S2 --> S3["Store local_token in app.state"]
     end
 
     subgraph "zndraw server stop"
-        T1["Remove state.json → servers[port]"]
+        T1["Remove state.json → servers[url]"]
     end
 ```
 
