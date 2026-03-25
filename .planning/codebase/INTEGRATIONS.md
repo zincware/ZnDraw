@@ -71,7 +71,7 @@
 - Development: SQLite via `aiosqlite` (in-memory default: `sqlite+aiosqlite://`)
 - Production: PostgreSQL 17 via `asyncpg` (`postgresql+asyncpg://...`)
 - ORM: SQLModel (`src/zndraw/models.py`)
-- Connection: `ZNDRAW_DATABASE_URL` env var
+- Connection: `ZNDRAW_SERVER_DATABASE_URL` env var
 - Engine creation: `zndraw_auth.db.create_engine_for_url()`
 - Session factory: `async_sessionmaker` stored on `app.state.session_maker`
 - SQLite locking: Automatic `asyncio.Lock` wrapper applied in `src/zndraw/database.py`
@@ -93,7 +93,7 @@
 **Frame Storage (Binary Data):**
 - Abstraction: `AsebytesStorage` (`src/zndraw/storage/asebytes_backend.py`)
 - Router: `StorageRouter` (`src/zndraw/storage/router.py`) - wraps storage with provider mount support
-- Backends (via `asebytes` library, selected by `ZNDRAW_STORAGE` URI):
+- Backends (via `asebytes` library, selected by `ZNDRAW_SERVER_STORAGE` URI):
   - `memory://` - In-memory (default, development)
   - `*.lmdb` - LMDB file on disk
   - `mongodb://host:port/db` - MongoDB (production)
@@ -101,7 +101,7 @@
 
 **Redis (Ephemeral State):**
 - Client: `redis.asyncio` stored on `app.state.redis` (`decode_responses=True`)
-- Development: `fakeredis.TcpFakeServer` auto-started when `ZNDRAW_REDIS_URL` is None
+- Development: `fakeredis.TcpFakeServer` auto-started when `ZNDRAW_SERVER_REDIS_URL` is None
 - Production: Redis 7 (via Docker)
 - Key patterns defined in `src/zndraw/redis.py` (`RedisKey` class):
   - `room:{room_id}:cameras` - Hash of session cameras (presence tracking)
@@ -113,7 +113,7 @@
   - `provider-result:*` / `provider-inflight:*` - Provider caching
 
 **File Storage (Screenshots):**
-- Location: `ZNDRAW_MEDIA_PATH` (default: `zndraw-media/`)
+- Location: `ZNDRAW_SERVER_MEDIA_PATH` (default: `zndraw-media/`)
 - Screenshots stored as PNG files on disk
 - Metadata in SQL `Screenshot` table
 
@@ -158,7 +158,7 @@
 
 **TaskIQ + Redis:**
 - Broker: `ListQueueBroker` from `taskiq-redis` (`src/zndraw/broker.py`)
-- In-process worker: Started during lifespan when `ZNDRAW_WORKER_ENABLED=true`
+- In-process worker: Started during lifespan when `ZNDRAW_SERVER_WORKER_ENABLED=true`
 - External workers: `taskiq worker zndraw.broker:broker`
 - Executor: `InternalExtensionExecutor` (`src/zndraw/executor.py`)
   - Connects back to FastAPI as internal worker user
@@ -241,21 +241,21 @@
 ## Environment Configuration
 
 **Required env vars (production):**
-- `ZNDRAW_REDIS_URL` - Redis connection string
-- `ZNDRAW_DATABASE_URL` - PostgreSQL connection string
-- `ZNDRAW_STORAGE` - Frame storage URI (mongodb:// for production)
+- `ZNDRAW_SERVER_REDIS_URL` - Redis connection string
+- `ZNDRAW_SERVER_DATABASE_URL` - PostgreSQL connection string
+- `ZNDRAW_SERVER_STORAGE` - Frame storage URI (mongodb:// for production)
 - `ZNDRAW_AUTH_SECRET_KEY` - JWT signing secret (via zndraw-auth)
 - `ZNDRAW_AUTH_DEFAULT_ADMIN_EMAIL` / `ZNDRAW_AUTH_DEFAULT_ADMIN_PASSWORD`
 
 **Optional env vars:**
-- `ZNDRAW_HOST` / `ZNDRAW_PORT` - Server bind (default: 0.0.0.0:8000)
-- `ZNDRAW_GUEST_PASSWORD` / `ZNDRAW_WORKER_PASSWORD` - Auth passwords
-- `ZNDRAW_WORKER_ENABLED` - In-process worker (default: true, false in Docker)
-- `ZNDRAW_SERVER_URL` - For external TaskIQ workers to reach FastAPI
-- `ZNDRAW_INIT_DB_ON_STARTUP` - Auto-create tables (default: true)
-- `ZNDRAW_SIMGEN_ENABLED` - SiMGen feature flag
-- `ZNDRAW_EDIT_LOCK_TTL` - Edit lock TTL in seconds (default: 10)
-- `ZNDRAW_MEDIA_PATH` - Screenshot storage path
+- `ZNDRAW_SERVER_HOST` / `ZNDRAW_SERVER_PORT` - Server bind (default: 0.0.0.0:8000)
+- `ZNDRAW_SERVER_GUEST_PASSWORD` / `ZNDRAW_SERVER_WORKER_PASSWORD` - Auth passwords
+- `ZNDRAW_SERVER_WORKER_ENABLED` - In-process worker (default: true, false in Docker)
+- `ZNDRAW_SERVER_INTERNAL_URL` - For external TaskIQ workers to reach FastAPI
+- `ZNDRAW_SERVER_INIT_DB_ON_STARTUP` - Auto-create tables (default: true)
+- `ZNDRAW_SERVER_SIMGEN_ENABLED` - SiMGen feature flag
+- `ZNDRAW_SERVER_EDIT_LOCK_TTL` - Edit lock TTL in seconds (default: 10)
+- `ZNDRAW_SERVER_MEDIA_PATH` - Screenshot storage path
 
 **Secrets location:**
 - `.env` file (referenced in docker-compose, gitignored)

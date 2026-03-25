@@ -6,7 +6,7 @@ Usage::
 
 The broker connects to Redis (via ``ZNDRAW_SERVER_REDIS_URL``) and registers
 all built-in extensions. The executor connects back to the FastAPI
-server at ``ZNDRAW_SERVER_URL``.
+server at ``ZNDRAW_SERVER_INTERNAL_URL``.
 """
 
 from taskiq_redis import ListQueueBroker
