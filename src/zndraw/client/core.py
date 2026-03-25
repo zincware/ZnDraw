@@ -13,7 +13,6 @@ import ase
 import msgpack
 import typing_extensions
 from pydantic import SecretStr
-from zndraw_joblib.client import ClaimedTask, Extension as JoblibExtension, JobManager
 
 from zndraw.accessors import (
     Bookmarks,
@@ -42,6 +41,7 @@ from zndraw.client.serialization import (
 )
 from zndraw.client.socket import SocketManager
 from zndraw.geometries.camera import Camera
+from zndraw_joblib.client import ClaimedTask, Extension as JoblibExtension, JobManager
 
 if TYPE_CHECKING:
     from zndraw.extensions.abc import Extension

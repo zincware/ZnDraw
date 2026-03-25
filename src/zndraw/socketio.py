@@ -8,7 +8,6 @@ from fastapi import Depends
 from fastapi_users.jwt import decode_jwt
 from jwt import InvalidTokenError
 from sqlmodel import and_, select
-from zndraw_auth import AuthSettings, SessionDep, User, get_auth_settings
 from zndraw_socketio import EventContext, wrap
 
 from zndraw.dependencies import FrameStorageDep, RedisDep, room_channel
@@ -39,6 +38,7 @@ from zndraw.socket_events import (
     UserGet,
     UserGetResponse,
 )
+from zndraw_auth import AuthSettings, SessionDep, User, get_auth_settings
 
 # Module-level Socket.IO server wrapped with zndraw-socketio (drop-in replacement)
 # tsio.app is set in database.py lifespan to enable DI (resolved at event time)

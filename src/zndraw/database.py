@@ -17,7 +17,6 @@ from collections.abc import AsyncIterator
 
 import redis.asyncio as redis_client
 import socketio as socketio_lib
-import zndraw_joblib.models  # noqa: F401 - registers Job, Worker, Task
 from fastapi import FastAPI
 from fastapi_users.password import PasswordHelper
 from pydantic import SecretStr
@@ -26,6 +25,17 @@ from sqlmodel import SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession as SQLModelAsyncSession
 from taskiq.api import run_receiver_task
 from taskiq_redis import ListQueueBroker
+
+import zndraw.models  # noqa: F401 - registers Room, Message, etc.
+import zndraw_joblib.models  # noqa: F401 - registers Job, Worker, Task
+from zndraw.config import Settings
+from zndraw.executor import InternalExtensionExecutor
+from zndraw.extensions.analysis import analysis
+from zndraw.extensions.modifiers import modifiers
+from zndraw.extensions.selections import selections
+from zndraw.redis import RedisKey
+from zndraw.socket_events import FramesInvalidate
+from zndraw.socketio import tsio
 from zndraw_auth import User
 from zndraw_auth.db import create_engine_for_url, ensure_default_admin
 from zndraw_auth.settings import AuthSettings
@@ -39,16 +49,6 @@ from zndraw_joblib import (
 )
 from zndraw_joblib.registry import ensure_internal_jobs, register_internal_tasks
 from zndraw_joblib.settings import JobLibSettings
-
-import zndraw.models  # noqa: F401 - registers Room, Message, etc.
-from zndraw.config import Settings
-from zndraw.executor import InternalExtensionExecutor
-from zndraw.extensions.analysis import analysis
-from zndraw.extensions.modifiers import modifiers
-from zndraw.extensions.selections import selections
-from zndraw.redis import RedisKey
-from zndraw.socket_events import FramesInvalidate
-from zndraw.socketio import tsio
 
 
 def _get_free_port() -> int:
@@ -309,15 +309,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # zndraw-joblib: wire ResultBackend for provider caching
         # Frame data is too large for Redis — route to the same storage
         # backend used for frame storage.  Everything else stays in Redis.
-        from zndraw_joblib.dependencies import (
-            get_frame_room_cleanup,
-            get_result_backend,
-        )
-
         from zndraw.result_backends import (
             CompositeResultBackend,
             RedisResultBackend,
             StorageResultBackend,
+        )
+        from zndraw_joblib.dependencies import (
+            get_frame_room_cleanup,
+            get_result_backend,
         )
 
         redis_raw = redis_client.from_url(redis_url, **redis_kwargs)

@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import Column, ForeignKey, String, TypeDecorator
 from sqlalchemy.types import DateTime
 from sqlmodel import Field, SQLModel
+
 from zndraw_joblib.models import Job, Task, Worker, WorkerJobLink  # noqa: F401
 
 

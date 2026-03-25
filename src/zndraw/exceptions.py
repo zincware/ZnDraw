@@ -6,6 +6,7 @@ from typing import Any, ClassVar, NoReturn
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
 from zndraw_joblib.exceptions import (
     ProviderTimeout,
     TaskNotFound as JoblibTaskNotFound,

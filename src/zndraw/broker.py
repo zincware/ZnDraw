@@ -10,11 +10,11 @@ server at ``ZNDRAW_SERVER_INTERNAL_URL``.
 """
 
 from taskiq_redis import ListQueueBroker
-from zndraw_joblib import register_internal_tasks
 
 from zndraw.config import Settings
 from zndraw.database import WORKER_EMAIL, _collect_extensions
 from zndraw.executor import InternalExtensionExecutor
+from zndraw_joblib import register_internal_tasks
 
 settings = Settings()
 

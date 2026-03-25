@@ -11,17 +11,6 @@ from typing import Annotated, NamedTuple
 from fastapi import Depends, Path, Request
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from zndraw_auth import (
-    SessionDep,
-    User,
-    current_active_user,
-    current_optional_user,
-    current_superuser,
-    current_user_scoped_session,
-)
-from zndraw_auth.db import get_session_maker
-from zndraw_joblib.dependencies import ResultBackend, validate_room_id
-from zndraw_joblib.settings import JobLibSettings
 from zndraw_socketio import AsyncServerWrapper
 
 from zndraw.exceptions import (
@@ -37,6 +26,17 @@ from zndraw.geometries.camera import Camera
 from zndraw.models import Room, RoomGeometry
 from zndraw.redis import RedisKey
 from zndraw.storage import FrameStorage
+from zndraw_auth import (
+    SessionDep,
+    User,
+    current_active_user,
+    current_optional_user,
+    current_superuser,
+    current_user_scoped_session,
+)
+from zndraw_auth.db import get_session_maker
+from zndraw_joblib.dependencies import ResultBackend, validate_room_id
+from zndraw_joblib.settings import JobLibSettings
 
 # Re-export auth dependencies for convenience
 CurrentUserDep = Annotated[User, Depends(current_active_user)]

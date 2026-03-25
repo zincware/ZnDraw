@@ -6,7 +6,6 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 from sqlalchemy import func
 from sqlmodel import col, select
-from zndraw_auth import User
 
 from zndraw.dependencies import (
     CurrentUserDep,
@@ -31,6 +30,7 @@ from zndraw.schemas import (
     MessagesResponse,
 )
 from zndraw.socket_events import MessageEdited, MessageNew
+from zndraw_auth import User
 
 router = APIRouter(prefix="/v1/rooms/{room_id}/chat/messages", tags=["chat"])
 
