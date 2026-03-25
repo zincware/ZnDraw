@@ -209,7 +209,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         # Initialize tables on startup (dev mode)
         if settings.init_db_on_startup:
-            await init_database(engine=engine)
+            await init_database(engine=engine, settings=settings)
 
         # SQLite locking (if needed)
         if _is_sqlite(settings.database_url):
