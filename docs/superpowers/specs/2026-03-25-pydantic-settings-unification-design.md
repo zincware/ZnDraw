@@ -521,17 +521,30 @@ On first `StateFile` access:
 ### Breaking Changes
 
 - **Server env vars renamed**: `ZNDRAW_` → `ZNDRAW_SERVER_` for all server settings. E.g., `ZNDRAW_PORT` → `ZNDRAW_SERVER_PORT`, `ZNDRAW_DATABASE_URL` → `ZNDRAW_SERVER_DATABASE_URL`, `ZNDRAW_REDIS_URL` → `ZNDRAW_SERVER_REDIS_URL`, etc. All Docker Compose files, CI configs, and deployment scripts must be updated.
-- **Docs/README**: All references to `ZNDRAW_` server env vars must be updated throughout documentation, README, and inline docstrings (`config.py`, `broker.py`, `database.py`, `cli.py`).
 
 ## Files Changed
 
 ### Phase 1
 | File | Change |
 |---|---|
-| `src/zndraw/config.py` | Add `settings_customise_sources()` with `PyprojectTomlConfigSettingsSource` |
+| `src/zndraw/config.py` | Change `env_prefix` to `ZNDRAW_SERVER_`, add `settings_customise_sources()` with `PyprojectTomlConfigSettingsSource` |
+| `src/zndraw/broker.py` | Update docstring referencing `ZNDRAW_REDIS_URL` → `ZNDRAW_SERVER_REDIS_URL` |
+| `src/zndraw/database.py` | Update any `ZNDRAW_` references in comments/docstrings |
+| `src/zndraw/cli.py` | Update `os.environ` writes to use `ZNDRAW_SERVER_HOST`, `ZNDRAW_SERVER_PORT`, `ZNDRAW_SERVER_DATABASE_URL` |
 | `zndraw-auth: settings.py` | Add `settings_customise_sources()` with `PyprojectTomlConfigSettingsSource` |
 | `zndraw-joblib: settings.py` | Add `settings_customise_sources()` with `PyprojectTomlConfigSettingsSource` |
-| `tests/test_config.py` | Add tests for pyproject.toml source |
+| `docker/` | Update all `ZNDRAW_` → `ZNDRAW_SERVER_` in Docker Compose files |
+| **Tests (env var rename)** | |
+| `tests/conftest.py` | Rename `ZNDRAW_DATABASE_URL` → `ZNDRAW_SERVER_DATABASE_URL`, `ZNDRAW_HOST` → `ZNDRAW_SERVER_HOST`, `ZNDRAW_PORT` → `ZNDRAW_SERVER_PORT`, `ZNDRAW_REDIS_URL` → `ZNDRAW_SERVER_REDIS_URL`, `ZNDRAW_PRESENCE_TTL` → `ZNDRAW_SERVER_PRESENCE_TTL` |
+| `tests/test_config.py` | Rename all `ZNDRAW_` env vars to `ZNDRAW_SERVER_`, add pyproject.toml source tests |
+| `tests/test_lifespan.py` | Rename `ZNDRAW_REDIS_URL`, `ZNDRAW_DATABASE_URL` → `ZNDRAW_SERVER_*` |
+| `tests/test_socketio_scaling.py` | Rename `ZNDRAW_REDIS_URL`, `ZNDRAW_DATABASE_URL` → `ZNDRAW_SERVER_*` |
+| `tests/test_cli.py` | Rename `ZNDRAW_HOST`, `ZNDRAW_PORT` → `ZNDRAW_SERVER_*` |
+| `tests/test_template_room_isolation.py` | Rename `ZNDRAW_STORAGE` → `ZNDRAW_SERVER_STORAGE` |
+| `tests/worker/test_resilience.py` | Rename `ZNDRAW_HOST`, `ZNDRAW_PORT` → `ZNDRAW_SERVER_*` |
+| **Documentation** | |
+| `README.md` | Update Python API examples to show zero-config `ZnDraw()`, add env var reference section |
+| `docs/source/developer-guide.rst` | Update any env var references |
 
 ### Phase 2
 | File | Change |
@@ -551,7 +564,15 @@ On first `StateFile` access:
 
 ## Testing
 
+Use `/test-driven-development` — write/update tests before implementation.
+
 ### Phase 1
+
+**Existing test updates** (env var rename — must be done first, tests will fail until `config.py` prefix changes):
+- All test files referencing `ZNDRAW_` server env vars must be updated to `ZNDRAW_SERVER_*`.
+- Affected files: `tests/conftest.py`, `tests/test_config.py`, `tests/test_lifespan.py`, `tests/test_socketio_scaling.py`, `tests/test_cli.py`, `tests/test_template_room_isolation.py`, `tests/worker/test_resilience.py`.
+
+**New tests:**
 - `pyproject.toml` values loaded correctly for each settings class.
 - Env vars override `pyproject.toml` values.
 - Init args override env vars.
