@@ -139,11 +139,11 @@ ClientSettings(BaseSettings)
 StateFile
     replaces: ServerInfo + TokenStore
     file: ~/.zndraw/state.json (mode 0600)
-    manages: local server registry, stored tokens, default_url
+    manages: unified server registry (local + remote), stored tokens
 
 StateFileSource(PydanticBaseSettingsSource)
     custom pydantic-settings source
-    reads StateFile for url (PID discovery) and token (stored credentials)
+    reads StateFile for url (health-check-based discovery) and token (stored credentials)
 
 Local Admin Token
     server writes local_token to state.json on start
@@ -195,12 +195,15 @@ Replaces both `ServerInfo` + `TokenStore` with a single `~/.zndraw/state.json` (
 
 ```json
 {
-  "default_url": "https://zndraw.icp.uni-stuttgart.de",
   "servers": {
     "http://localhost:8000": {
       "pid": 12345,
       "version": "0.5.0",
-      "local_token": "random-per-start"
+      "local_token": "random-per-start",
+      "added_at": "2026-03-25T10:00:00Z"
+    },
+    "https://zndraw.icp.uni-stuttgart.de": {
+      "added_at": "2026-03-24T09:00:00Z"
     }
   },
   "tokens": {
@@ -213,42 +216,60 @@ Replaces both `ServerInfo` + `TokenStore` with a single `~/.zndraw/state.json` (
 }
 ```
 
-Both `servers` and `tokens` use the full URL as key. The server writes `http://{host}:{port}` on startup. `StateFileSource` uses the key directly as the resolved `url`.
+Both `servers` and `tokens` use the full URL as key. Local servers have `pid`, `version`, and `local_token`. Remote servers only have `added_at`. All entries have `added_at` for ordering.
 
 Key changes from current state:
 - **Merged**: PID files + tokens.json into one file.
-- **`default_url`**: Set by `auth login`, cleared by `auth logout`. Remembers the user's preferred remote server. **Not set by local server start** — local servers are discovered via PID entries in `servers`, so `default_url` is reserved for remote servers. This avoids the scenario where starting a local server overwrites a remote `default_url`, and stopping the local server loses the remote preference.
-- **`local_token`**: Replaces `shutdown_token`. Generated per server start. Grants superuser access to the local server.
+- **Unified server registry**: Both local and remote servers live in `servers`. No separate `default_url` — server preference is determined by health checks and recency (see URL Resolution below).
+- **`local_token`**: Replaces `shutdown_token`. Generated per server start. Grants superuser access to the local server. Only present on local server entries.
+- **`added_at`**: Timestamp for ordering. Newest healthy server wins within each category (localhost first, then remote).
 - **Atomic writes**: Write to temp file, then rename (prevents corruption on crash). Note: atomic rename prevents partial reads but does not prevent lost updates from concurrent read-modify-write cycles (e.g., `server start` and `auth login` running simultaneously). This is acceptable given the low frequency of these operations — both are user-initiated CLI commands unlikely to overlap. If needed later, `fcntl.flock` can be added.
 - **Migration**: On first access, if old `server-*.pid` or `tokens.json` files exist, migrate them to `state.json` and delete the old files.
 
 ### StateFileSource: URL Resolution
 
-The `StateFileSource` resolves `url` from `state.json` using this logic:
+The `StateFileSource` resolves `url` from `state.json` using health checks against `/v1/health`. This works for both local and remote servers uniformly.
 
 ```mermaid
 flowchart TD
-    A["Read state.json"] --> B{"Any servers with<br/>running PID?"}
-    B -->|yes| C{"Multiple<br/>running?"}
-    B -->|no| F{"default_url<br/>set?"}
-    C -->|one| D["Use that server's URL"]
-    C -->|multiple| E["Prefer DEFAULT_PORT (8000)<br/>else smallest port"]
-    E --> D
-    F -->|yes| G["Use default_url"]
-    F -->|no| H["url stays None<br/>(higher source or error)"]
+    A["Read state.json → servers"] --> B["Partition by localhost<br/>vs non-localhost"]
+    B --> C["Sort each partition by<br/>added_at descending (newest first)"]
+    C --> D["Try localhost servers first"]
 
-    D --> I["Clean up stale entries"]
-    G --> I
-    H --> I
+    D --> E{"Has pid?"}
+    E -->|yes| F{"os.kill(pid, 0)<br/>alive?"}
+    E -->|no| G["GET /v1/health<br/>(timeout 2s)"]
+    F -->|yes| G
+    F -->|no| H["Skip (dead PID)"]
+    G -->|200 OK| I["Use this server's URL"]
+    G -->|fail| H
 
-    style D fill:#2d5016,stroke:#4a8c2a,color:#fff
-    style G fill:#4a3560,stroke:#7d3c98,color:#fff
-    style H fill:#6b1a1a,stroke:#c0392b,color:#fff
+    H --> J{"More localhost<br/>servers?"}
+    J -->|yes| D
+    J -->|no| K["Try remote servers"]
+
+    K --> L["GET /v1/health<br/>(timeout 2s)"]
+    L -->|200 OK| I
+    L -->|fail| M{"More remote<br/>servers?"}
+    M -->|yes| K
+    M -->|no| N["url stays None<br/>(higher source or error)"]
+
+    style I fill:#2d5016,stroke:#4a8c2a,color:#fff
+    style N fill:#6b1a1a,stroke:#c0392b,color:#fff
 ```
 
-Liveness check uses `os.kill(pid, 0)` (no HTTP call during settings resolution). Stale entries (dead PID) are removed from `state.json` during resolution.
+**How it works:**
+1. **Partition** servers into localhost (URL contains `localhost` or `127.0.0.1`) and non-localhost.
+2. **Sort** each partition by `added_at` descending — newest first.
+3. **Try localhost first** — for entries with a `pid`, do a fast `os.kill(pid, 0)` pre-filter to skip dead processes without a network call. Then hit `/v1/health` to confirm.
+4. **Then try remote** — hit `/v1/health` directly.
+5. **First healthy server wins.**
 
-**PID reuse risk:** On long-running systems, a dead server's PID could be reused by an unrelated process, causing `os.kill(pid, 0)` to return a false positive. This is acceptable because: (a) the actual HTTP connection will fail fast with a clear error, (b) PID reuse is rare on modern systems (PIDs cycle through ~32k values), and (c) adding an HTTP health check to the settings source would add latency to every `ZnDraw()` call. The existing `is_server_responsive()` HTTP check remains available for CLI commands like `zndraw status` where accuracy matters more than speed.
+Resolution is **read-only** — unhealthy entries are skipped but not removed from `state.json`. This keeps the operation idempotent and avoids permanently deleting a temporarily unreachable server (e.g., network blip, server restarting). Cleanup happens explicitly:
+- **Local entries**: cleaned up when a dead PID is detected during `server start` or `server stop`.
+- **Remote entries**: cleaned up by `auth logout --url ...` or a future `zndraw-cli server cleanup` command.
+
+This eliminates the need for `default_url`. The `auth login --url remote` command adds the remote to `servers`. Starting a local server adds to `servers`. The resolution algorithm always picks the best available server: localhost preferred (active intent), then remote (passive preference), newest first within each category.
 
 ### StateFileSource: Token Resolution
 
@@ -269,7 +290,7 @@ flowchart TD
     style F fill:#4a4a4a,stroke:#888,color:#fff
 ```
 
-"Points to local server" means the resolved URL matches a running server in `state.json → servers` (same port, PID alive). In that case, `local_token` is used directly -- it grants superuser access, bypassing the normal auth chain.
+"Points to local server" means the resolved URL matches a localhost entry in `state.json → servers` that passed the health check. In that case, `local_token` is used directly — it grants superuser access, bypassing the normal auth chain.
 
 **Implementation detail:** Token resolution depends on the already-resolved `url`. In `StateFileSource.__call__`, the source accesses `self.current_state["url"]` (populated by higher-priority sources or the source's own URL resolution) to determine which token to return. If `url` is still `None` in `current_state`, no token is returned.
 
@@ -324,8 +345,8 @@ sequenceDiagram
     CS->>Toml: Read [tool.zndraw] from pyproject.toml
     CS->>SF: Read ~/.zndraw/state.json
 
-    Note over SF: URL: local PID > default_url
-    Note over SF: Token: local_token > stored token
+    Note over SF: URL: healthy localhost (newest) > healthy remote (newest)
+    Note over SF: Token: local_token (if localhost) > stored token
 
     CS->>CS: Merge (init > env > toml > state file)
     CS-->>ZD: Resolved settings (url, token may be None)
@@ -428,16 +449,16 @@ flowchart TD
     subgraph "zndraw-cli auth login --url URL"
         L1["Resolve URL"] --> L2["Device-code flow"]
         L2 --> L3["Store token in<br/>state.json → tokens[url]"]
-        L3 --> L4["Set state.json → default_url = url"]
+        L3 --> L4["Add url to<br/>state.json → servers[url]<br/>with added_at = now"]
     end
 
-    subgraph "zndraw-cli auth logout"
-        O1["Resolve URL<br/>(from default_url or --url)"] --> O2["Delete token from<br/>state.json → tokens[url]"]
-        O2 --> O3["Clear state.json → default_url"]
+    subgraph "zndraw-cli auth logout --url URL"
+        O1["Resolve URL"] --> O2["Delete token from<br/>state.json → tokens[url]"]
+        O2 --> O3["Remove url from<br/>state.json → servers[url]"]
     end
 
     subgraph "zndraw server start"
-        S1["Generate local_token"] --> S2["Write to state.json → servers[url]"]
+        S1["Generate local_token"] --> S2["Write to state.json → servers[url]<br/>with pid, local_token, added_at"]
         S2 --> S3["Store local_token in app.state"]
     end
 
@@ -495,7 +516,7 @@ On first `StateFile` access:
 | `src/zndraw/auth_utils.py` | Simplify -- guest fallback only (token resolution moved to settings chain) |
 | `src/zndraw/server_manager.py` | Remove `ServerInfo`, `TokenStore`, PID file functions. Keep `wait_for_server_ready`, `is_process_running`, `shutdown_server` (updated to use `StateFile`) |
 | `src/zndraw/cli.py` | Write `local_token` to `state.json` on server start. Remove entry on stop. |
-| `src/zndraw/cli_agent/auth.py` | `auth login` sets `default_url`. `auth logout` clears it. |
+| `src/zndraw/cli_agent/auth.py` | `auth login` adds remote to `servers`. `auth logout` removes it. |
 | `src/zndraw/routes/admin.py` | Accept `local_token` as superuser auth (new dependency or middleware) |
 | `src/zndraw/dependencies.py` | Add `LocalTokenOrAdminDep` for local admin token support |
 | `tests/` | New tests for `ClientSettings`, `StateFile`, `StateFileSource`, local admin token, migration |
@@ -511,11 +532,11 @@ On first `StateFile` access:
 ### Phase 2
 - `ClientSettings` resolves through full chain (init > env > toml > state file > guest).
 - `StateFile` read/write/migration from old format.
-- Local PID discovery prefers running servers over `default_url`.
+- Health-check-based discovery prefers localhost (newest) over remote (newest).
 - `local_token` grants superuser access to local server.
 - `local_token` is rejected for remote servers.
-- `auth login` sets `default_url` and stores token.
-- `auth logout` clears `default_url` and token.
+- `auth login` adds remote to `servers` and stores token.
+- `auth logout` removes from `servers` and clears token.
 - Token expiry falls back to guest with warning.
 - Concurrent access to `state.json` (server + CLI) uses atomic writes.
 - `ZnDraw()` with zero args connects to local server as admin.
