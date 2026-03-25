@@ -11,10 +11,10 @@ import warnings
 from typing import Any, ClassVar
 
 import pytest
-from zndraw_joblib.client import Category, Extension
-from zndraw_joblib.schemas import TaskResponse
 
 from zndraw import ZnDraw
+from zndraw_joblib.client import Category, Extension
+from zndraw_joblib.schemas import TaskResponse
 
 # Shared mutable state to capture what run() actually received.
 _captured_kwargs: dict[str, Any] = {}

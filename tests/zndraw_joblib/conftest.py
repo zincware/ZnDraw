@@ -22,9 +22,6 @@ from zndraw_joblib.provider import Provider
 from zndraw_joblib.router import router
 from zndraw_joblib.settings import JobLibSettings
 
-# Configure pytest-asyncio
-pytest_plugins = ["pytest_asyncio"]
-
 
 @pytest.fixture(scope="session")
 def anyio_backend():

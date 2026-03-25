@@ -88,10 +88,6 @@ async def frame_client_fixture(
     """Create an async test client with session and storage dependencies overridden."""
     from contextlib import asynccontextmanager
 
-    from zndraw_auth import get_session
-    from zndraw_auth.settings import AuthSettings
-    from zndraw_joblib.settings import JobLibSettings
-
     from zndraw.app import app
     from zndraw.dependencies import (
         get_frame_storage,
@@ -100,6 +96,9 @@ async def frame_client_fixture(
         get_result_backend,
         get_tsio,
     )
+    from zndraw_auth import get_session
+    from zndraw_auth.settings import AuthSettings
+    from zndraw_joblib.settings import JobLibSettings
 
     mock_sio = MockSioServer()
 

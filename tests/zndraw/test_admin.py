@@ -14,10 +14,10 @@ import pytest_asyncio
 from helpers import create_test_token, create_test_user_model
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from zndraw_auth import User
 
 from zndraw.exceptions import ProblemDetail
 from zndraw.schemas import StatusResponse
+from zndraw_auth import User
 
 # =============================================================================
 # Fixtures

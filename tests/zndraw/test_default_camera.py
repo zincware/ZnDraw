@@ -11,14 +11,14 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
-from zndraw_auth import User
-from zndraw_auth.settings import AuthSettings
 
 from zndraw.client import ZnDraw
 from zndraw.config import Settings
 from zndraw.geometries import Sphere
 from zndraw.geometries.camera import Camera
 from zndraw.models import MemberRole, Room, RoomGeometry, RoomMembership
+from zndraw_auth import User
+from zndraw_auth.settings import AuthSettings
 
 # =============================================================================
 # Fixtures (same pattern as test_routes_geometries.py)
@@ -56,10 +56,9 @@ async def mock_sio_fixture() -> MagicMock:
 async def client_fixture(
     session: AsyncSession, mock_sio: MagicMock
 ) -> AsyncIterator[AsyncClient]:
-    from zndraw_auth import get_session
-
     from zndraw.app import app
     from zndraw.dependencies import get_redis, get_tsio
+    from zndraw_auth import get_session
 
     async def get_session_override() -> AsyncIterator[AsyncSession]:
         yield session

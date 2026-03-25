@@ -10,11 +10,11 @@ import msgpack
 from fastapi_users.password import PasswordHelper
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from zndraw_auth import User
-from zndraw_auth.settings import AuthSettings
 
 from zndraw.models import Room
 from zndraw.storage import RawFrame
+from zndraw_auth import User
+from zndraw_auth.settings import AuthSettings
 
 _password_helper = PasswordHelper()
 

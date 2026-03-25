@@ -5,10 +5,10 @@ from collections.abc import Callable
 from typing import Any, ClassVar
 
 import pytest
-from zndraw_joblib.client import Category, Extension
-from zndraw_joblib.schemas import JobSummary, TaskResponse
 
 from zndraw import ZnDraw
+from zndraw_joblib.client import Category, Extension
+from zndraw_joblib.schemas import JobSummary, TaskResponse
 
 # =============================================================================
 # Test Extension Classes

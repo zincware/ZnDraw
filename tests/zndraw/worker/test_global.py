@@ -8,10 +8,10 @@ from typing import Any, ClassVar
 
 import ase
 import pytest
-from zndraw_joblib.client import Category, ClaimedTask, Extension
-from zndraw_joblib.schemas import JobResponse
 
 from zndraw import ZnDraw
+from zndraw_joblib.client import Category, ClaimedTask, Extension
+from zndraw_joblib.schemas import JobResponse
 
 # =============================================================================
 # Single Worker, Single Job (dev mode)

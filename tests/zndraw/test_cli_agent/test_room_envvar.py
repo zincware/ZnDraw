@@ -6,10 +6,10 @@ import json
 from typing import TYPE_CHECKING
 
 import pytest
-from zndraw_joblib.schemas import JobSummary, PaginatedResponse, TaskResponse
 
 from zndraw.cli_agent import app
 from zndraw.schemas import StepResponse
+from zndraw_joblib.schemas import JobSummary, PaginatedResponse, TaskResponse
 
 if TYPE_CHECKING:
     from typer.testing import CliRunner

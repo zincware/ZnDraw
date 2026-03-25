@@ -10,12 +10,12 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
-from zndraw_auth import User
 
 from zndraw.models import MemberRole, Room, RoomMembership
 from zndraw.schemas import StepResponse, StepUpdateResponse
 from zndraw.socket_events import FrameUpdate
 from zndraw.storage import FrameStorage
+from zndraw_auth import User
 
 # =============================================================================
 # Test-specific Fixtures
@@ -62,12 +62,11 @@ async def step_client_fixture(
     mock_sio: MagicMock,
 ) -> AsyncIterator[AsyncClient]:
     """Create an async test client with dependencies overridden."""
-    from zndraw_auth import get_session
-    from zndraw_auth.settings import AuthSettings
-
     from zndraw.app import app
     from zndraw.config import Settings
     from zndraw.dependencies import get_frame_storage, get_redis, get_tsio
+    from zndraw_auth import get_session
+    from zndraw_auth.settings import AuthSettings
 
     async def get_session_override() -> AsyncIterator[AsyncSession]:
         yield step_session

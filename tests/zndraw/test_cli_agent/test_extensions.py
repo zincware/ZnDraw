@@ -5,14 +5,13 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+from zndraw.cli_agent import app
 from zndraw_joblib.schemas import (
     JobResponse,
     JobSummary,
     PaginatedResponse,
     TaskResponse,
 )
-
-from zndraw.cli_agent import app
 
 from .conftest import invoke_cli
 

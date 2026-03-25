@@ -13,12 +13,12 @@ from asebytes import decode, encode
 from helpers import MockSioServer, create_test_token, create_test_user_model
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from zndraw_auth import User
 
 from zndraw.exceptions import InvalidPayload, ProblemDetail, RoomLocked, RoomReadOnly
 from zndraw.models import MemberRole, Room, RoomMembership
 from zndraw.schemas import FrameBulkResponse
 from zndraw.storage import FrameStorage
+from zndraw_auth import User
 
 # =============================================================================
 # Test Helpers
@@ -66,11 +66,10 @@ async def traj_client_fixture(
     redis_client: Any,
 ) -> AsyncIterator[AsyncClient]:
     """Create an async test client with session and storage dependencies overridden."""
-    from zndraw_auth import get_session
-    from zndraw_auth.settings import AuthSettings
-
     from zndraw.app import app
     from zndraw.dependencies import get_frame_storage, get_redis, get_tsio
+    from zndraw_auth import get_session
+    from zndraw_auth.settings import AuthSettings
 
     mock_sio = MockSioServer()
 

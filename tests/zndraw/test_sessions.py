@@ -6,12 +6,12 @@ import uuid
 import pytest
 from fastapi_users.jwt import decode_jwt
 from redis import Redis
-from zndraw_auth import AuthSettings
 
 from zndraw import ZnDraw
 from zndraw.client import Sessions
 from zndraw.geometries.camera import Camera
 from zndraw.redis import RedisKey
+from zndraw_auth import AuthSettings
 
 
 def _get_user_id(vis: ZnDraw) -> str:

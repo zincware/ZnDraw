@@ -13,9 +13,9 @@ import time
 from typing import ClassVar
 
 import pytest
-from zndraw_joblib.client import Category, Extension
 
 from zndraw import ZnDraw
+from zndraw_joblib.client import Category, Extension
 
 logger = logging.getLogger(__name__)
 

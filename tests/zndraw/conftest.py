@@ -12,17 +12,16 @@ import httpx
 import pytest
 import pytest_asyncio
 import uvicorn
+from helpers import MockSioServer, create_test_user_model
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
-from zndraw_auth import User
-from zndraw_auth.settings import AuthSettings
 
 from zndraw.config import Settings
 from zndraw.storage import FrameStorage
-
-from helpers import MockSioServer, create_test_user_model
+from zndraw_auth import User
+from zndraw_auth.settings import AuthSettings
 
 
 @pytest.fixture(autouse=True)
@@ -84,10 +83,9 @@ async def session_fixture() -> AsyncIterator[AsyncSession]:
 @pytest_asyncio.fixture(name="client")
 async def client_fixture(session: AsyncSession) -> AsyncIterator[AsyncClient]:
     """Create an async test client with the session dependency overridden."""
-    from zndraw_auth import get_session
-
     from zndraw.app import app
     from zndraw.dependencies import get_redis, get_tsio
+    from zndraw_auth import get_session
 
     mock_sio = MockSioServer()
 

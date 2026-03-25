@@ -9,9 +9,9 @@ from urllib.parse import urlencode
 import fsspec
 import pytest
 from pydantic import BaseModel
-from zndraw_joblib.schemas import JobSummary, ProviderResponse
 
 from zndraw import ZnDraw
+from zndraw_joblib.schemas import JobSummary, ProviderResponse
 
 
 class FileItem(BaseModel):

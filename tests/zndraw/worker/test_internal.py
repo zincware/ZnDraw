@@ -8,11 +8,11 @@ TaskIQ worker. The full path is:
 
 import ase
 import pytest
-from zndraw_joblib.schemas import JobResponse
 
 from zndraw import ZnDraw
 from zndraw.extensions.modifiers import Delete
 from zndraw.extensions.selections import All, NoneSelection
+from zndraw_joblib.schemas import JobResponse
 
 # =============================================================================
 # Registration (read-only verification)

@@ -12,11 +12,11 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
-from zndraw_auth import User
-from zndraw_auth.settings import AuthSettings
 
 from zndraw.config import Settings
 from zndraw.models import MemberRole, Message, Room, RoomMembership
+from zndraw_auth import User
+from zndraw_auth.settings import AuthSettings
 
 # =============================================================================
 # Fixtures
@@ -52,10 +52,9 @@ async def mock_sio_fixture() -> MockSioServer:
 async def chat_client_fixture(
     chat_session: AsyncSession, mock_sio: MockSioServer
 ) -> AsyncIterator[AsyncClient]:
-    from zndraw_auth import get_session
-
     from zndraw.app import app
     from zndraw.dependencies import get_redis, get_tsio
+    from zndraw_auth import get_session
 
     async def get_session_override() -> AsyncIterator[AsyncSession]:
         yield chat_session

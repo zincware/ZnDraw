@@ -11,8 +11,6 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
-from zndraw_auth import User
-from zndraw_auth.settings import AuthSettings
 
 from zndraw.config import Settings
 from zndraw.exceptions import (
@@ -27,6 +25,8 @@ from zndraw.models import (
     RoomMembership,
     RoomPreset,
 )
+from zndraw_auth import User
+from zndraw_auth.settings import AuthSettings
 
 # =============================================================================
 # Test Fixtures
@@ -72,10 +72,9 @@ async def pr_client_fixture(
     mock_sio: MagicMock,
 ) -> AsyncIterator[AsyncClient]:
     """Create an async test client with dependencies overridden."""
-    from zndraw_auth import get_session
-
     from zndraw.app import app
     from zndraw.dependencies import get_redis, get_tsio
+    from zndraw_auth import get_session
 
     async def get_session_override() -> AsyncIterator[AsyncSession]:
         yield pr_session

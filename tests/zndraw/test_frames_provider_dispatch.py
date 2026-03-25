@@ -19,13 +19,13 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
+
+from zndraw.exceptions import FrameNotFound, ProblemDetail
+from zndraw.storage import FrameStorage, RawFrame
 from zndraw_auth import User
 from zndraw_joblib.dependencies import request_hash
 from zndraw_joblib.exceptions import ProviderTimeout
 from zndraw_joblib.models import ProviderRecord, Worker
-
-from zndraw.exceptions import FrameNotFound, ProblemDetail
-from zndraw.storage import FrameStorage, RawFrame
 
 # =============================================================================
 # In-memory ResultBackend for testing
@@ -127,10 +127,6 @@ async def prov_client_fixture(
     prov_result_backend: InMemoryResultBackend,
 ) -> AsyncIterator[AsyncClient]:
     """Create a test client with provider dependencies wired."""
-    from zndraw_auth import get_session
-    from zndraw_auth.db import get_session_maker
-    from zndraw_auth.settings import AuthSettings
-
     from zndraw.app import app
     from zndraw.dependencies import (
         get_frame_storage,
@@ -138,6 +134,9 @@ async def prov_client_fixture(
         get_result_backend,
         get_tsio,
     )
+    from zndraw_auth import get_session
+    from zndraw_auth.db import get_session_maker
+    from zndraw_auth.settings import AuthSettings
 
     mock_sio = MockSioServer()
     mock_redis = AsyncMock()

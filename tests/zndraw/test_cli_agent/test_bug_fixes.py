@@ -7,9 +7,8 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from zndraw_joblib.schemas import TaskResponse
-
 from zndraw.cli_agent import app
+from zndraw_joblib.schemas import TaskResponse
 
 from .conftest import invoke_cli
 
