@@ -343,7 +343,15 @@ def resolve_server(
     settings = Settings(**settings_kwargs)  # type: ignore[arg-type]
 
     effective_port = settings.port
-    effective_host = settings.host
+    bind_host = settings.host
+
+    # For client-facing URLs, replace wildcard bind addresses with loopback
+    if bind_host in ("0.0.0.0", "::"):
+        client_host = "127.0.0.1"
+    elif ":" in bind_host:
+        client_host = f"[{bind_host}]"  # bracket IPv6
+    else:
+        client_host = bind_host
 
     typer.echo(f"Starting new server on port {effective_port}...")
 
@@ -371,12 +379,12 @@ def resolve_server(
 
     config = uvicorn.Config(
         socket_app,
-        host=effective_host,
+        host=bind_host,
         port=effective_port,
         log_level=log_level,
     )
     return (
-        f"http://{effective_host}:{effective_port}",
+        f"http://{client_host}:{effective_port}",
         uvicorn.Server(config),
         effective_port,
     )
