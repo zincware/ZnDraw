@@ -61,13 +61,22 @@ pyproject.toml ([tool.zndraw])        lowest
 
 ### Example pyproject.toml
 
+Server and client keys coexist in `[tool.zndraw]`. Each settings class uses `extra="ignore"` to skip keys it doesn't recognize.
+
 ```toml
 [tool.zndraw]
+# Server-side (read by Settings)
 database_url = "postgresql+asyncpg://user:pass@db/zndraw"
 redis_url = "redis://redis:6379"
 storage = "/data/frames.lmdb"
 host = "0.0.0.0"
 port = 8000
+
+# Client-side (read by ClientSettings, Phase 2)
+url = "https://zndraw.icp.uni-stuttgart.de"
+room = "my-project-room"
+user = "researcher@uni-stuttgart.de"
+password = "secret"  # user's responsibility if committed
 
 [tool.zndraw.auth]
 secret_key = "production-secret"
@@ -81,7 +90,7 @@ worker_timeout_seconds = 120
 
 ### Implementation
 
-Each class overrides `settings_customise_sources()`:
+Each class overrides `settings_customise_sources()` and sets `extra="ignore"` so that unrecognized keys from the shared `[tool.zndraw]` table (e.g., client-only keys like `url`, `room`) do not cause validation errors:
 
 ```python
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -91,6 +100,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ZNDRAW_",
         env_nested_delimiter="__",
+        extra="ignore",
         pyproject_toml_table_header=("tool", "zndraw"),
     )
 
@@ -114,6 +124,8 @@ class Settings(BaseSettings):
 ```
 
 Same pattern for `AuthSettings` (header: `("tool", "zndraw", "auth")`) and `JobLibSettings` (header: `("tool", "zndraw", "joblib")`).
+
+**Note on `extra="ignore"`:** Both `Settings` and `ClientSettings` (Phase 2) read from `[tool.zndraw]`. Without `extra="ignore"`, `Settings` rejects client keys (`url`, `room`) and `ClientSettings` rejects server keys (`port`, `host`, `database_url`). All settings classes that read from shared TOML tables must use `extra="ignore"`.
 
 ## Phase 2: Client/CLI-Side Unification
 
@@ -147,6 +159,7 @@ New `BaseSettings` subclass for client-side connection parameters:
 class ClientSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ZNDRAW_",
+        extra="ignore",  # shared [tool.zndraw] table has server keys too
         pyproject_toml_table_header=("tool", "zndraw"),
     )
 
@@ -156,6 +169,8 @@ class ClientSettings(BaseSettings):
     password: SecretStr | None = None
     token: str | None = None
 ```
+
+`ClientSettings` uses `extra="ignore"` because the `[tool.zndraw]` table may also contain server-side keys (`port`, `database_url`, etc.) that are not `ClientSettings` fields.
 
 ### Priority Chain
 
@@ -201,9 +216,9 @@ Replaces both `ServerInfo` + `TokenStore` with a single `~/.zndraw/state.json` (
 
 Key changes from current state:
 - **Merged**: PID files + tokens.json into one file.
-- **`default_url`**: Set by `auth login`, cleared by `auth logout`. Remembers the user's preferred remote server.
+- **`default_url`**: Set by `auth login`, cleared by `auth logout`. Remembers the user's preferred remote server. **Not set by local server start** — local servers are discovered via PID entries in `servers`, so `default_url` is reserved for remote servers. This avoids the scenario where starting a local server overwrites a remote `default_url`, and stopping the local server loses the remote preference.
 - **`local_token`**: Replaces `shutdown_token`. Generated per server start. Grants superuser access to the local server.
-- **Atomic writes**: Write to temp file, then rename (prevents corruption on crash).
+- **Atomic writes**: Write to temp file, then rename (prevents corruption on crash). Note: atomic rename prevents partial reads but does not prevent lost updates from concurrent read-modify-write cycles (e.g., `server start` and `auth login` running simultaneously). This is acceptable given the low frequency of these operations — both are user-initiated CLI commands unlikely to overlap. If needed later, `fcntl.flock` can be added.
 - **Migration**: On first access, if old `server-*.pid` or `tokens.json` files exist, migrate them to `state.json` and delete the old files.
 
 ### StateFileSource: URL Resolution
@@ -230,7 +245,9 @@ flowchart TD
     style H fill:#6b1a1a,stroke:#c0392b,color:#fff
 ```
 
-Liveness check uses `os.kill(pid, 0)` only (no HTTP call). Stale entries (dead PID) are removed from `state.json` during resolution.
+Liveness check uses `os.kill(pid, 0)` (no HTTP call during settings resolution). Stale entries (dead PID) are removed from `state.json` during resolution.
+
+**PID reuse risk:** On long-running systems, a dead server's PID could be reused by an unrelated process, causing `os.kill(pid, 0)` to return a false positive. This is acceptable because: (a) the actual HTTP connection will fail fast with a clear error, (b) PID reuse is rare on modern systems (PIDs cycle through ~32k values), and (c) adding an HTTP health check to the settings source would add latency to every `ZnDraw()` call. The existing `is_server_responsive()` HTTP check remains available for CLI commands like `zndraw status` where accuracy matters more than speed.
 
 ### StateFileSource: Token Resolution
 
@@ -253,6 +270,8 @@ flowchart TD
 
 "Points to local server" means the resolved URL matches a running server in `state.json → servers` (same port, PID alive). In that case, `local_token` is used directly -- it grants superuser access, bypassing the normal auth chain.
 
+**Implementation detail:** Token resolution depends on the already-resolved `url`. In `StateFileSource.__call__`, the source accesses `self.current_state["url"]` (populated by higher-priority sources or the source's own URL resolution) to determine which token to return. If `url` is still `None` in `current_state`, no token is returned.
+
 ### Local Admin Token
 
 The server generates a `local_token` on every start and writes it to `state.json`. The server accepts this token as superuser authentication.
@@ -268,6 +287,8 @@ Auth endpoint or middleware:
 - Accept `Authorization: Bearer <local_token>` as superuser. When the token matches `app.state.local_token`, return a synthetic superuser identity.
 - This replaces the unused `X-Shutdown-Token` mechanism.
 - Normal JWT auth continues to work for all other tokens (guests, logged-in users, remote clients).
+
+`shutdown_server()` (in `server_manager.py`) is updated to read `local_token` from `state.json` and send it as `Authorization: Bearer <local_token>` instead of the old `X-Shutdown-Token` header. This means local shutdown now uses the same auth mechanism as all other local admin operations.
 
 #### Client-Side
 
@@ -287,6 +308,7 @@ End-to-end flow showing how `ClientSettings` resolves all fields:
 ```mermaid
 sequenceDiagram
     participant User as User Code
+    participant ZD as ZnDraw.__post_init__
     participant CS as ClientSettings
     participant Init as Init Source
     participant Env as Env Source
@@ -294,7 +316,8 @@ sequenceDiagram
     participant SF as StateFile Source
     participant Server as ZnDraw Server
 
-    User->>CS: ZnDraw() or ZnDraw(url=...)
+    User->>ZD: ZnDraw() or ZnDraw(url=...)
+    ZD->>CS: ClientSettings(url=..., token=..., ...)
     CS->>Init: Read constructor args
     CS->>Env: Read ZNDRAW_* env vars
     CS->>Toml: Read [tool.zndraw] from pyproject.toml
@@ -304,20 +327,31 @@ sequenceDiagram
     Note over SF: Token: local_token > stored token
 
     CS->>CS: Merge (init > env > toml > state file)
+    CS-->>ZD: Resolved settings (url, token may be None)
+
+    alt url is None
+        ZD->>ZD: Raise ConnectionError
+    end
 
     alt token is None
-        CS->>Server: POST /v1/auth/guest
-        Server-->>CS: guest token
+        ZD->>Server: POST /v1/auth/guest
+        Server-->>ZD: guest token
     end
 
-    alt token expired (on first use)
-        Server-->>CS: 401
-        CS->>CS: Delete stored token, retry as guest
-        Note over CS: Log warning: "Stored token expired,<br/>run 'zndraw-cli auth login' to re-authenticate"
+    ZD->>ZD: Create APIManager, verify room
+
+    alt token expired (on first API call)
+        Server-->>ZD: 401
+        ZD->>ZD: Delete stored token from state.json
+        Note over ZD: Log warning: "Stored token expired,<br/>run 'zndraw-cli auth login'<br/>to re-authenticate"
+        ZD->>Server: POST /v1/auth/guest
+        Server-->>ZD: guest token
     end
 
-    CS-->>User: Resolved url, room, token
+    ZD-->>User: Ready ZnDraw instance
 ```
+
+**Note:** `ClientSettings` only resolves field values from sources (no HTTP calls). Guest fallback, token validation, and expiry handling happen in `ZnDraw.__post_init__` after `ClientSettings` returns.
 
 ### ZnDraw Integration
 
@@ -347,14 +381,27 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             token=self.token,
         )
 
-        self.url = resolved.url  # guaranteed non-None or ConnectionError
+        # url is required — if still None after full chain, error out
+        if resolved.url is None:
+            raise ConnectionError(
+                "No ZnDraw server found. Pass url=, set ZNDRAW_URL, "
+                "add [tool.zndraw] url to pyproject.toml, or start a local server."
+            )
+        self.url = resolved.url
         self.room = resolved.room or str(uuid.uuid4())
-        self.token = resolved.token  # guaranteed non-None (guest fallback)
+
+        # token: guest fallback if still None
+        if resolved.token is None:
+            self.token = self._guest_fallback(self.url)
+        else:
+            self.token = resolved.token
 
         # ... rest of init (APIManager, SocketManager, etc.) ...
 ```
 
-Constructor args that are not `None` pass through `init_settings` as highest priority. `None` values fall through to env > pyproject > state file > guest.
+**Validation boundaries:** `ClientSettings` itself does not validate that `url` or `token` are non-None — all fields are `Optional`. The "url is required" check and guest fallback live in `ZnDraw.__post_init__` (and equivalently in `cli_agent/connection.py`'s `get_connection`), because they require error handling specific to the caller (e.g., `ConnectionError` for Python client, `SystemExit` for CLI).
+
+Constructor args that are not `None` pass through `init_settings` as highest priority. `None` values fall through to env > pyproject > state file.
 
 ### CLI Integration
 
@@ -390,14 +437,11 @@ flowchart TD
 
     subgraph "zndraw server start"
         S1["Generate local_token"] --> S2["Write to state.json → servers[port]"]
-        S2 --> S3["Set state.json → default_url = localhost:port"]
-        S3 --> S4["Store local_token in app.state"]
+        S2 --> S3["Store local_token in app.state"]
     end
 
     subgraph "zndraw server stop"
-        T1["Remove state.json → servers[port]"] --> T2{"default_url points<br/>to this server?"}
-        T2 -->|yes| T3["Clear default_url"]
-        T2 -->|no| T4["Keep default_url<br/>(points to remote)"]
+        T1["Remove state.json → servers[port]"]
     end
 ```
 
@@ -449,7 +493,7 @@ On first `StateFile` access:
 | `src/zndraw/cli_agent/connection.py` | Replace `resolve_url`/`resolve_token` with `ClientSettings` |
 | `src/zndraw/auth_utils.py` | Simplify -- guest fallback only (token resolution moved to settings chain) |
 | `src/zndraw/server_manager.py` | Remove `ServerInfo`, `TokenStore`, PID file functions. Keep `wait_for_server_ready`, `is_process_running`, `shutdown_server` (updated to use `StateFile`) |
-| `src/zndraw/cli.py` | Write `local_token` to `state.json` on server start. Set `default_url`. |
+| `src/zndraw/cli.py` | Write `local_token` to `state.json` on server start. Remove entry on stop. |
 | `src/zndraw/cli_agent/auth.py` | `auth login` sets `default_url`. `auth logout` clears it. |
 | `src/zndraw/routes/admin.py` | Accept `local_token` as superuser auth (new dependency or middleware) |
 | `src/zndraw/dependencies.py` | Add `LocalTokenOrAdminDep` for local admin token support |
