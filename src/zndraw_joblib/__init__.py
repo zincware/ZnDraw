@@ -1,7 +1,6 @@
 # src/zndraw_joblib/__init__.py
 """ZnDraw Job Management Library."""
 
-from zndraw._version import __version__ as __version__
 from zndraw_joblib.client import Category, ClaimedTask, Extension, JobManager
 from zndraw_joblib.dependencies import (
     FrameRoomCleanup,

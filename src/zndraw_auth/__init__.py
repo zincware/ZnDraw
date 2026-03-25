@@ -24,7 +24,6 @@ Example usage:
         return {"user_id": str(user.id)}
 """
 
-from zndraw._version import __version__ as __version__
 from zndraw_auth.admin import admin_token_router
 from zndraw_auth.cli_login import cli_login_router
 from zndraw_auth.db import (
