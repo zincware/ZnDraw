@@ -197,6 +197,19 @@ def test_chat_log_emits_deprecation_warning(server: str):
     vis.disconnect()
 
 
+def test_progress_tracker_emits_deprecation_warning(server: str):
+    """vis.progress_tracker() emits a DeprecationWarning and uses REST."""
+    vis = ZnDraw(url=server)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        with vis.progress_tracker("Testing") as tracker:
+            tracker.update(progress=50)
+            tracker.update(description="Halfway", progress=50)
+        assert any(issubclass(x.category, DeprecationWarning) for x in w)
+        assert any("ZnDrawTqdm" in str(x.message) for x in w)
+    vis.disconnect()
+
+
 def test_chat_slicing(server: str):
     """Chat supports slicing for pagination."""
     vis = ZnDraw(url=server)

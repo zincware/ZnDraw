@@ -807,8 +807,8 @@ Display progress bars in chat using the ``progress`` code block syntax:
 - ``color``: MUI color - ``primary``, ``secondary``, ``success``, ``error``, ``warning``, ``info`` (default: ``primary``)
 
 The progress bar displays the percentage and the current value relative to max.
-For long-running operations, consider using the :meth:`~zndraw.ZnDraw.progress_tracker`
-context manager instead, which provides real-time updates.
+For long-running operations, consider using :class:`~zndraw.ZnDrawTqdm`
+instead, which provides real-time updates.
 
 
 Molecule Structures
@@ -913,17 +913,14 @@ Progress Tracking
    :class: only-dark
    :alt: Progress tracker
 
-Track long-running operations with ``vis.progress_tracker()``:
+Track long-running operations with :class:`~zndraw.ZnDrawTqdm`:
 
 .. code:: python
 
-    with vis.progress_tracker("Processing data") as tracker:
-        for i, item in enumerate(items):
-            process(item)
-            tracker.update(
-                f"Step {i + 1}/{len(items)}",
-                progress=(i + 1) / len(items) * 100  # 0-100 percentage
-            )
+    from zndraw import ZnDrawTqdm
+
+    for item in ZnDrawTqdm(items, vis=vis, description="Processing data"):
+        process(item)
 
 The progress bar appears in the UI with the current message and completion percentage.
 
