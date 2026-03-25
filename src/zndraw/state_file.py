@@ -104,15 +104,17 @@ class StateFile:
             return StateData()
 
     def _write(self, data: StateData) -> None:
-        """Atomic write: tempfile + os.rename, mode 0600."""
+        """Atomic write: tempfile + os.replace, mode 0600."""
         raw = data.model_dump_json(indent=2)
         fd, tmp_path = tempfile.mkstemp(dir=self.directory, suffix=".tmp")
         try:
-            os.write(fd, raw.encode())
-            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)
-            os.close(fd)
-            fd = -1
-            Path(tmp_path).rename(self.path)
+            with os.fdopen(fd, "wb") as f:
+                fd = -1
+                f.write(raw.encode())
+                f.flush()
+                os.fchmod(f.fileno(), stat.S_IRUSR | stat.S_IWUSR)
+                os.fsync(f.fileno())
+            Path(tmp_path).replace(self.path)
         except BaseException:
             if fd >= 0:
                 os.close(fd)
@@ -255,19 +257,22 @@ class StateFile:
                 log.warning("Skipping corrupt PID file: %s", pid_file)
             pid_file.unlink()
 
-        # Migrate tokens.json
+        # Migrate tokens.json (per-entry so one bad entry doesn't lose others)
         if tokens_file.exists():
             try:
                 raw_tokens = json.loads(tokens_file.read_text())
                 for url, entry_data in raw_tokens.items():
-                    data.tokens[url] = TokenEntry(**entry_data)
-                    # Also register as a server if not already known
+                    try:
+                        data.tokens[url] = TokenEntry(**entry_data)
+                    except (TypeError, ValueError):
+                        log.warning("Skipping corrupt token entry for %s", url)
+                        continue
                     if url not in data.servers:
                         data.servers[url] = ServerEntry(
                             added_at=now,
                             last_used=now,
                         )
-            except (json.JSONDecodeError, KeyError, ValueError):
+            except (json.JSONDecodeError, ValueError):
                 log.warning("Skipping corrupt tokens.json")
             tokens_file.unlink()
 

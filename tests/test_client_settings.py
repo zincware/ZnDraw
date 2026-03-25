@@ -50,8 +50,9 @@ def test_env_overrides_defaults(monkeypatch):
 
 
 @pytest.mark.usefixtures("_no_state_file")
-def test_all_fields_default_to_none():
+def test_all_fields_default_to_none(tmp_path, monkeypatch):
     """All fields default to None when no source provides values."""
+    monkeypatch.chdir(tmp_path)
     from zndraw.client.settings import ClientSettings
 
     settings = ClientSettings()
@@ -118,8 +119,9 @@ def test_no_namespace_overlap_with_server(monkeypatch):
 
 
 @pytest.mark.usefixtures("_no_state_file")
-def test_missing_pyproject_toml_silent():
+def test_missing_pyproject_toml_silent(tmp_path, monkeypatch):
     """Missing pyproject.toml does not cause an error."""
+    monkeypatch.chdir(tmp_path)
     from zndraw.client.settings import ClientSettings
 
     settings = ClientSettings()

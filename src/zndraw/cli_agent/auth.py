@@ -141,10 +141,10 @@ def status(
     with cli_error_handler():
         from zndraw.auth_utils import validate_credentials
 
+        validate_credentials(token, user, password)
+
         resolved_url = _resolve_url(url)
         state = StateFile()
-
-        validate_credentials(token, user, password)
 
         # Determine token and source — no guest fallback
         if token is not None:
@@ -220,5 +220,6 @@ def logout(
         resolved_url = _resolve_url(url)
         state = StateFile()
         state.remove_token(resolved_url)
-        state.remove_server(resolved_url)
+        # Keep server entry — logout removes credentials, not the server
+        # from discovery. A running local server should remain discoverable.
         typer.echo(f"Logged out from {resolved_url}")

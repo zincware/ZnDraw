@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import os
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 import httpx
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
@@ -77,9 +78,10 @@ def _is_localhost(url: str) -> bool:
     Returns
     -------
     bool
-        True if the URL contains localhost or 127.0.0.1.
+        True if the URL's hostname is localhost, 127.0.0.1, or ::1.
     """
-    return "localhost" in url or "127.0.0.1" in url
+    hostname = urlparse(url).hostname
+    return hostname in {"localhost", "127.0.0.1", "::1"}
 
 
 class StateFileSource(PydanticBaseSettingsSource):

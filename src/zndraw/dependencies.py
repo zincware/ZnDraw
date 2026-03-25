@@ -8,7 +8,7 @@ import json
 from pathlib import Path as FilePath
 from typing import Annotated, NamedTuple
 
-from fastapi import Depends, HTTPException, Path, Request
+from fastapi import Depends, Path, Request
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from zndraw_auth import (
@@ -26,6 +26,7 @@ from zndraw_socketio import AsyncServerWrapper
 
 from zndraw.exceptions import (
     Forbidden,
+    NotAuthenticated,
     RoomLocked,
     RoomNotFound,
     RoomReadOnly,
@@ -72,7 +73,7 @@ async def get_local_token_or_admin(
                 is_superuser=True,
             )
 
-    raise HTTPException(status_code=401, detail="Not authenticated")
+    raise NotAuthenticated.exception("Not authenticated")
 
 
 LocalTokenOrAdminDep = Annotated[User, Depends(get_local_token_or_admin)]
