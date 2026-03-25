@@ -385,7 +385,7 @@ async def test_cleanup_stuck_internal_tasks(async_session_factory):
 
     async with async_session_factory() as session:
         count, _ = await cleanup_stuck_internal_tasks(
-            session, timeout=timedelta(hours=1)
+            session, stuck_after=timedelta(hours=1)
         )
         assert count == 1
 
@@ -416,7 +416,7 @@ async def test_cleanup_stuck_internal_tasks_skips_recent(async_session_factory):
 
     async with async_session_factory() as session:
         count, _ = await cleanup_stuck_internal_tasks(
-            session, timeout=timedelta(hours=1)
+            session, stuck_after=timedelta(hours=1)
         )
         assert count == 0
 
@@ -440,7 +440,7 @@ async def test_cleanup_stuck_skips_external_tasks(async_session_factory):
 
     async with async_session_factory() as session:
         count, _ = await cleanup_stuck_internal_tasks(
-            session, timeout=timedelta(hours=1)
+            session, stuck_after=timedelta(hours=1)
         )
         assert count == 0
 
@@ -534,7 +534,7 @@ async def test_cleanup_stuck_internal_returns_emissions(async_session_factory):
 
     async with async_session_factory() as session:
         count, emissions = await cleanup_stuck_internal_tasks(
-            session, timeout=timedelta(hours=1)
+            session, stuck_after=timedelta(hours=1)
         )
         assert count == 1
         task_events = [e for e in emissions if isinstance(e.event, TaskStatusEvent)]
@@ -612,7 +612,7 @@ async def test_cleanup_stuck_internal_tasks_includes_claimed(async_session_facto
 
     async with async_session_factory() as session:
         count, _ = await cleanup_stuck_internal_tasks(
-            session, timeout=timedelta(hours=1)
+            session, stuck_after=timedelta(hours=1)
         )
         assert count == 1
 
