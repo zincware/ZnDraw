@@ -31,11 +31,12 @@ dependencies = [
     "splines>=0.3.3",
     "sqlalchemy[asyncio, aiosqlite]>=2.0.46",
     "sqlmodel>=0.0.31",
-    "zndraw-joblib>=0.1.7",
     "typer>=0.21.1",
     "uvicorn>=0.40.0",
     "vesin>=0.4.2",
-    "zndraw-auth>=0.2.3",
+    "fastapi-users[sqlalchemy]>=14.0.0",
+    "taskiq>=0.12.1",
+    "taskiq-redis>=1.2.2",
     "zndraw-socketio>=0.1.6",
     "pandas>=2.0.0",
     "plotly>=6.5.2",
@@ -64,7 +65,7 @@ version-file = "src/zndraw/_version.py"
 [tool.hatch.build.hooks.custom]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/zndraw"]
+packages = ["src/zndraw", "src/zndraw_auth", "src/zndraw_joblib"]
 artifacts = ["src/zndraw/static/"]
 exclude = [
     "**/node_modules",
@@ -184,7 +185,7 @@ runtime-evaluated-decorators = ["pydantic.validate_call"]
 runtime-evaluated-base-classes = ["pydantic.BaseModel", "sqlmodel.SQLModel"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["zndraw"]
+known-first-party = ["zndraw", "zndraw_auth", "zndraw_joblib"]
 combine-as-imports = true
 
 [tool.ruff.lint.pep8-naming]
@@ -217,6 +218,11 @@ max-args = 10  # Allow up to 10 args for FastAPI endpoints
 "__init__.py" = [
     "F401",    # unused imports in __init__.py (re-exports)
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/zndraw", "tests/zndraw_auth", "tests/zndraw_joblib"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.codespell]
 skip = "frontend/bun.lock,docs/source/_static/*.svg,.planning/*"
