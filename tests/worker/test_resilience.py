@@ -90,8 +90,8 @@ def test_worker_exits_on_server_restart_fresh_db(server_factory):
     # Start a NEW server on the same port — fresh in-memory DB (new users)
     server_factory(
         {
-            "ZNDRAW_HOST": "127.0.0.1",
-            "ZNDRAW_PORT": str(port),
+            "ZNDRAW_SERVER_HOST": "127.0.0.1",
+            "ZNDRAW_SERVER_PORT": str(port),
         }
     )
 

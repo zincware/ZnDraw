@@ -41,11 +41,11 @@ class TestSocketIOClientManager:
 
     def test_app_starts_with_client_manager(self, server_factory) -> None:
         """App should start successfully with AsyncRedisManager configured."""
-        os.environ.pop("ZNDRAW_REDIS_URL", None)
+        os.environ.pop("ZNDRAW_SERVER_REDIS_URL", None)
 
         instance = server_factory(
             {
-                "ZNDRAW_DATABASE_URL": "sqlite+aiosqlite://",
+                "ZNDRAW_SERVER_DATABASE_URL": "sqlite+aiosqlite://",
             }
         )
 
@@ -65,11 +65,11 @@ class TestSocketIOClientManager:
 
     def test_sio_stored_in_app_state(self, server_factory) -> None:
         """app.state.sio should reference the configured Socket.IO server."""
-        os.environ.pop("ZNDRAW_REDIS_URL", None)
+        os.environ.pop("ZNDRAW_SERVER_REDIS_URL", None)
 
         instance = server_factory(
             {
-                "ZNDRAW_DATABASE_URL": "sqlite+aiosqlite://",
+                "ZNDRAW_SERVER_DATABASE_URL": "sqlite+aiosqlite://",
             }
         )
 
