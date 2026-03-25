@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import contextlib
 import logging
 import uuid
 import warnings
-from collections.abc import Generator, Iterable, MutableSequence
+from collections.abc import Iterable, MutableSequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Annotated, Any, Literal, cast, overload
 
@@ -47,7 +46,6 @@ from zndraw.geometries.camera import Camera
 if TYPE_CHECKING:
     from zndraw.extensions.abc import Extension
     from zndraw.providers.frame_source import FrameSource
-    from zndraw.tqdm import ZnDrawTqdm
 
 log = logging.getLogger(__name__)
 
@@ -55,6 +53,32 @@ log = logging.getLogger(__name__)
 # =============================================================================
 # ZnDraw - Main Client Class
 # =============================================================================
+
+
+class _DeprecatedProgressTracker:
+    """Legacy v0.6.0 progress tracker. Use ZnDrawTqdm instead."""
+
+    def __init__(self, vis: ZnDraw, description: str):
+        self.vis = vis
+        self.description = description
+        self.progress_id = str(uuid.uuid4())
+
+    def __enter__(self):
+        self.vis.api.progress_start(self.progress_id, self.description)
+        return self
+
+    def update(self, description: str | None = None, progress: float | None = None):
+        """Update the progress description and/or percentage."""
+        n = int(progress) if progress is not None else None
+        self.vis.api.progress_update(
+            self.progress_id,
+            description=description,
+            n=n,
+            total=100 if n is not None else None,
+        )
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any):
+        self.vis.api.progress_complete(self.progress_id)
 
 
 @dataclass
@@ -857,49 +881,20 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         result = self.api.append_frames([atoms_to_json_dict(value)])
         self.cached_length = result.get("total")
 
-    @contextlib.contextmanager
     @typing_extensions.deprecated(
-        "Use ZnDrawTqdm directly: "
-        "for x in ZnDrawTqdm(items, vis=vis, description='...', unit='it'): ..."
+        "vis.progress_tracker() is deprecated. Use ZnDrawTqdm instead: "
+        "`for x in ZnDrawTqdm(items, vis=vis): ...`"
     )
-    def progress_bar(
+    def progress_tracker(
         self,
-        iterable: Iterable[Any] | None = None,
-        *,
-        total: int | None = None,
-        description: str = "Processing...",
-        unit: str = "it",
-    ) -> Generator[ZnDrawTqdm, None, None]:
-        """Context manager yielding a ZnDrawTqdm progress bar.
+        description: str,
+    ) -> _DeprecatedProgressTracker:
+        """Context manager for tracking progress.
 
-        .. deprecated::
-            Use :class:`ZnDrawTqdm` directly instead.
-
-        Parameters
-        ----------
-        iterable : Iterable[Any] | None
-            Optional iterable to wrap.
-        total : int | None
-            Total expected iterations.
-        description : str
-            Label shown in the UI.
-        unit : str
-            Unit label (e.g. ``"frames"``).
-
-        Yields
-        ------
-        ZnDrawTqdm
-            A tqdm-compatible progress bar.
+        .. deprecated:: 0.7.0
+            Use :class:`ZnDrawTqdm` instead.
         """
-        from zndraw.tqdm import ZnDrawTqdm
-
-        pbar = ZnDrawTqdm(
-            iterable, total=total, vis=self, description=description, unit=unit
-        )
-        try:
-            yield pbar
-        finally:
-            pbar.close()
+        return _DeprecatedProgressTracker(self, description)
 
     def extend(self, values: Iterable[ase.Atoms]) -> None:
         """Extend with multiple ase.Atoms frames.
