@@ -137,7 +137,10 @@ async def ensure_internal_worker(
         log.debug("Updated internal worker user: %s", WORKER_EMAIL)
 
 
-async def init_database(engine: AsyncEngine | None = None) -> None:
+async def init_database(
+    engine: AsyncEngine | None = None,
+    settings: Settings | None = None,
+) -> None:
     """Initialize ALL tables for zndraw-fastapi and dependencies.
 
     Imports all models to register in metadata, then creates tables.
@@ -148,9 +151,13 @@ async def init_database(engine: AsyncEngine | None = None) -> None:
     engine : AsyncEngine | None
         Optional engine to use (app startup). If not provided, creates one
         from settings and disposes it after (CLI use).
+    settings : Settings | None
+        Optional pre-built settings (e.g. from CLI overrides). If not
+        provided, a fresh ``Settings()`` is created.
     """
     # Models already imported at module level
-    settings = Settings()
+    if settings is None:
+        settings = Settings()
     auth_settings = AuthSettings()
 
     # Create engine if not provided (CLI mode) or use existing (app startup)
@@ -181,8 +188,7 @@ async def init_database(engine: AsyncEngine | None = None) -> None:
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """FastAPI lifespan context manager for all application resources."""
-    # Create all settings and store in app.state
-    settings = Settings()
+    settings = Settings(**app.state.settings_overrides)  # type: ignore[arg-type]
     auth_settings = AuthSettings()
     joblib_settings = JobLibSettings(
         allowed_categories=["modifiers", "selections", "analysis", "filesystem"],
@@ -202,7 +208,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         # Initialize tables on startup (dev mode)
         if settings.init_db_on_startup:
-            await init_database(engine=engine)
+            await init_database(engine=engine, settings=settings)
 
         # SQLite locking (if needed)
         if _is_sqlite(settings.database_url):

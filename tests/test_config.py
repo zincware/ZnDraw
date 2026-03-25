@@ -19,23 +19,23 @@ class TestStorageUri:
 
     def test_storage_from_env(self) -> None:
         """Storage URI should be configurable via env var."""
-        os.environ["ZNDRAW_STORAGE"] = "/tmp/test.lmdb"
+        os.environ["ZNDRAW_SERVER_STORAGE"] = "/tmp/test.lmdb"
 
         try:
             settings = Settings()
             assert settings.storage == "/tmp/test.lmdb"
         finally:
-            os.environ.pop("ZNDRAW_STORAGE", None)
+            os.environ.pop("ZNDRAW_SERVER_STORAGE", None)
 
     def test_mongodb_storage_from_env(self) -> None:
         """MongoDB URI should be configurable via env var."""
-        os.environ["ZNDRAW_STORAGE"] = "mongodb://mongo:27017/zndraw"
+        os.environ["ZNDRAW_SERVER_STORAGE"] = "mongodb://mongo:27017/zndraw"
 
         try:
             settings = Settings()
             assert settings.storage == "mongodb://mongo:27017/zndraw"
         finally:
-            os.environ.pop("ZNDRAW_STORAGE", None)
+            os.environ.pop("ZNDRAW_SERVER_STORAGE", None)
 
 
 class TestGuestPassword:
@@ -57,13 +57,13 @@ class TestMediaAndServerSettings:
 
     def test_media_path_from_env(self) -> None:
         """media_path should be configurable via env var."""
-        os.environ["ZNDRAW_MEDIA_PATH"] = "/var/data/media"
+        os.environ["ZNDRAW_SERVER_MEDIA_PATH"] = "/var/data/media"
 
         try:
             settings = Settings()
             assert settings.media_path == Path("/var/data/media")
         finally:
-            os.environ.pop("ZNDRAW_MEDIA_PATH", None)
+            os.environ.pop("ZNDRAW_SERVER_MEDIA_PATH", None)
 
     def test_default_host_and_port(self) -> None:
         """Default host should be '0.0.0.0' and port should be 8000."""
@@ -73,16 +73,16 @@ class TestMediaAndServerSettings:
 
     def test_host_and_port_from_env(self) -> None:
         """host and port should be configurable via env vars."""
-        os.environ["ZNDRAW_HOST"] = "127.0.0.1"
-        os.environ["ZNDRAW_PORT"] = "8080"
+        os.environ["ZNDRAW_SERVER_HOST"] = "127.0.0.1"
+        os.environ["ZNDRAW_SERVER_PORT"] = "8080"
 
         try:
             settings = Settings()
             assert settings.host == "127.0.0.1"
             assert settings.port == 8080
         finally:
-            os.environ.pop("ZNDRAW_HOST", None)
-            os.environ.pop("ZNDRAW_PORT", None)
+            os.environ.pop("ZNDRAW_SERVER_HOST", None)
+            os.environ.pop("ZNDRAW_SERVER_PORT", None)
 
 
 class TestSimgenEnabled:
@@ -94,14 +94,14 @@ class TestSimgenEnabled:
         assert settings.simgen_enabled is False
 
     def test_simgen_enabled_from_env(self) -> None:
-        """SiMGen should be configurable via ZNDRAW_SIMGEN_ENABLED."""
-        os.environ["ZNDRAW_SIMGEN_ENABLED"] = "true"
+        """SiMGen should be configurable via ZNDRAW_SERVER_SIMGEN_ENABLED."""
+        os.environ["ZNDRAW_SERVER_SIMGEN_ENABLED"] = "true"
 
         try:
             settings = Settings()
             assert settings.simgen_enabled is True
         finally:
-            os.environ.pop("ZNDRAW_SIMGEN_ENABLED", None)
+            os.environ.pop("ZNDRAW_SERVER_SIMGEN_ENABLED", None)
 
 
 class TestWorkerEnabled:
@@ -113,31 +113,31 @@ class TestWorkerEnabled:
         assert settings.worker_enabled is True
 
     def test_worker_disabled_from_env(self) -> None:
-        """Worker can be disabled via ZNDRAW_WORKER_ENABLED."""
-        os.environ["ZNDRAW_WORKER_ENABLED"] = "false"
+        """Worker can be disabled via ZNDRAW_SERVER_WORKER_ENABLED."""
+        os.environ["ZNDRAW_SERVER_WORKER_ENABLED"] = "false"
         try:
             settings = Settings()
             assert settings.worker_enabled is False
         finally:
-            os.environ.pop("ZNDRAW_WORKER_ENABLED", None)
+            os.environ.pop("ZNDRAW_SERVER_WORKER_ENABLED", None)
 
 
-class TestServerUrl:
-    """Test server_url configuration."""
+class TestInternalUrl:
+    """Test internal_url configuration."""
 
-    def test_default_server_url_is_none(self) -> None:
-        """server_url should be None by default."""
+    def test_default_internal_url_is_none(self) -> None:
+        """internal_url should be None by default."""
         settings = Settings()
-        assert settings.server_url is None
+        assert settings.internal_url is None
 
-    def test_server_url_from_env(self) -> None:
-        """server_url should be configurable via ZNDRAW_SERVER_URL."""
-        os.environ["ZNDRAW_SERVER_URL"] = "http://nginx"
+    def test_internal_url_from_env(self) -> None:
+        """internal_url should be configurable via ZNDRAW_SERVER_INTERNAL_URL."""
+        os.environ["ZNDRAW_SERVER_INTERNAL_URL"] = "http://nginx"
         try:
             settings = Settings()
-            assert settings.server_url == "http://nginx"
+            assert settings.internal_url == "http://nginx"
         finally:
-            os.environ.pop("ZNDRAW_SERVER_URL", None)
+            os.environ.pop("ZNDRAW_SERVER_INTERNAL_URL", None)
 
 
 class TestSettingsFromEnv:
@@ -150,13 +150,13 @@ class TestSettingsFromEnv:
 
     def test_settings_picks_up_env_changes(self) -> None:
         """New Settings() instance should pick up env var changes."""
-        os.environ["ZNDRAW_PORT"] = "9999"
+        os.environ["ZNDRAW_SERVER_PORT"] = "9999"
 
         try:
             settings = Settings()
             assert settings.port == 9999
         finally:
-            os.environ.pop("ZNDRAW_PORT", None)
+            os.environ.pop("ZNDRAW_SERVER_PORT", None)
 
 
 class TestGlobalSettingsEndpoint:
@@ -182,3 +182,67 @@ class TestGlobalSettingsEndpoint:
             assert response.json() == {"simgen": {"enabled": True}}
         finally:
             app.state.settings = original
+
+
+def test_settings_from_pyproject_toml(tmp_path, monkeypatch):
+    """Settings should load from [tool.zndraw.server] in pyproject.toml."""
+    toml_content = """\
+[tool.zndraw.server]
+port = 9999
+host = "192.168.1.1"
+storage = "/data/frames.lmdb"
+"""
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(toml_content)
+    monkeypatch.chdir(tmp_path)
+
+    from zndraw.config import Settings
+
+    settings = Settings()
+    assert settings.port == 9999
+    assert settings.host == "192.168.1.1"
+    assert settings.storage == "/data/frames.lmdb"
+
+
+def test_env_overrides_pyproject_toml(tmp_path, monkeypatch):
+    """Env vars should take priority over pyproject.toml."""
+    toml_content = """\
+[tool.zndraw.server]
+port = 9999
+"""
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(toml_content)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ZNDRAW_SERVER_PORT", "7777")
+
+    from zndraw.config import Settings
+
+    settings = Settings()
+    assert settings.port == 7777
+
+
+def test_init_overrides_env_and_pyproject(tmp_path, monkeypatch):
+    """Init args should take priority over env and pyproject.toml."""
+    toml_content = """\
+[tool.zndraw.server]
+port = 9999
+"""
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(toml_content)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ZNDRAW_SERVER_PORT", "7777")
+
+    from zndraw.config import Settings
+
+    settings = Settings(port=5555)
+    assert settings.port == 5555
+
+
+def test_missing_pyproject_toml_is_silent(tmp_path, monkeypatch):
+    """Settings should work fine without a pyproject.toml."""
+    monkeypatch.chdir(tmp_path)
+
+    from zndraw.config import Settings
+
+    settings = Settings()
+    assert settings.port == 8000

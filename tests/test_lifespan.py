@@ -19,9 +19,9 @@ from zndraw.storage import FrameStorage
 def clean_env() -> Generator[None, None, None]:
     """Clean environment before each test."""
     env_vars_to_clear = [
-        "ZNDRAW_REDIS_URL",
-        "ZNDRAW_DATABASE_URL",
-        "ZNDRAW_STORAGE",
+        "ZNDRAW_SERVER_REDIS_URL",
+        "ZNDRAW_SERVER_DATABASE_URL",
+        "ZNDRAW_SERVER_STORAGE",
     ]
     original_values = {k: os.environ.pop(k, None) for k in env_vars_to_clear}
 
@@ -39,12 +39,12 @@ class TestLifespanWithoutRedisUrl:
 
     def test_app_starts_without_redis_url(self, server_factory) -> None:
         """App should auto-start TcpFakeServer when REDIS_URL is not set."""
-        os.environ.pop("ZNDRAW_REDIS_URL", None)
-        os.environ["ZNDRAW_DATABASE_URL"] = "sqlite+aiosqlite://"
+        os.environ.pop("ZNDRAW_SERVER_REDIS_URL", None)
+        os.environ["ZNDRAW_SERVER_DATABASE_URL"] = "sqlite+aiosqlite://"
 
         instance = server_factory(
             {
-                "ZNDRAW_DATABASE_URL": "sqlite+aiosqlite://",
+                "ZNDRAW_SERVER_DATABASE_URL": "sqlite+aiosqlite://",
             }
         )
 
@@ -54,11 +54,11 @@ class TestLifespanWithoutRedisUrl:
 
     def test_health_endpoint_returns_200_with_fake_redis(self, server_factory) -> None:
         """Health endpoint should return 200 when using fake Redis."""
-        os.environ.pop("ZNDRAW_REDIS_URL", None)
+        os.environ.pop("ZNDRAW_SERVER_REDIS_URL", None)
 
         instance = server_factory(
             {
-                "ZNDRAW_DATABASE_URL": "sqlite+aiosqlite://",
+                "ZNDRAW_SERVER_DATABASE_URL": "sqlite+aiosqlite://",
             }
         )
 
@@ -73,8 +73,8 @@ class TestLifespanWithRedisUrl:
         """App should use external Redis when REDIS_URL is set."""
         instance = server_factory(
             {
-                "ZNDRAW_REDIS_URL": "redis://localhost:6379",
-                "ZNDRAW_DATABASE_URL": "sqlite+aiosqlite://",
+                "ZNDRAW_SERVER_REDIS_URL": "redis://localhost:6379",
+                "ZNDRAW_SERVER_DATABASE_URL": "sqlite+aiosqlite://",
             }
         )
 
@@ -116,11 +116,11 @@ class TestCleanupSweeper:
 
     def test_cleanup_sweeper_starts_in_lifespan(self, server_factory) -> None:
         """Cleanup sweeper should start when app starts."""
-        os.environ.pop("ZNDRAW_REDIS_URL", None)
+        os.environ.pop("ZNDRAW_SERVER_REDIS_URL", None)
 
         instance = server_factory(
             {
-                "ZNDRAW_DATABASE_URL": "sqlite+aiosqlite://",
+                "ZNDRAW_SERVER_DATABASE_URL": "sqlite+aiosqlite://",
             }
         )
 

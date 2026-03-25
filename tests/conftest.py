@@ -128,12 +128,12 @@ def test_settings() -> Generator[None, None, None]:
     Note: REDIS_URL is not set - the lifespan will auto-start TcpFakeServer.
     """
     # Database (in-memory for tests)
-    os.environ["ZNDRAW_DATABASE_URL"] = "sqlite+aiosqlite://"
+    os.environ["ZNDRAW_SERVER_DATABASE_URL"] = "sqlite+aiosqlite://"
     # Don't set REDIS_URL - lifespan will auto-start TcpFakeServer
-    os.environ.pop("ZNDRAW_REDIS_URL", None)
+    os.environ.pop("ZNDRAW_SERVER_REDIS_URL", None)
     # Remove host/port so Settings() reads its own defaults
-    os.environ.pop("ZNDRAW_HOST", None)
-    os.environ.pop("ZNDRAW_PORT", None)
+    os.environ.pop("ZNDRAW_SERVER_HOST", None)
+    os.environ.pop("ZNDRAW_SERVER_PORT", None)
 
     return
 
@@ -325,7 +325,7 @@ def server_factory_fixture() -> Generator[ServerFactory, None, None]:
 
     Usage:
         def test_something(server_factory):
-            server = server_factory({"ZNDRAW_PRESENCE_TTL": "2"})
+            server = server_factory({"ZNDRAW_SERVER_EDIT_LOCK_TTL": "2"})
             # server.url contains the server URL
 
     The factory handles cleanup of all created servers automatically.
@@ -341,10 +341,10 @@ def server_factory_fixture() -> Generator[ServerFactory, None, None]:
         host = "127.0.0.1"
 
         defaults = {
-            "ZNDRAW_REDIS_URL": "redis://localhost",
-            "ZNDRAW_DATABASE_URL": "sqlite+aiosqlite://",
-            "ZNDRAW_HOST": host,
-            "ZNDRAW_PORT": str(port),
+            "ZNDRAW_SERVER_REDIS_URL": "redis://localhost",
+            "ZNDRAW_SERVER_DATABASE_URL": "sqlite+aiosqlite://",
+            "ZNDRAW_SERVER_HOST": host,
+            "ZNDRAW_SERVER_PORT": str(port),
         }
         defaults.update(env_overrides or {})
         env_overrides = defaults

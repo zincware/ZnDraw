@@ -20,7 +20,7 @@ services:
       redis: { condition: service_healthy }
     env_file: .env
     environment:
-      - ZNDRAW_STORAGE=/app/data/zndraw-data.lmdb
+      - ZNDRAW_SERVER_STORAGE=/app/data/zndraw-data.lmdb
     volumes:
       - zndraw-data:/app/data
     healthcheck:
@@ -38,8 +38,8 @@ services:
     command: ["taskiq", "worker", "zndraw.broker:broker"]
     env_file: .env
     environment:
-      - ZNDRAW_STORAGE=/app/data/zndraw-data.lmdb
-      - ZNDRAW_SERVER_URL=http://zndraw:8000
+      - ZNDRAW_SERVER_STORAGE=/app/data/zndraw-data.lmdb
+      - ZNDRAW_SERVER_INTERNAL_URL=http://zndraw:8000
     volumes:
       - zndraw-data:/app/data
     healthcheck:

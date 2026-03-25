@@ -4,9 +4,9 @@ Usage::
 
     taskiq worker zndraw.broker:broker
 
-The broker connects to Redis (via ``ZNDRAW_REDIS_URL``) and registers
+The broker connects to Redis (via ``ZNDRAW_SERVER_REDIS_URL``) and registers
 all built-in extensions. The executor connects back to the FastAPI
-server at ``ZNDRAW_SERVER_URL``.
+server at ``ZNDRAW_SERVER_INTERNAL_URL``.
 """
 
 from taskiq_redis import ListQueueBroker
@@ -20,13 +20,13 @@ settings = Settings()
 
 if settings.redis_url is None:
     raise RuntimeError(
-        "ZNDRAW_REDIS_URL must be set for external TaskIQ workers. "
+        "ZNDRAW_SERVER_REDIS_URL must be set for external TaskIQ workers. "
         "External workers cannot use fakeredis."
     )
 
 broker = ListQueueBroker(settings.redis_url)
 
-server_url = settings.server_url or f"http://localhost:{settings.port}"
+server_url = settings.internal_url or f"http://localhost:{settings.port}"
 
 executor = InternalExtensionExecutor(
     base_url=server_url,

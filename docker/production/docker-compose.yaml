@@ -44,7 +44,7 @@ services:
       postgres: { condition: service_healthy }
     env_file: .env
     environment:
-      - ZNDRAW_DATABASE_URL=postgresql+asyncpg://zndraw:zndraw@postgres:5432/zndraw
+      - ZNDRAW_SERVER_DATABASE_URL=postgresql+asyncpg://zndraw:zndraw@postgres:5432/zndraw
     command: ["zndraw-db"]
 
   caddy:
@@ -71,9 +71,9 @@ services:
       db-init: { condition: service_completed_successfully }
     env_file: .env
     environment:
-      - ZNDRAW_STORAGE=mongodb://mongo:27017/zndraw
-      - ZNDRAW_DATABASE_URL=postgresql+asyncpg://zndraw:zndraw@postgres:5432/zndraw
-      - ZNDRAW_INIT_DB_ON_STARTUP=false
+      - ZNDRAW_SERVER_STORAGE=mongodb://mongo:27017/zndraw
+      - ZNDRAW_SERVER_DATABASE_URL=postgresql+asyncpg://zndraw:zndraw@postgres:5432/zndraw
+      - ZNDRAW_SERVER_INIT_DB_ON_STARTUP=false
     deploy:
       replicas: 3
     healthcheck:
@@ -92,8 +92,8 @@ services:
     command: ["taskiq", "worker", "zndraw.broker:broker"]
     env_file: .env
     environment:
-      - ZNDRAW_STORAGE=mongodb://mongo:27017/zndraw
-      - ZNDRAW_SERVER_URL=http://caddy
+      - ZNDRAW_SERVER_STORAGE=mongodb://mongo:27017/zndraw
+      - ZNDRAW_SERVER_INTERNAL_URL=http://caddy
     healthcheck:
       test: ["NONE"]
 

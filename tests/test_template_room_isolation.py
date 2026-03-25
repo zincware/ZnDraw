@@ -70,7 +70,7 @@ def test_template_room_isolation(
     }
     if storage_type == "lmdb":
         lmdb_path = tmp_path / "test_storage.lmdb"
-        env_overrides["ZNDRAW_STORAGE"] = str(lmdb_path)
+        env_overrides["ZNDRAW_SERVER_STORAGE"] = str(lmdb_path)
 
     server_instance = server_factory(env_overrides)
     server_url = server_instance.url
