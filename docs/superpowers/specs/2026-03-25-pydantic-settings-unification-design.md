@@ -45,38 +45,41 @@ Each of the three settings classes adds `PyprojectTomlConfigSettingsSource` in `
 
 | Class | Table Header | Env Prefix |
 |---|---|---|
-| `Settings` | `[tool.zndraw]` | `ZNDRAW_` |
+| `Settings` | `[tool.zndraw.server]` | `ZNDRAW_` |
 | `AuthSettings` | `[tool.zndraw.auth]` | `ZNDRAW_AUTH_` |
 | `JobLibSettings` | `[tool.zndraw.joblib]` | `ZNDRAW_JOBLIB_` |
+
+Note: `Settings` uses `[tool.zndraw.server]` (not `[tool.zndraw]`) to avoid field name clashes with `ClientSettings` (Phase 2), which reads from `[tool.zndraw]`. Env prefix stays `ZNDRAW_` for backward compatibility.
 
 ### Priority (all server-side classes)
 
 ```
-init args (Settings(port=9000))       highest
+init args (Settings(port=9000))              highest
     |
 env vars (ZNDRAW_PORT=9000)
     |
-pyproject.toml ([tool.zndraw])        lowest
+pyproject.toml ([tool.zndraw.server])        lowest
 ```
 
 ### Example pyproject.toml
 
-Server and client keys coexist in `[tool.zndraw]`. Each settings class uses `extra="ignore"` to skip keys it doesn't recognize.
+Each settings class reads from its own sub-table. No shared tables, no `extra="ignore"` needed.
 
 ```toml
 [tool.zndraw]
+# Client-side (read by ClientSettings, Phase 2)
+url = "https://zndraw.icp.uni-stuttgart.de"
+room = "my-project-room"
+user = "researcher@uni-stuttgart.de"
+password = "secret"  # user's responsibility if committed
+
+[tool.zndraw.server]
 # Server-side (read by Settings)
 database_url = "postgresql+asyncpg://user:pass@db/zndraw"
 redis_url = "redis://redis:6379"
 storage = "/data/frames.lmdb"
 host = "0.0.0.0"
 port = 8000
-
-# Client-side (read by ClientSettings, Phase 2)
-url = "https://zndraw.icp.uni-stuttgart.de"
-room = "my-project-room"
-user = "researcher@uni-stuttgart.de"
-password = "secret"  # user's responsibility if committed
 
 [tool.zndraw.auth]
 secret_key = "production-secret"
@@ -90,7 +93,7 @@ worker_timeout_seconds = 120
 
 ### Implementation
 
-Each class overrides `settings_customise_sources()` and sets `extra="ignore"` so that unrecognized keys from the shared `[tool.zndraw]` table (e.g., client-only keys like `url`, `room`) do not cause validation errors:
+Each class overrides `settings_customise_sources()`:
 
 ```python
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -100,8 +103,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ZNDRAW_",
         env_nested_delimiter="__",
-        extra="ignore",
-        pyproject_toml_table_header=("tool", "zndraw"),
+        pyproject_toml_table_header=("tool", "zndraw", "server"),
     )
 
     @classmethod
@@ -124,8 +126,6 @@ class Settings(BaseSettings):
 ```
 
 Same pattern for `AuthSettings` (header: `("tool", "zndraw", "auth")`) and `JobLibSettings` (header: `("tool", "zndraw", "joblib")`).
-
-**Note on `extra="ignore"`:** Both `Settings` and `ClientSettings` (Phase 2) read from `[tool.zndraw]`. Without `extra="ignore"`, `Settings` rejects client keys (`url`, `room`) and `ClientSettings` rejects server keys (`port`, `host`, `database_url`). All settings classes that read from shared TOML tables must use `extra="ignore"`.
 
 ## Phase 2: Client/CLI-Side Unification
 
@@ -159,7 +159,6 @@ New `BaseSettings` subclass for client-side connection parameters:
 class ClientSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ZNDRAW_",
-        extra="ignore",  # shared [tool.zndraw] table has server keys too
         pyproject_toml_table_header=("tool", "zndraw"),
     )
 
@@ -170,7 +169,7 @@ class ClientSettings(BaseSettings):
     token: str | None = None
 ```
 
-`ClientSettings` uses `extra="ignore"` because the `[tool.zndraw]` table may also contain server-side keys (`port`, `database_url`, etc.) that are not `ClientSettings` fields.
+`ClientSettings` reads from `[tool.zndraw]` (the top-level table). Server-side `Settings` reads from `[tool.zndraw.server]`. No table overlap, no `extra="ignore"` needed.
 
 ### Priority Chain
 
