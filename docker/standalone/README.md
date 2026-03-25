@@ -34,7 +34,7 @@ Edit `docker-compose.yaml` to customize:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZNDRAW_REDIS_URL` | Redis connection | `redis://redis:6379` |
+| `ZNDRAW_SERVER_REDIS_URL` | Redis connection | `redis://redis:6379` |
 | `ZNDRAW_AUTH_SECRET_KEY` | JWT secret | Change in production! |
 | `ZNDRAW_AUTH_DEFAULT_ADMIN_EMAIL` | Admin email | Disabled |
 | `ZNDRAW_AUTH_DEFAULT_ADMIN_PASSWORD` | Admin password | Disabled |
