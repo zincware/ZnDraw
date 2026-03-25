@@ -200,10 +200,12 @@ Replaces both `ServerInfo` + `TokenStore` with a single `~/.zndraw/state.json` (
       "pid": 12345,
       "version": "0.5.0",
       "local_token": "random-per-start",
-      "added_at": "2026-03-25T10:00:00Z"
+      "added_at": "2026-03-25T10:00:00Z",
+      "last_used": "2026-03-25T14:30:00Z"
     },
     "https://zndraw.icp.uni-stuttgart.de": {
-      "added_at": "2026-03-24T09:00:00Z"
+      "added_at": "2026-03-24T09:00:00Z",
+      "last_used": "2026-03-25T12:00:00Z"
     }
   },
   "tokens": {
@@ -216,14 +218,14 @@ Replaces both `ServerInfo` + `TokenStore` with a single `~/.zndraw/state.json` (
 }
 ```
 
-Both `servers` and `tokens` use the full URL as key. Local servers have `pid`, `version`, and `local_token`. Remote servers only have `added_at`. All entries have `added_at` for ordering.
+Both `servers` and `tokens` use the full URL as key. Local servers have `pid`, `version`, and `local_token`. All entries have `added_at` (creation time) and `last_used` (updated on each successful connection). Resolution orders by `last_used` descending — most recently used server is tried first.
 
 Key changes from current state:
 - **Merged**: PID files + tokens.json into one file.
 - **Unified server registry**: Both local and remote servers live in `servers`. No separate `default_url` — server preference is determined by health checks and recency (see URL Resolution below).
 - **`local_token`**: Replaces `shutdown_token`. Generated per server start. Grants superuser access to the local server. Only present on local server entries.
-- **`added_at`**: Timestamp for ordering. Newest healthy server wins within each category (localhost first, then remote).
-- **Atomic writes**: Write to temp file, then rename (prevents corruption on crash). Note: atomic rename prevents partial reads but does not prevent lost updates from concurrent read-modify-write cycles (e.g., `server start` and `auth login` running simultaneously). This is acceptable given the low frequency of these operations — both are user-initiated CLI commands unlikely to overlap. If needed later, `fcntl.flock` can be added.
+- **`last_used`**: Updated on each successful connection. Resolution orders by `last_used` descending — most recently used server is tried first. `added_at` records creation time for informational purposes.
+- **Atomic writes (mandatory)**: All writes use write-to-tempfile-then-`os.rename()` — never overwrite directly. This is especially important because `last_used` updates happen on every successful connection, making writes frequent. `os.rename()` is atomic on POSIX, preventing corruption if the process is killed mid-write. Note: atomic rename prevents partial reads but does not prevent lost updates from concurrent read-modify-write cycles. This is acceptable — the worst case is a `last_used` timestamp being slightly stale, which only affects ordering preference.
 - **Migration**: On first access, if old `server-*.pid` or `tokens.json` files exist, migrate them to `state.json` and delete the old files.
 
 ### StateFileSource: URL Resolution
@@ -233,7 +235,7 @@ The `StateFileSource` resolves `url` from `state.json` using health checks again
 ```mermaid
 flowchart TD
     A["Read state.json → servers"] --> B["Partition by localhost<br/>vs non-localhost"]
-    B --> C["Sort each partition by<br/>added_at descending (newest first)"]
+    B --> C["Sort each partition by<br/>last_used descending (most recent first)"]
     C --> D["Try localhost servers first"]
 
     D --> E{"Has pid?"}
@@ -260,16 +262,16 @@ flowchart TD
 
 **How it works:**
 1. **Partition** servers into localhost (URL contains `localhost` or `127.0.0.1`) and non-localhost.
-2. **Sort** each partition by `added_at` descending — newest first.
+2. **Sort** each partition by `last_used` descending — most recently used first.
 3. **Try localhost first** — for entries with a `pid`, do a fast `os.kill(pid, 0)` pre-filter to skip dead processes without a network call. Then hit `/v1/health` to confirm.
 4. **Then try remote** — hit `/v1/health` directly.
 5. **First healthy server wins.**
 
 **Cleanup during resolution:**
 - **Local entries with dead PID**: removed immediately — `os.kill(pid, 0)` is definitive, there is no "temporarily dead PID" scenario. Safe to clean up on every access.
-- **Remote entries with failed health check**: kept — a failed health check is ambiguous (network blip, server restarting). Remote entries are only removed explicitly by `auth logout --url ...`.
+- **Remote entries with failed health check**: kept — a failed health check is ambiguous (network blip, server restarting). A warning is logged: `log.warning("Server %s is unreachable. To remove: zndraw-cli auth logout --url %s", url, url)`. Remote entries are only removed explicitly by `auth logout --url ...`.
 
-This eliminates the need for `default_url`. The `auth login --url remote` command adds the remote to `servers`. Starting a local server adds to `servers`. The resolution algorithm always picks the best available server: localhost preferred (active intent), then remote (passive preference), newest first within each category.
+This eliminates the need for `default_url`. The `auth login --url remote` command adds the remote to `servers`. Starting a local server adds to `servers`. The resolution algorithm always picks the best available server: localhost preferred (active intent), then remote (passive preference), most recently used first within each category.
 
 ### StateFileSource: Token Resolution
 
@@ -345,7 +347,7 @@ sequenceDiagram
     CS->>Toml: Read [tool.zndraw] from pyproject.toml
     CS->>SF: Read ~/.zndraw/state.json
 
-    Note over SF: URL: healthy localhost (newest) > healthy remote (newest)
+    Note over SF: URL: healthy localhost (most recent) > healthy remote (most recent)
     Note over SF: Token: local_token (if localhost) > stored token
 
     CS->>CS: Merge (init > env > toml > state file)
@@ -532,7 +534,7 @@ On first `StateFile` access:
 ### Phase 2
 - `ClientSettings` resolves through full chain (init > env > toml > state file > guest).
 - `StateFile` read/write/migration from old format.
-- Health-check-based discovery prefers localhost (newest) over remote (newest).
+- Health-check-based discovery prefers localhost (most recently used) over remote (most recently used).
 - `local_token` grants superuser access to local server.
 - `local_token` is rejected for remote servers.
 - `auth login` adds remote to `servers` and stores token.
