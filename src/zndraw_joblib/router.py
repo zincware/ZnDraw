@@ -382,8 +382,8 @@ async def register_job(
 async def list_jobs(
     room_id: str,
     session: SessionDep,
-    limit: Annotated[int, Query(default=50, ge=0, le=500)] = 50,
-    offset: Annotated[int, Query(default=0, ge=0)] = 0,
+    limit: Annotated[int, Query(ge=0, le=500)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """List jobs for a room. Includes @global jobs unless room_id is @global."""
     validate_room_id(room_id)
@@ -421,8 +421,8 @@ async def list_jobs(
 async def list_workers_for_room(
     room_id: str,
     session: SessionDep,
-    limit: Annotated[int, Query(default=50, ge=0, le=500)] = 50,
-    offset: Annotated[int, Query(default=0, ge=0)] = 0,
+    limit: Annotated[int, Query(ge=0, le=500)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """List workers for a room. Includes @global workers unless room_id is @global."""
     validate_room_id(room_id)
@@ -475,10 +475,10 @@ async def list_tasks_for_room(
     room_id: str,
     session: SessionDep,
     task_status: Annotated[
-        TaskStatus | None, Query(default=None, alias="status")
+        TaskStatus | None, Query(alias="status")
     ] = None,
-    limit: Annotated[int, Query(default=50, ge=0, le=500)] = 50,
-    offset: Annotated[int, Query(default=0, ge=0)] = 0,
+    limit: Annotated[int, Query(ge=0, le=500)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """List tasks for a room, optionally filtered by status.
 
@@ -518,10 +518,10 @@ async def list_tasks_for_job(
     job_name: str,
     session: SessionDep,
     task_status: Annotated[
-        TaskStatus | None, Query(default=None, alias="status")
+        TaskStatus | None, Query(alias="status")
     ] = None,
-    limit: Annotated[int, Query(default=50, ge=0, le=500)] = 50,
-    offset: Annotated[int, Query(default=0, ge=0)] = 0,
+    limit: Annotated[int, Query(ge=0, le=500)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """List tasks for a specific job. Includes queue position for pending tasks."""
     validate_room_id(room_id)
@@ -871,8 +871,8 @@ async def update_task_status(
 @router.get("/workers", response_model=PaginatedResponse[WorkerSummary])
 async def list_workers(
     session: SessionDep,
-    limit: Annotated[int, Query(default=50, ge=0, le=500)] = 50,
-    offset: Annotated[int, Query(default=0, ge=0)] = 0,
+    limit: Annotated[int, Query(ge=0, le=500)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """List all workers with their job counts."""
     # Total count
@@ -1091,8 +1091,8 @@ async def register_provider(
 async def list_providers(
     room_id: str,
     session: SessionDep,
-    limit: Annotated[int, Query(default=50, ge=0, le=500)] = 50,
-    offset: Annotated[int, Query(default=0, ge=0)] = 0,
+    limit: Annotated[int, Query(ge=0, le=500)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """List providers visible from a room (room-scoped + @global)."""
     validate_room_id(room_id)
