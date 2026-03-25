@@ -187,7 +187,7 @@ def resolve_room(room: str | None) -> str:
 
     try:
         settings = ClientSettings()
-    except Exception:
+    except (ValueError, TypeError):
         pass
     else:
         if settings.room is not None:
@@ -250,13 +250,14 @@ def get_connection(
 
     try:
         settings = ClientSettings(**overrides)
-    except Exception as exc:
+    except (ValueError, TypeError) as exc:
         die("Configuration Error", str(exc), 400, EXIT_CLIENT_ERROR)
 
     if settings.url is None:
         die(
             "No Server Found",
-            "No running zndraw server found. Start one with `uv run zndraw` or pass `--url`.",
+            "No running zndraw server found. "
+            "Start one with `uv run zndraw` or pass `--url`.",
             503,
             EXIT_CONNECTION_ERROR,
         )

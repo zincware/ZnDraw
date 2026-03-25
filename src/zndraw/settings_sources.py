@@ -11,12 +11,13 @@ import os
 from typing import TYPE_CHECKING, Any
 
 import httpx
-from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
 from zndraw.state_file import StateFile
 
 if TYPE_CHECKING:
+    from pydantic.fields import FieldInfo
+
     from zndraw.state_file import ServerEntry
 
 log = logging.getLogger(__name__)
@@ -107,7 +108,9 @@ class StateFileSource(PydanticBaseSettingsSource):
         self._current_state: dict[str, Any] = {}
 
     def get_field_value(
-        self, field: FieldInfo, field_name: str
+        self,
+        field: FieldInfo,  # noqa: ARG002
+        field_name: str,
     ) -> tuple[Any, str, bool]:
         """Not used — __call__ handles everything."""
         return None, field_name, False

@@ -20,7 +20,7 @@ def state_file(tmp_path):
     return StateFile(directory=tmp_path)
 
 
-def _make_connection(base_url="http://localhost:8000", token="admin.jwt.token"):
+def _make_connection(base_url="http://localhost:8000", token="admin.jwt.token"):  # noqa: S107
     """Create a mock Connection."""
     conn = MagicMock(spec=Connection)
     conn.base_url = base_url

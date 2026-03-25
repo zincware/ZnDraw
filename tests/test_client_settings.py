@@ -27,7 +27,8 @@ def _no_state_file():
         yield
 
 
-def test_init_args_highest_priority(_no_state_file, monkeypatch):
+@pytest.mark.usefixtures("_no_state_file")
+def test_init_args_highest_priority(monkeypatch):
     """Init args override everything."""
     monkeypatch.setenv("ZNDRAW_URL", "http://env-server:8000")
     from zndraw.client.settings import ClientSettings
@@ -36,7 +37,8 @@ def test_init_args_highest_priority(_no_state_file, monkeypatch):
     assert settings.url == "http://init-server:8000"
 
 
-def test_env_overrides_defaults(_no_state_file, monkeypatch):
+@pytest.mark.usefixtures("_no_state_file")
+def test_env_overrides_defaults(monkeypatch):
     """Env vars provide values when no init args given."""
     monkeypatch.setenv("ZNDRAW_URL", "http://env-server:8000")
     monkeypatch.setenv("ZNDRAW_ROOM", "env-room")
@@ -47,7 +49,8 @@ def test_env_overrides_defaults(_no_state_file, monkeypatch):
     assert settings.room == "env-room"
 
 
-def test_all_fields_default_to_none(_no_state_file):
+@pytest.mark.usefixtures("_no_state_file")
+def test_all_fields_default_to_none():
     """All fields default to None when no source provides values."""
     from zndraw.client.settings import ClientSettings
 
@@ -59,7 +62,8 @@ def test_all_fields_default_to_none(_no_state_file):
     assert settings.token is None
 
 
-def test_pyproject_toml_provides_values(_no_state_file, tmp_path, monkeypatch):
+@pytest.mark.usefixtures("_no_state_file")
+def test_pyproject_toml_provides_values(tmp_path, monkeypatch):
     """Values from [tool.zndraw] in pyproject.toml are used."""
     toml_content = """\
 [tool.zndraw]
@@ -75,7 +79,8 @@ room = "toml-room"
     assert settings.room == "toml-room"
 
 
-def test_env_overrides_pyproject_toml(_no_state_file, tmp_path, monkeypatch):
+@pytest.mark.usefixtures("_no_state_file")
+def test_env_overrides_pyproject_toml(tmp_path, monkeypatch):
     """Env vars override pyproject.toml values."""
     toml_content = """\
 [tool.zndraw]
@@ -90,7 +95,8 @@ url = "http://toml-server:8000"
     assert settings.url == "http://env-server:8000"
 
 
-def test_password_coerced_to_secretstr(_no_state_file, monkeypatch):
+@pytest.mark.usefixtures("_no_state_file")
+def test_password_coerced_to_secretstr(monkeypatch):
     """String password is auto-wrapped to SecretStr."""
     monkeypatch.setenv("ZNDRAW_PASSWORD", "my-secret")
     from zndraw.client.settings import ClientSettings
@@ -100,7 +106,8 @@ def test_password_coerced_to_secretstr(_no_state_file, monkeypatch):
     assert settings.password.get_secret_value() == "my-secret"
 
 
-def test_no_namespace_overlap_with_server(_no_state_file, monkeypatch):
+@pytest.mark.usefixtures("_no_state_file")
+def test_no_namespace_overlap_with_server(monkeypatch):
     """ZNDRAW_SERVER_* env vars do NOT affect ClientSettings."""
     monkeypatch.setenv("ZNDRAW_SERVER_PORT", "9999")
     from zndraw.client.settings import ClientSettings
@@ -110,7 +117,8 @@ def test_no_namespace_overlap_with_server(_no_state_file, monkeypatch):
     assert not hasattr(settings, "server_port")
 
 
-def test_missing_pyproject_toml_silent(_no_state_file):
+@pytest.mark.usefixtures("_no_state_file")
+def test_missing_pyproject_toml_silent():
     """Missing pyproject.toml does not cause an error."""
     from zndraw.client.settings import ClientSettings
 

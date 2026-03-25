@@ -6,7 +6,9 @@ Sources (highest to lowest priority):
 
 from __future__ import annotations
 
-from pydantic import SecretStr
+from pydantic import (
+    SecretStr,  # noqa: TC002 — required at runtime for pydantic validation
+)
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
