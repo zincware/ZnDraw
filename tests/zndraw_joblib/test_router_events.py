@@ -215,7 +215,7 @@ def test_delete_worker_emits_events(client_with_tsio, mock_tsio):
 def test_delete_worker_emits_jobs_invalidate_when_job_has_other_workers(
     client_factory, mock_tsio
 ):
-    """DELETE /workers/{id} should emit JobsInvalidate even when other workers remain."""
+    """DELETE /workers/{id} emits JobsInvalidate even when other workers remain."""
     c1 = client_factory("worker-1")
     c1.app.state.tsio = mock_tsio
     c2 = client_factory("worker-2")
@@ -250,7 +250,7 @@ def test_delete_worker_emits_jobs_invalidate_when_job_has_other_workers(
 
 
 def test_cancel_last_pending_task_emits_orphan_invalidate(client_with_tsio, mock_tsio):
-    """Cancelling the last pending task on a workerless job should emit JobsInvalidate."""
+    """Cancelling the last pending task on a workerless job emits JobsInvalidate."""
     # Register a @global job (creates a worker)
     resp = client_with_tsio.put(
         "/v1/joblib/rooms/@global/jobs",

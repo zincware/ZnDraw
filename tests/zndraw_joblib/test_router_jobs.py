@@ -141,7 +141,7 @@ def test_list_jobs_returns_worker_ids(client_factory):
 
 
 def test_reregister_soft_deleted_job_with_new_schema(client):
-    """Re-registering a soft-deleted job should un-delete it and accept the new schema."""
+    """Re-registering a soft-deleted job un-deletes it and accepts the new schema."""
     # 1. Register a job
     resp = client.put(
         "/v1/joblib/rooms/@global/jobs",

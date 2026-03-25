@@ -32,7 +32,7 @@ def test_all_exports_in_dunder_all():
         "TaskStatus",
         "get_joblib_settings",
         "JobLibSettingsDep",
-        "ProblemException",
+        "ProblemError",
         "problem_exception_handler",
         "JobNotFound",
         "SchemaConflict",

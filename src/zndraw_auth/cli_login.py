@@ -29,7 +29,7 @@ def _generate_code() -> str:
     return "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_LENGTH))
 
 
-@cli_login_router.post("", response_model=CLILoginCreateResponse)
+@cli_login_router.post("")
 async def create_cli_login_challenge(
     session: SessionDep,
 ) -> CLILoginCreateResponse:
@@ -55,10 +55,10 @@ async def create_cli_login_challenge(
     )
 
 
-@cli_login_router.get("/{code}", response_model=CLILoginStatusResponse)
+@cli_login_router.get("/{code}")
 async def poll_cli_login_challenge(
     code: str,
-    secret: str = Query(...),
+    secret: Annotated[str, Query(...)],
     *,
     session: SessionDep,
 ) -> CLILoginStatusResponse:

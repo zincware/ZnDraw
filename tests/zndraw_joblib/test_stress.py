@@ -45,7 +45,7 @@ async def test_concurrent_claims_multiple_workers(async_client):
     """10 workers claim concurrently from 50 tasks."""
     # Create 10 workers
     worker_ids = []
-    for i in range(10):
+    for _ in range(10):
         worker_resp = await async_client.post("/v1/joblib/workers")
         assert worker_resp.status_code == 201
         worker_id = worker_resp.json()["id"]
@@ -100,10 +100,10 @@ async def test_concurrent_claims_multiple_workers(async_client):
 
 @pytest.mark.asyncio
 async def test_no_double_claim_under_contention(async_client):
-    """Multiple workers trying to claim same task simultaneously - only 1 should succeed."""
+    """Multiple workers trying to claim same task simultaneously — only 1 succeeds."""
     # Create 10 workers
     worker_ids = []
-    for i in range(10):
+    for _ in range(10):
         worker_resp = await async_client.post("/v1/joblib/workers")
         worker_id = worker_resp.json()["id"]
         worker_ids.append(worker_id)
@@ -143,7 +143,7 @@ async def test_large_queue_concurrent_submit_and_claim(async_client):
     """Submit and claim happening concurrently."""
     # Create workers first
     worker_ids = []
-    for i in range(5):
+    for _ in range(5):
         worker_resp = await async_client.post("/v1/joblib/workers")
         worker_id = worker_resp.json()["id"]
         worker_ids.append(worker_id)

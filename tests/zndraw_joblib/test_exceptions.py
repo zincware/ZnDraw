@@ -3,7 +3,7 @@ from zndraw_joblib.exceptions import (
     InvalidCategory,
     InvalidTaskTransition,
     JobNotFound,
-    ProblemException,
+    ProblemError,
     SchemaConflict,
     TaskNotFound,
     WorkerNotFound,
@@ -20,7 +20,7 @@ def test_problem_type_creates_problem_detail():
 
 def test_problem_type_creates_exception():
     exc = SchemaConflict.exception(detail="Schema mismatch")
-    assert isinstance(exc, ProblemException)
+    assert isinstance(exc, ProblemError)
     assert exc.problem.status == 409
 
 

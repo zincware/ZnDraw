@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -65,12 +65,12 @@ class TaskResponse(BaseModel):
     room_id: str
     status: TaskStatus
     created_at: datetime
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    worker_id: Optional[UUID] = None
-    error: Optional[str] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    worker_id: UUID | None = None
+    error: str | None = None
     payload: dict[str, Any] = {}
-    queue_position: Optional[int] = None
+    queue_position: int | None = None
 
 
 class TaskClaimRequest(BaseModel):
@@ -78,12 +78,12 @@ class TaskClaimRequest(BaseModel):
 
 
 class TaskClaimResponse(BaseModel):
-    task: Optional[TaskResponse] = None
+    task: TaskResponse | None = None
 
 
 class TaskUpdateRequest(BaseModel):
     status: TaskStatus
-    error: Optional[str] = None
+    error: str | None = None
 
 
 T = TypeVar("T")

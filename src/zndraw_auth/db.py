@@ -43,8 +43,6 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     - is_verified: bool (default False)
     """
 
-    pass
-
 
 class CLILoginChallenge(SQLModel, table=True):
     """Challenge for device-code style CLI login flow.
@@ -179,14 +177,14 @@ async def ensure_default_admin(
         )
         session.add(admin)
         await session.commit()
-        log.info(f"Created default admin user: {settings.default_admin_email}")
+        log.info("Created default admin user: %s", settings.default_admin_email)
     elif not existing.is_superuser:
         # Promote to superuser
         existing.is_superuser = True
         await session.commit()
-        log.info(f"Promoted user to superuser: {settings.default_admin_email}")
+        log.info("Promoted user to superuser: %s", settings.default_admin_email)
     else:
-        log.debug(f"Default admin already exists: {settings.default_admin_email}")
+        log.debug("Default admin already exists: %s", settings.default_admin_email)
 
 
 async def get_user_db(

@@ -24,7 +24,7 @@ class ProblemDetail(BaseModel):
     instance: str | None = None
 
 
-class ProblemException(Exception):
+class ProblemError(Exception):
     """Exception that carries a ProblemDetail for RFC 9457 responses."""
 
     def __init__(
@@ -76,15 +76,15 @@ class ProblemType:
         detail: str | None = None,
         instance: str | None = None,
         headers: dict[str, str] | None = None,
-    ) -> ProblemException:
-        """Create a ProblemException from this type."""
-        return ProblemException(cls.create(detail, instance), headers=headers)
+    ) -> ProblemError:
+        """Create a ProblemError from this type."""
+        return ProblemError(cls.create(detail, instance), headers=headers)
 
 
 async def problem_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
-    """Convert ProblemException to RFC 9457 compliant JSON response."""
-    if not isinstance(exc, ProblemException):
-        raise TypeError(f"Expected ProblemException, got {type(exc).__name__}")
+    """Convert ProblemError to RFC 9457 compliant JSON response."""
+    if not isinstance(exc, ProblemError):
+        raise TypeError(f"Expected ProblemError, got {type(exc).__name__}")
     return JSONResponse(
         status_code=exc.problem.status,
         content=exc.problem.model_dump(exclude_none=True),

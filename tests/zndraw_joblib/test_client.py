@@ -47,7 +47,7 @@ def test_extension_requires_category():
 
 
 @pytest.mark.parametrize(
-    "category, expected_value",
+    ("category", "expected_value"),
     [
         (Category.MODIFIER, "modifiers"),
         (Category.SELECTION, "selections"),

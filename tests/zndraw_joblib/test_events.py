@@ -1,7 +1,7 @@
 # tests/test_events.py
 """Tests for Socket.IO event models and Emission dedup."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -35,7 +35,7 @@ def test_task_available_frozen():
 
 
 def test_task_status_event_frozen():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ev = TaskStatusEvent(
         id="abc",
         name="@global:modifiers:Rotate",
@@ -76,7 +76,7 @@ def test_leave_job_room_frozen():
 
 def test_emission_dedup_task_status():
     """Distinct TaskStatusEvent (different id) should NOT dedup."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     emissions = {
         Emission(
             TaskStatusEvent(

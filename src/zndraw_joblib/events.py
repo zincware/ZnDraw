@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from pydantic import BaseModel, ConfigDict
-from zndraw_socketio import AsyncServerWrapper
+
+if TYPE_CHECKING:
+    from zndraw_socketio import AsyncServerWrapper
 
 from zndraw_joblib.models import Task, TaskStatus
 
@@ -99,7 +101,7 @@ class ProviderRequest(FrozenEvent):
         request_id: str,
         provider_name: str,
         params: dict[str, Any],
-    ) -> "ProviderRequest":
+    ) -> ProviderRequest:
         """Create from a dict, converting params to canonical JSON."""
         return cls(
             request_id=request_id,
@@ -131,7 +133,8 @@ class LeaveProviderRoom(FrozenEvent):
     """Client leaves a provider dispatch room.
 
     Sent by the client on graceful disconnect or provider unregistration.
-    The host app's handler should call ``tsio.leave_room(sid, f"providers:{provider_name}")``.
+    The host app's handler should call
+    ``tsio.leave_room(sid, f"providers:{provider_name}")``.
     """
 
     provider_name: str  # full_name: room_id:category:name

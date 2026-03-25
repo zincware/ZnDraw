@@ -51,7 +51,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     is_dev_mode: bool = False
 
     async def on_after_register(
-        self, user: User, request: Request | None = None
+        self, user: User, _request: Request | None = None
     ) -> None:
         """Called after successful registration."""
         if self.is_dev_mode and not user.is_superuser:
@@ -61,13 +61,13 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             log.info("User %s has registered.", user.id)
 
     async def on_after_forgot_password(
-        self, user: User, token: str, request: Request | None = None
+        self, user: User, _token: str, _request: Request | None = None
     ) -> None:
         """Called after password reset requested."""
         log.debug("User %s requested password reset.", user.id)
 
     async def on_after_request_verify(
-        self, user: User, token: str, request: Request | None = None
+        self, user: User, _token: str, _request: Request | None = None
     ) -> None:
         """Called after verification requested."""
         log.debug("Verification requested for user %s.", user.id)
@@ -124,32 +124,14 @@ fastapi_users = FastAPIUsers[User, uuid.UUID](
 # --- Exported Dependencies ---
 # These are the main exports that other packages should use
 
+# Dependency for routes requiring an authenticated active user.
 current_active_user = fastapi_users.current_user(active=True)
-"""Dependency for routes requiring an authenticated active user.
 
-Usage:
-    @router.get("/protected")
-    async def route(user: User = Depends(current_active_user)):
-        ...
-"""
-
+# Dependency for routes requiring superuser privileges.
 current_superuser = fastapi_users.current_user(active=True, superuser=True)
-"""Dependency for routes requiring superuser privileges.
 
-Usage:
-    @router.get("/admin")
-    async def route(user: User = Depends(current_superuser)):
-        ...
-"""
-
+# Dependency for routes with optional authentication.
 current_optional_user = fastapi_users.current_user(active=True, optional=True)
-"""Dependency for routes with optional authentication.
-
-Usage:
-    @router.get("/public")
-    async def route(user: User | None = Depends(current_optional_user)):
-        ...
-"""
 
 
 # --- Scoped-Session Auth ---

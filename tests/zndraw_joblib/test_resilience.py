@@ -38,7 +38,7 @@ class _Ext(Extension):
 
     category: ClassVar[Category] = Category.MODIFIER
 
-    def run(self, vis: Any, **kwargs: Any) -> None:
+    def run(self, _vis: Any, **_kwargs: Any) -> None:
         pass
 
 
@@ -48,7 +48,7 @@ class _SlowExt(Extension):
     category: ClassVar[Category] = Category.MODIFIER
     sleep_seconds: float = 2.0
 
-    def run(self, vis: Any, **kwargs: Any) -> None:
+    def run(self, _vis: Any, **_kwargs: Any) -> None:
         time.sleep(self.sleep_seconds)
 
 
@@ -122,7 +122,7 @@ class _ToggleableApi:
             return
         try:
             detail = response.json().get("detail", response.text)
-        except Exception:
+        except Exception:  # noqa: BLE001
             detail = response.text
         if response.status_code == 404:
             raise KeyError(str(detail))
@@ -196,7 +196,7 @@ def test_claim_404_triggers_exit(mock_client_api, threadsafe_client, threadsafe_
     api = mock_client_api(threadsafe_client)
     manager = JobManager(
         api,
-        execute=lambda t: None,
+        execute=lambda _t: None,
         heartbeat_interval=30.0,
         polling_interval=0.1,
         max_unreachable_seconds=120.0,
@@ -498,7 +498,7 @@ def test_disconnect_concurrent_calls_safe(
     def safe_disconnect() -> None:
         try:
             manager.disconnect()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             errors.append(exc)
 
     t1 = threading.Thread(target=safe_disconnect)

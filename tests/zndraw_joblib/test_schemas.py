@@ -1,5 +1,5 @@
 # tests/test_schemas.py
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from zndraw_joblib.models import TaskStatus
@@ -48,7 +48,7 @@ def test_task_response():
         job_name="@global:modifiers:Rotate",
         room_id="room_1",
         status=TaskStatus.PENDING,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     assert resp.status == TaskStatus.PENDING
 
@@ -65,7 +65,7 @@ def test_task_claim_response_with_task():
             job_name="@global:modifiers:Rotate",
             room_id="room_1",
             status=TaskStatus.CLAIMED,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
     )
     assert resp.task is not None

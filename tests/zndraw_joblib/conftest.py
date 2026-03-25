@@ -3,8 +3,9 @@
 
 import asyncio
 import uuid
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, ClassVar
+from typing import ClassVar
 from unittest.mock import MagicMock
 
 import httpx
@@ -13,10 +14,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-from zndraw_auth import Base, User
 
+from zndraw_auth import Base, User
 from zndraw_joblib.dependencies import get_result_backend
-from zndraw_joblib.exceptions import ProblemException, problem_exception_handler
+from zndraw_joblib.exceptions import ProblemError, problem_exception_handler
 from zndraw_joblib.provider import Provider
 from zndraw_joblib.router import router
 from zndraw_joblib.settings import JobLibSettings
@@ -98,7 +99,7 @@ class InMemoryResultBackend:
         self._inflight: set[str] = set()
         self._waiters: dict[str, list[asyncio.Event]] = {}
 
-    async def store(self, key: str, data: bytes, ttl: int) -> None:
+    async def store(self, key: str, data: bytes, _ttl: int) -> None:
         self._store[key] = data
 
     async def get(self, key: str) -> bytes | None:
@@ -107,7 +108,7 @@ class InMemoryResultBackend:
     async def delete(self, key: str) -> None:
         self._store.pop(key, None)
 
-    async def acquire_inflight(self, key: str, ttl: int) -> bool:
+    async def acquire_inflight(self, key: str, _ttl: int) -> bool:
         if key in self._inflight:
             return False
         self._inflight.add(key)
@@ -116,7 +117,7 @@ class InMemoryResultBackend:
     async def release_inflight(self, key: str) -> None:
         self._inflight.discard(key)
 
-    async def wait_for_key(self, key: str, timeout: float) -> bytes | None:
+    async def wait_for_key(self, key: str, timeout: float) -> bytes | None:  # noqa: ASYNC109
         cached = self._store.get(key)
         if cached is not None:
             return cached
@@ -125,7 +126,7 @@ class InMemoryResultBackend:
         try:
             await asyncio.wait_for(event.wait(), timeout=timeout)
             return self._store.get(key)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return None
         finally:
             waiters = self._waiters.get(key, [])
@@ -170,7 +171,7 @@ class _MockClientApi:
             return
         try:
             detail = response.json().get("detail", response.text)
-        except Exception:
+        except Exception:  # noqa: BLE001
             detail = response.text
         if response.status_code == 404:
             raise KeyError(str(detail))
@@ -224,7 +225,7 @@ def _build_app(
 
     app = FastAPI()
     app.include_router(router)
-    app.add_exception_handler(ProblemException, problem_exception_handler)
+    app.add_exception_handler(ProblemError, problem_exception_handler)
     app.dependency_overrides[get_session_maker] = lambda: session_maker
     app.dependency_overrides[current_active_user] = current_user
     app.dependency_overrides[current_superuser] = current_user
@@ -325,9 +326,8 @@ async def async_client(async_session_factory, mock_current_user):
 
     @asynccontextmanager
     async def locked_session_maker():
-        async with db_lock:
-            async with async_session_factory() as session:
-                yield session
+        async with db_lock, async_session_factory() as session:
+            yield session
 
     app = _build_app(
         session_maker=locked_session_maker,

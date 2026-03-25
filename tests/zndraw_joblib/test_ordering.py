@@ -1,5 +1,5 @@
 # tests/test_ordering.py
-"""Tests that all paginated list endpoints return items newest-first (created_at DESC)."""
+"""Tests that all paginated list endpoints return items newest-first (DESC)."""
 
 import time
 

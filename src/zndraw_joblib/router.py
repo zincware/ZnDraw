@@ -3,7 +3,7 @@ import asyncio
 import logging
 import random
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -12,6 +12,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
+from zndraw_socketio import AsyncServerWrapper
+
 from zndraw_auth import (
     User,
     current_active_user,
@@ -19,8 +21,6 @@ from zndraw_auth import (
     current_user_scoped_session,
 )
 from zndraw_auth.db import SessionDep, get_session_maker
-from zndraw_socketio import AsyncServerWrapper
-
 from zndraw_joblib.dependencies import (
     FrameRoomCleanupDep,
     JobLibSettingsDep,
@@ -81,6 +81,7 @@ from zndraw_joblib.schemas import (
 from zndraw_joblib.sweeper import _soft_delete_orphan_job, cleanup_worker
 
 logger = logging.getLogger(__name__)
+_rng = random.SystemRandom()
 
 # Type aliases for dependency injection
 CurrentUserDep = Annotated[User, Depends(current_active_user)]
@@ -165,7 +166,10 @@ async def _task_response(session: AsyncSession, task: Task) -> TaskResponse:
 async def _bulk_queue_positions(
     session: AsyncSession, task_ids: list[UUID]
 ) -> dict[UUID, int]:
-    """Compute queue positions for pending tasks in a single query using a window function."""
+    """Compute queue positions for pending tasks in a single query.
+
+    Uses a window function for efficiency.
+    """
     if not task_ids:
         return {}
     # Window function: rank each pending task within its job by created_at
@@ -210,7 +214,10 @@ async def _bulk_task_responses(
 
 
 async def _task_status_emission(session: AsyncSession, task: Task) -> Emission:
-    """Build a TaskStatusEvent emission from a task, querying job name and queue position."""
+    """Build a TaskStatusEvent emission from a task.
+
+    Queries job name and queue position.
+    """
     result = await session.execute(select(Job).where(Job.id == task.job_id))
     job = result.scalar_one_or_none()
     return build_task_status_emission(
@@ -275,7 +282,10 @@ async def register_job(
     # Validate category
     if request.category not in settings.allowed_categories:
         raise InvalidCategory.exception(
-            detail=f"Category '{request.category}' not in allowed list: {settings.allowed_categories}"
+            detail=(
+                f"Category '{request.category}' not in allowed list: "
+                f"{settings.allowed_categories}"
+            )
         )
 
     # Check if job exists
@@ -372,8 +382,8 @@ async def register_job(
 async def list_jobs(
     room_id: str,
     session: SessionDep,
-    limit: int = Query(default=50, ge=0, le=500),
-    offset: int = Query(default=0, ge=0),
+    limit: Annotated[int, Query(default=50, ge=0, le=500)] = 50,
+    offset: Annotated[int, Query(default=0, ge=0)] = 0,
 ):
     """List jobs for a room. Includes @global jobs unless room_id is @global."""
     validate_room_id(room_id)
@@ -411,10 +421,10 @@ async def list_jobs(
 async def list_workers_for_room(
     room_id: str,
     session: SessionDep,
-    limit: int = Query(default=50, ge=0, le=500),
-    offset: int = Query(default=0, ge=0),
+    limit: Annotated[int, Query(default=50, ge=0, le=500)] = 50,
+    offset: Annotated[int, Query(default=0, ge=0)] = 0,
 ):
-    """List workers serving jobs in a room. Includes @global workers unless room_id is @global."""
+    """List workers for a room. Includes @global workers unless room_id is @global."""
     validate_room_id(room_id)
 
     result = await session.execute(
@@ -464,11 +474,16 @@ async def list_workers_for_room(
 async def list_tasks_for_room(
     room_id: str,
     session: SessionDep,
-    task_status: TaskStatus | None = Query(default=None, alias="status"),
-    limit: int = Query(default=50, ge=0, le=500),
-    offset: int = Query(default=0, ge=0),
+    task_status: Annotated[
+        TaskStatus | None, Query(default=None, alias="status")
+    ] = None,
+    limit: Annotated[int, Query(default=50, ge=0, le=500)] = 50,
+    offset: Annotated[int, Query(default=0, ge=0)] = 0,
 ):
-    """List tasks for a room, optionally filtered by status. Includes queue position for pending tasks."""
+    """List tasks for a room, optionally filtered by status.
+
+    Includes queue position for pending tasks.
+    """
     validate_room_id(room_id)
 
     base_query = select(Task).where(Task.room_id == room_id)
@@ -502,9 +517,11 @@ async def list_tasks_for_job(
     room_id: str,
     job_name: str,
     session: SessionDep,
-    task_status: TaskStatus | None = Query(default=None, alias="status"),
-    limit: int = Query(default=50, ge=0, le=500),
-    offset: int = Query(default=0, ge=0),
+    task_status: Annotated[
+        TaskStatus | None, Query(default=None, alias="status")
+    ] = None,
+    limit: Annotated[int, Query(default=50, ge=0, le=500)] = 50,
+    offset: Annotated[int, Query(default=0, ge=0)] = 0,
 ):
     """List tasks for a specific job. Includes queue position for pending tasks."""
     validate_room_id(room_id)
@@ -581,11 +598,15 @@ async def submit_task(
     job = await _resolve_job(session, job_name)
 
     # Validate internal registry BEFORE creating the task to avoid orphans
-    if job.room_id == "@internal":
-        if internal_registry is None or job.full_name not in internal_registry.tasks:
-            raise InternalJobNotConfigured.exception(
-                detail=f"Internal job '{job.full_name}' is registered but no executor is available"
+    if job.room_id == "@internal" and (
+        internal_registry is None or job.full_name not in internal_registry.tasks
+    ):
+        raise InternalJobNotConfigured.exception(
+            detail=(
+                f"Internal job '{job.full_name}' is registered"
+                " but no executor is available"
             )
+        )
 
     # Create task
     task = Task(
@@ -607,9 +628,9 @@ async def submit_task(
                 room_id=room_id,
                 payload=request.payload,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             task.status = TaskStatus.FAILED
-            task.completed_at = datetime.now(timezone.utc)
+            task.completed_at = datetime.now(UTC)
             task.error = "Failed to dispatch to internal executor"
             await session.commit()
             await session.refresh(task)
@@ -706,7 +727,7 @@ async def claim_task(
                 break
 
             # Another worker claimed it first - exponential backoff with jitter
-            delay = base_delay * (2**attempt) * (0.5 + random.random())
+            delay = base_delay * (2**attempt) * (0.5 + _rng.random())
             await asyncio.sleep(delay)
 
         except OperationalError:
@@ -717,7 +738,7 @@ async def claim_task(
                 max_attempts,
             )
             await session.rollback()
-            delay = base_delay * (2**attempt) * (0.5 + random.random())
+            delay = base_delay * (2**attempt) * (0.5 + _rng.random())
             await asyncio.sleep(delay)
 
     if not claimed_task_id:
@@ -743,7 +764,7 @@ async def get_task_status(
     response: Response,
     session_maker: SessionMakerDep,
     settings: SettingsDep,
-    prefer: str | None = Header(None),
+    prefer: Annotated[str | None, Header()] = None,
 ):
     """Get task status. Supports long-polling via Prefer: wait=N header."""
     # Initial lookup
@@ -811,12 +832,15 @@ async def update_task_status(
     # Validate transition
     if request.status not in VALID_TRANSITIONS.get(task.status, set()):
         raise InvalidTaskTransition.exception(
-            detail=f"Cannot transition from '{task.status.value}' to '{request.status.value}'"
+            detail=(
+                f"Cannot transition from '{task.status.value}'"
+                f" to '{request.status.value}'"
+            )
         )
 
     # Update status
     task.status = request.status
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if request.status == TaskStatus.RUNNING:
         task.started_at = now
@@ -847,8 +871,8 @@ async def update_task_status(
 @router.get("/workers", response_model=PaginatedResponse[WorkerSummary])
 async def list_workers(
     session: SessionDep,
-    limit: int = Query(default=50, ge=0, le=500),
-    offset: int = Query(default=0, ge=0),
+    limit: Annotated[int, Query(default=50, ge=0, le=500)] = 50,
+    offset: Annotated[int, Query(default=0, ge=0)] = 0,
 ):
     """List all workers with their job counts."""
     # Total count
@@ -891,7 +915,7 @@ async def worker_heartbeat(
     if worker.user_id != user.id:
         raise Forbidden.exception(detail="Worker belongs to different user")
 
-    worker.last_heartbeat = datetime.now(timezone.utc)
+    worker.last_heartbeat = datetime.now(UTC)
     session.add(worker)
     await session.commit()
     await session.refresh(worker)
@@ -996,7 +1020,10 @@ async def register_provider(
         and request.category not in settings.allowed_provider_categories
     ):
         raise InvalidCategory.exception(
-            detail=f"Provider category '{request.category}' not in allowed list: {settings.allowed_provider_categories}"
+            detail=(
+                f"Provider category '{request.category}' not in allowed list:"
+                f" {settings.allowed_provider_categories}"
+            )
         )
 
     # Handle worker: use provided worker_id or auto-create
@@ -1064,8 +1091,8 @@ async def register_provider(
 async def list_providers(
     room_id: str,
     session: SessionDep,
-    limit: int = Query(default=50, ge=0, le=500),
-    offset: int = Query(default=0, ge=0),
+    limit: Annotated[int, Query(default=50, ge=0, le=500)] = 50,
+    offset: Annotated[int, Query(default=0, ge=0)] = 0,
 ):
     """List providers visible from a room (room-scoped + @global)."""
     validate_room_id(room_id)
@@ -1110,11 +1137,11 @@ async def read_provider(
     provider_name: str,
     request: Request,
     session_maker: SessionMakerDep,
-    current_user: CurrentUserFactoryDep,
+    _current_user: CurrentUserFactoryDep,
     result_backend: ResultBackendDep,
     settings: SettingsDep,
     tsio: TsioDep,
-    prefer: str | None = Header(None),
+    prefer: Annotated[str | None, Header()] = None,
 ):
     """Read data from a provider. Long-polls until result is available."""
     validate_room_id(room_id)

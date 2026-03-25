@@ -19,7 +19,6 @@ admin_token_router = APIRouter()
 
 @admin_token_router.post(
     "/users/{user_id}/token",
-    response_model=ImpersonationTokenResponse,
 )
 async def mint_token_for_user(
     user_id: uuid.UUID,

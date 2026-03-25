@@ -5,14 +5,6 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
-from zndraw_joblib import (
-    ProblemException as JoblibProblemError,
-    problem_exception_handler as joblib_problem_exception_handler,
-    router as joblib_router,
-)
-from zndraw_joblib.dependencies import (
-    verify_writable_room as joblib_verify_writable_room,
-)
 
 from zndraw.database import lifespan
 from zndraw.dependencies import get_writable_room_id
@@ -42,6 +34,14 @@ from zndraw.routes.tools import router as tools_router
 from zndraw.routes.trajectory import router as trajectory_router
 from zndraw.routes.utility import router as utility_router
 from zndraw.socketio import tsio
+from zndraw_joblib import (
+    ProblemError as JoblibProblemError,
+    problem_exception_handler as joblib_problem_exception_handler,
+    router as joblib_router,
+)
+from zndraw_joblib.dependencies import (
+    verify_writable_room as joblib_verify_writable_room,
+)
 
 app = FastAPI(title="ZnDraw API", lifespan=lifespan)
 app.state.settings_overrides = {}  # CLI populates before uvicorn starts

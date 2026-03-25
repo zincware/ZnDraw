@@ -408,7 +408,7 @@ def test_list_tasks_for_global_job_from_room(seeded_client):
 
 
 def test_list_tasks_for_global_job_scoped_to_room(seeded_client):
-    """Listing tasks for a @global job should only return tasks from the requesting room."""
+    """Listing tasks for a @global job only returns tasks from requesting room."""
     # seeded_client has @global:modifiers:Rotate registered
 
     # Submit task from room_a
@@ -447,7 +447,7 @@ def test_list_tasks_for_global_job_scoped_to_room(seeded_client):
 
 
 def test_list_tasks_for_internal_job_scoped_to_room(client):
-    """Listing tasks for an @internal job should only return tasks from the requesting room."""
+    """Listing tasks for an @internal job only returns tasks from requesting room."""
     from unittest.mock import AsyncMock
 
     from zndraw_joblib.registry import InternalRegistry
@@ -580,9 +580,10 @@ def test_get_task_with_prefer_wait_sets_preference_applied(seeded_client):
 
 
 def test_orphan_job_soft_deleted_on_task_completion(client_factory):
-    """When last task completes and no workers remain, job is soft-deleted (not hard-deleted).
+    """When last task completes and no workers remain, job is soft-deleted.
 
-    The task should still exist and the response should include the real job_name.
+    Job is not hard-deleted. The task should still exist and the response
+    should include the real job_name.
     """
     client = client_factory("worker-orphan")
 

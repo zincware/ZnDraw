@@ -12,10 +12,9 @@ if TYPE_CHECKING:
 
     from fastapi import FastAPI
     from sqlalchemy.ext.asyncio import AsyncSession
+    from taskiq import AsyncBroker
 
-from taskiq import AsyncBroker
-
-from zndraw_joblib.client import Extension
+    from zndraw_joblib.client import Extension
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +86,7 @@ def register_internal_tasks(
 
 async def ensure_internal_jobs(
     extensions: list[type[Extension]],
-    session_factory: "Callable[[], AbstractAsyncContextManager[AsyncSession]]",
+    session_factory: Callable[[], AbstractAsyncContextManager[AsyncSession]],
 ) -> None:
     """Create or update @internal Job rows in the database.
 
@@ -135,11 +134,11 @@ async def ensure_internal_jobs(
 
 
 async def register_internal_jobs(
-    app: "FastAPI",
+    app: FastAPI,
     broker: AsyncBroker,
     extensions: list[type[Extension]],
     executor: InternalExecutor,
-    session_factory: "Callable[[], AbstractAsyncContextManager[AsyncSession]]",
+    session_factory: Callable[[], AbstractAsyncContextManager[AsyncSession]],
 ) -> None:
     """Register internal extensions for server-side execution.
 

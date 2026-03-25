@@ -4,11 +4,11 @@
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
-from sqlalchemy import func as sa_func
-from sqlalchemy import select
+from sqlalchemy import func as sa_func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from zndraw_socketio import AsyncServerWrapper
@@ -82,7 +82,7 @@ async def _soft_delete_orphan_job(
 async def cleanup_worker(
     session: AsyncSession, worker: Worker
 ) -> tuple[set[Emission], set[str]]:
-    """Clean up a worker by failing tasks, removing links, and soft-deleting orphan jobs.
+    """Clean up a worker: fail tasks, remove links, soft-delete orphan jobs.
 
     This is the shared cleanup logic used by both delete_worker endpoint and sweeper.
     Note: Does NOT commit the transaction - caller must commit.
@@ -90,11 +90,11 @@ async def cleanup_worker(
     Returns
     -------
     tuple[set[Emission], set[str]]
-        A tuple of (emissions to broadcast, room IDs that had frame providers removed).
-        The frame provider room IDs allow callers to clean up external state (e.g. Redis keys).
+        A tuple of (emissions, room IDs that had frame providers removed).
+        Frame provider room IDs let callers clean up external state (e.g. Redis keys).
     """
     emissions: set[Emission] = set()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Fail any claimed/running tasks owned by this worker
     result = await session.execute(
@@ -166,7 +166,7 @@ async def cleanup_worker(
 
 
 async def cleanup_stale_workers(
-    session: AsyncSession, timeout: timedelta
+    session: AsyncSession, stale_after: timedelta
 ) -> tuple[int, set[Emission], set[str]]:
     """Find and clean up workers with stale heartbeats.
 
@@ -174,7 +174,7 @@ async def cleanup_stale_workers(
     ----------
     session : AsyncSession
         Async database session.
-    timeout : timedelta
+    stale_after : timedelta
         How long since last heartbeat before a worker is considered stale.
 
     Returns
@@ -183,7 +183,7 @@ async def cleanup_stale_workers(
         Tuple of (count of workers cleaned up, emissions, room IDs that had
         frame providers removed).
     """
-    cutoff = datetime.now(timezone.utc) - timeout
+    cutoff = datetime.now(UTC) - stale_after
     all_emissions: set[Emission] = set()
     all_frame_rooms: set[str] = set()
 
@@ -206,19 +206,24 @@ async def cleanup_stale_workers(
 
 
 async def cleanup_stuck_internal_tasks(
-    session: AsyncSession, timeout: timedelta
+    session: AsyncSession, stuck_after: timedelta
 ) -> tuple[int, set[Emission]]:
-    """Find and fail @internal tasks stuck in RUNNING or CLAIMED beyond timeout.
+    """Find and fail internal tasks stuck in RUNNING or CLAIMED beyond the time limit.
 
-    Args:
-        session: Async database session
-        timeout: How long an internal task can be in RUNNING/CLAIMED before being considered stuck
+    Parameters
+    ----------
+    session : AsyncSession
+        Async database session.
+    stuck_after : timedelta
+        How long a task can be in RUNNING/CLAIMED before being considered stuck.
 
-    Returns:
+    Returns
+    -------
+    tuple[int, set[Emission]]
         Tuple of (count of tasks failed, set of emissions).
     """
-    cutoff = datetime.now(timezone.utc) - timeout
-    now = datetime.now(timezone.utc)
+    cutoff = datetime.now(UTC) - stuck_after
+    now = datetime.now(UTC)
     emissions: set[Emission] = set()
 
     result = await session.execute(
@@ -276,7 +281,7 @@ async def run_sweeper(
     interval = settings.sweeper_interval_seconds
 
     logger.info(
-        "Starting sweeper with interval=%ss, worker_timeout=%ss, internal_task_timeout=%ss",
+        "Starting sweeper: interval=%ss, worker_timeout=%ss, internal_task_timeout=%ss",
         interval,
         settings.worker_timeout_seconds,
         settings.internal_task_timeout_seconds,
@@ -302,5 +307,5 @@ async def run_sweeper(
                 if count > 0:
                     logger.info("Failed %s stuck internal task(s)", count)
                 await emit(tsio, emissions)
-        except Exception as e:
-            logger.exception("Error in sweeper: %s", e)
+        except Exception:
+            logger.exception("Error in sweeper")

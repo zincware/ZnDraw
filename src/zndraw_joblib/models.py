@@ -1,6 +1,6 @@
 # src/zndraw_joblib/models.py
-from datetime import datetime, timedelta, timezone
-from enum import Enum
+from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 from typing import Any, Optional
 from uuid import UUID, uuid4
 
@@ -16,10 +16,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
+
 from zndraw_auth import Base
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     PENDING = "pending"
     CLAIMED = "claimed"
     RUNNING = "running"
@@ -58,7 +59,7 @@ class Job(Base):
     deleted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         server_default=func.now(),
         index=True,
     )
@@ -82,11 +83,11 @@ class Worker(Base):
         ForeignKey("user.id", ondelete="CASCADE"), index=True
     )
     last_heartbeat: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         server_default=func.now(),
         index=True,
     )
@@ -99,7 +100,7 @@ class Worker(Base):
     providers: Mapped[list["ProviderRecord"]] = relationship(back_populates="worker")
 
     def is_alive(self, threshold: timedelta) -> bool:
-        return datetime.now(timezone.utc) - self.last_heartbeat < threshold
+        return datetime.now(UTC) - self.last_heartbeat < threshold
 
 
 class ProviderRecord(Base):
@@ -122,7 +123,7 @@ class ProviderRecord(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         server_default=func.now(),
         index=True,
     )
@@ -144,15 +145,15 @@ class Task(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
     job_id: Mapped[UUID] = mapped_column(ForeignKey("job.id"), index=True)
-    job: Mapped[Optional[Job]] = relationship(back_populates="tasks")
+    job: Mapped[Job | None] = relationship(back_populates="tasks")
 
-    worker_id: Mapped[Optional[UUID]] = mapped_column(
+    worker_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("worker.id"), default=None, index=True, nullable=True
     )
-    worker: Mapped[Optional[Worker]] = relationship(back_populates="tasks")
+    worker: Mapped[Worker | None] = relationship(back_populates="tasks")
 
     room_id: Mapped[str] = mapped_column(String, index=True)
-    created_by_id: Mapped[Optional[UUID]] = mapped_column(
+    created_by_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("user.id"), default=None, index=True, nullable=True
     )
 
@@ -160,12 +161,12 @@ class Task(Base):
     status: Mapped[TaskStatus] = mapped_column(default=TaskStatus.PENDING, index=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
-    started_at: Mapped[Optional[datetime]] = mapped_column(
+    started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None, nullable=True
     )
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
+    completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None, nullable=True
     )
-    error: Mapped[Optional[str]] = mapped_column(Text, default=None, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, default=None, nullable=True)

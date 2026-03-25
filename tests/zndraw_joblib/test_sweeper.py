@@ -2,8 +2,9 @@
 """Tests for the sweeper background task."""
 
 import asyncio
+import contextlib
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -26,7 +27,7 @@ async def test_cleanup_stale_workers_finds_stale(async_session_factory, test_use
 
     async with async_session_factory() as session:
         # Create a stale worker (heartbeat 2 minutes ago)
-        stale_time = datetime.now(timezone.utc) - timedelta(minutes=2)
+        stale_time = datetime.now(UTC) - timedelta(minutes=2)
         worker = Worker(
             id=stale_worker_id, user_id=test_user_id, last_heartbeat=stale_time
         )
@@ -57,7 +58,7 @@ async def test_cleanup_stale_workers_ignores_alive(async_session_factory, test_u
         worker = Worker(
             id=alive_worker_id,
             user_id=test_user_id,
-            last_heartbeat=datetime.now(timezone.utc),
+            last_heartbeat=datetime.now(UTC),
         )
         session.add(worker)
         await session.commit()
@@ -83,7 +84,7 @@ async def test_cleanup_fails_running_tasks(async_session_factory, test_user_id):
 
     async with async_session_factory() as session:
         # Create a stale worker
-        stale_time = datetime.now(timezone.utc) - timedelta(minutes=2)
+        stale_time = datetime.now(UTC) - timedelta(minutes=2)
         worker = Worker(
             id=stale_worker_id, user_id=test_user_id, last_heartbeat=stale_time
         )
@@ -157,7 +158,7 @@ async def test_cleanup_soft_deletes_orphan_jobs(async_session_factory, test_user
 
     async with async_session_factory() as session:
         # Create a stale worker
-        stale_time = datetime.now(timezone.utc) - timedelta(minutes=2)
+        stale_time = datetime.now(UTC) - timedelta(minutes=2)
         worker = Worker(
             id=stale_worker_id, user_id=test_user_id, last_heartbeat=stale_time
         )
@@ -205,7 +206,7 @@ async def test_cleanup_keeps_job_with_pending_tasks(
 
     async with async_session_factory() as session:
         # Create a stale worker
-        stale_time = datetime.now(timezone.utc) - timedelta(minutes=2)
+        stale_time = datetime.now(UTC) - timedelta(minutes=2)
         worker = Worker(
             id=stale_worker_id, user_id=test_user_id, last_heartbeat=stale_time
         )
@@ -251,8 +252,8 @@ async def test_cleanup_multiple_stale_workers(async_session_factory, test_user_i
     alive_id = uuid.uuid4()
 
     async with async_session_factory() as session:
-        stale_time = datetime.now(timezone.utc) - timedelta(minutes=2)
-        alive_time = datetime.now(timezone.utc)
+        stale_time = datetime.now(UTC) - timedelta(minutes=2)
+        alive_time = datetime.now(UTC)
 
         # Create 3 stale workers and 1 alive
         for worker_id in stale_ids:
@@ -287,7 +288,7 @@ async def test_cleanup_worker_removes_links(async_session_factory, test_user_id)
         worker = Worker(
             id=worker_id,
             user_id=test_user_id,
-            last_heartbeat=datetime.now(timezone.utc),
+            last_heartbeat=datetime.now(UTC),
         )
         session.add(worker)
 
@@ -322,14 +323,14 @@ async def test_cleanup_job_keeps_other_workers(async_session_factory, test_user_
 
     async with async_session_factory() as session:
         # Create two workers
-        stale_time = datetime.now(timezone.utc) - timedelta(minutes=2)
+        stale_time = datetime.now(UTC) - timedelta(minutes=2)
         worker1 = Worker(
             id=stale_worker_id, user_id=test_user_id, last_heartbeat=stale_time
         )
         worker2 = Worker(
             id=alive_worker_id,
             user_id=test_user_id,
-            last_heartbeat=datetime.now(timezone.utc),
+            last_heartbeat=datetime.now(UTC),
         )
         session.add_all([worker1, worker2])
 
@@ -376,7 +377,7 @@ async def test_cleanup_stuck_internal_tasks(async_session_factory):
             job_id=job.id,
             room_id="test-room",
             status=TaskStatus.RUNNING,
-            started_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            started_at=datetime.now(UTC) - timedelta(hours=2),
         )
         session.add(task)
         await session.commit()
@@ -408,7 +409,7 @@ async def test_cleanup_stuck_internal_tasks_skips_recent(async_session_factory):
             job_id=job.id,
             room_id="test-room",
             status=TaskStatus.RUNNING,
-            started_at=datetime.now(timezone.utc) - timedelta(minutes=10),
+            started_at=datetime.now(UTC) - timedelta(minutes=10),
         )
         session.add(task)
         await session.commit()
@@ -432,7 +433,7 @@ async def test_cleanup_stuck_skips_external_tasks(async_session_factory):
             job_id=job.id,
             room_id="test-room",
             status=TaskStatus.RUNNING,
-            started_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            started_at=datetime.now(UTC) - timedelta(hours=2),
         )
         session.add(task)
         await session.commit()
@@ -455,7 +456,7 @@ async def test_cleanup_worker_returns_task_status_emissions(
         worker = Worker(
             id=worker_id,
             user_id=test_user_id,
-            last_heartbeat=datetime.now(timezone.utc),
+            last_heartbeat=datetime.now(UTC),
         )
         session.add(worker)
         job = Job(room_id="@global", category="modifiers", name="EmitTest", schema_={})
@@ -498,7 +499,7 @@ async def test_cleanup_stale_workers_returns_emissions(
     worker_id = uuid.uuid4()
 
     async with async_session_factory() as session:
-        stale_time = datetime.now(timezone.utc) - timedelta(minutes=2)
+        stale_time = datetime.now(UTC) - timedelta(minutes=2)
         worker = Worker(id=worker_id, user_id=test_user_id, last_heartbeat=stale_time)
         session.add(worker)
         await session.commit()
@@ -525,7 +526,7 @@ async def test_cleanup_stuck_internal_returns_emissions(async_session_factory):
             job_id=job.id,
             room_id="test-room",
             status=TaskStatus.RUNNING,
-            started_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            started_at=datetime.now(UTC) - timedelta(hours=2),
         )
         session.add(task)
         await session.commit()
@@ -550,7 +551,7 @@ async def test_run_sweeper_cleans_up_stale_workers(async_session_factory, test_u
 
     # Create a stale worker (heartbeat 2 minutes ago)
     async with async_session_factory() as session:
-        stale_time = datetime.now(timezone.utc) - timedelta(minutes=2)
+        stale_time = datetime.now(UTC) - timedelta(minutes=2)
         worker = Worker(
             id=stale_worker_id, user_id=test_user_id, last_heartbeat=stale_time
         )
@@ -586,10 +587,8 @@ async def test_run_sweeper_cleans_up_stale_workers(async_session_factory, test_u
     finally:
         # Cancel the sweeper task
         sweeper_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await sweeper_task
-        except asyncio.CancelledError:
-            pass  # Expected when cancelling
 
 
 @pytest.mark.asyncio
@@ -605,7 +604,7 @@ async def test_cleanup_stuck_internal_tasks_includes_claimed(async_session_facto
             room_id="test-room",
             status=TaskStatus.CLAIMED,
             started_at=None,
-            created_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            created_at=datetime.now(UTC) - timedelta(hours=2),
         )
         session.add(task)
         await session.commit()

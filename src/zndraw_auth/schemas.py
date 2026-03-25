@@ -9,19 +9,13 @@ from pydantic import BaseModel
 class UserRead(schemas.BaseUser[uuid.UUID]):
     """Schema for reading user data (responses)."""
 
-    pass
-
 
 class UserCreate(schemas.BaseUserCreate):
     """Schema for creating a new user."""
 
-    pass
-
 
 class UserUpdate(schemas.BaseUserUpdate):
     """Schema for updating an existing user."""
-
-    pass
 
 
 # --- OAuth2 Schemas ---

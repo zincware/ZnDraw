@@ -1,5 +1,5 @@
 # tests/test_serve.py
-"""Tests for JobManager auto-serve: background claim loop, lifecycle wrapping, wait()."""
+"""Tests for JobManager auto-serve: claim loop, lifecycle wrapping, wait()."""
 
 import threading
 from typing import Any, ClassVar
@@ -54,14 +54,14 @@ def test_provider_request_handler_registered_in_init(mock_client_api, client):
 
 def test_no_threads_before_registration(mock_client_api, client):
     """No background threads start before first register() call."""
-    manager = JobManager(mock_client_api(client), execute=lambda t: None)
+    manager = JobManager(mock_client_api(client), execute=lambda _t: None)
     assert not manager._threads_started
     manager.disconnect()
 
 
 def test_threads_start_on_first_register(mock_client_api, client):
     """Background threads start after first register()."""
-    manager = JobManager(mock_client_api(client), execute=lambda t: None)
+    manager = JobManager(mock_client_api(client), execute=lambda _t: None)
 
     @manager.register
     class Job(_Ext):
@@ -202,7 +202,7 @@ def test_auto_execute_failure_marks_task_failed(mock_client_api, threadsafe_clie
 def test_disconnect_stops_background_threads(mock_client_api, client):
     """disconnect() signals background threads to stop."""
     manager = JobManager(
-        mock_client_api(client), execute=lambda t: None, polling_interval=0.01
+        mock_client_api(client), execute=lambda _t: None, polling_interval=0.01
     )
 
     @manager.register
@@ -242,7 +242,7 @@ def test_wait_blocks_until_disconnect(mock_client_api, client):
 def test_context_manager_stops_threads(mock_client_api, client):
     """Exiting context manager stops background threads."""
     with JobManager(
-        mock_client_api(client), execute=lambda t: None, polling_interval=0.01
+        mock_client_api(client), execute=lambda _t: None, polling_interval=0.01
     ) as manager:
 
         @manager.register

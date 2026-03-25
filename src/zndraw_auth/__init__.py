@@ -25,7 +25,6 @@ Example usage:
 """
 
 from zndraw._version import __version__ as __version__
-
 from zndraw_auth.admin import admin_token_router
 from zndraw_auth.cli_login import cli_login_router
 from zndraw_auth.db import (
@@ -62,46 +61,34 @@ from zndraw_auth.users import (
 )
 
 __all__ = [
-    # SQLAlchemy Base (for extending with your own models)
+    "AuthSettings",
+    "AuthSettingsDep",
     "Base",
-    # User model
-    "User",
-    # Database models
     "CLILoginChallenge",
-    # Database dependencies
-    "get_engine",
-    "get_session_maker",
-    "get_session",
-    "SessionDep",
-    "get_user_db",
-    # Database utilities
-    "create_engine_for_url",
-    "ensure_default_admin",
-    # Schemas
-    "UserCreate",
-    "UserRead",
-    "UserUpdate",
-    "TokenResponse",
     "CLILoginCreateResponse",
     "CLILoginStatusResponse",
     "ImpersonationTokenResponse",
-    # Settings
-    "AuthSettings",
-    "AuthSettingsDep",
-    "get_auth_settings",
-    # Routers
-    "cli_login_router",
-    "admin_token_router",
-    # User manager
+    "SessionDep",
+    "TokenResponse",
+    "User",
+    "UserCreate",
     "UserManager",
-    "get_user_manager",
-    # Auth backend
+    "UserRead",
+    "UserUpdate",
+    "admin_token_router",
     "auth_backend",
-    # FastAPIUsers instance
-    "fastapi_users",
-    # Dependencies for Depends()
+    "cli_login_router",
+    "create_engine_for_url",
     "current_active_user",
-    "current_superuser",
     "current_optional_user",
+    "current_superuser",
     "current_user_scoped_session",
+    "ensure_default_admin",
+    "fastapi_users",
+    "get_auth_settings",
+    "get_engine",
+    "get_session",
+    "get_session_maker",
+    "get_user_db",
+    "get_user_manager",
 ]

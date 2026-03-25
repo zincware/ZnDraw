@@ -9,9 +9,10 @@ import threading
 import time
 import traceback
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from enum import Enum
-from typing import Any, Callable, ClassVar, Generic, Iterator, Protocol, TypeVar
+from enum import StrEnum
+from typing import Any, ClassVar, Generic, Protocol, TypeVar
 from uuid import UUID
 
 import httpx
@@ -38,7 +39,7 @@ from zndraw_joblib.schemas import (
 logger = logging.getLogger(__name__)
 
 
-class Category(str, Enum):
+class Category(StrEnum):
     """Extension category types."""
 
     MODIFIER = "modifiers"
@@ -256,7 +257,7 @@ class JobManager:
                     timeout=5.0,
                 )
                 self.api.raise_for_status(resp)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 logger.debug(
                     "Failed to delete worker %s (server unreachable?)",
                     worker_id,
@@ -294,7 +295,10 @@ class JobManager:
 
     @property
     def worker_id(self) -> UUID | None:
-        """The worker ID for this manager (set after create_worker or first job registration)."""
+        """The worker ID for this manager.
+
+        Set after create_worker() or first job registration.
+        """
         return self._worker_id
 
     def _retry_startup(
@@ -312,17 +316,17 @@ class JobManager:
             Callable that performs the HTTP request and returns the response.
             ``raise_for_status`` is called on the response internally.
         """
+        _rng = random.SystemRandom()
         for attempt in range(self._max_startup_retries):
             try:
                 resp = fn()
                 self.api.raise_for_status(resp)
-                return resp
             except (KeyError, PermissionError):
                 raise
             except Exception as e:
                 if attempt == self._max_startup_retries - 1:
                     raise
-                delay = min(2**attempt, 30) + random.uniform(0, 1)
+                delay = min(2**attempt, 30) + _rng.uniform(0, 1)
                 logger.warning(
                     "%s failed (attempt %d/%d): %s",
                     label,
@@ -331,6 +335,8 @@ class JobManager:
                     e,
                 )
                 time.sleep(delay)
+            else:
+                return resp
         raise RuntimeError("Unreachable: retry loop completed without response")
 
     def create_worker(self) -> UUID:
@@ -421,7 +427,7 @@ class JobManager:
         )
         data = resp.json()
         full_name = f"{room_id}:{category}:{name}"
-        if "worker_id" in data and data["worker_id"]:
+        if data.get("worker_id"):
             self._worker_id = UUID(data["worker_id"])
         if resp.status_code == 200:
             logger.info("Already registered: %s", full_name)
@@ -442,7 +448,8 @@ class JobManager:
         Returns ClaimedTask with the Extension instance, or None if no tasks available.
 
         Raises:
-            ValueError: If worker_id is not set. Call create_worker() or register a job first.
+            ValueError: If worker_id is not set.
+                Call create_worker() or register a job first.
         """
         if self._worker_id is None:
             raise ValueError(
@@ -621,7 +628,7 @@ class JobManager:
         provider_id = UUID(data["id"])
         full_name = f"{room}:{provider_cls.category}:{name}"
 
-        if "worker_id" in data and data["worker_id"]:
+        if data.get("worker_id"):
             self._worker_id = UUID(data["worker_id"])
 
         self._providers[full_name] = _RegisteredProvider(
@@ -705,14 +712,14 @@ class JobManager:
             try:
                 self.heartbeat()
                 self._update_last_contact()
-            except (KeyError, PermissionError) as e:
-                logger.error("Registration lost (%s), shutting down", e)
+            except (KeyError, PermissionError):
+                logger.exception("Registration lost, shutting down")
                 self._stop.set()
                 return
             except Exception as e:
                 logger.warning("Heartbeat failed: %s", e)
                 if self._is_unreachable():
-                    logger.error(
+                    logger.exception(
                         "Server unreachable for >%ss, shutting down",
                         self._max_unreachable_seconds,
                     )
@@ -726,14 +733,14 @@ class JobManager:
             try:
                 claimed = self.claim()
                 self._update_last_contact()
-            except (KeyError, PermissionError) as e:
-                logger.error("Registration lost (%s), shutting down", e)
+            except (KeyError, PermissionError):
+                logger.exception("Registration lost, shutting down")
                 self._stop.set()
                 return
             except Exception as e:
                 logger.warning("Claim failed: %s", e)
                 if self._is_unreachable():
-                    logger.error(
+                    logger.exception(
                         "Server unreachable for >%ss, shutting down",
                         self._max_unreachable_seconds,
                     )
@@ -746,20 +753,22 @@ class JobManager:
                     self.start(claimed)
                     self._update_last_contact()
                 except (KeyError, PermissionError):
-                    logger.error("Registration lost during task start, shutting down")
+                    logger.exception(
+                        "Registration lost during task start, shutting down"
+                    )
                     self._stop.set()
                     return
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     logger.warning("Failed to start task %s: %s", claimed.task_id, e)
                     continue
                 try:
                     self._execute(claimed)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     try:
                         self.fail(claimed, str(e))
                         self._update_last_contact()
                     except (KeyError, PermissionError):
-                        logger.error(
+                        logger.exception(
                             "Registration lost during task fail, shutting down"
                         )
                         self._stop.set()
@@ -769,13 +778,13 @@ class JobManager:
                             "Failed to mark task %s as failed", claimed.task_id
                         )
                     else:
-                        logger.error("Task %s failed: %s", claimed.task_id, e)
+                        logger.exception("Task %s failed", claimed.task_id)
                 else:
                     try:
                         self.complete(claimed)
                         self._update_last_contact()
                     except (KeyError, PermissionError):
-                        logger.error(
+                        logger.exception(
                             "Registration lost during task completion, shutting down"
                         )
                         self._stop.set()
@@ -797,7 +806,7 @@ class JobManager:
                 json={"content": message},
                 headers=self.api.get_headers(),
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             logger.debug("Failed to log message to room %s", room_id, exc_info=True)
 
     # -- SIO event handlers ---------------------------------------------------
@@ -842,10 +851,10 @@ class JobManager:
                 headers={**self.api.get_headers(), "X-Request-Hash": event.request_id},
             )
             self.api.raise_for_status(resp)
-        except (KeyError, PermissionError) as e:
-            logger.error("Registration lost during provider result upload (%s)", e)
+        except (KeyError, PermissionError):
+            logger.exception("Registration lost during provider result upload")
             self._stop.set()
-        except Exception:
+        except Exception:  # noqa: BLE001
             logger.warning(
                 "Failed to upload provider result for %s", event.provider_name
             )
