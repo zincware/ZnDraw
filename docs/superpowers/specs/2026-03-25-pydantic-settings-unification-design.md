@@ -448,9 +448,44 @@ class ZnDraw(MutableSequence[ase.Atoms]):
 
 Constructor args that are not `None` pass through `init_settings` as highest priority. `None` values fall through to env > pyproject > state file.
 
-### CLI Integration
+### CLI Integration: Typer as Thin CLI
 
-`zndraw-cli` commands replace manual `resolve_url()` / `resolve_token()` with `ClientSettings`:
+Typer handles **only** CLI inputs and help text. Pydantic-settings is the single source of truth for defaults, env vars, pyproject.toml, and state file. Typer options default to `None` and do **not** use `envvar=`.
+
+**Pattern:**
+
+```python
+@app.command()
+def main(
+    # CLI overrides — defaults are None, no envvar=
+    host: Annotated[str | None, typer.Option(
+        help="Server host [env: ZNDRAW_SERVER_HOST]."
+    )] = None,
+    port: Annotated[int | None, typer.Option(
+        help="Server port [env: ZNDRAW_SERVER_PORT]."
+    )] = None,
+    # Extra CLI args NOT in settings
+    detached: bool = typer.Option(False, help="Run in background"),
+):
+    # Filter out None — passing None explicitly overrides env vars!
+    overrides = {k: v for k, v in {"host": host, "port": port}.items() if v is not None}
+    settings = Settings(**overrides)
+    # settings now has: CLI arg > env var > pyproject.toml > default
+```
+
+**Critical:** `Settings(port=None)` would override `ZNDRAW_SERVER_PORT=9000` with `None`. The `None`-filtering step is a **correctness requirement**, not a convenience.
+
+**What changes:**
+
+| Before | After |
+|---|---|
+| Typer `envvar="ZNDRAW_PORT"` reads env vars | Pydantic-settings reads env vars |
+| `os.environ["ZNDRAW_HOST"] = host` before lifespan | `Settings(host=host)` directly — no env writes |
+| `resolve_url()` / `resolve_token()` manual logic | `ClientSettings(**overrides)` |
+| `UrlOpt = Annotated[..., typer.Option(envvar="ZNDRAW_URL")]` | `UrlOpt = Annotated[..., typer.Option(help="... [env: ZNDRAW_URL].")]` |
+| Defaults scattered across Typer options and Settings | Defaults only in pydantic model |
+
+**zndraw-cli agent commands:**
 
 ```python
 # Before (cli_agent/connection.py)
@@ -461,8 +496,25 @@ def get_connection(url, token, user, password):
 
 # After
 def get_connection(url, token, user, password):
-    settings = ClientSettings(url=url, token=token, user=user, password=password)
+    overrides = {k: v for k, v in {
+        "url": url, "token": token, "user": user, "password": password,
+    }.items() if v is not None}
+    settings = ClientSettings(**overrides)
     return Connection(settings.url, settings.token)
+```
+
+**zndraw server start** — `os.environ` writes eliminated:
+
+```python
+# Before: write to env so Settings() in lifespan reads it
+os.environ["ZNDRAW_HOST"] = host
+os.environ["ZNDRAW_PORT"] = str(port)
+# ... start uvicorn, lifespan calls Settings()
+
+# After: pass directly
+overrides = {k: v for k, v in {"host": host, "port": port}.items() if v is not None}
+settings = Settings(**overrides)
+app.state.settings = settings  # set before lifespan
 ```
 
 ### auth login / logout Flow
@@ -530,7 +582,7 @@ On first `StateFile` access:
 | `src/zndraw/config.py` | Change `env_prefix` to `ZNDRAW_SERVER_`, add `settings_customise_sources()` with `PyprojectTomlConfigSettingsSource` |
 | `src/zndraw/broker.py` | Update docstring referencing `ZNDRAW_REDIS_URL` → `ZNDRAW_SERVER_REDIS_URL` |
 | `src/zndraw/database.py` | Update any `ZNDRAW_` references in comments/docstrings |
-| `src/zndraw/cli.py` | Update `os.environ` writes to use `ZNDRAW_SERVER_HOST`, `ZNDRAW_SERVER_PORT`, `ZNDRAW_SERVER_DATABASE_URL` |
+| `src/zndraw/cli.py` | Remove `os.environ` writes, remove `envvar=` from Typer options, pass CLI overrides to `Settings(**overrides)` directly |
 | `zndraw-auth: settings.py` | Add `settings_customise_sources()` with `PyprojectTomlConfigSettingsSource` |
 | `zndraw-joblib: settings.py` | Add `settings_customise_sources()` with `PyprojectTomlConfigSettingsSource` |
 | `docker/` | Update all `ZNDRAW_` → `ZNDRAW_SERVER_` in Docker Compose files |
@@ -553,7 +605,7 @@ On first `StateFile` access:
 | `src/zndraw/state_file.py` | **New**: `StateFile` class (replaces `ServerInfo` + `TokenStore`) |
 | `src/zndraw/settings_sources.py` | **New**: `StateFileSource(PydanticBaseSettingsSource)` |
 | `src/zndraw/client/core.py` | Refactor `__post_init__` to use `ClientSettings` |
-| `src/zndraw/cli_agent/connection.py` | Replace `resolve_url`/`resolve_token` with `ClientSettings` |
+| `src/zndraw/cli_agent/connection.py` | Remove `envvar=` from shared type aliases (`UrlOpt`, `TokenOpt`, etc.), replace `resolve_url`/`resolve_token` with `ClientSettings(**overrides)` |
 | `src/zndraw/auth_utils.py` | Simplify -- guest fallback only (token resolution moved to settings chain) |
 | `src/zndraw/server_manager.py` | Remove `ServerInfo`, `TokenStore`, PID file functions. Keep `wait_for_server_ready`, `is_process_running`, `shutdown_server` (updated to use `StateFile`) |
 | `src/zndraw/cli.py` | Write `local_token` to `state.json` on server start. Remove entry on stop. |
