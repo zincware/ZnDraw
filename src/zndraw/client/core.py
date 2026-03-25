@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import contextlib
 import logging
 import uuid
 import warnings
-from collections.abc import Generator, Iterable, MutableSequence
+from collections.abc import Iterable, MutableSequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Annotated, Any, Literal, cast, overload
 
@@ -47,7 +46,6 @@ from zndraw.geometries.camera import Camera
 if TYPE_CHECKING:
     from zndraw.extensions.abc import Extension
     from zndraw.providers.frame_source import FrameSource
-    from zndraw.tqdm import ZnDrawTqdm
 
 log = logging.getLogger(__name__)
 
@@ -60,7 +58,7 @@ log = logging.getLogger(__name__)
 class _DeprecatedProgressTracker:
     """Legacy v0.6.0 progress tracker. Use ZnDrawTqdm instead."""
 
-    def __init__(self, vis: "ZnDraw", description: str):
+    def __init__(self, vis: ZnDraw, description: str):
         self.vis = vis
         self.description = description
         self.progress_id = str(uuid.uuid4())
