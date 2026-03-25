@@ -45,6 +45,7 @@ from zndraw.socketio import tsio
 
 app = FastAPI(title="ZnDraw API", lifespan=lifespan)
 app.state.settings_overrides = {}  # CLI populates before uvicorn starts
+app.state.local_token = None  # CLI populates on server start
 
 # Override joblib's verify_writable_room to enforce room locks
 app.dependency_overrides[joblib_verify_writable_room] = get_writable_room_id

@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlmodel import func, select
 from zndraw_auth import User, admin_token_router
 
-from zndraw.dependencies import AdminUserDep, SessionDep
+from zndraw.dependencies import AdminUserDep, LocalTokenOrAdminDep, SessionDep
 from zndraw.exceptions import Forbidden, UserNotFound, problem_responses
 from zndraw.schemas import OffsetPage, StatusResponse
 
@@ -183,7 +183,7 @@ async def delete_user(
     responses=problem_responses(Forbidden),
 )
 async def shutdown_server(
-    _admin: AdminUserDep,
+    _admin: LocalTokenOrAdminDep,
 ) -> ShutdownResponse:
     """Initiate graceful server shutdown.
 
