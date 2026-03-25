@@ -181,7 +181,9 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         self.api = APIManager(url=self.url, room_id=self.room, token=self.token)
 
         # Populate self.user for guest/stored-token sessions
-        if self.user is None and self.token is not None:
+        # Skip when token was explicitly provided by the caller
+        explicit_token = overrides.get("token") is not None
+        if self.user is None and not explicit_token:
             resp = self.api.http.get(
                 "/v1/auth/users/me",
                 headers={"Authorization": f"Bearer {self.token}"},
