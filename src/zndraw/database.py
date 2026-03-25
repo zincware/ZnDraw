@@ -188,8 +188,7 @@ async def init_database(
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """FastAPI lifespan context manager for all application resources."""
-    # Reuse settings from CLI (app.state.settings) or create fresh
-    settings = getattr(app.state, "settings", None) or Settings()
+    settings = Settings(**app.state.settings_overrides)  # type: ignore[arg-type]
     auth_settings = AuthSettings()
     joblib_settings = JobLibSettings(
         allowed_categories=["modifiers", "selections", "analysis", "filesystem"],

@@ -375,7 +375,7 @@ def resolve_server(
     from zndraw.app import app as fastapi_app, socket_app
 
     fastapi_app.state.shutdown_token = shutdown_token
-    fastapi_app.state.settings = settings
+    fastapi_app.state.settings_overrides = settings_kwargs
 
     config = uvicorn.Config(
         socket_app,
