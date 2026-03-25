@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,7 +10,7 @@ from typer.testing import CliRunner
 
 from zndraw.cli_agent import app
 from zndraw.cli_agent.connection import Connection
-from zndraw.state_file import StateFile, TokenEntry
+from zndraw.state_file import StateFile
 
 runner = CliRunner()
 
