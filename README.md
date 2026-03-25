@@ -46,6 +46,15 @@ zndraw <file>
 
 ZnDraw supports multiple clients connecting to the same visualization. Each visualization session is identified by a **room name** visible in the URL.
 
+> [!TIP]
+> Connection settings can be configured via environment variables (`ZNDRAW_URL`, `ZNDRAW_ROOM`) or in your `pyproject.toml`:
+> ```toml
+> [tool.zndraw]
+> url = "https://zndraw.icp.uni-stuttgart.de"
+> room = "my-project"
+> ```
+> These are picked up automatically so you don't have to repeat them in every script.
+
 ```python
 from zndraw import ZnDraw
 
