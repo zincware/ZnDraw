@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
-from conftest import MockSioServer, create_test_token, create_test_user_model
+from helpers import MockSioServer, create_test_token, create_test_user_model
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool

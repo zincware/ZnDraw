@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 import pytest_asyncio
 from asebytes import decode, encode
-from conftest import MockSioServer, create_test_token, create_test_user_model
+from helpers import MockSioServer, create_test_token, create_test_user_model
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from zndraw_auth import User

@@ -3,7 +3,7 @@
 import uuid
 
 import pytest
-from conftest import make_raw_frame
+from helpers import make_raw_frame
 
 from zndraw.storage import FrameStorage
 

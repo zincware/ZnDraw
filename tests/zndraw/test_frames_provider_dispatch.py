@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import msgpack
 import pytest
 import pytest_asyncio
-from conftest import (
+from helpers import (
     MockSioServer,
     auth_header,
     create_test_room,
