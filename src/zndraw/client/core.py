@@ -211,11 +211,11 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     def disconnect(self) -> None:
         """Disconnect from the server. Idempotent.
 
-        Worker cleanup is handled server-side by the ``on_disconnect``
-        handler when the socket disconnects (clears providers, frame
-        counts, etc.).  If the socket was never connected, there is no
-        worker to clean up.
+        Calls ``jobs.disconnect()`` first to delete the worker via HTTP
+        DELETE (fails tasks, removes providers, cleans up frame counts).
+        Then drops the Socket.IO connection and closes the HTTP session.
         """
+        self._jobs.disconnect()
         self.socket.disconnect()
         self.api.close()
 

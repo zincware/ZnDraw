@@ -4477,7 +4477,7 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.40.0" },
     { name = "vesin", specifier = ">=0.4.2" },
     { name = "zndraw-auth", specifier = ">=0.2.3" },
-    { name = "zndraw-joblib", specifier = ">=0.1.6" },
+    { name = "zndraw-joblib", specifier = ">=0.1.7" },
     { name = "zndraw-socketio", specifier = ">=0.1.6" },
 ]
 provides-extras = ["full", "gif", "mongodb", "postgres"]
@@ -4524,7 +4524,7 @@ wheels = [
 
 [[package]]
 name = "zndraw-joblib"
-version = "0.1.6"
+version = "0.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fastapi" },
@@ -4537,9 +4537,9 @@ dependencies = [
     { name = "zndraw-auth" },
     { name = "zndraw-socketio" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f8/1a/3b7319e33ea2d1555cd5da38c4185dd3b96c4b899a94ae6494a3dd6dc683/zndraw_joblib-0.1.6.tar.gz", hash = "sha256:5f1128aa6494f3b5f25e00b9673c7cf5678ce34ecb8b8ad011872aac5707863f", size = 287107, upload-time = "2026-03-24T14:48:23.548Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f6/1b/f0a5b0218ee4484ed6f89124afd17fbee002740b7ef79d27e29ee8c060db/zndraw_joblib-0.1.7.tar.gz", hash = "sha256:ada4087c32136bc8be7308267fcaee47952c8830db5312f34df29464d02d73e7", size = 293825, upload-time = "2026-03-25T09:08:44.779Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8d/23/ab7cc62e78c86f516f7a7531e5982dcb80ac90488cedb3894faaf9205bc8/zndraw_joblib-0.1.6-py3-none-any.whl", hash = "sha256:5731445b54578f2fc323648aa24d17fff3df1ad142fbd0dabb7a662038ad7f11", size = 38277, upload-time = "2026-03-24T14:48:22.47Z" },
+    { url = "https://files.pythonhosted.org/packages/16/59/af6ad6674648339736e3514b708c48f2aff484aa56ccd41121fe67284fc8/zndraw_joblib-0.1.7-py3-none-any.whl", hash = "sha256:9d0c8f5a1213ecd03ee4b26c3735d3f1ed2a479d5b5cf057b450dfe5c2d5d534", size = 40001, upload-time = "2026-03-25T09:08:43.351Z" },
 ]
 
 [[package]]
