@@ -474,9 +474,7 @@ async def list_workers_for_room(
 async def list_tasks_for_room(
     room_id: str,
     session: SessionDep,
-    task_status: Annotated[
-        TaskStatus | None, Query(alias="status")
-    ] = None,
+    task_status: Annotated[TaskStatus | None, Query(alias="status")] = None,
     limit: Annotated[int, Query(ge=0, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
@@ -517,9 +515,7 @@ async def list_tasks_for_job(
     room_id: str,
     job_name: str,
     session: SessionDep,
-    task_status: Annotated[
-        TaskStatus | None, Query(alias="status")
-    ] = None,
+    task_status: Annotated[TaskStatus | None, Query(alias="status")] = None,
     limit: Annotated[int, Query(ge=0, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
