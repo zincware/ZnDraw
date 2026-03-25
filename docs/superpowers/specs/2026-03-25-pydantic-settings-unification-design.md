@@ -45,20 +45,23 @@ Each of the three settings classes adds `PyprojectTomlConfigSettingsSource` in `
 
 | Class | Table Header | Env Prefix |
 |---|---|---|
-| `Settings` | `[tool.zndraw.server]` | `ZNDRAW_` |
+| `ClientSettings` | `[tool.zndraw]` | `ZNDRAW_` |
+| `Settings` | `[tool.zndraw.server]` | `ZNDRAW_SERVER_` |
 | `AuthSettings` | `[tool.zndraw.auth]` | `ZNDRAW_AUTH_` |
 | `JobLibSettings` | `[tool.zndraw.joblib]` | `ZNDRAW_JOBLIB_` |
 
-Note: `Settings` uses `[tool.zndraw.server]` (not `[tool.zndraw]`) to avoid field name clashes with `ClientSettings` (Phase 2), which reads from `[tool.zndraw]`. Env prefix stays `ZNDRAW_` for backward compatibility.
+Every class's env prefix matches its TOML table path. `ClientSettings` gets the root `ZNDRAW_` prefix because it's the most user-facing (`ZNDRAW_URL`, `ZNDRAW_ROOM`).
+
+**Breaking change:** `ZNDRAW_PORT` → `ZNDRAW_SERVER_PORT`, `ZNDRAW_DATABASE_URL` → `ZNDRAW_SERVER_DATABASE_URL`, etc. All existing server-side env vars gain the `SERVER_` infix.
 
 ### Priority (all server-side classes)
 
 ```
-init args (Settings(port=9000))              highest
+init args (Settings(port=9000))                    highest
     |
-env vars (ZNDRAW_PORT=9000)
+env vars (ZNDRAW_SERVER_PORT=9000)
     |
-pyproject.toml ([tool.zndraw.server])        lowest
+pyproject.toml ([tool.zndraw.server])              lowest
 ```
 
 ### Example pyproject.toml
@@ -101,8 +104,7 @@ from pydantic_settings.main import PydanticBaseSettingsSource
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="ZNDRAW_",
-        env_nested_delimiter="__",
+        env_prefix="ZNDRAW_SERVER_",
         pyproject_toml_table_header=("tool", "zndraw", "server"),
     )
 
@@ -171,7 +173,7 @@ class ClientSettings(BaseSettings):
 
 `ClientSettings` reads from `[tool.zndraw]` (the top-level table). Server-side `Settings` reads from `[tool.zndraw.server]`. No table overlap, no `extra="ignore"` needed.
 
-**Env prefix sharing:** Both `Settings` and `ClientSettings` use `env_prefix="ZNDRAW_"`. This is safe because their field names are non-overlapping (`Settings` has `host`, `port`, `database_url`, etc.; `ClientSettings` has `url`, `room`, `user`, `password`, `token`). Pydantic-settings silently ignores env vars that don't match a field. `env_nested_delimiter` is omitted from `ClientSettings` since it has no nested fields.
+Each class has its own env prefix — no namespace overlap. `env_nested_delimiter` is omitted from `ClientSettings` since it has no nested fields.
 
 ### Priority Chain
 
@@ -512,9 +514,14 @@ On first `StateFile` access:
 ### Backward Compatibility
 
 - `ZnDraw(url=..., token=...)` continues to work exactly as before (init args highest priority).
-- Env vars (`ZNDRAW_URL`, `ZNDRAW_TOKEN`, etc.) continue to work (env source).
+- Client env vars (`ZNDRAW_URL`, `ZNDRAW_TOKEN`, etc.) continue to work (unchanged prefix).
 - Old PID files and tokens.json are auto-migrated on first access.
-- No breaking changes to the public API.
+- No breaking changes to the Python client API.
+
+### Breaking Changes
+
+- **Server env vars renamed**: `ZNDRAW_` → `ZNDRAW_SERVER_` for all server settings. E.g., `ZNDRAW_PORT` → `ZNDRAW_SERVER_PORT`, `ZNDRAW_DATABASE_URL` → `ZNDRAW_SERVER_DATABASE_URL`, `ZNDRAW_REDIS_URL` → `ZNDRAW_SERVER_REDIS_URL`, etc. All Docker Compose files, CI configs, and deployment scripts must be updated.
+- **Docs/README**: All references to `ZNDRAW_` server env vars must be updated throughout documentation, README, and inline docstrings (`config.py`, `broker.py`, `database.py`, `cli.py`).
 
 ## Files Changed
 
