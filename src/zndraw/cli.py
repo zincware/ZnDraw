@@ -26,7 +26,6 @@ import uvicorn
 from zndraw import __version__
 from zndraw.client import ZnDraw
 from zndraw.server_manager import (
-    DEFAULT_PORT,
     ServerInfo,
     find_running_server,
     remove_server_info,
@@ -52,7 +51,7 @@ db_app = typer.Typer(
 def db_init(
     database_url: Annotated[
         str | None,
-        typer.Option(help="Database URL (overrides ZNDRAW_DATABASE_URL)"),
+        typer.Option(help="Database URL [env: ZNDRAW_SERVER_DATABASE_URL]."),
     ] = None,
 ) -> None:
     """Initialize database tables.
@@ -66,12 +65,12 @@ def db_init(
     """
     import asyncio
 
+    from zndraw.config import Settings
     from zndraw.database import init_database
 
-    if database_url:
-        os.environ["ZNDRAW_DATABASE_URL"] = database_url
+    settings = Settings(database_url=database_url) if database_url else Settings()
 
-    asyncio.run(init_database())
+    asyncio.run(init_database(settings=settings))
     typer.echo("Database initialized successfully")
 
 
@@ -297,7 +296,7 @@ def get_room_names(
 def resolve_server(
     connect: str | None,
     port: int | None,
-    host: str,
+    host: str | None,
     detached: bool,
     verbose: bool,
 ) -> tuple[str, uvicorn.Server | None, int]:
@@ -333,12 +332,18 @@ def resolve_server(
 
         return f"http://localhost:{server_info.port}", None, server_info.port
 
-    # Start new server
-    effective_port = port if port is not None else DEFAULT_PORT
+    # Start new server — build Settings from CLI overrides
+    from zndraw.config import Settings
 
-    # Write back so Settings() in lifespan reads the actual CLI values
-    os.environ["ZNDRAW_HOST"] = host
-    os.environ["ZNDRAW_PORT"] = str(effective_port)
+    settings_kwargs: dict[str, str | int] = {}
+    if host is not None:
+        settings_kwargs["host"] = host
+    if port is not None:
+        settings_kwargs["port"] = port
+    settings = Settings(**settings_kwargs)  # type: ignore[arg-type]
+
+    effective_port = settings.port
+    effective_host = settings.host
 
     typer.echo(f"Starting new server on port {effective_port}...")
 
@@ -362,14 +367,19 @@ def resolve_server(
     from zndraw.app import app as fastapi_app, socket_app
 
     fastapi_app.state.shutdown_token = shutdown_token
+    fastapi_app.state.settings = settings
 
     config = uvicorn.Config(
         socket_app,
-        host=host,
+        host=effective_host,
         port=effective_port,
         log_level=log_level,
     )
-    return f"http://{host}:{effective_port}", uvicorn.Server(config), effective_port
+    return (
+        f"http://{effective_host}:{effective_port}",
+        uvicorn.Server(config),
+        effective_port,
+    )
 
 
 def open_browser_to(
@@ -462,14 +472,16 @@ def main(
             help="Server port. If specified and server exists on "
             "that port, connects to it. "
             "If specified and no server on that port, starts new server. "
-            "If not specified, auto-discovers running servers.",
-            envvar="ZNDRAW_PORT",
+            "If not specified, auto-discovers running servers "
+            "[env: ZNDRAW_SERVER_PORT].",
         ),
     ] = None,
     host: Annotated[
-        str,
-        typer.Option(help="Server hostname or IP address.", envvar="ZNDRAW_HOST"),
-    ] = "127.0.0.1",
+        str | None,
+        typer.Option(
+            help="Server hostname or IP address [env: ZNDRAW_SERVER_HOST].",
+        ),
+    ] = None,
     connect: Annotated[
         str | None,
         typer.Option(
