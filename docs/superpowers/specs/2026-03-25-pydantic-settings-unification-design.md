@@ -265,9 +265,9 @@ flowchart TD
 4. **Then try remote** — hit `/v1/health` directly.
 5. **First healthy server wins.**
 
-Resolution is **read-only** — unhealthy entries are skipped but not removed from `state.json`. This keeps the operation idempotent and avoids permanently deleting a temporarily unreachable server (e.g., network blip, server restarting). Cleanup happens explicitly:
-- **Local entries**: cleaned up when a dead PID is detected during `server start` or `server stop`.
-- **Remote entries**: cleaned up by `auth logout --url ...` or a future `zndraw-cli server cleanup` command.
+**Cleanup during resolution:**
+- **Local entries with dead PID**: removed immediately — `os.kill(pid, 0)` is definitive, there is no "temporarily dead PID" scenario. Safe to clean up on every access.
+- **Remote entries with failed health check**: kept — a failed health check is ambiguous (network blip, server restarting). Remote entries are only removed explicitly by `auth logout --url ...`.
 
 This eliminates the need for `default_url`. The `auth login --url remote` command adds the remote to `servers`. Starting a local server adds to `servers`. The resolution algorithm always picks the best available server: localhost preferred (active intent), then remote (passive preference), newest first within each category.
 
