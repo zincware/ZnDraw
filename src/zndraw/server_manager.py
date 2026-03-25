@@ -325,39 +325,38 @@ def find_running_server(port: int | None = None) -> ServerInfo | None:
     return min(running_servers, key=lambda s: s.port)
 
 
-def shutdown_server(server_info: ServerInfo) -> bool:
+def shutdown_server(url: str, local_token: str | None = None) -> bool:
     """Shutdown the server gracefully via API endpoint.
 
     Parameters
     ----------
-    server_info
-        Information about the server to shutdown.
+    url : str
+        Server URL to shut down.
+    local_token : str | None
+        Bearer token for local admin auth.
 
     Returns
     -------
     bool
         True if the server was successfully shut down, False otherwise.
     """
-    if not is_process_running(server_info.pid):
-        return False
-
+    headers: dict[str, str] = {}
+    if local_token:
+        headers["Authorization"] = f"Bearer {local_token}"
     try:
-        headers = {}
-        if server_info.shutdown_token:
-            headers["X-Shutdown-Token"] = server_info.shutdown_token
-
         with httpx.Client(timeout=5.0) as client:
-            client.post(
-                f"http://localhost:{server_info.port}/v1/admin/shutdown",
-                headers=headers,
-            )
+            client.post(f"{url}/v1/admin/shutdown", headers=headers)
     except httpx.RequestError:
         pass
 
-    # Wait for process to exit
+    # Wait for server to stop responding
     for _ in range(25):
-        if not is_process_running(server_info.pid):
-            remove_server_info(server_info.port)
+        try:
+            with httpx.Client(timeout=2.0) as check:
+                resp = check.get(f"{url}/v1/health")
+                if resp.status_code != 200:
+                    return True
+        except httpx.RequestError:
             return True
         time.sleep(0.2)
     return False
