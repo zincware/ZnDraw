@@ -1,6 +1,6 @@
 """Application configuration.
 
-Settings class configured via environment variables with the ZNDRAW_ prefix.
+Settings class configured via environment variables with the ZNDRAW_SERVER_ prefix.
 Storage backend is selected by URI string (e.g. ``memory://``,
 ``/path/to/data.lmdb``, ``mongodb://host:port/db``).
 """
@@ -10,19 +10,59 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    PyprojectTomlConfigSettingsSource,
+    SettingsConfigDict,
+)
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables.
 
-    All settings use the ZNDRAW_ prefix.
+    All settings use the ZNDRAW_SERVER_ prefix.
     """
 
     model_config = SettingsConfigDict(
-        env_prefix="ZNDRAW_",
-        env_nested_delimiter="__",
+        env_prefix="ZNDRAW_SERVER_",
+        pyproject_toml_table_header=("tool", "zndraw", "server"),
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,  # noqa: ARG003
+        file_secret_settings: PydanticBaseSettingsSource,  # noqa: ARG003
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """Return settings sources in priority order.
+
+        Parameters
+        ----------
+        settings_cls : type[BaseSettings]
+            The settings class.
+        init_settings : PydanticBaseSettingsSource
+            Init kwargs source.
+        env_settings : PydanticBaseSettingsSource
+            Environment variable source.
+        dotenv_settings : PydanticBaseSettingsSource
+            Dotenv file source.
+        file_secret_settings : PydanticBaseSettingsSource
+            Secret file source.
+
+        Returns
+        -------
+        tuple[PydanticBaseSettingsSource, ...]
+            Ordered sources: init, env, pyproject.toml.
+        """
+        return (
+            init_settings,
+            env_settings,
+            PyprojectTomlConfigSettingsSource(settings_cls),
+        )
 
     # Auth
     guest_password: SecretStr = SecretStr("zndraw")
@@ -49,7 +89,7 @@ class Settings(BaseSettings):
 
     # Worker
     worker_enabled: bool = True  # False in Docker (dedicated workers)
-    server_url: str | None = None  # For TaskIQ workers to reach FastAPI
+    internal_url: str | None = None  # For TaskIQ workers to reach FastAPI
 
 
 def get_zndraw_settings(request: Request) -> Settings:
