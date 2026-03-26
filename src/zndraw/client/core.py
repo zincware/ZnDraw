@@ -157,6 +157,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         from zndraw.auth_utils import (
             guest_login,
             login_with_credentials,
+            resolve_or_refresh_token,
             validate_credentials,
         )
         from zndraw.client.settings import ClientSettings
@@ -193,7 +194,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
 
         # Token resolution: settings chain > user/password login > guest
         if resolved.token is not None:
-            self.token = resolved.token
+            self.token = resolve_or_refresh_token(self.url, resolved.token)
         elif resolved.user and resolved.password:
             self.token = login_with_credentials(
                 self.url, resolved.user, resolved.password
@@ -559,7 +560,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         search
             Optional search filter.
         """
-        from zndraw.auth_utils import guest_login
+        from zndraw.auth_utils import guest_login, resolve_or_refresh_token
         from zndraw.client.settings import ClientSettings
 
         overrides = {
@@ -570,7 +571,10 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             raise ConnectionError(
                 "No ZnDraw server found. Pass url= or start a local server."
             )
-        resolved_token = resolved.token or guest_login(resolved.url)
+        if resolved.token is not None:
+            resolved_token = resolve_or_refresh_token(resolved.url, resolved.token)
+        else:
+            resolved_token = guest_login(resolved.url)
         api = APIManager(url=resolved.url, room_id="", token=resolved_token)
         try:
             return api.list_rooms(search=search)

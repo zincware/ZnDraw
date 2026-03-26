@@ -155,15 +155,28 @@ def test_url_empty_state_returns_none(state_file):
 # --- Token resolution ---
 
 
-def test_token_local_server_uses_local_token(state_file):
-    state_file.add_server("http://localhost:8000", _local_entry(local_token="my-local"))
+def test_token_local_server_uses_access_token(state_file):
+    entry = _local_entry(local_token="raw-admin")
+    entry.access_token = "real.jwt"
+    state_file.add_server("http://localhost:8000", entry)
     source = _make_source(state_file)
     with (
         patch("zndraw.settings_sources._is_pid_alive", return_value=True),
         patch("zndraw.settings_sources._is_url_healthy", return_value=True),
     ):
         result = source()
-    assert result["token"] == "my-local"
+    assert result["token"] == "real.jwt"
+
+
+def test_token_local_server_no_access_token_returns_none(state_file):
+    state_file.add_server("http://localhost:8000", _local_entry(local_token="raw-only"))
+    source = _make_source(state_file)
+    with (
+        patch("zndraw.settings_sources._is_pid_alive", return_value=True),
+        patch("zndraw.settings_sources._is_url_healthy", return_value=True),
+    ):
+        result = source()
+    assert result.get("token") is None
 
 
 def test_token_remote_uses_stored_token(state_file):

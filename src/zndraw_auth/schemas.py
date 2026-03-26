@@ -7,7 +7,14 @@ from pydantic import BaseModel
 
 
 class UserRead(schemas.BaseUser[uuid.UUID]):
-    """Schema for reading user data (responses)."""
+    """Schema for reading user data (responses).
+
+    Overrides ``email`` to plain ``str`` so that addresses with reserved
+    TLDs (``.local``, ``.test``) stored by ``ensure_default_admin`` can
+    be serialized without a pydantic ``EmailStr`` validation error.
+    """
+
+    email: str  # type: ignore[assignment]
 
 
 class UserCreate(schemas.BaseUserCreate):

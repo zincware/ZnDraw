@@ -223,6 +223,7 @@ max-args = 10  # Allow up to 10 args for FastAPI endpoints
 testpaths = ["tests/zndraw", "tests/zndraw_auth", "tests/zndraw_joblib"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = ["integration: marks tests as integration tests (require running server)"]
 
 [tool.codespell]
 skip = "frontend/bun.lock,docs/source/_static/*.svg,.planning/*"

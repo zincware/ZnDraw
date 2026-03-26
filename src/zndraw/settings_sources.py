@@ -204,8 +204,8 @@ class StateFileSource(PydanticBaseSettingsSource):
         """
         data = self._state_file.read()
         server = data.servers.get(url)
-        if server is not None and _is_localhost(url) and server.local_token:
-            return server.local_token
+        if server is not None and _is_localhost(url) and server.access_token:
+            return server.access_token
         token_entry = data.tokens.get(url)
         if token_entry is not None:
             return token_entry.access_token
