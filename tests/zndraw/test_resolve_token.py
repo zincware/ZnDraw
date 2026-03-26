@@ -29,11 +29,9 @@ def test_valid_combinations_pass():
     validate_credentials(token=None, user=None, password=None)
 
 
-def test_login_with_credentials_success(server: str):
+def test_login_with_credentials_success(server_auth: str):
     """login_with_credentials returns a JWT token string from a real server."""
-    # Use guest login first — the server in open mode accepts any user via JWT login
-    # with the built-in admin credentials (no auth mode = open guest access)
-    result = guest_login(server)
+    result = login_with_credentials(server_auth, "admin@local.test", "adminpassword")
     assert isinstance(result, str)
     assert len(result) > 0
 

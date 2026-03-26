@@ -121,7 +121,8 @@ def test_url_falls_back_to_remote(state_file):
     state_file.add_server("https://remote.example.com", _remote_entry())
     source = _make_source(state_file)
     with (
-        # why: pure-logic test of URL-healthy decision path without requiring remote server
+        # why: pure-logic test of URL-healthy decision path
+        # without requiring remote server
         patch("zndraw.settings_sources._is_url_healthy", return_value=True),
     ):
         result = source()
@@ -211,7 +212,8 @@ def test_token_remote_uses_stored_token(state_file):
     )
     source = _make_source(state_file)
     with (
-        # why: pure-logic test of URL-healthy decision path without requiring remote server
+        # why: pure-logic test of URL-healthy decision path
+        # without requiring remote server
         patch("zndraw.settings_sources._is_url_healthy", return_value=True),
     ):
         result = source()
@@ -223,7 +225,8 @@ def test_token_no_stored_returns_none(state_file):
     state_file.add_server(_DEAD_URL, _remote_entry())
     source = _make_source(state_file)
     with (
-        # why: pure-logic test of URL-healthy decision path without requiring remote server
+        # why: pure-logic test of URL-healthy decision path
+        # without requiring remote server
         patch("zndraw.settings_sources._is_url_healthy", return_value=True),
     ):
         result = source()

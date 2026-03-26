@@ -189,14 +189,14 @@ class InMemoryResultBackend:
     async def release_inflight(self, key: str) -> None:
         self._inflight.discard(key)
 
-    async def wait_for_key(self, key: str, timeout: float) -> bytes | None:
+    async def wait_for_key(self, key: str, wait_timeout: float) -> bytes | None:
         cached = self._store.get(key)
         if cached is not None:
             return cached
         event = asyncio.Event()
         self._waiters.setdefault(key, []).append(event)
         try:
-            await asyncio.wait_for(event.wait(), timeout=timeout)
+            await asyncio.wait_for(event.wait(), timeout=wait_timeout)
             return self._store.get(key)
         except TimeoutError:
             return None

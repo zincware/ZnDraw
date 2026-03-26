@@ -86,7 +86,7 @@ Critical user flows MUST have E2E tests against real servers:
 
 Replace per-file fixture sets with shared fixtures in `tests/zndraw/conftest.py`:
 
-```
+```text
 conftest.py fixtures:
   session         — in-memory SQLite (already exists)
   redis_client    — real Redis, flushed per test (already exists)

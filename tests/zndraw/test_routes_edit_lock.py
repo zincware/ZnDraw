@@ -4,7 +4,7 @@ import asyncio
 import json
 
 import pytest
-from helpers import auth_header, create_test_room, create_test_user_in_db
+from helpers import MockSioServer, auth_header, create_test_room, create_test_user_in_db
 from httpx import AsyncClient
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -144,7 +144,7 @@ async def test_acquire_edit_lock_stores_session_id(
 async def test_acquire_edit_lock_broadcasts_lock_update(
     client: AsyncClient,
     session: AsyncSession,
-    mock_sio,
+    mock_sio: MockSioServer,
 ) -> None:
     """Test PUT broadcasts LockUpdate socket event with ttl."""
     user, token = await create_test_user_in_db(session)
@@ -386,7 +386,7 @@ async def test_release_edit_lock_with_token(
 async def test_release_edit_lock_broadcasts_lock_update(
     client: AsyncClient,
     session: AsyncSession,
-    mock_sio,
+    mock_sio: MockSioServer,
 ) -> None:
     """Test DELETE broadcasts LockUpdate with action=released."""
     user, token = await create_test_user_in_db(session)

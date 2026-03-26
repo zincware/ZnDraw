@@ -656,7 +656,7 @@ async def test_update_selection_requires_auth(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "method,path,body",
+    ("method", "path", "body"),
     [
         ("GET", "/v1/rooms/99999/geometries", None),
         ("GET", "/v1/rooms/99999/geometries/somekey", None),
@@ -670,7 +670,7 @@ async def test_geometry_endpoints_return_404_for_nonexistent_room(
     client: AsyncClient, session: AsyncSession, method: str, path: str, body
 ) -> None:
     """All geometry endpoints return 404 for non-existent room."""
-    user, token = await create_test_user_in_db(session)
+    _, token = await create_test_user_in_db(session)
     response = await client.request(method, path, json=body, headers=auth_header(token))
     assert response.status_code == 404
     assert "room-not-found" in response.json()["type"]

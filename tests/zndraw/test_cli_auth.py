@@ -49,8 +49,10 @@ def test_auth_status_with_stored_token(
     )
     state_file.add_token(server, real_entry)
 
+    # why: isolate state.json to tmp_path so tests don't share token storage
     monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
-    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda url: server)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
 
     result = runner.invoke(app, ["auth", "status"])
 
@@ -61,8 +63,10 @@ def test_auth_status_with_stored_token(
 
 def test_auth_status_not_logged_in(server: str, state_file, monkeypatch):
     """auth status with no stored/explicit token should report not logged in."""
+    # why: isolate state.json to tmp_path so tests don't share token storage
     monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
-    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda url: server)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
 
     result = runner.invoke(app, ["auth", "status"])
 
@@ -79,8 +83,10 @@ def test_auth_logout_removes_token(server: str, state_file, stored_entry, monkey
     """auth logout should remove the stored token for the server."""
     state_file.add_token(server, stored_entry)
 
+    # why: isolate state.json to tmp_path so tests don't share token storage
     monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
-    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda url: server)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
 
     result = runner.invoke(app, ["auth", "logout"])
 
@@ -90,8 +96,10 @@ def test_auth_logout_removes_token(server: str, state_file, stored_entry, monkey
 
 def test_auth_logout_no_token(server: str, state_file, monkeypatch):
     """auth logout when no token is stored should not error."""
+    # why: isolate state.json to tmp_path so tests don't share token storage
     monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
-    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda url: server)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
 
     result = runner.invoke(app, ["auth", "logout"])
 
@@ -147,10 +155,13 @@ def test_auth_login_approved(server: str, state_file, monkeypatch):
     mock_client.post.return_value = challenge_resp
     mock_client.get.side_effect = mock_get
 
+    # why: isolate state.json to tmp_path so tests don't share token storage
     monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
-    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda url: server)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
 
     with (
+        # why: device-code login requires choreographed challenge/poll responses
         patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_client),
         # why: webbrowser.open is a real OS side-effect that cannot run in CI
         patch("zndraw.cli_agent.auth.webbrowser.open"),
@@ -186,10 +197,13 @@ def test_auth_login_rejected(server: str, state_file, monkeypatch):
     mock_client.post.return_value = challenge_resp
     mock_client.get.return_value = rejected_resp
 
+    # why: isolate state.json to tmp_path so tests don't share token storage
     monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
-    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda url: server)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
 
     with (
+        # why: device-code login requires choreographed challenge/poll responses
         patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_client),
         # why: webbrowser.open is a real OS side-effect that cannot run in CI
         patch("zndraw.cli_agent.auth.webbrowser.open"),
@@ -221,10 +235,13 @@ def test_auth_login_expired(server: str, state_file, monkeypatch):
     mock_client.post.return_value = challenge_resp
     mock_client.get.return_value = expired_resp
 
+    # why: isolate state.json to tmp_path so tests don't share token storage
     monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
-    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda url: server)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
 
     with (
+        # why: device-code login requires choreographed challenge/poll responses
         patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_client),
         # why: webbrowser.open is a real OS side-effect that cannot run in CI
         patch("zndraw.cli_agent.auth.webbrowser.open"),

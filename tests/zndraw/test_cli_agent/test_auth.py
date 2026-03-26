@@ -17,6 +17,7 @@ def test_auth_login_opens_browser(
 ) -> None:
     """Login (without --code) should open the browser."""
     state_file = StateFile(directory=tmp_path)
+    # why: isolate state.json to tmp_path so tests don't share token storage
     monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
 
     challenge_resp = MagicMock()
@@ -50,6 +51,7 @@ def test_auth_login_opens_browser(
     mock_client.get.side_effect = mock_get
 
     with (
+        # why: device-code login requires choreographed challenge/poll responses
         patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_client),
         # why: webbrowser.open is a real OS side-effect that cannot run in CI
         patch("zndraw.cli_agent.auth.webbrowser.open") as mock_browser,
@@ -68,6 +70,7 @@ def test_auth_login_code_flag_does_not_open_browser(
 ) -> None:
     """Login with --code should print URL instead of opening browser."""
     state_file = StateFile(directory=tmp_path)
+    # why: isolate state.json to tmp_path so tests don't share token storage
     monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
 
     challenge_resp = MagicMock()
@@ -101,6 +104,7 @@ def test_auth_login_code_flag_does_not_open_browser(
     mock_client.get.side_effect = mock_get
 
     with (
+        # why: device-code login requires choreographed challenge/poll responses
         patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_client),
         # why: webbrowser.open is a real OS side-effect that cannot run in CI
         patch("zndraw.cli_agent.auth.webbrowser.open") as mock_browser,

@@ -1,89 +1,40 @@
 """Tests for Screenshot REST API endpoints."""
 
 import json
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pytest
-import pytest_asyncio
 from helpers import (
-    InMemoryResultBackend,
     MockSioServer,
     auth_header,
     create_test_room,
     create_test_user_in_db,
 )
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from zndraw.redis import RedisKey
 from zndraw.schemas import StatusResponse
-from zndraw.storage import FrameStorage
 
 # =============================================================================
-# Per-file client fixture (adds media_path override on top of shared infra)
+# Fixture: adds media_path override on top of the shared client
 # =============================================================================
 
 
 @pytest.fixture(name="media_path")
 def media_path_fixture(tmp_path: Path) -> Path:
-    """Provide a temporary media directory for screenshots."""
-    return tmp_path / "media"
+    """Provide a temporary media directory and install the dependency override.
 
-
-@pytest_asyncio.fixture(name="client")
-async def client_fixture(
-    session: AsyncSession,
-    redis_client,
-    mock_sio: MockSioServer,
-    frame_storage: FrameStorage,
-    result_backend: InMemoryResultBackend,
-    media_path: Path,
-) -> AsyncIterator[AsyncClient]:
-    """Async test client with media_path override for screenshot tests."""
+    The shared ``client`` fixture (from conftest) sets up the base overrides.
+    This fixture layers ``get_media_path`` on top — tests that need it request
+    both ``client`` and ``media_path``.
+    """
     from zndraw.app import app
-    from zndraw.config import Settings
-    from zndraw.dependencies import (
-        get_frame_storage,
-        get_joblib_settings,
-        get_media_path,
-        get_redis,
-        get_result_backend,
-        get_tsio,
-    )
-    from zndraw_auth import get_session
-    from zndraw_auth.settings import AuthSettings
-    from zndraw_joblib.settings import JobLibSettings
+    from zndraw.dependencies import get_media_path
 
-    async def get_session_override() -> AsyncIterator[AsyncSession]:
-        yield session
-
-    @asynccontextmanager
-    async def test_session_maker():
-        yield session
-
-    settings = Settings()
-    settings.media_path = media_path  # type: ignore[assignment]
-
-    app.dependency_overrides[get_session] = get_session_override
-    app.dependency_overrides[get_redis] = lambda: redis_client
-    app.dependency_overrides[get_tsio] = lambda: mock_sio
-    app.dependency_overrides[get_frame_storage] = lambda: frame_storage
-    app.dependency_overrides[get_result_backend] = lambda: result_backend
-    app.dependency_overrides[get_joblib_settings] = lambda: JobLibSettings()
-    app.dependency_overrides[get_media_path] = lambda: media_path
-    app.state.session_maker = test_session_maker
-    app.state.settings = settings
-    app.state.auth_settings = AuthSettings()
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
-        yield client
-
-    app.dependency_overrides.clear()
+    media = tmp_path / "media"
+    app.dependency_overrides[get_media_path] = lambda: media
+    return media
 
 
 # =============================================================================

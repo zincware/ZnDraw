@@ -26,7 +26,7 @@ async def test_login(client: AsyncClient, test_user: User) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "username,password",
+    ("username", "password"),
     [
         ("testuser@local.test", "wrongpassword"),
         ("nonexistent@local.test", "password"),
@@ -93,7 +93,7 @@ async def test_register(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "setup_email,email,password,expected_status",
+    ("setup_email", "email", "password", "expected_status"),
     [
         ("duplicate@example.com", "duplicate@example.com", "password456", 400),
         (None, "newuser@example.com", None, 422),
@@ -109,10 +109,11 @@ async def test_register_fails(
 ) -> None:
     """Registration returns error for invalid input."""
     if setup_email:
-        await client.post(
+        setup_resp = await client.post(
             "/v1/auth/register",
             json={"email": setup_email, "password": "password123"},
         )
+        assert setup_resp.status_code == 201
     body = {"email": email}
     if password is not None:
         body["password"] = password
