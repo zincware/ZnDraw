@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from zndraw.exceptions import FigureNotFound
 from zndraw.models import RoomFigure
 from zndraw.schemas import FigureData, StatusResponse
-from zndraw.socket_events import FigureInvalidate
 
 
 async def _add_figure(
@@ -122,7 +121,6 @@ async def test_get_figure_returns_404_for_nonexistent(
 async def test_create_figure_stores_data(
     client: AsyncClient,
     session: AsyncSession,
-    mock_sio: MockSioServer,
 ) -> None:
     """Test POST creates a new figure."""
     user, token = await create_test_user_in_db(session)
@@ -206,7 +204,6 @@ async def test_create_figure_broadcasts(
 async def test_delete_figure_removes_data(
     client: AsyncClient,
     session: AsyncSession,
-    mock_sio: MockSioServer,
 ) -> None:
     """Test DELETE removes a figure."""
     user, token = await create_test_user_in_db(session)

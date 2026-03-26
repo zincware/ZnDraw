@@ -1,7 +1,6 @@
 """Tests for Bookmarks REST API endpoints."""
 
 import pytest
-import pytest_asyncio
 from helpers import (
     MockSioServer,
     auth_header,
@@ -14,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from zndraw.exceptions import BookmarkNotFound
 from zndraw.models import RoomBookmark
 from zndraw.schemas import StatusResponse
-from zndraw.socket_events import BookmarksInvalidate
 
 
 async def _add_bookmark(
@@ -123,7 +121,6 @@ async def test_get_bookmark_returns_404_for_nonexistent(
 async def test_set_bookmark_creates_bookmark(
     client: AsyncClient,
     session: AsyncSession,
-    mock_sio: MockSioServer,
 ) -> None:
     """Test PUT creates a new bookmark."""
     user, token = await create_test_user_in_db(session)
@@ -192,7 +189,6 @@ async def test_set_bookmark_rejects_empty_label(
 async def test_delete_bookmark_removes_bookmark(
     client: AsyncClient,
     session: AsyncSession,
-    mock_sio: MockSioServer,
 ) -> None:
     """Test DELETE removes a bookmark."""
     user, token = await create_test_user_in_db(session)

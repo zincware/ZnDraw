@@ -143,7 +143,7 @@ async def test_list_presets_room_not_found(
     session: AsyncSession,
 ) -> None:
     """GET /presets returns 404 for nonexistent room."""
-    _user, token = await create_test_user_in_db(session)
+    _, token = await create_test_user_in_db(session)
 
     response = await client.get(
         "/v1/rooms/nonexistent/presets",
@@ -507,7 +507,6 @@ async def test_apply_bundled_preset(
 async def test_apply_preset_updates_matching_geometries(
     client: AsyncClient,
     session: AsyncSession,
-    mock_sio: MockSioServer,
 ) -> None:
     """POST /presets/{name}/apply deep-merges config into matching geometries."""
     user, token = await create_test_user_in_db(session)

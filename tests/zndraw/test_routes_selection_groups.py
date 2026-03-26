@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from zndraw.exceptions import SelectionGroupNotFound
 from zndraw.models import SelectionGroup
 from zndraw.schemas import StatusResponse
-from zndraw.socket_events import SelectionGroupsInvalidate
 
 
 async def _add_selection_group(
@@ -133,7 +132,6 @@ async def test_get_selection_group_returns_stored(
 async def test_update_selection_group_stores_data(
     client: AsyncClient,
     session: AsyncSession,
-    mock_sio: MockSioServer,
 ) -> None:
     """Test PUT group stores selection data."""
     user, token = await create_test_user_in_db(session)
@@ -200,7 +198,6 @@ async def test_delete_nonexistent_selection_group_returns_404(
 async def test_delete_selection_group(
     client: AsyncClient,
     session: AsyncSession,
-    mock_sio: MockSioServer,
 ) -> None:
     """Test DELETE removes group."""
     user, token = await create_test_user_in_db(session)
