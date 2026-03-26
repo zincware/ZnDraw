@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import pytest
-import pytest_asyncio
-from httpx import AsyncClient
 from pydantic import SecretStr
 
 from zndraw.auth_utils import guest_login, login_with_credentials, validate_credentials
