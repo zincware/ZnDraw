@@ -8,9 +8,13 @@ the pydantic-settings source chain (StateFileSource).
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 import httpx
 from pydantic import SecretStr
+
+if TYPE_CHECKING:
+    from zndraw.state_file import StateFile
 
 log = logging.getLogger(__name__)
 
@@ -69,7 +73,11 @@ def login_with_credentials(
         return resp.json()["access_token"]
 
 
-def resolve_or_refresh_token(base_url: str, token: str) -> str:
+def resolve_or_refresh_token(
+    base_url: str,
+    token: str,
+    state_file: StateFile | None = None,
+) -> str:
     """Validate a stored token and fall back to guest login on 401.
 
     Parameters
@@ -78,6 +86,8 @@ def resolve_or_refresh_token(base_url: str, token: str) -> str:
         Server URL.
     token
         Previously stored JWT to validate.
+    state_file
+        StateFile instance to use for eviction. Defaults to ``StateFile()``.
 
     Returns
     -------
@@ -92,16 +102,25 @@ def resolve_or_refresh_token(base_url: str, token: str) -> str:
             )
             if resp.status_code == 401:
                 log.debug("Stored token expired or invalid, evicting and refreshing")
-                from zndraw.state_file import StateFile
+                from zndraw.state_file import StateFile as StateFile_
 
-                state = StateFile()
+                state = state_file or StateFile_()
                 state.remove_token(base_url)
+                _evict_server_access_token(state, base_url)
                 return guest_login(base_url)
             resp.raise_for_status()
             return token
     except httpx.RequestError:
         # Network error — keep token, let caller handle
         return token
+
+
+def _evict_server_access_token(state: StateFile, url: str) -> None:
+    """Clear access_token from a server entry (no-op if absent)."""
+    entry = state.get_server(url)
+    if entry is not None and entry.access_token is not None:
+        entry.access_token = None
+        state.add_server(url, entry)
 
 
 def guest_login(base_url: str) -> str:

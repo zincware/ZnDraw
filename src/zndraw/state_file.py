@@ -37,6 +37,8 @@ class ServerEntry(BaseModel):
         ZnDraw version (local servers only).
     local_token : str | None
         Per-start superuser token (local servers only).
+    access_token : str | None
+        Real JWT for client auth (local servers only).
     """
 
     added_at: datetime
