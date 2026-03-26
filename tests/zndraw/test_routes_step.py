@@ -162,7 +162,6 @@ async def test_set_step_out_of_bounds_returns_422(
 async def test_set_step_empty_room_rejects_nonzero(
     client: AsyncClient,
     session: AsyncSession,
-    frame_storage: FrameStorage,
 ) -> None:
     """Test PUT to room with no frames rejects non-zero step."""
     user, token = await create_test_user_in_db(session)

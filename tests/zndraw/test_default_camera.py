@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from helpers import auth_header, create_test_room, create_test_user_in_db
+from helpers import create_test_room, create_test_user_in_db
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 

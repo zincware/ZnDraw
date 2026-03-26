@@ -13,7 +13,7 @@ from helpers import (
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zndraw.models import Message, Room
+from zndraw.models import Message
 
 # =============================================================================
 # Helpers unique to this test file

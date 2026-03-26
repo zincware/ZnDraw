@@ -17,7 +17,6 @@ from helpers import (
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zndraw.models import Room
 from zndraw.redis import RedisKey
 from zndraw.schemas import StatusResponse
 from zndraw.storage import FrameStorage
@@ -359,7 +358,7 @@ async def test_request_capture_rejects_other_users_session(
     """Requesting a screenshot from another user's session returns 409."""
     user_a, token_a = await create_test_user_in_db(session, email="alice@test")
     room = await create_test_room(session, user_a)
-    user_b, _token_b = await create_test_user_in_db(session, email="bob@test")
+    user_b, _ = await create_test_user_in_db(session, email="bob@test")
 
     target_sid = "bobs-browser-sid"
     cam_key = "cam:bob@test:abcd1234"
@@ -412,7 +411,6 @@ async def test_request_capture_invalid_session(
 async def test_patch_pending_screenshot(
     client: AsyncClient,
     session: AsyncSession,
-    mock_sio: MockSioServer,
     redis_client,
     media_path: Path,
 ) -> None:
@@ -460,7 +458,7 @@ async def test_patch_pending_screenshot(
 
 @pytest.mark.asyncio
 async def test_patch_completed_screenshot(
-    client: AsyncClient, session: AsyncSession, media_path: Path
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """PATCH on already-completed screenshot returns 409."""
     user, token = await create_test_user_in_db(session)
