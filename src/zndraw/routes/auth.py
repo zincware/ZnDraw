@@ -5,6 +5,8 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends
 from fastapi_users.authentication import JWTStrategy
+
+from zndraw.config import Settings, get_zndraw_settings
 from zndraw_auth import (
     AuthSettingsDep,
     UserCreate,
@@ -16,8 +18,6 @@ from zndraw_auth import (
     fastapi_users,
     get_user_manager,
 )
-
-from zndraw.config import Settings, get_zndraw_settings
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
 

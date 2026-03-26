@@ -12,11 +12,11 @@ from uuid import UUID
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict
 from sqlmodel import func, select
-from zndraw_auth import User, admin_token_router
 
 from zndraw.dependencies import AdminUserDep, LocalTokenOrAdminDep, SessionDep
 from zndraw.exceptions import Forbidden, UserNotFound, problem_responses
 from zndraw.schemas import OffsetPage, StatusResponse
+from zndraw_auth import User, admin_token_router
 
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
 

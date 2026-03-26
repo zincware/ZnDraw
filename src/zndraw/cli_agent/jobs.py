@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 import typer
+
 from zndraw_joblib.schemas import PaginatedResponse, TaskResponse
 
 from .connection import (

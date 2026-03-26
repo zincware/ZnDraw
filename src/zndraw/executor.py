@@ -53,9 +53,8 @@ class InternalExtensionExecutor:
         worker_password = self.worker_password
 
         def _run() -> None:
-            from zndraw_joblib.client import ClaimedTask
-
             from zndraw.client import ZnDraw
+            from zndraw_joblib.client import ClaimedTask
 
             vis = ZnDraw(
                 url=base_url,
