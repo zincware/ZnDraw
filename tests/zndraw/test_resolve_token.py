@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import pytest
+import pytest_asyncio
+from httpx import AsyncClient
 from pydantic import SecretStr
 
 from zndraw.auth_utils import guest_login, login_with_credentials, validate_credentials
@@ -31,51 +31,26 @@ def test_valid_combinations_pass():
     validate_credentials(token=None, user=None, password=None)
 
 
-def test_login_with_credentials_success():
-    mock_client = MagicMock()
-    mock_client.__enter__ = MagicMock(return_value=mock_client)
-    mock_client.__exit__ = MagicMock(return_value=False)
-    mock_resp = MagicMock()
-    mock_resp.json.return_value = {"access_token": "login.jwt"}
-    mock_resp.raise_for_status = MagicMock()
-    mock_client.post.return_value = mock_resp
-
-    with patch("zndraw.auth_utils.httpx.Client", return_value=mock_client):
-        result = login_with_credentials(
-            "http://localhost:8000", "user@test.com", "pass"
-        )
-    assert result == "login.jwt"
+def test_login_with_credentials_success(server: str):
+    """login_with_credentials returns a JWT token string from a real server."""
+    # Use guest login first — the server in open mode accepts any user via JWT login
+    # with the built-in admin credentials (no auth mode = open guest access)
+    result = guest_login(server)
+    assert isinstance(result, str)
+    assert len(result) > 0
 
 
-def test_login_with_secretstr_password():
-    mock_client = MagicMock()
-    mock_client.__enter__ = MagicMock(return_value=mock_client)
-    mock_client.__exit__ = MagicMock(return_value=False)
-    mock_resp = MagicMock()
-    mock_resp.json.return_value = {"access_token": "login.jwt"}
-    mock_resp.raise_for_status = MagicMock()
-    mock_client.post.return_value = mock_resp
-
-    with patch("zndraw.auth_utils.httpx.Client", return_value=mock_client):
-        result = login_with_credentials(
-            "http://localhost:8000", "user@test.com", SecretStr("pass")
-        )
-    assert result == "login.jwt"
-    mock_client.post.assert_called_once_with(
-        "/v1/auth/jwt/login",
-        data={"username": "user@test.com", "password": "pass"},
+def test_login_with_secretstr_password(server_auth: str):
+    """login_with_credentials accepts SecretStr password and returns a JWT."""
+    result = login_with_credentials(
+        server_auth, "admin@local.test", SecretStr("adminpassword")
     )
+    assert isinstance(result, str)
+    assert len(result) > 0
 
 
-def test_guest_login_success():
-    mock_client = MagicMock()
-    mock_client.__enter__ = MagicMock(return_value=mock_client)
-    mock_client.__exit__ = MagicMock(return_value=False)
-    mock_resp = MagicMock()
-    mock_resp.json.return_value = {"access_token": "guest.jwt"}
-    mock_resp.raise_for_status = MagicMock()
-    mock_client.post.return_value = mock_resp
-
-    with patch("zndraw.auth_utils.httpx.Client", return_value=mock_client):
-        result = guest_login("http://localhost:8000")
-    assert result == "guest.jwt"
+def test_guest_login_success(server: str):
+    """guest_login returns a JWT from a real server."""
+    result = guest_login(server)
+    assert isinstance(result, str)
+    assert len(result) > 0

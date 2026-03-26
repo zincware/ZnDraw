@@ -5,14 +5,22 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from zndraw.cli_agent import app
+from zndraw.state_file import StateFile
 
 if TYPE_CHECKING:
     from typer.testing import CliRunner
 
 
-def test_auth_login_opens_browser(cli_runner: CliRunner, server_url: str) -> None:
+def test_auth_login_opens_browser(
+    cli_runner: CliRunner, server_url: str, tmp_path, monkeypatch
+) -> None:
     """Login (without --code) should open the browser."""
+    state_file = StateFile(directory=tmp_path)
+    monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
+
     challenge_resp = MagicMock()
     challenge_resp.status_code = 200
     challenge_resp.raise_for_status = MagicMock()
@@ -37,18 +45,19 @@ def test_auth_login_opens_browser(cli_runner: CliRunner, server_url: str) -> Non
             return approved_resp
         return me_resp
 
+    mock_client = MagicMock()
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
+    mock_client.post.return_value = challenge_resp
+    mock_client.get.side_effect = mock_get
+
     with (
-        patch("zndraw.cli_agent.auth.httpx.Client") as mock_cls,
+        patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_client),
+        # why: webbrowser.open is a real OS side-effect that cannot run in CI
         patch("zndraw.cli_agent.auth.webbrowser.open") as mock_browser,
+        # why: time.sleep(1) x 300 iterations would make tests take minutes
         patch("zndraw.cli_agent.auth.time.sleep"),
     ):
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post.return_value = challenge_resp
-        mock_client.get.side_effect = mock_get
-        mock_cls.return_value = mock_client
-
         result = cli_runner.invoke(app, ["auth", "login", "--url", server_url])
 
     assert result.exit_code == 0, result.output
@@ -57,9 +66,12 @@ def test_auth_login_opens_browser(cli_runner: CliRunner, server_url: str) -> Non
 
 
 def test_auth_login_code_flag_does_not_open_browser(
-    cli_runner: CliRunner, server_url: str
+    cli_runner: CliRunner, server_url: str, tmp_path, monkeypatch
 ) -> None:
     """Login with --code should print URL instead of opening browser."""
+    state_file = StateFile(directory=tmp_path)
+    monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
+
     challenge_resp = MagicMock()
     challenge_resp.status_code = 200
     challenge_resp.raise_for_status = MagicMock()
@@ -84,18 +96,19 @@ def test_auth_login_code_flag_does_not_open_browser(
             return approved_resp
         return me_resp
 
+    mock_client = MagicMock()
+    mock_client.__enter__ = MagicMock(return_value=mock_client)
+    mock_client.__exit__ = MagicMock(return_value=False)
+    mock_client.post.return_value = challenge_resp
+    mock_client.get.side_effect = mock_get
+
     with (
-        patch("zndraw.cli_agent.auth.httpx.Client") as mock_cls,
+        patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_client),
+        # why: webbrowser.open is a real OS side-effect that cannot run in CI
         patch("zndraw.cli_agent.auth.webbrowser.open") as mock_browser,
+        # why: time.sleep(1) x 300 iterations would make tests take minutes
         patch("zndraw.cli_agent.auth.time.sleep"),
     ):
-        mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
-        mock_client.post.return_value = challenge_resp
-        mock_client.get.side_effect = mock_get
-        mock_cls.return_value = mock_client
-
         result = cli_runner.invoke(
             app, ["auth", "login", "--url", server_url, "--code"]
         )
