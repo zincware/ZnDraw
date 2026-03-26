@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from zndraw.redis import RedisKey
 
-
 # =============================================================================
 # POST /v1/rooms/{room_id}/progress
 # =============================================================================

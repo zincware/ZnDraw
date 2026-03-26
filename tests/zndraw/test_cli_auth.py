@@ -33,7 +33,9 @@ def stored_entry():
 # -- auth status --------------------------------------------------------------
 
 
-def test_auth_status_with_stored_token(server: str, state_file, stored_entry, monkeypatch):
+def test_auth_status_with_stored_token(
+    server: str, state_file, stored_entry, monkeypatch
+):
     """auth status should show identity from stored token against a real server."""
     # Get a real guest token so /v1/auth/users/me will succeed
     resp = httpx.post(f"{server}/v1/auth/guest", timeout=10.0)

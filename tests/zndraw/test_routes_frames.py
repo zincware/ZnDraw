@@ -275,9 +275,7 @@ async def test_get_frame(
 
 
 @pytest.mark.asyncio
-async def test_get_frame_not_found(
-    client: AsyncClient, session: AsyncSession
-) -> None:
+async def test_get_frame_not_found(client: AsyncClient, session: AsyncSession) -> None:
     """Test getting non-existent frame returns 404."""
     user, token = await _create_user(session)
     room = await _create_room(session, user)
@@ -399,9 +397,7 @@ async def test_get_frame_metadata_room_not_found(
 
 
 @pytest.mark.asyncio
-async def test_append_frames(
-    client: AsyncClient, session: AsyncSession
-) -> None:
+async def test_append_frames(client: AsyncClient, session: AsyncSession) -> None:
     """Test appending frames to storage."""
     user, token = await _create_user(session)
     room = await _create_room(session, user)
@@ -823,13 +819,9 @@ async def test_frames_require_authentication(
         if method == "GET":
             response = await client.get(url)
         elif method == "POST":
-            response = await client.post(
-                url, json={"frames": [_make_json_frame("H2")]}
-            )
+            response = await client.post(url, json={"frames": [_make_json_frame("H2")]})
         elif method == "PUT":
-            response = await client.put(
-                url, json={"data": _make_json_frame("H2")}
-            )
+            response = await client.put(url, json={"data": _make_json_frame("H2")})
         elif method == "PATCH":
             response = await client.patch(
                 url,

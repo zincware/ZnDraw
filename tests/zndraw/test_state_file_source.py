@@ -243,9 +243,7 @@ def test_token_uses_url_from_higher_source(state_file, server_factory):
         ),
     )
     state_file.add_server(url, _remote_entry())
-    source = _make_source(
-        state_file, current_state={"url": url}
-    )
+    source = _make_source(state_file, current_state={"url": url})
     result = source()
     assert result.get("token") == "override.jwt"
     assert "url" not in result

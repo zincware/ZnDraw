@@ -13,7 +13,6 @@ from zndraw.models import MemberRole, RoomMembership
 from zndraw.redis import RedisKey
 from zndraw.schemas import StatusResponse
 
-
 # =============================================================================
 # GET /v1/rooms/{room_id}/edit-lock
 # =============================================================================

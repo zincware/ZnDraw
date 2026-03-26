@@ -6,6 +6,7 @@ instance properties (locked, chat, screenshots, extensions, tasks).
 
 import uuid
 import warnings
+
 import pytest
 
 from zndraw import ZnDraw

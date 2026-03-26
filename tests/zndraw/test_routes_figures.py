@@ -80,9 +80,7 @@ async def test_get_figure_returns_data(
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    await _add_figure(
-        session, room.id, "my_chart", '{"data": [1, 2, 3], "layout": {}}'
-    )
+    await _add_figure(session, room.id, "my_chart", '{"data": [1, 2, 3], "layout": {}}')
 
     response = await client.get(
         f"/v1/rooms/{room.id}/figures/my_chart",
@@ -267,9 +265,7 @@ async def test_delete_nonexistent_figure_returns_404(
 
 
 @pytest.mark.asyncio
-async def test_list_figures_public(
-    client: AsyncClient, session: AsyncSession
-) -> None:
+async def test_list_figures_public(client: AsyncClient, session: AsyncSession) -> None:
     """Test GET without auth succeeds (public endpoint)."""
     user, _ = await create_test_user_in_db(session)
     room = await create_test_room(session, user)

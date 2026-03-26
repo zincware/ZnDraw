@@ -7,8 +7,6 @@ from helpers import MockSioServer, auth_header, create_test_room, create_test_us
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
-
 # =============================================================================
 # GET /v1/rooms/{room_id}/frame-selection
 # =============================================================================
@@ -68,9 +66,7 @@ async def test_get_returns_404_for_nonexistent_room(
 
 
 @pytest.mark.asyncio
-async def test_put_stores_indices(
-    client: AsyncClient, session: AsyncSession
-) -> None:
+async def test_put_stores_indices(client: AsyncClient, session: AsyncSession) -> None:
     """PUT stores indices and GET returns them."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)

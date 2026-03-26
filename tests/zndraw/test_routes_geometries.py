@@ -16,7 +16,6 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import GeometryInvalidate, SelectionInvalidate
 
-
 # =============================================================================
 # Geometry-specific helpers (kept from original)
 # =============================================================================
@@ -130,9 +129,7 @@ async def test_list_geometries_includes_owner(
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    await _add_geometry(
-        session, room.id, "owned", "Sphere", {}, owner=str(user.id)
-    )
+    await _add_geometry(session, room.id, "owned", "Sphere", {}, owner=str(user.id))
     await _add_geometry(session, room.id, "shared", "Box", {})
 
     response = await client.get(
@@ -281,9 +278,7 @@ async def test_upsert_geometry_updates_existing(
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    await _add_geometry(
-        session, room.id, "sphere", "Sphere", {"radius": [1.0]}
-    )
+    await _add_geometry(session, room.id, "sphere", "Sphere", {"radius": [1.0]})
 
     response = await client.put(
         f"/v1/rooms/{room.id}/geometries/sphere",
@@ -499,9 +494,7 @@ async def test_get_selection_returns_indices(
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    await _add_geometry(
-        session, room.id, "sphere", "Sphere", {}, selection=[1, 2, 3]
-    )
+    await _add_geometry(session, room.id, "sphere", "Sphere", {}, selection=[1, 2, 3])
 
     response = await client.get(
         f"/v1/rooms/{room.id}/geometries/sphere/selection",
@@ -567,9 +560,7 @@ async def test_list_geometries_includes_selection(
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    await _add_geometry(
-        session, room.id, "sphere", "Sphere", {}, selection=[0, 1, 2]
-    )
+    await _add_geometry(session, room.id, "sphere", "Sphere", {}, selection=[0, 1, 2])
     await _add_geometry(session, room.id, "box", "Box", {})
 
     response = await client.get(
@@ -610,9 +601,7 @@ async def test_get_geometry_public(
     user, _ = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    await _add_geometry(
-        session, room.id, "somekey", "Sphere", {"radius": [1.0]}
-    )
+    await _add_geometry(session, room.id, "somekey", "Sphere", {"radius": [1.0]})
 
     response = await client.get(f"/v1/rooms/{room.id}/geometries/somekey")
     assert response.status_code == 200
@@ -682,9 +671,7 @@ async def test_geometry_endpoints_return_404_for_nonexistent_room(
 ) -> None:
     """All geometry endpoints return 404 for non-existent room."""
     user, token = await create_test_user_in_db(session)
-    response = await client.request(
-        method, path, json=body, headers=auth_header(token)
-    )
+    response = await client.request(method, path, json=body, headers=auth_header(token))
     assert response.status_code == 404
     assert "room-not-found" in response.json()["type"]
 
@@ -701,7 +688,9 @@ async def test_upsert_rejects_non_owner(
 ) -> None:
     """Test PUT returns 403 when modifying a geometry owned by another user."""
     owner, _ = await create_test_user_in_db(session, email="owner@local.test")
-    _other, other_token = await create_test_user_in_db(session, email="other@local.test")
+    _other, other_token = await create_test_user_in_db(
+        session, email="other@local.test"
+    )
     room = await create_test_room(session, owner)
 
     await _add_geometry(
@@ -757,9 +746,7 @@ async def test_upsert_allows_unowned(
     _user_b, token_b = await create_test_user_in_db(session, email="b@local.test")
     room = await create_test_room(session, user_a)
 
-    await _add_geometry(
-        session, room.id, "shared_sphere", "Sphere", {"radius": [1.0]}
-    )
+    await _add_geometry(session, room.id, "shared_sphere", "Sphere", {"radius": [1.0]})
 
     response = await client.put(
         f"/v1/rooms/{room.id}/geometries/shared_sphere",
@@ -776,7 +763,9 @@ async def test_delete_rejects_non_owner(
 ) -> None:
     """Test DELETE returns 403 when deleting geometry owned by another user."""
     owner, _ = await create_test_user_in_db(session, email="owner@local.test")
-    _other, other_token = await create_test_user_in_db(session, email="other@local.test")
+    _other, other_token = await create_test_user_in_db(
+        session, email="other@local.test"
+    )
     room = await create_test_room(session, owner)
 
     await _add_geometry(
@@ -802,7 +791,9 @@ async def test_selection_update_rejects_non_owner(
 ) -> None:
     """Test PUT selection returns 403 when geometry is owned by another user."""
     owner, _ = await create_test_user_in_db(session, email="owner@local.test")
-    _other, other_token = await create_test_user_in_db(session, email="other@local.test")
+    _other, other_token = await create_test_user_in_db(
+        session, email="other@local.test"
+    )
     room = await create_test_room(session, owner)
 
     await _add_geometry(

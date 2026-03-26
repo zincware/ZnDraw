@@ -158,9 +158,7 @@ async def test_upload_invalid_format(
 
 
 @pytest.mark.asyncio
-async def test_upload_too_large(
-    client: AsyncClient, session: AsyncSession
-) -> None:
+async def test_upload_too_large(client: AsyncClient, session: AsyncSession) -> None:
     """Upload exceeding 10 MB returns 413."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
@@ -182,9 +180,7 @@ async def test_upload_too_large(
 
 
 @pytest.mark.asyncio
-async def test_list_screenshots(
-    client: AsyncClient, session: AsyncSession
-) -> None:
+async def test_list_screenshots(client: AsyncClient, session: AsyncSession) -> None:
     """Upload 3 screenshots, verify list with pagination."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)

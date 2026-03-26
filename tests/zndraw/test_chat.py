@@ -105,9 +105,7 @@ async def test_create_message_requires_auth(
 
 
 @pytest.mark.asyncio
-async def test_list_messages_empty(
-    client: AsyncClient, session: AsyncSession
-) -> None:
+async def test_list_messages_empty(client: AsyncClient, session: AsyncSession) -> None:
     """GET returns empty list for room with no messages."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)

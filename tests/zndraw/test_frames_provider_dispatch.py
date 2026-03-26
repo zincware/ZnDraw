@@ -22,7 +22,6 @@ from zndraw_joblib.dependencies import request_hash
 from zndraw_joblib.exceptions import ProviderTimeout
 from zndraw_joblib.models import ProviderRecord, Worker
 
-
 # =============================================================================
 # Helpers
 # =============================================================================

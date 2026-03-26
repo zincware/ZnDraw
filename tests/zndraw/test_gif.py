@@ -250,8 +250,12 @@ def test_capture_orbit_and_curve_mutually_exclusive():
     assert result.exit_code != 0
 
 
-@patch("zndraw.cli_agent.gif.get_zndraw")  # why: orchestration test of geometry creation/cleanup, not connectivity
-@patch("zndraw.cli_agent.gif.resolve_room", return_value="test-room")  # why: orchestration test of geometry creation/cleanup, not connectivity
+@patch(
+    "zndraw.cli_agent.gif.get_zndraw"
+)  # why: orchestration test of geometry creation/cleanup, not connectivity
+@patch(
+    "zndraw.cli_agent.gif.resolve_room", return_value="test-room"
+)  # why: orchestration test of geometry creation/cleanup, not connectivity
 def test_capture_orbit_creates_temp_geometries(
     mock_resolve, mock_get_zndraw, tmp_path: Path
 ):
@@ -295,8 +299,12 @@ def test_capture_orbit_creates_temp_geometries(
     assert len(geom_store) == 0
 
 
-@patch("zndraw.cli_agent.gif.get_zndraw")  # why: orchestration test of geometry creation/cleanup, not connectivity
-@patch("zndraw.cli_agent.gif.resolve_room", return_value="test-room")  # why: orchestration test of geometry creation/cleanup, not connectivity
+@patch(
+    "zndraw.cli_agent.gif.get_zndraw"
+)  # why: orchestration test of geometry creation/cleanup, not connectivity
+@patch(
+    "zndraw.cli_agent.gif.resolve_room", return_value="test-room"
+)  # why: orchestration test of geometry creation/cleanup, not connectivity
 def test_capture_restores_step(mock_resolve, mock_get_zndraw, tmp_path: Path):
     """Verify step is restored to its original value after capture."""
     from typer.testing import CliRunner
@@ -331,8 +339,12 @@ def test_capture_restores_step(mock_resolve, mock_get_zndraw, tmp_path: Path):
     assert step_box[0] == 7
 
 
-@patch("zndraw.cli_agent.gif.get_zndraw")  # why: orchestration test of geometry creation/cleanup, not connectivity
-@patch("zndraw.cli_agent.gif.resolve_room", return_value="test-room")  # why: orchestration test of geometry creation/cleanup, not connectivity
+@patch(
+    "zndraw.cli_agent.gif.get_zndraw"
+)  # why: orchestration test of geometry creation/cleanup, not connectivity
+@patch(
+    "zndraw.cli_agent.gif.resolve_room", return_value="test-room"
+)  # why: orchestration test of geometry creation/cleanup, not connectivity
 def test_capture_cleans_up_on_error(mock_resolve, mock_get_zndraw, tmp_path: Path):
     """Verify cleanup runs even when screenshot raises."""
     from typer.testing import CliRunner
@@ -377,7 +389,9 @@ def test_capture_cleans_up_on_error(mock_resolve, mock_get_zndraw, tmp_path: Pat
 def test_pillow_missing_gives_clear_error(tmp_path: Path):
     """Verify exit when Pillow import fails."""
     with (
-        patch.dict("sys.modules", {"PIL": None, "PIL.Image": None}),  # why: tests error message when PIL is not installed
+        patch.dict(
+            "sys.modules", {"PIL": None, "PIL.Image": None}
+        ),  # why: tests error message when PIL is not installed
         pytest.raises(SystemExit),
     ):
         _assemble_gif([b"fake"], tmp_path / "test.gif", 20)
