@@ -44,6 +44,7 @@ class ServerEntry(BaseModel):
     pid: int | None = None
     version: str | None = None
     local_token: str | None = None
+    access_token: str | None = None
 
 
 class TokenEntry(BaseModel):

@@ -30,6 +30,10 @@ from zndraw.server_manager import shutdown_server, wait_for_server_ready
 from zndraw.settings_sources import _is_url_healthy
 from zndraw.state_file import ServerEntry, StateFile
 
+import logging
+
+log = logging.getLogger(__name__)
+
 app = typer.Typer(
     name="zndraw",
     help="ZnDraw - Interactive visualization for atomistic simulations",
@@ -288,6 +292,43 @@ def handle_shutdown(port: int | None) -> None:
 
     typer.echo("Failed to shut down server")
     raise typer.Exit(1)
+
+
+def _acquire_admin_jwt(server_url: str) -> str | None:
+    """Acquire an admin JWT from the server and return it.
+
+    In dev mode (no DEFAULT_ADMIN configured), creates a guest user that
+    is automatically promoted to superuser.  In production mode, logs in
+    as the configured admin.
+
+    Returns None on failure (non-fatal — client falls back to guest_login).
+    """
+    from zndraw.auth_utils import guest_login, login_with_credentials
+    from zndraw_auth.settings import AuthSettings
+
+    auth = AuthSettings()
+    try:
+        if auth.is_dev_mode:
+            return guest_login(server_url)
+        assert auth.default_admin_email is not None  # guaranteed by is_dev_mode=False
+        assert auth.default_admin_password is not None
+        return login_with_credentials(
+            server_url,
+            auth.default_admin_email,
+            auth.default_admin_password,
+        )
+    except Exception:
+        log.debug("Failed to acquire admin JWT — clients will use guest_login", exc_info=True)
+        return None
+
+
+def _store_jwt_in_state(server_url: str, jwt: str) -> None:
+    """Update the server's state.json entry with a real JWT."""
+    state = StateFile()
+    entry = state.get_server(server_url)
+    if entry is not None:
+        entry.access_token = jwt
+        state.add_server(server_url, entry)
 
 
 def get_room_names(
@@ -620,18 +661,6 @@ def main(
         return
 
     # ── New server ───────────────────────────────────────────────────
-    if not (has_files or browser):
-        # Nothing to do post-startup — run server blocking
-        typer.echo(f"Server starting at {url}")
-        try:
-            server.run()
-        except KeyboardInterrupt:
-            typer.echo("\nShutting down...")
-        StateFile().remove_server(server_url)
-        typer.echo("Server stopped.")
-        return
-
-    # Thread server so we can open browser / upload before it exits
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
 
@@ -640,8 +669,15 @@ def main(
         raise typer.Exit(1)
     typer.echo(f"Server started at {url}")
 
-    open_browser_to(url, first_room, browser, copy_from="@none" if has_files else None)
-    upload_files(path or [], url, room_names, start, stop, step)
+    # Acquire an admin JWT and store it so ZnDraw clients (including
+    # upload_files below) authenticate via StateFileSource automatically.
+    jwt = _acquire_admin_jwt(url)
+    if jwt is not None:
+        _store_jwt_in_state(server_url, jwt)
+
+    if has_files or browser:
+        open_browser_to(url, first_room, browser, copy_from="@none" if has_files else None)
+        upload_files(path or [], url, room_names, start, stop, step)
 
     try:
         thread.join()
