@@ -69,10 +69,13 @@ def decode_msgpack_response(content: bytes) -> list[dict[bytes, bytes]]:
 
 
 async def create_test_user_in_db(
-    session: AsyncSession, email: str = "testuser@local.test"
+    session: AsyncSession,
+    email: str = "testuser@local.test",
+    *,
+    is_superuser: bool = False,
 ) -> tuple[User, str]:
     """Create a user in the DB and return (user, token)."""
-    user = create_test_user_model(email=email)
+    user = create_test_user_model(email=email, is_superuser=is_superuser)
     session.add(user)
     await session.commit()
     await session.refresh(user)

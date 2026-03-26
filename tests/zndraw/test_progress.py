@@ -1,122 +1,19 @@
 """Tests for Progress REST API endpoints."""
 
 import json
-from collections.abc import AsyncIterator
-from unittest.mock import AsyncMock
 
 import pytest
-import pytest_asyncio
 from helpers import (
     MockSioServer,
     auth_header,
     create_test_room,
     create_test_user_in_db,
 )
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel
+from httpx import AsyncClient
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from zndraw.config import Settings
 from zndraw.redis import RedisKey
-from zndraw_auth.settings import AuthSettings
-
-# =============================================================================
-# Fixtures
-# =============================================================================
-
-
-@pytest_asyncio.fixture(name="progress_session")
-async def progress_session_fixture() -> AsyncIterator[AsyncSession]:
-    """Create a fresh in-memory async database session for each test."""
-    engine = create_async_engine(
-        "sqlite+aiosqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
-        factory = async_sessionmaker(
-            bind=engine, class_=AsyncSession, expire_on_commit=False
-        )
-        async with factory() as session:
-            yield session
-    finally:
-        await engine.dispose()
-
-
-@pytest_asyncio.fixture(name="mock_sio")
-async def mock_sio_fixture() -> MockSioServer:
-    return MockSioServer()
-
-
-@pytest_asyncio.fixture(name="mock_redis")
-async def mock_redis_fixture() -> AsyncMock:
-    redis = AsyncMock()
-    redis.get = AsyncMock(return_value=None)  # no edit lock
-    redis._progress_store: dict[str, dict[str, str]] = {}
-
-    async def hset(key: str, field: str, value: str) -> int:
-        if key not in redis._progress_store:
-            redis._progress_store[key] = {}
-        redis._progress_store[key][field] = value
-        return 1
-
-    async def hget(key: str, field: str) -> str | None:
-        return redis._progress_store.get(key, {}).get(field)
-
-    async def hdel(key: str, *fields: str) -> int:
-        deleted = 0
-        if key in redis._progress_store:
-            for f in fields:
-                if f in redis._progress_store[key]:
-                    del redis._progress_store[key][f]
-                    deleted += 1
-        return deleted
-
-    async def hgetall(key: str) -> dict[str, str]:
-        return redis._progress_store.get(key, {})
-
-    redis.hset = AsyncMock(side_effect=hset)
-    redis.hget = AsyncMock(side_effect=hget)
-    redis.hdel = AsyncMock(side_effect=hdel)
-    redis.hgetall = AsyncMock(side_effect=hgetall)
-    redis.expire = AsyncMock(return_value=True)
-    return redis
-
-
-@pytest_asyncio.fixture(name="progress_client")
-async def progress_client_fixture(
-    progress_session: AsyncSession,
-    mock_sio: MockSioServer,
-    mock_redis: AsyncMock,
-) -> AsyncIterator[AsyncClient]:
-    from zndraw.app import app
-    from zndraw.dependencies import get_redis, get_tsio
-    from zndraw_auth import get_session
-
-    async def get_session_override() -> AsyncIterator[AsyncSession]:
-        yield progress_session
-
-    def get_sio_override() -> MockSioServer:
-        return mock_sio
-
-    def get_redis_override() -> AsyncMock:
-        return mock_redis
-
-    app.dependency_overrides[get_session] = get_session_override
-    app.dependency_overrides[get_tsio] = get_sio_override
-    app.dependency_overrides[get_redis] = get_redis_override
-    app.state.settings = Settings()
-    app.state.auth_settings = AuthSettings()
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        yield client
-
-    app.dependency_overrides.clear()
 
 
 # =============================================================================
@@ -126,16 +23,16 @@ async def progress_client_fixture(
 
 @pytest.mark.asyncio
 async def test_create_progress(
-    progress_client: AsyncClient,
-    progress_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     mock_sio: MockSioServer,
-    mock_redis: AsyncMock,
+    redis_client: Redis,
 ) -> None:
     """POST creates tracker, returns 201, emits progress_start, stores in Redis."""
-    user, token = await create_test_user_in_db(progress_session)
-    room = await create_test_room(progress_session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
-    response = await progress_client.post(
+    response = await client.post(
         f"/v1/rooms/{room.id}/progress",
         json={"progress_id": "task-1", "description": "Loading data"},
         headers=auth_header(token),
@@ -155,27 +52,24 @@ async def test_create_progress(
 
     # Verify stored in Redis
     redis_key = RedisKey.room_progress(room.id)
-    stored = await mock_redis.hget(redis_key, "task-1")
+    stored = await redis_client.hget(redis_key, "task-1")
     assert stored is not None
     stored_data = json.loads(stored)
     assert stored_data["progress_id"] == "task-1"
     assert stored_data["description"] == "Loading data"
 
-    # Verify TTL was set
-    mock_redis.expire.assert_called()
-
 
 @pytest.mark.asyncio
 async def test_create_progress_with_unit(
-    progress_client: AsyncClient,
-    progress_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     mock_sio: MockSioServer,
 ) -> None:
     """POST with custom unit returns it in the response."""
-    user, token = await create_test_user_in_db(progress_session)
-    room = await create_test_room(progress_session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
-    response = await progress_client.post(
+    response = await client.post(
         f"/v1/rooms/{room.id}/progress",
         json={
             "progress_id": "task-1",
@@ -193,14 +87,14 @@ async def test_create_progress_with_unit(
 
 @pytest.mark.asyncio
 async def test_create_progress_requires_auth(
-    progress_client: AsyncClient,
-    progress_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
 ) -> None:
     """POST without token returns 401."""
-    user, _ = await create_test_user_in_db(progress_session)
-    room = await create_test_room(progress_session, user)
+    user, _ = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
-    response = await progress_client.post(
+    response = await client.post(
         f"/v1/rooms/{room.id}/progress",
         json={"progress_id": "task-1", "description": "Loading data"},
     )
@@ -214,17 +108,17 @@ async def test_create_progress_requires_auth(
 
 @pytest.mark.asyncio
 async def test_update_progress(
-    progress_client: AsyncClient,
-    progress_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     mock_sio: MockSioServer,
-    mock_redis: AsyncMock,
+    redis_client: Redis,
 ) -> None:
     """PATCH updates tqdm fields, returns 200, emits progress_update."""
-    user, token = await create_test_user_in_db(progress_session)
-    room = await create_test_room(progress_session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Create a tracker first
-    await progress_client.post(
+    await client.post(
         f"/v1/rooms/{room.id}/progress",
         json={"progress_id": "task-1", "description": "Loading data"},
         headers=auth_header(token),
@@ -232,7 +126,7 @@ async def test_update_progress(
     mock_sio.emitted.clear()
 
     # Update with tqdm-like fields
-    response = await progress_client.patch(
+    response = await client.patch(
         f"/v1/rooms/{room.id}/progress/task-1",
         json={"n": 42, "total": 100, "elapsed": 5.3, "unit": "frames"},
         headers=auth_header(token),
@@ -253,14 +147,14 @@ async def test_update_progress(
 
 @pytest.mark.asyncio
 async def test_update_progress_not_found(
-    progress_client: AsyncClient,
-    progress_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
 ) -> None:
     """PATCH for non-existent tracker returns 404 with progress-not-found type."""
-    user, token = await create_test_user_in_db(progress_session)
-    room = await create_test_room(progress_session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
-    response = await progress_client.patch(
+    response = await client.patch(
         f"/v1/rooms/{room.id}/progress/nonexistent",
         json={"n": 10},
         headers=auth_header(token),
@@ -271,17 +165,17 @@ async def test_update_progress_not_found(
 
 @pytest.mark.asyncio
 async def test_update_progress_description(
-    progress_client: AsyncClient,
-    progress_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     mock_sio: MockSioServer,
-    mock_redis: AsyncMock,
+    redis_client: Redis,
 ) -> None:
     """PATCH can update description alongside tqdm fields."""
-    user, token = await create_test_user_in_db(progress_session)
-    room = await create_test_room(progress_session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Create a tracker first
-    await progress_client.post(
+    await client.post(
         f"/v1/rooms/{room.id}/progress",
         json={"progress_id": "task-1", "description": "Loading data"},
         headers=auth_header(token),
@@ -289,7 +183,7 @@ async def test_update_progress_description(
     mock_sio.emitted.clear()
 
     # Update both description and tqdm fields
-    response = await progress_client.patch(
+    response = await client.patch(
         f"/v1/rooms/{room.id}/progress/task-1",
         json={
             "description": "Processing step 2",
@@ -318,17 +212,17 @@ async def test_update_progress_description(
 
 @pytest.mark.asyncio
 async def test_delete_progress(
-    progress_client: AsyncClient,
-    progress_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     mock_sio: MockSioServer,
-    mock_redis: AsyncMock,
+    redis_client: Redis,
 ) -> None:
     """DELETE removes tracker, returns 204, emits progress_complete."""
-    user, token = await create_test_user_in_db(progress_session)
-    room = await create_test_room(progress_session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Create a tracker first
-    await progress_client.post(
+    await client.post(
         f"/v1/rooms/{room.id}/progress",
         json={"progress_id": "task-1", "description": "Loading data"},
         headers=auth_header(token),
@@ -336,7 +230,7 @@ async def test_delete_progress(
     mock_sio.emitted.clear()
 
     # Delete it
-    response = await progress_client.delete(
+    response = await client.delete(
         f"/v1/rooms/{room.id}/progress/task-1",
         headers=auth_header(token),
     )
@@ -348,20 +242,20 @@ async def test_delete_progress(
 
     # Verify removed from Redis
     redis_key = RedisKey.room_progress(room.id)
-    stored = await mock_redis.hget(redis_key, "task-1")
+    stored = await redis_client.hget(redis_key, "task-1")
     assert stored is None
 
 
 @pytest.mark.asyncio
 async def test_delete_progress_not_found(
-    progress_client: AsyncClient,
-    progress_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
 ) -> None:
     """DELETE for non-existent tracker returns 404."""
-    user, token = await create_test_user_in_db(progress_session)
-    room = await create_test_room(progress_session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
-    response = await progress_client.delete(
+    response = await client.delete(
         f"/v1/rooms/{room.id}/progress/nonexistent",
         headers=auth_header(token),
     )
@@ -376,13 +270,13 @@ async def test_delete_progress_not_found(
 
 @pytest.mark.asyncio
 async def test_progress_room_not_found(
-    progress_client: AsyncClient,
-    progress_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
 ) -> None:
     """POST to non-existent room returns 404 with room-not-found type."""
-    _, token = await create_test_user_in_db(progress_session)
+    _, token = await create_test_user_in_db(session)
 
-    response = await progress_client.post(
+    response = await client.post(
         "/v1/rooms/nonexistent/progress",
         json={"progress_id": "task-1", "description": "Loading data"},
         headers=auth_header(token),

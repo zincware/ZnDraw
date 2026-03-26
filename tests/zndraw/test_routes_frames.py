@@ -1,25 +1,19 @@
 """Tests for Frame REST API endpoints."""
 
-from collections.abc import AsyncIterator
 from typing import Any
-from unittest.mock import AsyncMock
 
 import ase
 import msgpack
 import pytest
-import pytest_asyncio
 from helpers import (
-    MockSioServer,
     auth_header,
     create_test_room,
     create_test_user_in_db,
     decode_msgpack_response,
     make_raw_frame,
 )
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from zndraw.client import atoms_to_json_dict
 from zndraw.exceptions import FrameNotFound, ProblemDetail, RoomNotFound
@@ -51,92 +45,6 @@ def raw_frame_to_dict(frame: RawFrame) -> dict[str, Any]:
     return {k.decode(): msgpack.unpackb(v) for k, v in frame.items()}
 
 
-# =============================================================================
-# Test-specific Fixtures
-# =============================================================================
-
-
-@pytest_asyncio.fixture(name="frame_session")
-async def frame_session_fixture() -> AsyncIterator[AsyncSession]:
-    """Create a fresh in-memory async database session for each test."""
-    engine = create_async_engine(
-        "sqlite+aiosqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
-
-        async_session_factory = async_sessionmaker(
-            bind=engine,
-            class_=AsyncSession,
-            expire_on_commit=False,
-        )
-
-        async with async_session_factory() as session:
-            yield session
-    finally:
-        await engine.dispose()
-
-
-@pytest_asyncio.fixture(name="frame_client")
-async def frame_client_fixture(
-    frame_session: AsyncSession, frame_storage: FrameStorage
-) -> AsyncIterator[AsyncClient]:
-    """Create an async test client with session and storage dependencies overridden."""
-    from contextlib import asynccontextmanager
-
-    from zndraw.app import app
-    from zndraw.dependencies import (
-        get_frame_storage,
-        get_joblib_settings,
-        get_redis,
-        get_result_backend,
-        get_tsio,
-    )
-    from zndraw_auth import get_session
-    from zndraw_auth.settings import AuthSettings
-    from zndraw_joblib.settings import JobLibSettings
-
-    mock_sio = MockSioServer()
-
-    async def get_session_override() -> AsyncIterator[AsyncSession]:
-        yield frame_session
-
-    @asynccontextmanager
-    async def test_session_maker():
-        yield frame_session
-
-    def get_storage_override() -> FrameStorage:
-        return frame_storage
-
-    def get_sio_override() -> MockSioServer:
-        return mock_sio
-
-    # Mock Redis for WritableRoomDep (returns None = no edit lock)
-    mock_redis = AsyncMock()
-    mock_redis.get = AsyncMock(return_value=None)
-
-    app.state.auth_settings = AuthSettings()
-    app.state.session_maker = test_session_maker
-    app.dependency_overrides[get_session] = get_session_override
-    app.dependency_overrides[get_frame_storage] = get_storage_override
-    app.dependency_overrides[get_tsio] = get_sio_override
-    app.dependency_overrides[get_redis] = lambda: mock_redis
-    app.dependency_overrides[get_result_backend] = lambda: AsyncMock()
-    app.dependency_overrides[get_joblib_settings] = lambda: JobLibSettings()
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
-        yield client
-
-    app.dependency_overrides.clear()
-
-
 _create_user = create_test_user_in_db
 _create_room = create_test_room
 _auth_header = auth_header
@@ -149,13 +57,13 @@ _auth_header = auth_header
 
 @pytest.mark.asyncio
 async def test_list_frames_empty_room(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test listing frames from an empty room returns empty list."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
-    response = await frame_client.get(
+    response = await client.get(
         f"/v1/rooms/{room.id}/frames",
         headers=_auth_header(token),
     )
@@ -168,19 +76,19 @@ async def test_list_frames_empty_room(
 
 @pytest.mark.asyncio
 async def test_list_frames_with_data(
-    frame_client: AsyncClient,
-    frame_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Test listing frames with data returns all frames."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     # Add frames to storage
     await frame_storage[room.id].extend(
         [make_raw_frame({"a": 1}), make_raw_frame({"b": 2}), make_raw_frame({"c": 3})]
     )
-    response = await frame_client.get(
+    response = await client.get(
         f"/v1/rooms/{room.id}/frames",
         headers=_auth_header(token),
     )
@@ -194,13 +102,13 @@ async def test_list_frames_with_data(
 
 @pytest.mark.asyncio
 async def test_list_frames_with_range(
-    frame_client: AsyncClient,
-    frame_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Test listing frames with range query params."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     # Add frames to storage
     await frame_storage[room.id].extend(
@@ -211,7 +119,7 @@ async def test_list_frames_with_range(
             make_raw_frame({"d": 4}),
         ]
     )
-    response = await frame_client.get(
+    response = await client.get(
         f"/v1/rooms/{room.id}/frames?start=1&stop=3",
         headers=_auth_header(token),
     )
@@ -225,12 +133,12 @@ async def test_list_frames_with_range(
 
 @pytest.mark.asyncio
 async def test_list_frames_room_not_found(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test listing frames from non-existent room returns 404."""
-    _, token = await _create_user(frame_session)
+    _, token = await _create_user(session)
 
-    response = await frame_client.get(
+    response = await client.get(
         "/v1/rooms/99999/frames",
         headers=_auth_header(token),
     )
@@ -242,13 +150,13 @@ async def test_list_frames_room_not_found(
 
 @pytest.mark.asyncio
 async def test_list_frames_with_indices(
-    frame_client: AsyncClient,
-    frame_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Test listing specific frames by indices parameter."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     # Add 5 frames
     await frame_storage[room.id].extend(
@@ -262,7 +170,7 @@ async def test_list_frames_with_indices(
     )
 
     # Request specific indices
-    response = await frame_client.get(
+    response = await client.get(
         f"/v1/rooms/{room.id}/frames?indices=1,3",
         headers=_auth_header(token),
     )
@@ -276,13 +184,13 @@ async def test_list_frames_with_indices(
 
 @pytest.mark.asyncio
 async def test_list_frames_with_keys_filter(
-    frame_client: AsyncClient,
-    frame_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Test listing frames with keys parameter to filter frame data."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     # Add frames with multiple keys
     await frame_storage[room.id].extend(
@@ -292,7 +200,7 @@ async def test_list_frames_with_keys_filter(
         ]
     )
     # Request only x and z keys
-    response = await frame_client.get(
+    response = await client.get(
         f"/v1/rooms/{room.id}/frames?keys=x,z",
         headers=_auth_header(token),
     )
@@ -306,13 +214,13 @@ async def test_list_frames_with_keys_filter(
 
 @pytest.mark.asyncio
 async def test_list_frames_with_indices_and_keys(
-    frame_client: AsyncClient,
-    frame_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Test listing specific indices with keys filter."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     # Add frames
     await frame_storage[room.id].extend(
@@ -323,7 +231,7 @@ async def test_list_frames_with_indices_and_keys(
         ]
     )
     # Request index 2 with only key 'a'
-    response = await frame_client.get(
+    response = await client.get(
         f"/v1/rooms/{room.id}/frames?indices=2&keys=a",
         headers=_auth_header(token),
     )
@@ -341,19 +249,19 @@ async def test_list_frames_with_indices_and_keys(
 
 @pytest.mark.asyncio
 async def test_get_frame(
-    frame_client: AsyncClient,
-    frame_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Test getting a single frame by index."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     # Add frames to storage
     await frame_storage[room.id].extend(
         [make_raw_frame({"a": 1}), make_raw_frame({"b": 2})]
     )
-    response = await frame_client.get(
+    response = await client.get(
         f"/v1/rooms/{room.id}/frames/1",
         headers=_auth_header(token),
     )
@@ -368,13 +276,13 @@ async def test_get_frame(
 
 @pytest.mark.asyncio
 async def test_get_frame_not_found(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test getting non-existent frame returns 404."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
-    response = await frame_client.get(
+    response = await client.get(
         f"/v1/rooms/{room.id}/frames/99",
         headers=_auth_header(token),
     )
@@ -386,12 +294,12 @@ async def test_get_frame_not_found(
 
 @pytest.mark.asyncio
 async def test_get_frame_room_not_found(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test getting frame from non-existent room returns 404."""
-    _, token = await _create_user(frame_session)
+    _, token = await _create_user(session)
 
-    response = await frame_client.get(
+    response = await client.get(
         "/v1/rooms/99999/frames/0",
         headers=_auth_header(token),
     )
@@ -408,16 +316,16 @@ async def test_get_frame_room_not_found(
 
 @pytest.mark.asyncio
 async def test_get_frame_metadata(
-    frame_client: AsyncClient,
-    frame_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Test getting metadata for a frame with mixed scalar and array data."""
     from ase import Atoms
     from asebytes import encode
 
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     # Create an Atoms object with calc results
     atoms = Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
@@ -425,7 +333,7 @@ async def test_get_frame_metadata(
 
     raw = encode(atoms)
     await frame_storage[room.id].extend([raw])
-    response = await frame_client.get(
+    response = await client.get(
         f"/v1/rooms/{room.id}/frames/0/metadata",
         headers=_auth_header(token),
     )
@@ -452,13 +360,13 @@ async def test_get_frame_metadata(
 
 @pytest.mark.asyncio
 async def test_get_frame_metadata_not_found(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test getting metadata for non-existent frame returns 404."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
-    response = await frame_client.get(
+    response = await client.get(
         f"/v1/rooms/{room.id}/frames/99/metadata",
         headers=_auth_header(token),
     )
@@ -470,12 +378,12 @@ async def test_get_frame_metadata_not_found(
 
 @pytest.mark.asyncio
 async def test_get_frame_metadata_room_not_found(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test getting metadata for a frame in a non-existent room returns 404."""
-    _, token = await _create_user(frame_session)
+    _, token = await _create_user(session)
 
-    response = await frame_client.get(
+    response = await client.get(
         "/v1/rooms/nonexistent-room/frames/0/metadata",
         headers=_auth_header(token),
     )
@@ -492,16 +400,16 @@ async def test_get_frame_metadata_room_not_found(
 
 @pytest.mark.asyncio
 async def test_append_frames(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test appending frames to storage."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     frame_a = _make_json_frame("H2")
     frame_b = _make_json_frame("H2O")
 
-    response = await frame_client.post(
+    response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": [frame_a, frame_b]},
         headers=_auth_header(token),
@@ -517,14 +425,14 @@ async def test_append_frames(
 
 @pytest.mark.asyncio
 async def test_append_frames_multiple_times(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test appending frames multiple times."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     # First append
-    response = await frame_client.post(
+    response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": [_make_json_frame("H2")]},
         headers=_auth_header(token),
@@ -536,7 +444,7 @@ async def test_append_frames_multiple_times(
     assert result.stop == 1
 
     # Second append
-    response = await frame_client.post(
+    response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": [_make_json_frame("H2O"), _make_json_frame("CH4")]},
         headers=_auth_header(token),
@@ -550,12 +458,12 @@ async def test_append_frames_multiple_times(
 
 @pytest.mark.asyncio
 async def test_append_frames_room_not_found(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test appending frames to non-existent room returns 404."""
-    _, token = await _create_user(frame_session)
+    _, token = await _create_user(session)
 
-    response = await frame_client.post(
+    response = await client.post(
         "/v1/rooms/99999/frames",
         json={"frames": [_make_json_frame("H2")]},
         headers=_auth_header(token),
@@ -568,13 +476,13 @@ async def test_append_frames_room_not_found(
 
 @pytest.mark.asyncio
 async def test_append_frames_empty_list_rejected(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test appending empty frames list is rejected (422)."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
-    response = await frame_client.post(
+    response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": []},
         headers=_auth_header(token),
@@ -585,14 +493,14 @@ async def test_append_frames_empty_list_rejected(
 
 @pytest.mark.asyncio
 async def test_append_frames_exceeds_max_length(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test appending more than 1000 frames is rejected (422)."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     frame = _make_json_frame("H2")
-    response = await frame_client.post(
+    response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": [frame] * 1001},
         headers=_auth_header(token),
@@ -607,13 +515,13 @@ async def test_append_frames_exceeds_max_length(
 
 @pytest.mark.asyncio
 async def test_update_frame(
-    frame_client: AsyncClient,
-    frame_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Test updating a frame at specific index."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     # Add frames to storage
     await frame_storage[room.id].extend(
@@ -621,7 +529,7 @@ async def test_update_frame(
     )
     new_frame = _make_json_frame("He")
 
-    response = await frame_client.put(
+    response = await client.put(
         f"/v1/rooms/{room.id}/frames/1",
         json={"data": new_frame},
         headers=_auth_header(token),
@@ -634,13 +542,13 @@ async def test_update_frame(
 
 @pytest.mark.asyncio
 async def test_update_frame_not_found(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test updating non-existent frame returns 404."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
-    response = await frame_client.put(
+    response = await client.put(
         f"/v1/rooms/{room.id}/frames/99",
         json={"data": _make_json_frame("H2")},
         headers=_auth_header(token),
@@ -658,18 +566,18 @@ async def test_update_frame_not_found(
 
 @pytest.mark.asyncio
 async def test_merge_frame(
-    frame_client: AsyncClient,
-    frame_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Test partial update merges new keys into existing frame."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     await frame_storage[room.id].extend([make_raw_frame({"a": 1, "b": 2})])
     # Send PATCH with msgpack body updating key "a" and adding key "c"
     patch_data = msgpack.packb({"a": 99, "c": 3})
-    response = await frame_client.patch(
+    response = await client.patch(
         f"/v1/rooms/{room.id}/frames/0",
         content=patch_data,
         headers={**_auth_header(token), "Content-Type": "application/msgpack"},
@@ -688,18 +596,18 @@ async def test_merge_frame(
 
 @pytest.mark.asyncio
 async def test_merge_frame_preserves_untouched_keys(
-    frame_client: AsyncClient,
-    frame_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Test partial update does not remove keys not in the patch."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     await frame_storage[room.id].extend([make_raw_frame({"x": 10, "y": 20, "z": 30})])
     # Only update "y"
     patch_data = msgpack.packb({"y": 99})
-    response = await frame_client.patch(
+    response = await client.patch(
         f"/v1/rooms/{room.id}/frames/0",
         content=patch_data,
         headers={**_auth_header(token), "Content-Type": "application/msgpack"},
@@ -713,14 +621,14 @@ async def test_merge_frame_preserves_untouched_keys(
 
 @pytest.mark.asyncio
 async def test_merge_frame_not_found(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test merging non-existent frame returns 404."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     patch_data = msgpack.packb({"a": 1})
-    response = await frame_client.patch(
+    response = await client.patch(
         f"/v1/rooms/{room.id}/frames/99",
         content=patch_data,
         headers={**_auth_header(token), "Content-Type": "application/msgpack"},
@@ -733,13 +641,13 @@ async def test_merge_frame_not_found(
 
 @pytest.mark.asyncio
 async def test_merge_frame_room_not_found(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test merging frame in non-existent room returns 404."""
-    _, token = await _create_user(frame_session)
+    _, token = await _create_user(session)
 
     patch_data = msgpack.packb({"a": 1})
-    response = await frame_client.patch(
+    response = await client.patch(
         "/v1/rooms/99999/frames/0",
         content=patch_data,
         headers={**_auth_header(token), "Content-Type": "application/msgpack"},
@@ -752,8 +660,8 @@ async def test_merge_frame_room_not_found(
 
 @pytest.mark.asyncio
 async def test_merge_frame_preserves_msgpack_str_type(
-    frame_client: AsyncClient,
-    frame_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Test that PATCH preserves msgpack str/bin distinction for numpy arrays.
@@ -767,8 +675,8 @@ async def test_merge_frame_preserves_msgpack_str_type(
     """
     import struct
 
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     # Create initial frame with a numpy-format position array (float64)
     # This mimics what asebytes.encode produces
@@ -801,7 +709,7 @@ async def test_merge_frame_preserves_msgpack_str_type(
         },
         use_bin_type=True,
     )
-    response = await frame_client.patch(
+    response = await client.patch(
         f"/v1/rooms/{room.id}/frames/0",
         content=patch_body,
         headers={**_auth_header(token), "Content-Type": "application/msgpack"},
@@ -845,19 +753,19 @@ async def test_merge_frame_preserves_msgpack_str_type(
 
 @pytest.mark.asyncio
 async def test_delete_frame(
-    frame_client: AsyncClient,
-    frame_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Test deleting a frame at specific index."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     # Add frames to storage
     await frame_storage[room.id].extend(
         [make_raw_frame({"a": 1}), make_raw_frame({"b": 2}), make_raw_frame({"c": 3})]
     )
-    response = await frame_client.delete(
+    response = await client.delete(
         f"/v1/rooms/{room.id}/frames/1",
         headers=_auth_header(token),
     )
@@ -872,13 +780,13 @@ async def test_delete_frame(
 
 @pytest.mark.asyncio
 async def test_delete_frame_not_found(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test deleting non-existent frame returns 404."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
-    response = await frame_client.delete(
+    response = await client.delete(
         f"/v1/rooms/{room.id}/frames/99",
         headers=_auth_header(token),
     )
@@ -895,11 +803,11 @@ async def test_delete_frame_not_found(
 
 @pytest.mark.asyncio
 async def test_frames_require_authentication(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test that all frame endpoints require authentication."""
-    user, _ = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, _ = await _create_user(session)
+    room = await _create_room(session, user)
 
     # All endpoints should return 401 without auth
     endpoints = [
@@ -913,23 +821,23 @@ async def test_frames_require_authentication(
 
     for method, url in endpoints:
         if method == "GET":
-            response = await frame_client.get(url)
+            response = await client.get(url)
         elif method == "POST":
-            response = await frame_client.post(
+            response = await client.post(
                 url, json={"frames": [_make_json_frame("H2")]}
             )
         elif method == "PUT":
-            response = await frame_client.put(
+            response = await client.put(
                 url, json={"data": _make_json_frame("H2")}
             )
         elif method == "PATCH":
-            response = await frame_client.patch(
+            response = await client.patch(
                 url,
                 content=msgpack.packb({"a": 1}),
                 headers={"Content-Type": "application/msgpack"},
             )
         else:  # DELETE
-            response = await frame_client.delete(url)
+            response = await client.delete(url)
 
         assert response.status_code == 401, f"{method} {url} should require auth"
 
@@ -963,15 +871,15 @@ def _make_bare_json_frame(formula: str = "H2") -> dict[str, Any]:
 
 @pytest.mark.asyncio
 async def test_append_rejects_frames_without_colors_radii(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """POST /frames rejects frames missing arrays.colors and arrays.radii."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     bare_frame = _make_bare_json_frame("H2")
 
-    response = await frame_client.post(
+    response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": [bare_frame]},
         headers=_auth_header(token),
@@ -985,19 +893,19 @@ async def test_append_rejects_frames_without_colors_radii(
 
 @pytest.mark.asyncio
 async def test_update_rejects_frame_without_colors_radii(
-    frame_client: AsyncClient,
-    frame_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """PUT /frames/{index} rejects frames missing arrays.colors and arrays.radii."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     # Add a valid frame so index 0 exists
     await frame_storage[room.id].extend([make_raw_frame({"a": 1})])
     bare_frame = _make_bare_json_frame("H2")
 
-    response = await frame_client.put(
+    response = await client.put(
         f"/v1/rooms/{room.id}/frames/0",
         json={"data": bare_frame},
         headers=_auth_header(token),
@@ -1007,15 +915,15 @@ async def test_update_rejects_frame_without_colors_radii(
 
 @pytest.mark.asyncio
 async def test_append_accepts_enriched_frames(
-    frame_client: AsyncClient, frame_session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """POST /frames accepts frames that already have colors and radii."""
-    user, token = await _create_user(frame_session)
-    room = await _create_room(frame_session, user)
+    user, token = await _create_user(session)
+    room = await _create_room(session, user)
 
     enriched_frame = _make_json_frame("H2")
 
-    response = await frame_client.post(
+    response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": [enriched_frame]},
         headers=_auth_header(token),
