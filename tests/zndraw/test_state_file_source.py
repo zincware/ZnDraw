@@ -169,9 +169,7 @@ def test_token_local_server_uses_access_token(state_file):
 
 
 def test_token_local_server_no_access_token_returns_none(state_file):
-    state_file.add_server(
-        "http://localhost:8000", _local_entry(local_token="raw-only")
-    )
+    state_file.add_server("http://localhost:8000", _local_entry(local_token="raw-only"))
     source = _make_source(state_file)
     with (
         patch("zndraw.settings_sources._is_pid_alive", return_value=True),

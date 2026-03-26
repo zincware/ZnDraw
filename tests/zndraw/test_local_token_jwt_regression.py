@@ -122,9 +122,7 @@ def test_e2e_dev_mode_zndraw_client_connects(server, tmp_path, monkeypatch):
 
 
 @pytest.mark.integration
-def test_e2e_production_mode_zndraw_client_connects(
-    server_auth, tmp_path, monkeypatch
-):
+def test_e2e_production_mode_zndraw_client_connects(server_auth, tmp_path, monkeypatch):
     """E2E production mode: CLI logs in as admin → stores JWT → client connects.
 
     Uses server_auth fixture which sets DEFAULT_ADMIN_EMAIL/PASSWORD.

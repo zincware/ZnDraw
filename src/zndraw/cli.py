@@ -10,6 +10,7 @@ This module provides commands to:
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import secrets
@@ -29,8 +30,6 @@ from zndraw.client import ZnDraw
 from zndraw.server_manager import shutdown_server, wait_for_server_ready
 from zndraw.settings_sources import _is_url_healthy
 from zndraw.state_file import ServerEntry, StateFile
-
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -318,7 +317,9 @@ def _acquire_admin_jwt(server_url: str) -> str | None:
             auth.default_admin_password,
         )
     except Exception:
-        log.debug("Failed to acquire admin JWT — clients will use guest_login", exc_info=True)
+        log.debug(
+            "Failed to acquire admin JWT — clients will use guest_login", exc_info=True
+        )
         return None
 
 
@@ -676,7 +677,9 @@ def main(
         _store_jwt_in_state(server_url, jwt)
 
     if has_files or browser:
-        open_browser_to(url, first_room, browser, copy_from="@none" if has_files else None)
+        open_browser_to(
+            url, first_room, browser, copy_from="@none" if has_files else None
+        )
         upload_files(path or [], url, room_names, start, stop, step)
 
     try:
