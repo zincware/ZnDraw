@@ -666,77 +666,24 @@ async def test_update_selection_requires_auth(
 
 
 @pytest.mark.asyncio
-async def test_list_geometries_returns_404_for_nonexistent_room(
-    client: AsyncClient, session: AsyncSession
+@pytest.mark.parametrize(
+    "method,path,body",
+    [
+        ("GET", "/v1/rooms/99999/geometries", None),
+        ("GET", "/v1/rooms/99999/geometries/somekey", None),
+        ("PUT", "/v1/rooms/99999/geometries/test", {"type": "Sphere", "data": {}}),
+        ("DELETE", "/v1/rooms/99999/geometries/somekey", None),
+        ("PUT", "/v1/rooms/99999/geometries/particles/selection", {"indices": [0]}),
+    ],
+    ids=["list", "get", "upsert", "delete", "update_selection"],
+)
+async def test_geometry_endpoints_return_404_for_nonexistent_room(
+    client: AsyncClient, session: AsyncSession, method: str, path: str, body
 ) -> None:
-    """Test GET for non-existent room returns 404."""
-    _, token = await create_test_user_in_db(session)
-
-    response = await client.get(
-        "/v1/rooms/99999/geometries",
-        headers=auth_header(token),
-    )
-    assert response.status_code == 404
-    assert "room-not-found" in response.json()["type"]
-
-
-@pytest.mark.asyncio
-async def test_get_geometry_returns_404_for_nonexistent_room(
-    client: AsyncClient, session: AsyncSession
-) -> None:
-    """Test GET single geometry for non-existent room returns 404."""
-    _, token = await create_test_user_in_db(session)
-
-    response = await client.get(
-        "/v1/rooms/99999/geometries/somekey",
-        headers=auth_header(token),
-    )
-    assert response.status_code == 404
-    assert "room-not-found" in response.json()["type"]
-
-
-@pytest.mark.asyncio
-async def test_upsert_geometry_returns_404_for_nonexistent_room(
-    client: AsyncClient, session: AsyncSession
-) -> None:
-    """Test PUT for non-existent room returns 404."""
-    _, token = await create_test_user_in_db(session)
-
-    response = await client.put(
-        "/v1/rooms/99999/geometries/test",
-        json={"type": "Sphere", "data": {}},
-        headers=auth_header(token),
-    )
-    assert response.status_code == 404
-    assert "room-not-found" in response.json()["type"]
-
-
-@pytest.mark.asyncio
-async def test_delete_geometry_returns_404_for_nonexistent_room(
-    client: AsyncClient, session: AsyncSession
-) -> None:
-    """Test DELETE for non-existent room returns 404."""
-    _, token = await create_test_user_in_db(session)
-
-    response = await client.delete(
-        "/v1/rooms/99999/geometries/somekey",
-        headers=auth_header(token),
-    )
-    assert response.status_code == 404
-    assert "room-not-found" in response.json()["type"]
-
-
-@pytest.mark.asyncio
-async def test_update_selection_returns_404_for_nonexistent_room(
-    client: AsyncClient, session: AsyncSession
-) -> None:
-    """Test PUT selection for non-existent room returns 404."""
-    _, token = await create_test_user_in_db(session)
-
-    response = await client.put(
-        "/v1/rooms/99999/geometries/particles/selection",
-        json={"indices": [0]},
-        headers=auth_header(token),
+    """All geometry endpoints return 404 for non-existent room."""
+    user, token = await create_test_user_in_db(session)
+    response = await client.request(
+        method, path, json=body, headers=auth_header(token)
     )
     assert response.status_code == 404
     assert "room-not-found" in response.json()["type"]
