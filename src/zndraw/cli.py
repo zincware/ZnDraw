@@ -316,7 +316,7 @@ def _acquire_admin_jwt(server_url: str) -> str | None:
             auth.default_admin_email,
             auth.default_admin_password,
         )
-    except Exception:
+    except Exception:  # noqa: BLE001
         log.debug(
             "Failed to acquire admin JWT — clients will use guest_login", exc_info=True
         )

@@ -263,7 +263,9 @@ def get_connection(
         )
 
     if settings.token is not None:
-        resolved_token = settings.token
+        from zndraw.auth_utils import resolve_or_refresh_token
+
+        resolved_token = resolve_or_refresh_token(settings.url, settings.token)
     elif settings.user and settings.password:
         try:
             resolved_token = login_with_credentials(

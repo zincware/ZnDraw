@@ -280,6 +280,11 @@ def capture_settings(monkeypatch, tmp_path):
     state_dir.mkdir()
     monkeypatch.setattr("zndraw.cli.StateFile", lambda: StateFile(directory=state_dir))
     monkeypatch.setattr("zndraw.cli._is_url_healthy", lambda _url: False)
+    monkeypatch.setattr(
+        "zndraw.cli.wait_for_server_ready",
+        lambda _url, timeout=30.0: True,  # noqa: ARG005
+    )
+    monkeypatch.setattr("zndraw.cli._acquire_admin_jwt", lambda _url: None)
     return captured
 
 
