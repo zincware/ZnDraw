@@ -7,7 +7,6 @@ from helpers import MockSioServer, auth_header, create_test_room, create_test_us
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zndraw.socket_events import FrameSelectionUpdate
 
 
 # =============================================================================

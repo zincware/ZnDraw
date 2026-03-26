@@ -9,10 +9,9 @@ from httpx import AsyncClient
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zndraw.models import MemberRole, Room, RoomMembership
+from zndraw.models import MemberRole, RoomMembership
 from zndraw.redis import RedisKey
 from zndraw.schemas import StatusResponse
-from zndraw.socket_events import LockUpdate
 
 
 # =============================================================================
@@ -308,7 +307,7 @@ async def test_acquire_edit_lock_blocked_by_admin_lock(
 
 @pytest.mark.asyncio
 async def test_lock_auto_expires_after_ttl(
-    client: AsyncClient, session: AsyncSession, redis_client: Redis
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     """Lock disappears from Redis after edit_lock_ttl without refresh."""
     user1, token1 = await create_test_user_in_db(session, "user1@test")

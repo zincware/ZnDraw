@@ -111,7 +111,6 @@ async def test_update_progress(
     client: AsyncClient,
     session: AsyncSession,
     mock_sio: MockSioServer,
-    redis_client: Redis,
 ) -> None:
     """PATCH updates tqdm fields, returns 200, emits progress_update."""
     user, token = await create_test_user_in_db(session)
@@ -168,7 +167,6 @@ async def test_update_progress_description(
     client: AsyncClient,
     session: AsyncSession,
     mock_sio: MockSioServer,
-    redis_client: Redis,
 ) -> None:
     """PATCH can update description alongside tqdm fields."""
     user, token = await create_test_user_in_db(session)
