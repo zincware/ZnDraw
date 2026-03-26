@@ -38,7 +38,7 @@ async def regular_user(session: AsyncSession) -> User:
 
 
 @pytest.mark.asyncio
-@patch("zndraw.routes.admin.os.kill")
+@patch("zndraw.routes.admin.os.kill")  # why: prevents real os.kill() from terminating processes during test
 async def test_local_token_grants_admin_access(mock_kill, client: AsyncClient) -> None:
     """Bearer local_token grants admin access to shutdown endpoint."""
     from zndraw.app import app
@@ -73,7 +73,7 @@ async def test_wrong_local_token_rejected(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-@patch("zndraw.routes.admin.os.kill")
+@patch("zndraw.routes.admin.os.kill")  # why: prevents real os.kill() from terminating processes during test
 async def test_no_local_token_configured_normal_auth_works(
     mock_kill, client: AsyncClient, admin_user: User
 ) -> None:
