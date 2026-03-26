@@ -22,7 +22,7 @@ from zndraw.schemas import StatusResponse
 
 
 @pytest.fixture(name="media_path")
-def media_path_fixture(tmp_path: Path) -> Path:
+def media_path_fixture(tmp_path: Path):
     """Provide a temporary media directory and install the dependency override.
 
     The shared ``client`` fixture (from conftest) sets up the base overrides.
@@ -34,7 +34,8 @@ def media_path_fixture(tmp_path: Path) -> Path:
 
     media = tmp_path / "media"
     app.dependency_overrides[get_media_path] = lambda: media
-    return media
+    yield media
+    app.dependency_overrides.pop(get_media_path, None)
 
 
 # =============================================================================

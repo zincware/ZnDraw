@@ -30,6 +30,28 @@ def stored_entry():
     )
 
 
+@pytest.fixture
+def mock_httpx_client():
+    """MagicMock httpx.Client with context-manager protocol configured."""
+    client = MagicMock()
+    client.__enter__ = MagicMock(return_value=client)
+    client.__exit__ = MagicMock(return_value=False)
+    return client
+
+
+def _challenge_response() -> MagicMock:
+    """Return a standard challenge response mock."""
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.raise_for_status = MagicMock()
+    resp.json.return_value = {
+        "code": "ABCD1234",
+        "secret": "test-secret",
+        "approve_url": "/auth/cli-login/ABCD1234",
+    }
+    return resp
+
+
 # -- auth status --------------------------------------------------------------
 
 
@@ -109,17 +131,8 @@ def test_auth_logout_no_token(server: str, state_file, monkeypatch):
 # -- auth login ----------------------------------------------------------------
 
 
-def test_auth_login_approved(server: str, state_file, monkeypatch):
+def test_auth_login_approved(server: str, state_file, mock_httpx_client, monkeypatch):
     """auth login should store token on successful approval."""
-    challenge_resp = MagicMock()
-    challenge_resp.status_code = 200
-    challenge_resp.raise_for_status = MagicMock()
-    challenge_resp.json.return_value = {
-        "code": "ABCD1234",
-        "secret": "test-secret",
-        "approve_url": "/auth/cli-login/ABCD1234",
-    }
-
     # First poll: pending, second: approved
     pending_resp = MagicMock()
     pending_resp.status_code = 200
@@ -149,11 +162,8 @@ def test_auth_login_approved(server: str, state_file, monkeypatch):
             return pending_resp if call_count == 1 else approved_resp
         return me_resp
 
-    mock_client = MagicMock()
-    mock_client.__enter__ = MagicMock(return_value=mock_client)
-    mock_client.__exit__ = MagicMock(return_value=False)
-    mock_client.post.return_value = challenge_resp
-    mock_client.get.side_effect = mock_get
+    mock_httpx_client.post.return_value = _challenge_response()
+    mock_httpx_client.get.side_effect = mock_get
 
     # why: isolate state.json to tmp_path so tests don't share token storage
     monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
@@ -162,7 +172,7 @@ def test_auth_login_approved(server: str, state_file, monkeypatch):
 
     with (
         # why: device-code login requires choreographed challenge/poll responses
-        patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_client),
+        patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_httpx_client),
         # why: webbrowser.open is a real OS side-effect that cannot run in CI
         patch("zndraw.cli_agent.auth.webbrowser.open"),
         # why: time.sleep(1) x 300 iterations would make tests take minutes
@@ -177,25 +187,13 @@ def test_auth_login_approved(server: str, state_file, monkeypatch):
     assert stored.email == "user@example.com"
 
 
-def test_auth_login_rejected(server: str, state_file, monkeypatch):
+def test_auth_login_rejected(server: str, state_file, mock_httpx_client, monkeypatch):
     """auth login should show error when challenge is rejected (404)."""
-    challenge_resp = MagicMock()
-    challenge_resp.status_code = 200
-    challenge_resp.raise_for_status = MagicMock()
-    challenge_resp.json.return_value = {
-        "code": "ABCD1234",
-        "secret": "test-secret",
-        "approve_url": "/auth/cli-login/ABCD1234",
-    }
-
     rejected_resp = MagicMock()
     rejected_resp.status_code = 404
 
-    mock_client = MagicMock()
-    mock_client.__enter__ = MagicMock(return_value=mock_client)
-    mock_client.__exit__ = MagicMock(return_value=False)
-    mock_client.post.return_value = challenge_resp
-    mock_client.get.return_value = rejected_resp
+    mock_httpx_client.post.return_value = _challenge_response()
+    mock_httpx_client.get.return_value = rejected_resp
 
     # why: isolate state.json to tmp_path so tests don't share token storage
     monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
@@ -204,7 +202,7 @@ def test_auth_login_rejected(server: str, state_file, monkeypatch):
 
     with (
         # why: device-code login requires choreographed challenge/poll responses
-        patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_client),
+        patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_httpx_client),
         # why: webbrowser.open is a real OS side-effect that cannot run in CI
         patch("zndraw.cli_agent.auth.webbrowser.open"),
         # why: time.sleep(1) x 300 iterations would make tests take minutes
@@ -215,25 +213,13 @@ def test_auth_login_rejected(server: str, state_file, monkeypatch):
     assert result.exit_code != 0
 
 
-def test_auth_login_expired(server: str, state_file, monkeypatch):
+def test_auth_login_expired(server: str, state_file, mock_httpx_client, monkeypatch):
     """auth login should show error when challenge expires (410)."""
-    challenge_resp = MagicMock()
-    challenge_resp.status_code = 200
-    challenge_resp.raise_for_status = MagicMock()
-    challenge_resp.json.return_value = {
-        "code": "ABCD1234",
-        "secret": "test-secret",
-        "approve_url": "/auth/cli-login/ABCD1234",
-    }
-
     expired_resp = MagicMock()
     expired_resp.status_code = 410
 
-    mock_client = MagicMock()
-    mock_client.__enter__ = MagicMock(return_value=mock_client)
-    mock_client.__exit__ = MagicMock(return_value=False)
-    mock_client.post.return_value = challenge_resp
-    mock_client.get.return_value = expired_resp
+    mock_httpx_client.post.return_value = _challenge_response()
+    mock_httpx_client.get.return_value = expired_resp
 
     # why: isolate state.json to tmp_path so tests don't share token storage
     monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
@@ -242,7 +228,7 @@ def test_auth_login_expired(server: str, state_file, monkeypatch):
 
     with (
         # why: device-code login requires choreographed challenge/poll responses
-        patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_client),
+        patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_httpx_client),
         # why: webbrowser.open is a real OS side-effect that cannot run in CI
         patch("zndraw.cli_agent.auth.webbrowser.open"),
         # why: time.sleep(1) x 300 iterations would make tests take minutes
