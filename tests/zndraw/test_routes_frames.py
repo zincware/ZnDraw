@@ -45,11 +45,6 @@ def raw_frame_to_dict(frame: RawFrame) -> dict[str, Any]:
     return {k.decode(): msgpack.unpackb(v) for k, v in frame.items()}
 
 
-_create_user = create_test_user_in_db
-_create_room = create_test_room
-_auth_header = auth_header
-
-
 # =============================================================================
 # List Frames Tests
 # =============================================================================
@@ -60,12 +55,12 @@ async def test_list_frames_empty_room(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test listing frames from an empty room returns empty list."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     response = await client.get(
         f"/v1/rooms/{room.id}/frames",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/x-msgpack"
@@ -81,8 +76,8 @@ async def test_list_frames_with_data(
     frame_storage: FrameStorage,
 ) -> None:
     """Test listing frames with data returns all frames."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Add frames to storage
     await frame_storage[room.id].extend(
@@ -90,7 +85,7 @@ async def test_list_frames_with_data(
     )
     response = await client.get(
         f"/v1/rooms/{room.id}/frames",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 200
 
@@ -107,8 +102,8 @@ async def test_list_frames_with_range(
     frame_storage: FrameStorage,
 ) -> None:
     """Test listing frames with range query params."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Add frames to storage
     await frame_storage[room.id].extend(
@@ -121,7 +116,7 @@ async def test_list_frames_with_range(
     )
     response = await client.get(
         f"/v1/rooms/{room.id}/frames?start=1&stop=3",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 200
 
@@ -136,11 +131,11 @@ async def test_list_frames_room_not_found(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test listing frames from non-existent room returns 404."""
-    _, token = await _create_user(session)
+    _, token = await create_test_user_in_db(session)
 
     response = await client.get(
         "/v1/rooms/99999/frames",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 404
 
@@ -155,8 +150,8 @@ async def test_list_frames_with_indices(
     frame_storage: FrameStorage,
 ) -> None:
     """Test listing specific frames by indices parameter."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Add 5 frames
     await frame_storage[room.id].extend(
@@ -172,7 +167,7 @@ async def test_list_frames_with_indices(
     # Request specific indices
     response = await client.get(
         f"/v1/rooms/{room.id}/frames?indices=1,3",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 200
 
@@ -189,8 +184,8 @@ async def test_list_frames_with_keys_filter(
     frame_storage: FrameStorage,
 ) -> None:
     """Test listing frames with keys parameter to filter frame data."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Add frames with multiple keys
     await frame_storage[room.id].extend(
@@ -202,7 +197,7 @@ async def test_list_frames_with_keys_filter(
     # Request only x and z keys
     response = await client.get(
         f"/v1/rooms/{room.id}/frames?keys=x,z",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 200
 
@@ -219,8 +214,8 @@ async def test_list_frames_with_indices_and_keys(
     frame_storage: FrameStorage,
 ) -> None:
     """Test listing specific indices with keys filter."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Add frames
     await frame_storage[room.id].extend(
@@ -233,7 +228,7 @@ async def test_list_frames_with_indices_and_keys(
     # Request index 2 with only key 'a'
     response = await client.get(
         f"/v1/rooms/{room.id}/frames?indices=2&keys=a",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 200
 
@@ -254,8 +249,8 @@ async def test_get_frame(
     frame_storage: FrameStorage,
 ) -> None:
     """Test getting a single frame by index."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Add frames to storage
     await frame_storage[room.id].extend(
@@ -263,7 +258,7 @@ async def test_get_frame(
     )
     response = await client.get(
         f"/v1/rooms/{room.id}/frames/1",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/x-msgpack"
@@ -277,12 +272,12 @@ async def test_get_frame(
 @pytest.mark.asyncio
 async def test_get_frame_not_found(client: AsyncClient, session: AsyncSession) -> None:
     """Test getting non-existent frame returns 404."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     response = await client.get(
         f"/v1/rooms/{room.id}/frames/99",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 404
 
@@ -295,11 +290,11 @@ async def test_get_frame_room_not_found(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test getting frame from non-existent room returns 404."""
-    _, token = await _create_user(session)
+    _, token = await create_test_user_in_db(session)
 
     response = await client.get(
         "/v1/rooms/99999/frames/0",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 404
 
@@ -322,8 +317,8 @@ async def test_get_frame_metadata(
     from ase import Atoms
     from asebytes import encode
 
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Create an Atoms object with calc results
     atoms = Atoms("H2O", positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]])
@@ -333,7 +328,7 @@ async def test_get_frame_metadata(
     await frame_storage[room.id].extend([raw])
     response = await client.get(
         f"/v1/rooms/{room.id}/frames/0/metadata",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 200
 
@@ -361,12 +356,12 @@ async def test_get_frame_metadata_not_found(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test getting metadata for non-existent frame returns 404."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     response = await client.get(
         f"/v1/rooms/{room.id}/frames/99/metadata",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 404
 
@@ -379,11 +374,11 @@ async def test_get_frame_metadata_room_not_found(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test getting metadata for a frame in a non-existent room returns 404."""
-    _, token = await _create_user(session)
+    _, token = await create_test_user_in_db(session)
 
     response = await client.get(
         "/v1/rooms/nonexistent-room/frames/0/metadata",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 404
 
@@ -399,8 +394,8 @@ async def test_get_frame_metadata_room_not_found(
 @pytest.mark.asyncio
 async def test_append_frames(client: AsyncClient, session: AsyncSession) -> None:
     """Test appending frames to storage."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     frame_a = _make_json_frame("H2")
     frame_b = _make_json_frame("H2O")
@@ -408,7 +403,7 @@ async def test_append_frames(client: AsyncClient, session: AsyncSession) -> None
     response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": [frame_a, frame_b]},
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 201
 
@@ -424,14 +419,14 @@ async def test_append_frames_multiple_times(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test appending frames multiple times."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # First append
     response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": [_make_json_frame("H2")]},
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 201
     result = FrameBulkResponse.model_validate(response.json())
@@ -443,7 +438,7 @@ async def test_append_frames_multiple_times(
     response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": [_make_json_frame("H2O"), _make_json_frame("CH4")]},
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 201
     result = FrameBulkResponse.model_validate(response.json())
@@ -457,12 +452,12 @@ async def test_append_frames_room_not_found(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test appending frames to non-existent room returns 404."""
-    _, token = await _create_user(session)
+    _, token = await create_test_user_in_db(session)
 
     response = await client.post(
         "/v1/rooms/99999/frames",
         json={"frames": [_make_json_frame("H2")]},
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 404
 
@@ -475,13 +470,13 @@ async def test_append_frames_empty_list_rejected(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test appending empty frames list is rejected (422)."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": []},
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     # FastAPI returns 422 for validation errors
     assert response.status_code == 422
@@ -492,14 +487,14 @@ async def test_append_frames_exceeds_max_length(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test appending more than 1000 frames is rejected (422)."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     frame = _make_json_frame("H2")
     response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": [frame] * 1001},
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 422
 
@@ -516,8 +511,8 @@ async def test_update_frame(
     frame_storage: FrameStorage,
 ) -> None:
     """Test updating a frame at specific index."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Add frames to storage
     await frame_storage[room.id].extend(
@@ -528,7 +523,7 @@ async def test_update_frame(
     response = await client.put(
         f"/v1/rooms/{room.id}/frames/1",
         json={"data": new_frame},
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 200
 
@@ -541,13 +536,13 @@ async def test_update_frame_not_found(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test updating non-existent frame returns 404."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     response = await client.put(
         f"/v1/rooms/{room.id}/frames/99",
         json={"data": _make_json_frame("H2")},
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 404
 
@@ -567,8 +562,8 @@ async def test_merge_frame(
     frame_storage: FrameStorage,
 ) -> None:
     """Test partial update merges new keys into existing frame."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     await frame_storage[room.id].extend([make_raw_frame({"a": 1, "b": 2})])
     # Send PATCH with msgpack body updating key "a" and adding key "c"
@@ -576,7 +571,7 @@ async def test_merge_frame(
     response = await client.patch(
         f"/v1/rooms/{room.id}/frames/0",
         content=patch_data,
-        headers={**_auth_header(token), "Content-Type": "application/msgpack"},
+        headers={**auth_header(token), "Content-Type": "application/msgpack"},
     )
     assert response.status_code == 200
 
@@ -597,8 +592,8 @@ async def test_merge_frame_preserves_untouched_keys(
     frame_storage: FrameStorage,
 ) -> None:
     """Test partial update does not remove keys not in the patch."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     await frame_storage[room.id].extend([make_raw_frame({"x": 10, "y": 20, "z": 30})])
     # Only update "y"
@@ -606,7 +601,7 @@ async def test_merge_frame_preserves_untouched_keys(
     response = await client.patch(
         f"/v1/rooms/{room.id}/frames/0",
         content=patch_data,
-        headers={**_auth_header(token), "Content-Type": "application/msgpack"},
+        headers={**auth_header(token), "Content-Type": "application/msgpack"},
     )
     assert response.status_code == 200
 
@@ -620,14 +615,14 @@ async def test_merge_frame_not_found(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test merging non-existent frame returns 404."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     patch_data = msgpack.packb({"a": 1})
     response = await client.patch(
         f"/v1/rooms/{room.id}/frames/99",
         content=patch_data,
-        headers={**_auth_header(token), "Content-Type": "application/msgpack"},
+        headers={**auth_header(token), "Content-Type": "application/msgpack"},
     )
     assert response.status_code == 404
 
@@ -640,13 +635,13 @@ async def test_merge_frame_room_not_found(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test merging frame in non-existent room returns 404."""
-    _, token = await _create_user(session)
+    _, token = await create_test_user_in_db(session)
 
     patch_data = msgpack.packb({"a": 1})
     response = await client.patch(
         "/v1/rooms/99999/frames/0",
         content=patch_data,
-        headers={**_auth_header(token), "Content-Type": "application/msgpack"},
+        headers={**auth_header(token), "Content-Type": "application/msgpack"},
     )
     assert response.status_code == 404
 
@@ -671,8 +666,8 @@ async def test_merge_frame_preserves_msgpack_str_type(
     """
     import struct
 
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Create initial frame with a numpy-format position array (float64)
     # This mimics what asebytes.encode produces
@@ -708,7 +703,7 @@ async def test_merge_frame_preserves_msgpack_str_type(
     response = await client.patch(
         f"/v1/rooms/{room.id}/frames/0",
         content=patch_body,
-        headers={**_auth_header(token), "Content-Type": "application/msgpack"},
+        headers={**auth_header(token), "Content-Type": "application/msgpack"},
     )
     assert response.status_code == 200
 
@@ -754,8 +749,8 @@ async def test_delete_frame(
     frame_storage: FrameStorage,
 ) -> None:
     """Test deleting a frame at specific index."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Add frames to storage
     await frame_storage[room.id].extend(
@@ -763,7 +758,7 @@ async def test_delete_frame(
     )
     response = await client.delete(
         f"/v1/rooms/{room.id}/frames/1",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     StatusResponse.model_validate(response.json())
@@ -779,12 +774,12 @@ async def test_delete_frame_not_found(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test deleting non-existent frame returns 404."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     response = await client.delete(
         f"/v1/rooms/{room.id}/frames/99",
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 404
 
@@ -802,8 +797,8 @@ async def test_frames_require_authentication(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Test that all frame endpoints require authentication."""
-    user, _ = await _create_user(session)
-    room = await _create_room(session, user)
+    user, _ = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # All endpoints should return 401 without auth
     endpoints = [
@@ -866,15 +861,15 @@ async def test_append_rejects_frames_without_colors_radii(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """POST /frames rejects frames missing arrays.colors and arrays.radii."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     bare_frame = _make_bare_json_frame("H2")
 
     response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": [bare_frame]},
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 422
 
@@ -890,8 +885,8 @@ async def test_update_rejects_frame_without_colors_radii(
     frame_storage: FrameStorage,
 ) -> None:
     """PUT /frames/{index} rejects frames missing arrays.colors and arrays.radii."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Add a valid frame so index 0 exists
     await frame_storage[room.id].extend([make_raw_frame({"a": 1})])
@@ -900,7 +895,7 @@ async def test_update_rejects_frame_without_colors_radii(
     response = await client.put(
         f"/v1/rooms/{room.id}/frames/0",
         json={"data": bare_frame},
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 422
 
@@ -910,14 +905,14 @@ async def test_append_accepts_enriched_frames(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """POST /frames accepts frames that already have colors and radii."""
-    user, token = await _create_user(session)
-    room = await _create_room(session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     enriched_frame = _make_json_frame("H2")
 
     response = await client.post(
         f"/v1/rooms/{room.id}/frames",
         json={"frames": [enriched_frame]},
-        headers=_auth_header(token),
+        headers=auth_header(token),
     )
     assert response.status_code == 201

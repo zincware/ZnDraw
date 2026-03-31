@@ -161,3 +161,48 @@ async def test_guest_cannot_access_other_room_without_auth(http_client: AsyncCli
     # Try to access frames without authorization
     get_resp = await http_client.get(f"/v1/rooms/{room_id}/frames")
     assert get_resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_second_guest_cannot_write_to_locked_room(http_client: AsyncClient):
+    """A second guest cannot write frames to a room locked by the first guest."""
+    # Guest A: authenticate, create room, write a frame, lock the room
+    resp_a = await http_client.post("/v1/auth/guest")
+    token_a = resp_a.json()["access_token"]
+    headers_a = {"Authorization": f"Bearer {token_a}"}
+
+    room_id = uuid.uuid4().hex
+    await http_client.post(
+        "/v1/rooms",
+        json={"room_id": room_id, "copy_from": "@none"},
+        headers=headers_a,
+    )
+
+    frame_data = atoms_to_json_dict(_make_atoms(1.0))
+    post_resp = await http_client.post(
+        f"/v1/rooms/{room_id}/frames",
+        json={"frames": [frame_data]},
+        headers=headers_a,
+    )
+    assert post_resp.status_code == 201
+
+    # Lock the room as guest A
+    lock_resp = await http_client.put(
+        f"/v1/rooms/{room_id}/edit-lock",
+        json={},
+        headers=headers_a,
+    )
+    assert lock_resp.status_code == 200
+
+    # Guest B: authenticate separately
+    resp_b = await http_client.post("/v1/auth/guest")
+    token_b = resp_b.json()["access_token"]
+    headers_b = {"Authorization": f"Bearer {token_b}"}
+
+    # Guest B tries to write a frame → should fail with 423 (locked)
+    write_resp = await http_client.post(
+        f"/v1/rooms/{room_id}/frames",
+        json={"frames": [atoms_to_json_dict(_make_atoms(2.0))]},
+        headers=headers_b,
+    )
+    assert write_resp.status_code == 423
