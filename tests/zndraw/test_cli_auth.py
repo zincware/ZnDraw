@@ -80,7 +80,8 @@ def test_auth_status_with_stored_token(
 
     assert result.exit_code == 0, result.output
     data = json.loads(result.stdout)
-    assert "server" in data
+    assert data["server"] == server
+    assert data["token_source"] == "stored"
 
 
 def test_auth_status_not_logged_in(server: str, state_file, monkeypatch):
