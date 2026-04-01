@@ -645,3 +645,23 @@ def test_admin_full_lifecycle(server_auth, Echo, run_worker_loop, wait_for_task)
         admin.jobs.disconnect()
         admin.disconnect()
         guest.disconnect()
+
+
+# =============================================================================
+# list_extensions() includes @global
+# =============================================================================
+
+
+def test_list_extensions_includes_global(server, Echo):
+    """vis.api.list_extensions() (no room arg) includes @global extensions."""
+    worker = ZnDraw(url=server)
+    viewer = ZnDraw(url=server)
+    try:
+        worker.jobs.register(Echo)
+        data = viewer.api.list_extensions()
+        names = {item["full_name"] for item in data.get("items", [])}
+        assert "@global:modifiers:Echo" in names
+    finally:
+        worker.jobs.disconnect()
+        worker.disconnect()
+        viewer.disconnect()
