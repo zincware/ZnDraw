@@ -959,3 +959,7 @@ async def test_append_frame_with_nested_info_dict(
     frames = decode_msgpack_response(response.content)
     assert len(frames) == 1
     assert b"info.cube_data" in frames[0]
+    cube = frames[0][b"info.cube_data"]
+    assert b"grid" in cube
+    assert b"origin" in cube
+    assert b"cell" in cube

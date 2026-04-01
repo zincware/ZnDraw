@@ -163,7 +163,7 @@ effective default for end users is room-scoped, not global.
 
 Update the docstring to clarify:
 
-```
+```text
 room
     Room scope. Defaults to ``"@global"`` when called directly.
     ``ZnDraw.register_job()`` resolves *None* to the client's room.
