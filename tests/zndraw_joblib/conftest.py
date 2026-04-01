@@ -230,6 +230,10 @@ def _build_app(
     app.state.joblib_settings = JobLibSettings()
     result_backend = InMemoryResultBackend()
     app.dependency_overrides[get_result_backend] = lambda: result_backend
+    # WorkerTokenDep is always resolved by submit_task; stub it for @global tests
+    from zndraw_joblib.dependencies import get_worker_token
+
+    app.dependency_overrides[get_worker_token] = lambda: "test-worker-token"
     return app
 
 
