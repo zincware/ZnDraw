@@ -916,3 +916,50 @@ async def test_append_accepts_enriched_frames(
         headers=auth_header(token),
     )
     assert response.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_append_frame_with_nested_info_dict(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    """Frames with nested dicts containing numpy arrays in atoms.info round-trip."""
+    import numpy as np
+
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
+
+    atoms = ase.Atoms(
+        "H2O",
+        positions=[[0, 0, 0], [1, 0, 0], [0, 1, 0]],
+    )
+    atoms.info["cube_data"] = {
+        "grid": np.random.default_rng(42).standard_normal((10, 10, 10)),
+        "origin": np.array([0.0, 0.0, 0.0]),
+        "cell": np.eye(3) * 5.0,
+    }
+    frame = atoms_to_json_dict(atoms)
+
+    # Append
+    response = await client.post(
+        f"/v1/rooms/{room.id}/frames",
+        json={"frames": [frame]},
+        headers=auth_header(token),
+    )
+    assert response.status_code == 201
+    result = FrameBulkResponse.model_validate(response.json())
+    assert result.total == 1
+
+    # Read back and verify the nested key exists
+    response = await client.get(
+        f"/v1/rooms/{room.id}/frames",
+        params={"indices": "0"},
+        headers=auth_header(token),
+    )
+    assert response.status_code == 200
+    frames = decode_msgpack_response(response.content)
+    assert len(frames) == 1
+    assert b"info.cube_data" in frames[0]
+    cube = frames[0][b"info.cube_data"]
+    assert b"grid" in cube
+    assert b"origin" in cube
+    assert b"cell" in cube

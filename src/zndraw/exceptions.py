@@ -584,6 +584,18 @@ class InvalidPresetRule(ProblemType):
         raise ValueError(problem.detail or problem.title)
 
 
+class InternalServerError(ProblemType):
+    """An unexpected error occurred while processing the request.
+
+    This error is returned when an unhandled exception reaches the
+    top-level exception handler. The ``detail`` field contains the
+    exception message; the full traceback is logged server-side.
+    """
+
+    title: ClassVar[str] = "Internal Server Error"
+    status: ClassVar[int] = 500
+
+
 # Registry of all problem types
 PROBLEM_TYPES: dict[str, type[ProblemType]] = {
     cls.problem_id(): cls
@@ -619,6 +631,7 @@ PROBLEM_TYPES: dict[str, type[ProblemType]] = {
         PresetNotFound,
         PresetAlreadyExists,
         InvalidPresetRule,
+        InternalServerError,
     ]
 }
 

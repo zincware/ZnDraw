@@ -48,3 +48,14 @@ async def test_get_problem_type_not_found(client: AsyncClient) -> None:
     assert problem.status == 404
     assert problem.detail is not None
     assert "unknown-problem" in problem.detail
+
+
+@pytest.mark.asyncio
+async def test_internal_server_error_registered(client: AsyncClient) -> None:
+    """InternalServerError is registered in problem types and documented."""
+    response = await client.get("/v1/problems/internal-server-error")
+    assert response.status_code == 200
+    content = response.text
+    assert "# InternalServerError" in content
+    assert "**Status:** 500" in content
+    assert "**Title:** Internal Server Error" in content
