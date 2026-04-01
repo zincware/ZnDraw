@@ -130,7 +130,9 @@ async def ensure_internal_worker(
         log.info("Created internal worker user: %s", email)
     else:
         existing.hashed_password = hashed
+        existing.is_active = True
         existing.is_superuser = True
+        existing.is_verified = True
         await session.commit()
         log.debug("Updated internal worker user: %s", email)
 
