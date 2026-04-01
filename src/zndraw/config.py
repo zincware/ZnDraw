@@ -66,7 +66,7 @@ class Settings(BaseSettings):
 
     # Auth
     guest_password: SecretStr = SecretStr("zndraw")
-    worker_password: SecretStr = SecretStr("zndraw-worker")
+    internal_worker_email: str = "worker@internal.user"
 
     # Database
     database_url: str = "sqlite+aiosqlite://"  # In-memory SQLite by default
