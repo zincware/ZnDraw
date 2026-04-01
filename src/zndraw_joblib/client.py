@@ -372,7 +372,8 @@ class JobManager:
         extension_class
             Extension subclass to register.
         room
-            Room scope. Defaults to ``"@global"``.
+            Room scope. Defaults to ``"@global"`` when called directly.
+            ``ZnDraw.register_job()`` resolves *None* to the client's room.
         run_kwargs
             Extra keyword arguments passed to ``extension.run()`` at
             execution time. Useful for heavy, pre-loaded objects (e.g.
