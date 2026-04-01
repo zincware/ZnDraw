@@ -99,8 +99,7 @@ async def ensure_internal_worker(
     """Create or update the internal worker superuser.
 
     Idempotent — safe to call on every startup. The password is a random
-    UUID generated each time — it is never used for login (public login
-    is blocked for this email).
+    UUID generated each time — it is never used for login.
 
     Parameters
     ----------
@@ -341,7 +340,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from zndraw_joblib.dependencies import (
             get_frame_room_cleanup,
             get_result_backend,
-            get_worker_token,
         )
 
         redis_raw = redis_client.from_url(redis_url, **redis_kwargs)
@@ -370,24 +368,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 )
 
         app.dependency_overrides[get_frame_room_cleanup] = lambda: frame_room_cleanup
-
-        # Wire WorkerTokenDep — mints JWTs for the internal worker user.
-        # The override accepts SessionDep so FastAPI reuses the request-scoped
-        # session (avoiding a second lock acquisition on SQLite).
-        from fastapi_users.authentication import JWTStrategy
-
-        from zndraw_auth.db import SessionDep
-
-        jwt_strategy = JWTStrategy(
-            secret=auth_settings.secret_key.get_secret_value(),
-            lifetime_seconds=auth_settings.token_lifetime_seconds,
-        )
-
-        async def _mint_worker_token(session: SessionDep) -> str:
-            worker = await lookup_worker_user(session, settings.internal_worker_email)
-            return await jwt_strategy.write_token(worker)
-
-        app.dependency_overrides[get_worker_token] = _mint_worker_token
 
         # Spawn in-process TaskIQ worker (disabled in Docker — dedicated containers)
         worker_task = None

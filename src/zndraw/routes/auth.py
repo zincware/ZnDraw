@@ -3,8 +3,7 @@
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends
 from fastapi_users.authentication import JWTStrategy
 
 from zndraw.config import Settings, get_zndraw_settings
@@ -42,36 +41,6 @@ async def create_guest_session(
     token = await strategy.write_token(user)
 
     return {"access_token": token, "token_type": "bearer", "email": email}
-
-
-@router.post("/jwt/login")
-async def login(
-    settings: Annotated[Settings, Depends(get_zndraw_settings)],
-    auth_settings: AuthSettingsDep,
-    user_manager: Annotated[UserManager, Depends(get_user_manager)],
-    credentials: Annotated[OAuth2PasswordRequestForm, Depends()],
-) -> dict:
-    """Login endpoint with internal worker email guard.
-
-    Shadows the fastapi-users login route (first-match wins in FastAPI)
-    to block the internal service account from public login.
-    """
-    if credentials.username == settings.internal_worker_email:
-        raise HTTPException(
-            status_code=403,
-            detail="Internal service accounts cannot log in via the public API",
-        )
-
-    user = await user_manager.authenticate(credentials)
-    if user is None or not user.is_active:
-        raise HTTPException(status_code=400, detail="LOGIN_BAD_CREDENTIALS")
-
-    strategy = JWTStrategy(
-        secret=auth_settings.secret_key.get_secret_value(),
-        lifetime_seconds=auth_settings.token_lifetime_seconds,
-    )
-    token = await strategy.write_token(user)
-    return {"access_token": token, "token_type": "bearer"}
 
 
 # Include fastapi-users routers

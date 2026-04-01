@@ -120,27 +120,10 @@ async def client_fixture(
     app.state.settings = Settings()
     app.state.auth_settings = AuthSettings()
 
-    # Wire WorkerTokenDep — mirrors production lifespan wiring
-    from fastapi_users.authentication import JWTStrategy
-
-    from zndraw.database import ensure_internal_worker, lookup_worker_user
-    from zndraw_auth.db import SessionDep
-    from zndraw_joblib.dependencies import get_worker_token
+    # Ensure the internal worker user exists for WorkerTokenDep resolution
+    from zndraw.database import ensure_internal_worker
 
     await ensure_internal_worker(session, app.state.settings.internal_worker_email)
-
-    _jwt_strategy = JWTStrategy(
-        secret=app.state.auth_settings.secret_key.get_secret_value(),
-        lifetime_seconds=app.state.auth_settings.token_lifetime_seconds,
-    )
-
-    async def _mint_worker_token(session: SessionDep) -> str:
-        worker = await lookup_worker_user(
-            session, app.state.settings.internal_worker_email
-        )
-        return await _jwt_strategy.write_token(worker)
-
-    app.dependency_overrides[get_worker_token] = _mint_worker_token
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
@@ -165,6 +148,12 @@ async def test_user_fixture(session: AsyncSession) -> User:
 def mock_sio_fixture() -> MockSioServer:
     """MockSioServer for route tests — shared across client and test assertions."""
     return MockSioServer()
+
+
+@pytest.fixture(name="settings")
+def settings_fixture() -> Settings:
+    """Return a Settings instance for the current test environment."""
+    return Settings()
 
 
 @pytest.fixture(name="result_backend")
