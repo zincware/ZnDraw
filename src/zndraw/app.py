@@ -82,7 +82,7 @@ async def _unhandled_exception_handler(
         type(exc).__name__,
         request.method,
         request.url.path,
-        exc_info=True,
+        exc_info=True,  # noqa: LOG014  — FastAPI exception handler, exc is the parameter
     )
     return await problem_exception_handler(
         request, InternalServerError.exception(detail=str(exc))
