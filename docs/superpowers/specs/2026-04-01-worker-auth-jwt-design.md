@@ -40,9 +40,8 @@ endpoints:
 
 - **Login** (`POST /v1/auth/jwt/login`): reject with 403 if username matches
   `settings.internal_worker_email`.
-- **Register** (`POST /v1/auth/register`): reject with 403 if email matches.
-  Registration would already fail with "user exists", but an explicit check
-  avoids leaking that the email is taken and makes the intent clear.
+- **Register**: no custom guard needed — fastapi-users already rejects with
+  "user already exists" since `db-init` creates the worker user first.
 
 The internal worker email moves from a module-level constant in `database.py` to
 a config field:
