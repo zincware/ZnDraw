@@ -12,7 +12,7 @@ import httpx
 import pytest
 import pytest_asyncio
 import uvicorn
-from helpers import MockSioServer, create_test_user_model
+from helpers import InMemoryResultBackend, MockSioServer, create_test_user_model
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -81,30 +81,41 @@ async def session_fixture() -> AsyncIterator[AsyncSession]:
 
 
 @pytest_asyncio.fixture(name="client")
-async def client_fixture(session: AsyncSession) -> AsyncIterator[AsyncClient]:
-    """Create an async test client with the session dependency overridden."""
-    from zndraw.app import app
-    from zndraw.dependencies import get_redis, get_tsio
-    from zndraw_auth import get_session
+async def client_fixture(
+    session: AsyncSession,
+    redis_client,
+    mock_sio: MockSioServer,
+    frame_storage: FrameStorage,
+    result_backend: InMemoryResultBackend,
+) -> AsyncIterator[AsyncClient]:
+    """Async test client with real Redis, real DB, MockSioServer.
 
-    mock_sio = MockSioServer()
+    All route tests share this fixture. No per-file client definitions.
+    """
+    from zndraw.app import app
+    from zndraw.dependencies import (
+        get_frame_storage,
+        get_joblib_settings,
+        get_redis,
+        get_result_backend,
+        get_tsio,
+    )
+    from zndraw_auth import get_session
+    from zndraw_joblib.settings import JobLibSettings
 
     async def get_session_override() -> AsyncIterator[AsyncSession]:
         yield session
 
-    def get_sio_override() -> MockSioServer:
-        return mock_sio
-
-    # Create test session_maker for Socket.IO handlers
     @asynccontextmanager
     async def test_session_maker():
         yield session
 
     app.dependency_overrides[get_session] = get_session_override
-    app.dependency_overrides[get_redis] = lambda: (
-        None
-    )  # tests that need redis override this
-    app.dependency_overrides[get_tsio] = get_sio_override
+    app.dependency_overrides[get_redis] = lambda: redis_client
+    app.dependency_overrides[get_tsio] = lambda: mock_sio
+    app.dependency_overrides[get_frame_storage] = lambda: frame_storage
+    app.dependency_overrides[get_result_backend] = lambda: result_backend
+    app.dependency_overrides[get_joblib_settings] = lambda: JobLibSettings()
     app.state.session_maker = test_session_maker
     app.state.settings = Settings()
     app.state.auth_settings = AuthSettings()
@@ -126,6 +137,18 @@ async def test_user_fixture(session: AsyncSession) -> User:
     await session.commit()
     await session.refresh(user)
     return user
+
+
+@pytest.fixture(name="mock_sio")
+def mock_sio_fixture() -> MockSioServer:
+    """MockSioServer for route tests — shared across client and test assertions."""
+    return MockSioServer()
+
+
+@pytest.fixture(name="result_backend")
+def result_backend_fixture() -> InMemoryResultBackend:
+    """In-memory result backend for route tests."""
+    return InMemoryResultBackend()
 
 
 # =============================================================================

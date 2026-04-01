@@ -1,24 +1,19 @@
 """Tests for provider-aware frame dispatch in GET /v1/rooms/{room_id}/frames/{index}."""
 
 import asyncio
-from collections.abc import AsyncIterator
-from unittest.mock import AsyncMock
 
 import msgpack
 import pytest
-import pytest_asyncio
 from helpers import (
-    MockSioServer,
+    InMemoryResultBackend,
     auth_header,
     create_test_room,
     create_test_user_in_db,
     decode_msgpack_response,
     make_raw_frame,
 )
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from zndraw.exceptions import FrameNotFound, ProblemDetail
 from zndraw.storage import FrameStorage, RawFrame
@@ -28,148 +23,8 @@ from zndraw_joblib.exceptions import ProviderTimeout
 from zndraw_joblib.models import ProviderRecord, Worker
 
 # =============================================================================
-# In-memory ResultBackend for testing
-# =============================================================================
-
-
-class InMemoryResultBackend:
-    """Minimal ResultBackend for testing provider dispatch."""
-
-    def __init__(self) -> None:
-        self._data: dict[str, bytes] = {}
-        self._inflight: set[str] = set()
-        self._waiters: dict[str, list[asyncio.Event]] = {}
-
-    async def store(self, key: str, data: bytes, ttl: int) -> None:  # noqa: ARG002
-        self._data[key] = data
-
-    async def get(self, key: str) -> bytes | None:
-        return self._data.get(key)
-
-    async def delete(self, key: str) -> None:
-        self._data.pop(key, None)
-
-    async def acquire_inflight(self, key: str, _ttl: int) -> bool:
-        if key in self._inflight:
-            return False
-        self._inflight.add(key)
-        return True
-
-    async def release_inflight(self, key: str) -> None:
-        self._inflight.discard(key)
-
-    async def wait_for_key(self, key: str, timeout: float) -> bytes | None:  # noqa: ASYNC109
-        cached = self._data.get(key)
-        if cached is not None:
-            return cached
-        event = asyncio.Event()
-        self._waiters.setdefault(key, []).append(event)
-        try:
-            await asyncio.wait_for(event.wait(), timeout=timeout)
-            return self._data.get(key)
-        except TimeoutError:
-            return None
-        finally:
-            waiters = self._waiters.get(key, [])
-            if event in waiters:
-                waiters.remove(event)
-
-    async def notify_key(self, key: str) -> None:
-        for event in self._waiters.pop(key, []):
-            event.set()
-
-
-# =============================================================================
-# Fixtures
-# =============================================================================
-
-
-@pytest_asyncio.fixture(name="prov_session_factory")
-async def prov_session_factory_fixture() -> AsyncIterator[
-    async_sessionmaker[AsyncSession]
-]:
-    """Create a session factory backed by a fresh in-memory database."""
-    engine = create_async_engine(
-        "sqlite+aiosqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
-        yield async_sessionmaker(
-            bind=engine, class_=AsyncSession, expire_on_commit=False
-        )
-    finally:
-        await engine.dispose()
-
-
-@pytest_asyncio.fixture(name="prov_session")
-async def prov_session_fixture(
-    prov_session_factory: async_sessionmaker[AsyncSession],
-) -> AsyncIterator[AsyncSession]:
-    """Create a session from the shared factory."""
-    async with prov_session_factory() as session:
-        yield session
-
-
-@pytest.fixture(name="prov_result_backend")
-def prov_result_backend_fixture() -> InMemoryResultBackend:
-    """Create an InMemoryResultBackend."""
-    return InMemoryResultBackend()
-
-
-@pytest_asyncio.fixture(name="prov_client")
-async def prov_client_fixture(
-    prov_session: AsyncSession,
-    prov_session_factory: async_sessionmaker[AsyncSession],
-    frame_storage: FrameStorage,
-    prov_result_backend: InMemoryResultBackend,
-) -> AsyncIterator[AsyncClient]:
-    """Create a test client with provider dependencies wired."""
-    from zndraw.app import app
-    from zndraw.dependencies import (
-        get_frame_storage,
-        get_redis,
-        get_result_backend,
-        get_tsio,
-    )
-    from zndraw_auth import get_session
-    from zndraw_auth.db import get_session_maker
-    from zndraw_auth.settings import AuthSettings
-
-    mock_sio = MockSioServer()
-    mock_redis = AsyncMock()
-    mock_redis.get = AsyncMock(return_value=None)
-
-    async def get_session_override() -> AsyncIterator[AsyncSession]:
-        yield prov_session
-
-    app.state.auth_settings = AuthSettings()
-    app.dependency_overrides[get_session] = get_session_override
-    app.dependency_overrides[get_session_maker] = lambda: prov_session_factory
-    app.dependency_overrides[get_frame_storage] = lambda: frame_storage
-    app.dependency_overrides[get_tsio] = lambda: mock_sio
-    app.dependency_overrides[get_redis] = lambda: mock_redis
-    app.dependency_overrides[get_result_backend] = lambda: prov_result_backend
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
-        yield client
-
-    app.dependency_overrides.clear()
-
-
-# =============================================================================
 # Helpers
 # =============================================================================
-
-
-_create_user = create_test_user_in_db
-_create_room = create_test_room
-_auth = auth_header
 
 
 async def _create_provider(
@@ -200,19 +55,19 @@ async def _create_provider(
 
 @pytest.mark.asyncio
 async def test_get_frame_storage_hit_ignores_provider(
-    prov_client: AsyncClient,
-    prov_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Frame in storage, provider exists -- returns frame (no provider touch)."""
-    user, token = await _create_user(prov_session)
-    room = await _create_room(prov_session, user)
-    await _create_provider(prov_session, room.id, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
+    await _create_provider(session, room.id, user)
 
     await frame_storage[room.id].extend([make_raw_frame({"a": 1})])
 
-    response = await prov_client.get(
-        f"/v1/rooms/{room.id}/frames/0", headers=_auth(token)
+    response = await client.get(
+        f"/v1/rooms/{room.id}/frames/0", headers=auth_header(token)
     )
     assert response.status_code == 200
     frames = decode_msgpack_response(response.content)
@@ -222,15 +77,15 @@ async def test_get_frame_storage_hit_ignores_provider(
 
 @pytest.mark.asyncio
 async def test_get_frame_provider_cache_hit(
-    prov_client: AsyncClient,
-    prov_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
-    prov_result_backend: InMemoryResultBackend,
+    result_backend: InMemoryResultBackend,
 ) -> None:
     """Frame in provider cache, storage slot is None -- returns 200 with frame."""
-    user, token = await _create_user(prov_session)
-    room = await _create_room(prov_session, user)
-    provider = await _create_provider(prov_session, room.id, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
+    provider = await _create_provider(session, room.id, user)
 
     # Reserve slots (provider has 3 frames), slot 0 is None
     await frame_storage[room.id].reserve(3)
@@ -244,10 +99,10 @@ async def test_get_frame_provider_cache_hit(
     params = {"index": "0"}
     rhash = request_hash(params)
     cache_key = f"provider-result:{provider.full_name}:{rhash}"
-    await prov_result_backend.store(cache_key, packed, ttl=300)
+    await result_backend.store(cache_key, packed, 300)
 
-    response = await prov_client.get(
-        f"/v1/rooms/{room.id}/frames/0", headers=_auth(token)
+    response = await client.get(
+        f"/v1/rooms/{room.id}/frames/0", headers=auth_header(token)
     )
     assert response.status_code == 200
     frames = decode_msgpack_response(response.content)
@@ -257,20 +112,20 @@ async def test_get_frame_provider_cache_hit(
 
 @pytest.mark.asyncio
 async def test_get_frame_provider_timeout(
-    prov_client: AsyncClient,
-    prov_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Frame not cached, provider exists -- long-poll times out → 504."""
-    user, token = await _create_user(prov_session)
-    room = await _create_room(prov_session, user)
-    await _create_provider(prov_session, room.id, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
+    await _create_provider(session, room.id, user)
 
     # Reserve slots, leave them empty
     await frame_storage[room.id].reserve(5)
 
-    response = await prov_client.get(
-        f"/v1/rooms/{room.id}/frames/2", headers=_auth(token)
+    response = await client.get(
+        f"/v1/rooms/{room.id}/frames/2", headers=auth_header(token)
     )
     assert response.status_code == 504
 
@@ -281,19 +136,19 @@ async def test_get_frame_provider_timeout(
 
 @pytest.mark.asyncio
 async def test_get_frame_no_provider_returns_404(
-    prov_client: AsyncClient,
-    prov_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
 ) -> None:
     """Frame missing, no provider registered -- returns 404."""
-    user, token = await _create_user(prov_session)
-    room = await _create_room(prov_session, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
 
     # Reserve slots but no provider registered
     await frame_storage[room.id].reserve(3)
 
-    response = await prov_client.get(
-        f"/v1/rooms/{room.id}/frames/1", headers=_auth(token)
+    response = await client.get(
+        f"/v1/rooms/{room.id}/frames/1", headers=auth_header(token)
     )
     assert response.status_code == 404
     problem = ProblemDetail.model_validate(response.json())
@@ -302,20 +157,20 @@ async def test_get_frame_no_provider_returns_404(
 
 @pytest.mark.asyncio
 async def test_get_frame_dispatch_acquires_inflight(
-    prov_client: AsyncClient,
-    prov_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
-    prov_result_backend: InMemoryResultBackend,
+    result_backend: InMemoryResultBackend,
 ) -> None:
     """After dispatch, inflight lock is acquired."""
-    user, token = await _create_user(prov_session)
-    room = await _create_room(prov_session, user)
-    provider = await _create_provider(prov_session, room.id, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
+    provider = await _create_provider(session, room.id, user)
 
     await frame_storage[room.id].reserve(3)
 
-    response = await prov_client.get(
-        f"/v1/rooms/{room.id}/frames/0", headers=_auth(token)
+    response = await client.get(
+        f"/v1/rooms/{room.id}/frames/0", headers=auth_header(token)
     )
     assert response.status_code == 504  # timeout, but inflight lock was set
 
@@ -323,20 +178,20 @@ async def test_get_frame_dispatch_acquires_inflight(
     params = {"index": "0"}
     rhash = request_hash(params)
     inflight_key = f"provider-inflight:{provider.full_name}:{rhash}"
-    assert inflight_key in prov_result_backend._inflight
+    assert inflight_key in result_backend._inflight
 
 
 @pytest.mark.asyncio
 async def test_get_frame_notify_wakes_long_poll(
-    prov_client: AsyncClient,
-    prov_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
-    prov_result_backend: InMemoryResultBackend,
+    result_backend: InMemoryResultBackend,
 ) -> None:
     """Provider uploads result mid-poll — long-poll wakes up and returns 200."""
-    user, token = await _create_user(prov_session)
-    room = await _create_room(prov_session, user)
-    provider = await _create_provider(prov_session, room.id, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
+    provider = await _create_provider(session, room.id, user)
 
     await frame_storage[room.id].reserve(3)
 
@@ -355,14 +210,14 @@ async def test_get_frame_notify_wakes_long_poll(
     async def _simulate_provider_upload() -> None:
         """Simulate provider uploading result after a short delay."""
         await asyncio.sleep(0.1)
-        await prov_result_backend.store(cache_key, packed, ttl=300)
-        await prov_result_backend.notify_key(cache_key)
+        await result_backend.store(cache_key, packed, 300)
+        await result_backend.notify_key(cache_key)
 
     # Start the simulated provider upload concurrently with the GET request
     upload_task = asyncio.create_task(_simulate_provider_upload())
 
-    response = await prov_client.get(
-        f"/v1/rooms/{room.id}/frames/1", headers=_auth(token)
+    response = await client.get(
+        f"/v1/rooms/{room.id}/frames/1", headers=auth_header(token)
     )
 
     await upload_task
@@ -377,15 +232,15 @@ async def test_get_frame_notify_wakes_long_poll(
 
 @pytest.mark.asyncio
 async def test_list_frames_notify_wakes_concurrent_dispatch(
-    prov_client: AsyncClient,
-    prov_session: AsyncSession,
+    client: AsyncClient,
+    session: AsyncSession,
     frame_storage: FrameStorage,
-    prov_result_backend: InMemoryResultBackend,
+    result_backend: InMemoryResultBackend,
 ) -> None:
     """Multiple missing frames dispatched concurrently — all wake on notify."""
-    user, token = await _create_user(prov_session)
-    room = await _create_room(prov_session, user)
-    provider = await _create_provider(prov_session, room.id, user)
+    user, token = await create_test_user_in_db(session)
+    room = await create_test_room(session, user)
+    provider = await _create_provider(session, room.id, user)
 
     # Reserve 3 slots, fill only index 1
     await frame_storage[room.id].reserve(3)
@@ -407,13 +262,13 @@ async def test_list_frames_notify_wakes_concurrent_dispatch(
             packed = msgpack.packb(frame, use_bin_type=True)
             assert isinstance(packed, bytes)
             key = _cache_key(idx)
-            await prov_result_backend.store(key, packed, ttl=300)
-            await prov_result_backend.notify_key(key)
+            await result_backend.store(key, packed, 300)
+            await result_backend.notify_key(key)
 
     upload_task = asyncio.create_task(_simulate_provider_upload())
 
-    response = await prov_client.get(
-        f"/v1/rooms/{room.id}/frames?indices=0,1,2", headers=_auth(token)
+    response = await client.get(
+        f"/v1/rooms/{room.id}/frames?indices=0,1,2", headers=auth_header(token)
     )
 
     await upload_task

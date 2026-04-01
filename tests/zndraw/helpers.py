@@ -4,6 +4,7 @@ These are importable helpers (not pytest fixtures).
 Fixtures live in conftest.py.
 """
 
+import asyncio
 from typing import Any
 
 import msgpack
@@ -68,10 +69,13 @@ def decode_msgpack_response(content: bytes) -> list[dict[bytes, bytes]]:
 
 
 async def create_test_user_in_db(
-    session: AsyncSession, email: str = "testuser@local.test"
+    session: AsyncSession,
+    email: str = "testuser@local.test",
+    *,
+    is_superuser: bool = False,
 ) -> tuple[User, str]:
     """Create a user in the DB and return (user, token)."""
-    user = create_test_user_model(email=email)
+    user = create_test_user_model(email=email, is_superuser=is_superuser)
     session.add(user)
     await session.commit()
     await session.refresh(user)
@@ -152,3 +156,55 @@ class MockSioServer:
 
     async def save_session(self, sid: str, session: dict[str, Any]) -> None:
         self.sessions[sid] = session
+
+
+class InMemoryResultBackend:
+    """In-memory result backend for testing.
+
+    Drop-in replacement for the real Redis-based ResultBackend.
+    Extracted from zndraw_joblib/conftest.py for shared use.
+    """
+
+    def __init__(self) -> None:
+        self._store: dict[str, bytes] = {}
+        self._inflight: set[str] = set()
+        self._waiters: dict[str, list[asyncio.Event]] = {}
+
+    async def store(self, key: str, data: bytes, _ttl: int) -> None:
+        self._store[key] = data
+        await self.notify_key(key)
+
+    async def get(self, key: str) -> bytes | None:
+        return self._store.get(key)
+
+    async def delete(self, key: str) -> None:
+        self._store.pop(key, None)
+
+    async def acquire_inflight(self, key: str, _ttl: int) -> bool:
+        if key in self._inflight:
+            return False
+        self._inflight.add(key)
+        return True
+
+    async def release_inflight(self, key: str) -> None:
+        self._inflight.discard(key)
+
+    async def wait_for_key(self, key: str, wait_timeout: float) -> bytes | None:
+        cached = self._store.get(key)
+        if cached is not None:
+            return cached
+        event = asyncio.Event()
+        self._waiters.setdefault(key, []).append(event)
+        try:
+            await asyncio.wait_for(event.wait(), timeout=wait_timeout)
+            return self._store.get(key)
+        except TimeoutError:
+            return None
+        finally:
+            waiters = self._waiters.get(key, [])
+            if event in waiters:
+                waiters.remove(event)
+
+    async def notify_key(self, key: str) -> None:
+        for event in self._waiters.pop(key, []):
+            event.set()

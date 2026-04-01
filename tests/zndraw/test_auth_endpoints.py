@@ -25,21 +25,21 @@ async def test_login(client: AsyncClient, test_user: User) -> None:
 
 
 @pytest.mark.asyncio
-async def test_login_invalid_password(client: AsyncClient, test_user: User) -> None:
-    """Test that invalid password returns 400."""
+@pytest.mark.parametrize(
+    ("username", "password"),
+    [
+        ("testuser@local.test", "wrongpassword"),
+        ("nonexistent@local.test", "password"),
+    ],
+    ids=["invalid_password", "nonexistent_user"],
+)
+async def test_login_fails(
+    client: AsyncClient, test_user: User, username: str, password: str
+) -> None:
+    """Login returns 400 for invalid credentials."""
     response = await client.post(
         "/v1/auth/jwt/login",
-        data={"username": "testuser@local.test", "password": "wrongpassword"},
-    )
-    assert response.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_login_nonexistent_user(client: AsyncClient) -> None:
-    """Test that nonexistent user returns 400."""
-    response = await client.post(
-        "/v1/auth/jwt/login",
-        data={"username": "nonexistent@local.test", "password": "password"},
+        data={"username": username, "password": password},
     )
     assert response.status_code == 400
 
@@ -92,26 +92,30 @@ async def test_register(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_register_duplicate_email(client: AsyncClient) -> None:
-    """Test that duplicate email returns 400."""
-    # First registration succeeds
-    await client.post(
-        "/v1/auth/register",
-        json={"email": "duplicate@example.com", "password": "password123"},
-    )
-    # Second registration with same email fails
-    response = await client.post(
-        "/v1/auth/register",
-        json={"email": "duplicate@example.com", "password": "password456"},
-    )
-    assert response.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_register_missing_fields(client: AsyncClient) -> None:
-    """Test that missing required fields returns 422."""
-    response = await client.post(
-        "/v1/auth/register",
-        json={"email": "newuser@example.com"},
-    )
-    assert response.status_code == 422
+@pytest.mark.parametrize(
+    ("setup_email", "email", "password", "expected_status"),
+    [
+        ("duplicate@example.com", "duplicate@example.com", "password456", 400),
+        (None, "newuser@example.com", None, 422),
+    ],
+    ids=["duplicate_email", "missing_password"],
+)
+async def test_register_fails(
+    client: AsyncClient,
+    setup_email: str | None,
+    email: str,
+    password: str | None,
+    expected_status: int,
+) -> None:
+    """Registration returns error for invalid input."""
+    if setup_email:
+        setup_resp = await client.post(
+            "/v1/auth/register",
+            json={"email": setup_email, "password": "password123"},
+        )
+        assert setup_resp.status_code == 201
+    body = {"email": email}
+    if password is not None:
+        body["password"] = password
+    response = await client.post("/v1/auth/register", json=body)
+    assert response.status_code == expected_status

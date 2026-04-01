@@ -6,7 +6,6 @@ instance properties (locked, chat, screenshots, extensions, tasks).
 
 import uuid
 import warnings
-from unittest.mock import patch
 
 import pytest
 
@@ -53,13 +52,18 @@ def test_list_rooms_autodiscover(server: str, monkeypatch: pytest.MonkeyPatch):
     assert isinstance(rooms, list)
 
 
-def test_list_rooms_no_server_raises(monkeypatch: pytest.MonkeyPatch):
+def test_list_rooms_no_server_raises(tmp_path, monkeypatch: pytest.MonkeyPatch):
     """list_rooms raises ConnectionError when no server is found."""
+    from zndraw.settings_sources import StateFile
+
     monkeypatch.delenv("ZNDRAW_URL", raising=False)
-    with (
-        patch("zndraw.settings_sources.StateFileSource.__call__", return_value={}),
-        pytest.raises(ConnectionError),
-    ):
+    # why: redirects StateFile to empty tmp_path — StateFileSource naturally returns {}
+    # because no state.json exists, simulating 'no server found' without patching
+    monkeypatch.setattr(
+        "zndraw.settings_sources.StateFile",
+        lambda: StateFile(directory=tmp_path),
+    )
+    with pytest.raises(ConnectionError):
         ZnDraw.list_rooms()
 
 
@@ -90,13 +94,18 @@ def test_login_autodiscover(server_auth: str, monkeypatch: pytest.MonkeyPatch):
     assert len(token) > 0
 
 
-def test_login_no_server_raises(monkeypatch: pytest.MonkeyPatch):
+def test_login_no_server_raises(tmp_path, monkeypatch: pytest.MonkeyPatch):
     """login raises ConnectionError when no server is found."""
+    from zndraw.settings_sources import StateFile
+
     monkeypatch.delenv("ZNDRAW_URL", raising=False)
-    with (
-        patch("zndraw.settings_sources.StateFileSource.__call__", return_value={}),
-        pytest.raises(ConnectionError),
-    ):
+    # why: redirects StateFile to empty tmp_path — StateFileSource naturally returns {}
+    # because no state.json exists, simulating 'no server found' without patching
+    monkeypatch.setattr(
+        "zndraw.settings_sources.StateFile",
+        lambda: StateFile(directory=tmp_path),
+    )
+    with pytest.raises(ConnectionError):
         ZnDraw.login(username="x", password="y")
 
 
@@ -113,13 +122,18 @@ def test_constructor_autodiscover(server: str, monkeypatch: pytest.MonkeyPatch):
     vis.disconnect()
 
 
-def test_constructor_no_server_raises(monkeypatch: pytest.MonkeyPatch):
+def test_constructor_no_server_raises(tmp_path, monkeypatch: pytest.MonkeyPatch):
     """ZnDraw() raises ConnectionError when no server is found."""
+    from zndraw.settings_sources import StateFile
+
     monkeypatch.delenv("ZNDRAW_URL", raising=False)
-    with (
-        patch("zndraw.settings_sources.StateFileSource.__call__", return_value={}),
-        pytest.raises(ConnectionError),
-    ):
+    # why: redirects StateFile to empty tmp_path — StateFileSource naturally returns {}
+    # because no state.json exists, simulating 'no server found' without patching
+    monkeypatch.setattr(
+        "zndraw.settings_sources.StateFile",
+        lambda: StateFile(directory=tmp_path),
+    )
+    with pytest.raises(ConnectionError):
         ZnDraw()
 
 

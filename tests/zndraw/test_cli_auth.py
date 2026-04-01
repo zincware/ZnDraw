@@ -6,6 +6,7 @@ import json
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 from typer.testing import CliRunner
 
@@ -31,55 +32,66 @@ def stored_entry():
 
 @pytest.fixture
 def mock_httpx_client():
-    """Yield a mock httpx.Client context manager for auth module."""
-    mock_client = MagicMock()
-    mock_client.__enter__ = MagicMock(return_value=mock_client)
-    mock_client.__exit__ = MagicMock(return_value=False)
-    with patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_client):
-        yield mock_client
+    """MagicMock httpx.Client with context-manager protocol configured."""
+    client = MagicMock()
+    client.__enter__ = MagicMock(return_value=client)
+    client.__exit__ = MagicMock(return_value=False)
+    return client
+
+
+def _challenge_response() -> MagicMock:
+    """Return a standard challenge response mock."""
+    resp = MagicMock()
+    resp.status_code = 200
+    resp.raise_for_status = MagicMock()
+    resp.json.return_value = {
+        "code": "ABCD1234",
+        "secret": "test-secret",
+        "approve_url": "/auth/cli-login/ABCD1234",
+    }
+    return resp
 
 
 # -- auth status --------------------------------------------------------------
 
 
-def test_auth_status_with_stored_token(state_file, stored_entry, mock_httpx_client):
-    """auth status should show identity from stored token."""
-    state_file.add_token("http://localhost:8000", stored_entry)
+def test_auth_status_with_stored_token(
+    server: str, state_file, stored_entry, monkeypatch
+):
+    """auth status should show identity from stored token against a real server."""
+    # Get a real guest token so /v1/auth/users/me will succeed
+    resp = httpx.post(f"{server}/v1/auth/guest", timeout=10.0)
+    resp.raise_for_status()
+    real_token = resp.json()["access_token"]
 
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "id": "abc-123",
-        "email": "user@example.com",
-        "is_superuser": False,
-    }
-    mock_httpx_client.get.return_value = mock_response
+    real_entry = TokenEntry(
+        access_token=real_token,
+        email="guest",
+        stored_at=datetime(2026, 3, 1, tzinfo=UTC),
+    )
+    state_file.add_token(server, real_entry)
 
-    with (
-        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
-        patch(
-            "zndraw.cli_agent.auth._resolve_url",
-            return_value="http://localhost:8000",
-        ),
-    ):
-        result = runner.invoke(app, ["auth", "status"])
+    # why: isolate state.json to tmp_path so tests don't share token storage
+    monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
+
+    result = runner.invoke(app, ["auth", "status"])
 
     assert result.exit_code == 0, result.output
     data = json.loads(result.stdout)
-    assert data["email"] == "user@example.com"
-    assert "server" in data
+    assert data["server"] == server
+    assert data["token_source"] == "stored"
 
 
-def test_auth_status_not_logged_in(state_file):
+def test_auth_status_not_logged_in(server: str, state_file, monkeypatch):
     """auth status with no stored/explicit token should report not logged in."""
-    with (
-        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
-        patch(
-            "zndraw.cli_agent.auth._resolve_url",
-            return_value="http://localhost:8000",
-        ),
-    ):
-        result = runner.invoke(app, ["auth", "status"])
+    # why: isolate state.json to tmp_path so tests don't share token storage
+    monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
+
+    result = runner.invoke(app, ["auth", "status"])
 
     assert result.exit_code == 0, result.output
     data = json.loads(result.stdout)
@@ -90,33 +102,29 @@ def test_auth_status_not_logged_in(state_file):
 # -- auth logout ---------------------------------------------------------------
 
 
-def test_auth_logout_removes_token(state_file, stored_entry):
+def test_auth_logout_removes_token(server: str, state_file, stored_entry, monkeypatch):
     """auth logout should remove the stored token for the server."""
-    state_file.add_token("http://localhost:8000", stored_entry)
+    state_file.add_token(server, stored_entry)
 
-    with (
-        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
-        patch(
-            "zndraw.cli_agent.auth._resolve_url",
-            return_value="http://localhost:8000",
-        ),
-    ):
-        result = runner.invoke(app, ["auth", "logout"])
+    # why: isolate state.json to tmp_path so tests don't share token storage
+    monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
+
+    result = runner.invoke(app, ["auth", "logout"])
 
     assert result.exit_code == 0
-    assert state_file.get_token("http://localhost:8000") is None
+    assert state_file.get_token(server) is None
 
 
-def test_auth_logout_no_token(state_file):
+def test_auth_logout_no_token(server: str, state_file, monkeypatch):
     """auth logout when no token is stored should not error."""
-    with (
-        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
-        patch(
-            "zndraw.cli_agent.auth._resolve_url",
-            return_value="http://localhost:8000",
-        ),
-    ):
-        result = runner.invoke(app, ["auth", "logout"])
+    # why: isolate state.json to tmp_path so tests don't share token storage
+    monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
+
+    result = runner.invoke(app, ["auth", "logout"])
 
     assert result.exit_code == 0
 
@@ -124,17 +132,8 @@ def test_auth_logout_no_token(state_file):
 # -- auth login ----------------------------------------------------------------
 
 
-def test_auth_login_approved(state_file, mock_httpx_client):
+def test_auth_login_approved(server: str, state_file, mock_httpx_client, monkeypatch):
     """auth login should store token on successful approval."""
-    challenge_resp = MagicMock()
-    challenge_resp.status_code = 200
-    challenge_resp.raise_for_status = MagicMock()
-    challenge_resp.json.return_value = {
-        "code": "ABCD1234",
-        "secret": "test-secret",
-        "approve_url": "/auth/cli-login/ABCD1234",
-    }
-
     # First poll: pending, second: approved
     pending_resp = MagicMock()
     pending_resp.status_code = 200
@@ -164,51 +163,50 @@ def test_auth_login_approved(state_file, mock_httpx_client):
             return pending_resp if call_count == 1 else approved_resp
         return me_resp
 
-    mock_httpx_client.post.return_value = challenge_resp
+    mock_httpx_client.post.return_value = _challenge_response()
     mock_httpx_client.get.side_effect = mock_get
 
+    # why: isolate state.json to tmp_path so tests don't share token storage
+    monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
+
     with (
-        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
-        patch(
-            "zndraw.cli_agent.auth._resolve_url",
-            return_value="http://localhost:8000",
-        ),
+        # why: device-code login requires choreographed challenge/poll responses
+        patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_httpx_client),
+        # why: webbrowser.open is a real OS side-effect that cannot run in CI
         patch("zndraw.cli_agent.auth.webbrowser.open"),
+        # why: time.sleep(1) x 300 iterations would make tests take minutes
         patch("zndraw.cli_agent.auth.time.sleep"),
     ):
         result = runner.invoke(app, ["auth", "login"])
 
     assert result.exit_code == 0
-    stored = state_file.get_token("http://localhost:8000")
+    stored = state_file.get_token(server)
     assert stored is not None
     assert stored.access_token == "approved.jwt.token"
     assert stored.email == "user@example.com"
 
 
-def test_auth_login_rejected(state_file, mock_httpx_client):
+def test_auth_login_rejected(server: str, state_file, mock_httpx_client, monkeypatch):
     """auth login should show error when challenge is rejected (404)."""
-    challenge_resp = MagicMock()
-    challenge_resp.status_code = 200
-    challenge_resp.raise_for_status = MagicMock()
-    challenge_resp.json.return_value = {
-        "code": "ABCD1234",
-        "secret": "test-secret",
-        "approve_url": "/auth/cli-login/ABCD1234",
-    }
-
     rejected_resp = MagicMock()
     rejected_resp.status_code = 404
 
-    mock_httpx_client.post.return_value = challenge_resp
+    mock_httpx_client.post.return_value = _challenge_response()
     mock_httpx_client.get.return_value = rejected_resp
 
+    # why: isolate state.json to tmp_path so tests don't share token storage
+    monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
+
     with (
-        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
-        patch(
-            "zndraw.cli_agent.auth._resolve_url",
-            return_value="http://localhost:8000",
-        ),
+        # why: device-code login requires choreographed challenge/poll responses
+        patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_httpx_client),
+        # why: webbrowser.open is a real OS side-effect that cannot run in CI
         patch("zndraw.cli_agent.auth.webbrowser.open"),
+        # why: time.sleep(1) x 300 iterations would make tests take minutes
         patch("zndraw.cli_agent.auth.time.sleep"),
     ):
         result = runner.invoke(app, ["auth", "login"])
@@ -216,30 +214,25 @@ def test_auth_login_rejected(state_file, mock_httpx_client):
     assert result.exit_code != 0
 
 
-def test_auth_login_expired(state_file, mock_httpx_client):
+def test_auth_login_expired(server: str, state_file, mock_httpx_client, monkeypatch):
     """auth login should show error when challenge expires (410)."""
-    challenge_resp = MagicMock()
-    challenge_resp.status_code = 200
-    challenge_resp.raise_for_status = MagicMock()
-    challenge_resp.json.return_value = {
-        "code": "ABCD1234",
-        "secret": "test-secret",
-        "approve_url": "/auth/cli-login/ABCD1234",
-    }
-
     expired_resp = MagicMock()
     expired_resp.status_code = 410
 
-    mock_httpx_client.post.return_value = challenge_resp
+    mock_httpx_client.post.return_value = _challenge_response()
     mock_httpx_client.get.return_value = expired_resp
 
+    # why: isolate state.json to tmp_path so tests don't share token storage
+    monkeypatch.setattr("zndraw.cli_agent.auth.StateFile", lambda: state_file)
+    # why: point CLI at the test server instead of auto-discovering
+    monkeypatch.setattr("zndraw.cli_agent.auth._resolve_url", lambda _url: server)
+
     with (
-        patch("zndraw.cli_agent.auth.StateFile", return_value=state_file),
-        patch(
-            "zndraw.cli_agent.auth._resolve_url",
-            return_value="http://localhost:8000",
-        ),
+        # why: device-code login requires choreographed challenge/poll responses
+        patch("zndraw.cli_agent.auth.httpx.Client", return_value=mock_httpx_client),
+        # why: webbrowser.open is a real OS side-effect that cannot run in CI
         patch("zndraw.cli_agent.auth.webbrowser.open"),
+        # why: time.sleep(1) x 300 iterations would make tests take minutes
         patch("zndraw.cli_agent.auth.time.sleep"),
     ):
         result = runner.invoke(app, ["auth", "login"])

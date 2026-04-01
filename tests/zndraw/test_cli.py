@@ -86,7 +86,9 @@ def test_get_room_names_empty_list():
 )
 def test_open_browser_to_url(monkeypatch, room, copy_from, expected_url):
     opened_urls: list[str] = []
-    monkeypatch.setattr("zndraw.cli.webbrowser.open", opened_urls.append)
+    monkeypatch.setattr(
+        "zndraw.cli.webbrowser.open", opened_urls.append
+    )  # why: prevents browser window during test
 
     open_browser_to("http://localhost:8000", room, browser=True, copy_from=copy_from)
     assert opened_urls == [expected_url]
@@ -94,7 +96,9 @@ def test_open_browser_to_url(monkeypatch, room, copy_from, expected_url):
 
 def test_open_browser_to_noop_when_disabled(monkeypatch):
     opened_urls: list[str] = []
-    monkeypatch.setattr("zndraw.cli.webbrowser.open", opened_urls.append)
+    monkeypatch.setattr(
+        "zndraw.cli.webbrowser.open", opened_urls.append
+    )  # why: prevents browser window during test
 
     open_browser_to("http://localhost:8000", "room", browser=False)
     assert opened_urls == []
@@ -148,8 +152,12 @@ def test_file_not_found():
 
 def _empty_state(monkeypatch, tmp_path):
     """Point StateFile at an empty tmp dir and disable health checks."""
-    monkeypatch.setattr("zndraw.cli.StateFile", lambda: StateFile(directory=tmp_path))
-    monkeypatch.setattr("zndraw.cli._is_url_healthy", lambda _url: False)
+    monkeypatch.setattr(
+        "zndraw.cli.StateFile", lambda: StateFile(directory=tmp_path)
+    )  # why: isolates state to tmp_path for filesystem isolation
+    monkeypatch.setattr(
+        "zndraw.cli._is_url_healthy", lambda _url: False
+    )  # why: simulates no existing server for StateFile logic
 
 
 def test_status_no_server(monkeypatch, tmp_path):
@@ -173,8 +181,12 @@ def test_status_server_running(monkeypatch, tmp_path):
         "http://localhost:8000",
         ServerEntry(added_at=now, last_used=now, pid=1234, version="1.0.0"),
     )
-    monkeypatch.setattr("zndraw.cli.StateFile", lambda: state)
-    monkeypatch.setattr("zndraw.cli._is_url_healthy", lambda _url: True)
+    monkeypatch.setattr(
+        "zndraw.cli.StateFile", lambda: state
+    )  # why: isolates state to tmp_path for filesystem isolation
+    monkeypatch.setattr(
+        "zndraw.cli._is_url_healthy", lambda _url: True
+    )  # why: simulates no existing server for StateFile logic
 
     result = runner.invoke(app, ["--status"])
     assert result.exit_code == 0
@@ -200,16 +212,24 @@ def test_browser_before_upload_new_server(monkeypatch, tmp_path):
     state_dir = tmp_path / "state"
     state_dir.mkdir()
 
-    monkeypatch.setattr("zndraw.cli.StateFile", lambda: StateFile(directory=state_dir))
-    monkeypatch.setattr("zndraw.cli._is_url_healthy", lambda _url: False)
-    monkeypatch.setattr("zndraw.cli.wait_for_server_ready", lambda *_a, **_kw: True)
-    monkeypatch.setattr("uvicorn.Server.run", lambda _self: None)
+    monkeypatch.setattr(
+        "zndraw.cli.StateFile", lambda: StateFile(directory=state_dir)
+    )  # why: isolates state to tmp_path for filesystem isolation
+    monkeypatch.setattr(
+        "zndraw.cli._is_url_healthy", lambda _url: False
+    )  # why: simulates no existing server for StateFile logic
+    monkeypatch.setattr(
+        "zndraw.cli.wait_for_server_ready", lambda *_a, **_kw: True
+    )  # why: skips server polling in unit test
+    monkeypatch.setattr(
+        "uvicorn.Server.run", lambda _self: None
+    )  # why: prevents real server startup in unit test
     monkeypatch.setattr(
         "zndraw.cli.webbrowser.open", lambda _url: call_order.append("browser")
-    )
+    )  # why: prevents browser window during test
     monkeypatch.setattr(
         "zndraw.cli.upload_file", lambda *_a, **_kw: call_order.append("upload")
-    )
+    )  # why: tracks call order (browser-before-upload orchestration test)
 
     result = runner.invoke(app, [str(dummy)])
     assert result.exit_code == 0
@@ -229,14 +249,18 @@ def test_browser_before_upload_existing_server(monkeypatch, tmp_path):
         "http://localhost:8000",
         ServerEntry(added_at=now, last_used=now, pid=1234, version=__version__),
     )
-    monkeypatch.setattr("zndraw.cli.StateFile", lambda: state)
-    monkeypatch.setattr("zndraw.cli._is_url_healthy", lambda _url: True)
+    monkeypatch.setattr(
+        "zndraw.cli.StateFile", lambda: state
+    )  # why: isolates state to tmp_path for filesystem isolation
+    monkeypatch.setattr(
+        "zndraw.cli._is_url_healthy", lambda _url: True
+    )  # why: simulates no existing server for StateFile logic
     monkeypatch.setattr(
         "zndraw.cli.webbrowser.open", lambda _url: call_order.append("browser")
-    )
+    )  # why: prevents browser window during test
     monkeypatch.setattr(
         "zndraw.cli.upload_file", lambda *_a, **_kw: call_order.append("upload")
-    )
+    )  # why: tracks call order (browser-before-upload orchestration test)
 
     result = runner.invoke(app, [str(dummy)])
     assert result.exit_code == 0
@@ -251,10 +275,10 @@ def test_browser_before_upload_remote(monkeypatch, tmp_path):
     call_order: list[str] = []
     monkeypatch.setattr(
         "zndraw.cli.webbrowser.open", lambda _url: call_order.append("browser")
-    )
+    )  # why: prevents browser window during test
     monkeypatch.setattr(
         "zndraw.cli.upload_file", lambda *_a, **_kw: call_order.append("upload")
-    )
+    )  # why: tracks call order (browser-before-upload orchestration test)
 
     result = runner.invoke(app, ["--connect", "http://example.com", str(dummy)])
     assert result.exit_code == 0
@@ -274,17 +298,27 @@ def capture_settings(monkeypatch, tmp_path):
         original_init(self, **kwargs)
         captured.append(self)
 
-    monkeypatch.setattr(Settings, "__init__", spy_init)
-    monkeypatch.setattr("uvicorn.Server.run", lambda _self: None)
+    monkeypatch.setattr(
+        Settings, "__init__", spy_init
+    )  # why: spy on Settings instantiation to verify config propagation
+    monkeypatch.setattr(
+        "uvicorn.Server.run", lambda _self: None
+    )  # why: prevents real server startup in unit test
     state_dir = tmp_path / "state"
     state_dir.mkdir()
-    monkeypatch.setattr("zndraw.cli.StateFile", lambda: StateFile(directory=state_dir))
-    monkeypatch.setattr("zndraw.cli._is_url_healthy", lambda _url: False)
+    monkeypatch.setattr(
+        "zndraw.cli.StateFile", lambda: StateFile(directory=state_dir)
+    )  # why: isolates state to tmp_path for filesystem isolation
+    monkeypatch.setattr(
+        "zndraw.cli._is_url_healthy", lambda _url: False
+    )  # why: simulates no existing server for StateFile logic
     monkeypatch.setattr(
         "zndraw.cli.wait_for_server_ready",
-        lambda _url, timeout=30.0: True,  # noqa: ARG005
+        lambda _url, timeout=30.0: True,  # noqa: ARG005  # why: skips server polling in unit test
     )
-    monkeypatch.setattr("zndraw.cli._acquire_admin_jwt", lambda _url: None)
+    monkeypatch.setattr(
+        "zndraw.cli._acquire_admin_jwt", lambda _url: None
+    )  # why: unit test of Settings propagation, not auth flow
     return captured
 
 
