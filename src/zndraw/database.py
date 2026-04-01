@@ -135,33 +135,6 @@ async def ensure_internal_worker(
         log.debug("Updated internal worker user: %s", email)
 
 
-async def lookup_worker_user(session: AsyncSession, email: str) -> User:
-    """Look up the internal worker user by email.
-
-    Parameters
-    ----------
-    session
-        Async database session.
-    email
-        Internal worker email from ``Settings.internal_worker_email``.
-
-    Raises
-    ------
-    RuntimeError
-        If the worker user does not exist (db-init not run).
-    """
-    result = await session.execute(
-        select(User).where(User.email == email)  # type: ignore[arg-type]
-    )
-    user = result.scalar_one_or_none()
-    if user is None:
-        raise RuntimeError(
-            f"Internal worker user '{email}' not found. "
-            "Has the database been initialized (zndraw-db / init_db_on_startup)?"
-        )
-    return user
-
-
 async def init_database(
     engine: AsyncEngine | None = None,
     settings: Settings | None = None,
