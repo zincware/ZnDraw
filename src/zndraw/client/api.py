@@ -851,7 +851,7 @@ class APIManager:
 
     def list_extensions(self, room: str | None = None) -> dict[str, Any]:
         """List extensions for a job room."""
-        job_room = room or "@internal"
+        job_room = room or self.room_id
         response = self.http.get(
             f"/v1/joblib/rooms/{job_room}/jobs",
             headers=self.get_headers(),
