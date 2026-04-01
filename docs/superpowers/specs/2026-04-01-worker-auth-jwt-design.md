@@ -33,7 +33,16 @@ Multi-replica safety: only the process with `init_db_on_startup=true` (the
 minting at dispatch time only needs the user's DB record + the shared JWT
 signing secret — no password involved.
 
-### 2. Worker email becomes a config field
+### 2. Block worker login and registration
+
+Add explicit guards that reject the internal worker email on public auth
+endpoints:
+
+- **Login** (`POST /v1/auth/jwt/login`): reject with 403 if username matches
+  `settings.internal_worker_email`.
+- **Register** (`POST /v1/auth/register`): reject with 403 if email matches.
+  Registration would already fail with "user exists", but an explicit check
+  avoids leaking that the email is taken and makes the intent clear.
 
 The internal worker email moves from a module-level constant in `database.py` to
 a config field:
@@ -43,26 +52,18 @@ a config field:
 internal_worker_email: str = "worker@internal.user"
 ```
 
-No custom login/register guards are needed — the worker password is a random
-UUID that is never exposed, so brute-force login is infeasible.
-
 ### 3. JWT minting at dispatch time (with DI)
 
-A FastAPI dependency in `zndraw_joblib/dependencies.py` mints a fresh JWT for
-the worker user on each task submission.  It reads ``settings`` and
-``auth_settings`` from ``request.app.state`` (set by the host app lifespan)
-and accepts ``SessionDep`` so FastAPI reuses the request-scoped session
-(avoiding SQLite deadlock):
+A new FastAPI dependency mints a fresh JWT for the worker user on each task
+submission:
 
 ```python
-async def get_worker_token(request: Request, session: SessionDep) -> str:
-    settings = request.app.state.settings
-    auth_settings = request.app.state.auth_settings
+async def get_worker_token(
+    session: SessionDep,
+    strategy: JWTStrategyDep,
+    settings: SettingsDep,
+) -> str:
     user = await lookup_worker_user(session, settings.internal_worker_email)
-    strategy = JWTStrategy(
-        secret=auth_settings.secret_key.get_secret_value(),
-        lifetime_seconds=auth_settings.token_lifetime_seconds,
-    )
     return await strategy.write_token(user)
 
 WorkerTokenDep = Annotated[str, Depends(get_worker_token)]
@@ -148,8 +149,8 @@ git history and this spec).
 
 - Existing tests that set `ZNDRAW_SERVER_WORKER_PASSWORD` env vars: remove those
   env vars. The worker user is created with a random password automatically.
-- Add a test that the default login flow still works for regular users.
-- Add a test that `get_worker_token` mints a valid JWT for the worker user.
+- Add a test that `POST /v1/auth/jwt/login` with the worker email returns 403.
+- Add a test that `POST /v1/auth/register` with the worker email returns 403.
 - Update `InternalExtensionExecutor` tests to pass `token` instead of
   `worker_email` / `worker_password`.
 
@@ -158,8 +159,8 @@ git history and this spec).
 | Property | Before | After |
 |----------|--------|-------|
 | Worker password | Static default `"zndraw-worker"`, configurable | Random UUID per startup, never exposed |
-| Public login | Worker user loginable via `/auth/jwt/login` | Login fails (random UUID password) |
-| Registration | Worker email registrable (fails with "exists") | Fails with "exists" (email is a default — no real leak) |
+| Public login | Worker user loginable via `/auth/jwt/login` | Blocked with 403 |
+| Registration | Worker email registrable (fails with "exists") | Blocked with 403 (no email leak) |
 | Redis exposure | Password never in Redis | JWT in Redis per task (1-hour TTL) |
 | TaskIQ worker config | Needs `ZNDRAW_SERVER_WORKER_PASSWORD` env var | Needs no auth config |
 | Multi-replica | All replicas need same password | Stateless — any replica mints JWTs |
@@ -174,6 +175,7 @@ git history and this spec).
 | `src/zndraw/broker.py` | Simplify — executor only needs `base_url` |
 | `src/zndraw_joblib/registry.py` | Add `token: str` to task function signature, pass to executor |
 | `src/zndraw_joblib/router.py` | Add `WorkerTokenDep`, pass token to `kiq()` |
-| `src/zndraw_joblib/dependencies.py` | Real `get_worker_token` dependency using `Request.app.state` |
+| `src/zndraw/routes/auth.py` | Add login/register guards for internal worker email |
 | `docker/templates/.env` | Remove `ZNDRAW_SERVER_WORKER_PASSWORD` |
-| `tests/` | Update env vars, add worker token integration test |
+| `docker/*/README.md` | Remove worker password from config tables |
+| `tests/` | Update env vars, add login/register block tests |
