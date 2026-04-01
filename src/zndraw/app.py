@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import socketio
@@ -9,6 +10,7 @@ from starlette.staticfiles import StaticFiles
 from zndraw.database import lifespan
 from zndraw.dependencies import get_writable_room_id
 from zndraw.exceptions import (
+    InternalServerError,
     ProblemError,
     UnprocessableContent,
     problem_exception_handler,
@@ -47,6 +49,8 @@ app = FastAPI(title="ZnDraw API", lifespan=lifespan)
 app.state.settings_overrides = {}  # CLI populates before uvicorn starts
 app.state.local_token = None  # CLI populates on server start
 
+logger = logging.getLogger(__name__)
+
 # Override joblib's verify_writable_room to enforce room locks
 app.dependency_overrides[joblib_verify_writable_room] = get_writable_room_id
 
@@ -57,17 +61,31 @@ app.add_exception_handler(JoblibProblemError, joblib_problem_exception_handler)
 
 @app.exception_handler(RequestValidationError)
 async def _validation_exception_handler(
-    _request: Request, exc: RequestValidationError
+    request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """Convert FastAPI validation errors to RFC 9457 problem detail."""
     detail = "; ".join(
         f"{'.'.join(str(x) for x in e['loc'])}: {e['msg']}" for e in exc.errors()
     )
-    problem = UnprocessableContent.create(detail=detail)
-    return JSONResponse(
-        status_code=422,
-        content=problem.model_dump(exclude_none=True),
-        media_type="application/problem+json",
+    return await problem_exception_handler(
+        request, UnprocessableContent.exception(detail=detail)
+    )
+
+
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
+    """Catch-all for unhandled exceptions — log and return RFC 9457."""
+    logger.error(
+        "Unhandled %s on %s %s",
+        type(exc).__name__,
+        request.method,
+        request.url.path,
+        exc_info=True,
+    )
+    return await problem_exception_handler(
+        request, InternalServerError.exception(detail=str(exc))
     )
 
 
