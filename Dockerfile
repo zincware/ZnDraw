@@ -61,7 +61,7 @@ RUN WHEEL=$(ls /tmp/*.whl) && uv pip install --system --no-cache-dir --prereleas
 # Set environment
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    ZNDRAW_HOST=0.0.0.0
+    ZNDRAW_SERVER_HOST=0.0.0.0
 
 USER appuser
 

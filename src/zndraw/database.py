@@ -371,19 +371,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         app.dependency_overrides[get_frame_room_cleanup] = lambda: frame_room_cleanup
 
-        # Wire WorkerTokenDep — mints JWTs for the internal worker user
+        # Wire WorkerTokenDep — mints JWTs for the internal worker user.
+        # The override accepts SessionDep so FastAPI reuses the request-scoped
+        # session (avoiding a second lock acquisition on SQLite).
         from fastapi_users.authentication import JWTStrategy
 
-        async def _mint_worker_token() -> str:
-            async with app.state.session_maker() as session:
-                worker = await lookup_worker_user(
-                    session, settings.internal_worker_email
-                )
-            strategy = JWTStrategy(
-                secret=auth_settings.secret_key.get_secret_value(),
-                lifetime_seconds=auth_settings.token_lifetime_seconds,
-            )
-            return await strategy.write_token(worker)
+        from zndraw_auth.db import SessionDep
+
+        jwt_strategy = JWTStrategy(
+            secret=auth_settings.secret_key.get_secret_value(),
+            lifetime_seconds=auth_settings.token_lifetime_seconds,
+        )
+
+        async def _mint_worker_token(session: SessionDep) -> str:
+            worker = await lookup_worker_user(session, settings.internal_worker_email)
+            return await jwt_strategy.write_token(worker)
 
         app.dependency_overrides[get_worker_token] = _mint_worker_token
 

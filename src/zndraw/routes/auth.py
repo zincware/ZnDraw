@@ -49,7 +49,7 @@ async def login(
     settings: Annotated[Settings, Depends(get_zndraw_settings)],
     auth_settings: AuthSettingsDep,
     user_manager: Annotated[UserManager, Depends(get_user_manager)],
-    credentials: OAuth2PasswordRequestForm = Depends(),
+    credentials: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> dict:
     """Login endpoint with internal worker email guard.
 

@@ -144,7 +144,7 @@ async def get_worker_token() -> str:
     ``app.dependency_overrides[get_worker_token]``.
     """
     raise NotImplementedError(
-        "WorkerTokenFactory not configured — host app must override get_worker_token"
+        "WorkerTokenDep not configured — host app must override get_worker_token"
     )
 
 

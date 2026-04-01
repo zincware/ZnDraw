@@ -120,6 +120,28 @@ async def client_fixture(
     app.state.settings = Settings()
     app.state.auth_settings = AuthSettings()
 
+    # Wire WorkerTokenDep — mirrors production lifespan wiring
+    from fastapi_users.authentication import JWTStrategy
+
+    from zndraw.database import ensure_internal_worker, lookup_worker_user
+    from zndraw_auth.db import SessionDep
+    from zndraw_joblib.dependencies import get_worker_token
+
+    await ensure_internal_worker(session, app.state.settings.internal_worker_email)
+
+    _jwt_strategy = JWTStrategy(
+        secret=app.state.auth_settings.secret_key.get_secret_value(),
+        lifetime_seconds=app.state.auth_settings.token_lifetime_seconds,
+    )
+
+    async def _mint_worker_token(session: SessionDep) -> str:
+        worker = await lookup_worker_user(
+            session, app.state.settings.internal_worker_email
+        )
+        return await _jwt_strategy.write_token(worker)
+
+    app.dependency_overrides[get_worker_token] = _mint_worker_token
+
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
