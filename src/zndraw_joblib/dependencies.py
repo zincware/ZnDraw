@@ -135,3 +135,17 @@ def request_hash(params: dict[str, Any]) -> str:
     """Return a SHA-256 hex digest of the canonicalized JSON representation."""
     canonical = json.dumps(params, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+async def get_worker_token() -> str:
+    """Return a fresh JWT for the internal worker user.
+
+    Host apps must override this dependency via
+    ``app.dependency_overrides[get_worker_token]``.
+    """
+    raise NotImplementedError(
+        "WorkerTokenFactory not configured — host app must override get_worker_token"
+    )
+
+
+WorkerTokenDep = Annotated[str, Depends(get_worker_token)]

@@ -341,6 +341,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from zndraw_joblib.dependencies import (
             get_frame_room_cleanup,
             get_result_backend,
+            get_worker_token,
         )
 
         redis_raw = redis_client.from_url(redis_url, **redis_kwargs)
@@ -369,6 +370,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 )
 
         app.dependency_overrides[get_frame_room_cleanup] = lambda: frame_room_cleanup
+
+        # Wire WorkerTokenDep — mints JWTs for the internal worker user
+        from fastapi_users.authentication import JWTStrategy
+
+        async def _mint_worker_token() -> str:
+            async with app.state.session_maker() as session:
+                worker = await lookup_worker_user(
+                    session, settings.internal_worker_email
+                )
+            strategy = JWTStrategy(
+                secret=auth_settings.secret_key.get_secret_value(),
+                lifetime_seconds=auth_settings.token_lifetime_seconds,
+            )
+            return await strategy.write_token(worker)
+
+        app.dependency_overrides[get_worker_token] = _mint_worker_token
 
         # Spawn in-process TaskIQ worker (disabled in Docker — dedicated containers)
         worker_task = None

@@ -25,6 +25,7 @@ from zndraw_joblib.dependencies import (
     FrameRoomCleanupDep,
     JobLibSettingsDep,
     ResultBackendDep,
+    WorkerTokenDep,
     WritableRoomDep,
     get_internal_registry,
     get_tsio,
@@ -589,6 +590,7 @@ async def submit_task(
     user: CurrentUserDep,
     internal_registry: InternalRegistryDep,
     tsio: TsioDep,
+    worker_token: WorkerTokenDep,
 ):
     """Submit a task for processing."""
     job = await _resolve_job(session, job_name)
@@ -623,6 +625,7 @@ async def submit_task(
                 task_id=str(task.id),
                 room_id=room_id,
                 payload=request.payload,
+                token=worker_token,
             )
         except Exception:  # noqa: BLE001
             task.status = TaskStatus.FAILED
