@@ -12,7 +12,7 @@ server at ``ZNDRAW_SERVER_INTERNAL_URL``.
 from taskiq_redis import ListQueueBroker
 
 from zndraw.config import Settings
-from zndraw.database import WORKER_EMAIL, _collect_extensions
+from zndraw.database import _collect_extensions
 from zndraw.executor import InternalExtensionExecutor
 from zndraw_joblib import register_internal_tasks
 
@@ -30,8 +30,6 @@ server_url = settings.internal_url or f"http://localhost:{settings.port}"
 
 executor = InternalExtensionExecutor(
     base_url=server_url,
-    worker_email=WORKER_EMAIL,
-    worker_password=settings.worker_password,
 )
 
 register_internal_tasks(broker, _collect_extensions(), executor)

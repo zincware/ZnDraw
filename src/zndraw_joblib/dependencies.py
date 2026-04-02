@@ -4,8 +4,12 @@ import json
 from typing import Annotated, Any, Protocol, runtime_checkable
 
 from fastapi import Depends, Path, Request
+from fastapi_users.authentication import JWTStrategy
+from sqlmodel import select
 from zndraw_socketio import AsyncServerWrapper
 
+from zndraw_auth import User
+from zndraw_auth.db import SessionDep
 from zndraw_joblib.exceptions import InvalidRoomId
 from zndraw_joblib.registry import InternalRegistry
 from zndraw_joblib.settings import JobLibSettings
@@ -135,3 +139,31 @@ def request_hash(params: dict[str, Any]) -> str:
     """Return a SHA-256 hex digest of the canonicalized JSON representation."""
     canonical = json.dumps(params, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+async def get_worker_token(request: Request, session: SessionDep) -> str:
+    """Return a fresh JWT for the internal worker user.
+
+    Reads ``settings`` and ``auth_settings`` from ``request.app.state``
+    (set in the host app lifespan).  Accepts ``session`` via DI so
+    FastAPI reuses the request-scoped session (avoids SQLite deadlock).
+    """
+    settings = request.app.state.settings
+    auth_settings = request.app.state.auth_settings
+    result = await session.execute(
+        select(User).where(User.email == settings.internal_worker_email)  # type: ignore[arg-type]
+    )
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise RuntimeError(
+            f"Internal worker user '{settings.internal_worker_email}' not found. "
+            "Has the database been initialized?"
+        )
+    strategy = JWTStrategy(
+        secret=auth_settings.secret_key.get_secret_value(),
+        lifetime_seconds=auth_settings.token_lifetime_seconds,
+    )
+    return await strategy.write_token(user)
+
+
+WorkerTokenDep = Annotated[str, Depends(get_worker_token)]

@@ -13,13 +13,13 @@ import importlib
 import logging
 import socket
 import threading
+import uuid
 from collections.abc import AsyncIterator
 
 import redis.asyncio as redis_client
 import socketio as socketio_lib
 from fastapi import FastAPI
 from fastapi_users.password import PasswordHelper
-from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlmodel import SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession as SQLModelAsyncSession
@@ -92,36 +92,34 @@ def _apply_sqlite_locking(app: FastAPI) -> None:
     app.state.session_maker = locked_session_maker
 
 
-WORKER_EMAIL = "worker@internal.user"
-
-
 async def ensure_internal_worker(
     session: AsyncSession,
-    password: SecretStr,
+    email: str,
 ) -> None:
     """Create or update the internal worker superuser.
 
-    Idempotent — safe to call on every startup.
+    Idempotent — safe to call on every startup. The password is a random
+    UUID generated each time — it is never used for login.
 
     Parameters
     ----------
     session
         Async database session.
-    password
-        Worker password from ``Settings.worker_password``.
+    email
+        Internal worker email from ``Settings.internal_worker_email``.
     """
     password_helper = PasswordHelper()
 
     result = await session.execute(
-        select(User).where(User.email == WORKER_EMAIL)  # type: ignore[arg-type]
+        select(User).where(User.email == email)  # type: ignore[arg-type]
     )
     existing = result.scalar_one_or_none()
 
-    hashed = password_helper.hash(password.get_secret_value())
+    hashed = password_helper.hash(str(uuid.uuid4()))
 
     if existing is None:
         worker = User(
-            email=WORKER_EMAIL,
+            email=email,
             hashed_password=hashed,
             is_active=True,
             is_superuser=True,
@@ -129,12 +127,14 @@ async def ensure_internal_worker(
         )
         session.add(worker)
         await session.commit()
-        log.info("Created internal worker user: %s", WORKER_EMAIL)
+        log.info("Created internal worker user: %s", email)
     else:
         existing.hashed_password = hashed
+        existing.is_active = True
         existing.is_superuser = True
+        existing.is_verified = True
         await session.commit()
-        log.debug("Updated internal worker user: %s", WORKER_EMAIL)
+        log.debug("Updated internal worker user: %s", email)
 
 
 async def init_database(
@@ -175,7 +175,7 @@ async def init_database(
     async with session_maker() as session:
         await ensure_default_admin(session, auth_settings)
     async with session_maker() as session:
-        await ensure_internal_worker(session, settings.worker_password)
+        await ensure_internal_worker(session, settings.internal_worker_email)
 
     # Seed @internal Job rows for built-in extensions
     await ensure_internal_jobs(_collect_extensions(), session_maker)
@@ -287,8 +287,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         executor_host = "127.0.0.1" if settings.host == "0.0.0.0" else settings.host
         executor = InternalExtensionExecutor(
             base_url=f"http://{executor_host}:{settings.port}",
-            worker_email=WORKER_EMAIL,
-            worker_password=settings.worker_password,
         )
 
         if settings.init_db_on_startup:

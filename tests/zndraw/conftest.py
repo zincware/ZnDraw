@@ -120,6 +120,11 @@ async def client_fixture(
     app.state.settings = Settings()
     app.state.auth_settings = AuthSettings()
 
+    # Ensure the internal worker user exists for WorkerTokenDep resolution
+    from zndraw.database import ensure_internal_worker
+
+    await ensure_internal_worker(session, app.state.settings.internal_worker_email)
+
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
@@ -143,6 +148,12 @@ async def test_user_fixture(session: AsyncSession) -> User:
 def mock_sio_fixture() -> MockSioServer:
     """MockSioServer for route tests — shared across client and test assertions."""
     return MockSioServer()
+
+
+@pytest.fixture(name="settings")
+def settings_fixture() -> Settings:
+    """Return a Settings instance for the current test environment."""
+    return Settings()
 
 
 @pytest.fixture(name="result_backend")

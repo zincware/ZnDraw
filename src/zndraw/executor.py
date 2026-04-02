@@ -11,34 +11,25 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from pydantic import SecretStr
+from typing import Any
 
 log = logging.getLogger(__name__)
 
 
 @dataclass
 class InternalExtensionExecutor:
-    """Executes built-in extensions as the internal worker user.
+    """Executes built-in extensions using a per-task JWT token.
 
-    Deployment config is captured at creation time and never serialized
-    through Redis. Only per-task data is passed at call time.
+    Only the server base URL is captured at creation time.
+    The JWT token is passed per-task at call time.
 
     Parameters
     ----------
     base_url
         ZnDraw server URL.
-    worker_email
-        Email of the internal worker user.
-    worker_password
-        Password for the internal worker user.
     """
 
     base_url: str
-    worker_email: str
-    worker_password: SecretStr
 
     async def __call__(
         self,
@@ -46,11 +37,10 @@ class InternalExtensionExecutor:
         payload: dict[str, Any],
         room_id: str,
         task_id: str,
+        token: str,
     ) -> None:
         """Execute extension via asyncio.to_thread."""
         base_url = self.base_url
-        worker_email = self.worker_email
-        worker_password = self.worker_password
 
         def _run() -> None:
             from zndraw.client import ZnDraw
@@ -59,8 +49,7 @@ class InternalExtensionExecutor:
             vis = ZnDraw(
                 url=base_url,
                 room=room_id,
-                user=worker_email,
-                password=worker_password,
+                token=token,
             )
             task: ClaimedTask | None = None
             try:
