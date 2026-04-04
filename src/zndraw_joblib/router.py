@@ -48,6 +48,7 @@ from zndraw_joblib.exceptions import (
     InvalidCategory,
     InvalidTaskTransition,
     JobNotFound,
+    NoWorkersAvailable,
     ProviderNotFound,
     ProviderTimeout,
     SchemaConflict,
@@ -605,6 +606,18 @@ async def submit_task(
                 " but no executor is available"
             )
         )
+
+    # Reject submission for non-@internal jobs with no connected workers
+    if job.room_id != "@internal":
+        worker_count = (
+            await session.execute(
+                select(func.count()).where(WorkerJobLink.job_id == job.id)
+            )
+        ).scalar_one()
+        if worker_count == 0:
+            raise NoWorkersAvailable.exception(
+                detail=f"Job '{job.full_name}' has no connected workers"
+            )
 
     # Create task
     task = Task(
