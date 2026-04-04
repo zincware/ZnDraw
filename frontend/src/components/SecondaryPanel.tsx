@@ -197,25 +197,36 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
 
 						{selectedJobName && (
 							<>
-								{panelTitle !== "settings" && (
-									<Tooltip title={roomReadOnly ? "Room is locked" : ""}>
-										<span>
-											<Button
-												variant="contained"
-												startIcon={<SaveIcon />}
-												onClick={handleSubmit}
-												disabled={
-													isSubmitting || isLoadingSchema || roomReadOnly
-												}
-												fullWidth
-												color="primary"
-												sx={{ mb: 2 }}
-											>
-												{isSubmitting ? "Running..." : "Run Extension"}
-											</Button>
-										</span>
-									</Tooltip>
-								)}
+								{panelTitle !== "settings" && (() => {
+									const noWorkers =
+										selectedJob != null &&
+										!selectedJob.full_name.startsWith("@internal:") &&
+										selectedJob.workers.length === 0;
+									const tooltipTitle = roomReadOnly
+										? "Room is locked"
+										: noWorkers
+											? "No workers connected"
+											: "";
+									return (
+										<Tooltip title={tooltipTitle}>
+											<span>
+												<Button
+													variant="contained"
+													startIcon={<SaveIcon />}
+													onClick={handleSubmit}
+													disabled={
+														isSubmitting || isLoadingSchema || roomReadOnly || noWorkers
+													}
+													fullWidth
+													color="primary"
+													sx={{ mb: 2 }}
+												>
+													{isSubmitting ? "Running..." : "Run Extension"}
+												</Button>
+											</span>
+										</Tooltip>
+									);
+								})()}
 
 								{isLoadingSchema ? (
 									<FormSkeleton />
