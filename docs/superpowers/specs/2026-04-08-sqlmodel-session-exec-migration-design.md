@@ -14,9 +14,7 @@ Beyond noise reduction, the SQLModel upstream recommendation (verified via conte
 
 ## Scope
 
-Full inventory of `session.execute()` call sites across the repo (as of 2026-04-08):
-
-### `src/` — 77 sites across 17 files
+Full inventory of `session.execute()` call sites in `src/` — **77 sites across 17 files** (as of 2026-04-08):
 
 | File | Call sites |
 |---|---|
@@ -38,18 +36,17 @@ Full inventory of `session.execute()` call sites across the repo (as of 2026-04-
 | `src/zndraw_auth/db.py` | 1 |
 | `src/zndraw_auth/cli_login.py` | 3 |
 
-### `tests/` — 25 sites across 4 files
+### Why `tests/` is excluded
 
-| File | Call sites |
-|---|---|
-| `tests/zndraw_joblib/test_sweeper.py` | 16 |
-| `tests/zndraw_joblib/test_resilience.py` | 6 |
-| `tests/zndraw_joblib/test_registry.py` | 2 |
-| `tests/zndraw_auth/conftest.py` | 1 |
+Initial concern: with `filterwarnings = error`, untouched `session.execute()` calls in tests would break CI. **Verified empirically that they will not.**
 
-**Total: 102 sites across 21 files.** Tests must be migrated too — with `filterwarnings = error`, any untouched test call site would fail the suite. Any test marked `@pytest.mark.protected` stays untouched per project rules; if one blocks the migration, we document it and carve a narrow per-test `filterwarnings` marker rather than weakening the global filter.
+Every test fixture in the repo creates sessions via `async_sessionmaker(..., class_=AsyncSession)` where `AsyncSession` is imported from `sqlalchemy.ext.asyncio` — **pure SQLAlchemy sessions** (conftest files: `tests/zndraw/conftest.py:17`, `tests/zndraw_joblib/conftest.py:15`, `tests/zndraw_auth/conftest.py:11`, and `tests/zndraw_joblib/test_resilience.py` which builds its own `async_sessionmaker(threadsafe_engine, class_=AsyncSession)` per-call).
 
-**Out of scope:** anything outside the repo. `src/zndraw/socketio.py` already uses `session.exec()` and serves as a reference pattern.
+SQLModel's deprecation warning lives only on `sqlmodel.ext.asyncio.session.AsyncSession.execute`. Pure SQLAlchemy sessions bypass the override entirely (verified via `warnings.catch_warnings()` probe on both session classes). The 25 direct `session.execute()` calls in `tests/zndraw_joblib/test_sweeper.py` (16), `tests/zndraw_joblib/test_resilience.py` (6), `tests/zndraw_joblib/test_registry.py` (2), and `tests/zndraw_auth/conftest.py` (1) therefore emit **zero** warnings — confirmed by running those files with `-W 'error:...:DeprecationWarning'`: 24 passed, 0 warnings.
+
+The 15k warnings observed in the full test suite come from **integration tests** that spin up a real uvicorn server via the `server` fixture in `tests/zndraw/conftest.py:300`. That server boots through `src/zndraw/database.py:205`, which configures the production session maker with `class_=SQLModelAsyncSession`. Those tests trigger warnings only from the `src/` code they hit over HTTP, not from test-level code. Migrating `src/` eliminates all 15k.
+
+**Out of scope:** all `tests/**` (no warning exposure, so no failure risk under the filter), anything outside the repo. `src/zndraw/socketio.py` already uses `session.exec()` and serves as a reference pattern.
 
 ## Source-verified foundations
 
@@ -184,12 +181,12 @@ Notes:
 ## Execution shape
 
 - Single branch in a dedicated worktree at `.claude/worktrees/fix+sqlmodel-session-exec-migration`.
-- **Commit shape:** per-file commits for `src/` (17), per-file commits for `tests/` (4), plus one final `chore(ci): error on sqlmodel session.execute deprecation warning` that introduces the `filterwarnings` gate. The gate commit lands **last** so the per-file commits bisect cleanly against a non-failing baseline.
+- **Commit shape:** 17 per-file commits for `src/`, plus one final `chore(ci): error on sqlmodel session.execute deprecation warning` that introduces the `filterwarnings` gate. The gate commit lands **last** so the per-file commits bisect cleanly against a non-failing baseline.
 - Final step: `uv run pytest tests/` must pass cleanly, then open a PR against `main`.
 
 ## Non-goals
 
+- Migrating any `session.execute()` in `tests/**`. They don't emit the SQLModel deprecation warning (fixture sessions are pure SQLAlchemy), so they won't fail under the `filterwarnings = error` gate. Left untouched.
 - Converting any `session.execute()` that lives outside the repo.
 - Migrating ORM-style `session.add()` / `session.delete()` / `session.get()` calls (these are already the SOTA pattern).
 - Adding new tests — the migration is mechanical and existing coverage is adequate.
-- Modifying tests marked `@pytest.mark.protected` — none of the affected test files carry this marker (verified 2026-04-08), so this is a no-op constraint, but remains a hard rule per project instructions.
