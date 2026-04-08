@@ -153,3 +153,28 @@ def test_submit_task_empty_payload(seeded_client):
     assert response.status_code == 202
     data = TaskResponse.model_validate(response.json())
     assert data.payload == {}
+
+
+def test_submit_global_task_no_workers_returns_409(seeded_client):
+    """Submitting to a global job with 0 workers returns 409."""
+    worker_id = seeded_client.seeded_worker_id
+
+    # Create a pending task so the job survives orphan cleanup
+    resp = seeded_client.post(
+        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        json={"payload": {}},
+    )
+    assert resp.status_code == 202
+
+    # Delete the worker — job stays because it has a pending task
+    resp = seeded_client.delete(f"/v1/joblib/workers/{worker_id}")
+    assert resp.status_code == 204
+
+    # Now submit again — should be rejected (0 workers)
+    resp = seeded_client.post(
+        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        json={"payload": {}},
+    )
+    assert resp.status_code == 409
+    error = ProblemDetail.model_validate(resp.json())
+    assert "no connected workers" in error.detail

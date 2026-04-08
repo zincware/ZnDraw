@@ -169,6 +169,13 @@ class InternalJobNotConfigured(ProblemType):
     status: ClassVar[int] = 503
 
 
+class NoWorkersAvailable(ProblemType):
+    """Job has no connected workers to process the task."""
+
+    title: ClassVar[str] = "Conflict"
+    status: ClassVar[int] = 409
+
+
 class ProviderNotFound(ProblemType):
     """The requested provider does not exist."""
 
