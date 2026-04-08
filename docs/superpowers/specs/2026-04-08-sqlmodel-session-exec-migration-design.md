@@ -14,7 +14,9 @@ Beyond noise reduction, the SQLModel upstream recommendation (verified via conte
 
 ## Scope
 
-Full inventory of `session.execute()` call sites under `src/` (as of 2026-04-08):
+Full inventory of `session.execute()` call sites across the repo (as of 2026-04-08):
+
+### `src/` — 77 sites across 17 files
 
 | File | Call sites |
 |---|---|
@@ -35,9 +37,19 @@ Full inventory of `session.execute()` call sites under `src/` (as of 2026-04-08)
 | `src/zndraw/database.py` | 1 |
 | `src/zndraw_auth/db.py` | 1 |
 | `src/zndraw_auth/cli_login.py` | 3 |
-| **Total** | **77 across 17 files** |
 
-**Out of scope:** `tests/**`, everything outside `src/`. `src/zndraw/socketio.py` already uses `session.exec()` and serves as a reference pattern.
+### `tests/` — 25 sites across 4 files
+
+| File | Call sites |
+|---|---|
+| `tests/zndraw_joblib/test_sweeper.py` | 16 |
+| `tests/zndraw_joblib/test_resilience.py` | 6 |
+| `tests/zndraw_joblib/test_registry.py` | 2 |
+| `tests/zndraw_auth/conftest.py` | 1 |
+
+**Total: 102 sites across 21 files.** Tests must be migrated too — with `filterwarnings = error`, any untouched test call site would fail the suite. Any test marked `@pytest.mark.protected` stays untouched per project rules; if one blocks the migration, we document it and carve a narrow per-test `filterwarnings` marker rather than weakening the global filter.
+
+**Out of scope:** anything outside the repo. `src/zndraw/socketio.py` already uses `session.exec()` and serves as a reference pattern.
 
 ## Source-verified foundations
 
@@ -171,13 +183,13 @@ Notes:
 
 ## Execution shape
 
-- Single branch: `fix/sqlmodel-session-exec-migration` in a dedicated worktree at `.claude/worktrees/fix+sqlmodel-session-exec-migration`.
-- **Commit shape:** per-file commits (17), each `refactor(<pkg>): migrate <file> to session.exec()`, plus one final `chore(ci): error on sqlmodel session.execute deprecation warning`. Keeps bisection simple if something regresses.
+- Single branch in a dedicated worktree at `.claude/worktrees/fix+sqlmodel-session-exec-migration`.
+- **Commit shape:** per-file commits for `src/` (17), per-file commits for `tests/` (4), plus one final `chore(ci): error on sqlmodel session.execute deprecation warning` that introduces the `filterwarnings` gate. The gate commit lands **last** so the per-file commits bisect cleanly against a non-failing baseline.
 - Final step: `uv run pytest tests/` must pass cleanly, then open a PR against `main`.
 
 ## Non-goals
 
-- Touching test code (tests may still use `session.execute()` — the `filterwarnings` filter catches that too, so any test regressions show up naturally).
-- Converting any `session.execute()` that lives outside `src/`.
+- Converting any `session.execute()` that lives outside the repo.
 - Migrating ORM-style `session.add()` / `session.delete()` / `session.get()` calls (these are already the SOTA pattern).
 - Adding new tests — the migration is mechanical and existing coverage is adequate.
+- Modifying tests marked `@pytest.mark.protected` — none of the affected test files carry this marker (verified 2026-04-08), so this is a no-op constraint, but remains a hard rule per project instructions.
