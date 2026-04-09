@@ -10,8 +10,8 @@ import re
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw.dependencies import (
     CurrentUserDep,
@@ -199,10 +199,10 @@ async def _copy_room_state(
     Rows are added to the session but NOT committed — caller must commit.
     """
     # Copy geometries (skip owned — ephemeral session cameras)
-    result = await session.execute(
+    result = await session.exec(
         select(RoomGeometry).where(RoomGeometry.room_id == source_room_id)
     )
-    for row in result.scalars().all():
+    for row in result.all():
         config = json.loads(row.config)
         if config.get("owner") is not None:
             continue
@@ -217,10 +217,10 @@ async def _copy_room_state(
         )
 
     # Copy bookmarks
-    result = await session.execute(
+    result = await session.exec(
         select(RoomBookmark).where(RoomBookmark.room_id == source_room_id)
     )
-    for row in result.scalars().all():
+    for row in result.all():
         session.add(
             RoomBookmark(
                 room_id=target_room_id,
@@ -230,10 +230,10 @@ async def _copy_room_state(
         )
 
     # Copy figures
-    result = await session.execute(
+    result = await session.exec(
         select(RoomFigure).where(RoomFigure.room_id == source_room_id)
     )
-    for row in result.scalars().all():
+    for row in result.all():
         session.add(
             RoomFigure(
                 room_id=target_room_id,
@@ -244,10 +244,10 @@ async def _copy_room_state(
         )
 
     # Copy selection groups
-    result = await session.execute(
+    result = await session.exec(
         select(SelectionGroup).where(SelectionGroup.room_id == source_room_id)
     )
-    for row in result.scalars().all():
+    for row in result.all():
         session.add(
             SelectionGroup(
                 room_id=target_room_id,
@@ -417,8 +417,8 @@ async def list_rooms(
 
     # Get all rooms (for PoC, show all public rooms)
     statement = select(Room).where(Room.is_public.is_(True))
-    result = await session.execute(statement)
-    rooms = list(result.scalars().all())
+    result = await session.exec(statement)
+    rooms = list(result.all())
 
     # Build response with frame counts
     room_responses = []
