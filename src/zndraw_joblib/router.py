@@ -8,10 +8,12 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
-from sqlalchemy import func, select, update
+from sqlalchemy import func, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import selectinload
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from zndraw_socketio import AsyncServerWrapper
 
 from zndraw_auth import (
@@ -134,22 +136,22 @@ async def _resolve_job(session: AsyncSession, job_name: str) -> Job:
         raise JobNotFound.exception(detail=f"Invalid job name format: {job_name}")
     job_room_id, category, name = parts
 
-    result = await session.execute(
+    result = await session.exec(
         select(Job).where(
             Job.room_id == job_room_id,
             Job.category == category,
             Job.name == name,
         )
     )
-    job = result.scalar_one_or_none()
+    job = result.one_or_none()
     if not job or job.deleted:
         raise JobNotFound.exception(detail=f"Job '{job_name}' not found")
     return job
 
 
 async def _task_response(session: AsyncSession, task: Task) -> TaskResponse:
-    result = await session.execute(select(Job).where(Job.id == task.job_id))
-    job = result.scalar_one_or_none()
+    result = await session.exec(select(Job).where(Job.id == task.job_id))
+    job = result.one_or_none()
     return TaskResponse(
         id=task.id,
         job_name=job.full_name if job else "",
@@ -181,7 +183,7 @@ async def _bulk_queue_positions(
         .label("pos")
     )
     subq = select(Task.id, row_num).where(Task.status == TaskStatus.PENDING).subquery()
-    result = await session.execute(
+    result = await session.exec(
         select(subq.c.id, subq.c.pos).where(subq.c.id.in_(task_ids))
     )
     return {row.id: row.pos for row in result}
@@ -220,8 +222,8 @@ async def _task_status_emission(session: AsyncSession, task: Task) -> Emission:
 
     Queries job name and queue position.
     """
-    result = await session.execute(select(Job).where(Job.id == task.job_id))
-    job = result.scalar_one_or_none()
+    result = await session.exec(select(Job).where(Job.id == task.job_id))
+    job = result.one_or_none()
     return build_task_status_emission(
         task,
         job_full_name=job.full_name if job else "",
@@ -291,14 +293,14 @@ async def register_job(
         )
 
     # Check if job exists
-    result = await session.execute(
+    result = await session.exec(
         select(Job).where(
             Job.room_id == room_id,
             Job.category == request.category,
             Job.name == request.name,
         )
     )
-    existing_job = result.scalar_one_or_none()
+    existing_job = result.one_or_none()
 
     if existing_job and existing_job.deleted:
         # Re-activate soft-deleted job with new schema
@@ -328,13 +330,13 @@ async def register_job(
     # Handle worker: use provided worker_id or auto-create
     if request.worker_id:
         # Verify ownership
-        result = await session.execute(
+        result = await session.exec(
             select(Worker).where(
                 Worker.id == request.worker_id,
                 Worker.user_id == user.id,
             )
         )
-        worker = result.scalar_one_or_none()
+        worker = result.one_or_none()
         if not worker:
             raise WorkerNotFound.exception(
                 detail=f"Worker '{request.worker_id}' not found or not owned by user"
@@ -346,13 +348,13 @@ async def register_job(
         await session.flush()
 
     # Ensure worker-job link exists
-    result = await session.execute(
+    result = await session.exec(
         select(WorkerJobLink).where(
             WorkerJobLink.worker_id == worker.id,
             WorkerJobLink.job_id == job.id,
         )
     )
-    link = result.scalar_one_or_none()
+    link = result.one_or_none()
     if not link:
         link = WorkerJobLink(worker_id=worker.id, job_id=job.id)
         session.add(link)
@@ -362,10 +364,10 @@ async def register_job(
     await session.refresh(job)
 
     # Get worker IDs for this job
-    result = await session.execute(
+    result = await session.exec(
         select(WorkerJobLink).where(WorkerJobLink.job_id == job.id)
     )
-    worker_links = result.scalars().all()
+    worker_links = result.all()
     worker_ids = [link.worker_id for link in worker_links]
 
     return JobResponse(
@@ -393,19 +395,19 @@ async def list_jobs(
     base_query = select(Job).where(_room_job_filter(room_id), Job.deleted.is_(False))
 
     # Total count
-    total_result = await session.execute(
+    total_result = await session.exec(
         select(func.count()).select_from(base_query.subquery())
     )
-    total = total_result.scalar()
+    total = total_result.one()
 
     # Paginated + eager-load workers
-    result = await session.execute(
+    result = await session.exec(
         base_query.options(selectinload(Job.workers))
         .order_by(Job.created_at.desc())
         .offset(offset)
         .limit(limit)
     )
-    jobs = result.scalars().all()
+    jobs = result.all()
 
     items = [
         JobSummary(
@@ -429,10 +431,10 @@ async def list_workers_for_room(
     """List workers for a room. Includes @global workers unless room_id is @global."""
     validate_room_id(room_id)
 
-    result = await session.execute(
+    result = await session.exec(
         select(Job.id).where(_room_job_filter(room_id), Job.deleted.is_(False))
     )
-    job_ids = result.scalars().all()
+    job_ids = result.all()
 
     if not job_ids:
         return PaginatedResponse(items=[], total=0, limit=limit, offset=offset)
@@ -445,13 +447,13 @@ async def list_workers_for_room(
     )
 
     # Total count
-    total_result = await session.execute(
+    total_result = await session.exec(
         select(func.count()).select_from(worker_id_query.subquery())
     )
-    total = total_result.scalar()
+    total = total_result.one()
 
     # Paginated workers with eager-loaded jobs
-    result = await session.execute(
+    result = await session.exec(
         select(Worker)
         .where(Worker.id.in_(worker_id_query))
         .options(selectinload(Worker.jobs))
@@ -459,7 +461,7 @@ async def list_workers_for_room(
         .offset(offset)
         .limit(limit)
     )
-    workers = result.scalars().all()
+    workers = result.all()
 
     items = [
         WorkerSummary(
@@ -491,19 +493,19 @@ async def list_tasks_for_room(
         base_query = base_query.where(Task.status == task_status)
 
     # Total count
-    total_result = await session.execute(
+    total_result = await session.exec(
         select(func.count()).select_from(base_query.subquery())
     )
-    total = total_result.scalar()
+    total = total_result.one()
 
     # Paginated + eager-load job relationship
-    result = await session.execute(
+    result = await session.exec(
         base_query.options(selectinload(Task.job))
         .order_by(Task.created_at.desc())
         .offset(offset)
         .limit(limit)
     )
-    tasks = result.scalars().all()
+    tasks = result.all()
 
     items = await _bulk_task_responses(session, tasks)
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
@@ -531,19 +533,19 @@ async def list_tasks_for_job(
         base_query = base_query.where(Task.status == task_status)
 
     # Total count
-    total_result = await session.execute(
+    total_result = await session.exec(
         select(func.count()).select_from(base_query.subquery())
     )
-    total = total_result.scalar()
+    total = total_result.one()
 
     # Paginated + eager-load job relationship
-    result = await session.execute(
+    result = await session.exec(
         base_query.options(selectinload(Task.job))
         .order_by(Task.created_at.desc())
         .offset(offset)
         .limit(limit)
     )
-    tasks = result.scalars().all()
+    tasks = result.all()
 
     items = await _bulk_task_responses(session, tasks)
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
@@ -560,10 +562,10 @@ async def get_job(
 
     job = await _resolve_job(session, job_name)
 
-    result = await session.execute(
+    result = await session.exec(
         select(WorkerJobLink).where(WorkerJobLink.job_id == job.id)
     )
-    worker_links = result.scalars().all()
+    worker_links = result.all()
     worker_ids = [link.worker_id for link in worker_links]
 
     return JobResponse(
@@ -610,10 +612,10 @@ async def submit_task(
     # Reject submission for non-@internal jobs with no connected workers
     if job.room_id != "@internal":
         worker_count = (
-            await session.execute(
+            await session.exec(
                 select(func.count()).where(WorkerJobLink.job_id == job.id)
             )
-        ).scalar_one()
+        ).one()
         if worker_count == 0:
             raise NoWorkersAvailable.exception(
                 detail=f"Job '{job.full_name}' has no connected workers"
@@ -684,8 +686,8 @@ async def claim_task(
 ):
     """Claim the oldest pending task for jobs the specified worker is registered for."""
     # Validate that worker_id exists and belongs to the authenticated user
-    result = await session.execute(select(Worker).where(Worker.id == request.worker_id))
-    worker = result.scalar_one_or_none()
+    result = await session.exec(select(Worker).where(Worker.id == request.worker_id))
+    worker = result.one_or_none()
 
     if not worker:
         raise WorkerNotFound.exception(f"Worker {request.worker_id} not found")
@@ -694,10 +696,10 @@ async def claim_task(
         raise Forbidden.exception("Worker belongs to a different user")
 
     # Find job IDs for this specific worker
-    result = await session.execute(
+    result = await session.exec(
         select(WorkerJobLink.job_id).where(WorkerJobLink.worker_id == request.worker_id)
     )
-    worker_job_ids = result.scalars().all()
+    worker_job_ids = result.all()
 
     if not worker_job_ids:
         return TaskClaimResponse(task=None)
@@ -711,7 +713,7 @@ async def claim_task(
     for attempt in range(max_attempts):
         try:
             # Find oldest pending task for jobs this worker is registered for
-            result = await session.execute(
+            result = await session.exec(
                 select(Task.id)
                 .where(
                     Task.job_id.in_(worker_job_ids), Task.status == TaskStatus.PENDING
@@ -719,7 +721,7 @@ async def claim_task(
                 .order_by(Task.created_at.asc())
                 .limit(1)
             )
-            task_id = result.scalar_one_or_none()
+            task_id = result.one_or_none()
 
             if not task_id:
                 return TaskClaimResponse(task=None)
@@ -730,7 +732,7 @@ async def claim_task(
                 .where(Task.id == task_id, Task.status == TaskStatus.PENDING)
                 .values(status=TaskStatus.CLAIMED, worker_id=request.worker_id)
             )
-            cursor_result = await session.execute(stmt)
+            cursor_result = await session.exec(stmt)
             await session.commit()
 
             # Check if we actually claimed it (rowcount == 1 means success)
@@ -762,8 +764,8 @@ async def claim_task(
         return TaskClaimResponse(task=None)
 
     # Fetch the claimed task
-    result = await session.execute(select(Task).where(Task.id == claimed_task_id))
-    task = result.scalar_one()
+    result = await session.exec(select(Task).where(Task.id == claimed_task_id))
+    task = result.one()
 
     await emit(tsio, {await _task_status_emission(session, task)})
 
@@ -781,8 +783,8 @@ async def get_task_status(
     """Get task status. Supports long-polling via Prefer: wait=N header."""
     # Initial lookup
     async with session_maker() as session:
-        result = await session.execute(select(Task).where(Task.id == task_id))
-        task = result.scalar_one_or_none()
+        result = await session.exec(select(Task).where(Task.id == task_id))
+        task = result.one_or_none()
         if not task:
             raise TaskNotFound.exception(detail=f"Task '{task_id}' not found")
 
@@ -802,8 +804,8 @@ async def get_task_status(
             )  # Exponential backoff, cap at 5s
 
             async with session_maker() as session:
-                result = await session.execute(select(Task).where(Task.id == task_id))
-                task = result.scalar_one_or_none()
+                result = await session.exec(select(Task).where(Task.id == task_id))
+                task = result.one_or_none()
                 if not task:
                     raise TaskNotFound.exception(detail=f"Task '{task_id}' not found")
 
@@ -811,8 +813,8 @@ async def get_task_status(
 
     # Build final response — re-fetch to avoid stale detached object
     async with session_maker() as session:
-        result = await session.execute(select(Task).where(Task.id == task_id))
-        task = result.scalar_one()
+        result = await session.exec(select(Task).where(Task.id == task_id))
+        task = result.one()
         return await _task_response(session, task)
 
 
@@ -825,8 +827,8 @@ async def update_task_status(
     tsio: TsioDep,
 ):
     """Update task status. Requires the task's worker owner or superuser."""
-    result = await session.execute(select(Task).where(Task.id == task_id))
-    task = result.scalar_one_or_none()
+    result = await session.exec(select(Task).where(Task.id == task_id))
+    task = result.one_or_none()
     if not task:
         raise TaskNotFound.exception(detail=f"Task '{task_id}' not found")
 
@@ -834,10 +836,10 @@ async def update_task_status(
     if not user.is_superuser:
         if task.worker_id is None:
             raise Forbidden.exception(detail="Task not claimed by any worker")
-        result = await session.execute(
+        result = await session.exec(
             select(Worker).where(Worker.id == task.worker_id)
         )
-        worker = result.scalar_one_or_none()
+        worker = result.one_or_none()
         if not worker or worker.user_id != user.id:
             raise Forbidden.exception(detail="Not authorized to update this task")
 
@@ -888,18 +890,18 @@ async def list_workers(
 ):
     """List all workers with their job counts."""
     # Total count
-    total_result = await session.execute(select(func.count()).select_from(Worker))
-    total = total_result.scalar()
+    total_result = await session.exec(select(func.count()).select_from(Worker))
+    total = total_result.one()
 
     # Paginated + eager-load jobs
-    result = await session.execute(
+    result = await session.exec(
         select(Worker)
         .options(selectinload(Worker.jobs))
         .order_by(Worker.created_at.desc())
         .offset(offset)
         .limit(limit)
     )
-    workers = result.scalars().all()
+    workers = result.all()
 
     items = [
         WorkerSummary(
@@ -919,8 +921,8 @@ async def worker_heartbeat(
     user: CurrentUserDep,
 ):
     """Update worker heartbeat. Worker must belong to authenticated user."""
-    result = await session.execute(select(Worker).where(Worker.id == worker_id))
-    worker = result.scalar_one_or_none()
+    result = await session.exec(select(Worker).where(Worker.id == worker_id))
+    worker = result.one_or_none()
     if not worker:
         raise WorkerNotFound.exception(detail=f"Worker '{worker_id}' not found")
 
@@ -947,8 +949,8 @@ async def delete_worker(
 
     Worker must belong to authenticated user or user must be superuser.
     """
-    result = await session.execute(select(Worker).where(Worker.id == worker_id))
-    worker = result.scalar_one_or_none()
+    result = await session.exec(select(Worker).where(Worker.id == worker_id))
+    worker = result.one_or_none()
     if not worker:
         raise WorkerNotFound.exception(detail=f"Worker '{worker_id}' not found")
 
@@ -994,14 +996,14 @@ async def _resolve_provider(
             detail=f"Provider '{provider_name}' not accessible from room '{room_id}'"
         )
 
-    result = await session.execute(
+    result = await session.exec(
         select(ProviderRecord).where(
             ProviderRecord.room_id == provider_room_id,
             ProviderRecord.category == category,
             ProviderRecord.name == name,
         )
     )
-    provider = result.scalar_one_or_none()
+    provider = result.one_or_none()
     if not provider:
         raise ProviderNotFound.exception(detail=f"Provider '{provider_name}' not found")
     return provider
@@ -1040,13 +1042,13 @@ async def register_provider(
 
     # Handle worker: use provided worker_id or auto-create
     if request.worker_id:
-        result = await session.execute(
+        result = await session.exec(
             select(Worker).where(
                 Worker.id == request.worker_id,
                 Worker.user_id == user.id,
             )
         )
-        worker = result.scalar_one_or_none()
+        worker = result.one_or_none()
         if not worker:
             raise WorkerNotFound.exception(
                 detail=f"Worker '{request.worker_id}' not found or not owned by user"
@@ -1057,14 +1059,14 @@ async def register_provider(
         await session.flush()
 
     # Check if provider already exists (upsert)
-    result = await session.execute(
+    result = await session.exec(
         select(ProviderRecord).where(
             ProviderRecord.category == request.category,
             ProviderRecord.name == request.name,
             ProviderRecord.room_id == room_id,
         )
     )
-    existing = result.scalar_one_or_none()
+    existing = result.one_or_none()
 
     if existing:
         if existing.user_id != user.id and not user.is_superuser:
@@ -1111,17 +1113,17 @@ async def list_providers(
 
     base_query = select(ProviderRecord).where(_room_provider_filter(room_id))
 
-    total_result = await session.execute(
+    total_result = await session.exec(
         select(func.count()).select_from(base_query.subquery())
     )
-    total = total_result.scalar()
+    total = total_result.one()
 
-    result = await session.execute(
+    result = await session.exec(
         base_query.order_by(ProviderRecord.created_at.desc())
         .offset(offset)
         .limit(limit)
     )
-    providers = result.scalars().all()
+    providers = result.all()
 
     items = [ProviderResponse.from_record(p) for p in providers]
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
@@ -1223,10 +1225,10 @@ async def delete_provider(
     tsio: TsioDep,
 ):
     """Unregister a provider. Must be owned by authenticated user or superuser."""
-    result = await session.execute(
+    result = await session.exec(
         select(ProviderRecord).where(ProviderRecord.id == provider_id)
     )
-    provider = result.scalar_one_or_none()
+    provider = result.one_or_none()
     if not provider:
         raise ProviderNotFound.exception(detail=f"Provider '{provider_id}' not found")
 
@@ -1255,10 +1257,10 @@ async def upload_provider_result(
 ):
     """Provider worker uploads a read result."""
     async with session_maker() as session:
-        result = await session.execute(
+        result = await session.exec(
             select(ProviderRecord).where(ProviderRecord.id == provider_id)
         )
-        provider = result.scalar_one_or_none()
+        provider = result.one_or_none()
         if not provider:
             raise ProviderNotFound.exception(
                 detail=f"Provider '{provider_id}' not found"
