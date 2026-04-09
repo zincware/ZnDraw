@@ -15,9 +15,9 @@ import uvicorn
 from helpers import InMemoryResultBackend, MockSioServer, create_test_user_model
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw.config import Settings
 from zndraw.storage import FrameStorage

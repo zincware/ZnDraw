@@ -21,9 +21,11 @@ import socketio as socketio_lib
 from fastapi import FastAPI
 from fastapi_users.password import PasswordHelper
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import SQLModel, select
-from sqlmodel.ext.asyncio.session import AsyncSession as SQLModelAsyncSession
+from sqlmodel.ext.asyncio.session import (
+    AsyncSession,
+    AsyncSession as SQLModelAsyncSession,
+)
 from taskiq.api import run_receiver_task
 from taskiq_redis import ListQueueBroker
 

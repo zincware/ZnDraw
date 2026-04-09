@@ -97,9 +97,7 @@ async def list_presets(
     DB presets override bundled ones with the same name.
     """
     await verify_room(session, room_id)
-    result = await session.exec(
-        select(RoomPreset).where(RoomPreset.room_id == room_id)
-    )
+    result = await session.exec(select(RoomPreset).where(RoomPreset.room_id == room_id))
     rows = result.all()
 
     # Start with bundled, let DB rows override

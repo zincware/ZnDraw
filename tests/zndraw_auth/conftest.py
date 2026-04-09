@@ -9,8 +9,8 @@ from httpx import ASGITransport, AsyncClient
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.pool import StaticPool
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw_auth import (
     SessionDep,
@@ -101,7 +101,9 @@ async def _create_test_app(
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    test_session_maker = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+    test_session_maker = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     app = FastAPI()
 

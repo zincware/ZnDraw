@@ -13,8 +13,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.pool import StaticPool
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw_auth import Base, User
 from zndraw_joblib.dependencies import get_result_backend

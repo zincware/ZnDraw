@@ -41,9 +41,7 @@ async def test_cleanup_stale_workers_finds_stale(async_session_factory, test_use
 
     # Verify worker was deleted
     async with async_session_factory() as session:
-        result = await session.exec(
-            select(Worker).where(Worker.id == stale_worker_id)
-        )
+        result = await session.exec(select(Worker).where(Worker.id == stale_worker_id))
         worker = result.one_or_none()
         assert worker is None
 
@@ -70,9 +68,7 @@ async def test_cleanup_stale_workers_ignores_alive(async_session_factory, test_u
 
     # Verify worker still exists
     async with async_session_factory() as session:
-        result = await session.exec(
-            select(Worker).where(Worker.id == alive_worker_id)
-        )
+        result = await session.exec(select(Worker).where(Worker.id == alive_worker_id))
         worker = result.one_or_none()
         assert worker is not None
 

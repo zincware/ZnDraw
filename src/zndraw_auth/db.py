@@ -14,11 +14,10 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool, StaticPool
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel, select
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw_auth.settings import AuthSettings
 

@@ -836,9 +836,7 @@ async def update_task_status(
     if not user.is_superuser:
         if task.worker_id is None:
             raise Forbidden.exception(detail="Task not claimed by any worker")
-        result = await session.exec(
-            select(Worker).where(Worker.id == task.worker_id)
-        )
+        result = await session.exec(select(Worker).where(Worker.id == task.worker_id))
         worker = result.one_or_none()
         if not worker or worker.user_id != user.id:
             raise Forbidden.exception(detail="Not authorized to update this task")
