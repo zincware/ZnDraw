@@ -9,13 +9,13 @@ from typing import Annotated
 from fastapi import Depends, Request
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
 from fastapi_users.password import PasswordHelper
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
-    AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool, StaticPool
 from sqlmodel import Field, SQLModel
@@ -158,10 +158,10 @@ async def ensure_default_admin(
     password_helper = PasswordHelper()
 
     # Check if user exists
-    result = await session.execute(
+    result = await session.exec(
         select(User).where(User.email == settings.default_admin_email)  # type: ignore[arg-type]
     )
-    existing = result.scalar_one_or_none()
+    existing = result.one_or_none()
 
     if existing is None:
         # Create admin user
