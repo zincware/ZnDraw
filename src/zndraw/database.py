@@ -20,7 +20,8 @@ import redis.asyncio as redis_client
 import socketio as socketio_lib
 from fastapi import FastAPI
 from fastapi_users.password import PasswordHelper
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
+from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession as SQLModelAsyncSession
 from taskiq.api import run_receiver_task
@@ -110,10 +111,10 @@ async def ensure_internal_worker(
     """
     password_helper = PasswordHelper()
 
-    result = await session.execute(
+    result = await session.exec(
         select(User).where(User.email == email)  # type: ignore[arg-type]
     )
-    existing = result.scalar_one_or_none()
+    existing = result.one_or_none()
 
     hashed = password_helper.hash(str(uuid.uuid4()))
 
