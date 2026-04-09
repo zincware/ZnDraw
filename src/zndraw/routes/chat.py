@@ -75,8 +75,8 @@ async def list_messages(
 
     # Fetch one extra to determine has_more
     stmt = stmt.order_by(col(Message.created_at).desc()).limit(limit + 1)
-    result = await session.execute(stmt)
-    rows = list(result.scalars().all())
+    result = await session.exec(stmt)
+    rows = list(result.all())
 
     has_more = len(rows) > limit
     rows = rows[:limit]
@@ -85,16 +85,16 @@ async def list_messages(
     count_stmt = (
         select(func.count()).select_from(Message).where(Message.room_id == room_id)
     )
-    total_count = (await session.execute(count_stmt)).scalar_one()
+    total_count = (await session.exec(count_stmt)).one()
 
     # Look up emails for all user_ids
     user_ids = {row.user_id for row in rows}
     email_map: dict[str, str | None] = {}
     if user_ids:
-        users_result = await session.execute(
+        users_result = await session.exec(
             select(User).where(col(User.id).in_(user_ids))
         )
-        for user in users_result.scalars().all():
+        for user in users_result.all():
             email_map[str(user.id)] = user.email
 
     messages = [
