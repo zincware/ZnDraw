@@ -43,10 +43,10 @@ async def list_figures(
 ) -> CollectionResponse[str]:
     """List all figure keys in a room."""
     await verify_room(session, room_id)
-    result = await session.execute(
+    result = await session.exec(
         select(RoomFigure.key).where(RoomFigure.room_id == room_id)
     )
-    keys = list(result.scalars().all())
+    keys = list(result.all())
     return CollectionResponse(items=keys)
 
 

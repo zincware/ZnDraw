@@ -14,8 +14,8 @@ from typing import Annotated
 
 import msgpack
 from fastapi import APIRouter, Query, Request, Response, status
-from sqlalchemy import select as sa_select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from zndraw_socketio import AsyncServerWrapper
 
 from zndraw.dependencies import (
@@ -84,13 +84,13 @@ async def _find_frames_provider(
     session: AsyncSession, room_id: str
 ) -> ProviderRecord | None:
     """Find a frames provider registered for this room."""
-    result = await session.execute(
-        sa_select(ProviderRecord).where(
+    result = await session.exec(
+        select(ProviderRecord).where(
             ProviderRecord.room_id == room_id,
             ProviderRecord.category == "frames",
         )
     )
-    return result.scalar_one_or_none()
+    return result.one_or_none()
 
 
 async def _dispatch_provider_frame(

@@ -72,12 +72,12 @@ async def list_users(
     Requires admin privileges.
     """
     # Get total count
-    count_result = await session.execute(select(func.count()).select_from(User))
-    total = count_result.scalar_one()
+    count_result = await session.exec(select(func.count()).select_from(User))
+    total = count_result.one()
 
     # Get paginated users
-    result = await session.execute(select(User).offset(offset).limit(limit))
-    users = list(result.scalars().all())
+    result = await session.exec(select(User).offset(offset).limit(limit))
+    users = list(result.all())
 
     return OffsetPage(
         items=[AdminUserResponse.model_validate(u) for u in users],

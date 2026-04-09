@@ -97,10 +97,8 @@ async def list_presets(
     DB presets override bundled ones with the same name.
     """
     await verify_room(session, room_id)
-    result = await session.execute(
-        select(RoomPreset).where(RoomPreset.room_id == room_id)
-    )
-    rows = result.scalars().all()
+    result = await session.exec(select(RoomPreset).where(RoomPreset.room_id == room_id))
+    rows = result.all()
 
     # Start with bundled, let DB rows override
     merged: dict[str, Preset] = dict(_bundled_presets())
@@ -257,7 +255,7 @@ async def apply_preset(
         from zndraw.routes.rooms import _initialize_default_geometries
 
         stmt = select(RoomGeometry).where(RoomGeometry.room_id == room_id)
-        existing = (await session.execute(stmt)).scalars().all()
+        existing = (await session.exec(stmt)).all()
         existing_keys = [g.key for g in existing]
         for g in existing:
             await session.delete(g)
@@ -266,7 +264,7 @@ async def apply_preset(
         await session.commit()
 
         new_stmt = select(RoomGeometry).where(RoomGeometry.room_id == room_id)
-        new_keys = [g.key for g in (await session.execute(new_stmt)).scalars().all()]
+        new_keys = [g.key for g in (await session.exec(new_stmt)).all()]
         all_keys = sorted(set(existing_keys) | set(new_keys))
         for key in all_keys:
             await sio.emit(
@@ -285,7 +283,7 @@ async def apply_preset(
         rules = bundled.rules
 
     stmt = select(RoomGeometry).where(RoomGeometry.room_id == room_id)
-    geometries = (await session.execute(stmt)).scalars().all()
+    geometries = (await session.exec(stmt)).all()
 
     updated_keys: list[str] = []
     for geom in geometries:

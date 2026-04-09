@@ -3,7 +3,7 @@
 from typing import Any, ClassVar
 from unittest.mock import AsyncMock, MagicMock
 
-from sqlalchemy import select
+from sqlmodel import select
 
 from zndraw_joblib.client import Category, Extension
 from zndraw_joblib.models import Job
@@ -112,8 +112,8 @@ async def test_register_internal_jobs_creates_db_rows(async_session_factory):
     )
 
     async with async_session_factory() as session:
-        result = await session.execute(select(Job).where(Job.room_id == "@internal"))
-        jobs = result.scalars().all()
+        result = await session.exec(select(Job).where(Job.room_id == "@internal"))
+        jobs = result.all()
 
     assert len(jobs) == 2
     names = {j.full_name for j in jobs}
@@ -169,8 +169,8 @@ async def test_register_internal_jobs_reactivates_deleted(async_session_factory)
     )
 
     async with async_session_factory() as session:
-        result = await session.execute(
+        result = await session.exec(
             select(Job).where(Job.room_id == "@internal", Job.name == "Rotate")
         )
-        job = result.scalar_one()
+        job = result.one()
         assert not job.deleted

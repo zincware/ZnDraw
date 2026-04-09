@@ -237,15 +237,15 @@ async def list_screenshots(
         .offset(offset)
         .limit(limit)
     )
-    result = await session.execute(stmt)
-    rows = list(result.scalars().all())
+    result = await session.exec(stmt)
+    rows = list(result.all())
 
     count_stmt = (
         select(func.count())
         .select_from(Screenshot)
         .where(Screenshot.room_id == room_id, Screenshot.status == "completed")
     )
-    total = (await session.execute(count_stmt)).scalar_one()
+    total = (await session.exec(count_stmt)).one()
 
     items = [
         ScreenshotListItem(

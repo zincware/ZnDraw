@@ -47,11 +47,11 @@ async def list_selection_groups(
 
     from sqlmodel import select
 
-    result = await session.execute(
+    result = await session.exec(
         select(SelectionGroup).where(SelectionGroup.room_id == room_id)
     )
     groups: dict[str, dict[str, list[int]]] = {}
-    for row in result.scalars().all():
+    for row in result.all():
         groups[row.name] = json.loads(row.selections)
 
     return SelectionGroupsListResponse(items=groups)

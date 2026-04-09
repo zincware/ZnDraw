@@ -7,7 +7,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlmodel import select
 
 from zndraw_joblib.events import JobsInvalidate, TaskStatusEvent
 from zndraw_joblib.models import Job, Task, TaskStatus, Worker, WorkerJobLink
@@ -41,10 +41,8 @@ async def test_cleanup_stale_workers_finds_stale(async_session_factory, test_use
 
     # Verify worker was deleted
     async with async_session_factory() as session:
-        result = await session.execute(
-            select(Worker).where(Worker.id == stale_worker_id)
-        )
-        worker = result.scalar_one_or_none()
+        result = await session.exec(select(Worker).where(Worker.id == stale_worker_id))
+        worker = result.one_or_none()
         assert worker is None
 
 
@@ -70,10 +68,8 @@ async def test_cleanup_stale_workers_ignores_alive(async_session_factory, test_u
 
     # Verify worker still exists
     async with async_session_factory() as session:
-        result = await session.execute(
-            select(Worker).where(Worker.id == alive_worker_id)
-        )
-        worker = result.scalar_one_or_none()
+        result = await session.exec(select(Worker).where(Worker.id == alive_worker_id))
+        worker = result.one_or_none()
         assert worker is not None
 
 
@@ -132,12 +128,12 @@ async def test_cleanup_fails_running_tasks(async_session_factory, test_user_id):
 
     # Verify CLAIMED and RUNNING tasks are failed, PENDING is unchanged
     async with async_session_factory() as session:
-        result = await session.execute(select(Task).where(Task.id == task_claimed_id))
-        claimed = result.scalar_one_or_none()
-        result = await session.execute(select(Task).where(Task.id == task_running_id))
-        running = result.scalar_one_or_none()
-        result = await session.execute(select(Task).where(Task.id == task_pending_id))
-        pending = result.scalar_one_or_none()
+        result = await session.exec(select(Task).where(Task.id == task_claimed_id))
+        claimed = result.one_or_none()
+        result = await session.exec(select(Task).where(Task.id == task_running_id))
+        running = result.one_or_none()
+        result = await session.exec(select(Task).where(Task.id == task_pending_id))
+        pending = result.one_or_none()
 
         assert claimed.status == TaskStatus.FAILED
         assert claimed.error == "Worker disconnected"
@@ -191,8 +187,8 @@ async def test_cleanup_soft_deletes_orphan_jobs(async_session_factory, test_user
 
     # Verify job is soft-deleted
     async with async_session_factory() as session:
-        result = await session.execute(select(Job).where(Job.id == job_id))
-        job = result.scalar_one_or_none()
+        result = await session.exec(select(Job).where(Job.id == job_id))
+        job = result.one_or_none()
         assert job is not None
         assert job.deleted is True
 
@@ -239,8 +235,8 @@ async def test_cleanup_keeps_job_with_pending_tasks(
 
     # Verify job is NOT soft-deleted because it has a pending task
     async with async_session_factory() as session:
-        result = await session.execute(select(Job).where(Job.id == job_id))
-        job = result.scalar_one_or_none()
+        result = await session.exec(select(Job).where(Job.id == job_id))
+        job = result.one_or_none()
         assert job is not None
         assert job.deleted is False
 
@@ -272,8 +268,8 @@ async def test_cleanup_multiple_stale_workers(async_session_factory, test_user_i
 
     # Verify only alive worker remains
     async with async_session_factory() as session:
-        result = await session.execute(select(Worker))
-        workers = result.scalars().all()
+        result = await session.exec(select(Worker))
+        workers = result.all()
         assert len(workers) == 1
         assert workers[0].id == alive_id
 
@@ -301,17 +297,17 @@ async def test_cleanup_worker_removes_links(async_session_factory, test_user_id)
         await session.commit()
 
         # Now cleanup
-        result = await session.execute(select(Worker).where(Worker.id == worker_id))
-        worker = result.scalar_one_or_none()
+        result = await session.exec(select(Worker).where(Worker.id == worker_id))
+        worker = result.one_or_none()
         await cleanup_worker(session, worker)
         await session.commit()
 
     # Verify link is removed
     async with async_session_factory() as session:
-        result = await session.execute(
+        result = await session.exec(
             select(WorkerJobLink).where(WorkerJobLink.worker_id == worker_id)
         )
-        links = result.scalars().all()
+        links = result.all()
         assert len(links) == 0
 
 
@@ -352,16 +348,16 @@ async def test_cleanup_job_keeps_other_workers(async_session_factory, test_user_
 
     # Verify job is NOT soft-deleted because alive-worker is still linked
     async with async_session_factory() as session:
-        result = await session.execute(select(Job).where(Job.id == job_id))
-        job = result.scalar_one_or_none()
+        result = await session.exec(select(Job).where(Job.id == job_id))
+        job = result.one_or_none()
         assert job is not None
         assert job.deleted is False
 
         # Verify alive worker's link still exists
-        result = await session.execute(
+        result = await session.exec(
             select(WorkerJobLink).where(WorkerJobLink.worker_id == alive_worker_id)
         )
-        link = result.scalar_one_or_none()
+        link = result.one_or_none()
         assert link is not None
 
 
@@ -390,8 +386,8 @@ async def test_cleanup_stuck_internal_tasks(async_session_factory):
         assert count == 1
 
     async with async_session_factory() as session:
-        result = await session.execute(select(Task).where(Task.id == task_id))
-        task = result.scalar_one()
+        result = await session.exec(select(Task).where(Task.id == task_id))
+        task = result.one()
         assert task.status == TaskStatus.FAILED
         assert task.error == "Internal worker timeout"
         assert task.completed_at is not None
@@ -475,8 +471,8 @@ async def test_cleanup_worker_returns_task_status_emissions(
         task_id = task.id
 
     async with async_session_factory() as session:
-        result = await session.execute(select(Worker).where(Worker.id == worker_id))
-        worker = result.scalar_one()
+        result = await session.exec(select(Worker).where(Worker.id == worker_id))
+        worker = result.one()
         emissions, _frame_rooms = await cleanup_worker(session, worker)
         await session.commit()
 
@@ -578,10 +574,10 @@ async def test_run_sweeper_cleans_up_stale_workers(async_session_factory, test_u
 
         # Verify the stale worker was cleaned up
         async with async_session_factory() as session:
-            result = await session.execute(
+            result = await session.exec(
                 select(Worker).where(Worker.id == stale_worker_id)
             )
-            worker = result.scalar_one_or_none()
+            worker = result.one_or_none()
             assert worker is None, "Stale worker should have been cleaned up"
 
     finally:
@@ -617,8 +613,8 @@ async def test_cleanup_stuck_internal_tasks_includes_claimed(async_session_facto
         assert count == 1
 
     async with async_session_factory() as session:
-        result = await session.execute(select(Task).where(Task.id == task_id))
-        task = result.scalar_one()
+        result = await session.exec(select(Task).where(Task.id == task_id))
+        task = result.one()
         assert task.status == TaskStatus.FAILED
         assert task.error == "Internal worker timeout"
         assert task.completed_at is not None

@@ -150,10 +150,10 @@ async def get_worker_token(request: Request, session: SessionDep) -> str:
     """
     settings = request.app.state.settings
     auth_settings = request.app.state.auth_settings
-    result = await session.execute(
+    result = await session.exec(
         select(User).where(User.email == settings.internal_worker_email)  # type: ignore[arg-type]
     )
-    user = result.scalar_one_or_none()
+    user = result.one_or_none()
     if user is None:
         raise RuntimeError(
             f"Internal worker user '{settings.internal_worker_email}' not found. "

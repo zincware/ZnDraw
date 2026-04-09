@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from contextlib import AbstractAsyncContextManager
 
     from fastapi import FastAPI
-    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlmodel.ext.asyncio.session import AsyncSession
     from taskiq import AsyncBroker
 
     from zndraw_joblib.client import Extension
@@ -95,7 +95,7 @@ async def ensure_internal_jobs(
     replicas, call once from ``init_database()`` / ``zndraw-db`` to avoid
     race conditions on the ``unique_job`` constraint.
     """
-    from sqlalchemy import select
+    from sqlmodel import select
 
     from zndraw_joblib.models import Job
 
@@ -105,14 +105,14 @@ async def ensure_internal_jobs(
             name = ext_cls.__name__
             schema = ext_cls.model_json_schema()
 
-            result = await session.execute(
+            result = await session.exec(
                 select(Job).where(
                     Job.room_id == "@internal",
                     Job.category == category,
                     Job.name == name,
                 )
             )
-            existing = result.scalar_one_or_none()
+            existing = result.one_or_none()
 
             if existing and existing.deleted:
                 existing.deleted = False
