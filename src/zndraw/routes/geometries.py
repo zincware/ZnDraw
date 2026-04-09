@@ -104,10 +104,10 @@ async def list_geometries(
     await verify_room(session, room_id)
 
     # SQL geometries
-    result = await session.execute(
+    result = await session.exec(
         select(RoomGeometry).where(RoomGeometry.room_id == room_id)
     )
-    rows = result.scalars().all()
+    rows = result.all()
     geometries = {row.key: _row_to_geometry_data(row) for row in rows}
 
     # Merge Redis session cameras
