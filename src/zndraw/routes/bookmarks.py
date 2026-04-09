@@ -41,10 +41,10 @@ async def list_bookmarks(
 ) -> BookmarksResponse:
     """Get all bookmarks for a room."""
     await verify_room(session, room_id)
-    result = await session.execute(
+    result = await session.exec(
         select(RoomBookmark).where(RoomBookmark.room_id == room_id)
     )
-    rows = result.scalars().all()
+    rows = result.all()
     bookmarks = {str(row.frame_index): row.label for row in rows}
     return BookmarksResponse(items=bookmarks)
 
