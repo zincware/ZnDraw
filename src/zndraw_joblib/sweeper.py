@@ -8,9 +8,10 @@ from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func as sa_func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func as sa_func
 from sqlalchemy.orm import selectinload
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from zndraw_socketio import AsyncServerWrapper
 
 from zndraw_joblib.events import (
@@ -46,20 +47,20 @@ async def _soft_delete_orphan_job(
     Note: Does NOT commit the transaction - caller must commit.
     """
     # @internal jobs are never orphaned — they're registered at startup
-    result = await session.execute(select(Job).where(Job.id == job_id))
-    job = result.scalar_one_or_none()
+    result = await session.exec(select(Job).where(Job.id == job_id))
+    job = result.one_or_none()
     if not job or job.room_id == "@internal":
         return set()
 
     # Check if job has any remaining workers
-    result = await session.execute(
+    result = await session.exec(
         select(WorkerJobLink).where(WorkerJobLink.job_id == job_id).limit(1)
     )
-    if result.scalar_one_or_none():
+    if result.one_or_none():
         return set()  # Job still has workers
 
     # Check if job has any pending tasks (new workers could register and pick them up)
-    result = await session.execute(
+    result = await session.exec(
         select(Task)
         .where(
             Task.job_id == job_id,
@@ -67,7 +68,7 @@ async def _soft_delete_orphan_job(
         )
         .limit(1)
     )
-    if result.scalar_one_or_none():
+    if result.one_or_none():
         return set()  # Job has pending tasks, keep it alive
 
     emissions: set[Emission] = set()
@@ -97,7 +98,7 @@ async def cleanup_worker(
     now = datetime.now(UTC)
 
     # Fail any claimed/running tasks owned by this worker
-    result = await session.execute(
+    result = await session.exec(
         select(Task)
         .options(selectinload(Task.job))
         .where(
@@ -105,7 +106,7 @@ async def cleanup_worker(
             Task.status.in_({TaskStatus.CLAIMED, TaskStatus.RUNNING}),
         )
     )
-    worker_tasks = result.scalars().all()
+    worker_tasks = result.all()
     for task in worker_tasks:
         task.status = TaskStatus.FAILED
         task.completed_at = now
@@ -116,15 +117,15 @@ async def cleanup_worker(
         )
 
     # Get links this worker has (need both job_ids and the link objects)
-    result = await session.execute(
+    result = await session.exec(
         select(WorkerJobLink).where(WorkerJobLink.worker_id == worker.id)
     )
-    links = result.scalars().all()
+    links = result.all()
     job_ids = [link.job_id for link in links]
 
     # Fetch room_ids for affected jobs (worker count is changing)
     if job_ids:
-        result = await session.execute(
+        result = await session.exec(
             select(Job.id, Job.room_id).where(Job.id.in_(job_ids))
         )
         job_rooms = {row.id: row.room_id for row in result.all()}
@@ -136,10 +137,10 @@ async def cleanup_worker(
         emissions.add(Emission(JobsInvalidate(), f"room:{room_id}"))
 
     # Delete providers owned by this worker
-    result = await session.execute(
+    result = await session.exec(
         select(ProviderRecord).where(ProviderRecord.worker_id == worker.id)
     )
-    providers = result.scalars().all()
+    providers = result.all()
     provider_rooms: set[str] = set()
     frame_provider_rooms: set[str] = set()
     for provider in providers:
@@ -188,8 +189,8 @@ async def cleanup_stale_workers(
     all_frame_rooms: set[str] = set()
 
     # Find all stale workers
-    result = await session.execute(select(Worker).where(Worker.last_heartbeat < cutoff))
-    stale_workers = result.scalars().all()
+    result = await session.exec(select(Worker).where(Worker.last_heartbeat < cutoff))
+    stale_workers = result.all()
 
     count = 0
     for worker in stale_workers:
@@ -226,7 +227,7 @@ async def cleanup_stuck_internal_tasks(
     now = datetime.now(UTC)
     emissions: set[Emission] = set()
 
-    result = await session.execute(
+    result = await session.exec(
         select(Task)
         .join(Job)
         .options(selectinload(Task.job))
@@ -236,7 +237,7 @@ async def cleanup_stuck_internal_tasks(
             sa_func.coalesce(Task.started_at, Task.created_at) < cutoff,
         )
     )
-    stuck_tasks = result.scalars().all()
+    stuck_tasks = result.all()
 
     count = 0
     for task in stuck_tasks:
