@@ -9,7 +9,7 @@ from typing import Annotated
 
 import jwt as pyjwt
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import select
+from sqlmodel import select
 
 from zndraw_auth.db import CLILoginChallenge, SessionDep, User
 from zndraw_auth.schemas import CLILoginCreateResponse, CLILoginStatusResponse
@@ -65,10 +65,10 @@ async def poll_cli_login_challenge(
     """Poll a CLI login challenge status."""
     now = datetime.now(UTC).replace(tzinfo=None)
 
-    result = await session.execute(
+    result = await session.exec(
         select(CLILoginChallenge).where(CLILoginChallenge.code == code)
     )
-    challenge = result.scalar_one_or_none()
+    challenge = result.one_or_none()
 
     if challenge is None or challenge.secret != secret:
         raise HTTPException(status_code=404, detail="Challenge not found")
@@ -118,10 +118,10 @@ async def approve_cli_login_challenge(
     session: SessionDep,
 ) -> dict[str, str]:
     """Approve a CLI login challenge (browser user, auth required)."""
-    result = await session.execute(
+    result = await session.exec(
         select(CLILoginChallenge).where(CLILoginChallenge.code == code)
     )
-    challenge = result.scalar_one_or_none()
+    challenge = result.one_or_none()
 
     if challenge is None or challenge.status != "pending":
         raise HTTPException(status_code=404, detail="Challenge not found")
@@ -152,10 +152,10 @@ async def reject_cli_login_challenge(
     session: SessionDep,
 ) -> Response:
     """Reject a CLI login challenge (browser user, auth required)."""
-    result = await session.execute(
+    result = await session.exec(
         select(CLILoginChallenge).where(CLILoginChallenge.code == code)
     )
-    challenge = result.scalar_one_or_none()
+    challenge = result.one_or_none()
 
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
