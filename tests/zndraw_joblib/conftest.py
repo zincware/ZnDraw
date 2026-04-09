@@ -12,7 +12,8 @@ import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.pool import StaticPool
 
 from zndraw_auth import Base, User

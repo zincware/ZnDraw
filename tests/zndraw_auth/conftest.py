@@ -9,6 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.pool import StaticPool
 
 from zndraw_auth import (
@@ -100,7 +101,7 @@ async def _create_test_app(
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    test_session_maker = async_sessionmaker(test_engine, expire_on_commit=False)
+    test_session_maker = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
 
     app = FastAPI()
 
@@ -166,7 +167,8 @@ async def _create_test_app(
         session: SessionDep,
     ) -> dict[str, str]:
         """Route using async session dependency."""
-        result = await session.execute(text("SELECT 1"))
+        conn = await session.connection()
+        result = await conn.execute(text("SELECT 1"))
         value = result.scalar()
         return {"db_check": str(value)}
 
