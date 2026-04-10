@@ -1,7 +1,5 @@
 """Unit tests for _OutageState retry tracker."""
 
-import threading
-
 import pytest
 
 from zndraw_joblib.client import _OutageState
