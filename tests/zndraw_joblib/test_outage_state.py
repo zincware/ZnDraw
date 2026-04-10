@@ -140,3 +140,57 @@ class TestHeartbeatLoopLogs:
         for record in caplog.records:
             assert "Traceback" not in record.message
             assert record.exc_info is None or record.exc_info == (None, None, None)
+
+
+class TestClaimLoopLogs:
+    def test_claim_loop_clean_shutdown_no_traceback(self, caplog):
+        """Claim loop should shut down cleanly with no raw tracebacks."""
+        api = MagicMock()
+        manager = JobManager(
+            api,
+            polling_interval=0.05,
+            max_unreachable_seconds=0.3,
+        )
+        manager.claim = MagicMock(
+            side_effect=ConnectionError("Connection refused")
+        )
+        manager._worker_id = MagicMock()
+        manager._execute = lambda t: None  # enable claim loop
+
+        with caplog.at_level(logging.WARNING, logger="zndraw_joblib.client"):
+            manager._stop.clear()
+            t = threading.Thread(target=manager._claim_loop, daemon=True)
+            t.start()
+            t.join(timeout=5.0)
+
+        # Should have shutdown error
+        errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+        assert any("shutting down" in r.message for r in errors)
+
+        # No traceback in any record
+        for record in caplog.records:
+            assert "Traceback" not in record.message
+            assert record.exc_info is None or record.exc_info == (None, None, None)
+
+
+class TestOutageRecovery:
+    def test_outage_recovery_resets_retry(self):
+        """After recovery, a new outage should start fresh."""
+        clock, advance = _make_clock()
+        state = _OutageState(max_unreachable=10.0, clock=clock)
+
+        # First outage
+        state.record_failure()
+        advance(5.0)
+        assert state.elapsed() == pytest.approx(5.0)
+
+        # Recovery
+        state.record_success()
+        assert state.elapsed() == 0.0
+
+        # New outage starts fresh
+        advance(2.0)
+        state.record_failure()
+        advance(3.0)
+        assert state.elapsed() == pytest.approx(3.0)
+        assert state.should_shutdown() is False

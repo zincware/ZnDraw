@@ -766,25 +766,36 @@ class JobManager:
 
     def _claim_loop(self) -> None:
         """Claim and execute tasks until stopped."""
+        backoff_attempt = 0
         while not self._stop.is_set():
             self._task_ready.clear()
             try:
                 claimed = self.claim()
                 self._outage.record_success()
+                backoff_attempt = 0
             except (KeyError, PermissionError):
                 logger.exception("Registration lost, shutting down")
                 self._stop.set()
                 return
             except Exception as e:
-                logger.warning("Claim failed: %s", e)
+                self._outage.record_failure()
                 if self._outage.should_shutdown():
-                    logger.exception(
-                        "Server unreachable for >%ss, shutting down",
+                    logger.error(
+                        "Server unreachable for >%ss, shutting down. Last error: %s",
                         self._max_unreachable_seconds,
+                        e,
                     )
                     self._stop.set()
                     return
-                self._task_ready.wait(timeout=self._polling_interval)
+                if self._outage.should_log():
+                    logger.warning(
+                        "Server unreachable — retrying (%.0fs/%.0fs elapsed)",
+                        self._outage.elapsed(),
+                        self._max_unreachable_seconds,
+                    )
+                wait = min(self._polling_interval * 2**backoff_attempt, 10.0)
+                backoff_attempt += 1
+                self._task_ready.wait(timeout=wait)
                 continue
             if claimed is not None:
                 try:
