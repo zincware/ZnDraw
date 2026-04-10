@@ -201,8 +201,7 @@ class JobManager:
         self._threads: list[threading.Thread] = []
 
         # Resilience state
-        self._last_server_contact: float = time.monotonic()
-        self._contact_lock = threading.Lock()
+        self._outage = _OutageState(max_unreachable=max_unreachable_seconds)
         self._disconnect_lock = threading.Lock()
 
         # Register SIO handlers up front

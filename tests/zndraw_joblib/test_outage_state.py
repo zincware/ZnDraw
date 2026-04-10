@@ -87,3 +87,16 @@ class TestOutageStateLogging:
         assert state.should_log(min_interval=5.0) is False
         advance(4.0)  # total 6s since last log
         assert state.should_log(min_interval=5.0) is True
+
+
+from unittest.mock import MagicMock
+
+from zndraw_joblib.client import JobManager
+
+
+class TestJobManagerOutageIntegration:
+    def test_job_manager_has_outage_state(self):
+        api = MagicMock()
+        manager = JobManager(api, max_unreachable_seconds=60.0)
+        assert isinstance(manager._outage, _OutageState)
+        assert manager._outage.max_unreachable == 60.0
