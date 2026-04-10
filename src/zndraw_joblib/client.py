@@ -737,37 +737,32 @@ class JobManager:
             t.start()
             self._threads.append(t)
 
-    def _update_last_contact(self) -> None:
-        """Record that the server responded successfully."""
-        with self._contact_lock:
-            self._last_server_contact = time.monotonic()
-
-    def _is_unreachable(self) -> bool:
-        """Return True if server has been unreachable too long."""
-        with self._contact_lock:
-            return (
-                time.monotonic() - self._last_server_contact
-            ) > self._max_unreachable_seconds
-
     def _heartbeat_loop(self) -> None:
         """Send periodic heartbeats until stopped."""
         while not self._stop.wait(self._heartbeat_interval):
             try:
                 self.heartbeat()
-                self._update_last_contact()
+                self._outage.record_success()
             except (KeyError, PermissionError):
                 logger.exception("Registration lost, shutting down")
                 self._stop.set()
                 return
             except Exception as e:
-                logger.warning("Heartbeat failed: %s", e)
-                if self._is_unreachable():
-                    logger.exception(
-                        "Server unreachable for >%ss, shutting down",
+                self._outage.record_failure()
+                if self._outage.should_shutdown():
+                    logger.error(
+                        "Server unreachable for >%ss, shutting down. Last error: %s",
                         self._max_unreachable_seconds,
+                        e,
                     )
                     self._stop.set()
                     return
+                if self._outage.should_log():
+                    logger.warning(
+                        "Server unreachable — retrying (%.0fs/%.0fs elapsed)",
+                        self._outage.elapsed(),
+                        self._max_unreachable_seconds,
+                    )
 
     def _claim_loop(self) -> None:
         """Claim and execute tasks until stopped."""
@@ -775,14 +770,14 @@ class JobManager:
             self._task_ready.clear()
             try:
                 claimed = self.claim()
-                self._update_last_contact()
+                self._outage.record_success()
             except (KeyError, PermissionError):
                 logger.exception("Registration lost, shutting down")
                 self._stop.set()
                 return
             except Exception as e:
                 logger.warning("Claim failed: %s", e)
-                if self._is_unreachable():
+                if self._outage.should_shutdown():
                     logger.exception(
                         "Server unreachable for >%ss, shutting down",
                         self._max_unreachable_seconds,
@@ -794,7 +789,7 @@ class JobManager:
             if claimed is not None:
                 try:
                     self.start(claimed)
-                    self._update_last_contact()
+                    self._outage.record_success()
                 except (KeyError, PermissionError):
                     logger.exception(
                         "Registration lost during task start, shutting down"
@@ -809,7 +804,7 @@ class JobManager:
                 except Exception as e:  # noqa: BLE001
                     try:
                         self.fail(claimed, str(e))
-                        self._update_last_contact()
+                        self._outage.record_success()
                     except (KeyError, PermissionError):
                         logger.exception(
                             "Registration lost during task fail, shutting down"
@@ -825,7 +820,7 @@ class JobManager:
                 else:
                     try:
                         self.complete(claimed)
-                        self._update_last_contact()
+                        self._outage.record_success()
                     except (KeyError, PermissionError):
                         logger.exception(
                             "Registration lost during task completion, shutting down"
