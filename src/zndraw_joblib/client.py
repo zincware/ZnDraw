@@ -1,6 +1,7 @@
 # src/zndraw_joblib/client.py
 """Client SDK for ZnDraw JobLib workers."""
 
+import dataclasses
 import json
 import logging
 import random
@@ -118,6 +119,48 @@ class _RegisteredProvider:
     cls: type[Provider]
     handler: Any
     room_id: str
+
+
+@dataclasses.dataclass
+class _OutageState:
+    """Tracks server outage for coordinated retry logging across loops."""
+
+    max_unreachable: float
+    clock: Callable[[], float] = dataclasses.field(default=time.monotonic)
+    _outage_start: float | None = dataclasses.field(default=None, init=False)
+    _last_log_time: float = dataclasses.field(default=float("-inf"), init=False)
+    _lock: threading.Lock = dataclasses.field(default_factory=threading.Lock, init=False)
+
+    def record_failure(self) -> None:
+        """Mark a connection failure; starts the outage clock on first call."""
+        with self._lock:
+            if self._outage_start is None:
+                self._outage_start = self.clock()
+
+    def record_success(self) -> None:
+        """Server responded — reset outage state."""
+        with self._lock:
+            self._outage_start = None
+
+    def elapsed(self) -> float:
+        """Seconds since first failure, or 0.0 if not in outage."""
+        with self._lock:
+            if self._outage_start is None:
+                return 0.0
+            return self.clock() - self._outage_start
+
+    def should_shutdown(self) -> bool:
+        """Return True if outage has exceeded max_unreachable."""
+        return self.elapsed() > self.max_unreachable
+
+    def should_log(self, min_interval: float = 5.0) -> bool:
+        """Rate-limit log output; returns True at most once per min_interval."""
+        with self._lock:
+            now = self.clock()
+            if now - self._last_log_time >= min_interval:
+                self._last_log_time = now
+                return True
+            return False
 
 
 class JobManager:
