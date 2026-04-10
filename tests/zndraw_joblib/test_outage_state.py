@@ -1,8 +1,12 @@
 """Unit tests for _OutageState retry tracker."""
 
+import logging
+import threading
+from unittest.mock import MagicMock
+
 import pytest
 
-from zndraw_joblib.client import _OutageState
+from zndraw_joblib.client import JobManager, _OutageState
 
 
 def _make_clock(start: float = 0.0):
@@ -89,21 +93,12 @@ class TestOutageStateLogging:
         assert state.should_log(min_interval=5.0) is True
 
 
-from unittest.mock import MagicMock
-
-from zndraw_joblib.client import JobManager
-
-
 class TestJobManagerOutageIntegration:
     def test_job_manager_has_outage_state(self):
         api = MagicMock()
         manager = JobManager(api, max_unreachable_seconds=60.0)
         assert isinstance(manager._outage, _OutageState)
         assert manager._outage.max_unreachable == 60.0
-
-
-import logging
-import threading
 
 
 class TestHeartbeatLoopLogs:
@@ -116,9 +111,7 @@ class TestHeartbeatLoopLogs:
             max_unreachable_seconds=0.2,
         )
         # Make heartbeat always raise
-        manager.heartbeat = MagicMock(
-            side_effect=ConnectionError("Connection refused")
-        )
+        manager.heartbeat = MagicMock(side_effect=ConnectionError("Connection refused"))
         # Need a worker_id set so we don't hit other errors
         manager._worker_id = MagicMock()
 
@@ -151,11 +144,9 @@ class TestClaimLoopLogs:
             polling_interval=0.05,
             max_unreachable_seconds=0.3,
         )
-        manager.claim = MagicMock(
-            side_effect=ConnectionError("Connection refused")
-        )
+        manager.claim = MagicMock(side_effect=ConnectionError("Connection refused"))
         manager._worker_id = MagicMock()
-        manager._execute = lambda t: None  # enable claim loop
+        manager._execute = lambda _task: None  # enable claim loop
 
         with caplog.at_level(logging.WARNING, logger="zndraw_joblib.client"):
             manager._stop.clear()

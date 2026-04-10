@@ -1,7 +1,6 @@
 # src/zndraw_joblib/client.py
 """Client SDK for ZnDraw JobLib workers."""
 
-import dataclasses
 import json
 import logging
 import random
@@ -11,7 +10,7 @@ import time
 import traceback
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, ClassVar, Generic, Protocol, TypeVar
 from uuid import UUID
@@ -121,15 +120,15 @@ class _RegisteredProvider:
     room_id: str
 
 
-@dataclasses.dataclass
+@dataclass
 class _OutageState:
     """Tracks server outage for coordinated retry logging across loops."""
 
     max_unreachable: float
-    clock: Callable[[], float] = dataclasses.field(default=time.monotonic)
-    _outage_start: float | None = dataclasses.field(default=None, init=False)
-    _last_log_time: float = dataclasses.field(default=float("-inf"), init=False)
-    _lock: threading.Lock = dataclasses.field(default_factory=threading.Lock, init=False)
+    clock: Callable[[], float] = field(default=time.monotonic)
+    _outage_start: float | None = field(default=None, init=False)
+    _last_log_time: float = field(default=float("-inf"), init=False)
+    _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
 
     def record_failure(self) -> None:
         """Mark a connection failure; starts the outage clock on first call."""
@@ -747,10 +746,10 @@ class JobManager:
                 logger.exception("Registration lost, shutting down")
                 self._stop.set()
                 return
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 self._outage.record_failure()
                 if self._outage.should_shutdown():
-                    logger.error(
+                    logger.error(  # noqa: TRY400 — intentionally no traceback
                         "Server unreachable for >%ss, shutting down. Last error: %s",
                         self._max_unreachable_seconds,
                         e,
@@ -777,10 +776,10 @@ class JobManager:
                 logger.exception("Registration lost, shutting down")
                 self._stop.set()
                 return
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 self._outage.record_failure()
                 if self._outage.should_shutdown():
-                    logger.error(
+                    logger.error(  # noqa: TRY400 — intentionally no traceback
                         "Server unreachable for >%ss, shutting down. Last error: %s",
                         self._max_unreachable_seconds,
                         e,
