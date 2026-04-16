@@ -9,12 +9,12 @@ import ShowChart from "@mui/icons-material/ShowChart";
 import type { SvgIconComponent } from "@mui/icons-material";
 import type { IDockviewPanelProps } from "dockview-react";
 import type { ComponentType } from "react";
+import { FilesystemPanel } from "./FilesystemPanel";
 import { PlotsBrowserPanel } from "./PlotsBrowserPanel";
 import { RoomsPanel } from "./RoomsPanel";
 import {
 	StubAnalysis,
 	StubChat,
-	StubFilesystem,
 	StubGeometries,
 	StubModifiers,
 	StubSelections,
@@ -106,7 +106,7 @@ export const PANELS: Record<PanelId, PanelDef> = {
 		kind: "tool",
 		icon: Folder,
 		label: "Files",
-		component: StubFilesystem,
+		component: FilesystemPanel,
 		default: { bar: "left", order: 6 },
 	},
 	chat: {
