@@ -9,13 +9,13 @@ import ShowChart from "@mui/icons-material/ShowChart";
 import type { SvgIconComponent } from "@mui/icons-material";
 import type { IDockviewPanelProps } from "dockview-react";
 import type { ComponentType } from "react";
+import { PlotsBrowserPanel } from "./PlotsBrowserPanel";
 import {
 	StubAnalysis,
 	StubChat,
 	StubFilesystem,
 	StubGeometries,
 	StubModifiers,
-	StubPlotsBrowser,
 	StubRooms,
 	StubSelections,
 	StubViewerView,
@@ -92,7 +92,7 @@ export const PANELS: Record<PanelId, PanelDef> = {
 		kind: "tool",
 		icon: ShowChart,
 		label: "Plots",
-		component: StubPlotsBrowser,
+		component: PlotsBrowserPanel,
 		default: { bar: "left", order: 4 },
 	},
 	rooms: {
