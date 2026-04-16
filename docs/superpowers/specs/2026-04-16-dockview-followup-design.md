@@ -11,7 +11,6 @@ Follow-up to the main dockview redesign addressing the 7 issues in the post-merg
 Summary of the direction:
 
 - **Reclaim chrome space** with auto-hiding activity bars that stay reachable as drop targets via a 4px edge sliver that lights up during a panel-icon drag.
-- **Remove redundant dockview chrome** when a group has a single panel.
 - **Theme dockview to MUI** and sync light/dark mode.
 - **Fix the bottom-drawer shrink regression** so opening a bottom panel actually shrinks the 3D viewer.
 - **Add popout + maximize** actions on dockview groups.
@@ -21,7 +20,7 @@ Summary of the direction:
 
 ## Goals
 
-- Default startup reclaims ≥80px vertical + ≥48px horizontal for the viewer (measured relative to the current main branch).
+- Default startup reclaims ≥30px vertical + ≥40px horizontal for the viewer (measured relative to the current main branch).
 - Dockview panel chrome visually matches MUI (light and dark).
 - Opening a bottom panel shrinks the viewer, same as opening a left/right panel.
 - Every panel has popout + maximize affordances.
@@ -57,7 +56,7 @@ Two parts:
    - `--dv-separator-border` → `var(--mui-palette-divider)`
    - `--dv-paneview-active-outline-color` → `var(--mui-palette-primary-main)`
 
-   (Final list confirmed during implementation by grepping dockview's CSS for `--dv-*-color`.)
+   The list above is the authoritative set for this change. Any additional `--dv-*` variables discovered during implementation that visibly diverge from MUI are added in the same stylesheet with a one-line comment stating the observed mismatch.
 
 ### 3. Popout button
 
@@ -77,7 +76,7 @@ Second per-group right-gutter action. Toggles `api.maximizeGroup(group)` / `api.
 | Sliver | bar is empty AND no drag is in progress | 4px | transparent (invisible) |
 | Hot | bar is empty AND a panel-icon drag is in progress | 4px | blue tint + primary-color border, pulsing |
 
-State tracking: each `ActivityBar` instance listens on `window` for `dragstart`/`dragend` and sets local `isDragActive` when the drag payload includes `application/x-zndraw-panel-id`. The existing `moveIconToBar` handler is unchanged — it's still the drop consumer.
+State tracking: each `ActivityBar` instance listens on `window` for `dragstart`/`dragend` and sets local `isDragActive` when the drag payload includes `application/x-zndraw-panel-id` (the activity-bar-icon MIME — distinct from dockview's internal tab-drag MIME and from the plots-browser drag MIME, so it only trips on icon-between-bars drags). The existing `moveIconToBar` handler is unchanged — it's still the drop consumer.
 
 **Chat default bar:** changes from `right` to `left`. Registry updates, no other callers affected.
 
@@ -102,18 +101,7 @@ Drop the "Currently Open" section entirely. One list with the status dot (filled
 
 Same logic used by `figureHandlers.onFiguresInvalidate` for the `op=set` auto-open and by the `onDidDrop` path (the latter respects the user's explicit drop target, so it overrides this rule).
 
-### 8. Hide the dockview tab bar when a group has one panel
-
-Universal rule (not viewer-specific): when a group has exactly one panel, hide its tab bar.
-
-Two implementation options — pick at implementation time based on which is cleaner:
-
-- **CSS-only:** `.dv-groupview:has(.dv-tabs-container > .dv-tab:only-child) .dv-tabs-and-actions-container { display: none }`. Works if browsers we support have `:has()` (Chromium 105+, Safari 15.4+, Firefox 121+ — all modern).
-- **API-driven:** subscribe to `onDidAddPanel`/`onDidRemovePanel`, toggle `group.header.hidden` based on panel count.
-
-Preference: CSS-only. No JS state, no risk of drift.
-
-### 9. Fix the bottom-drawer shrink bug (NEW)
+### 8. Fix the bottom-drawer shrink bug (NEW)
 
 **Symptom:** opening a bottom panel does not shrink the 3D viewer. Left/right panels do shrink it.
 
@@ -140,7 +128,7 @@ Preference: CSS-only. No JS state, no risk of drift.
 
 ### Modified files
 
-- `frontend/src/panels/registry.ts` — chat `default.bar: "right"` → `"left"`.
+- `frontend/src/panels/registry.tsx` — chat `default.bar: "right"` → `"left"`.
 - `frontend/src/panels/ActivityBar.tsx` — add three-state render (full/sliver/hot), listen on `window` drag events.
 - `frontend/src/panels/SidebarZone.tsx` — already null-on-no-active; no change.
 - `frontend/src/panels/BottomZone.tsx` — already null-on-no-active; no change.
@@ -166,8 +154,12 @@ One PR. Commits split by issue where natural (shrink fix separately from theme s
 - New E2E assertions added to `e2e/dockview-layout.spec.ts`:
   - Bottom panel activation shrinks the viewer's rendered height (`evaluate` the `[data-testid=viewer-view]` bounding box before/after).
   - Dragging an icon to the right edge reveals a hot drop zone and placing it succeeds.
-  - Viewer tab bar is absent when only the viewer panel exists; present after opening a plot.
   - Popout button triggers `addPopoutGroup` (detectable via a new window).
+  - Maximize button fills the dockview area and the un-maximize button restores it.
+  - Opening a plot with no plot group present places it to the right of the viewer's group (assert `[data-testid=viewer-view]` bounding box `x + width ≤ plot-panel` bounding box `x`).
+  - Theme sync: toggling MUI color mode flips `DockviewReact`'s class between `dockview-theme-light` and `dockview-theme-dark`.
+  - Plotly resize: resizing a plot panel via splitter drag produces a matching `.plotly` SVG `viewBox` update (or a Plotly layout width change).
+  - PlotsBrowser simplification: only one list is rendered; no element with a "Currently Open" heading.
 - Manual smoke via playwright-cli with a screenshot to `/tmp/dockview-validation/followup-*.png`.
 
 ## Space reclaimed (design targets)
@@ -176,11 +168,11 @@ One PR. Commits split by issue where natural (shrink fix separately from theme s
 |---|---|---|
 | Chat icon moves to left bar, right bar collapses to 4px sliver | — | −44px |
 | Bottom activity bar collapses to 4px sliver when empty | −36px | — |
-| Viewer tab bar hidden when sole panel | ~−30px | — |
-| **Net default startup** | **~−66px** | **~−44px** |
+| **Net default startup** | **−36px** | **−44px** |
+
+The viewer tab bar remains visible so popout + maximize buttons (and the viewer `×` close affordance) are always reachable. The MUI theme sync makes the tab bar read as part of the app, not as foreign chrome, which was the core complaint — the visual fix solves the feel without the geometry fix being necessary.
 
 ## Open questions
 
 - Do we need a user-facing indicator that a hidden activity bar CAN be summoned (e.g., a tiny chevron at the edge), or is drag-reveal enough? Default: drag-reveal only, no persistent indicator. Revisit after one week of use.
 - Should maximize persist across tab switches within the maximized group, or reset on tab change? Default: persist (matches dockview's native behavior).
-- For the tab-bar-hidden rule, should a panel still show its title somewhere when the tab is hidden (e.g., in the AppBar breadcrumb)? Default: no — the panel's own content is self-identifying.
