@@ -6,7 +6,7 @@
 
 **Architecture:** Frontend-only changes in `frontend/src/panels/*` plus a new E2E spec block. No backend changes. Each issue is an independent commit; order is smallest-blast-radius first so regressions are bisectable.
 
-**Tech Stack:** React 19 + TypeScript + MUI v7 + Zustand + Vite 7 + dockview-react 5.2 + Plotly.js. Dev via `bun run dev` (port 5173 → proxies to :8000). Production serve via `uv build --reinstall && uv run zndraw` (serves built static at :8000). E2E: `@playwright/test` against `:8000`.
+**Tech Stack:** React 19 + TypeScript + MUI v7 + Zustand + Vite 7 + dockview-react 5.2 + Plotly.js. Dev via `bun run dev` (port 5173 → proxies to :8000). Production serve via `uv sync --reinstall-package zndraw && uv run zndraw` (serves built static at :8000). E2E: `@playwright/test` against `:8000`.
 
 **Parent spec:** [`docs/superpowers/specs/2026-04-16-dockview-followup-design.md`](../specs/2026-04-16-dockview-followup-design.md).
 
@@ -103,7 +103,7 @@ test("chat icon defaults to the left activity bar", async ({ page }) => {
 
 - [ ] **Step 1.2: Build + run test → expect FAIL**
 
-Run: `cd frontend && uv run --project .. bash -lc 'cd $(pwd) && bun run build' && cd .. && uv build --reinstall`
+Run: `cd frontend && uv run --project .. bash -lc 'cd $(pwd) && bun run build' && cd .. && uv sync --reinstall-package zndraw`
 Then: `cd frontend && bun run test:e2e -- --grep "chat icon defaults"`
 Expected: FAIL. Chat is still on the right bar.
 
@@ -139,7 +139,7 @@ Note: `order: 7` places chat at the bottom of the left-bar stack (existing left 
 
 - [ ] **Step 1.4: Rebuild + run test → expect PASS**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "chat icon defaults"`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "chat icon defaults"`
 Expected: PASS. Also verify existing specs still pass: `bunx playwright test e2e/dockview-layout.spec.ts`.
 
 - [ ] **Step 1.5: Commit**
@@ -195,7 +195,7 @@ test("opening a bottom panel shrinks the viewer vertically", async ({
 
 - [ ] **Step 2.2: Build + run test → expect FAIL**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "shrinks the viewer vertically"`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "shrinks the viewer vertically"`
 Expected: FAIL. The viewer's `after.height` is approximately equal to `before.height` because the current layout bug means the BottomZone pushes its siblings but DockviewReact keeps its previous computed height.
 
 - [ ] **Step 2.3: Add the absolute-positioned inner wrapper**
@@ -239,7 +239,7 @@ The change: `DockviewReact` now lives inside a second `<Box>` with `position: "a
 
 - [ ] **Step 2.4: Rebuild + run test → expect PASS**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
 Expected: the new assertion passes; all existing ones still pass.
 
 - [ ] **Step 2.5: Commit**
@@ -299,7 +299,7 @@ The import order matters: MUI overrides load after dockview's base so the overri
 
 - [ ] **Step 3.3: Rebuild + visually verify**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw`
 Open http://localhost:8000/rooms/dockview-test in a browser. Click the Plots icon and open a plot. The tab bar should now read as a light-gray MUI Paper color (not the dockview default near-white).
 
 - [ ] **Step 3.4: Commit**
@@ -348,7 +348,7 @@ Note: MUI stores the color scheme on `<html data-mui-color-scheme>`. Setting it 
 
 - [ ] **Step 4.2: Build + run test → expect FAIL**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "theme class flips"`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "theme class flips"`
 Expected: FAIL — the class is hardcoded to `dockview-theme-light`.
 
 - [ ] **Step 4.3: Make the class dynamic**
@@ -375,7 +375,7 @@ const themeClass =
 
 - [ ] **Step 4.4: Rebuild + run test → expect PASS**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
 Expected: all assertions pass.
 
 - [ ] **Step 4.5: Commit**
@@ -426,7 +426,7 @@ test("plotly chart resizes when the viewport changes", async ({ page }) => {
 
 - [ ] **Step 5.2: Build + run test → expect FAIL**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "plotly chart resizes"`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "plotly chart resizes"`
 Expected: FAIL. Plotly renders once with `responsive: true` but dockview's panel container size changes aren't reaching plotly's internal resize loop; the chart stays at its initial width.
 
 - [ ] **Step 5.3: Subscribe to dimension changes in PlotView**
@@ -465,7 +465,7 @@ useEffect(() => {
 
 - [ ] **Step 5.4: Rebuild + run test → expect PASS**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "plotly chart resizes"`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "plotly chart resizes"`
 Expected: PASS.
 
 - [ ] **Step 5.5: Commit**
@@ -534,7 +534,7 @@ test("opening a second group yields a second popout+maximize pair", async ({
 
 - [ ] **Step 6.2: Build + run test → expect FAIL**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "popout"`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "popout"`
 Expected: FAIL. No group actions component is wired yet.
 
 - [ ] **Step 6.3: Create the groupActions component**
@@ -629,7 +629,7 @@ import { GroupActions } from "./groupActions";
 
 - [ ] **Step 6.5: Rebuild + run test → expect PASS**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
 Expected: both new assertions pass; all existing ones still pass.
 
 - [ ] **Step 6.6: Commit**
@@ -689,7 +689,7 @@ test("plots browser renders a single list (no 'Currently Open' section)", async 
 
 - [ ] **Step 7.2: Build + run test → expect FAIL**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "plots browser renders a single list"`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "plots browser renders a single list"`
 Expected: FAIL. "Currently Open" section still renders.
 
 - [ ] **Step 7.3: Rewrite PlotsBrowserPanel**
@@ -847,7 +847,7 @@ Diff vs. the old file:
 
 - [ ] **Step 7.4: Rebuild + run test → expect PASS**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
 Expected: all assertions pass.
 
 - [ ] **Step 7.5: Commit**
@@ -933,7 +933,7 @@ test("second plot stacks with the first (shares a group)", async ({
 
 - [ ] **Step 8.2: Build + run test → expect FAIL**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "opens in a new group to the right"`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "opens in a new group to the right"`
 Expected: FAIL. The current `openPlotTab` with no `referenceGroupId` calls `addPanel` without a position, so dockview stacks the new panel in the active group (the viewer's group). The plot ends up on top of the viewer.
 
 - [ ] **Step 8.3: Rewrite openPlotTab**
@@ -1031,7 +1031,7 @@ export function closePlotTab(api: DockviewApi, figureKey: string): void {
 
 - [ ] **Step 8.4: Rebuild + run test → expect PASS**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
 Expected: both new positioning assertions pass. The earlier "popout + maximize pair count ≥ 1" assertion from Task 6 can now be tightened — with the plot in its own group, there will be 2 pairs. This tightening is optional; the `≥ 1` still holds.
 
 - [ ] **Step 8.5: Commit**
@@ -1108,7 +1108,7 @@ test("dragging an icon lights up empty bars as hot drop zones", async ({
 
 - [ ] **Step 9.2: Build + run test → expect FAIL**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "sliver|hot drop"`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts --grep "sliver|hot drop"`
 Expected: FAIL. ActivityBar always renders at full size.
 
 - [ ] **Step 9.3: Rewrite ActivityBar with three-state render**
@@ -1342,7 +1342,7 @@ Key diffs vs. the existing file:
 
 - [ ] **Step 9.4: Rebuild + run test → expect PASS**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
 Expected: three new assertions pass; existing "default startup shows activity bars and viewer" still passes because the slivers ARE present (they're still rendered `<Box>` elements with `data-testid`), just narrow.
 
 Note: the existing test asserts `await expect(page.getByTestId("activity-bar-right")).toBeVisible();` — Playwright considers a 4px × viewport-height element visible. If the test fails after this change, widen the sliver to 6px or adjust the assertion.
@@ -1377,7 +1377,7 @@ Expected: no errors. If biome flags style-only issues, run `bunx biome check --w
 
 - [ ] **Step 10.3: Full dockview E2E spec**
 
-Run: `cd frontend && bun run build && cd .. && uv build --reinstall && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
+Run: `cd frontend && bun run build && cd .. && uv sync --reinstall-package zndraw && cd frontend && bunx playwright test e2e/dockview-layout.spec.ts`
 Expected: all assertions in `dockview-layout.spec.ts` pass (the pre-existing 5 tests plus the ones added in Tasks 1–9). The 13 pre-existing broken specs in other files are out of scope.
 
 - [ ] **Step 10.4: Manual screenshot sweep**
