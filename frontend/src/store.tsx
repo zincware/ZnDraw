@@ -1,4 +1,8 @@
 import { create } from "zustand";
+import {
+	type ActivityBarSlice,
+	createActivityBarSlice,
+} from "./stores/slices/activityBarSlice";
 import type { ConnectionSlice } from "./stores/slices/connectionSlice";
 import { createConnectionSlice } from "./stores/slices/connectionSlice";
 import type { LockSlice } from "./stores/slices/lockSlice";
@@ -40,7 +44,8 @@ export type AppState = ConnectionSlice &
 	PlaybackSlice &
 	SceneSlice &
 	LockSlice &
-	UISlice;
+	UISlice &
+	ActivityBarSlice;
 
 // --- Selectors ---
 
@@ -98,4 +103,5 @@ export const useAppStore = create<AppState>((...a) => ({
 	...createSceneSlice(...a),
 	...createLockSlice(...a),
 	...createUISlice(...a),
+	...createActivityBarSlice(...a),
 }));
