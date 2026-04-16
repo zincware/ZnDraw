@@ -78,4 +78,12 @@ test.describe("dockview layout", () => {
 		await closeBtn.click();
 		await expect(page).toHaveURL(/\/$/);
 	});
+
+	test("chat icon defaults to the left activity bar", async ({ page }) => {
+		await page.goto(`/rooms/${ROOM}`);
+		const leftBar = page.getByTestId("activity-bar-left");
+		await expect(leftBar.getByTestId("activity-icon-chat")).toBeVisible();
+		const rightBar = page.getByTestId("activity-bar-right");
+		await expect(rightBar.getByTestId("activity-icon-chat")).toHaveCount(0);
+	});
 });

@@ -114,7 +114,7 @@ export const PANELS: Record<PanelId, PanelDef> = {
 		icon: Chat,
 		label: "Chat",
 		component: ChatPanel,
-		default: { bar: "right", order: 0 },
+		default: { bar: "left", order: 7 },
 	},
 	viewer: {
 		kind: "view",
