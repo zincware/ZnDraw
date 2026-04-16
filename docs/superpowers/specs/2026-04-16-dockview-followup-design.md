@@ -60,11 +60,11 @@ Two parts:
 
 ### 3. Popout button
 
-Per-group right-gutter action rendered via dockview's `rightHeaderActionsComponent`. Clicking calls `api.addPopoutGroup(group)`. Popouts reuse the same MUI theme by serving the HTML shell from the existing static assets.
+Dockview renders one instance of `rightHeaderActionsComponent` per group automatically, so the popout button appears on every group (viewer group, plot groups, any group the user splits off). Clicking calls `api.addPopoutGroup(group)`. Popouts reuse the same MUI theme by serving the HTML shell from the existing static assets.
 
 ### 4. Maximize / fullscreen button
 
-Second per-group right-gutter action. Toggles `api.maximizeGroup(group)` / `api.exitMaximizedGroup()` based on `api.hasMaximizedGroup(group)`. Icon flips between maximize and un-maximize. No additional state management required.
+Second button in the same per-group `rightHeaderActionsComponent`. Toggles `api.maximizeGroup(group)` / `api.exitMaximizedGroup()` based on `api.hasMaximizedGroup(group)`. Icon flips between maximize and un-maximize. No additional state management required.
 
 ### 5. Chrome economy — auto-hiding activity bars with sliver drop zones
 
@@ -95,7 +95,7 @@ Drop the "Currently Open" section entirely. One list with the status dot (filled
 
 `openPlotTab(api, figureKey, opts)` resolves the target group deterministically:
 
-1. If an existing `plot-*` panel is open, use its group. When multiple groups contain plots, pick the group whose oldest panel id sorts first lexicographically (stable, predictable).
+1. If an existing `plot-*` panel is open, use its group. When multiple groups contain plots, pick the group containing the panel whose id sorts first lexicographically among all `plot-*` panels in the layout (stable across sessions and independent of insertion order).
 2. Else, find the viewer's group and place the new plot tab in a new group **to the right of it** (`position: { referenceGroup: viewerGroup, direction: "right" }`).
 3. Else (no viewer — rare), fall back to `addPanel` with no position (dockview default placement).
 
