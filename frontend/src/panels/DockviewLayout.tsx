@@ -6,6 +6,7 @@ import type {
 } from "dockview-react";
 import { DockviewReact } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
+import "./dockview-mui.css";
 import { useCallback, useRef, useState } from "react";
 import { PlotView } from "./PlotView";
 import { PANELS } from "./registry";
