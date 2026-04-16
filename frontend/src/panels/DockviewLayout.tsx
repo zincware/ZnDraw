@@ -79,13 +79,15 @@ export function DockviewLayout() {
 
 	return (
 		<Box sx={{ flexGrow: 1, position: "relative", minWidth: 0, minHeight: 0 }}>
-			<DockviewReact
-				className="dockview-theme-light"
-				onReady={onReady}
-				components={components}
-				onDidDrop={onDidDrop}
-				floatingGroupBounds="boundedWithinViewport"
-			/>
+			<Box sx={{ position: "absolute", inset: 0 }}>
+				<DockviewReact
+					className="dockview-theme-light"
+					onReady={onReady}
+					components={components}
+					onDidDrop={onDidDrop}
+					floatingGroupBounds="boundedWithinViewport"
+				/>
+			</Box>
 			{isEmpty && (
 				<Box
 					data-testid="dockview-welcome"

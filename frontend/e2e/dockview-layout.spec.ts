@@ -86,4 +86,29 @@ test.describe("dockview layout", () => {
 		const rightBar = page.getByTestId("activity-bar-right");
 		await expect(rightBar.getByTestId("activity-icon-chat")).toHaveCount(0);
 	});
+
+	test("opening a bottom panel shrinks the viewer vertically", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		const viewer = page.getByTestId("viewer-view");
+		await expect(viewer).toBeVisible();
+		const before = await viewer.boundingBox();
+		if (!before) throw new Error("viewer bounding box missing");
+
+		// Drag the plots-browser icon into the bottom bar and activate it.
+		const plotsIcon = page.getByTestId("activity-icon-plots-browser");
+		const bottomBar = page.getByTestId("activity-bar-bottom");
+		await plotsIcon.dragTo(bottomBar);
+		await plotsIcon.click();
+
+		const bottomZone = page.getByTestId("bottom-zone");
+		await expect(bottomZone).toBeVisible();
+		// Give the ResizeObserver time to fire and dockview to re-layout panels.
+		await page.waitForTimeout(300);
+
+		const after = await viewer.boundingBox();
+		if (!after) throw new Error("viewer bounding box missing after");
+		expect(after.height).toBeLessThan(before.height - 50);
+	});
 });
