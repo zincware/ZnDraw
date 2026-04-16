@@ -716,6 +716,20 @@ export function PlotView(props: IDockviewPanelProps<PlotViewParams>) {
 		};
 	}, []);
 
+	// ===== EFFECT: Re-layout Plotly on container size changes =====
+	// Dockview emits onDidDimensionsChange on splitter drag, popout, maximize,
+	// and viewport resize. Plotly's responsive:true handles window resizes but
+	// not intra-panel resizes, so we re-trigger its layout pass here.
+	useEffect(() => {
+		const disposable = props.api.onDidDimensionsChange(() => {
+			const container = plotContainer.current;
+			if (container) {
+				Plotly.Plots.resize(container);
+			}
+		});
+		return () => disposable.dispose();
+	}, [props.api]);
+
 	// ===== EFFECT: Update Step Markers on Frame Change =====
 	// Updates red markers for click="step" interaction
 	useEffect(() => {

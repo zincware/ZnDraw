@@ -243,4 +243,22 @@ test.describe("dockview layout", () => {
 		expect(vars.groupBg).toBe(vars.muiBgDefault);
 		expect(vars.muiBgDefault.toLowerCase()).toMatch(/#121212|rgb\(18/);
 	});
+
+	test("plotly chart resizes when the viewport changes", async ({ page }) => {
+		await page.setViewportSize({ width: 1400, height: 900 });
+		await page.goto(`/rooms/${ROOM}`);
+		await page.getByTestId("activity-icon-plots-browser").click();
+		const zone = page.getByTestId("sidebar-zone-left");
+		const firstRow = zone.locator('li [role="button"]').first();
+		await firstRow.click();
+		const plotly = page.locator(".plotly").first();
+		await expect(plotly).toBeVisible({ timeout: 15000 });
+		const widthBefore = (await plotly.boundingBox())?.width ?? 0;
+
+		await page.setViewportSize({ width: 900, height: 900 });
+		await page.waitForTimeout(500);
+		const widthAfter = (await plotly.boundingBox())?.width ?? 0;
+
+		expect(widthAfter).toBeLessThan(widthBefore - 100);
+	});
 });
