@@ -49,10 +49,14 @@ export function createChatHandlers(ctx: HandlerContext): ChatHandlersResult {
 			return { ...oldData, pages: newPages };
 		});
 
-		// Increment unread count if chat is closed
-		const { chatOpen, incrementChatUnread } = useAppStore.getState();
-		if (!chatOpen) {
-			incrementChatUnread();
+		// Increment unread count if chat panel is not active in any bar
+		const state = useAppStore.getState();
+		const chatIsActive =
+			state.activeLeft === "chat" ||
+			state.activeRight === "chat" ||
+			state.activeBottom === "chat";
+		if (!chatIsActive) {
+			state.incrementChatUnread();
 		}
 	}
 

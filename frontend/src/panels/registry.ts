@@ -9,12 +9,12 @@ import ShowChart from "@mui/icons-material/ShowChart";
 import type { SvgIconComponent } from "@mui/icons-material";
 import type { IDockviewPanelProps } from "dockview-react";
 import type { ComponentType } from "react";
+import ChatPanel from "./ChatPanel";
 import { FilesystemPanel } from "./FilesystemPanel";
 import { PlotsBrowserPanel } from "./PlotsBrowserPanel";
 import { RoomsPanel } from "./RoomsPanel";
 import {
 	StubAnalysis,
-	StubChat,
 	StubGeometries,
 	StubModifiers,
 	StubSelections,
@@ -113,7 +113,7 @@ export const PANELS: Record<PanelId, PanelDef> = {
 		kind: "tool",
 		icon: Chat,
 		label: "Chat",
-		component: StubChat,
+		component: ChatPanel,
 		default: { bar: "right", order: 0 },
 	},
 	viewer: {

@@ -1,3 +1,4 @@
+import Badge from "@mui/material/Badge";
 import { Box, IconButton, Tooltip } from "@mui/material";
 import { useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -44,6 +45,7 @@ export function ActivityBar({ position }: ActivityBarProps) {
 	);
 	const toggleActive = useAppStore((s) => s.toggleActive);
 	const moveIconToBar = useAppStore((s) => s.moveIconToBar);
+	const chatUnread = useAppStore((s) => s.chatUnreadCount);
 
 	const onDragStart = useCallback(
 		(e: React.DragEvent, id: PanelId) => {
@@ -99,6 +101,15 @@ export function ActivityBar({ position }: ActivityBarProps) {
 				if (def.kind !== "tool") return null;
 				const Icon = def.icon;
 				const isActive = active === id;
+				const iconElement = <Icon />;
+				const iconWithBadge =
+					id === "chat" && !isActive && chatUnread > 0 ? (
+						<Badge badgeContent={chatUnread} color="error" max={99}>
+							{iconElement}
+						</Badge>
+					) : (
+						iconElement
+					);
 				return (
 					<Tooltip
 						key={id}
@@ -129,7 +140,7 @@ export function ActivityBar({ position }: ActivityBarProps) {
 									: {}),
 							}}
 						>
-							<Icon />
+							{iconWithBadge}
 						</IconButton>
 					</Tooltip>
 				);
