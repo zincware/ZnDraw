@@ -10,13 +10,13 @@ import type { SvgIconComponent } from "@mui/icons-material";
 import type { IDockviewPanelProps } from "dockview-react";
 import type { ComponentType } from "react";
 import { PlotsBrowserPanel } from "./PlotsBrowserPanel";
+import { RoomsPanel } from "./RoomsPanel";
 import {
 	StubAnalysis,
 	StubChat,
 	StubFilesystem,
 	StubGeometries,
 	StubModifiers,
-	StubRooms,
 	StubSelections,
 	StubViewerView,
 } from "./stubs";
@@ -99,7 +99,7 @@ export const PANELS: Record<PanelId, PanelDef> = {
 		kind: "tool",
 		icon: MeetingRoom,
 		label: "Rooms",
-		component: StubRooms,
+		component: RoomsPanel,
 		default: { bar: "left", order: 5 },
 	},
 	filesystem: {
