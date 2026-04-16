@@ -1,10 +1,11 @@
 import { Box, Typography } from "@mui/material";
+import { useColorScheme } from "@mui/material/styles";
 import type {
 	DockviewApi,
 	DockviewDidDropEvent,
 	DockviewReadyEvent,
 } from "dockview-react";
-import { DockviewReact, themeLight } from "dockview-react";
+import { DockviewReact, themeLight, themeDark } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
 import "./dockview-mui.css";
 import { useCallback, useRef, useState } from "react";
@@ -57,6 +58,9 @@ function onDidDrop(event: DockviewDidDropEvent) {
 export function DockviewLayout() {
 	const apiRef = useRef<DockviewApi | null>(null);
 	const [isEmpty, setIsEmpty] = useState(false);
+	const { mode, systemMode } = useColorScheme();
+	const resolvedMode = mode === "system" ? systemMode : mode;
+	const dockTheme = resolvedMode === "dark" ? themeDark : themeLight;
 
 	const onReady = useCallback((event: DockviewReadyEvent) => {
 		apiRef.current = event.api;
@@ -82,7 +86,7 @@ export function DockviewLayout() {
 		<Box sx={{ flexGrow: 1, position: "relative", minWidth: 0, minHeight: 0 }}>
 			<Box sx={{ position: "absolute", inset: 0 }}>
 				<DockviewReact
-					theme={themeLight}
+					theme={dockTheme}
 					onReady={onReady}
 					components={components}
 					onDidDrop={onDidDrop}

@@ -182,4 +182,33 @@ test.describe("dockview layout", () => {
 		// Dark-mode sanity: MUI background-default must be a dark colour.
 		expect(vars.muiBgDefault.toLowerCase()).toMatch(/#121212|rgb\(18/);
 	});
+
+	test("dockview theme flips with MUI color scheme", async ({ page }) => {
+		// Set dark mode via localStorage BEFORE page load so MUI's
+		// useColorScheme picks it up on first render.
+		await page.addInitScript(() => {
+			localStorage.setItem("mui-mode", "dark");
+		});
+		await page.goto(`/rooms/${ROOM}`);
+		await page.waitForTimeout(1000);
+
+		// dockview-react applies the theme's className to its root element.
+		// themeDark has className 'dockview-theme-dark'.
+		const darkEl = page.locator(".dockview-theme-dark");
+		await expect(darkEl).toHaveCount(1);
+		const lightEl = page.locator(".dockview-theme-light");
+		await expect(lightEl).toHaveCount(0);
+
+		// Spot-check that the MUI dark palette is active and the dockview
+		// vars resolve to it.
+		const vars = await darkEl.first().evaluate((el) => {
+			const s = getComputedStyle(el);
+			return {
+				groupBg: s.getPropertyValue("--dv-group-view-background-color").trim(),
+				muiBgDefault: s.getPropertyValue("--mui-palette-background-default").trim(),
+			};
+		});
+		expect(vars.groupBg).toBe(vars.muiBgDefault);
+		expect(vars.muiBgDefault.toLowerCase()).toMatch(/#121212|rgb\(18/);
+	});
 });
