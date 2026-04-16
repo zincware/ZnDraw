@@ -7,6 +7,7 @@ import {
 	createBrowserRouter,
 	useParams,
 } from "react-router-dom";
+import { MuiCssVars } from "./MuiCssVars";
 import CliLoginApprovePage from "./pages/cliLoginApprove";
 import MainPage from "./pages/landingPage";
 import RoomListPage from "./pages/roomList";
@@ -28,9 +29,6 @@ const queryClient = new QueryClient({
 });
 
 const theme = createTheme({
-	cssVariables: {
-		colorSchemeSelector: "data",
-	},
 	colorSchemes: {
 		dark: true,
 	},
@@ -68,6 +66,7 @@ export function App() {
 	return (
 		<ThemeProvider theme={theme}>
 			<CssBaseline />
+			<MuiCssVars />
 			<QueryClientProvider client={queryClient}>
 				<RouterProvider router={router} />
 			</QueryClientProvider>

@@ -148,17 +148,18 @@ test.describe("dockview layout", () => {
 	test("dockview tab chrome reads MUI palette in dark mode", async ({
 		page,
 	}) => {
+		// Seed dark mode before page load so MUI's useColorScheme picks it up.
+		await page.addInitScript(() =>
+			localStorage.setItem("mui-mode", "dark"),
+		);
 		await page.goto(`/rooms/${ROOM}`);
-		await page.waitForTimeout(1000);
-		// MUI v7 with cssVariables.colorSchemeSelector='data' emits
-		// [data-light] and [data-dark] attribute-scoped palette rules.
-		await page.evaluate(() => {
-			document.documentElement.removeAttribute("data-light");
-			document.documentElement.setAttribute("data-dark", "");
-		});
-		await page.waitForTimeout(200);
+		await page.waitForTimeout(1500);
 
-		const themed = page.locator(".dockview-theme-light").first();
+		// In dark mode, dockview uses themeDark whose className is
+		// 'dockview-theme-dark' (Task 4 wires this).
+		const themed = page.locator(".dockview-theme-dark").first();
+		await expect(themed).toHaveCount(1);
+
 		const vars = await themed.evaluate((el) => {
 			const s = getComputedStyle(el);
 			return {
@@ -175,12 +176,43 @@ test.describe("dockview layout", () => {
 			};
 		});
 
-		// dockview vars must still resolve to MUI tokens (now dark palette).
+		// dockview vars must resolve to MUI tokens (now dark palette).
 		expect(vars.groupBg).toBe(vars.muiBgDefault);
 		expect(vars.tabsBarBg).toBe(vars.muiBgPaper);
 		expect(vars.activeTabColor).toBe(vars.muiTextPrimary);
 		// Dark-mode sanity: MUI background-default must be a dark colour.
 		expect(vars.muiBgDefault.toLowerCase()).toMatch(/#121212|rgb\(18/);
+	});
+
+	test("3D viewer canvas background flips to dark in dark mode", async ({
+		page,
+	}) => {
+		await page.addInitScript(() =>
+			localStorage.setItem("mui-mode", "dark"),
+		);
+		await page.goto(`/rooms/${ROOM}`);
+		await page.waitForTimeout(2500);
+
+		// R3F's <Canvas> outer wrapper div receives the inline
+		// `background: <theme.palette.background.default>` from Canvas.tsx.
+		// When MUI is in dark mode, that ancestor must be a dark colour —
+		// not the white default we had before the MuiCssVars fix.
+		const bg = await page.evaluate(() => {
+			const canvas = document.querySelector(
+				"[data-testid='viewer-view'] canvas",
+			) as HTMLCanvasElement | null;
+			if (!canvas) return null;
+			let el: HTMLElement | null = canvas.parentElement;
+			while (el) {
+				const c = getComputedStyle(el).backgroundColor;
+				if (c !== "rgba(0, 0, 0, 0)" && c !== "transparent") return c;
+				el = el.parentElement;
+			}
+			return null;
+		});
+		expect(bg).not.toBeNull();
+		// Dark MUI background is rgb(18, 18, 18) a.k.a. #121212.
+		expect(bg?.toLowerCase()).toMatch(/rgb\(18|#121212/);
 	});
 
 	test("dockview theme flips with MUI color scheme", async ({ page }) => {
