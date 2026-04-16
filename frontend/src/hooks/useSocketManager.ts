@@ -2,7 +2,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { connectWithAuth, socket } from "../socket";
 import { useAppStore } from "../store";
-import { useWindowManagerStore } from "../stores/windowManagerStore";
 import {
 	createChatHandlers,
 	createConnectionHandlers,
@@ -56,7 +55,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		(state) => state.removeProgressTracker,
 	);
 	const queryClient = useQueryClient();
-	const { openWindow } = useWindowManagerStore();
 
 	// Use provided roomId from options, fallback to appStore roomId
 	const roomId = options.roomId || appStoreRoomId;
@@ -102,7 +100,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			addProgressTracker,
 			updateProgressTracker,
 			removeProgressTracker,
-			openWindow,
 		};
 
 		// Create handler groups from factories
@@ -251,7 +248,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		addProgressTracker,
 		updateProgressTracker,
 		removeProgressTracker,
-		openWindow,
 		setCameraKey,
 	]);
 };

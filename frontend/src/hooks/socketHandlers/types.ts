@@ -62,7 +62,4 @@ export interface HandlerContext {
 		update: Partial<Progress> & { progress_id: string },
 	) => void;
 	removeProgressTracker: (progressId: string) => void;
-
-	// Window manager
-	openWindow: (figureKey: string) => void;
 }

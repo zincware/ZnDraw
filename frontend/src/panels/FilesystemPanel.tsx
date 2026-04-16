@@ -35,18 +35,16 @@ import { getDockviewApi } from "./DockviewLayout";
 /**
  * FilesystemPanel — sidebar-embedded filesystem browser.
  *
- * Unwrapped version of ``pages/filesystemBrowser.tsx``: the page-level
- * ``AppBar`` / ``Container`` / ``Paper`` chrome is dropped so the panel
- * renders inside the dockview sidebar zone. Business logic (queries,
- * state, handlers, dialog) is preserved.
+ * Renders inside the dockview sidebar zone (no AppBar / Container /
+ * Paper chrome). Business logic (queries, state, handlers, dialog)
+ * lives here directly.
  *
- * Differences from the page variant
- * ---------------------------------
- * - ``roomId`` comes from ``useAppStore`` instead of ``useParams`` so the
- *   panel works regardless of route.
+ * Notes
+ * -----
+ * - ``roomId`` comes from ``useAppStore`` so the panel works regardless
+ *   of route.
  * - Post-load navigation runs the ``useLeaveRoom`` cascade before
  *   ``navigate`` so plots / viewer state don't leak across rooms.
- * - The back-button handler is removed (no AppBar to hang it off).
  */
 export function FilesystemPanel() {
 	const navigate = useNavigate();

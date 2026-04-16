@@ -1,12 +1,12 @@
 import { Box, Paper, Typography, useTheme } from "@mui/material";
-import { Rnd } from "react-rnd";
 import { usePropertyInspectorSettings } from "../../hooks/usePropertyInspectorSettings";
 import { useAppStore } from "../../store";
 import { formatPropertyValue } from "../../utils/propertyFormatting";
 
 /**
- * StaticInfoBox - Displays general scene information in a draggable window.
- * Default position is top-right corner.
+ * StaticInfoBox - Displays general scene information in the top-right corner
+ * of the viewer.
+ *
  * Shows:
  * - Number of particles in the current frame
  * - Current frame number
@@ -37,25 +37,20 @@ export default function StaticInfoBox() {
 	const selectionCount = selections?.particles?.length || 0;
 
 	return (
-		<Rnd
-			default={{
-				x: window.innerWidth - 280,
-				y: 84,
+		<Box
+			sx={{
+				position: "absolute",
+				top: 12,
+				right: 12,
 				width: 240,
-				height: "auto",
+				zIndex: 1300,
+				pointerEvents: "auto",
 			}}
-			minWidth={200}
-			minHeight={100}
-			bounds=".drag-boundary-container"
-			dragHandleClassName="info-drag-handle"
-			style={{ zIndex: 1300 }}
-			enableResizing={false}
 		>
 			<Paper
 				elevation={3}
 				sx={{
 					width: "100%",
-					height: "100%",
 					display: "flex",
 					flexDirection: "column",
 					backgroundColor:
@@ -71,10 +66,8 @@ export default function StaticInfoBox() {
 				}}
 			>
 				<Box
-					className="info-drag-handle"
 					sx={{
 						padding: 2,
-						cursor: "move",
 					}}
 				>
 					<Typography
@@ -153,6 +146,6 @@ export default function StaticInfoBox() {
 					</Box>
 				</Box>
 			</Paper>
-		</Rnd>
+		</Box>
 	);
 }
