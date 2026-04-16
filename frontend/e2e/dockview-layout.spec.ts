@@ -261,4 +261,23 @@ test.describe("dockview layout", () => {
 
 		expect(widthAfter).toBeLessThan(widthBefore - 100);
 	});
+
+	test("every group shows popout + maximize buttons", async ({ page }) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await expect(page.getByTestId("group-popout")).toHaveCount(1);
+		await expect(page.getByTestId("group-maximize")).toHaveCount(1);
+
+		// Maximize the viewer group and verify the icon flips.
+		await page.getByTestId("group-maximize").click();
+		await expect(page.getByTestId("group-maximize")).toHaveAttribute(
+			"aria-label",
+			"Exit full-screen",
+		);
+		// Click again to restore.
+		await page.getByTestId("group-maximize").click();
+		await expect(page.getByTestId("group-maximize")).toHaveAttribute(
+			"aria-label",
+			"Full-screen",
+		);
+	});
 });

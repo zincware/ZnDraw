@@ -9,6 +9,7 @@ import { DockviewReact, themeLight, themeDark } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
 import "./dockview-mui.css";
 import { useCallback, useRef, useState } from "react";
+import { GroupActions } from "./groupActions";
 import { PlotView } from "./PlotView";
 import { PANELS } from "./registry";
 import { ViewerView } from "./ViewerView";
@@ -91,6 +92,7 @@ export function DockviewLayout() {
 					components={components}
 					onDidDrop={onDidDrop}
 					floatingGroupBounds="boundedWithinViewport"
+					rightHeaderActionsComponent={GroupActions}
 				/>
 			</Box>
 			{isEmpty && (
