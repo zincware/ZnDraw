@@ -1,4 +1,9 @@
-import { useWindowManagerStore } from "../../stores/windowManagerStore";
+import { getDockviewApi } from "../../panels/DockviewLayout";
+import {
+	closePlotTab,
+	openPlotTab,
+	plotPanelId,
+} from "../../panels/plotViewFactory";
 import type { HandlerContext } from "./types";
 
 /** Socket event payload for the `figure_invalidate` event. */
@@ -7,14 +12,11 @@ export interface FigureInvalidateEvent {
 	operation?: "set" | "delete";
 }
 
-const MAX_AUTO_OPEN_WINDOWS = 5;
-
 /**
  * Creates figure handler functions.
  *
- * Uses `useWindowManagerStore.getState()` for imperative access to window
- * state (not a hook call). Window open/close operations interact with
- * windowManagerStore, not appStore.
+ * Drives the dockview API via `getDockviewApi()` to open/close plot tabs
+ * when figures are created, updated, or deleted server-side.
  */
 export function createFigureHandlers(ctx: HandlerContext) {
 	function onFiguresInvalidate(data: FigureInvalidateEvent) {
@@ -28,16 +30,9 @@ export function createFigureHandlers(ctx: HandlerContext) {
 				queryKey: ["figures", ctx.roomId, "detail", data.key],
 			});
 
-			// Step 2: Close any open windows displaying this figure
-			const windowsToClose = Object.entries(
-				useWindowManagerStore.getState().openWindows,
-			)
-				.filter(([_, window]) => window.figureKey === data.key)
-				.map(([windowId]) => windowId);
-
-			windowsToClose.forEach((windowId) => {
-				useWindowManagerStore.getState().closeWindow(windowId);
-			});
+			// Step 2: Close the dockview panel displaying this figure, if open
+			const api = getDockviewApi();
+			if (api) closePlotTab(api, data.key);
 
 			// Step 3: Invalidate the figures list to update the UI
 			ctx.queryClient.invalidateQueries({
@@ -54,18 +49,10 @@ export function createFigureHandlers(ctx: HandlerContext) {
 				queryKey: ["figures", ctx.roomId, "list"],
 			});
 
-			// Step 3: Auto-open window if not already displaying this figure
-			const openWindowsState = useWindowManagerStore.getState().openWindows;
-			const isWindowDisplayingFigure = Object.values(openWindowsState).some(
-				(window) => window.figureKey === data.key,
-			);
-
-			const openWindowCount = Object.keys(openWindowsState).length;
-
-			if (!isWindowDisplayingFigure) {
-				if (openWindowCount < MAX_AUTO_OPEN_WINDOWS) {
-					ctx.openWindow(data.key);
-				}
+			// Step 3: Auto-open as a tab in the active editor group if not already open
+			const api = getDockviewApi();
+			if (api && !api.getPanel(plotPanelId(data.key))) {
+				openPlotTab(api, data.key);
 			}
 		}
 	}
