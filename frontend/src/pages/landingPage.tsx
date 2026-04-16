@@ -212,7 +212,16 @@ export default function MainPage() {
 		if (!panel || !(panel in PANELS)) return;
 		const def = PANELS[panel];
 		if (def.kind !== "tool" || def.default.bar === "editor") return;
-		useAppStore.getState().toggleActive(def.default.bar, panel);
+		const state = useAppStore.getState();
+		const activeKey =
+			def.default.bar === "left"
+				? "activeLeft"
+				: def.default.bar === "right"
+					? "activeRight"
+					: "activeBottom";
+		if (state[activeKey] !== panel) {
+			state.toggleActive(def.default.bar, panel);
+		}
 	}, [searchParams]);
 
 	return (
