@@ -111,4 +111,75 @@ test.describe("dockview layout", () => {
 		if (!after) throw new Error("viewer bounding box missing after");
 		expect(after.height).toBeLessThan(before.height - 50);
 	});
+
+	test("dockview tab chrome reads MUI palette in light mode", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.waitForTimeout(1000);
+
+		const themed = page.locator(".dockview-theme-light").first();
+		await expect(themed).toHaveCount(1);
+
+		const vars = await themed.evaluate((el) => {
+			const s = getComputedStyle(el);
+			return {
+				groupBg: s.getPropertyValue("--dv-group-view-background-color").trim(),
+				tabsBarBg: s
+					.getPropertyValue("--dv-tabs-and-actions-container-background-color")
+					.trim(),
+				activeTabColor: s
+					.getPropertyValue("--dv-activegroup-visiblepanel-tab-color")
+					.trim(),
+				muiBgDefault: s.getPropertyValue("--mui-palette-background-default").trim(),
+				muiBgPaper: s.getPropertyValue("--mui-palette-background-paper").trim(),
+				muiTextPrimary: s.getPropertyValue("--mui-palette-text-primary").trim(),
+			};
+		});
+
+		// dockview vars must resolve to the same values as the MUI tokens.
+		expect(vars.groupBg).toBe(vars.muiBgDefault);
+		expect(vars.tabsBarBg).toBe(vars.muiBgPaper);
+		expect(vars.activeTabColor).toBe(vars.muiTextPrimary);
+		// Light-mode sanity: MUI background-default must be a light colour.
+		expect(vars.muiBgDefault.toLowerCase()).toMatch(/#fff|rgb\(255/);
+	});
+
+	test("dockview tab chrome reads MUI palette in dark mode", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.waitForTimeout(1000);
+		// MUI v7 with cssVariables.colorSchemeSelector='data' emits
+		// [data-light] and [data-dark] attribute-scoped palette rules.
+		await page.evaluate(() => {
+			document.documentElement.removeAttribute("data-light");
+			document.documentElement.setAttribute("data-dark", "");
+		});
+		await page.waitForTimeout(200);
+
+		const themed = page.locator(".dockview-theme-light").first();
+		const vars = await themed.evaluate((el) => {
+			const s = getComputedStyle(el);
+			return {
+				groupBg: s.getPropertyValue("--dv-group-view-background-color").trim(),
+				tabsBarBg: s
+					.getPropertyValue("--dv-tabs-and-actions-container-background-color")
+					.trim(),
+				activeTabColor: s
+					.getPropertyValue("--dv-activegroup-visiblepanel-tab-color")
+					.trim(),
+				muiBgDefault: s.getPropertyValue("--mui-palette-background-default").trim(),
+				muiBgPaper: s.getPropertyValue("--mui-palette-background-paper").trim(),
+				muiTextPrimary: s.getPropertyValue("--mui-palette-text-primary").trim(),
+			};
+		});
+
+		// dockview vars must still resolve to MUI tokens (now dark palette).
+		expect(vars.groupBg).toBe(vars.muiBgDefault);
+		expect(vars.tabsBarBg).toBe(vars.muiBgPaper);
+		expect(vars.activeTabColor).toBe(vars.muiTextPrimary);
+		// Dark-mode sanity: MUI background-default must be a dark colour.
+		expect(vars.muiBgDefault.toLowerCase()).toMatch(/#121212|rgb\(18/);
+	});
 });

@@ -28,6 +28,9 @@ const queryClient = new QueryClient({
 });
 
 const theme = createTheme({
+	cssVariables: {
+		colorSchemeSelector: "data",
+	},
 	colorSchemes: {
 		dark: true,
 	},

@@ -4,7 +4,7 @@ import type {
 	DockviewDidDropEvent,
 	DockviewReadyEvent,
 } from "dockview-react";
-import { DockviewReact } from "dockview-react";
+import { DockviewReact, themeLight } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
 import "./dockview-mui.css";
 import { useCallback, useRef, useState } from "react";
@@ -82,7 +82,7 @@ export function DockviewLayout() {
 		<Box sx={{ flexGrow: 1, position: "relative", minWidth: 0, minHeight: 0 }}>
 			<Box sx={{ position: "absolute", inset: 0 }}>
 				<DockviewReact
-					className="dockview-theme-light"
+					theme={themeLight}
 					onReady={onReady}
 					components={components}
 					onDidDrop={onDidDrop}
