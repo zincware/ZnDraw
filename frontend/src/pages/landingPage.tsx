@@ -2,7 +2,6 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import BrushIcon from "@mui/icons-material/Brush";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
-import ChatIcon from "@mui/icons-material/Chat";
 import CodeIcon from "@mui/icons-material/Code";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
@@ -13,48 +12,46 @@ import OpenWithIcon from "@mui/icons-material/OpenWith";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import Alert from "@mui/material/Alert";
 import AppBar from "@mui/material/AppBar";
-import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
 import CssBaseline from "@mui/material/CssBaseline";
 import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Snackbar from "@mui/material/Snackbar";
+import { useColorScheme } from "@mui/material/styles";
 import Toolbar from "@mui/material/Toolbar";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import React, { useCallback, useState, useEffect, Suspense } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import React, { useCallback, useEffect, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import AdminPanel from "../components/AdminPanel";
+import ConnectionDialog from "../components/ConnectionDialog";
 import LoginDialog from "../components/LoginDialog";
 import FrameProgressBar from "../components/ProgressBar";
+import ProgressNotifications from "../components/ProgressNotifications";
 import RegisterDialog from "../components/RegisterDialog";
 import RoomManagementMenu from "../components/RoomManagementMenu";
 import SiMGenButtons from "../components/SiMGenButtons";
 import SiMGenTutorialDialog from "../components/SiMGenTutorialDialog";
-import SideBar from "../components/SideBar";
 import UserProfileDialog from "../components/UserProfileDialog";
-
-import MyScene from "../components/Canvas";
-import { useDragAndDrop } from "../hooks/useDragAndDrop";
-import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
-import { useSocketManager } from "../hooks/useSocketManager";
-// Lazy load ChatWindow - markdown/syntax highlighting only loads when chat is opened
-const ChatWindow = React.lazy(() => import("../components/ChatWindow"));
-import Link from "@mui/material/Link";
-import { useColorScheme } from "@mui/material/styles";
-import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
-import { uploadTrajectory } from "../myapi/client";
-import AddPlotButton from "../components/AddPlotButton";
-import ConnectionDialog from "../components/ConnectionDialog";
-import DropOverlay from "../components/DropOverlay";
-import ProgressNotifications from "../components/ProgressNotifications";
-import WindowManager from "../components/WindowManager";
 import { TRAJECTORY_ACCEPT } from "../constants/fileTypes";
 import { LAYOUT_CONSTANTS } from "../constants/layout";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import { useSocketManager } from "../hooks/useSocketManager";
+import { uploadTrajectory } from "../myapi/client";
+import {
+	ActivityBar,
+	BottomZone,
+	DockviewLayout,
+	getDockviewApi,
+	PANELS,
+	type PanelId,
+	SidebarZone,
+} from "../panels";
 import { connectWithAuth } from "../socket";
 import { useAppStore } from "../store";
 import { logout as authLogout } from "../utils/auth";
@@ -63,7 +60,6 @@ import { downloadScreenshot } from "../utils/screenshot";
 export default function MainPage() {
 	const { roomId } = useParams<{ roomId: string }>();
 	const setRoomId = useAppStore((state) => state.setRoomId);
-	const navigate = useNavigate();
 
 	// Set roomId in store for child components that read from it
 	useEffect(() => {
@@ -73,14 +69,11 @@ export default function MainPage() {
 	useSocketManager({ roomId });
 	useKeyboardShortcuts();
 
-	const chatOpen = useAppStore((state) => state.chatOpen);
-	const setChatOpen = useAppStore((state) => state.setChatOpen);
 	const interactionMode = useAppStore((state) => state.mode);
 	const enterDrawingMode = useAppStore((state) => state.enterDrawingMode);
 	const exitDrawingMode = useAppStore((state) => state.exitDrawingMode);
 	const enterEditingMode = useAppStore((state) => state.enterEditingMode);
 	const exitEditingMode = useAppStore((state) => state.exitEditingMode);
-	const chatUnreadCount = useAppStore((state) => state.chatUnreadCount);
 	const serverVersion = useAppStore((state) => state.serverVersion);
 	const globalSettings = useAppStore((state) => state.globalSettings);
 	const userEmail = useAppStore((state) => state.user?.email ?? null);
@@ -123,14 +116,6 @@ export default function MainPage() {
 		},
 		[roomId, queryClient, showSnackbar],
 	);
-
-	const {
-		isDragging,
-		handleDragOver,
-		handleDragEnter,
-		handleDragLeave,
-		handleDrop,
-	} = useDragAndDrop(handleFiles);
 
 	// Tutorial dialog state
 	const [tutorialDialogOpen, setTutorialDialogOpen] = useState(false);
@@ -205,6 +190,31 @@ export default function MainPage() {
 		}
 	};
 
+	// Re-add the viewer panel on roomId change if it has been closed.
+	useEffect(() => {
+		const api = getDockviewApi();
+		if (!api) return;
+		if (!roomId) return;
+		if (!api.getPanel("viewer")) {
+			api.addPanel({
+				id: "viewer",
+				component: "viewer",
+				title: "3D Viewer",
+			});
+		}
+	}, [roomId]);
+
+	// Auto-open a sidebar panel from `?panel=` query param (for redirect targets
+	// like /rooms/:id/files → /rooms/:id?panel=filesystem).
+	const [searchParams] = useSearchParams();
+	useEffect(() => {
+		const panel = searchParams.get("panel") as PanelId | null;
+		if (!panel || !(panel in PANELS)) return;
+		const def = PANELS[panel];
+		if (def.kind !== "tool" || def.default.bar === "editor") return;
+		useAppStore.getState().toggleActive(def.default.bar, panel);
+	}, [searchParams]);
+
 	return (
 		<>
 			<Box
@@ -222,7 +232,7 @@ export default function MainPage() {
 				<AppBar
 					position="static"
 					sx={{
-						zIndex: (theme) => theme.zIndex.drawer + 1,
+						zIndex: 0,
 						height: LAYOUT_CONSTANTS.APPBAR_HEIGHT,
 					}}
 				>
@@ -330,23 +340,6 @@ export default function MainPage() {
 								<CodeIcon />
 							</IconButton>
 						</Tooltip>
-						<Tooltip title={"Toggle chat window"}>
-							<IconButton
-								color="inherit"
-								aria-label="toggle chat"
-								onClick={() => setChatOpen(!chatOpen)}
-							>
-								<Badge
-									badgeContent={chatUnreadCount}
-									color="error"
-									max={99}
-									invisible={chatUnreadCount === 0 || chatOpen}
-								>
-									<ChatIcon />
-								</Badge>
-							</IconButton>
-						</Tooltip>
-						<AddPlotButton />
 						<Tooltip title="Take screenshot">
 							<IconButton
 								color="inherit"
@@ -429,6 +422,26 @@ export default function MainPage() {
 						<ListItemText>Manage Account</ListItemText>
 					</MenuItem>
 
+					<MenuItem
+						onClick={() => {
+							handleProfileClose();
+							useAppStore.getState().resetLayout();
+							const api = getDockviewApi();
+							if (api) {
+								for (const p of api.panels) {
+									p.api.close();
+								}
+								api.addPanel({
+									id: "viewer",
+									component: "viewer",
+									title: "3D Viewer",
+								});
+							}
+						}}
+					>
+						<ListItemText>Reset layout</ListItemText>
+					</MenuItem>
+
 					{/* Admin-specific menu item */}
 					{isAdmin && (
 						<MenuItem
@@ -462,65 +475,19 @@ export default function MainPage() {
 					accept={TRAJECTORY_ACCEPT}
 				/>
 
-				{/* Main content row with sidebar and center area */}
+				{/* Main content row with activity bars, sidebars, and dockview */}
 				<Box sx={{ display: "flex", flexGrow: 1, minHeight: 0 }}>
-					<SideBar />
-
-					{/* Main Content Area with drag boundary */}
-					<Box
-						component="main"
-						sx={{
-							flexGrow: 1,
-							display: "flex",
-							flexDirection: "column",
-							minWidth: 0,
-						}}
-					>
-						{/* THIS IS THE CRUCIAL DRAG BOUNDARY CONTAINER */}
-						<Box
-							className="drag-boundary-container"
-							onDragOver={handleDragOver}
-							onDragEnter={handleDragEnter}
-							onDragLeave={handleDragLeave}
-							onDrop={handleDrop}
-							sx={{
-								flexGrow: 1,
-								position: "relative",
-								overflow: "hidden",
-								display: "flex",
-								flexDirection: "column",
-							}}
-						>
-							<DropOverlay isDragging={isDragging} />
-							<MyScene />
-							<WindowManager />
-						</Box>
-					</Box>
+					<ActivityBar position="left" />
+					<SidebarZone position="left" />
+					<DockviewLayout />
+					<SidebarZone position="right" />
+					<ActivityBar position="right" />
 				</Box>
 
-				{/* Progress bar spans full width outside the drag boundary */}
-				<FrameProgressBar />
+				<BottomZone />
+				<ActivityBar position="bottom" />
 
-				{/* Chat Window - lazy loaded */}
-				{chatOpen && (
-					<Suspense
-						fallback={
-							<Box
-								sx={{
-									position: "fixed",
-									top: "50%",
-									left: "50%",
-									transform: "translate(-50%, -50%)",
-									zIndex: 9999,
-								}}
-							>
-								<CircularProgress />
-							</Box>
-						}
-					>
-						<ChatWindow open={chatOpen} onClose={() => setChatOpen(false)} />
-					</Suspense>
-				)}
+				<FrameProgressBar />
 			</Box>
 
 			<ConnectionDialog

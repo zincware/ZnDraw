@@ -38,7 +38,6 @@ import {
 	type GridRowParams,
 } from "@mui/x-data-grid";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useFormStore } from "../formStore";
 import {
 	extractDefaults,
 	parseJobName,
@@ -74,7 +73,7 @@ interface SelectionGroupRow {
 	rawData: Record<string, number[]>; // geometry -> indices array
 }
 
-export default function SelectionsPanel() {
+export function SelectionsPanel() {
 	// Use individual selectors to prevent unnecessary re-renders
 	const roomId = useAppStore((state) => state.roomId);
 	const userName = useAppStore((state) => state.user?.email ?? null);
@@ -103,7 +102,8 @@ export default function SelectionsPanel() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const panelTitle = "selections";
 
-	const { selectedExtensions, setSelectedExtension } = useFormStore();
+	const selectedExtensions = useAppStore((s) => s.selectedExtensions);
+	const setSelectedExtension = useAppStore((s) => s.setSelectedExtension);
 	const selectedJobName = selectedExtensions[panelTitle] || null;
 
 	// Fetch jobs for this category
@@ -868,3 +868,5 @@ export default function SelectionsPanel() {
 		</Box>
 	);
 }
+
+export default SelectionsPanel;

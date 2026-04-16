@@ -16,7 +16,6 @@ import {
 } from "@mui/material";
 import type { SelectChangeEvent } from "@mui/material";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { useFormStore } from "../formStore";
 import {
 	extractDefaults,
 	parseJobName,
@@ -47,7 +46,8 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
 	);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	const { selectedExtensions, setSelectedExtension } = useFormStore();
+	const selectedExtensions = useAppStore((s) => s.selectedExtensions);
+	const setSelectedExtension = useAppStore((s) => s.setSelectedExtension);
 	const selectedJobName = selectedExtensions[panelTitle] || null;
 
 	const {
@@ -261,4 +261,6 @@ const SecondaryPanel = ({ panelTitle }: SecondaryPanelProps) => {
 	);
 };
 
-export default memo(SecondaryPanel);
+const SecondaryPanelMemo = memo(SecondaryPanel);
+export { SecondaryPanelMemo as SecondaryPanel };
+export default SecondaryPanelMemo;

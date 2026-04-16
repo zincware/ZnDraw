@@ -9,17 +9,17 @@ import ShowChart from "@mui/icons-material/ShowChart";
 import type { SvgIconComponent } from "@mui/icons-material";
 import type { IDockviewPanelProps } from "dockview-react";
 import type { ComponentType } from "react";
+import { GeometryPanel } from "../components/geometry/GeometryPanel";
+import { SecondaryPanel } from "../components/SecondaryPanel";
+import { SelectionsPanel } from "../components/SelectionsPanel";
 import ChatPanel from "./ChatPanel";
 import { FilesystemPanel } from "./FilesystemPanel";
 import { PlotsBrowserPanel } from "./PlotsBrowserPanel";
 import { RoomsPanel } from "./RoomsPanel";
-import {
-	StubAnalysis,
-	StubGeometries,
-	StubModifiers,
-	StubSelections,
-	StubViewerView,
-} from "./stubs";
+import { ViewerView } from "./ViewerView";
+
+const ModifiersPanelWrapper = () => <SecondaryPanel panelTitle="modifiers" />;
+const AnalysisPanelWrapper = () => <SecondaryPanel panelTitle="analysis" />;
 
 export type PanelId =
 	| "selections"
@@ -64,28 +64,28 @@ export const PANELS: Record<PanelId, PanelDef> = {
 		kind: "tool",
 		icon: FilterCenterFocus,
 		label: "Selections",
-		component: StubSelections,
+		component: SelectionsPanel,
 		default: { bar: "left", order: 0 },
 	},
 	modifiers: {
 		kind: "tool",
 		icon: Build,
 		label: "Modifiers",
-		component: StubModifiers,
+		component: ModifiersPanelWrapper,
 		default: { bar: "left", order: 1 },
 	},
 	analysis: {
 		kind: "tool",
 		icon: Analytics,
 		label: "Analysis",
-		component: StubAnalysis,
+		component: AnalysisPanelWrapper,
 		default: { bar: "left", order: 2 },
 	},
 	geometries: {
 		kind: "tool",
 		icon: Category,
 		label: "Geometries",
-		component: StubGeometries,
+		component: GeometryPanel,
 		default: { bar: "left", order: 3 },
 	},
 	"plots-browser": {
@@ -119,7 +119,7 @@ export const PANELS: Record<PanelId, PanelDef> = {
 	viewer: {
 		kind: "view",
 		title: "3D Viewer",
-		component: StubViewerView,
+		component: ViewerView,
 		closable: true,
 		cascadeOnClose: [/^plot-.+$/],
 		// onClose is assigned in a later task (requires useLeaveRoom hook)
