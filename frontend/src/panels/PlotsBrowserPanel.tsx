@@ -1,7 +1,6 @@
 import CloseIcon from "@mui/icons-material/Close";
 import {
 	Box,
-	Divider,
 	IconButton,
 	List,
 	ListItem,
@@ -38,7 +37,6 @@ function useOpenPlotKeys(): Set<string> {
 				.filter((p) => p.id.startsWith("plot-"))
 				.map((p) => p.id.slice("plot-".length)),
 		);
-		// version forces recomputation when dockview panels change
 		// biome-ignore lint/correctness/useExhaustiveDependencies: version is a tick trigger
 	}, [version]);
 }
@@ -54,7 +52,8 @@ export function PlotsBrowserPanel() {
 		openPlotTab(api, key);
 	};
 
-	const onRowClose = (key: string) => {
+	const onRowClose = (e: React.MouseEvent, key: string) => {
+		e.stopPropagation();
 		const api = getDockviewApi();
 		if (!api) return;
 		closePlotTab(api, key);
@@ -81,64 +80,60 @@ export function PlotsBrowserPanel() {
 		);
 	}
 
-	const openKeysArr = allKeys.filter((k: string) => openKeys.has(k));
-
 	return (
 		<Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
 			<Typography variant="overline" sx={{ px: 2, pt: 1 }}>
-				Available Plots
+				Plots
 			</Typography>
 			<List dense sx={{ flexGrow: 1, overflow: "auto" }}>
-				{allKeys.map((k: string) => (
-					<ListItem
-						key={k}
-						disablePadding
-						draggable
-						onDragStart={(e) => onDragStart(e, k)}
-					>
-						<ListItemButton onClick={() => onRowClick(k)}>
-							<Box
-								sx={{
-									width: 8,
-									height: 8,
-									borderRadius: "50%",
-									bgcolor: openKeys.has(k) ? "primary.main" : "transparent",
-									border: 1,
-									borderColor: "primary.main",
-									mr: 1.5,
-								}}
-							/>
-							<ListItemText primary={k} />
-						</ListItemButton>
-					</ListItem>
-				))}
-			</List>
-			{openKeysArr.length > 0 && (
-				<>
-					<Divider />
-					<Typography variant="overline" sx={{ px: 2, pt: 1 }}>
-						Currently Open ({openKeysArr.length})
-					</Typography>
-					<List dense>
-						{openKeysArr.map((k: string) => (
-							<ListItem
-								key={k}
-								secondaryAction={
+				{allKeys.map((k: string) => {
+					const isOpen = openKeys.has(k);
+					return (
+						<ListItem
+							key={k}
+							data-testid={`plot-row-${k}`}
+							data-open={isOpen ? "true" : "false"}
+							disablePadding
+							draggable
+							onDragStart={(e) => onDragStart(e, k)}
+							sx={{
+								"& .plot-row-close": { visibility: "hidden" },
+								"&:hover .plot-row-close": {
+									visibility: isOpen ? "visible" : "hidden",
+								},
+							}}
+							secondaryAction={
+								isOpen ? (
 									<IconButton
+										className="plot-row-close"
 										edge="end"
 										size="small"
-										onClick={() => onRowClose(k)}
+										aria-label={`Close ${k}`}
+										onClick={(e) => onRowClose(e, k)}
 									>
 										<CloseIcon fontSize="small" />
 									</IconButton>
-								}
-							>
+								) : null
+							}
+						>
+							<ListItemButton onClick={() => onRowClick(k)}>
+								<Box
+									sx={{
+										width: 8,
+										height: 8,
+										borderRadius: "50%",
+										bgcolor: isOpen ? "primary.main" : "transparent",
+										border: 1,
+										borderColor: "primary.main",
+										mr: 1.5,
+									}}
+								/>
 								<ListItemText primary={k} />
-							</ListItem>
-						))}
-					</List>
-				</>
-			)}
+							</ListItemButton>
+						</ListItem>
+					);
+				})}
+			</List>
 		</Box>
 	);
 }

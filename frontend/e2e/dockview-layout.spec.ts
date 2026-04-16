@@ -280,4 +280,30 @@ test.describe("dockview layout", () => {
 			"Full-screen",
 		);
 	});
+
+	test("plots browser renders a single list (no 'Currently Open' section)", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.getByTestId("activity-icon-plots-browser").click();
+		const zone = page.getByTestId("sidebar-zone-left");
+		await expect(zone).toBeVisible();
+		await expect(zone.getByText(/Currently Open/i)).toHaveCount(0);
+
+		const firstRow = zone.locator('li [role="button"]').first();
+		const firstRowText = (await firstRow.textContent())?.trim();
+		await firstRow.click();
+		if (firstRowText) {
+			await expect(
+				page.locator(`[data-testid="plot-view-${firstRowText}"]`),
+			).toBeVisible({ timeout: 15000 });
+		}
+
+		// Still only one list — no "Currently Open" after opening.
+		await expect(zone.getByText(/Currently Open/i)).toHaveCount(0);
+		// Filled dot on the open row (via data-open="true" on the row).
+		await expect(
+			zone.locator(`[data-testid="plot-row-${firstRowText}"][data-open="true"]`),
+		).toBeVisible();
+	});
 });
