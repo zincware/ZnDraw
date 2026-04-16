@@ -25,6 +25,7 @@
         "@types/three": "^0.180.0",
         "axios": "^1.13.2",
         "date-fns": "^4.1.0",
+        "dockview-react": "^5.2.0",
         "immer": "^10.2.0",
         "ketcher-core": "3.9.0-rc.3",
         "ketcher-react": "3.9.0-rc.3",
@@ -759,6 +760,12 @@
     "detect-kerning": ["detect-kerning@2.1.2", "", {}, "sha512-I3JIbrnKPAntNLl1I6TpSQQdQ4AutYzv/sKMFKbepawV/hlH0GmYKhUoOEMd4xqaUHT+Bm0f4127lh5qs1m1tw=="],
 
     "devlop": ["devlop@1.1.0", "", { "dependencies": { "dequal": "^2.0.0" } }, "sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA=="],
+
+    "dockview": ["dockview@5.2.0", "", { "dependencies": { "dockview-core": "^5.2.0" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-Eh+SWt+AydcyeVmYkwP+Yxax0XpYSQfXsc4Rad9k+6QEddkSCn4hcjsdxp9lLsw/CaMy39jHawbDVxPMC4kvTg=="],
+
+    "dockview-core": ["dockview-core@5.2.0", "", {}, "sha512-Gib8yhK2Ng7w47ASvbUZ7GdhBYbeXEflbIDxf/vobdQBMrN/QXmPaouSsSSkEx5YH0N8ap8GYljfvqjug7h5Fg=="],
+
+    "dockview-react": ["dockview-react@5.2.0", "", { "dependencies": { "dockview": "^5.2.0" } }, "sha512-xJU5EiViiYYoP0ez5KxN8I+5CWSiPC27KVgVJBpRYRYJN6wKjMUpUqqSHwTlN1PGw5OzCu7UGQlUl1RQew74ag=="],
 
     "dom-helpers": ["dom-helpers@5.2.1", "", { "dependencies": { "@babel/runtime": "^7.8.7", "csstype": "^3.0.2" } }, "sha512-nRCa7CK3VTrM2NmGkIy4cbK7IZlgBE/PYMn55rrXefr5xXDP0LdtfPnblFDoVdcAfslJ7or6iqAUnx0CCGIWQA=="],
 

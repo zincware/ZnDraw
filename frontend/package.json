@@ -39,6 +39,7 @@
 		"@types/three": "^0.180.0",
 		"axios": "^1.13.2",
 		"date-fns": "^4.1.0",
+		"dockview-react": "^5.2.0",
 		"immer": "^10.2.0",
 		"ketcher-core": "3.9.0-rc.3",
 		"ketcher-react": "3.9.0-rc.3",
