@@ -366,4 +366,50 @@ test.describe("dockview layout", () => {
 		// Same group → panels share x-position (within a few px for tab edges).
 		expect(Math.abs(firstBox.x - secondBox.x)).toBeLessThan(5);
 	});
+
+	test("empty right bar collapses to a sliver (≤8px wide)", async ({ page }) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.waitForTimeout(500);
+		const right = page.getByTestId("activity-bar-right");
+		const box = await right.boundingBox();
+		if (!box) throw new Error("right bar bounding box missing");
+		expect(box.width).toBeLessThanOrEqual(8);
+	});
+
+	test("empty bottom bar collapses to a sliver (≤8px tall)", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.waitForTimeout(500);
+		const bottom = page.getByTestId("activity-bar-bottom");
+		const box = await bottom.boundingBox();
+		if (!box) throw new Error("bottom bar bounding box missing");
+		expect(box.height).toBeLessThanOrEqual(8);
+	});
+
+	test("dragging an icon lights up empty bars as hot drop zones", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		const icon = page.getByTestId("activity-icon-selections");
+		const right = page.getByTestId("activity-bar-right");
+
+		// Simulate an in-flight drag by dispatching a window dragstart
+		// event with the panel-id MIME in dataTransfer.types. We can't
+		// use Playwright's dragTo because it completes the drop synchronously.
+		await page.evaluate(() => {
+			const dt = new DataTransfer();
+			dt.setData("application/x-zndraw-panel-id", "selections");
+			window.dispatchEvent(
+				new DragEvent("dragstart", { dataTransfer: dt, bubbles: true }),
+			);
+		});
+
+		await expect(right).toHaveAttribute("data-sliver-state", "hot");
+
+		await page.evaluate(() => {
+			window.dispatchEvent(new DragEvent("dragend", { bubbles: true }));
+		});
+		await expect(right).toHaveAttribute("data-sliver-state", "sliver");
+	});
 });

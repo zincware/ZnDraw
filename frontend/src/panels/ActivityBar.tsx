@@ -1,6 +1,6 @@
 import Badge from "@mui/material/Badge";
-import { Box, IconButton, Tooltip } from "@mui/material";
-import { useCallback } from "react";
+import { Box, IconButton, Tooltip, keyframes } from "@mui/material";
+import { useCallback, useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../store";
 import { type BarPosition, type PanelId, PANELS } from "./registry";
@@ -13,6 +13,12 @@ const BAR_SX = {
 	bottom: { flexDirection: "row", height: 40, borderTop: 1, width: "100%" },
 } as const;
 
+const SLIVER_SX = {
+	left: { width: 4 },
+	right: { width: 4 },
+	bottom: { height: 4, width: "100%" },
+} as const;
+
 const ACTIVE_INDICATOR: Record<
 	BarPosition,
 	(color: string) => Record<string, string>
@@ -21,6 +27,13 @@ const ACTIVE_INDICATOR: Record<
 	right: (c) => ({ borderRight: `2px solid ${c}` }),
 	bottom: (c) => ({ borderTop: `2px solid ${c}` }),
 };
+
+const pulse = keyframes`
+	0%, 100% { opacity: 0.5; }
+	50% { opacity: 1; }
+`;
+
+type SliverState = "full" | "sliver" | "hot";
 
 interface ActivityBarProps {
 	position: BarPosition;
@@ -47,13 +60,29 @@ export function ActivityBar({ position }: ActivityBarProps) {
 	const moveIconToBar = useAppStore((s) => s.moveIconToBar);
 	const chatUnread = useAppStore((s) => s.chatUnreadCount);
 
-	const onDragStart = useCallback(
-		(e: React.DragEvent, id: PanelId) => {
-			e.dataTransfer.setData(DRAG_MIME, id);
-			e.dataTransfer.effectAllowed = "move";
-		},
-		[],
-	);
+	const [isDragActive, setIsDragActive] = useState(false);
+
+	useEffect(() => {
+		const onGlobalDragStart = (e: DragEvent) => {
+			if (e.dataTransfer?.types.includes(DRAG_MIME)) {
+				setIsDragActive(true);
+			}
+		};
+		const onGlobalDragEnd = () => {
+			setIsDragActive(false);
+		};
+		window.addEventListener("dragstart", onGlobalDragStart);
+		window.addEventListener("dragend", onGlobalDragEnd);
+		return () => {
+			window.removeEventListener("dragstart", onGlobalDragStart);
+			window.removeEventListener("dragend", onGlobalDragEnd);
+		};
+	}, []);
+
+	const onDragStart = useCallback((e: React.DragEvent, id: PanelId) => {
+		e.dataTransfer.setData(DRAG_MIME, id);
+		e.dataTransfer.effectAllowed = "move";
+	}, []);
 
 	const onDragOver = useCallback((e: React.DragEvent) => {
 		if (e.dataTransfer.types.includes(DRAG_MIME)) {
@@ -83,9 +112,46 @@ export function ActivityBar({ position }: ActivityBarProps) {
 		[moveIconToBar, position],
 	);
 
+	const state: SliverState =
+		icons.length === 0 ? (isDragActive ? "hot" : "sliver") : "full";
+
+	if (state !== "full") {
+		return (
+			<Box
+				data-testid={`activity-bar-${position}`}
+				data-sliver-state={state}
+				onDragOver={onDragOver}
+				onDrop={onDropOnBar}
+				sx={{
+					display: "flex",
+					flexShrink: 0,
+					...SLIVER_SX[position],
+					bgcolor:
+						state === "hot"
+							? "rgba(25, 118, 210, 0.2)"
+							: "transparent",
+					...(state === "hot"
+						? {
+								borderStyle: "solid",
+								borderColor: "primary.main",
+								borderWidth:
+									position === "left"
+										? "0 2px 0 0"
+										: position === "right"
+											? "0 0 0 2px"
+											: "2px 0 0 0",
+								animation: `${pulse} 1s ease-in-out infinite`,
+							}
+						: {}),
+				}}
+			/>
+		);
+	}
+
 	return (
 		<Box
 			data-testid={`activity-bar-${position}`}
+			data-sliver-state="full"
 			onDragOver={onDragOver}
 			onDrop={onDropOnBar}
 			sx={{
