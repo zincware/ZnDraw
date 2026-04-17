@@ -1,12 +1,14 @@
 """Tests for internal job registry."""
 
+import uuid
 from typing import Any, ClassVar
 from unittest.mock import AsyncMock, MagicMock
 
 from sqlmodel import select
 
+from zndraw_auth import User
 from zndraw_joblib.client import Category, Extension
-from zndraw_joblib.models import Job
+from zndraw_joblib.models import Job, ProviderRecord, Worker
 from zndraw_joblib.provider import Provider
 from zndraw_joblib.registry import (
     InternalRegistry,
@@ -239,3 +241,76 @@ async def test_register_internal_providers_task_invokes_executor():
             "tok",
         )
     ]
+
+
+async def test_ensure_internal_providers_creates_rows(async_session_factory):
+    """Creates a ProviderRecord per provider at room_id='@internal'."""
+    from zndraw_joblib.registry import ensure_internal_providers
+
+    # Seed internal user + worker
+    user_id = uuid.uuid4()
+    async with async_session_factory() as session:
+        user = User(
+            id=user_id,
+            email="internal@test",
+            hashed_password="x",
+            is_active=True,
+            is_superuser=True,
+            is_verified=True,
+        )
+        session.add(user)
+        worker = Worker(user_id=user_id)
+        session.add(worker)
+        await session.commit()
+        worker_id = worker.id
+
+    await ensure_internal_providers(
+        [_DummyProvider], async_session_factory, user_id=user_id, worker_id=worker_id
+    )
+
+    async with async_session_factory() as session:
+        result = await session.exec(
+            select(ProviderRecord).where(ProviderRecord.room_id == "@internal")
+        )
+        rows = result.all()
+    assert len(rows) == 1
+    assert rows[0].category == "filesystem"
+    assert rows[0].name == "_DummyProvider"
+    assert rows[0].user_id == user_id
+    assert rows[0].worker_id == worker_id
+
+
+async def test_ensure_internal_providers_idempotent(async_session_factory):
+    """Running twice leaves exactly one row (upsert on room+category+name)."""
+    from zndraw_joblib.registry import ensure_internal_providers
+
+    user_id = uuid.uuid4()
+    async with async_session_factory() as session:
+        session.add(
+            User(
+                id=user_id,
+                email="internal@test",
+                hashed_password="x",
+                is_active=True,
+                is_superuser=True,
+                is_verified=True,
+            )
+        )
+        worker = Worker(user_id=user_id)
+        session.add(worker)
+        await session.commit()
+        worker_id = worker.id
+
+    await ensure_internal_providers(
+        [_DummyProvider], async_session_factory, user_id=user_id, worker_id=worker_id
+    )
+    await ensure_internal_providers(
+        [_DummyProvider], async_session_factory, user_id=user_id, worker_id=worker_id
+    )
+
+    async with async_session_factory() as session:
+        result = await session.exec(
+            select(ProviderRecord).where(ProviderRecord.room_id == "@internal")
+        )
+        rows = result.all()
+    assert len(rows) == 1

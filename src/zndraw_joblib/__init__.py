@@ -59,8 +59,12 @@ from zndraw_joblib.models import (
 from zndraw_joblib.provider import Provider
 from zndraw_joblib.registry import (
     InternalExecutor,
+    InternalProviderExecutor,
+    InternalProviderRegistry,
     InternalRegistry,
+    ensure_internal_providers,
     register_internal_jobs,
+    register_internal_providers,
     register_internal_tasks,
 )
 from zndraw_joblib.router import router
@@ -84,6 +88,8 @@ __all__ = [
     "FrozenEvent",
     "InternalExecutor",
     "InternalJobNotConfigured",
+    "InternalProviderExecutor",
+    "InternalProviderRegistry",
     "InternalRegistry",
     "InvalidCategory",
     "InvalidRoomId",
@@ -124,12 +130,14 @@ __all__ = [
     "cleanup_stuck_internal_tasks",
     "cleanup_worker",
     "emit",
+    "ensure_internal_providers",
     "get_frame_room_cleanup",
     "get_joblib_settings",
     "get_result_backend",
     "get_tsio",
     "problem_exception_handler",
     "register_internal_jobs",
+    "register_internal_providers",
     "register_internal_tasks",
     "request_hash",
     "router",

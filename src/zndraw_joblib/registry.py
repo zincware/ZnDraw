@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:
     from collections.abc import Callable
     from contextlib import AbstractAsyncContextManager
+    from uuid import UUID
 
     from fastapi import FastAPI
     from sqlmodel.ext.asyncio.session import AsyncSession
@@ -156,6 +157,63 @@ def register_internal_providers(
 
     logger.info("Registered %d internal provider task(s)", len(providers))
     return registry
+
+
+async def ensure_internal_providers(
+    providers: list[type[Provider]],
+    session_factory: Callable[[], AbstractAsyncContextManager[AsyncSession]],
+    *,
+    user_id: UUID,
+    worker_id: UUID,
+) -> None:
+    """Create or update @internal ProviderRecord rows.
+
+    Idempotent — safe to call on every startup. Callers must have already
+    seeded a ``User`` (``user_id``) and ``Worker`` (``worker_id``). In
+    multi-replica production, call once from ``init_database()`` to avoid
+    races on the ``unique_provider`` constraint.
+    """
+    from sqlmodel import select
+
+    from zndraw_joblib.models import ProviderRecord
+
+    async with session_factory() as session:
+        for prov_cls in providers:
+            category = prov_cls.category
+            name = prov_cls.__name__
+            schema = prov_cls.model_json_schema()
+            content_type = prov_cls.content_type
+
+            result = await session.exec(
+                select(ProviderRecord).where(
+                    ProviderRecord.room_id == "@internal",
+                    ProviderRecord.category == category,
+                    ProviderRecord.name == name,
+                )
+            )
+            existing = result.one_or_none()
+
+            if existing:
+                existing.schema_ = schema
+                existing.content_type = content_type
+                existing.user_id = user_id
+                existing.worker_id = worker_id
+            else:
+                session.add(
+                    ProviderRecord(
+                        room_id="@internal",
+                        category=category,
+                        name=name,
+                        schema_=schema,
+                        content_type=content_type,
+                        user_id=user_id,
+                        worker_id=worker_id,
+                    )
+                )
+
+        await session.commit()
+
+    logger.info("Ensured %d @internal provider row(s) in DB", len(providers))
 
 
 async def ensure_internal_jobs(
