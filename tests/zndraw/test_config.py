@@ -246,3 +246,31 @@ def test_missing_pyproject_toml_is_silent(tmp_path, monkeypatch):
 
     settings = Settings()
     assert settings.port == 8000
+
+
+class TestFilebrowserPath:
+    """Test filebrowser_path configuration."""
+
+    def test_default_filebrowser_path_is_cwd(self) -> None:
+        """Default filebrowser_path should be '.'."""
+        settings = Settings()
+        assert settings.filebrowser_path == "."
+
+    def test_filebrowser_path_from_env(self) -> None:
+        """filebrowser_path should be configurable via ZNDRAW_SERVER_FILEBROWSER_PATH."""
+        os.environ["ZNDRAW_SERVER_FILEBROWSER_PATH"] = "/data"
+        try:
+            settings = Settings()
+            assert settings.filebrowser_path == "/data"
+        finally:
+            os.environ.pop("ZNDRAW_SERVER_FILEBROWSER_PATH", None)
+
+    def test_filebrowser_path_none_sentinel(self) -> None:
+        """Sentinel 'none' (case-insensitive) disables the default provider."""
+        os.environ["ZNDRAW_SERVER_FILEBROWSER_PATH"] = "NONE"
+        try:
+            settings = Settings()
+            assert settings.filebrowser_path == "NONE"
+            assert settings.filebrowser_path.lower() == "none"
+        finally:
+            os.environ.pop("ZNDRAW_SERVER_FILEBROWSER_PATH", None)

@@ -91,6 +91,17 @@ class Settings(BaseSettings):
     worker_enabled: bool = True  # False in Docker (dedicated workers)
     internal_url: str | None = None  # For TaskIQ workers to reach FastAPI
 
+    # Filesystem provider
+    filebrowser_path: str = "."
+    """Path for the default @internal filesystem provider.
+
+    ``"."`` (default) roots at the process cwd (taskiq-worker's cwd in Docker).
+    Any other non-``"none"`` string roots the provider at that absolute or
+    relative path. The sentinel ``"none"`` (case-insensitive) disables the
+    default filesystem provider entirely — no DB row, no task registration,
+    and the frontend filesystem activity-bar icon is hidden.
+    """
+
 
 def get_zndraw_settings(request: Request) -> Settings:
     """Retrieve ZnDraw settings from app.state."""
