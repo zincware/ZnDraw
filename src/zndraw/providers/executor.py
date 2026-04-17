@@ -12,11 +12,12 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from zndraw_joblib.provider import Provider
+if TYPE_CHECKING:
+    from zndraw_joblib.provider import Provider
 
 log = logging.getLogger(__name__)
 
