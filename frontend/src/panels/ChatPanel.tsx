@@ -21,7 +21,10 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { useParams } from "react-router-dom";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+import {
+	oneDark,
+	oneLight,
+} from "react-syntax-highlighter/dist/esm/styles/prism";
 import TextareaAutosize from "react-textarea-autosize";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";

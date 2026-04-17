@@ -17,9 +17,9 @@ const VIEWER_PANEL_ID = "viewer";
  * 2. Else, place a new group to the right of the viewer's group.
  * 3. Else (no viewer), let dockview decide.
  */
-function resolvePlotPosition(api: DockviewApi):
-	| { referenceGroup: string; direction: "within" | "right" }
-	| undefined {
+function resolvePlotPosition(
+	api: DockviewApi,
+): { referenceGroup: string; direction: "within" | "right" } | undefined {
 	const plotPanels = api.panels
 		.filter((p) => p.id.startsWith(PLOT_ID_PREFIX))
 		.sort((a, b) => a.id.localeCompare(b.id));

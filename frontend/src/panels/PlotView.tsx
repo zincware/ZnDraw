@@ -187,7 +187,9 @@ function getCustomDataValue(
 			pointValue = element[0];
 		} else if (typeof element === "object" && element !== null) {
 			// Object with numeric keys like {"0": 8, "1": 8}
-			const numKeys = Object.keys(element).filter((k) => !Number.isNaN(Number(k)));
+			const numKeys = Object.keys(element).filter(
+				(k) => !Number.isNaN(Number(k)),
+			);
 			if (numKeys.length > 0) {
 				pointValue = (element as Record<string, any>)[numKeys[0]];
 			}

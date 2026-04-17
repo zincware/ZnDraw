@@ -312,11 +312,7 @@ export function FilesystemPanel() {
 						onNavigate={handleNavigate}
 						onGoToRoot={handleGoToRoot}
 					/>
-					<Box
-						component="form"
-						onSubmit={handleSearchSubmit}
-						sx={{ mb: 2 }}
-					>
+					<Box component="form" onSubmit={handleSearchSubmit} sx={{ mb: 2 }}>
 						<TextField
 							size="small"
 							fullWidth

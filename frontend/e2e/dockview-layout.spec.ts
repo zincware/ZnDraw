@@ -131,7 +131,9 @@ test.describe("dockview layout", () => {
 				activeTabColor: s
 					.getPropertyValue("--dv-activegroup-visiblepanel-tab-color")
 					.trim(),
-				muiBgDefault: s.getPropertyValue("--mui-palette-background-default").trim(),
+				muiBgDefault: s
+					.getPropertyValue("--mui-palette-background-default")
+					.trim(),
 				muiBgPaper: s.getPropertyValue("--mui-palette-background-paper").trim(),
 				muiTextPrimary: s.getPropertyValue("--mui-palette-text-primary").trim(),
 			};
@@ -149,9 +151,7 @@ test.describe("dockview layout", () => {
 		page,
 	}) => {
 		// Seed dark mode before page load so MUI's useColorScheme picks it up.
-		await page.addInitScript(() =>
-			localStorage.setItem("mui-mode", "dark"),
-		);
+		await page.addInitScript(() => localStorage.setItem("mui-mode", "dark"));
 		await page.goto(`/rooms/${ROOM}`);
 		await page.waitForTimeout(1500);
 
@@ -170,7 +170,9 @@ test.describe("dockview layout", () => {
 				activeTabColor: s
 					.getPropertyValue("--dv-activegroup-visiblepanel-tab-color")
 					.trim(),
-				muiBgDefault: s.getPropertyValue("--mui-palette-background-default").trim(),
+				muiBgDefault: s
+					.getPropertyValue("--mui-palette-background-default")
+					.trim(),
 				muiBgPaper: s.getPropertyValue("--mui-palette-background-paper").trim(),
 				muiTextPrimary: s.getPropertyValue("--mui-palette-text-primary").trim(),
 			};
@@ -187,9 +189,7 @@ test.describe("dockview layout", () => {
 	test("3D viewer canvas background flips to dark in dark mode", async ({
 		page,
 	}) => {
-		await page.addInitScript(() =>
-			localStorage.setItem("mui-mode", "dark"),
-		);
+		await page.addInitScript(() => localStorage.setItem("mui-mode", "dark"));
 		await page.goto(`/rooms/${ROOM}`);
 		await page.waitForTimeout(2500);
 
@@ -237,7 +237,9 @@ test.describe("dockview layout", () => {
 			const s = getComputedStyle(el);
 			return {
 				groupBg: s.getPropertyValue("--dv-group-view-background-color").trim(),
-				muiBgDefault: s.getPropertyValue("--mui-palette-background-default").trim(),
+				muiBgDefault: s
+					.getPropertyValue("--mui-palette-background-default")
+					.trim(),
 			};
 		});
 		expect(vars.groupBg).toBe(vars.muiBgDefault);
@@ -303,7 +305,9 @@ test.describe("dockview layout", () => {
 		await expect(zone.getByText(/Currently Open/i)).toHaveCount(0);
 		// Filled dot on the open row (via data-open="true" on the row).
 		await expect(
-			zone.locator(`[data-testid="plot-row-${firstRowText}"][data-open="true"]`),
+			zone.locator(
+				`[data-testid="plot-row-${firstRowText}"][data-open="true"]`,
+			),
 		).toBeVisible();
 	});
 
@@ -367,7 +371,9 @@ test.describe("dockview layout", () => {
 		expect(Math.abs(firstBox.x - secondBox.x)).toBeLessThan(5);
 	});
 
-	test("empty right bar collapses to a sliver (≤8px wide)", async ({ page }) => {
+	test("empty right bar collapses to a sliver (≤8px wide)", async ({
+		page,
+	}) => {
 		await page.goto(`/rooms/${ROOM}`);
 		await page.waitForTimeout(500);
 		const right = page.getByTestId("activity-bar-right");
@@ -592,7 +598,9 @@ test.describe("dockview layout", () => {
 		);
 	});
 
-	test("rooms panel header has new-empty + upload buttons", async ({ page }) => {
+	test("rooms panel header has new-empty + upload buttons", async ({
+		page,
+	}) => {
 		await page.goto(`/rooms/${ROOM}`);
 		await page.getByTestId("activity-icon-rooms").click();
 		await expect(page.getByTestId("rooms-new-empty")).toBeVisible();
@@ -606,11 +614,12 @@ test.describe("dockview layout", () => {
 		const initialCount = await rows.count();
 		expect(initialCount).toBeGreaterThan(0);
 
-		await page.getByTestId("rooms-search").locator("input").fill("zz-no-such-room-zz");
+		await page
+			.getByTestId("rooms-search")
+			.locator("input")
+			.fill("zz-no-such-room-zz");
 		await expect(rows).toHaveCount(0);
-		await expect(
-			page.getByText(/No rooms match the search/i),
-		).toBeVisible();
+		await expect(page.getByText(/No rooms match the search/i)).toBeVisible();
 	});
 
 	test("rooms panel shows drop overlay when dragging a file in", async ({
@@ -640,9 +649,15 @@ test.describe("dockview layout", () => {
 		const menuBtn = page.getByTestId(`room-row-menu-${ROOM}`);
 		await expect(menuBtn).toBeVisible();
 		await menuBtn.click();
-		await expect(page.getByRole("menuitem", { name: /Set as template|Remove template/i })).toBeVisible();
-		await expect(page.getByRole("menuitem", { name: /^Lock$|^Unlock$/ })).toBeVisible();
-		await expect(page.getByRole("menuitem", { name: /Duplicate room/i })).toBeVisible();
+		await expect(
+			page.getByRole("menuitem", { name: /Set as template|Remove template/i }),
+		).toBeVisible();
+		await expect(
+			page.getByRole("menuitem", { name: /^Lock$|^Unlock$/ }),
+		).toBeVisible();
+		await expect(
+			page.getByRole("menuitem", { name: /Duplicate room/i }),
+		).toBeVisible();
 		const deleteItem = page.getByRole("menuitem", { name: /Delete/i });
 		await expect(deleteItem).toHaveAttribute("aria-disabled", "true");
 	});
