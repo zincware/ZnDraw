@@ -13,10 +13,17 @@ const BAR_SX = {
 	bottom: { flexDirection: "row", height: 40, borderTop: 1, width: "100%" },
 } as const;
 
-const SLIVER_SX = {
+const SLIVER_IDLE_SX = {
 	left: { width: 4 },
 	right: { width: 4 },
 	bottom: { height: 4, width: "100%" },
+} as const;
+
+// Hot zone (dragging) widens the empty bar to 56 px so it's an easy drop target.
+const SLIVER_HOT_SX = {
+	left: { width: 56 },
+	right: { width: 56 },
+	bottom: { height: 56, width: "100%" },
 } as const;
 
 const ACTIVE_INDICATOR: Record<
@@ -33,7 +40,7 @@ const pulse = keyframes`
 	50% { opacity: 1; }
 `;
 
-type SliverState = "full" | "sliver" | "hot";
+type SliverState = "full" | "sliver" | "hot" | "over-zone";
 
 interface ActivityBarProps {
 	position: BarPosition;
@@ -61,6 +68,7 @@ export function ActivityBar({ position }: ActivityBarProps) {
 	const chatUnread = useAppStore((s) => s.chatUnreadCount);
 
 	const [isDragActive, setIsDragActive] = useState(false);
+	const [isOverZone, setIsOverZone] = useState(false);
 
 	useEffect(() => {
 		const onGlobalDragStart = (e: DragEvent) => {
@@ -70,9 +78,10 @@ export function ActivityBar({ position }: ActivityBarProps) {
 		};
 		const onGlobalDragEnd = () => {
 			setIsDragActive(false);
+			setIsOverZone(false);
 		};
-		window.addEventListener("dragstart", onGlobalDragStart);
-		window.addEventListener("dragend", onGlobalDragEnd);
+		window.addEventListener("dragstart", onGlobalDragStart, { passive: true });
+		window.addEventListener("dragend", onGlobalDragEnd, { passive: true });
 		return () => {
 			window.removeEventListener("dragstart", onGlobalDragStart);
 			window.removeEventListener("dragend", onGlobalDragEnd);
@@ -113,38 +122,82 @@ export function ActivityBar({ position }: ActivityBarProps) {
 	);
 
 	const state: SliverState =
-		icons.length === 0 ? (isDragActive ? "hot" : "sliver") : "full";
+		icons.length === 0
+			? isDragActive
+				? isOverZone
+					? "over-zone"
+					: "hot"
+				: "sliver"
+			: "full";
 
 	if (state !== "full") {
+		const sizeSx = state === "sliver" ? SLIVER_IDLE_SX[position] : SLIVER_HOT_SX[position];
+		const isHot = state === "hot";
+		const isOver = state === "over-zone";
+		const hintByPosition: Record<BarPosition, string> = {
+			left: "Drop to dock left",
+			right: "Drop to dock right",
+			bottom: "Drop to dock bottom",
+		};
 		return (
 			<Box
 				data-testid={`activity-bar-${position}`}
 				data-sliver-state={state}
-				onDragOver={onDragOver}
-				onDrop={onDropOnBar}
+				onDragOver={(e) => {
+					onDragOver(e);
+					if (isDragActive) setIsOverZone(true);
+				}}
+				onDragLeave={() => setIsOverZone(false)}
+				onDrop={(e) => {
+					setIsOverZone(false);
+					onDropOnBar(e);
+				}}
 				sx={{
 					display: "flex",
 					flexShrink: 0,
-					...SLIVER_SX[position],
-					bgcolor:
-						state === "hot"
-							? "rgba(25, 118, 210, 0.2)"
+					alignItems: "center",
+					justifyContent: "center",
+					position: "relative",
+					...sizeSx,
+					bgcolor: isOver
+						? "rgba(25, 118, 210, 0.35)"
+						: isHot
+							? "rgba(25, 118, 210, 0.15)"
 							: "transparent",
-					...(state === "hot"
-						? {
-								borderStyle: "solid",
-								borderColor: "primary.main",
-								borderWidth:
-									position === "left"
-										? "0 2px 0 0"
-										: position === "right"
-											? "0 0 0 2px"
-											: "2px 0 0 0",
-								animation: `${pulse} 1s ease-in-out infinite`,
-							}
-						: {}),
+					borderColor: "primary.main",
+					borderStyle: isOver ? "solid" : isHot ? "dashed" : "none",
+					borderWidth:
+						isHot || isOver
+							? position === "left"
+								? "0 2px 0 0"
+								: position === "right"
+									? "0 0 0 2px"
+									: "2px 0 0 0"
+							: 0,
+					animation: isHot ? `${pulse} 1s ease-in-out infinite` : "none",
 				}}
-			/>
+			>
+				{isOver && (
+					<Box
+						component="span"
+						sx={{
+							fontSize: 11,
+							fontWeight: 500,
+							color: "primary.main",
+							whiteSpace: "nowrap",
+							transform:
+								position === "left"
+									? "rotate(-90deg)"
+									: position === "right"
+										? "rotate(90deg)"
+										: "none",
+							pointerEvents: "none",
+						}}
+					>
+						{hintByPosition[position]}
+					</Box>
+				)}
+			</Box>
 		);
 	}
 
