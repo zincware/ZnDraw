@@ -635,3 +635,70 @@ def test_register_provider_category_allowed(app, client):
     resp = _register_provider(client, category="filesystem")
     assert resp.status_code == 201
     app.state.joblib_settings.allowed_provider_categories = None  # reset
+
+
+def test_read_internal_provider_dispatches_via_taskiq(
+    client, app, async_session_factory
+):
+    """An @internal provider dispatches via the registry's taskiq task, not tsio."""
+    import asyncio
+    import uuid
+
+    from zndraw_auth import User
+    from zndraw_joblib.models import ProviderRecord, Worker
+    from zndraw_joblib.registry import InternalProviderRegistry
+
+    async def seed() -> None:
+        async with async_session_factory() as session:
+            user = User(
+                id=uuid.uuid4(),
+                email="int@test",
+                hashed_password="x",
+                is_active=True,
+                is_superuser=True,
+                is_verified=True,
+            )
+            session.add(user)
+            worker = Worker(user_id=user.id)
+            session.add(worker)
+            await session.flush()
+            session.add(
+                ProviderRecord(
+                    room_id="@internal",
+                    category="filesystem",
+                    name="FilesystemRead",
+                    schema_={},
+                    user_id=user.id,
+                    worker_id=worker.id,
+                )
+            )
+            await session.commit()
+
+    asyncio.run(seed())
+
+    kiq_calls: list[dict] = []
+
+    class _FakeTask:
+        async def kiq(self, **kwargs):
+            kiq_calls.append(kwargs)
+
+    registry = InternalProviderRegistry(
+        tasks={"@internal:filesystem:FilesystemRead": _FakeTask()},
+        providers={},
+    )
+    app.state.internal_provider_registry = registry
+
+    # Immediate timeout so we don't hang — we only care that kiq was called
+    resp = client.get(
+        "/v1/joblib/rooms/room-42/providers/@internal:filesystem:FilesystemRead"
+        "?path=/data",
+        headers={"Prefer": "wait=0"},
+    )
+    # No result uploaded => 504, but dispatch must have happened
+    assert resp.status_code == 504
+    assert len(kiq_calls) == 1
+    call = kiq_calls[0]
+    assert call["params_json"] == '{"path":"/data"}'
+    assert "request_id" in call
+    assert "provider_id" in call
+    assert call["token"] == "test-worker-token"

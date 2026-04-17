@@ -11,7 +11,7 @@ from zndraw_socketio import AsyncServerWrapper
 from zndraw_auth import User
 from zndraw_auth.db import SessionDep
 from zndraw_joblib.exceptions import InvalidRoomId
-from zndraw_joblib.registry import InternalRegistry
+from zndraw_joblib.registry import InternalProviderRegistry, InternalRegistry
 from zndraw_joblib.settings import JobLibSettings
 
 
@@ -26,6 +26,13 @@ JobLibSettingsDep = Annotated[JobLibSettings, Depends(get_joblib_settings)]
 async def get_internal_registry(request: Request) -> InternalRegistry | None:
     """Return the internal registry from app.state, or None if not configured."""
     return getattr(request.app.state, "internal_registry", None)
+
+
+async def get_internal_provider_registry(
+    request: Request,
+) -> InternalProviderRegistry | None:
+    """Return the internal provider registry from app.state, or None."""
+    return getattr(request.app.state, "internal_provider_registry", None)
 
 
 def get_tsio(request: Request) -> AsyncServerWrapper | None:

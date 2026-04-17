@@ -1,5 +1,6 @@
 # src/zndraw_joblib/router.py
 import asyncio
+import json
 import logging
 import random
 import re
@@ -29,6 +30,7 @@ from zndraw_joblib.dependencies import (
     ResultBackendDep,
     WorkerTokenDep,
     WritableRoomDep,
+    get_internal_provider_registry,
     get_internal_registry,
     get_tsio,
     request_hash,
@@ -66,7 +68,7 @@ from zndraw_joblib.models import (
     Worker,
     WorkerJobLink,
 )
-from zndraw_joblib.registry import InternalRegistry
+from zndraw_joblib.registry import InternalProviderRegistry, InternalRegistry
 from zndraw_joblib.schemas import (
     JobRegisterRequest,
     JobResponse,
@@ -96,6 +98,9 @@ SessionMakerDep = Annotated[
     async_sessionmaker[AsyncSession], Depends(get_session_maker)
 ]
 InternalRegistryDep = Annotated[InternalRegistry | None, Depends(get_internal_registry)]
+InternalProviderRegistryDep = Annotated[
+    InternalProviderRegistry | None, Depends(get_internal_provider_registry)
+]
 TsioDep = Annotated[AsyncServerWrapper | None, Depends(get_tsio)]
 
 # Valid status transitions
@@ -1156,6 +1161,8 @@ async def read_provider(
     result_backend: ResultBackendDep,
     settings: SettingsDep,
     tsio: TsioDep,
+    internal_provider_registry: InternalProviderRegistryDep,
+    worker_token: WorkerTokenDep,
     prefer: Annotated[str | None, Header()] = None,
 ):
     """Read data from a provider. Long-polls until result is available."""
@@ -1180,20 +1187,41 @@ async def read_provider(
         inflight_key, settings.provider_inflight_ttl_seconds
     )
     if acquired:
-        provider_room = f"providers:{provider.full_name}"
-        await emit(
-            tsio,
-            {
-                Emission(
-                    ProviderRequest.from_dict_params(
-                        request_id=rhash,
-                        provider_name=provider.full_name,
-                        params=params,
-                    ),
-                    provider_room,
+        if provider.room_id == "@internal":
+            if (
+                internal_provider_registry is None
+                or provider.full_name not in internal_provider_registry.tasks
+            ):
+                raise InternalJobNotConfigured.exception(
+                    detail=(
+                        f"Internal provider '{provider.full_name}' is registered"
+                        " in the DB but no executor task is available"
+                    )
                 )
-            },
-        )
+            params_json = json.dumps(
+                params, sort_keys=True, separators=(",", ":")
+            )
+            await internal_provider_registry.tasks[provider.full_name].kiq(
+                request_id=rhash,
+                provider_id=str(provider.id),
+                params_json=params_json,
+                token=worker_token,
+            )
+        else:
+            provider_room = f"providers:{provider.full_name}"
+            await emit(
+                tsio,
+                {
+                    Emission(
+                        ProviderRequest.from_dict_params(
+                            request_id=rhash,
+                            provider_name=provider.full_name,
+                            params=params,
+                        ),
+                        provider_room,
+                    )
+                },
+            )
 
     # Long-poll: wait for result via pub/sub
     requested_wait = parse_prefer_wait(prefer)
@@ -1234,9 +1262,7 @@ async def delete_provider(
         raise ProviderNotFound.exception(detail=f"Provider '{provider_id}' not found")
 
     if provider.room_id == "@internal":
-        raise Forbidden.exception(
-            detail="@internal providers cannot be deleted"
-        )
+        raise Forbidden.exception(detail="@internal providers cannot be deleted")
 
     if provider.user_id != user.id and not user.is_superuser:
         raise Forbidden.exception(detail="Provider belongs to different user")
