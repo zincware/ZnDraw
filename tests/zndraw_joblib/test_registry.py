@@ -174,3 +174,71 @@ async def test_register_internal_jobs_reactivates_deleted(async_session_factory)
         )
         job = result.one()
         assert not job.deleted
+
+
+# --- Provider registry ---------------------------------------------------
+
+from typing import ClassVar
+
+from zndraw_joblib.provider import Provider
+
+
+class _DummyProvider(Provider):
+    category: ClassVar[str] = "filesystem"
+    path: str = "/"
+
+    def read(self, handler):
+        return handler.ls(self.path, detail=True)
+
+
+async def test_register_internal_providers_registers_taskiq_task():
+    """Each provider class becomes a task at @internal:<cat>:<ClassName>."""
+    from taskiq import InMemoryBroker
+
+    from zndraw_joblib.registry import register_internal_providers
+
+    broker = InMemoryBroker()
+
+    calls = []
+
+    async def executor(cls, params_json, provider_id, request_id, token):
+        calls.append((cls, params_json, provider_id, request_id, token))
+
+    reg = register_internal_providers(broker, [_DummyProvider], executor)
+
+    assert "@internal:filesystem:_DummyProvider" in reg.tasks
+    assert reg.providers["@internal:filesystem:_DummyProvider"] is _DummyProvider
+
+
+async def test_register_internal_providers_task_invokes_executor():
+    """Calling the registered task fan-outs to the executor with forwarded args."""
+    from taskiq import InMemoryBroker
+
+    from zndraw_joblib.registry import register_internal_providers
+
+    broker = InMemoryBroker()
+    calls = []
+
+    async def executor(cls, params_json, provider_id, request_id, token):
+        calls.append((cls.__name__, params_json, provider_id, request_id, token))
+
+    reg = register_internal_providers(broker, [_DummyProvider], executor)
+    task = reg.tasks["@internal:filesystem:_DummyProvider"]
+
+    # Directly invoke the underlying coroutine (InMemoryBroker doesn't run it)
+    await task.original_func(
+        request_id="abc",
+        provider_id="11111111-1111-1111-1111-111111111111",
+        params_json='{"path": "/data"}',
+        token="tok",
+    )
+
+    assert calls == [
+        (
+            "_DummyProvider",
+            '{"path": "/data"}',
+            "11111111-1111-1111-1111-111111111111",
+            "abc",
+            "tok",
+        )
+    ]

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from taskiq import AsyncBroker
 
     from zndraw_joblib.client import Extension
+    from zndraw_joblib.provider import Provider
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,78 @@ def register_internal_tasks(
         logger.debug("Registered internal task: %s", full_name)
 
     logger.info("Registered %d internal task(s)", len(extensions))
+    return registry
+
+
+class InternalProviderExecutor(Protocol):
+    """Protocol for the host-provided provider executor.
+
+    The server base URL and any handler configuration are captured at
+    creation time. Per-request data (params, ids, token) is passed at
+    call time.
+    """
+
+    async def __call__(
+        self,
+        provider_cls: type[Provider],
+        params_json: str,
+        provider_id: str,
+        request_id: str,
+        token: str,
+    ) -> None: ...
+
+
+@dataclass
+class InternalProviderRegistry:
+    """Holds taskiq task handles and provider class mappings."""
+
+    tasks: dict[str, Any] = field(default_factory=dict)
+    providers: dict[str, type[Provider]] = field(default_factory=dict)
+    executor: InternalProviderExecutor | None = None
+
+
+def register_internal_providers(
+    broker: AsyncBroker,
+    providers: list[type[Provider]],
+    executor: InternalProviderExecutor,
+) -> InternalProviderRegistry:
+    """Register Provider classes as taskiq tasks on the broker.
+
+    Each class becomes a task named ``@internal:<category>:<ClassName>``.
+    The task handler forwards ``(cls, params_json, provider_id, request_id,
+    token)`` to *executor*.
+    """
+    registry = InternalProviderRegistry(executor=executor)
+
+    for prov_cls in providers:
+        category = prov_cls.category
+        name = prov_cls.__name__
+        full_name = f"@internal:{category}:{name}"
+
+        def _make_task_fn(
+            cls: type[Provider] = prov_cls,
+            ex: InternalProviderExecutor = executor,
+        ):
+            async def _execute(
+                request_id: str,
+                provider_id: str,
+                params_json: str,
+                token: str,
+            ) -> None:
+                await ex(cls, params_json, provider_id, request_id, token)
+
+            return _execute
+
+        task_handle = broker.register_task(
+            _make_task_fn(),
+            task_name=full_name,
+        )
+
+        registry.tasks[full_name] = task_handle
+        registry.providers[full_name] = prov_cls
+        logger.debug("Registered internal provider task: %s", full_name)
+
+    logger.info("Registered %d internal provider task(s)", len(providers))
     return registry
 
 
