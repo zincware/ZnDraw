@@ -971,7 +971,9 @@ def _room_provider_filter(room_id: str):
     """Build a SQLAlchemy filter for providers visible from a given room."""
     if room_id == "@global":
         return ProviderRecord.room_id == "@global"
-    return ProviderRecord.room_id.in_(["@global", room_id])
+    if room_id == "@internal":
+        return ProviderRecord.room_id == "@internal"
+    return ProviderRecord.room_id.in_(["@global", "@internal", room_id])
 
 
 async def _resolve_provider(
@@ -988,6 +990,7 @@ async def _resolve_provider(
     # Visibility check: provider must be in the room or @global
     if room_id not in ("@global",) and provider_room_id not in (
         "@global",
+        "@internal",
         room_id,
     ):
         raise ProviderNotFound.exception(

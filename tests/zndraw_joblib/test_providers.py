@@ -142,6 +142,96 @@ def test_list_providers_mixed_scopes(client):
     assert resp.json()["total"] == 1
 
 
+def test_list_providers_includes_internal(client, async_session_factory):
+    """Internal providers are visible from every room (and from @global)."""
+    from zndraw_auth import User
+    from zndraw_joblib.models import ProviderRecord, Worker
+
+    async def seed() -> None:
+        async with async_session_factory() as session:
+            user = User(
+                id=uuid.uuid4(),
+                email="int@test",
+                hashed_password="x",
+                is_active=True,
+                is_superuser=True,
+                is_verified=True,
+            )
+            session.add(user)
+            worker = Worker(user_id=user.id)
+            session.add(worker)
+            await session.flush()
+            session.add(
+                ProviderRecord(
+                    room_id="@internal",
+                    category="filesystem",
+                    name="FilesystemRead",
+                    schema_={},
+                    user_id=user.id,
+                    worker_id=worker.id,
+                )
+            )
+            await session.commit()
+
+    asyncio.run(seed())
+
+    # A normal room sees the @internal provider
+    resp = client.get("/v1/joblib/rooms/room-42/providers")
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert any(
+        p["full_name"] == "@internal:filesystem:FilesystemRead" for p in items
+    )
+
+    # @global does NOT see @internal (explicit scope isolation)
+    resp = client.get("/v1/joblib/rooms/@global/providers")
+    assert all(
+        p["full_name"] != "@internal:filesystem:FilesystemRead"
+        for p in resp.json()["items"]
+    )
+
+
+def test_get_provider_info_internal_visible_from_room(client, async_session_factory):
+    """A normal room can fetch info on an @internal provider."""
+    from zndraw_auth import User
+    from zndraw_joblib.models import ProviderRecord, Worker
+
+    async def seed() -> None:
+        async with async_session_factory() as session:
+            user = User(
+                id=uuid.uuid4(),
+                email="int@test",
+                hashed_password="x",
+                is_active=True,
+                is_superuser=True,
+                is_verified=True,
+            )
+            session.add(user)
+            worker = Worker(user_id=user.id)
+            session.add(worker)
+            await session.flush()
+            session.add(
+                ProviderRecord(
+                    room_id="@internal",
+                    category="filesystem",
+                    name="FilesystemRead",
+                    schema_={"path": {"type": "string"}},
+                    user_id=user.id,
+                    worker_id=worker.id,
+                )
+            )
+            await session.commit()
+
+    asyncio.run(seed())
+
+    resp = client.get(
+        "/v1/joblib/rooms/room-42/providers/"
+        "@internal:filesystem:FilesystemRead/info"
+    )
+    assert resp.status_code == 200
+    assert resp.json()["schema"] == {"path": {"type": "string"}}
+
+
 # --- Info ---
 
 
