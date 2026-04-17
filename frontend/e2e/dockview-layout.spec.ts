@@ -306,4 +306,64 @@ test.describe("dockview layout", () => {
 			zone.locator(`[data-testid="plot-row-${firstRowText}"][data-open="true"]`),
 		).toBeVisible();
 	});
+
+	test("first plot opens in a new group to the right of the viewer", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		const viewer = page.getByTestId("viewer-view");
+
+		await page.getByTestId("activity-icon-plots-browser").click();
+		const zone = page.getByTestId("sidebar-zone-left");
+		const firstRow = zone.locator('li [role="button"]').first();
+		const firstRowText = (await firstRow.textContent())?.trim();
+		await firstRow.click();
+		const plot = page.locator(`[data-testid="plot-view-${firstRowText}"]`);
+		await expect(plot).toBeVisible({ timeout: 15000 });
+
+		// Re-measure both after the plot opens so the layout is stable.
+		const viewerBox = await viewer.boundingBox();
+		const plotBox = await plot.boundingBox();
+		if (!viewerBox) throw new Error("viewer bounding box missing");
+		if (!plotBox) throw new Error("plot bounding box missing");
+
+		// Plot's left edge should be at/beyond the viewer's right edge.
+		expect(plotBox.x).toBeGreaterThanOrEqual(viewerBox.x + viewerBox.width - 5);
+	});
+
+	test("second plot stacks with the first (shares a group)", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.getByTestId("activity-icon-plots-browser").click();
+		const zone = page.getByTestId("sidebar-zone-left");
+		const rows = zone.locator('li [role="button"]');
+		await expect(rows.first()).toBeVisible({ timeout: 15000 });
+		const count = await rows.count();
+		expect(count).toBeGreaterThanOrEqual(2);
+
+		const firstKey = (await rows.nth(0).textContent())?.trim();
+		const secondKey = (await rows.nth(1).textContent())?.trim();
+		await rows.nth(0).click();
+		await expect(
+			page.locator(`[data-testid="plot-view-${firstKey}"]`),
+		).toBeVisible({ timeout: 15000 });
+		// Capture first plot x while it is the active (visible) tab.
+		const firstBox = await page
+			.locator(`[data-testid="plot-view-${firstKey}"]`)
+			.boundingBox();
+		if (!firstBox) throw new Error("first plot bounding box missing");
+
+		await rows.nth(1).click();
+		await expect(
+			page.locator(`[data-testid="plot-view-${secondKey}"]`),
+		).toBeVisible({ timeout: 15000 });
+		const secondBox = await page
+			.locator(`[data-testid="plot-view-${secondKey}"]`)
+			.boundingBox();
+		if (!secondBox) throw new Error("second plot bounding box missing");
+
+		// Same group → panels share x-position (within a few px for tab edges).
+		expect(Math.abs(firstBox.x - secondBox.x)).toBeLessThan(5);
+	});
 });
