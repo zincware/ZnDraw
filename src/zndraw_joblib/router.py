@@ -1198,9 +1198,7 @@ async def read_provider(
                         " in the DB but no executor task is available"
                     )
                 )
-            params_json = json.dumps(
-                params, sort_keys=True, separators=(",", ":")
-            )
+            params_json = json.dumps(params, sort_keys=True, separators=(",", ":"))
             await internal_provider_registry.tasks[provider.full_name].kiq(
                 request_id=rhash,
                 provider_id=str(provider.id),
