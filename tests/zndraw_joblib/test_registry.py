@@ -7,6 +7,7 @@ from sqlmodel import select
 
 from zndraw_joblib.client import Category, Extension
 from zndraw_joblib.models import Job
+from zndraw_joblib.provider import Provider
 from zndraw_joblib.registry import (
     InternalRegistry,
     register_internal_jobs,
@@ -177,10 +178,6 @@ async def test_register_internal_jobs_reactivates_deleted(async_session_factory)
 
 
 # --- Provider registry ---------------------------------------------------
-
-from typing import ClassVar
-
-from zndraw_joblib.provider import Provider
 
 
 class _DummyProvider(Provider):
