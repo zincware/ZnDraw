@@ -1,7 +1,8 @@
 import Badge from "@mui/material/Badge";
 import { Box, IconButton, Tooltip, keyframes } from "@mui/material";
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { useHasFilesystemProviders } from "../hooks/useHasFilesystemProviders";
 import { useAppStore } from "../store";
 import { type BarPosition, type PanelId, PANELS } from "./registry";
 
@@ -58,6 +59,15 @@ export function ActivityBar({ position }: ActivityBarProps) {
 
 	const isHovered = hoverBar === position;
 	const dragDepth = useRef(0);
+
+	const hasFilesystemProviders = useHasFilesystemProviders();
+	const visibleIcons = useMemo(
+		() =>
+			hasFilesystemProviders
+				? icons
+				: icons.filter((id) => id !== "filesystem"),
+		[icons, hasFilesystemProviders],
+	);
 
 	const onDragStart = useCallback((e: React.DragEvent, id: PanelId) => {
 		e.dataTransfer.setData(DRAG_MIME, id);
@@ -124,7 +134,7 @@ export function ActivityBar({ position }: ActivityBarProps) {
 	);
 
 	// Hide the bar entirely when it has no icons and no drag is in progress.
-	if (icons.length === 0 && !isDragActive) return null;
+	if (visibleIcons.length === 0 && !isDragActive) return null;
 
 	const dragBgSx = isDragActive
 		? isHovered
@@ -150,7 +160,7 @@ export function ActivityBar({ position }: ActivityBarProps) {
 				...dragBgSx,
 			}}
 		>
-			{icons.map((id, idx) => {
+			{visibleIcons.map((id, idx) => {
 				const def = PANELS[id];
 				if (def.kind !== "tool") return null;
 				const Icon = def.icon;
