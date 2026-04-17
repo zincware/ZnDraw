@@ -1233,6 +1233,11 @@ async def delete_provider(
     if not provider:
         raise ProviderNotFound.exception(detail=f"Provider '{provider_id}' not found")
 
+    if provider.room_id == "@internal":
+        raise Forbidden.exception(
+            detail="@internal providers cannot be deleted"
+        )
+
     if provider.user_id != user.id and not user.is_superuser:
         raise Forbidden.exception(detail="Provider belongs to different user")
 

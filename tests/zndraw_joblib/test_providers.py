@@ -179,9 +179,7 @@ def test_list_providers_includes_internal(client, async_session_factory):
     resp = client.get("/v1/joblib/rooms/room-42/providers")
     assert resp.status_code == 200
     items = resp.json()["items"]
-    assert any(
-        p["full_name"] == "@internal:filesystem:FilesystemRead" for p in items
-    )
+    assert any(p["full_name"] == "@internal:filesystem:FilesystemRead" for p in items)
 
     # @global does NOT see @internal (explicit scope isolation)
     resp = client.get("/v1/joblib/rooms/@global/providers")
@@ -225,8 +223,7 @@ def test_get_provider_info_internal_visible_from_room(client, async_session_fact
     asyncio.run(seed())
 
     resp = client.get(
-        "/v1/joblib/rooms/room-42/providers/"
-        "@internal:filesystem:FilesystemRead/info"
+        "/v1/joblib/rooms/room-42/providers/@internal:filesystem:FilesystemRead/info"
     )
     assert resp.status_code == 200
     assert resp.json()["schema"] == {"path": {"type": "string"}}
@@ -421,6 +418,47 @@ def test_delete_provider(client):
 def test_delete_provider_not_found(client):
     resp = client.delete(f"/v1/joblib/providers/{uuid.uuid4()}")
     assert resp.status_code == 404
+
+
+def test_delete_internal_provider_forbidden(client_factory, async_session_factory):
+    """@internal providers cannot be deleted by anyone, including superusers."""
+    from zndraw_auth import User
+    from zndraw_joblib.models import ProviderRecord, Worker
+
+    provider_id = uuid.uuid4()
+
+    async def seed() -> None:
+        async with async_session_factory() as session:
+            user = User(
+                id=uuid.uuid4(),
+                email="int@test",
+                hashed_password="x",
+                is_active=True,
+                is_superuser=True,
+                is_verified=True,
+            )
+            session.add(user)
+            worker = Worker(user_id=user.id)
+            session.add(worker)
+            await session.flush()
+            session.add(
+                ProviderRecord(
+                    id=provider_id,
+                    room_id="@internal",
+                    category="filesystem",
+                    name="FilesystemRead",
+                    schema_={},
+                    user_id=user.id,
+                    worker_id=worker.id,
+                )
+            )
+            await session.commit()
+
+    asyncio.run(seed())
+
+    admin = client_factory("admin", is_superuser=True)
+    resp = admin.delete(f"/v1/joblib/providers/{provider_id}")
+    assert resp.status_code == 403
 
 
 # --- Result Upload ---
