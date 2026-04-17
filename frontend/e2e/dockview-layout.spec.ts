@@ -412,4 +412,125 @@ test.describe("dockview layout", () => {
 		});
 		await expect(right).toHaveAttribute("data-sliver-state", "sliver");
 	});
+
+	/**
+	 * Drag a resize handle by `deltaX` pixels using direct PointerEvent
+	 * dispatch. Playwright's `page.mouse.*` does not drive handlers that
+	 * rely on `setPointerCapture` + window pointer listeners, which is
+	 * exactly what the resize handles use.
+	 */
+	async function dragResizeHandle(
+		page: import("@playwright/test").Page,
+		testId: string,
+		deltaX: number,
+		deltaY = 0,
+	) {
+		await page.evaluate(
+			({ testId, dx, dy }) => {
+				const handle = document.querySelector(
+					`[data-testid="${testId}"]`,
+				) as HTMLElement | null;
+				if (!handle) throw new Error(`no handle ${testId}`);
+				const rect = handle.getBoundingClientRect();
+				const startX = rect.left + rect.width / 2;
+				const startY = rect.top + rect.height / 2;
+				const down = new PointerEvent("pointerdown", {
+					bubbles: true,
+					cancelable: true,
+					clientX: startX,
+					clientY: startY,
+					pointerId: 1,
+					pointerType: "mouse",
+				});
+				handle.dispatchEvent(down);
+				const move = new PointerEvent("pointermove", {
+					bubbles: true,
+					cancelable: true,
+					clientX: startX + dx,
+					clientY: startY + dy,
+					pointerId: 1,
+					pointerType: "mouse",
+				});
+				window.dispatchEvent(move);
+				const up = new PointerEvent("pointerup", {
+					bubbles: true,
+					cancelable: true,
+					clientX: startX + dx,
+					clientY: startY + dy,
+					pointerId: 1,
+					pointerType: "mouse",
+				});
+				window.dispatchEvent(up);
+			},
+			{ testId, dx: deltaX, dy: deltaY },
+		);
+	}
+
+	test("sidebar resize: dragging the inner edge widens the zone", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.getByTestId("activity-icon-geometries").click();
+		const zone = page.getByTestId("sidebar-zone-left");
+		const before = await zone.boundingBox();
+		if (!before) throw new Error("zone bounding box missing");
+
+		await dragResizeHandle(page, "sidebar-resize-left", 100);
+
+		const after = await zone.boundingBox();
+		if (!after) throw new Error("zone bounding box missing after");
+		expect(after.width).toBeGreaterThan(before.width + 50);
+	});
+
+	test("sidebar resize clamps at SIDEBAR_MAX_PX", async ({ page }) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.getByTestId("activity-icon-geometries").click();
+		const zone = page.getByTestId("sidebar-zone-left");
+
+		await dragResizeHandle(page, "sidebar-resize-left", 2000);
+
+		const after = await zone.boundingBox();
+		if (!after) throw new Error("zone bounding box missing after");
+		expect(after.width).toBeLessThanOrEqual(641);
+		expect(after.width).toBeGreaterThanOrEqual(639);
+	});
+
+	test("sidebar resize persists across close/open of the same panel", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.getByTestId("activity-icon-geometries").click();
+		await dragResizeHandle(page, "sidebar-resize-left", 150);
+		const widthAfterResize = (
+			await page.getByTestId("sidebar-zone-left").boundingBox()
+		)?.width;
+		if (widthAfterResize === undefined) throw new Error("no width");
+		expect(widthAfterResize).toBeGreaterThan(460); // sanity: drag actually moved it
+
+		await page.getByTestId("activity-icon-geometries").click();
+		await expect(page.getByTestId("sidebar-zone-left")).toBeHidden();
+		await page.getByTestId("activity-icon-geometries").click();
+		const widthAfterReopen = (
+			await page.getByTestId("sidebar-zone-left").boundingBox()
+		)?.width;
+		expect(widthAfterReopen).toBe(widthAfterResize);
+	});
+
+	test("sidebar resize resets on page reload (session-only)", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.getByTestId("activity-icon-geometries").click();
+		await dragResizeHandle(page, "sidebar-resize-left", 150);
+		const widthAfterResize = (
+			await page.getByTestId("sidebar-zone-left").boundingBox()
+		)?.width;
+		expect(widthAfterResize ?? 0).toBeGreaterThan(460); // sanity
+
+		await page.reload();
+		await page.getByTestId("activity-icon-geometries").click();
+		const box = await page.getByTestId("sidebar-zone-left").boundingBox();
+		expect(box?.width).toBeGreaterThanOrEqual(318);
+		expect(box?.width).toBeLessThanOrEqual(322);
+	});
 });
