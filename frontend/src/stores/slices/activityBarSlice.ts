@@ -53,13 +53,19 @@ function initialState() {
 	};
 }
 
-const BAR_KEY: Record<BarPosition, "leftBarIcons" | "rightBarIcons" | "bottomBarIcons"> = {
+const BAR_KEY: Record<
+	BarPosition,
+	"leftBarIcons" | "rightBarIcons" | "bottomBarIcons"
+> = {
 	left: "leftBarIcons",
 	right: "rightBarIcons",
 	bottom: "bottomBarIcons",
 };
 
-const ACTIVE_KEY: Record<BarPosition, "activeLeft" | "activeRight" | "activeBottom"> = {
+const ACTIVE_KEY: Record<
+	BarPosition,
+	"activeLeft" | "activeRight" | "activeBottom"
+> = {
 	left: "activeLeft",
 	right: "activeRight",
 	bottom: "activeBottom",
@@ -75,14 +81,13 @@ export const createActivityBarSlice: StateCreator<
 
 	moveIconToBar: (id, bar, index) =>
 		set((state) => {
-			const sourceBar: BarPosition | null =
-				state.leftBarIcons.includes(id)
-					? "left"
-					: state.rightBarIcons.includes(id)
-						? "right"
-						: state.bottomBarIcons.includes(id)
-							? "bottom"
-							: null;
+			const sourceBar: BarPosition | null = state.leftBarIcons.includes(id)
+				? "left"
+				: state.rightBarIcons.includes(id)
+					? "right"
+					: state.bottomBarIcons.includes(id)
+						? "bottom"
+						: null;
 			if (!sourceBar) return {};
 			if (PANELS[id].kind !== "tool") return {};
 
@@ -116,14 +121,13 @@ export const createActivityBarSlice: StateCreator<
 		set((state) => {
 			// Move the icon, then force the target bar's active panel to the
 			// dropped icon (so its content opens on drop).
-			const sourceBar: BarPosition | null =
-				state.leftBarIcons.includes(id)
-					? "left"
-					: state.rightBarIcons.includes(id)
-						? "right"
-						: state.bottomBarIcons.includes(id)
-							? "bottom"
-							: null;
+			const sourceBar: BarPosition | null = state.leftBarIcons.includes(id)
+				? "left"
+				: state.rightBarIcons.includes(id)
+					? "right"
+					: state.bottomBarIcons.includes(id)
+						? "bottom"
+						: null;
 			if (!sourceBar) return {};
 			if (PANELS[id].kind !== "tool") return {};
 
@@ -160,16 +164,11 @@ export const createActivityBarSlice: StateCreator<
 	setBarSize: (bar, px) =>
 		set(() => {
 			if (bar === "bottom") {
-				const clamped = Math.min(
-					BOTTOM_MAX_PX,
-					Math.max(BOTTOM_MIN_PX, px),
-				);
+				const clamped = Math.min(BOTTOM_MAX_PX, Math.max(BOTTOM_MIN_PX, px));
 				return { bottomHeight: clamped };
 			}
 			const clamped = Math.min(SIDEBAR_MAX_PX, Math.max(SIDEBAR_MIN_PX, px));
-			return bar === "left"
-				? { leftWidth: clamped }
-				: { rightWidth: clamped };
+			return bar === "left" ? { leftWidth: clamped } : { rightWidth: clamped };
 		}),
 
 	setPanelDragActive: (active) =>

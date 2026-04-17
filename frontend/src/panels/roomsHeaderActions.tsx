@@ -67,11 +67,7 @@ export function RoomsHeaderActions() {
 	return (
 		<Box sx={{ display: "flex", gap: 0.25 }}>
 			<Tooltip title="New room (from default template)">
-				<IconButton
-					size="small"
-					data-testid="rooms-new"
-					onClick={onNewRoom}
-				>
+				<IconButton size="small" data-testid="rooms-new" onClick={onNewRoom}>
 					<AddIcon fontSize="small" />
 				</IconButton>
 			</Tooltip>

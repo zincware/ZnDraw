@@ -1,12 +1,7 @@
 import { Box, keyframes } from "@mui/material";
 import { useCallback, useRef } from "react";
 import { useAppStore } from "../store";
-import {
-	BOTTOM_MAX_PX,
-	BOTTOM_MIN_PX,
-	PANELS,
-	type PanelId,
-} from "./registry";
+import { BOTTOM_MAX_PX, BOTTOM_MIN_PX, PANELS, type PanelId } from "./registry";
 
 const DRAG_MIME = "application/x-zndraw-panel-id";
 

@@ -279,7 +279,11 @@ function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
 					},
 				}}
 			/>
-			<Tooltip title={room.locked ? "Locked (click to unlock)" : "Unlocked (click to lock)"}>
+			<Tooltip
+				title={
+					room.locked ? "Locked (click to unlock)" : "Unlocked (click to lock)"
+				}
+			>
 				<IconButton
 					size="small"
 					data-testid={`rooms-row-lock-${room.id}`}

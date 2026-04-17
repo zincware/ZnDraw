@@ -43,11 +43,13 @@ export function SidebarZone({ position }: SidebarZoneProps) {
 			e.preventDefault();
 			(e.target as HTMLElement).setPointerCapture(e.pointerId);
 			const startX = e.clientX;
-			const startWidth = zoneRef.current?.getBoundingClientRect().width ?? width;
+			const startWidth =
+				zoneRef.current?.getBoundingClientRect().width ?? width;
 
 			const onMove = (ev: PointerEvent) => {
 				const delta = ev.clientX - startX;
-				const next = position === "left" ? startWidth + delta : startWidth - delta;
+				const next =
+					position === "left" ? startWidth + delta : startWidth - delta;
 				setBarSize(position, next);
 			};
 			const onUp = (ev: PointerEvent) => {
