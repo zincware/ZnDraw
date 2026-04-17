@@ -1,12 +1,16 @@
 """Unit tests for FilesystemRead provider."""
 
+import time
 from pathlib import Path
 from unittest.mock import MagicMock
+from urllib.parse import urlencode
 
 import fsspec
 import pytest
 
+from zndraw import ZnDraw
 from zndraw.providers.filesystem import FileItem, FilesystemRead, _from_info
+from zndraw_joblib.schemas import ProviderResponse
 
 
 @pytest.fixture
@@ -265,3 +269,87 @@ def test_ls_root_slash_returns_relative_paths(relative_fs):
     names = {r["name"] for r in result}
     assert "top.xyz" in names
     assert "sub" in names
+
+
+# =============================================================================
+# @internal default filesystem provider
+# =============================================================================
+
+
+def _list_providers(vis: ZnDraw) -> list[ProviderResponse]:
+    """GET /rooms/{room}/providers and validate with Pydantic."""
+    resp = vis.api.http.get(
+        f"{vis.api.base_url}/v1/joblib/rooms/{vis.room}/providers",
+        headers=vis.api.get_headers(),
+    )
+    resp.raise_for_status()
+    return [ProviderResponse.model_validate(p) for p in resp.json()["items"]]
+
+
+def _read_provider(
+    vis: ZnDraw, provider_full_name: str, params: dict[str, str] | None = None
+) -> tuple[int, list]:
+    """GET the provider read endpoint, return (status_code, items)."""
+    qs = "?" + urlencode(params) if params else ""
+    resp = vis.api.http.get(
+        f"{vis.api.base_url}/v1/joblib/rooms/{vis.room}/providers/"
+        f"{provider_full_name}{qs}",
+        headers=vis.api.get_headers(),
+    )
+    if resp.status_code == 200:
+        return 200, resp.json()
+    return resp.status_code, []
+
+
+def _poll_until_200(
+    vis: ZnDraw,
+    full_name: str,
+    params: dict[str, str],
+    *,
+    timeout: float = 15,
+    interval: float = 0.5,
+) -> list:
+    """Poll a provider read until 200, return items or fail."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        status, items = _read_provider(vis, full_name, params)
+        if status == 200:
+            return items
+        time.sleep(interval)
+    pytest.fail(f"Provider read for {params} did not return 200 within {timeout}s")
+
+
+def test_default_internal_filesystem_listed(server):
+    """The default @internal:filesystem:FilesystemRead is listed in every room."""
+    vis = ZnDraw(url=server)
+    try:
+        providers = _list_providers(vis)
+        internal = [
+            p for p in providers if p.full_name == "@internal:filesystem:FilesystemRead"
+        ]
+        assert len(internal) == 1
+    finally:
+        vis.disconnect()
+
+
+def test_default_internal_filesystem_read(server):
+    """Reading @internal:filesystem:FilesystemRead returns a list."""
+    vis = ZnDraw(url=server)
+    try:
+        items = _poll_until_200(
+            vis, "@internal:filesystem:FilesystemRead", {"path": "/"}
+        )
+        assert isinstance(items, list)
+    finally:
+        vis.disconnect()
+
+
+def test_filebrowser_path_none_disables_default(server_factory):
+    """Setting ZNDRAW_SERVER_FILEBROWSER_PATH=none drops the @internal provider."""
+    instance = server_factory({"ZNDRAW_SERVER_FILEBROWSER_PATH": "none"})
+    vis = ZnDraw(url=instance.url)
+    try:
+        providers = _list_providers(vis)
+        assert not any(p.room_id == "@internal" for p in providers)
+    finally:
+        vis.disconnect()

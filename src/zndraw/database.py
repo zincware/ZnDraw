@@ -70,6 +70,13 @@ def _collect_extensions() -> list[type]:
     ]
 
 
+def _collect_providers() -> list[type]:
+    """Collect all built-in provider classes to register at @internal."""
+    from zndraw.providers import BUNDLED_PROVIDERS
+
+    return list(BUNDLED_PROVIDERS)
+
+
 log = logging.getLogger(__name__)
 
 
@@ -140,6 +147,31 @@ async def ensure_internal_worker(
         log.debug("Updated internal worker user: %s", email)
 
 
+async def ensure_internal_worker_row(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+) -> uuid.UUID:
+    """Create or reuse a Worker row owned by the internal worker user.
+
+    Idempotent. Returns the worker id.
+    """
+    from sqlmodel import select as _select
+
+    from zndraw_joblib.models import Worker
+
+    result = await session.exec(
+        _select(Worker).where(Worker.user_id == user_id).limit(1)
+    )
+    existing = result.one_or_none()
+    if existing is not None:
+        return existing.id
+    worker = Worker(user_id=user_id)
+    session.add(worker)
+    await session.commit()
+    await session.refresh(worker)
+    return worker.id
+
+
 async def init_database(
     engine: AsyncEngine | None = None,
     settings: Settings | None = None,
@@ -182,6 +214,25 @@ async def init_database(
 
     # Seed @internal Job rows for built-in extensions
     await ensure_internal_jobs(_collect_extensions(), session_maker)
+
+    # Seed internal worker row + @internal provider rows
+    if settings.filebrowser_path.lower() != "none":
+        from zndraw_joblib.registry import ensure_internal_providers
+
+        async with session_maker() as session:
+            result = await session.exec(
+                select(User).where(User.email == settings.internal_worker_email)
+            )
+            internal_user = result.one()
+            worker_id = await ensure_internal_worker_row(session, internal_user.id)
+            internal_user_id = internal_user.id
+
+        await ensure_internal_providers(
+            _collect_providers(),
+            session_maker,
+            user_id=internal_user_id,
+            worker_id=worker_id,
+        )
 
     # Only dispose if we created the engine (CLI mode)
     if own_engine:
@@ -305,6 +356,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # broker tasks (no DB writes, avoids unique_job race).
             registry = register_internal_tasks(broker, _collect_extensions(), executor)
             app.state.internal_registry = registry
+
+        # Register @internal provider tasks
+        if settings.filebrowser_path.lower() != "none":
+            from pathlib import Path
+
+            from zndraw.providers.executor import InternalProviderExecutor
+            from zndraw_joblib.registry import register_internal_providers
+
+            provider_executor = InternalProviderExecutor(
+                base_url=f"http://{executor_host}:{settings.port}",
+                filebrowser_path=str(Path(settings.filebrowser_path).resolve()),  # noqa: ASYNC240
+            )
+            provider_registry = register_internal_providers(
+                broker, _collect_providers(), provider_executor
+            )
+            app.state.internal_provider_registry = provider_registry
+        else:
+            app.state.internal_provider_registry = None
+
         await broker.startup()
 
         # zndraw-joblib: wire ResultBackend for provider caching
