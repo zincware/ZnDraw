@@ -8,9 +8,12 @@ import {
 	TextField,
 	Typography,
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { isAxiosError } from "axios";
 import { useLeaveRoom } from "../hooks/useLeaveRoom";
+import { useDragAndDrop } from "../hooks/useDragAndDrop";
+import { createRoom, uploadTrajectory } from "../myapi/client";
 import { useRoomsStore } from "../roomsStore";
 import { useAppStore } from "../store";
 import { getDockviewApi } from "./DockviewLayout";
@@ -29,6 +32,36 @@ export function RoomsPanel() {
 	const leaveRoom = useLeaveRoom({ api: getDockviewApi() });
 	const navigate = useNavigate();
 	const [query, setQuery] = useState("");
+
+	const showSnackbar = useAppStore((s) => s.showSnackbar);
+
+	const handleFiles = useCallback(
+		async (files: File[]) => {
+			const newRoomId = crypto.randomUUID();
+			try {
+				await createRoom({ room_id: newRoomId });
+				for (const file of files) {
+					await uploadTrajectory(newRoomId, file);
+				}
+				showSnackbar(`Room created with ${files.length} file(s)`, "success");
+				navigate(`/rooms/${newRoomId}`);
+			} catch (error) {
+				const detail = isAxiosError(error)
+					? (error.response?.data?.detail ?? error.message)
+					: "Upload failed";
+				showSnackbar(detail, "error");
+			}
+		},
+		[navigate, showSnackbar],
+	);
+
+	const {
+		isDragging,
+		handleDragOver,
+		handleDragEnter,
+		handleDragLeave,
+		handleDrop,
+	} = useDragAndDrop(handleFiles);
 
 	useEffect(() => {
 		fetchRooms();
@@ -53,7 +86,11 @@ export function RoomsPanel() {
 	return (
 		<Box
 			data-testid="rooms-panel"
-			sx={{ display: "flex", flexDirection: "column", height: "100%" }}
+			onDragOver={handleDragOver}
+			onDragEnter={handleDragEnter}
+			onDragLeave={handleDragLeave}
+			onDrop={handleDrop}
+			sx={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}
 		>
 			<Box
 				sx={{
@@ -143,6 +180,28 @@ export function RoomsPanel() {
 					</ListItemButton>
 				))}
 			</List>
+			{isDragging && (
+				<Box
+					data-testid="rooms-drop-overlay"
+					sx={{
+						position: "absolute",
+						inset: 0,
+						bgcolor: "rgba(25, 118, 210, 0.2)",
+						border: 2,
+						borderStyle: "dashed",
+						borderColor: "primary.main",
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						pointerEvents: "none",
+						zIndex: 2,
+					}}
+				>
+					<Typography variant="body2" color="primary.main" fontWeight={500}>
+						Drop to create a new room
+					</Typography>
+				</Box>
+			)}
 		</Box>
 	);
 }
