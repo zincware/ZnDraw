@@ -257,7 +257,7 @@ class TestFilebrowserPath:
         assert settings.filebrowser_path == "."
 
     def test_filebrowser_path_from_env(self) -> None:
-        """filebrowser_path should be configurable via ZNDRAW_SERVER_FILEBROWSER_PATH."""
+        """Configurable via ZNDRAW_SERVER_FILEBROWSER_PATH env var."""
         os.environ["ZNDRAW_SERVER_FILEBROWSER_PATH"] = "/data"
         try:
             settings = Settings()
