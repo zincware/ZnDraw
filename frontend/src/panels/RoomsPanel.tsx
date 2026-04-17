@@ -1,39 +1,50 @@
+import LockIcon from "@mui/icons-material/Lock";
+import LockOpenIcon from "@mui/icons-material/LockOpen";
 import SearchIcon from "@mui/icons-material/Search";
+import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
 import {
 	Box,
+	IconButton,
 	InputAdornment,
 	List,
 	ListItemButton,
 	ListItemText,
 	TextField,
+	Tooltip,
 	Typography,
 } from "@mui/material";
+import { isAxiosError } from "axios";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { isAxiosError } from "axios";
-import { useLeaveRoom } from "../hooks/useLeaveRoom";
 import { useDragAndDrop } from "../hooks/useDragAndDrop";
-import { createRoom, uploadTrajectory } from "../myapi/client";
+import { useLeaveRoom } from "../hooks/useLeaveRoom";
+import {
+	createRoom,
+	type Room,
+	setDefaultRoom,
+	updateRoom,
+	uploadTrajectory,
+} from "../myapi/client";
 import { useRoomsStore } from "../roomsStore";
 import { useAppStore } from "../store";
 import { getDockviewApi } from "./DockviewLayout";
-import { RoomsHeaderActions } from "./roomsHeaderActions";
 import { RoomRowMenu } from "./roomRowMenu";
+import { RoomsHeaderActions } from "./roomsHeaderActions";
 
 /**
- * VS-Code-style compact rooms list with search, header actions, and
- * a per-row actions menu. Reactive via the existing roomsStore.
+ * Compact rooms list with search, header actions, per-row template/lock
+ * toggles, and a per-row overflow menu. Reactive via the existing roomsStore.
  */
 export function RoomsPanel() {
 	const rooms = useRoomsStore((s) => s.roomsArray);
 	const loading = useRoomsStore((s) => s.loading);
 	const fetchRooms = useRoomsStore((s) => s.fetchRooms);
 	const currentRoomId = useAppStore((s) => s.roomId);
+	const showSnackbar = useAppStore((s) => s.showSnackbar);
 	const leaveRoom = useLeaveRoom({ api: getDockviewApi() });
 	const navigate = useNavigate();
 	const [query, setQuery] = useState("");
-
-	const showSnackbar = useAppStore((s) => s.showSnackbar);
 
 	const handleFiles = useCallback(
 		async (files: File[]) => {
@@ -90,7 +101,12 @@ export function RoomsPanel() {
 			onDragEnter={handleDragEnter}
 			onDragLeave={handleDragLeave}
 			onDrop={handleDrop}
-			sx={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}
+			sx={{
+				display: "flex",
+				flexDirection: "column",
+				height: "100%",
+				position: "relative",
+			}}
 		>
 			<Box
 				sx={{
@@ -145,39 +161,14 @@ export function RoomsPanel() {
 					</Typography>
 				</Box>
 			)}
-			<List dense sx={{ flexGrow: 1, overflow: "auto", pt: 0 }}>
+			<List dense sx={{ flexGrow: 1, minHeight: 0, overflow: "auto", pt: 0 }}>
 				{filtered.map((r) => (
-					<ListItemButton
+					<RoomsListRow
 						key={r.id}
-						data-testid={`rooms-row-${r.id}`}
+						room={r}
 						selected={r.id === currentRoomId}
-						onClick={() => switchToRoom(r.id)}
-						sx={{
-							alignItems: "center",
-							pl: 1.5,
-							pr: 0.5,
-							borderLeft: 2,
-							borderColor:
-								r.id === currentRoomId ? "primary.main" : "transparent",
-						}}
-					>
-						<ListItemText
-							primary={r.description ?? r.id}
-							secondary={`${r.id.slice(0, 8)} · ${r.frame_count} frame${
-								r.frame_count === 1 ? "" : "s"
-							}`}
-							primaryTypographyProps={{
-								variant: "body2",
-								fontWeight: 500,
-								noWrap: true,
-							}}
-							secondaryTypographyProps={{
-								variant: "caption",
-								color: "text.secondary",
-							}}
-						/>
-						<RoomRowMenu room={r} />
-					</ListItemButton>
+						onSelect={() => switchToRoom(r.id)}
+					/>
 				))}
 			</List>
 			{isDragging && (
@@ -203,5 +194,105 @@ export function RoomsPanel() {
 				</Box>
 			)}
 		</Box>
+	);
+}
+
+interface RoomsListRowProps {
+	room: Room;
+	selected: boolean;
+	onSelect: () => void;
+}
+
+function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
+	const showSnackbar = useAppStore((s) => s.showSnackbar);
+
+	const primary = room.description?.trim() || room.id;
+	const secondary = `${room.frame_count} frame${
+		room.frame_count === 1 ? "" : "s"
+	}`;
+
+	const onToggleTemplate = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		try {
+			await setDefaultRoom(room.is_default ? null : room.id);
+			useRoomsStore
+				.getState()
+				.updateRoom(room.id, { is_default: !room.is_default });
+			showSnackbar(
+				room.is_default ? "Template cleared" : "Set as template",
+				"success",
+			);
+		} catch {
+			showSnackbar("Failed to update template", "error");
+		}
+	};
+
+	const onToggleLock = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		try {
+			await updateRoom(room.id, { locked: !room.locked });
+			showSnackbar(room.locked ? "Room unlocked" : "Room locked", "success");
+		} catch {
+			showSnackbar("Failed to update lock", "error");
+		}
+	};
+
+	return (
+		<ListItemButton
+			data-testid={`rooms-row-${room.id}`}
+			selected={selected}
+			onClick={onSelect}
+			sx={{
+				gap: 0.5,
+				alignItems: "center",
+				pl: 0.5,
+				pr: 0.5,
+				borderLeft: 2,
+				borderColor: selected ? "primary.main" : "transparent",
+			}}
+		>
+			<Tooltip title={room.is_default ? "Template room" : "Set as template"}>
+				<IconButton
+					size="small"
+					data-testid={`rooms-row-template-${room.id}`}
+					onClick={onToggleTemplate}
+				>
+					{room.is_default ? (
+						<StarIcon fontSize="small" color="primary" />
+					) : (
+						<StarBorderIcon fontSize="small" />
+					)}
+				</IconButton>
+			</Tooltip>
+			<ListItemText
+				primary={primary}
+				secondary={secondary}
+				slotProps={{
+					primary: {
+						variant: "body2",
+						fontWeight: 500,
+						noWrap: true,
+					},
+					secondary: {
+						variant: "caption",
+						color: "text.secondary",
+					},
+				}}
+			/>
+			<Tooltip title={room.locked ? "Locked (click to unlock)" : "Unlocked (click to lock)"}>
+				<IconButton
+					size="small"
+					data-testid={`rooms-row-lock-${room.id}`}
+					onClick={onToggleLock}
+				>
+					{room.locked ? (
+						<LockIcon fontSize="small" color="error" />
+					) : (
+						<LockOpenIcon fontSize="small" color="success" />
+					)}
+				</IconButton>
+			</Tooltip>
+			<RoomRowMenu room={room} />
+		</ListItemButton>
 	);
 }

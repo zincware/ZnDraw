@@ -142,9 +142,9 @@ export function getDefaultsForBar(bar: BarPosition): PanelId[] {
 }
 
 // Sidebar / bottom-zone sizes (px). Session-only — stored in activityBarSlice.
-export const SIDEBAR_DEFAULT_PX = 320;
+export const SIDEBAR_DEFAULT_PX = 600;
 export const SIDEBAR_MIN_PX = 200;
-export const SIDEBAR_MAX_PX = 640;
+export const SIDEBAR_MAX_PX = 900;
 
 export const BOTTOM_DEFAULT_PX = 260;
 export const BOTTOM_MIN_PX = 120;

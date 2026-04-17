@@ -25,10 +25,16 @@ export interface ActivityBarSlice {
 	rightWidth: number;
 	bottomHeight: number;
 
+	isPanelDragActive: boolean;
+	dragHoverBar: BarPosition | null;
+
 	moveIconToBar: (id: PanelId, bar: BarPosition, index?: number) => void;
+	dropIconOnPanel: (id: PanelId, bar: BarPosition) => void;
 	toggleActive: (bar: BarPosition, id: PanelId) => void;
 	resetLayout: () => void;
 	setBarSize: (bar: BarPosition, px: number) => void;
+	setPanelDragActive: (active: boolean) => void;
+	setDragHoverBar: (bar: BarPosition | null) => void;
 }
 
 function initialState() {
@@ -42,6 +48,8 @@ function initialState() {
 		leftWidth: SIDEBAR_DEFAULT_PX,
 		rightWidth: SIDEBAR_DEFAULT_PX,
 		bottomHeight: BOTTOM_DEFAULT_PX,
+		isPanelDragActive: false,
+		dragHoverBar: null as BarPosition | null,
 	};
 }
 
@@ -104,6 +112,42 @@ export const createActivityBarSlice: StateCreator<
 			return patch as ActivityBarSlice;
 		}),
 
+	dropIconOnPanel: (id, bar) =>
+		set((state) => {
+			// Move the icon, then force the target bar's active panel to the
+			// dropped icon (so its content opens on drop).
+			const sourceBar: BarPosition | null =
+				state.leftBarIcons.includes(id)
+					? "left"
+					: state.rightBarIcons.includes(id)
+						? "right"
+						: state.bottomBarIcons.includes(id)
+							? "bottom"
+							: null;
+			if (!sourceBar) return {};
+			if (PANELS[id].kind !== "tool") return {};
+
+			const patch: Partial<ActivityBarSlice> = {};
+
+			const sourceKey = BAR_KEY[sourceBar];
+			const sourceList = state[sourceKey].filter((x) => x !== id);
+			patch[sourceKey] = sourceList as PanelId[] & never;
+
+			if (state[ACTIVE_KEY[sourceBar]] === id) {
+				patch[ACTIVE_KEY[sourceBar]] = null as never;
+			}
+
+			const targetKey = BAR_KEY[bar];
+			const currentTarget = sourceBar === bar ? sourceList : state[targetKey];
+			if (!currentTarget.includes(id)) {
+				patch[targetKey] = [...currentTarget, id] as PanelId[] & never;
+			}
+
+			patch[ACTIVE_KEY[bar]] = id as never;
+
+			return patch as ActivityBarSlice;
+		}),
+
 	toggleActive: (bar, id) =>
 		set((state) => {
 			const key = ACTIVE_KEY[bar];
@@ -127,4 +171,13 @@ export const createActivityBarSlice: StateCreator<
 				? { leftWidth: clamped }
 				: { rightWidth: clamped };
 		}),
+
+	setPanelDragActive: (active) =>
+		set(() =>
+			active
+				? { isPanelDragActive: true }
+				: { isPanelDragActive: false, dragHoverBar: null },
+		),
+
+	setDragHoverBar: (bar) => set(() => ({ dragHoverBar: bar })),
 });

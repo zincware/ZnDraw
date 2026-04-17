@@ -337,7 +337,7 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 					}}
 				/>
 			</Box>
-			<Box sx={{ flexGrow: 1, px: 2, pb: 2 }}>
+			<Box sx={{ flexGrow: 1, minHeight: 0, px: 2, pb: 2 }}>
 				<DataGrid
 					rows={rows}
 					columns={columns}

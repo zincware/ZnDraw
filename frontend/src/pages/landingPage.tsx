@@ -69,6 +69,31 @@ export default function MainPage() {
 	useSocketManager({ roomId });
 	useKeyboardShortcuts();
 
+	// Single source of truth for panel-drag lifecycle. Uses window-level
+	// dragstart/dragend/drop plus a document keydown fallback so stuck
+	// "hot" zones can't survive an Escape-cancel or a missed dragend.
+	useEffect(() => {
+		const DRAG_MIME = "application/x-zndraw-panel-id";
+		const setActive = useAppStore.getState().setPanelDragActive;
+		const onStart = (e: DragEvent) => {
+			if (e.dataTransfer?.types.includes(DRAG_MIME)) setActive(true);
+		};
+		const onEnd = () => setActive(false);
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") setActive(false);
+		};
+		window.addEventListener("dragstart", onStart, { passive: true });
+		window.addEventListener("dragend", onEnd, { passive: true });
+		window.addEventListener("drop", onEnd, { passive: true });
+		document.addEventListener("keydown", onKey);
+		return () => {
+			window.removeEventListener("dragstart", onStart);
+			window.removeEventListener("dragend", onEnd);
+			window.removeEventListener("drop", onEnd);
+			document.removeEventListener("keydown", onKey);
+		};
+	}, []);
+
 	const interactionMode = useAppStore((state) => state.mode);
 	const enterDrawingMode = useAppStore((state) => state.enterDrawingMode);
 	const exitDrawingMode = useAppStore((state) => state.exitDrawingMode);

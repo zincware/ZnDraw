@@ -1,12 +1,20 @@
-import { Box } from "@mui/material";
+import { Box, keyframes } from "@mui/material";
 import { useCallback, useRef } from "react";
 import { useAppStore } from "../store";
 import {
 	type BarPosition,
 	PANELS,
+	type PanelId,
 	SIDEBAR_MAX_PX,
 	SIDEBAR_MIN_PX,
 } from "./registry";
+
+const DRAG_MIME = "application/x-zndraw-panel-id";
+
+const shimmer = keyframes`
+	0%, 100% { background-color: rgba(25, 118, 210, 0.12); }
+	50% { background-color: rgba(25, 118, 210, 0.28); }
+`;
 
 interface SidebarZoneProps {
 	position: Exclude<BarPosition, "bottom">;
@@ -20,7 +28,15 @@ export function SidebarZone({ position }: SidebarZoneProps) {
 		position === "left" ? s.leftWidth : s.rightWidth,
 	);
 	const setBarSize = useAppStore((s) => s.setBarSize);
+	const isDragActive = useAppStore((s) => s.isPanelDragActive);
+	const hoverBar = useAppStore((s) => s.dragHoverBar);
+	const setHoverBar = useAppStore((s) => s.setDragHoverBar);
+	const dropIconOnPanel = useAppStore((s) => s.dropIconOnPanel);
+	const setPanelDragActive = useAppStore((s) => s.setPanelDragActive);
 	const zoneRef = useRef<HTMLDivElement | null>(null);
+	const dragDepth = useRef(0);
+
+	const isHovered = hoverBar === position;
 
 	const onPointerDown = useCallback(
 		(e: React.PointerEvent<HTMLDivElement>) => {
@@ -47,18 +63,70 @@ export function SidebarZone({ position }: SidebarZoneProps) {
 		[position, setBarSize, width],
 	);
 
+	const onDragOver = useCallback((e: React.DragEvent) => {
+		if (e.dataTransfer.types.includes(DRAG_MIME)) {
+			e.preventDefault();
+			e.dataTransfer.dropEffect = "move";
+		}
+	}, []);
+
+	const onDragEnter = useCallback(
+		(e: React.DragEvent) => {
+			if (!e.dataTransfer.types.includes(DRAG_MIME)) return;
+			dragDepth.current++;
+			if (dragDepth.current === 1) setHoverBar(position);
+		},
+		[position, setHoverBar],
+	);
+
+	const onDragLeave = useCallback(() => {
+		dragDepth.current = Math.max(0, dragDepth.current - 1);
+		if (
+			dragDepth.current === 0 &&
+			useAppStore.getState().dragHoverBar === position
+		) {
+			setTimeout(() => {
+				if (
+					dragDepth.current === 0 &&
+					useAppStore.getState().dragHoverBar === position
+				) {
+					setHoverBar(null);
+				}
+			}, 0);
+		}
+	}, [position, setHoverBar]);
+
+	const onDrop = useCallback(
+		(e: React.DragEvent) => {
+			const id = e.dataTransfer.getData(DRAG_MIME) as PanelId | "";
+			dragDepth.current = 0;
+			setPanelDragActive(false);
+			if (!id) return;
+			e.preventDefault();
+			// Drop on the panel → move AND open the dropped icon's panel.
+			dropIconOnPanel(id as PanelId, position);
+		},
+		[dropIconOnPanel, position, setPanelDragActive],
+	);
+
+	// Panel is only visible when something is active. Drag doesn't force-open
+	// an empty panel.
 	if (!active) return null;
 	const def = PANELS[active];
 	if (def.kind !== "tool") return null;
 	const Component = def.component;
 
-	// Clamp on render too, in case SSR-ish state had stale value.
 	const safeWidth = Math.min(SIDEBAR_MAX_PX, Math.max(SIDEBAR_MIN_PX, width));
 
 	return (
 		<Box
 			ref={zoneRef}
 			data-testid={`sidebar-zone-${position}`}
+			data-drop-hover={isHovered}
+			onDragEnter={onDragEnter}
+			onDragOver={onDragOver}
+			onDragLeave={onDragLeave}
+			onDrop={onDrop}
 			sx={{
 				position: "relative",
 				width: safeWidth,
@@ -73,6 +141,24 @@ export function SidebarZone({ position }: SidebarZoneProps) {
 			}}
 		>
 			<Component />
+			{isDragActive && (
+				<Box
+					data-testid={`sidebar-drop-overlay-${position}`}
+					sx={{
+						position: "absolute",
+						inset: 0,
+						pointerEvents: "none",
+						zIndex: 2,
+						border: 2,
+						borderStyle: "solid",
+						borderColor: "primary.main",
+						transition: "background-color 120ms ease",
+						...(isHovered
+							? { bgcolor: "rgba(25, 118, 210, 0.32)" }
+							: { animation: `${shimmer} 1.2s ease-in-out infinite` }),
+					}}
+				/>
+			)}
 			<Box
 				data-testid={`sidebar-resize-${position}`}
 				onPointerDown={onPointerDown}
@@ -81,10 +167,9 @@ export function SidebarZone({ position }: SidebarZoneProps) {
 					top: 0,
 					bottom: 0,
 					width: 8,
-					// inner edge: right for left sidebar, left for right sidebar.
 					[position === "left" ? "right" : "left"]: -4,
 					cursor: "col-resize",
-					zIndex: 1,
+					zIndex: 3,
 					"&:hover": { bgcolor: "action.hover" },
 					touchAction: "none",
 				}}

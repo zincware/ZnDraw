@@ -1,4 +1,5 @@
 import AddIcon from "@mui/icons-material/Add";
+import NoteAddIcon from "@mui/icons-material/NoteAdd";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { Box, IconButton, Tooltip } from "@mui/material";
 import { isAxiosError } from "axios";
@@ -12,10 +13,25 @@ export function RoomsHeaderActions() {
 	const showSnackbar = useAppStore((s) => s.showSnackbar);
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-	const onNewEmpty = async () => {
+	// New room: no copy_from → server default template if set, else @empty.
+	const onNewRoom = async () => {
 		const id = crypto.randomUUID();
 		try {
 			await createRoom({ room_id: id });
+			navigate(`/rooms/${id}`);
+		} catch (err) {
+			const detail = isAxiosError(err)
+				? (err.response?.data?.detail ?? err.message)
+				: "Failed to create room";
+			showSnackbar(detail, "error");
+		}
+	};
+
+	// New empty room: copy_from=@none → zero frames, no default geometries.
+	const onNewEmpty = async () => {
+		const id = crypto.randomUUID();
+		try {
+			await createRoom({ room_id: id, copy_from: "@none" });
 			navigate(`/rooms/${id}`);
 		} catch (err) {
 			const detail = isAxiosError(err)
@@ -50,13 +66,22 @@ export function RoomsHeaderActions() {
 
 	return (
 		<Box sx={{ display: "flex", gap: 0.25 }}>
-			<Tooltip title="New empty room">
+			<Tooltip title="New room (from default template)">
+				<IconButton
+					size="small"
+					data-testid="rooms-new"
+					onClick={onNewRoom}
+				>
+					<AddIcon fontSize="small" />
+				</IconButton>
+			</Tooltip>
+			<Tooltip title="New empty room (no template)">
 				<IconButton
 					size="small"
 					data-testid="rooms-new-empty"
 					onClick={onNewEmpty}
 				>
-					<AddIcon fontSize="small" />
+					<NoteAddIcon fontSize="small" />
 				</IconButton>
 			</Tooltip>
 			<Tooltip title="Upload file → new room">
