@@ -38,9 +38,11 @@ export function SidebarZone({ position }: SidebarZoneProps) {
 				(e.target as HTMLElement).releasePointerCapture(ev.pointerId);
 				window.removeEventListener("pointermove", onMove);
 				window.removeEventListener("pointerup", onUp);
+				window.removeEventListener("pointercancel", onUp);
 			};
 			window.addEventListener("pointermove", onMove);
 			window.addEventListener("pointerup", onUp);
+			window.addEventListener("pointercancel", onUp);
 		},
 		[position, setBarSize, width],
 	);
