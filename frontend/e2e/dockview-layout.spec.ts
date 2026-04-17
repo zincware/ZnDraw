@@ -533,4 +533,62 @@ test.describe("dockview layout", () => {
 		expect(box?.width).toBeGreaterThanOrEqual(318);
 		expect(box?.width).toBeLessThanOrEqual(322);
 	});
+
+	test("dragging widens empty bars to 56 px", async ({ page }) => {
+		await page.goto(`/rooms/${ROOM}`);
+		const right = page.getByTestId("activity-bar-right");
+
+		await page.evaluate(() => {
+			const dt = new DataTransfer();
+			dt.setData("application/x-zndraw-panel-id", "selections");
+			window.dispatchEvent(
+				new DragEvent("dragstart", { dataTransfer: dt, bubbles: true }),
+			);
+		});
+
+		await expect(right).toHaveAttribute("data-sliver-state", "hot");
+		const box = await right.boundingBox();
+		if (!box) throw new Error("right bar bounding box missing");
+		expect(box.width).toBeGreaterThanOrEqual(54);
+		expect(box.width).toBeLessThanOrEqual(58);
+
+		await page.evaluate(() =>
+			window.dispatchEvent(new DragEvent("dragend", { bubbles: true })),
+		);
+		await expect(right).toHaveAttribute("data-sliver-state", "sliver");
+	});
+
+	test("over-zone state appears when cursor enters a hot bar", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		const right = page.getByTestId("activity-bar-right");
+
+		await page.evaluate(() => {
+			const dt = new DataTransfer();
+			dt.setData("application/x-zndraw-panel-id", "selections");
+			window.dispatchEvent(
+				new DragEvent("dragstart", { dataTransfer: dt, bubbles: true }),
+			);
+		});
+		await expect(right).toHaveAttribute("data-sliver-state", "hot");
+
+		await right.evaluate((el) => {
+			const dt = new DataTransfer();
+			dt.setData("application/x-zndraw-panel-id", "selections");
+			el.dispatchEvent(
+				new DragEvent("dragover", {
+					dataTransfer: dt,
+					bubbles: true,
+					cancelable: true,
+				}),
+			);
+		});
+		await expect(right).toHaveAttribute("data-sliver-state", "over-zone");
+		await expect(right.getByText(/Drop to dock right/i)).toBeVisible();
+
+		await page.evaluate(() =>
+			window.dispatchEvent(new DragEvent("dragend", { bubbles: true })),
+		);
+	});
 });

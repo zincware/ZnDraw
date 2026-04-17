@@ -1,6 +1,6 @@
 import Badge from "@mui/material/Badge";
 import { Box, IconButton, Tooltip, keyframes } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../store";
 import { type BarPosition, type PanelId, PANELS } from "./registry";
@@ -21,9 +21,9 @@ const SLIVER_IDLE_SX = {
 
 // Hot zone (dragging) widens the empty bar to 56 px so it's an easy drop target.
 const SLIVER_HOT_SX = {
-	left: { width: 56 },
-	right: { width: 56 },
-	bottom: { height: 56, width: "100%" },
+	left: { width: "56px" },
+	right: { width: "56px" },
+	bottom: { height: "56px", width: "100%" },
 } as const;
 
 const ACTIVE_INDICATOR: Record<
@@ -69,6 +69,7 @@ export function ActivityBar({ position }: ActivityBarProps) {
 
 	const [isDragActive, setIsDragActive] = useState(false);
 	const [isOverZone, setIsOverZone] = useState(false);
+	const sliverRef = useRef<HTMLElement | null>(null);
 
 	useEffect(() => {
 		const onGlobalDragStart = (e: DragEvent) => {
@@ -87,6 +88,25 @@ export function ActivityBar({ position }: ActivityBarProps) {
 			window.removeEventListener("dragend", onGlobalDragEnd);
 		};
 	}, []);
+
+	// Attach native dragover/dragleave listeners on the sliver element so that
+	// programmatically dispatched DragEvents (used in E2E tests) reliably
+	// update isOverZone without relying on React's synthetic event delegation.
+	useEffect(() => {
+		const el = sliverRef.current;
+		if (!el) return;
+		const onOver = (e: DragEvent) => {
+			e.preventDefault();
+			setIsOverZone(true);
+		};
+		const onLeave = () => setIsOverZone(false);
+		el.addEventListener("dragover", onOver);
+		el.addEventListener("dragleave", onLeave);
+		return () => {
+			el.removeEventListener("dragover", onOver);
+			el.removeEventListener("dragleave", onLeave);
+		};
+	});
 
 	const onDragStart = useCallback((e: React.DragEvent, id: PanelId) => {
 		e.dataTransfer.setData(DRAG_MIME, id);
@@ -141,6 +161,7 @@ export function ActivityBar({ position }: ActivityBarProps) {
 		};
 		return (
 			<Box
+				ref={sliverRef}
 				data-testid={`activity-bar-${position}`}
 				data-sliver-state={state}
 				onDragOver={(e) => {
