@@ -2,9 +2,15 @@ import type { StateCreator } from "zustand";
 import type { AppState } from "../../store";
 import {
 	type BarPosition,
+	BOTTOM_DEFAULT_PX,
+	BOTTOM_MAX_PX,
+	BOTTOM_MIN_PX,
 	getDefaultsForBar,
 	type PanelId,
 	PANELS,
+	SIDEBAR_DEFAULT_PX,
+	SIDEBAR_MAX_PX,
+	SIDEBAR_MIN_PX,
 } from "../../panels/registry";
 
 export interface ActivityBarSlice {
@@ -15,9 +21,14 @@ export interface ActivityBarSlice {
 	activeRight: PanelId | null;
 	activeBottom: PanelId | null;
 
+	leftWidth: number;
+	rightWidth: number;
+	bottomHeight: number;
+
 	moveIconToBar: (id: PanelId, bar: BarPosition, index?: number) => void;
 	toggleActive: (bar: BarPosition, id: PanelId) => void;
 	resetLayout: () => void;
+	setBarSize: (bar: BarPosition, px: number) => void;
 }
 
 function initialState() {
@@ -28,6 +39,9 @@ function initialState() {
 		activeLeft: null as PanelId | null,
 		activeRight: null as PanelId | null,
 		activeBottom: null as PanelId | null,
+		leftWidth: SIDEBAR_DEFAULT_PX,
+		rightWidth: SIDEBAR_DEFAULT_PX,
+		bottomHeight: BOTTOM_DEFAULT_PX,
 	};
 }
 
@@ -98,4 +112,19 @@ export const createActivityBarSlice: StateCreator<
 		}),
 
 	resetLayout: () => set(initialState()),
+
+	setBarSize: (bar, px) =>
+		set(() => {
+			if (bar === "bottom") {
+				const clamped = Math.min(
+					BOTTOM_MAX_PX,
+					Math.max(BOTTOM_MIN_PX, px),
+				);
+				return { bottomHeight: clamped };
+			}
+			const clamped = Math.min(SIDEBAR_MAX_PX, Math.max(SIDEBAR_MIN_PX, px));
+			return bar === "left"
+				? { leftWidth: clamped }
+				: { rightWidth: clamped };
+		}),
 });
