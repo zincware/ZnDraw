@@ -591,4 +591,59 @@ test.describe("dockview layout", () => {
 			window.dispatchEvent(new DragEvent("dragend", { bubbles: true })),
 		);
 	});
+
+	test("rooms panel header has new-empty + upload buttons", async ({ page }) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.getByTestId("activity-icon-rooms").click();
+		await expect(page.getByTestId("rooms-new-empty")).toBeVisible();
+		await expect(page.getByTestId("rooms-upload")).toBeVisible();
+	});
+
+	test("rooms panel search filters the list", async ({ page }) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.getByTestId("activity-icon-rooms").click();
+		const rows = page.locator('[data-testid^="rooms-row-"]');
+		const initialCount = await rows.count();
+		expect(initialCount).toBeGreaterThan(0);
+
+		await page.getByTestId("rooms-search").locator("input").fill("zz-no-such-room-zz");
+		await expect(rows).toHaveCount(0);
+		await expect(
+			page.getByText(/No rooms match the search/i),
+		).toBeVisible();
+	});
+
+	test("rooms panel shows drop overlay when dragging a file in", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.getByTestId("activity-icon-rooms").click();
+		const panel = page.getByTestId("rooms-panel");
+		await panel.evaluate((el) => {
+			const dt = new DataTransfer();
+			el.dispatchEvent(
+				new DragEvent("dragenter", {
+					dataTransfer: dt,
+					bubbles: true,
+					cancelable: true,
+				}),
+			);
+		});
+		await expect(page.getByTestId("rooms-drop-overlay")).toBeVisible();
+	});
+
+	test("rooms panel row menu opens and exposes template/lock items", async ({
+		page,
+	}) => {
+		await page.goto(`/rooms/${ROOM}`);
+		await page.getByTestId("activity-icon-rooms").click();
+		const menuBtn = page.getByTestId(`room-row-menu-${ROOM}`);
+		await expect(menuBtn).toBeVisible();
+		await menuBtn.click();
+		await expect(page.getByRole("menuitem", { name: /Set as template|Remove template/i })).toBeVisible();
+		await expect(page.getByRole("menuitem", { name: /^Lock$|^Unlock$/ })).toBeVisible();
+		await expect(page.getByRole("menuitem", { name: /Duplicate room/i })).toBeVisible();
+		const deleteItem = page.getByRole("menuitem", { name: /Delete/i });
+		await expect(deleteItem).toHaveAttribute("aria-disabled", "true");
+	});
 });
