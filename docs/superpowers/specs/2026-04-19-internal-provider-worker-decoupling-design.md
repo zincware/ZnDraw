@@ -125,7 +125,7 @@ Anywhere that reads `provider.worker_id` must handle `None`:
 
 - `src/zndraw_joblib/router.py::upload_provider_result` — authorisation check uses `provider.user_id`, not `worker_id`. Nothing to change.
 - `src/zndraw_joblib/router.py::delete_provider` — already refuses `@internal`. Remote providers still have valid `worker_id`. Nothing to change.
-- Any `ProviderResponse` Pydantic schema field: confirm optional typing (should already accept `None`).
+- **`src/zndraw_joblib/schemas.py::ProviderResponse.worker_id: UUID` — load-bearing change.** Must become `worker_id: UUID | None = None`. Without this, `ProviderResponse.from_record(record)` raises `ValidationError` when passed an `@internal` row with `worker_id=None`. Every GET / PUT that returns a `ProviderResponse` (register, list, read) hits this.
 - `cleanup_worker`: the delete is filtered by concrete `worker_id == worker.id`; NULL rows unaffected.
 
 An end-of-task grep (`grep -rn "provider.worker_id\|\.worker_id" src/zndraw_joblib src/zndraw`) runs during implementation to surface anything missed.
@@ -133,8 +133,10 @@ An end-of-task grep (`grep -rn "provider.worker_id\|\.worker_id" src/zndraw_jobl
 ### 2.6 Tests
 
 - **Rewrite** `tests/zndraw/test_internal_worker_sweeper.py`. New shape: create an `@internal` provider with `worker_id=None` AND an unrelated stale `Worker` row. Assert the sweeper cleans up the stale Worker normally but the `@internal` provider survives. This catches both directions of the invariant (remote sweeping still works, `@internal` is not touched).
-- **Update** `tests/zndraw_joblib/test_registry.py::test_ensure_internal_providers_concurrent_startup_safe` — drop the `worker_id=` arg.
+- **Update** all three `ensure_internal_providers(..., worker_id=...)` callsites in `tests/zndraw_joblib/test_registry.py` (~ lines 267–282, 304–310, 358–365) — drop the `worker_id=` kwarg.
 - **Add** `tests/zndraw_joblib/test_registry.py::test_ensure_internal_providers_stores_null_worker_id` — assert seeded row has `worker_id is None`.
+- **Add** `tests/zndraw_joblib/test_providers.py` (or adjacent) coverage: serializing an `@internal` ProviderRecord via `ProviderResponse.from_record` succeeds with `worker_id=None` in the payload. Catches the Pydantic schema regression directly.
+- **Hygiene (optional)**: existing `@internal` seeds in `tests/zndraw_joblib/test_providers.py` (~ lines 171, 218, 452, 672) construct `ProviderRecord(..., worker_id=<real worker>)`. These continue to pass but drift from how the bootstrap now seeds (`worker_id=None`). Flip them to `None` for consistency if the diff stays small; otherwise leave a follow-up ticket.
 
 ---
 
@@ -169,10 +171,11 @@ fix(providers): decouple @internal providers from the Worker table
 
 ## 5. Acceptance criteria
 
-1. `uv run pytest tests/zndraw tests/zndraw_joblib -q` — all green (same count as Phase 5, +/- the one new/rewritten test).
+1. `uv run pytest tests/zndraw tests/zndraw_joblib -q` — all green (same count as Phase 5, +/- the new/rewritten tests).
 2. `grep -rn "ensure_internal_worker_row\|worker_id=internal_worker_id" src/` — zero matches.
-3. End-to-end: boot `uv run zndraw`, wait ≥ 90 seconds (past `worker_timeout_seconds=60`), GET `@internal:filesystem:FilesystemRead?path=/` — 200 OK. No special case required in the sweeper path.
+3. The rewritten `test_internal_worker_sweeper.py` unit test passes: it seeds a stale remote Worker AND an `@internal` provider with `worker_id=None`, calls `cleanup_stale_workers(session, timedelta(seconds=0))`, and asserts the stale remote worker IS swept while the `@internal` provider IS preserved. No 90-second end-to-end wait required.
 4. Remote provider path unchanged: a test client registering a regular filesystem provider still has it cleaned up when its Worker goes stale.
+5. `ProviderResponse.from_record` round-trips an `@internal` row (`worker_id=None`) without raising `ValidationError`.
 
 ---
 
