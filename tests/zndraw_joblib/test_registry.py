@@ -1,8 +1,11 @@
 """Tests for internal job registry."""
 
+import asyncio
 import uuid
 from typing import Any, ClassVar
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from sqlmodel import select
 
@@ -314,3 +317,59 @@ async def test_ensure_internal_providers_idempotent(async_session_factory):
         )
         rows = result.all()
     assert len(rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_ensure_internal_providers_concurrent_startup_safe(tmp_path):
+    """Two concurrent ensure_internal_providers calls produce exactly one row.
+
+    Models the multi-replica startup race on ProviderRecord's unique constraint
+    (room_id, category, name). The IntegrityError on the loser must be caught
+    and the row updated, not crash startup.
+
+    Uses NullPool (a new connection per checkout) so that the two concurrent
+    sessions get independent connections, as they would in a real multi-replica
+    deploy.  StaticPool shares a single connection across all sessions, which
+    makes the rollback on the loser undo the winner's commit — not a realistic
+    scenario and not the behaviour we're guarding against.
+    """
+    from sqlalchemy.pool import NullPool
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlmodel import SQLModel, select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    from zndraw.providers import BUNDLED_PROVIDERS
+    from zndraw_joblib.models import ProviderRecord
+    from zndraw_joblib.registry import ensure_internal_providers
+
+    if not BUNDLED_PROVIDERS:
+        pytest.skip("no providers bundled")
+    prov_cls = list(BUNDLED_PROVIDERS)[0]
+
+    db_path = tmp_path / "test_concurrent.db"
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+        poolclass=NullPool,
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+    maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    user_id = uuid.uuid4()
+    worker_id = uuid.uuid4()
+    try:
+        await asyncio.gather(
+            ensure_internal_providers(
+                [prov_cls], maker, user_id=user_id, worker_id=worker_id
+            ),
+            ensure_internal_providers(
+                [prov_cls], maker, user_id=user_id, worker_id=worker_id
+            ),
+        )
+        async with maker() as s:
+            rows = (await s.exec(
+                select(ProviderRecord).where(ProviderRecord.room_id == "@internal")
+            )).all()
+        assert len(rows) == 1, f"expected exactly 1 row, got {len(rows)}: {rows}"
+    finally:
+        await engine.dispose()

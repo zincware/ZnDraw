@@ -233,6 +233,18 @@ async def init_database(
             user_id=internal_user_id,
             worker_id=worker_id,
         )
+    else:
+        # Feature disabled — clean up any stale @internal provider rows from a
+        # previous run that had it enabled.
+        from sqlalchemy import delete
+
+        from zndraw_joblib.models import ProviderRecord
+
+        async with session_maker() as session:
+            await session.exec(
+                delete(ProviderRecord).where(ProviderRecord.room_id == "@internal")
+            )
+            await session.commit()
 
     # Only dispose if we created the engine (CLI mode)
     if own_engine:
@@ -367,23 +379,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.internal_registry = registry
 
         # Register @internal provider tasks
-        if settings.filebrowser_path is not None:
-            from pathlib import Path
+        from zndraw.providers.bootstrap import register_filebrowser_providers
 
-            from zndraw.providers.executor import InternalProviderExecutor
-            from zndraw_joblib.registry import register_internal_providers
-
-            provider_executor = InternalProviderExecutor(
-                base_url=f"http://{executor_host}:{settings.port}",
-                filebrowser_path=str(Path(settings.filebrowser_path).resolve()),  # noqa: ASYNC240
-                timeout_seconds=settings.provider_executor_timeout,
-            )
-            provider_registry = register_internal_providers(
-                broker, _collect_providers(), provider_executor
-            )
-            app.state.internal_provider_registry = provider_registry
-        else:
-            app.state.internal_provider_registry = None
+        provider_registry = register_filebrowser_providers(
+            broker,
+            base_url=f"http://{executor_host}:{settings.port}",
+            settings=settings,
+        )
+        app.state.internal_provider_registry = provider_registry
 
         await broker.startup()
 

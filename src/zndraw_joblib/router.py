@@ -1180,6 +1180,12 @@ async def read_provider(
     # Fast path: cache hit
     cached = await result_backend.get(cache_key)
     if cached is not None:
+        try:
+            cached_parsed = json.loads(cached)
+        except (ValueError, TypeError):
+            cached_parsed = None
+        if isinstance(cached_parsed, dict) and "error" in cached_parsed and "type" in cached_parsed:
+            return Response(content=cached, media_type="application/json", status_code=400)
         return Response(content=cached, media_type=provider.content_type)
 
     # Dispatch if not already inflight
@@ -1187,39 +1193,43 @@ async def read_provider(
         inflight_key, settings.provider_inflight_ttl_seconds
     )
     if acquired:
-        if provider.room_id == "@internal":
-            if (
-                internal_provider_registry is None
-                or provider.full_name not in internal_provider_registry.tasks
-            ):
-                raise InternalJobNotConfigured.exception(
-                    detail=(
-                        f"Internal provider '{provider.full_name}' is registered"
-                        " in the DB but no executor task is available"
+        try:
+            if provider.room_id == "@internal":
+                if (
+                    internal_provider_registry is None
+                    or provider.full_name not in internal_provider_registry.tasks
+                ):
+                    raise InternalJobNotConfigured.exception(
+                        detail=(
+                            f"Internal provider '{provider.full_name}' is registered"
+                            " in the DB but no executor task is available"
+                        )
                     )
+                params_json = json.dumps(params, sort_keys=True, separators=(",", ":"))
+                await internal_provider_registry.tasks[provider.full_name].kiq(
+                    request_id=rhash,
+                    provider_id=str(provider.id),
+                    params_json=params_json,
+                    token=worker_token,
                 )
-            params_json = json.dumps(params, sort_keys=True, separators=(",", ":"))
-            await internal_provider_registry.tasks[provider.full_name].kiq(
-                request_id=rhash,
-                provider_id=str(provider.id),
-                params_json=params_json,
-                token=worker_token,
-            )
-        else:
-            provider_room = f"providers:{provider.full_name}"
-            await emit(
-                tsio,
-                {
-                    Emission(
-                        ProviderRequest.from_dict_params(
-                            request_id=rhash,
-                            provider_name=provider.full_name,
-                            params=params,
-                        ),
-                        provider_room,
-                    )
-                },
-            )
+            else:
+                provider_room = f"providers:{provider.full_name}"
+                await emit(
+                    tsio,
+                    {
+                        Emission(
+                            ProviderRequest.from_dict_params(
+                                request_id=rhash,
+                                provider_name=provider.full_name,
+                                params=params,
+                            ),
+                            provider_room,
+                        )
+                    },
+                )
+        except BaseException:
+            await result_backend.release_inflight(inflight_key)
+            raise
 
     # Long-poll: wait for result via pub/sub
     requested_wait = parse_prefer_wait(prefer)
@@ -1233,6 +1243,20 @@ async def read_provider(
         headers = {}
         if requested_wait is not None:
             headers["Preference-Applied"] = f"wait={int(timeout)}"
+        # Error payloads from the executor are JSON bodies with {"error","type"}.
+        # Translate to a 400 so the client sees a structured error rather than
+        # a binary blob that doesn't match the provider's declared content_type.
+        try:
+            parsed = json.loads(result)
+        except (ValueError, TypeError):
+            parsed = None
+        if isinstance(parsed, dict) and "error" in parsed and "type" in parsed:
+            return Response(
+                content=result,
+                media_type="application/json",
+                status_code=400,
+                headers=headers,
+            )
         return Response(
             content=result, media_type=provider.content_type, headers=headers
         )

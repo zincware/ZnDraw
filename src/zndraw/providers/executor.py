@@ -56,15 +56,29 @@ class InternalProviderExecutor:
         transport = self._transport
 
         def _run() -> None:
-            handler = self._resolve_handler(provider_cls)
-            params = json.loads(params_json) if params_json else {}
-            instance = provider_cls(**params)
-            result = instance.read(handler)
-
-            if provider_cls.content_type == "application/json":
-                content = json.dumps(result).encode()
-            else:
-                content = result  # type: ignore[assignment]
+            try:
+                handler = self._resolve_handler(provider_cls)
+                params = json.loads(params_json) if params_json else {}
+                instance = provider_cls(**params)
+                result = instance.read(handler)
+                if provider_cls.content_type == "application/json":
+                    content: bytes = json.dumps(result).encode()
+                else:
+                    content = result  # type: ignore[assignment]
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "X-Request-Hash": request_id,
+                }
+            except Exception as err:
+                content = json.dumps(
+                    {"error": str(err), "type": type(err).__name__}
+                ).encode()
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "X-Request-Hash": request_id,
+                    "X-Result-Status": "error",
+                    "Content-Type": "application/json",
+                }
 
             client_kwargs: dict[str, Any] = {"timeout": self.timeout_seconds}
             if transport is not None:
@@ -74,10 +88,7 @@ class InternalProviderExecutor:
                 resp = client.post(
                     f"{base_url}/v1/joblib/providers/{provider_id}/results",
                     content=content,
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "X-Request-Hash": request_id,
-                    },
+                    headers=headers,
                 )
                 resp.raise_for_status()
 

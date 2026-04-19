@@ -51,3 +51,65 @@ async def test_executor_posts_result_for_filesystem(seeded_dir):
     body = json.loads(captured["body"])
     names = {item["name"] for item in body}
     assert names == {"a.xyz", "b.xyz"}
+
+
+import time
+
+import httpx
+
+from zndraw import ZnDraw
+
+
+def _poll_read_provider(
+    vis: ZnDraw,
+    full_name: str,
+    params: dict[str, str],
+    *,
+    timeout: float = 15,
+    interval: float = 0.5,
+) -> tuple[int, bytes]:
+    """Poll a provider read until a non-504 response arrives, return (status, body)."""
+    from urllib.parse import urlencode
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        qs = "?" + urlencode(params)
+        resp = vis.api.http.get(
+            f"{vis.api.base_url}/v1/joblib/rooms/{vis.room}/providers/"
+            f"{full_name}{qs}",
+            headers=vis.api.get_headers(),
+        )
+        if resp.status_code != 504:
+            return resp.status_code, resp.content
+        time.sleep(interval)
+    pytest.fail(f"Provider read for {params} kept timing out after {timeout}s")
+
+
+def test_internal_filesystem_provider_surfaces_error(server_factory):
+    """A provider read that raises must surface as a 4xx with an error body,
+    not a 504 timeout.
+    """
+    instance = server_factory({"ZNDRAW_SERVER_FILEBROWSER_PATH": "."})
+    vis = ZnDraw(url=instance.url)
+    try:
+        status, body = _poll_read_provider(
+            vis,
+            "@internal:filesystem:FilesystemRead",
+            {"path": "/this/does/not/exist/9k"},
+        )
+        assert status in (400, 404, 422), f"got {status}: {body!r}"
+        parsed = json.loads(body)
+        assert "error" in parsed and "type" in parsed, parsed
+    finally:
+        vis.disconnect()
+
+
+def test_executor_timeout_from_settings(server_factory):
+    """Server boots with a custom executor timeout."""
+    instance = server_factory({
+        "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
+        "ZNDRAW_SERVER_PROVIDER_EXECUTOR_TIMEOUT": "5",
+    })
+    with httpx.Client(base_url=instance.url, timeout=10.0) as client:
+        r = client.get("/v1/health")
+    assert r.status_code == 200

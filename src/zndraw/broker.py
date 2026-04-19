@@ -32,16 +32,6 @@ executor = InternalExtensionExecutor(base_url=server_url)
 
 register_internal_tasks(broker, _collect_extensions(), executor)
 
-if settings.filebrowser_path is not None:
-    from pathlib import Path
+from zndraw.providers.bootstrap import register_filebrowser_providers
 
-    from zndraw.database import _collect_providers
-    from zndraw.providers.executor import InternalProviderExecutor
-    from zndraw_joblib.registry import register_internal_providers
-
-    provider_executor = InternalProviderExecutor(
-        base_url=server_url,
-        filebrowser_path=str(Path(settings.filebrowser_path).resolve()),
-        timeout_seconds=settings.provider_executor_timeout,
-    )
-    register_internal_providers(broker, _collect_providers(), provider_executor)
+register_filebrowser_providers(broker, base_url=server_url, settings=settings)
