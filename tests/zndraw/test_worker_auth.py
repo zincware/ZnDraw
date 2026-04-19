@@ -9,7 +9,6 @@ import pytest
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
-    from sqlalchemy.ext.asyncio import AsyncSession
 
     from zndraw.config import Settings
 
@@ -39,15 +38,19 @@ async def test_regular_login_still_works(client: AsyncClient) -> None:
 
 @pytest.mark.anyio
 async def test_worker_token_dep_mints_valid_jwt(
-    client: AsyncClient, session: AsyncSession, settings: Settings
+    client: AsyncClient, settings: Settings
 ) -> None:
-    """The default get_worker_token dependency must mint a valid JWT."""
+    """The default get_worker_token dependency must mint a valid JWT.
+
+    After the deadlock fix, get_worker_token reads the cached worker user
+    from ``app.state.internal_worker_user`` and takes no session arg.
+    """
     from zndraw_joblib.dependencies import get_worker_token
 
     app = client._transport.app  # type: ignore[union-attr]
     request = SimpleNamespace(app=app)
 
-    token = await get_worker_token(request, session)  # type: ignore[arg-type]
+    token = await get_worker_token(request)  # type: ignore[arg-type]
     assert isinstance(token, str)
     assert len(token) > 0
 

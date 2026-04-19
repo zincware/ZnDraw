@@ -265,12 +265,46 @@ class TestFilebrowserPath:
         finally:
             os.environ.pop("ZNDRAW_SERVER_FILEBROWSER_PATH", None)
 
-    def test_filebrowser_path_none_sentinel(self) -> None:
-        """Sentinel 'none' (case-insensitive) disables the default provider."""
+    def test_filebrowser_path_uppercase_none_is_just_a_string(self) -> None:
+        """Uppercase 'NONE' is no longer a disable-sentinel after the
+        env_parse_none_str migration — it is just a string path. Only
+        lowercase 'none' (per env_parse_none_str) parses to Python None.
+        """
         os.environ["ZNDRAW_SERVER_FILEBROWSER_PATH"] = "NONE"
         try:
             settings = Settings()
             assert settings.filebrowser_path == "NONE"
-            assert settings.filebrowser_path.lower() == "none"
         finally:
             os.environ.pop("ZNDRAW_SERVER_FILEBROWSER_PATH", None)
+
+
+def test_filebrowser_path_none_parses_to_none(monkeypatch):
+    monkeypatch.setenv("ZNDRAW_SERVER_FILEBROWSER_PATH", "none")
+    s = Settings()
+    assert s.filebrowser_path is None
+
+
+def test_filebrowser_path_default_is_cwd():
+    s = Settings()
+    assert s.filebrowser_path == "."
+
+
+def test_task_queue_name_default():
+    s = Settings()
+    assert s.task_queue_name == "zndraw:tasks"
+
+
+def test_task_queue_name_override(monkeypatch):
+    monkeypatch.setenv("ZNDRAW_SERVER_TASK_QUEUE_NAME", "zndraw:tasks:42")
+    s = Settings()
+    assert s.task_queue_name == "zndraw:tasks:42"
+
+
+def test_result_backend_key_prefix_default():
+    s = Settings()
+    assert s.result_backend_key_prefix == "zndraw"
+
+
+def test_provider_executor_timeout_default():
+    s = Settings()
+    assert s.provider_executor_timeout == 30.0

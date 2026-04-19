@@ -24,17 +24,15 @@ if settings.redis_url is None:
         "External workers cannot use fakeredis."
     )
 
-broker = ListQueueBroker(settings.redis_url)
+broker = ListQueueBroker(settings.redis_url, queue_name=settings.task_queue_name)
 
 server_url = settings.internal_url or f"http://localhost:{settings.port}"
 
-executor = InternalExtensionExecutor(
-    base_url=server_url,
-)
+executor = InternalExtensionExecutor(base_url=server_url)
 
 register_internal_tasks(broker, _collect_extensions(), executor)
 
-if settings.filebrowser_path.lower() != "none":
+if settings.filebrowser_path is not None:
     from pathlib import Path
 
     from zndraw.database import _collect_providers
@@ -44,5 +42,6 @@ if settings.filebrowser_path.lower() != "none":
     provider_executor = InternalProviderExecutor(
         base_url=server_url,
         filebrowser_path=str(Path(settings.filebrowser_path).resolve()),
+        timeout_seconds=settings.provider_executor_timeout,
     )
     register_internal_providers(broker, _collect_providers(), provider_executor)

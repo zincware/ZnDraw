@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ZNDRAW_SERVER_",
         pyproject_toml_table_header=("tool", "zndraw", "server"),
+        env_parse_none_str="none",
     )
 
     @classmethod
@@ -92,15 +93,25 @@ class Settings(BaseSettings):
     internal_url: str | None = None  # For TaskIQ workers to reach FastAPI
 
     # Filesystem provider
-    filebrowser_path: str = "."
+    filebrowser_path: str | None = "."
     """Path for the default @internal filesystem provider.
 
-    ``"."`` (default) roots at the process cwd (taskiq-worker's cwd in Docker).
-    Any other non-``"none"`` string roots the provider at that absolute or
-    relative path. The sentinel ``"none"`` (case-insensitive) disables the
-    default filesystem provider entirely — no DB row, no task registration,
+    ``"."`` (default) roots at the process cwd. ``None`` (env form
+    ``ZNDRAW_SERVER_FILEBROWSER_PATH=none``) disables the default
+    filesystem provider entirely — no DB row, no task registration,
     and the frontend filesystem activity-bar icon is hidden.
+
+    Note: because ``env_parse_none_str="none"`` is model-wide, any
+    string field where ``"none"`` is a legitimate value will also
+    parse to ``None``. Audit new fields before adding them.
     """
+
+    # Taskiq broker / result backend isolation (per-server namespacing)
+    task_queue_name: str = "zndraw:tasks"
+    result_backend_key_prefix: str = "zndraw"
+
+    # Provider executor
+    provider_executor_timeout: float = 30.0
 
 
 def get_zndraw_settings(request: Request) -> Settings:

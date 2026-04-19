@@ -40,6 +40,7 @@ class InternalProviderExecutor:
 
     base_url: str
     filebrowser_path: str
+    timeout_seconds: float = 30.0
     _transport: Any = field(default=None, repr=False)
 
     async def __call__(
@@ -65,7 +66,7 @@ class InternalProviderExecutor:
             else:
                 content = result  # type: ignore[assignment]
 
-            client_kwargs: dict[str, Any] = {"timeout": 30.0}
+            client_kwargs: dict[str, Any] = {"timeout": self.timeout_seconds}
             if transport is not None:
                 client_kwargs["transport"] = transport
 

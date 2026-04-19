@@ -216,7 +216,7 @@ async def init_database(
     await ensure_internal_jobs(_collect_extensions(), session_maker)
 
     # Seed internal worker row + @internal provider rows
-    if settings.filebrowser_path.lower() != "none":
+    if settings.filebrowser_path is not None:
         from zndraw_joblib.registry import ensure_internal_providers
 
         async with session_maker() as session:
@@ -263,6 +263,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Initialize tables on startup (dev mode)
         if settings.init_db_on_startup:
             await init_database(engine=engine, settings=settings)
+
+        # Cache the internal worker User for get_worker_token (avoids the
+        # SQLite-lock deadlock from re-querying mid-request when the route
+        # already holds a yield-based SessionDep).
+        async with app.state.session_maker() as session:
+            result = await session.exec(
+                select(User).where(User.email == settings.internal_worker_email)  # type: ignore[arg-type]
+            )
+            app.state.internal_worker_user = result.one_or_none()
 
         # SQLite locking (if needed)
         if _is_sqlite(settings.database_url):
@@ -335,7 +344,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await tsio.leave_room(sid, f"providers:{data.provider_name}")
 
         # zndraw-joblib: register internal extensions for TaskIQ dispatch
-        broker = ListQueueBroker(redis_url)
+        broker = ListQueueBroker(redis_url, queue_name=settings.task_queue_name)
         # Internal executor connects back to the same server — resolve
         # 0.0.0.0 (bind-all) to 127.0.0.1 (loopback) for the client URL.
         executor_host = "127.0.0.1" if settings.host == "0.0.0.0" else settings.host
@@ -358,7 +367,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.internal_registry = registry
 
         # Register @internal provider tasks
-        if settings.filebrowser_path.lower() != "none":
+        if settings.filebrowser_path is not None:
             from pathlib import Path
 
             from zndraw.providers.executor import InternalProviderExecutor
@@ -367,6 +376,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             provider_executor = InternalProviderExecutor(
                 base_url=f"http://{executor_host}:{settings.port}",
                 filebrowser_path=str(Path(settings.filebrowser_path).resolve()),  # noqa: ASYNC240
+                timeout_seconds=settings.provider_executor_timeout,
             )
             provider_registry = register_internal_providers(
                 broker, _collect_providers(), provider_executor
@@ -391,7 +401,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
 
         redis_raw = redis_client.from_url(redis_url, **redis_kwargs)
-        redis_backend = RedisResultBackend(redis_raw)
+        redis_backend = RedisResultBackend(redis_raw, key_prefix=settings.result_backend_key_prefix)
         frame_cache = StorageResultBackend(app.state.frame_storage)
         result_backend = CompositeResultBackend(redis=redis_backend, frames=frame_cache)
         app.state.result_backend = result_backend

@@ -5,11 +5,8 @@ from typing import Annotated, Any, Protocol, runtime_checkable
 
 from fastapi import Depends, Path, Request
 from fastapi_users.authentication import JWTStrategy
-from sqlmodel import select
 from zndraw_socketio import AsyncServerWrapper
 
-from zndraw_auth import User
-from zndraw_auth.db import SessionDep
 from zndraw_joblib.exceptions import InvalidRoomId
 from zndraw_joblib.registry import InternalProviderRegistry, InternalRegistry
 from zndraw_joblib.settings import JobLibSettings
@@ -148,19 +145,17 @@ def request_hash(params: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
-async def get_worker_token(request: Request, session: SessionDep) -> str:
+async def get_worker_token(request: Request) -> str:
     """Return a fresh JWT for the internal worker user.
 
-    Reads ``settings`` and ``auth_settings`` from ``request.app.state``
-    (set in the host app lifespan).  Accepts ``session`` via DI so
-    FastAPI reuses the request-scoped session (avoids SQLite deadlock).
+    Reads the cached ``User`` object from ``app.state.internal_worker_user``
+    (populated once at lifespan startup). Avoids any DB session — opening one
+    here would deadlock under the SQLite serialization lock for routes that
+    also take a yield-based ``SessionDep`` (e.g. ``submit_task``).
     """
     settings = request.app.state.settings
     auth_settings = request.app.state.auth_settings
-    result = await session.exec(
-        select(User).where(User.email == settings.internal_worker_email)  # type: ignore[arg-type]
-    )
-    user = result.one_or_none()
+    user = getattr(request.app.state, "internal_worker_user", None)
     if user is None:
         raise RuntimeError(
             f"Internal worker user '{settings.internal_worker_email}' not found. "
