@@ -9,11 +9,33 @@ Status transitions use the same JobManager HTTP API as external workers.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 log = logging.getLogger(__name__)
+
+
+def _extension_accepts_providers_kwarg(extension_cls: type) -> bool:
+    """True iff the extension's ``run`` signature accepts ``providers`` — either
+    via a named parameter or via ``**kwargs``. Keeps us from passing ``providers=``
+    to extensions (e.g. ``All``, ``NoneSelection``) that define ``run(self, vis)``
+    and would raise ``TypeError: unexpected keyword argument 'providers'``.
+    """
+    try:
+        sig = inspect.signature(extension_cls.run)
+    except (TypeError, ValueError):
+        return False
+    for param in sig.parameters.values():
+        if param.name == "providers":
+            return True
+        if param.kind is inspect.Parameter.VAR_KEYWORD:
+            return True
+    return False
 
 
 @dataclass
@@ -27,9 +49,19 @@ class InternalExtensionExecutor:
     ----------
     base_url
         ZnDraw server URL.
+    providers_resolver
+        Optional zero-arg callable returning a dict mapping
+        ``<@internal provider full_name> → <resolved handler>``. Injected
+        into ``extension.run(vis, providers=...)`` so server-side modifiers
+        (e.g. ``LoadFile``) can reach the same backend handle the
+        corresponding @internal provider reads through. ``None`` means no
+        injection — matches the pre-@internal-providers behavior.
     """
 
     base_url: str
+    providers_resolver: Callable[[], dict[str, Any]] | None = field(
+        default=None, repr=False
+    )
 
     async def __call__(
         self,
@@ -41,6 +73,7 @@ class InternalExtensionExecutor:
     ) -> None:
         """Execute extension via asyncio.to_thread."""
         base_url = self.base_url
+        providers_resolver = self.providers_resolver
 
         def _run() -> None:
             from zndraw.client import ZnDraw
@@ -61,7 +94,13 @@ class InternalExtensionExecutor:
                     extension=instance,
                 )
                 vis.jobs.start(task)
-                instance.run(vis)
+                if (
+                    providers_resolver is not None
+                    and _extension_accepts_providers_kwarg(extension_cls)
+                ):
+                    instance.run(vis, providers=providers_resolver())
+                else:
+                    instance.run(vis)
             except Exception as e:
                 try:
                     if task is not None:

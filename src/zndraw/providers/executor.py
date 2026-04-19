@@ -95,15 +95,29 @@ class InternalProviderExecutor:
         await asyncio.to_thread(_run)
 
     def _resolve_handler(self, provider_cls: type[Provider]) -> Any:
-        """Resolve a handler for the provider category."""
-        category = provider_cls.category
-        if category == "filesystem":
-            import fsspec
-            from fsspec.implementations.dirfs import DirFileSystem
-
-            return DirFileSystem(
-                path=self.filebrowser_path, fs=fsspec.filesystem("file")
-            )
-        raise ValueError(
-            f"No internal handler configured for provider category '{category}'"
+        return resolve_internal_provider_handler(
+            provider_cls, filebrowser_path=self.filebrowser_path
         )
+
+
+def resolve_internal_provider_handler(
+    provider_cls: type[Provider], *, filebrowser_path: str
+) -> Any:
+    """Return the fsspec / backend handle a built-in @internal provider reads through.
+
+    Shared by:
+    - ``InternalProviderExecutor._run`` (serving the provider's ``read()``).
+    - ``InternalExtensionExecutor`` (injecting handlers into extension.run(...,
+      providers=) so modifiers like ``LoadFile`` can reach the same handle).
+
+    Raises ``ValueError`` for categories with no server-side handler.
+    """
+    category = provider_cls.category
+    if category == "filesystem":
+        import fsspec
+        from fsspec.implementations.dirfs import DirFileSystem
+
+        return DirFileSystem(path=filebrowser_path, fs=fsspec.filesystem("file"))
+    raise ValueError(
+        f"No internal handler configured for provider category '{category}'"
+    )

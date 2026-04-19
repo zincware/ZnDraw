@@ -335,8 +335,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Internal executor connects back to the same server — resolve
         # 0.0.0.0 (bind-all) to 127.0.0.1 (loopback) for the client URL.
         executor_host = "127.0.0.1" if settings.host == "0.0.0.0" else settings.host
+        from zndraw.providers.bootstrap import build_internal_providers_resolver
+
         executor = InternalExtensionExecutor(
             base_url=f"http://{executor_host}:{settings.port}",
+            providers_resolver=build_internal_providers_resolver(settings),
         )
 
         if settings.init_db_on_startup:
