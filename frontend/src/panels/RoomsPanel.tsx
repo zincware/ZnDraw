@@ -14,7 +14,6 @@ import {
 	Tooltip,
 	Typography,
 } from "@mui/material";
-import { isAxiosError } from "axios";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDragAndDrop } from "../hooks/useDragAndDrop";
@@ -28,6 +27,7 @@ import {
 } from "../myapi/client";
 import { useRoomsStore } from "../roomsStore";
 import { useAppStore } from "../store";
+import { extractDetail } from "../utils/errors";
 import { getDockviewApi } from "./DockviewLayout";
 import { RoomRowMenu } from "./roomRowMenu";
 import { RoomsHeaderActions } from "./roomsHeaderActions";
@@ -42,7 +42,7 @@ export function RoomsPanel() {
 	const fetchRooms = useRoomsStore((s) => s.fetchRooms);
 	const currentRoomId = useAppStore((s) => s.roomId);
 	const showSnackbar = useAppStore((s) => s.showSnackbar);
-	const leaveRoom = useLeaveRoom({ api: getDockviewApi() });
+	const leaveRoom = useLeaveRoom({ api: () => getDockviewApi() });
 	const navigate = useNavigate();
 	const [query, setQuery] = useState("");
 
@@ -51,19 +51,19 @@ export function RoomsPanel() {
 			const newRoomId = crypto.randomUUID();
 			try {
 				await createRoom({ room_id: newRoomId });
+				// Cascade-close the current room before navigating so plot tabs
+				// and viewer state from the prior room don't leak into the new one.
+				await leaveRoom({ skipConfirm: true });
 				for (const file of files) {
 					await uploadTrajectory(newRoomId, file);
 				}
 				showSnackbar(`Room created with ${files.length} file(s)`, "success");
 				navigate(`/rooms/${newRoomId}`);
 			} catch (error) {
-				const detail = isAxiosError(error)
-					? (error.response?.data?.detail ?? error.message)
-					: "Upload failed";
-				showSnackbar(detail, "error");
+				showSnackbar(extractDetail(error, "Upload failed"), "error");
 			}
 		},
-		[navigate, showSnackbar],
+		[navigate, showSnackbar, leaveRoom],
 	);
 
 	const {

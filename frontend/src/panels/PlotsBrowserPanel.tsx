@@ -18,14 +18,36 @@ const DRAG_MIME_PLOT = "application/x-zndraw-plot-key";
 function useOpenPlotKeys(): Set<string> {
 	const [version, setVersion] = useState(0);
 
+	// Poll for getDockviewApi() until it returns a populated value, then bind
+	// the listeners. Without this, mounting PlotsBrowserPanel via direct URL
+	// navigation (?panel=plots-browser before DockviewLayout.onReady fires)
+	// silently skips listener registration — open/close events go untracked
+	// for the lifetime of the panel.
 	useEffect(() => {
-		const api = getDockviewApi();
-		if (!api) return;
-		const add = api.onDidAddPanel(() => setVersion((v) => v + 1));
-		const remove = api.onDidRemovePanel(() => setVersion((v) => v + 1));
+		let cancelled = false;
+		const disposables: Array<{ dispose(): void }> = [];
+
+		const tryBind = (): boolean => {
+			if (cancelled) return true;
+			const api = getDockviewApi();
+			if (!api) return false;
+			disposables.push(
+				api.onDidAddPanel(() => setVersion((v) => v + 1)),
+				api.onDidRemovePanel(() => setVersion((v) => v + 1)),
+			);
+			return true;
+		};
+
+		if (!tryBind()) {
+			const interval = setInterval(() => {
+				if (tryBind()) clearInterval(interval);
+			}, 50);
+			disposables.push({ dispose: () => clearInterval(interval) });
+		}
+
 		return () => {
-			add.dispose();
-			remove.dispose();
+			cancelled = true;
+			for (const d of disposables) d.dispose();
 		};
 	}, []);
 

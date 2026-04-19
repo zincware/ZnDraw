@@ -9,7 +9,7 @@ export function ViewerView(props: IDockviewPanelProps) {
 	const { api } = props;
 	const [remountKey, setRemountKey] = useState(0);
 	const previousLocation = useRef(api.location.type);
-	const leaveRoom = useLeaveRoom({ api: getDockviewApi() });
+	const leaveRoom = useLeaveRoom({ api: () => getDockviewApi() });
 	const leaveRoomRef = useRef(leaveRoom);
 	leaveRoomRef.current = leaveRoom;
 

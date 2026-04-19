@@ -2,10 +2,10 @@ import { ErrorOutline as ErrorIcon } from "@mui/icons-material";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import type { IDockviewPanelProps } from "dockview-react";
-import Plotly from "plotly.js-dist-min";
-import type * as PlotlyJS from "plotly.js-dist-min";
 // @ts-expect-error - plotly.js internal module lacks type declarations
 import { decodeTypedArraySpec } from "plotly.js/src/lib/array.js";
+import type * as PlotlyJS from "plotly.js-dist-min";
+import Plotly from "plotly.js-dist-min";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useFigure } from "../hooks/useFigures";
 import { useStepControl } from "../hooks/useStepControl";
@@ -709,9 +709,11 @@ export function PlotView(props: IDockviewPanelProps<PlotViewParams>) {
 	]);
 
 	// ===== EFFECT: Purge Plotly on unmount =====
+	// Read plotContainer.current inside the cleanup so we capture the live ref
+	// at unmount, not the (possibly null) ref at first mount.
 	useEffect(() => {
-		const container = plotContainer.current;
 		return () => {
+			const container = plotContainer.current;
 			if (container) {
 				Plotly.purge(container);
 			}

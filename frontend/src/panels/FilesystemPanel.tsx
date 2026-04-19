@@ -50,7 +50,7 @@ export function FilesystemPanel() {
 	const navigate = useNavigate();
 	const roomId = useAppStore((s) => s.roomId);
 	const showSnackbar = useAppStore((state) => state.showSnackbar);
-	const leaveRoom = useLeaveRoom({ api: getDockviewApi() });
+	const leaveRoom = useLeaveRoom({ api: () => getDockviewApi() });
 
 	const [selectedProvider, setSelectedProvider] = useState<ProviderInfo | null>(
 		null,

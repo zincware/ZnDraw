@@ -1,9 +1,7 @@
-import { useAppStore } from "../store";
-import { remarkFrameLink } from "../utils/remark-frame-link.js";
-
 import CancelIcon from "@mui/icons-material/Cancel";
 import CheckIcon from "@mui/icons-material/Check";
 import EditIcon from "@mui/icons-material/Edit";
+import SendIcon from "@mui/icons-material/Send";
 import {
 	Box,
 	CircularProgress,
@@ -14,7 +12,6 @@ import {
 	TextField,
 	Typography,
 } from "@mui/material";
-import SendIcon from "@mui/icons-material/Send";
 import { useColorScheme, useTheme } from "@mui/material/styles";
 import { format } from "date-fns";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -36,7 +33,9 @@ import {
 	useSendMessage,
 } from "../hooks/useChat";
 import { socket } from "../socket";
+import { useAppStore } from "../store";
 import type { ChatMessage } from "../types/chat";
+import { remarkFrameLink } from "../utils/remark-frame-link.js";
 
 import "katex/dist/katex.min.css";
 
@@ -192,11 +191,6 @@ const ChatPanel = () => {
 	const { mode } = useColorScheme();
 	const theme = useTheme();
 
-	// Reset unread count on mount — this panel is now the active tool in its bar
-	useEffect(() => {
-		useAppStore.getState().resetChatUnread();
-	}, []);
-
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
 		useChatMessages(roomId || "", 50);
 	const sendMessage = useSendMessage(roomId || "");
@@ -209,12 +203,26 @@ const ChatPanel = () => {
 		}
 	};
 
+	// Scroll on new data, regardless of visibility.
 	useEffect(() => {
-		// Use timeout to ensure DOM is updated before scrolling
 		setTimeout(scrollToBottom, 100);
-		// Reset unread count when new data arrives while visible
-		useAppStore.getState().resetChatUnread();
 	}, [data]);
+
+	// Reset unread count only while the panel is visible. ChatPanel renders
+	// inside SidebarZone, so visibility is "the chat icon is the active tool
+	// in some sidebar". Re-run on data changes and on activation so the badge
+	// clears when the user switches back.
+	const isChatActive = useAppStore(
+		(s) =>
+			s.activeLeft === "chat" ||
+			s.activeRight === "chat" ||
+			s.activeBottom === "chat",
+	);
+	useEffect(() => {
+		if (isChatActive) {
+			useAppStore.getState().resetChatUnread();
+		}
+	}, [data, isChatActive]);
 
 	const handleScroll = (_e: React.UIEvent<HTMLDivElement>) => {
 		if (scrollContainerRef.current) {
@@ -511,6 +519,7 @@ const ChatPanel = () => {
 			<Box sx={{ p: 2, backgroundColor: "background.default" }}>
 				<Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
 					<TextareaAutosize
+						data-testid="chat-input"
 						minRows={1}
 						maxRows={6}
 						placeholder="Type a message..."
@@ -519,7 +528,7 @@ const ChatPanel = () => {
 							setMessageInput(e.target.value);
 							if (e.target.value.trim()) emitTypingStart();
 						}}
-						onKeyPress={(e) => {
+						onKeyDown={(e) => {
 							if (e.key === "Enter" && !e.shiftKey) {
 								e.preventDefault();
 								handleSendMessage();
@@ -538,6 +547,7 @@ const ChatPanel = () => {
 						}}
 					/>
 					<IconButton
+						data-testid="chat-send"
 						color="primary"
 						onClick={handleSendMessage}
 						disabled={!messageInput.trim() || sendMessage.isPending}

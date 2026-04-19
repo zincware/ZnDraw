@@ -5,12 +5,13 @@ import type {
 	DockviewDidDropEvent,
 	DockviewReadyEvent,
 } from "dockview-react";
-import { DockviewReact, themeLight, themeDark } from "dockview-react";
+import { DockviewReact, themeDark, themeLight } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
 import "./dockview-mui.css";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GroupActions } from "./groupActions";
 import { PlotView } from "./PlotView";
+import { openPlotTab } from "./plotViewFactory";
 import { PANELS } from "./registry";
 import { ViewerView } from "./ViewerView";
 
@@ -39,25 +40,15 @@ function onDidDrop(event: DockviewDidDropEvent) {
 	const dt = (event.nativeEvent as DragEvent | undefined)?.dataTransfer;
 	const key = dt?.getData(DRAG_MIME_PLOT);
 	if (!key) return;
-	const id = `plot-${key}`;
-	if (event.api.getPanel(id)) {
-		event.api.getPanel(id)?.api.setActive();
-		return;
-	}
-	event.api.addPanel({
-		id,
-		component: "plotView",
-		title: key,
-		params: { figureKey: key },
-		position: {
-			referenceGroup: event.group ?? undefined,
-			direction: "within",
-		},
+	openPlotTab(event.api, key, {
+		referenceGroupId: event.group?.id,
+		direction: "within",
 	});
 }
 
 export function DockviewLayout() {
 	const apiRef = useRef<DockviewApi | null>(null);
+	const disposablesRef = useRef<Array<{ dispose(): void }>>([]);
 	const [isEmpty, setIsEmpty] = useState(false);
 	const { mode, systemMode } = useColorScheme();
 	const resolvedMode = mode === "system" ? systemMode : mode;
@@ -70,17 +61,26 @@ export function DockviewLayout() {
 		addViewerPanel(event.api);
 		setIsEmpty(event.api.panels.length === 0);
 
-		event.api.onUnhandledDragOverEvent((e) => {
-			const dt = (e.nativeEvent as DragEvent | undefined)?.dataTransfer;
-			if (dt?.types.includes(DRAG_MIME_PLOT)) e.accept();
-		});
+		disposablesRef.current.push(
+			event.api.onUnhandledDragOverEvent((e) => {
+				const dt = (e.nativeEvent as DragEvent | undefined)?.dataTransfer;
+				if (dt?.types.includes(DRAG_MIME_PLOT)) e.accept();
+			}),
+			event.api.onDidRemovePanel(() => {
+				setIsEmpty(event.api.panels.length === 0);
+			}),
+			event.api.onDidAddPanel(() => {
+				setIsEmpty(event.api.panels.length === 0);
+			}),
+		);
+	}, []);
 
-		event.api.onDidRemovePanel(() => {
-			setIsEmpty(event.api.panels.length === 0);
-		});
-		event.api.onDidAddPanel(() => {
-			setIsEmpty(event.api.panels.length === 0);
-		});
+	useEffect(() => {
+		return () => {
+			for (const d of disposablesRef.current) d.dispose();
+			disposablesRef.current = [];
+			sharedApi = null;
+		};
 	}, []);
 
 	return (
