@@ -95,7 +95,7 @@ If a user scales `taskiq-worker` to >1 in the future, the recommended workaround
 
 | `ZNDRAW_SERVER_FILEBROWSER_PATH` | Effect |
 |---|---|
-| `"."` (default) | `FilesystemRead` registered at `@internal:filesystem:local`, rooted at the taskiq-worker's cwd. |
+| `"."` (default) | `FilesystemRead` registered at `@internal:filesystem:FilesystemRead`, rooted at the taskiq-worker's cwd. |
 | `"/abs/path"` | Same, rooted at `/abs/path`. Path resolved to absolute at startup. |
 | `"none"` (case-insensitive) | No registration. No DB row. No taskiq task. Frontend's providers list comes back empty. Filesystem activity-bar icon hidden. |
 

@@ -3,8 +3,9 @@
    or dockview-theme-dark class. The MUI tokens themselves flip with
    colorScheme, so one rule serves both modes.
 
-   Requires cssVariables: true on the MUI theme (App.tsx) so the
-   --mui-palette-* custom properties are emitted on :root. */
+   Requires <MuiCssVars /> in App.tsx so the --mui-palette-* custom
+   properties are emitted on :root. (MUI v7 uses <MuiCssVars />,
+   not the older cssVariables: true option on createTheme.) */
 
 /* Double class selector to out-specificity the dockview base theme rules,
    which are injected into the DOM at runtime by dockview-react and therefore
