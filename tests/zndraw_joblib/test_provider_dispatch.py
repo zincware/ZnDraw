@@ -1,4 +1,5 @@
 """Regression: a failing taskiq dispatch must release the inflight lock."""
+
 from __future__ import annotations
 
 import asyncio
@@ -86,9 +87,7 @@ def test_read_provider_releases_inflight_on_dispatch_failure(
     # Inflight lock MUST be released after the dispatch failure
     params = {"path": "/data"}
     rhash = request_hash(params)
-    inflight_key = (
-        f"provider-inflight:@internal:filesystem:FilesystemRead:{rhash}"
-    )
+    inflight_key = f"provider-inflight:@internal:filesystem:FilesystemRead:{rhash}"
     assert inflight_key not in result_backend._inflight, (
         "Inflight lock was not released after dispatch failure — "
         "second request would wedge for inflight_ttl seconds"

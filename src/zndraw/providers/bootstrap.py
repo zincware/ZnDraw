@@ -4,6 +4,7 @@ Used by both the in-process taskiq worker (``zndraw.database.lifespan``)
 and the standalone taskiq worker (``zndraw.broker``). Centralizing the
 construction keeps both call sites in lockstep.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

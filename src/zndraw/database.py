@@ -404,7 +404,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
 
         redis_raw = redis_client.from_url(redis_url, **redis_kwargs)
-        redis_backend = RedisResultBackend(redis_raw, key_prefix=settings.result_backend_key_prefix)
+        redis_backend = RedisResultBackend(
+            redis_raw, key_prefix=settings.result_backend_key_prefix
+        )
         frame_cache = StorageResultBackend(app.state.frame_storage)
         result_backend = CompositeResultBackend(redis=redis_backend, frames=frame_cache)
         app.state.result_backend = result_backend

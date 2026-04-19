@@ -5,6 +5,7 @@ Pre-fix: ``get_worker_token`` used yield-based session DI; combined with
 lock twice in one request, deadlocking.  These tests fail if the lock-holding
 pattern regresses.
 """
+
 from __future__ import annotations
 
 import asyncio

@@ -360,6 +360,7 @@ def test_filebrowser_path_none_disables_default(server_factory):
 def test_filebrowser_path_none_disables_default_provider(server_factory):
     """With FILEBROWSER_PATH=none, the @internal provider is not registered."""
     import httpx
+
     server = server_factory({"ZNDRAW_SERVER_FILEBROWSER_PATH": "none"})
     # Default admin exists in dev mode so a guest token is fine for the list.
     resp = httpx.get(f"{server.url}/v1/joblib/rooms/@internal/providers")
@@ -370,6 +371,7 @@ def test_filebrowser_path_none_disables_default_provider(server_factory):
 def test_filebrowser_path_none_removes_stale_rows(server_factory, tmp_path):
     """Toggle path on → off across two server runs sharing one DB → no @internal rows."""
     import asyncio
+
     from sqlalchemy import text
     from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -377,18 +379,22 @@ def test_filebrowser_path_none_removes_stale_rows(server_factory, tmp_path):
     db_url = f"sqlite+aiosqlite:///{db_path}"
 
     # Boot 1: feature on — seed @internal rows.
-    server_factory({
-        "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
-        "ZNDRAW_SERVER_DATABASE_URL": db_url,
-    })
+    server_factory(
+        {
+            "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
+            "ZNDRAW_SERVER_DATABASE_URL": db_url,
+        }
+    )
 
     async def _count_internal_providers() -> int:
         eng = create_async_engine(db_url)
         try:
             async with eng.connect() as conn:
-                row = (await conn.execute(
-                    text("SELECT COUNT(*) FROM provider WHERE room_id='@internal'")
-                )).scalar_one()
+                row = (
+                    await conn.execute(
+                        text("SELECT COUNT(*) FROM provider WHERE room_id='@internal'")
+                    )
+                ).scalar_one()
             return int(row)
         finally:
             await eng.dispose()
@@ -396,9 +402,11 @@ def test_filebrowser_path_none_removes_stale_rows(server_factory, tmp_path):
     assert asyncio.run(_count_internal_providers()) >= 1
 
     # Boot 2: feature off — must clean up.
-    server_factory({
-        "ZNDRAW_SERVER_FILEBROWSER_PATH": "none",
-        "ZNDRAW_SERVER_DATABASE_URL": db_url,
-    })
+    server_factory(
+        {
+            "ZNDRAW_SERVER_FILEBROWSER_PATH": "none",
+            "ZNDRAW_SERVER_DATABASE_URL": db_url,
+        }
+    )
 
     assert asyncio.run(_count_internal_providers()) == 0

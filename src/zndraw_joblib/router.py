@@ -1184,8 +1184,14 @@ async def read_provider(
             cached_parsed = json.loads(cached)
         except (ValueError, TypeError):
             cached_parsed = None
-        if isinstance(cached_parsed, dict) and "error" in cached_parsed and "type" in cached_parsed:
-            return Response(content=cached, media_type="application/json", status_code=400)
+        if (
+            isinstance(cached_parsed, dict)
+            and "error" in cached_parsed
+            and "type" in cached_parsed
+        ):
+            return Response(
+                content=cached, media_type="application/json", status_code=400
+            )
         return Response(content=cached, media_type=provider.content_type)
 
     # Dispatch if not already inflight

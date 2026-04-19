@@ -75,8 +75,7 @@ def _poll_read_provider(
     while time.time() < deadline:
         qs = "?" + urlencode(params)
         resp = vis.api.http.get(
-            f"{vis.api.base_url}/v1/joblib/rooms/{vis.room}/providers/"
-            f"{full_name}{qs}",
+            f"{vis.api.base_url}/v1/joblib/rooms/{vis.room}/providers/{full_name}{qs}",
             headers=vis.api.get_headers(),
         )
         if resp.status_code != 504:
@@ -106,10 +105,12 @@ def test_internal_filesystem_provider_surfaces_error(server_factory):
 
 def test_executor_timeout_from_settings(server_factory):
     """Server boots with a custom executor timeout."""
-    instance = server_factory({
-        "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
-        "ZNDRAW_SERVER_PROVIDER_EXECUTOR_TIMEOUT": "5",
-    })
+    instance = server_factory(
+        {
+            "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
+            "ZNDRAW_SERVER_PROVIDER_EXECUTOR_TIMEOUT": "5",
+        }
+    )
     with httpx.Client(base_url=instance.url, timeout=10.0) as client:
         r = client.get("/v1/health")
     assert r.status_code == 200

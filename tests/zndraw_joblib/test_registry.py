@@ -6,7 +6,6 @@ from typing import Any, ClassVar
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from sqlmodel import select
 
 from zndraw_auth import User
@@ -333,8 +332,8 @@ async def test_ensure_internal_providers_concurrent_startup_safe(tmp_path):
     makes the rollback on the loser undo the winner's commit — not a realistic
     scenario and not the behaviour we're guarding against.
     """
-    from sqlalchemy.pool import NullPool
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import NullPool
     from sqlmodel import SQLModel, select
     from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -367,9 +366,11 @@ async def test_ensure_internal_providers_concurrent_startup_safe(tmp_path):
             ),
         )
         async with maker() as s:
-            rows = (await s.exec(
-                select(ProviderRecord).where(ProviderRecord.room_id == "@internal")
-            )).all()
+            rows = (
+                await s.exec(
+                    select(ProviderRecord).where(ProviderRecord.room_id == "@internal")
+                )
+            ).all()
         assert len(rows) == 1, f"expected exactly 1 row, got {len(rows)}: {rows}"
     finally:
         await engine.dispose()
