@@ -11,7 +11,9 @@ export function ViewerView(props: IDockviewPanelProps) {
 	const previousLocation = useRef(api.location.type);
 	const leaveRoom = useLeaveRoom({ api: () => getDockviewApi() });
 	const leaveRoomRef = useRef(leaveRoom);
-	leaveRoomRef.current = leaveRoom;
+	useEffect(() => {
+		leaveRoomRef.current = leaveRoom;
+	}, [leaveRoom]);
 
 	useEffect(() => {
 		const locationDisposable = api.onDidLocationChange((e) => {

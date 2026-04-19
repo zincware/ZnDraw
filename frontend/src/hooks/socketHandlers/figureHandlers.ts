@@ -1,9 +1,5 @@
 import { getDockviewApi } from "../../panels/DockviewLayout";
-import {
-	closePlotTab,
-	openPlotTab,
-	plotPanelId,
-} from "../../panels/plotViewFactory";
+import { closePlotTab, openPlotTab } from "../../panels/plotViewFactory";
 import type { HandlerContext } from "./types";
 
 /** Socket event payload for the `figure_invalidate` event. */
@@ -49,11 +45,9 @@ export function createFigureHandlers(ctx: HandlerContext) {
 				queryKey: ["figures", ctx.roomId, "list"],
 			});
 
-			// Step 3: Auto-open as a tab in the active editor group if not already open
+			// Step 3: Auto-open as a tab — openPlotTab already no-ops if open.
 			const api = getDockviewApi();
-			if (api && !api.getPanel(plotPanelId(data.key))) {
-				openPlotTab(api, data.key);
-			}
+			if (api) openPlotTab(api, data.key);
 		}
 	}
 

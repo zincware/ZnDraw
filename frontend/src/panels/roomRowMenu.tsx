@@ -96,7 +96,7 @@ export function RoomRowMenu({ room }: Props) {
 			<Menu anchorEl={anchor} open={open} onClose={() => setAnchor(null)}>
 				<MenuItem onClick={onSetTemplate}>
 					<ListItemIcon>
-						{room.is_default ? <StarBorderIcon /> : <StarIcon />}
+						{room.is_default ? <StarIcon /> : <StarBorderIcon />}
 					</ListItemIcon>
 					<ListItemText>
 						{room.is_default ? "Remove template" : "Set as template"}

@@ -2,11 +2,11 @@ import AddIcon from "@mui/icons-material/Add";
 import NoteAddIcon from "@mui/icons-material/NoteAdd";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { Box, IconButton, Tooltip } from "@mui/material";
-import { isAxiosError } from "axios";
 import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { createRoom, uploadTrajectory } from "../myapi/client";
 import { useAppStore } from "../store";
+import { extractDetail } from "../utils/errors";
 
 export function RoomsHeaderActions() {
 	const navigate = useNavigate();
@@ -20,10 +20,7 @@ export function RoomsHeaderActions() {
 			await createRoom({ room_id: id });
 			navigate(`/rooms/${id}`);
 		} catch (err) {
-			const detail = isAxiosError(err)
-				? (err.response?.data?.detail ?? err.message)
-				: "Failed to create room";
-			showSnackbar(detail, "error");
+			showSnackbar(extractDetail(err, "Failed to create room"), "error");
 		}
 	};
 
@@ -34,10 +31,7 @@ export function RoomsHeaderActions() {
 			await createRoom({ room_id: id, copy_from: "@none" });
 			navigate(`/rooms/${id}`);
 		} catch (err) {
-			const detail = isAxiosError(err)
-				? (err.response?.data?.detail ?? err.message)
-				: "Failed to create room";
-			showSnackbar(detail, "error");
+			showSnackbar(extractDetail(err, "Failed to create room"), "error");
 		}
 	};
 
@@ -55,10 +49,7 @@ export function RoomsHeaderActions() {
 			showSnackbar(`Room created with ${files.length} file(s)`, "success");
 			navigate(`/rooms/${id}`);
 		} catch (err) {
-			const detail = isAxiosError(err)
-				? (err.response?.data?.detail ?? err.message)
-				: "Upload failed";
-			showSnackbar(detail, "error");
+			showSnackbar(extractDetail(err, "Upload failed"), "error");
 		} finally {
 			if (fileInputRef.current) fileInputRef.current.value = "";
 		}

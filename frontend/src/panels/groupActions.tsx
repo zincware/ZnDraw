@@ -11,13 +11,9 @@ export function GroupActions(props: IDockviewHeaderActionsProps) {
 
 	useEffect(() => {
 		const update = () => setIsMax(api.isMaximized());
-		const d1 = containerApi.onDidMaximizedGroupChange(update);
-		const d2 = containerApi.onDidLayoutChange(update);
+		const disposable = containerApi.onDidMaximizedGroupChange(update);
 		update();
-		return () => {
-			d1.dispose();
-			d2.dispose();
-		};
+		return () => disposable.dispose();
 	}, [api, containerApi]);
 
 	const onPopout = () => {
