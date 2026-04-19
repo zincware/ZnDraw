@@ -69,7 +69,7 @@ class InternalProviderExecutor:
                     "Authorization": f"Bearer {token}",
                     "X-Request-Hash": request_id,
                 }
-            except Exception as err:
+            except Exception as err:  # noqa: BLE001 — intentional: any error is POSTed back as a structured payload
                 content = json.dumps(
                     {"error": str(err), "type": type(err).__name__}
                 ).encode()

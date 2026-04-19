@@ -369,7 +369,7 @@ def test_filebrowser_path_none_disables_default_provider(server_factory):
 
 
 def test_filebrowser_path_none_removes_stale_rows(server_factory, tmp_path):
-    """Toggle path on → off across two server runs sharing one DB → no @internal rows."""
+    """Toggle path on → off across two runs sharing one DB → no @internal rows."""
     import asyncio
 
     from sqlalchemy import text

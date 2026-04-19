@@ -343,7 +343,7 @@ async def test_ensure_internal_providers_concurrent_startup_safe(tmp_path):
 
     if not BUNDLED_PROVIDERS:
         pytest.skip("no providers bundled")
-    prov_cls = list(BUNDLED_PROVIDERS)[0]
+    prov_cls = next(iter(BUNDLED_PROVIDERS))
 
     db_path = tmp_path / "test_concurrent.db"
     engine = create_async_engine(

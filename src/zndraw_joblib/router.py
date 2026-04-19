@@ -1205,7 +1205,7 @@ async def read_provider(
                     internal_provider_registry is None
                     or provider.full_name not in internal_provider_registry.tasks
                 ):
-                    raise InternalJobNotConfigured.exception(
+                    raise InternalJobNotConfigured.exception(  # noqa: TRY301
                         detail=(
                             f"Internal provider '{provider.full_name}' is registered"
                             " in the DB but no executor task is available"

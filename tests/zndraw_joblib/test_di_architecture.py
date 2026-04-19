@@ -38,11 +38,11 @@ def test_no_long_polling_handler_holds_full_request_session():
     for route in app.routes:
         if not isinstance(route, APIRoute):
             continue
-        dependant = route.dependant
+        dep_tree = route.dependant  # codespell:ignore dependant
 
         # Handler-level direct deps only (first level, not recursive)
         handler_direct_fns = [
-            d.call for d in dependant.dependencies if d.call is not None
+            d.call for d in dep_tree.dependencies if d.call is not None
         ]
 
         # Only audit routes where the handler itself takes SessionMakerDep
@@ -50,7 +50,7 @@ def test_no_long_polling_handler_holds_full_request_session():
             continue
 
         # Recursively walk the full dep tree to find any SessionDep usage
-        all_fns = [d.call for d in _flatten(dependant) if d.call is not None]
+        all_fns = [d.call for d in _flatten(dep_tree) if d.call is not None]
         if get_session in all_fns:
             offenders.append(
                 (

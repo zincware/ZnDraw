@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import uuid
 
 
@@ -59,7 +60,7 @@ def test_read_provider_releases_inflight_on_dispatch_failure(
     class _FailingTask:
         """kiq() always raises to simulate broker/transport failure."""
 
-        async def kiq(self, **kwargs):
+        async def kiq(self, **kwargs):  # noqa: ARG002 — mock signature mirrors taskiq
             raise RuntimeError("simulated dispatch failure")
 
     registry = InternalProviderRegistry(
@@ -75,14 +76,13 @@ def test_read_provider_releases_inflight_on_dispatch_failure(
     # exceptions by default.  We catch it here to verify the inflight lock is
     # still released (the try/except+raise in the handler runs before the error
     # propagates up through the ASGI stack).
-    try:
+    with contextlib.suppress(RuntimeError):
+        # Dispatch failure propagates through TestClient — that's expected.
         client.get(
             "/v1/joblib/rooms/@internal/providers/@internal:filesystem:FilesystemRead"
             "?path=/data",
             headers={"Prefer": "wait=0"},
         )
-    except RuntimeError:
-        pass  # expected — dispatch failure propagates through TestClient
 
     # Inflight lock MUST be released after the dispatch failure
     params = {"path": "/data"}
@@ -100,7 +100,7 @@ def test_read_provider_releases_inflight_on_dispatch_failure(
     kiq_call_count = 0
 
     class _CountingTask:
-        async def kiq(self, **kwargs):
+        async def kiq(self, **kwargs):  # noqa: ARG002 — mock signature
             nonlocal kiq_call_count
             kiq_call_count += 1
             raise RuntimeError("simulated dispatch failure")
@@ -110,14 +110,12 @@ def test_read_provider_releases_inflight_on_dispatch_failure(
         providers={},
     )
 
-    try:
+    with contextlib.suppress(RuntimeError):
         client.get(
             "/v1/joblib/rooms/@internal/providers/@internal:filesystem:FilesystemRead"
             "?path=/data",
             headers={"Prefer": "wait=0"},
         )
-    except RuntimeError:
-        pass  # expected
 
     assert kiq_call_count == 1, (
         f"Expected second request to dispatch (kiq_call_count=1), "

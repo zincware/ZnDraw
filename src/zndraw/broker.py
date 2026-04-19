@@ -14,6 +14,7 @@ from taskiq_redis import ListQueueBroker
 from zndraw.config import Settings
 from zndraw.database import _collect_extensions
 from zndraw.executor import InternalExtensionExecutor
+from zndraw.providers.bootstrap import register_filebrowser_providers
 from zndraw_joblib import register_internal_tasks
 
 settings = Settings()
@@ -31,7 +32,5 @@ server_url = settings.internal_url or f"http://localhost:{settings.port}"
 executor = InternalExtensionExecutor(base_url=server_url)
 
 register_internal_tasks(broker, _collect_extensions(), executor)
-
-from zndraw.providers.bootstrap import register_filebrowser_providers
 
 register_filebrowser_providers(broker, base_url=server_url, settings=settings)

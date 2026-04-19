@@ -230,7 +230,11 @@ class CompositeResultBackend:
     async def wait_for_key(self, key: str, timeout: float) -> bytes | None:  # noqa: ASYNC109
         """Wait via Redis pub/sub, read from the correct backend."""
         return await _pubsub_wait_prefixed(
-            self._redis.pubsub, self.get, key, self._redis._k(key), timeout
+            self._redis.pubsub,
+            self.get,
+            key,
+            self._redis._k(key),  # noqa: SLF001 — same-module helper
+            timeout,
         )
 
     async def notify_key(self, key: str) -> None:

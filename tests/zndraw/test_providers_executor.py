@@ -1,11 +1,14 @@
 """Unit tests for InternalProviderExecutor."""
 
 import json
+import time
 from pathlib import Path
 
+import httpx
 import pytest
 from httpx import MockTransport, Response
 
+from zndraw import ZnDraw
 from zndraw.providers.executor import InternalProviderExecutor
 from zndraw.providers.filesystem import FilesystemRead
 
@@ -53,13 +56,6 @@ async def test_executor_posts_result_for_filesystem(seeded_dir):
     assert names == {"a.xyz", "b.xyz"}
 
 
-import time
-
-import httpx
-
-from zndraw import ZnDraw
-
-
 def _poll_read_provider(
     vis: ZnDraw,
     full_name: str,
@@ -98,7 +94,8 @@ def test_internal_filesystem_provider_surfaces_error(server_factory):
         )
         assert status in (400, 404, 422), f"got {status}: {body!r}"
         parsed = json.loads(body)
-        assert "error" in parsed and "type" in parsed, parsed
+        assert "error" in parsed, parsed
+        assert "type" in parsed, parsed
     finally:
         vis.disconnect()
 
