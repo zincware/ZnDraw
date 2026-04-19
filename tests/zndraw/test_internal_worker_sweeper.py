@@ -1,12 +1,17 @@
-"""Regression: the internal @internal worker must survive the sweeper.
+"""Regression: @internal providers are decoupled from the Worker table.
 
-The internal worker is seeded at startup (``ensure_internal_worker_row``) and
-never heartbeats. The sweeper's ``cleanup_stale_workers`` runs every 30s by
-default and considers any worker with ``last_heartbeat < now - 60s`` stale;
-when it finds one, ``cleanup_worker`` DELETEs every provider owned by that
-worker — including the seeded ``@internal:filesystem:FilesystemRead`` row.
-Without a guard, the default FS provider disappears from every fresh server
-after ~60 seconds and GETs start returning 404.
+@internal providers are server-owned (dispatched by the in-process
+taskiq worker, not a remote client). They have ``worker_id=None`` by
+construction, mirroring how @internal jobs have no ``WorkerJobLink``
+entries.
+
+This test pins down two invariants the sweeper must respect:
+
+1. A stale REMOTE worker (with a valid UUID and an owned provider) IS
+   swept, and the remote provider is cascade-deleted. No regression to
+   the heartbeat-based cleanup that governs real external clients.
+2. A server-owned @internal provider (``worker_id=None``) IS NOT
+   swept under any circumstance — it has no Worker to be stale.
 """
 
 from __future__ import annotations
@@ -26,8 +31,7 @@ from zndraw_joblib.sweeper import cleanup_stale_workers
 
 
 @pytest.mark.asyncio
-async def test_sweeper_does_not_delete_internal_worker_or_its_providers():
-    """An internal worker with stale heartbeat MUST survive the sweeper."""
+async def test_sweeper_deletes_remote_worker_but_preserves_internal_provider():
     engine = create_async_engine(
         "sqlite+aiosqlite://",
         connect_args={"check_same_thread": False},
@@ -38,7 +42,15 @@ async def test_sweeper_does_not_delete_internal_worker_or_its_providers():
     maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     try:
         async with maker() as session:
-            user = User(
+            remote_user = User(
+                id=uuid.uuid4(),
+                email="remote@test",
+                hashed_password="x",
+                is_active=True,
+                is_superuser=False,
+                is_verified=True,
+            )
+            internal_user = User(
                 id=uuid.uuid4(),
                 email="internal@test",
                 hashed_password="x",
@@ -46,48 +58,58 @@ async def test_sweeper_does_not_delete_internal_worker_or_its_providers():
                 is_superuser=True,
                 is_verified=True,
             )
-            session.add(user)
+            session.add_all([remote_user, internal_user])
             await session.commit()
 
-            # Stale internal worker (heartbeat 10 minutes ago).
-            worker = Worker(
+            # Stale remote worker with a real worker_id and an owned provider.
+            stale_remote_worker = Worker(
                 id=uuid.uuid4(),
-                user_id=user.id,
+                user_id=remote_user.id,
                 last_heartbeat=datetime.now(UTC) - timedelta(minutes=10),
             )
-            session.add(worker)
+            session.add(stale_remote_worker)
             await session.commit()
-            await session.refresh(worker)
+            await session.refresh(stale_remote_worker)
 
-            provider = ProviderRecord(
+            remote_provider = ProviderRecord(
+                room_id="room-alpha",
+                category="filesystem",
+                name="FilesystemRead",
+                schema_={},
+                content_type="application/json",
+                user_id=remote_user.id,
+                worker_id=stale_remote_worker.id,
+            )
+            # @internal provider — server-owned, worker_id is None.
+            internal_provider = ProviderRecord(
                 room_id="@internal",
                 category="filesystem",
                 name="FilesystemRead",
                 schema_={},
                 content_type="application/json",
-                user_id=user.id,
-                worker_id=worker.id,
+                user_id=internal_user.id,
+                worker_id=None,
             )
-            session.add(provider)
+            session.add_all([remote_provider, internal_provider])
             await session.commit()
 
         async with maker() as session:
-            count, _, _ = await cleanup_stale_workers(
-                session, stale_after=timedelta(seconds=60)
+            count, _emissions, _frame_rooms = await cleanup_stale_workers(
+                session, stale_after=timedelta(seconds=0)
             )
-            assert count == 0, (
-                "Internal worker was swept; its @internal providers would be deleted"
+            assert count == 1, (
+                f"Expected the stale remote worker to be swept; count={count}"
             )
 
-        # @internal provider row must still exist.
         async with maker() as session:
-            rows = (
-                await session.exec(
-                    select(ProviderRecord).where(ProviderRecord.room_id == "@internal")
-                )
-            ).all()
-            assert len(rows) == 1, (
-                f"Expected @internal provider to survive; got {len(rows)} rows"
+            rows = (await session.exec(select(ProviderRecord))).all()
+            by_room = {r.room_id: r for r in rows}
+            assert "room-alpha" not in by_room, (
+                "Remote provider should have been cascade-deleted with its worker"
             )
+            assert "@internal" in by_room, (
+                "@internal provider (worker_id=None) must survive the sweep"
+            )
+            assert by_room["@internal"].worker_id is None
     finally:
         await engine.dispose()

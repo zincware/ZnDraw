@@ -147,31 +147,6 @@ async def ensure_internal_worker(
         log.debug("Updated internal worker user: %s", email)
 
 
-async def ensure_internal_worker_row(
-    session: AsyncSession,
-    user_id: uuid.UUID,
-) -> uuid.UUID:
-    """Create or reuse a Worker row owned by the internal worker user.
-
-    Idempotent. Returns the worker id.
-    """
-    from sqlmodel import select as _select
-
-    from zndraw_joblib.models import Worker
-
-    result = await session.exec(
-        _select(Worker).where(Worker.user_id == user_id).limit(1)
-    )
-    existing = result.one_or_none()
-    if existing is not None:
-        return existing.id
-    worker = Worker(user_id=user_id)
-    session.add(worker)
-    await session.commit()
-    await session.refresh(worker)
-    return worker.id
-
-
 async def init_database(
     engine: AsyncEngine | None = None,
     settings: Settings | None = None,
@@ -215,7 +190,9 @@ async def init_database(
     # Seed @internal Job rows for built-in extensions
     await ensure_internal_jobs(_collect_extensions(), session_maker)
 
-    # Seed internal worker row + @internal provider rows
+    # Seed @internal provider rows. @internal providers are server-owned —
+    # they have no Worker row, so we only need the internal worker User.id
+    # (used at mint time for JWTs in get_worker_token).
     if settings.filebrowser_path is not None:
         from zndraw_joblib.registry import ensure_internal_providers
 
@@ -224,14 +201,12 @@ async def init_database(
                 select(User).where(User.email == settings.internal_worker_email)
             )
             internal_user = result.one()
-            worker_id = await ensure_internal_worker_row(session, internal_user.id)
             internal_user_id = internal_user.id
 
         await ensure_internal_providers(
             _collect_providers(),
             session_maker,
             user_id=internal_user_id,
-            worker_id=worker_id,
         )
     else:
         # Feature disabled — clean up any stale @internal provider rows from a

@@ -118,8 +118,8 @@ class ProviderRecord(Base):
     user_id: Mapped[UUID] = mapped_column(
         ForeignKey("user.id", ondelete="CASCADE"), index=True
     )
-    worker_id: Mapped[UUID] = mapped_column(
-        ForeignKey("worker.id", ondelete="CASCADE"), index=True
+    worker_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("worker.id", ondelete="CASCADE"), index=True, nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

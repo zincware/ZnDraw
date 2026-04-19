@@ -113,7 +113,7 @@ class ProviderResponse(BaseModel):
     name: str
     full_name: str
     schema_: dict[str, Any] = Field(alias="schema")
-    worker_id: UUID
+    worker_id: UUID | None = None
     created_at: datetime
 
     model_config = {"populate_by_name": True}

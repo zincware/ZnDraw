@@ -164,13 +164,14 @@ async def ensure_internal_providers(
     session_factory: Callable[[], AbstractAsyncContextManager[AsyncSession]],
     *,
     user_id: UUID,
-    worker_id: UUID,
 ) -> None:
     """Create or update @internal ProviderRecord rows.
 
-    Idempotent and concurrent-startup-safe: an IntegrityError on the
-    ``unique_provider`` constraint is caught and the existing row is
-    updated instead.
+    @internal providers are server-owned (dispatched by the in-process
+    taskiq worker) and have no Worker row — ``worker_id`` is always
+    ``None``. Idempotent and concurrent-startup-safe: an IntegrityError
+    on the ``unique_provider`` constraint is caught and the existing
+    row is updated instead.
     """
     from sqlalchemy.exc import IntegrityError
     from sqlmodel import select
@@ -197,7 +198,7 @@ async def ensure_internal_providers(
                 existing.schema_ = schema
                 existing.content_type = content_type
                 existing.user_id = user_id
-                existing.worker_id = worker_id
+                existing.worker_id = None
                 await session.commit()
                 continue
 
@@ -209,7 +210,7 @@ async def ensure_internal_providers(
                     schema_=schema,
                     content_type=content_type,
                     user_id=user_id,
-                    worker_id=worker_id,
+                    worker_id=None,
                 )
             )
             try:
@@ -228,7 +229,7 @@ async def ensure_internal_providers(
                 existing.schema_ = schema
                 existing.content_type = content_type
                 existing.user_id = user_id
-                existing.worker_id = worker_id
+                existing.worker_id = None
                 await session.commit()
 
     logger.info("Ensured %d @internal provider row(s) in DB", len(providers))

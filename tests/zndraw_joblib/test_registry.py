@@ -10,7 +10,7 @@ from sqlmodel import select
 
 from zndraw_auth import User
 from zndraw_joblib.client import Category, Extension
-from zndraw_joblib.models import Job, ProviderRecord, Worker
+from zndraw_joblib.models import Job, ProviderRecord
 from zndraw_joblib.provider import Provider
 from zndraw_joblib.registry import (
     InternalRegistry,
@@ -249,7 +249,7 @@ async def test_ensure_internal_providers_creates_rows(async_session_factory):
     """Creates a ProviderRecord per provider at room_id='@internal'."""
     from zndraw_joblib.registry import ensure_internal_providers
 
-    # Seed internal user + worker
+    # Seed internal user
     user_id = uuid.uuid4()
     async with async_session_factory() as session:
         user = User(
@@ -261,13 +261,10 @@ async def test_ensure_internal_providers_creates_rows(async_session_factory):
             is_verified=True,
         )
         session.add(user)
-        worker = Worker(user_id=user_id)
-        session.add(worker)
         await session.commit()
-        worker_id = worker.id
 
     await ensure_internal_providers(
-        [_DummyProvider], async_session_factory, user_id=user_id, worker_id=worker_id
+        [_DummyProvider], async_session_factory, user_id=user_id
     )
 
     async with async_session_factory() as session:
@@ -279,7 +276,7 @@ async def test_ensure_internal_providers_creates_rows(async_session_factory):
     assert rows[0].category == "filesystem"
     assert rows[0].name == "_DummyProvider"
     assert rows[0].user_id == user_id
-    assert rows[0].worker_id == worker_id
+    assert rows[0].worker_id is None
 
 
 async def test_ensure_internal_providers_idempotent(async_session_factory):
@@ -298,16 +295,13 @@ async def test_ensure_internal_providers_idempotent(async_session_factory):
                 is_verified=True,
             )
         )
-        worker = Worker(user_id=user_id)
-        session.add(worker)
         await session.commit()
-        worker_id = worker.id
 
     await ensure_internal_providers(
-        [_DummyProvider], async_session_factory, user_id=user_id, worker_id=worker_id
+        [_DummyProvider], async_session_factory, user_id=user_id
     )
     await ensure_internal_providers(
-        [_DummyProvider], async_session_factory, user_id=user_id, worker_id=worker_id
+        [_DummyProvider], async_session_factory, user_id=user_id
     )
 
     async with async_session_factory() as session:
@@ -355,15 +349,10 @@ async def test_ensure_internal_providers_concurrent_startup_safe(tmp_path):
         await conn.run_sync(SQLModel.metadata.create_all)
     maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     user_id = uuid.uuid4()
-    worker_id = uuid.uuid4()
     try:
         await asyncio.gather(
-            ensure_internal_providers(
-                [prov_cls], maker, user_id=user_id, worker_id=worker_id
-            ),
-            ensure_internal_providers(
-                [prov_cls], maker, user_id=user_id, worker_id=worker_id
-            ),
+            ensure_internal_providers([prov_cls], maker, user_id=user_id),
+            ensure_internal_providers([prov_cls], maker, user_id=user_id),
         )
         async with maker() as s:
             rows = (
@@ -372,5 +361,43 @@ async def test_ensure_internal_providers_concurrent_startup_safe(tmp_path):
                 )
             ).all()
         assert len(rows) == 1, f"expected exactly 1 row, got {len(rows)}: {rows}"
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_ensure_internal_providers_stores_null_worker_id(tmp_path):
+    """@internal seeded rows must have worker_id=None (no ghost worker)."""
+    import uuid
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import NullPool
+    from sqlmodel import SQLModel, select
+    from sqlmodel.ext.asyncio.session import AsyncSession
+
+    # Use a real Provider class from the project's BUNDLED_PROVIDERS set.
+    from zndraw.providers import BUNDLED_PROVIDERS
+    from zndraw_joblib.models import ProviderRecord
+    from zndraw_joblib.registry import ensure_internal_providers
+
+    if not BUNDLED_PROVIDERS:
+        pytest.skip("no providers bundled")
+    prov_cls = next(iter(BUNDLED_PROVIDERS))
+
+    db_path = tmp_path / "null-worker.db"
+    engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}", poolclass=NullPool)
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+    maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    try:
+        await ensure_internal_providers([prov_cls], maker, user_id=uuid.uuid4())
+        async with maker() as session:
+            rows = (
+                await session.exec(
+                    select(ProviderRecord).where(ProviderRecord.room_id == "@internal")
+                )
+            ).all()
+        assert len(rows) == 1
+        assert rows[0].worker_id is None
     finally:
         await engine.dispose()

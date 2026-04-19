@@ -188,22 +188,10 @@ async def cleanup_stale_workers(
     all_emissions: set[Emission] = set()
     all_frame_rooms: set[str] = set()
 
-    # Find all stale workers, excluding any that own an @internal provider.
-    # The internal worker is server-managed (seeded at startup, never
-    # heartbeats) and must never be considered stale — if it were swept,
-    # cleanup_worker would cascade-delete the @internal providers that the
-    # server itself registered, breaking the default filesystem browser.
-    # Mirrors the @internal guard for Jobs in _soft_delete_orphan_job.
-    internal_worker_ids_query = select(ProviderRecord.worker_id).where(
-        ProviderRecord.room_id == "@internal",
-        ProviderRecord.worker_id.is_not(None),
-    )
-    result = await session.exec(
-        select(Worker).where(
-            Worker.last_heartbeat < cutoff,
-            ~Worker.id.in_(internal_worker_ids_query),
-        )
-    )
+    # Find all stale workers. @internal providers store ``worker_id=None``
+    # so they naturally sit outside cleanup_worker's concrete-UUID delete
+    # query — no special case needed here.
+    result = await session.exec(select(Worker).where(Worker.last_heartbeat < cutoff))
     stale_workers = result.all()
 
     count = 0

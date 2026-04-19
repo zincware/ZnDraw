@@ -145,7 +145,7 @@ def test_list_providers_mixed_scopes(client):
 def test_list_providers_includes_internal(client, async_session_factory):
     """Internal providers are visible from every room (and from @global)."""
     from zndraw_auth import User
-    from zndraw_joblib.models import ProviderRecord, Worker
+    from zndraw_joblib.models import ProviderRecord
 
     async def seed() -> None:
         async with async_session_factory() as session:
@@ -158,8 +158,6 @@ def test_list_providers_includes_internal(client, async_session_factory):
                 is_verified=True,
             )
             session.add(user)
-            worker = Worker(user_id=user.id)
-            session.add(worker)
             await session.flush()
             session.add(
                 ProviderRecord(
@@ -168,7 +166,7 @@ def test_list_providers_includes_internal(client, async_session_factory):
                     name="FilesystemRead",
                     schema_={},
                     user_id=user.id,
-                    worker_id=worker.id,
+                    worker_id=None,
                 )
             )
             await session.commit()
@@ -192,7 +190,7 @@ def test_list_providers_includes_internal(client, async_session_factory):
 def test_get_provider_info_internal_visible_from_room(client, async_session_factory):
     """A normal room can fetch info on an @internal provider."""
     from zndraw_auth import User
-    from zndraw_joblib.models import ProviderRecord, Worker
+    from zndraw_joblib.models import ProviderRecord
 
     async def seed() -> None:
         async with async_session_factory() as session:
@@ -205,8 +203,6 @@ def test_get_provider_info_internal_visible_from_room(client, async_session_fact
                 is_verified=True,
             )
             session.add(user)
-            worker = Worker(user_id=user.id)
-            session.add(worker)
             await session.flush()
             session.add(
                 ProviderRecord(
@@ -215,7 +211,7 @@ def test_get_provider_info_internal_visible_from_room(client, async_session_fact
                     name="FilesystemRead",
                     schema_={"path": {"type": "string"}},
                     user_id=user.id,
-                    worker_id=worker.id,
+                    worker_id=None,
                 )
             )
             await session.commit()
@@ -423,7 +419,7 @@ def test_delete_provider_not_found(client):
 def test_delete_internal_provider_forbidden(client_factory, async_session_factory):
     """@internal providers cannot be deleted by anyone, including superusers."""
     from zndraw_auth import User
-    from zndraw_joblib.models import ProviderRecord, Worker
+    from zndraw_joblib.models import ProviderRecord
 
     provider_id = uuid.uuid4()
 
@@ -438,8 +434,6 @@ def test_delete_internal_provider_forbidden(client_factory, async_session_factor
                 is_verified=True,
             )
             session.add(user)
-            worker = Worker(user_id=user.id)
-            session.add(worker)
             await session.flush()
             session.add(
                 ProviderRecord(
@@ -449,7 +443,7 @@ def test_delete_internal_provider_forbidden(client_factory, async_session_factor
                     name="FilesystemRead",
                     schema_={},
                     user_id=user.id,
-                    worker_id=worker.id,
+                    worker_id=None,
                 )
             )
             await session.commit()
@@ -645,7 +639,7 @@ def test_read_internal_provider_dispatches_via_taskiq(
     import uuid
 
     from zndraw_auth import User
-    from zndraw_joblib.models import ProviderRecord, Worker
+    from zndraw_joblib.models import ProviderRecord
     from zndraw_joblib.registry import InternalProviderRegistry
 
     async def seed() -> None:
@@ -659,8 +653,6 @@ def test_read_internal_provider_dispatches_via_taskiq(
                 is_verified=True,
             )
             session.add(user)
-            worker = Worker(user_id=user.id)
-            session.add(worker)
             await session.flush()
             session.add(
                 ProviderRecord(
@@ -669,7 +661,7 @@ def test_read_internal_provider_dispatches_via_taskiq(
                     name="FilesystemRead",
                     schema_={},
                     user_id=user.id,
-                    worker_id=worker.id,
+                    worker_id=None,
                 )
             )
             await session.commit()
@@ -702,3 +694,27 @@ def test_read_internal_provider_dispatches_via_taskiq(
     assert "request_id" in call
     assert "provider_id" in call
     assert call["token"] == "test-worker-token"
+
+
+def test_provider_response_from_record_accepts_null_worker_id():
+    """@internal providers have worker_id=None; from_record must not raise."""
+    import uuid
+    from datetime import UTC, datetime
+
+    from zndraw_joblib.models import ProviderRecord
+    from zndraw_joblib.schemas import ProviderResponse
+
+    record = ProviderRecord(
+        id=uuid.uuid4(),
+        room_id="@internal",
+        category="filesystem",
+        name="FilesystemRead",
+        schema_={},
+        content_type="application/json",
+        user_id=uuid.uuid4(),
+        worker_id=None,
+        created_at=datetime.now(UTC),
+    )
+    response = ProviderResponse.from_record(record)
+    assert response.worker_id is None
+    assert response.room_id == "@internal"
