@@ -258,3 +258,11 @@ modifiers: dict[str, type[Extension]] = {
 }
 
 modifiers.update(molify_modifiers)
+
+# LoadFile reads bytes from a registered filesystem provider and extends the
+# room — must be registered as an @internal modifier so the server-side taskiq
+# worker can execute it. Imported here (not at the top) to avoid a cycle via
+# zndraw_joblib.client.
+from zndraw.extensions.filesystem import LoadFile  # noqa: E402
+
+modifiers[LoadFile.__name__] = LoadFile

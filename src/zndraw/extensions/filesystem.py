@@ -2,7 +2,7 @@
 
 import typing as t
 
-from zndraw_joblib.client import Category, Extension
+from zndraw.extensions.abc import Category, Extension
 
 
 class LoadFile(Extension):
