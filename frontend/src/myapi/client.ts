@@ -984,7 +984,9 @@ export interface ProviderInfo {
 	name: string;
 	full_name: string;
 	schema: Record<string, unknown>;
-	worker_id: string;
+	// @internal providers are server-owned and have no Worker row —
+	// worker_id is null for those; remote providers have a UUID.
+	worker_id: string | null;
 	created_at: string;
 }
 

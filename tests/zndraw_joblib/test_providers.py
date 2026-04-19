@@ -697,7 +697,11 @@ def test_read_internal_provider_dispatches_via_taskiq(
 
 
 def test_provider_response_from_record_accepts_null_worker_id():
-    """@internal providers have worker_id=None; from_record must not raise."""
+    """@internal providers have worker_id=None; from_record must not raise,
+    and the JSON payload must emit ``"worker_id": null`` (not the string
+    "null", not an omitted key) so frontend clients see the field as null.
+    """
+    import json
     import uuid
     from datetime import UTC, datetime
 
@@ -718,3 +722,7 @@ def test_provider_response_from_record_accepts_null_worker_id():
     response = ProviderResponse.from_record(record)
     assert response.worker_id is None
     assert response.room_id == "@internal"
+    # JSON round-trip: field is present with JSON null.
+    payload = json.loads(response.model_dump_json())
+    assert "worker_id" in payload
+    assert payload["worker_id"] is None
