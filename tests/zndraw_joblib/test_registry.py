@@ -363,5 +363,3 @@ async def test_ensure_internal_providers_concurrent_startup_safe(tmp_path):
         assert len(rows) == 1, f"expected exactly 1 row, got {len(rows)}: {rows}"
     finally:
         await engine.dispose()
-
-
