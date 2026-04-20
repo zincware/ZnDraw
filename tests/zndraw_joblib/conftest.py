@@ -249,14 +249,16 @@ def _build_app(
 
     app.dependency_overrides[get_worker_token] = lambda: "test-worker-token"
 
-    # Set up app.state attributes consumed by mint_internal_worker_token.
-    # Tests that exercise the @internal dispatch path call the helper
-    # directly (not through DI), so the state must be populated here.
+    # Set up app.state attributes consumed by mint_internal_worker_token and
+    # get_internal_provider_registry. Per the "always set in lifespan" contract,
+    # every attribute accessed by request-time deps must be present (value or
+    # None) — no getattr fallbacks.
     app.state.settings = _SettingsStub()
     app.state.auth_settings = AuthSettings()
     _worker_user = MagicMock(spec=User)
     _worker_user.id = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
     app.state.internal_worker_user = _worker_user
+    app.state.internal_provider_registry = None
     return app
 
 
@@ -411,6 +413,8 @@ def unguarded_client_factory(async_session_factory):
         app.dependency_overrides[get_result_backend] = lambda: result_backend
         # Intentionally NOT overriding get_worker_token — real dep runs.
         app.state.internal_worker_user = internal_worker_user
+        app.state.internal_provider_registry = None
+        app.state.settings = _SettingsStub()
 
         test_client = TestClient(app)
         test_client.user_id = user_id

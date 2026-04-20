@@ -29,7 +29,7 @@ async def get_internal_provider_registry(
     request: Request,
 ) -> InternalProviderRegistry | None:
     """Return the internal provider registry from app.state, or None."""
-    return getattr(request.app.state, "internal_provider_registry", None)
+    return request.app.state.internal_provider_registry
 
 
 def get_tsio(request: Request) -> AsyncServerWrapper | None:
@@ -167,13 +167,9 @@ async def mint_internal_worker_token(app) -> str:
         did not run (``init_db_on_startup=False``) or the worker row is
         missing.
     """
-    user = getattr(app.state, "internal_worker_user", None)
+    user = app.state.internal_worker_user
     if user is None:
-        # Only read settings here for the error message; if state is
-        # half-populated the RuntimeError is more informative than an
-        # AttributeError on the settings access.
-        settings = getattr(app.state, "settings", None)
-        email = settings.internal_worker_email if settings else "<unknown>"
+        email = app.state.settings.internal_worker_email
         raise RuntimeError(
             f"Internal worker user '{email}' not found. "
             "Has the database been initialized?"

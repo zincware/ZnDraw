@@ -246,6 +246,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine, class_=SQLModelAsyncSession, expire_on_commit=False
     )
 
+    # Pre-initialize all app.state attrs consumed by request-time dependencies.
+    # Downstream deps access these directly (no getattr fallback); lifespan
+    # sets them to None now and overwrites with real values below.
+    app.state.internal_worker_user = None
+    app.state.internal_provider_registry = None
+    app.state.internal_registry = None
+
     try:
         # Initialize tables on startup (dev mode)
         if settings.init_db_on_startup:
