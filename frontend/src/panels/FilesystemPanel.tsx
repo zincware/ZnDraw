@@ -19,12 +19,12 @@ import {
 	LoadFileDialog,
 } from "../components/filesystem";
 import type { LoadFileParams } from "../components/filesystem/LoadFileDialog";
+import { useFilesystemProviders } from "../hooks/useFilesystemProviders";
 import { useLeaveRoom } from "../hooks/useLeaveRoom";
 import {
 	type FilesystemFileItem,
 	type ProviderInfo,
 	createRoom,
-	listProviders,
 	listRooms,
 	readProvider,
 	submitTask,
@@ -75,12 +75,7 @@ export function FilesystemPanel() {
 		data: providers,
 		isLoading: isLoadingProviders,
 		error: providersError,
-	} = useQuery({
-		queryKey: ["filesystemProviders", roomId],
-		queryFn: () => listProviders(roomId!, "filesystem"),
-		enabled: !!roomId,
-		retry: false,
-	});
+	} = useFilesystemProviders();
 
 	// Query for rooms list (used by "Existing room" dropdown in LoadFileDialog)
 	const { data: rooms } = useQuery({
