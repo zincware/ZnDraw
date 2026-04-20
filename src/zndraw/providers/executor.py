@@ -14,7 +14,11 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+import fsspec
 import httpx
+from fsspec.implementations.dirfs import DirFileSystem
+
+from zndraw_joblib.exceptions import ProviderExecutionFailed
 
 if TYPE_CHECKING:
     from zndraw_joblib.provider import Provider
@@ -77,8 +81,6 @@ class InternalProviderExecutor:
                     "InternalProviderExecutor failed for %s",
                     provider_cls.__name__,
                 )
-                from zndraw_joblib.exceptions import ProviderExecutionFailed
-
                 problem = ProviderExecutionFailed.create(
                     detail=f"{type(err).__name__}: {err}",
                 )
@@ -131,9 +133,6 @@ def resolve_internal_provider_handler(
     """
     category = provider_cls.category
     if category == "filesystem":
-        import fsspec
-        from fsspec.implementations.dirfs import DirFileSystem
-
         return DirFileSystem(path=filebrowser_path, fs=fsspec.filesystem("file"))
     raise ValueError(
         f"No internal handler configured for provider category '{category}'"

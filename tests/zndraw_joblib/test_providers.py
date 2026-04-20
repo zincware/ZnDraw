@@ -5,7 +5,9 @@ import asyncio
 import json
 import uuid
 
+from zndraw_auth import User
 from zndraw_joblib.dependencies import request_hash
+from zndraw_joblib.models import ProviderRecord
 from zndraw_joblib.schemas import (
     PaginatedResponse,
     ProviderResponse,
@@ -144,8 +146,6 @@ def test_list_providers_mixed_scopes(client):
 
 def test_list_providers_includes_internal(client, async_session_factory):
     """Internal providers are visible from every room (and from @global)."""
-    from zndraw_auth import User
-    from zndraw_joblib.models import ProviderRecord
 
     async def seed() -> None:
         async with async_session_factory() as session:
@@ -189,8 +189,6 @@ def test_list_providers_includes_internal(client, async_session_factory):
 
 def test_get_provider_info_internal_visible_from_room(client, async_session_factory):
     """A normal room can fetch info on an @internal provider."""
-    from zndraw_auth import User
-    from zndraw_joblib.models import ProviderRecord
 
     async def seed() -> None:
         async with async_session_factory() as session:
@@ -418,8 +416,6 @@ def test_delete_provider_not_found(client):
 
 def test_delete_internal_provider_forbidden(client_factory, async_session_factory):
     """@internal providers cannot be deleted by anyone, including superusers."""
-    from zndraw_auth import User
-    from zndraw_joblib.models import ProviderRecord
 
     provider_id = uuid.uuid4()
 
@@ -655,8 +651,6 @@ def test_read_internal_provider_dispatches_via_taskiq(
     import asyncio
     import uuid
 
-    from zndraw_auth import User
-    from zndraw_joblib.models import ProviderRecord
     from zndraw_joblib.registry import InternalProviderRegistry
 
     async def seed() -> None:
@@ -725,7 +719,6 @@ def test_provider_response_from_record_accepts_null_worker_id():
     import uuid
     from datetime import UTC, datetime
 
-    from zndraw_joblib.models import ProviderRecord
     from zndraw_joblib.schemas import ProviderResponse
 
     record = ProviderRecord(
@@ -773,9 +766,6 @@ def test_global_scope_cannot_resolve_internal_provider(
     test_list_providers_includes_internal."""
     import asyncio
     import uuid
-
-    from zndraw_auth import User
-    from zndraw_joblib.models import ProviderRecord
 
     async def seed() -> None:
         async with async_session_factory() as session:
@@ -992,9 +982,6 @@ def test_internal_filesystem_requires_superuser_by_default(
     import asyncio
     import uuid
 
-    from zndraw_auth import User
-    from zndraw_joblib.models import ProviderRecord
-
     async def seed() -> None:
         async with async_session_factory() as session:
             user = User(
@@ -1048,9 +1035,6 @@ def test_internal_filesystem_superuser_bypasses_gate(
     import asyncio
     import uuid
 
-    from zndraw_auth import User
-    from zndraw_joblib.models import ProviderRecord
-
     async def seed() -> None:
         async with async_session_factory() as session:
             user = User(
@@ -1091,9 +1075,6 @@ def test_internal_filesystem_gate_disabled_by_flag(
     """With filebrowser_require_superuser=False, non-superusers can access."""
     import asyncio
     import uuid
-
-    from zndraw_auth import User
-    from zndraw_joblib.models import ProviderRecord
 
     alice = client_factory("alice-b7c", is_superuser=False)
     alice.app.state.joblib_settings.filebrowser_require_superuser = False
@@ -1143,9 +1124,6 @@ def test_list_providers_pagination_correct_with_gate(
     current page's len(items). Regression for B7's SQL-level filter."""
     import asyncio
     import uuid
-
-    from zndraw_auth import User
-    from zndraw_joblib.models import ProviderRecord
 
     async def seed() -> None:
         async with async_session_factory() as session:

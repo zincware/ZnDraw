@@ -10,10 +10,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from zndraw.database import _collect_providers
 from zndraw.providers.executor import (
     InternalProviderExecutor,
     resolve_internal_provider_handler,
 )
+from zndraw_joblib.registry import register_internal_providers
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -48,9 +50,6 @@ def register_filebrowser_providers(
     if not settings.filebrowser_enabled:
         return None
 
-    from zndraw.database import _collect_providers
-    from zndraw_joblib.registry import register_internal_providers
-
     executor = InternalProviderExecutor(
         base_url=base_url,
         filebrowser_path=str(Path(settings.filebrowser_path).resolve()),
@@ -75,8 +74,6 @@ def build_internal_providers_resolver(
     """
     if not settings.filebrowser_enabled:
         return None
-
-    from zndraw.database import _collect_providers
 
     filebrowser_path = str(Path(settings.filebrowser_path).resolve())
     provider_classes = _collect_providers()
