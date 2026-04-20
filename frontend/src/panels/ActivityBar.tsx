@@ -114,11 +114,7 @@ export function ActivityBar({ position }: ActivityBarProps) {
 				transition:
 					"width 120ms ease, height 120ms ease, background-color 120ms ease",
 				...BAR_SX[position],
-				...(empty
-					? position === "bottom"
-						? { height: "4px" }
-						: { width: "4px" }
-					: {}),
+				...(empty ? { display: "none" } : {}),
 				...dragBgSx,
 			}}
 		>
