@@ -1340,17 +1340,19 @@ async def upload_provider_result(
 
     # Store raw body as-is (JSON or binary depending on provider content_type)
     data = await request.body()
-    await result_backend.store(
-        cache_key,
-        data,
-        settings.provider_result_ttl_seconds,
-    )
+    # Write status FIRST so any reader that wakes up on cache_key sees
+    # the status already populated.
     if x_result_status == "error":
         await result_backend.store(
             status_key,
             b"error",
             settings.provider_result_ttl_seconds,
         )
+    await result_backend.store(
+        cache_key,
+        data,
+        settings.provider_result_ttl_seconds,
+    )
 
     # Release inflight lock
     await result_backend.release_inflight(inflight_key)

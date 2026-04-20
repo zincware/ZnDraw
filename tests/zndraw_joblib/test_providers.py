@@ -916,3 +916,53 @@ def test_provider_error_path_returns_problem_detail(
     assert body["title"] == "Bad Request"
     assert body["status"] == 400
     assert "FileNotFoundError" in body["detail"]
+
+
+def test_error_status_visible_before_payload_via_notify(client_factory):
+    """After upload_result with X-Result-Status: error, the status key
+    must exist at every moment cache_key exists — no window where a
+    reader can see payload without status."""
+    from zndraw_joblib.dependencies import get_result_backend
+
+    alice = client_factory("alice-b6c", is_superuser=True)
+    resp = alice.put(
+        "/v1/joblib/rooms/room-42/providers",
+        json={"category": "filesystem", "name": "local", "schema": {}},
+    )
+    assert resp.status_code == 201
+    provider_id = resp.json()["id"]
+    provider_full_name = resp.json()["full_name"]
+
+    params = {"path": "/test"}
+    rhash = request_hash(params)
+    cache_key = f"provider-result:{provider_full_name}:{rhash}"
+    status_key = f"{cache_key}:status"
+
+    # Post an error payload through the real upload endpoint.
+    upload_resp = alice.post(
+        f"/v1/joblib/providers/{provider_id}/results",
+        content=b'{"type":"/v1/problems/provider-execution-failed","title":"Bad Request","status":400,"detail":"X"}',
+        headers={
+            "X-Request-Hash": rhash,
+            "X-Result-Status": "error",
+            "Content-Type": "application/problem+json",
+        },
+    )
+    assert upload_resp.status_code == 204
+
+    # Both keys must be present now.
+    # Get the result_backend from the app's dependency overrides
+    result_backend = alice.app.dependency_overrides[get_result_backend]()
+
+    async def _check() -> None:
+        assert await result_backend.get(status_key) == b"error"
+        assert await result_backend.get(cache_key) is not None
+    asyncio.run(_check())
+
+    # And read_provider must see the error branch, not success.
+    resp = alice.get(
+        f"/v1/joblib/rooms/room-42/providers/{provider_full_name}",
+        params=params,
+    )
+    assert resp.status_code == 400
+    assert resp.headers["content-type"].startswith("application/problem+json")
