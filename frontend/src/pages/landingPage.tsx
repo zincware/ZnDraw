@@ -276,24 +276,35 @@ export default function MainPage() {
 							padding: "0 16px",
 						}}
 					>
-						<Typography variant="h6" noWrap component="div">
-							{serverVersion ? `ZnDraw ${serverVersion}` : "ZnDraw"}
-							{globalSettings?.simgen?.enabled && (
-								<>
-									{" + "}
-									<Link
-										href="https://github.com/RokasEl/simgen"
-										target="_blank"
-										rel="noopener noreferrer"
-										color="inherit"
-										underline="hover"
-										sx={{ cursor: "pointer" }}
-									>
-										SiMGen
-									</Link>
-								</>
-							)}
-						</Typography>
+						<Tooltip title="View on GitHub">
+							<Link
+								href="https://github.com/zincware/ZnDraw"
+								target="_blank"
+								rel="noopener noreferrer"
+								color="inherit"
+								underline="none"
+								sx={{ "&:hover": { textDecoration: "none" }, cursor: "pointer" }}
+							>
+								<Typography variant="h6" noWrap component="div">
+									{serverVersion ? `ZnDraw ${serverVersion}` : "ZnDraw"}
+									{globalSettings?.simgen?.enabled && (
+										<>
+											{" + "}
+											<Link
+												href="https://github.com/RokasEl/simgen"
+												target="_blank"
+												rel="noopener noreferrer"
+												color="inherit"
+												underline="hover"
+												sx={{ cursor: "pointer" }}
+											>
+												SiMGen
+											</Link>
+										</>
+									)}
+								</Typography>
+							</Link>
+						</Tooltip>
 						<Box sx={{ flexGrow: 1 }} />
 						<SiMGenButtons
 							onTutorialClick={() => setTutorialDialogOpen(true)}
