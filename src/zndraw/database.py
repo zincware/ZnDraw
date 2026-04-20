@@ -261,6 +261,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
             app.state.internal_worker_user = result.one_or_none()
 
+        # Seed @internal provider rows at every startup, not only inside
+        # init_database. Covers existing deployments (init_db_on_startup=False)
+        # whose DB was bootstrapped before the @internal providers feature
+        # landed — server restart backfills the rows. Idempotent: the function
+        # is IntegrityError-safe under concurrent startup.
+        if settings.filebrowser_enabled and app.state.internal_worker_user is not None:
+            from zndraw_joblib.registry import ensure_internal_providers
+
+            await ensure_internal_providers(
+                list(BUNDLED_PROVIDERS),
+                app.state.session_maker,
+                user_id=app.state.internal_worker_user.id,
+            )
+
         # SQLite locking (if needed)
         if _is_sqlite(settings.database_url):
             _apply_sqlite_locking(app)
