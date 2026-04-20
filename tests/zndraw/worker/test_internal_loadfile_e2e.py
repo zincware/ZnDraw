@@ -23,23 +23,15 @@ reach a terminal status. A passing test requires:
 
 from __future__ import annotations
 
-import ase
-import ase.io
-
 from zndraw import ZnDraw
 from zndraw.extensions.filesystem import LoadFile
 
 
-def test_load_file_e2e_via_internal_dispatch(server_factory, tmp_path):
-    # Seed a small xyz file inside the temp dir we'll expose as @internal fs.
-    atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [1, 0, 0]])
-    xyz_path = tmp_path / "water.xyz"
-    ase.io.write(xyz_path, atoms)
-
+def test_load_file_e2e_via_internal_dispatch(server_factory, water_xyz):
     instance = server_factory(
         {
             "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "true",
-            "ZNDRAW_SERVER_FILEBROWSER_PATH": str(tmp_path.resolve()),
+            "ZNDRAW_SERVER_FILEBROWSER_PATH": str(water_xyz.parent.resolve()),
         }
     )
 
