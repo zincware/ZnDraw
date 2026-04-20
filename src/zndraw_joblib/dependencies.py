@@ -167,14 +167,18 @@ async def mint_internal_worker_token(app) -> str:
         did not run (``init_db_on_startup=False``) or the worker row is
         missing.
     """
-    settings = app.state.settings
-    auth_settings = app.state.auth_settings
     user = getattr(app.state, "internal_worker_user", None)
     if user is None:
+        # Only read settings here for the error message; if state is
+        # half-populated the RuntimeError is more informative than an
+        # AttributeError on the settings access.
+        settings = getattr(app.state, "settings", None)
+        email = settings.internal_worker_email if settings else "<unknown>"
         raise RuntimeError(
-            f"Internal worker user '{settings.internal_worker_email}' not found. "
+            f"Internal worker user '{email}' not found. "
             "Has the database been initialized?"
         )
+    auth_settings = app.state.auth_settings
     strategy = JWTStrategy(
         secret=auth_settings.secret_key.get_secret_value(),
         lifetime_seconds=auth_settings.token_lifetime_seconds,

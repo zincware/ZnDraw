@@ -824,3 +824,17 @@ def test_read_remote_provider_works_with_no_internal_worker_cache(
     assert resp.status_code in (504, 409), (
         f"Expected 504 or 409 (dispatch reached), got {resp.status_code}: {resp.text}"
     )
+
+
+def test_mint_internal_worker_token_raises_runtime_error_on_missing_cache():
+    """Half-populated app.state (no internal_worker_user) must produce
+    RuntimeError, not AttributeError."""
+    from types import SimpleNamespace
+
+    import pytest
+
+    from zndraw_joblib.dependencies import mint_internal_worker_token
+
+    app = SimpleNamespace(state=SimpleNamespace())  # no settings, no user
+    with pytest.raises(RuntimeError, match="Internal worker user"):
+        asyncio.run(mint_internal_worker_token(app))
