@@ -283,7 +283,10 @@ export default function MainPage() {
 								rel="noopener noreferrer"
 								color="inherit"
 								underline="none"
-								sx={{ "&:hover": { textDecoration: "none" }, cursor: "pointer" }}
+								sx={{
+									"&:hover": { textDecoration: "none" },
+									cursor: "pointer",
+								}}
 							>
 								<Typography variant="h6" noWrap component="div">
 									{serverVersion ? `ZnDraw ${serverVersion}` : "ZnDraw"}
