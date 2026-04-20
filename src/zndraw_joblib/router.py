@@ -1059,6 +1059,10 @@ async def register_provider(
     tsio: TsioDep,
 ):
     """Register or update a provider. Idempotent on (room_id, category, name)."""
+    if room_id == "@internal":
+        raise Forbidden.exception(
+            detail="@internal providers cannot be registered via HTTP"
+        )
     if room_id == "@global" and not user.is_superuser:
         raise Forbidden.exception(
             detail="Admin required for @global provider registration"

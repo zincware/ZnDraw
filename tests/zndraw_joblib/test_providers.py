@@ -610,6 +610,28 @@ def test_register_global_provider_superuser_ok(client_factory):
     assert resp.status_code == 201
 
 
+def test_register_internal_provider_forbidden_normal_user(client_factory):
+    """@internal is a reserved server-bootstrap namespace — HTTP registration is
+    forbidden for normal users. Mirrors the DELETE-side policy at router.py:1337."""
+    normal = client_factory("normal-user", is_superuser=False)
+    resp = normal.put(
+        "/v1/joblib/rooms/@internal/providers",
+        json={"category": "filesystem", "name": "local", "schema": {}},
+    )
+    assert resp.status_code == 403, resp.text
+
+
+def test_register_internal_provider_forbidden_superuser(client_factory):
+    """@internal cannot be registered via HTTP even by a superuser — the namespace
+    is seeded only by ``register_internal_providers`` at startup."""
+    admin = client_factory("admin-user", is_superuser=True)
+    resp = admin.put(
+        "/v1/joblib/rooms/@internal/providers",
+        json={"category": "filesystem", "name": "local", "schema": {}},
+    )
+    assert resp.status_code == 403, resp.text
+
+
 def test_register_provider_category_rejected(app, client):
     """Provider category rejected when allowed_provider_categories is set."""
     app.state.joblib_settings.allowed_provider_categories = ["frames"]
