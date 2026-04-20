@@ -738,9 +738,7 @@ def test_global_scope_cannot_resolve_room_provider(client_factory):
     assert resp.status_code == 201
 
     # admin, calling with @global scope, must not resolve a room-42 provider.
-    resp = admin.get(
-        "/v1/joblib/rooms/@global/providers/room-42:filesystem:local"
-    )
+    resp = admin.get("/v1/joblib/rooms/@global/providers/room-42:filesystem:local")
     assert resp.status_code == 404, resp.text
 
 
@@ -804,7 +802,9 @@ def test_read_remote_provider_works_with_no_internal_worker_cache(
     """
     # Build a client where get_worker_token is NOT stubbed and
     # internal_worker_user is None (simulating a cold deploy).
-    alice = unguarded_client_factory("alice-b5", is_superuser=False, internal_worker_user=None)
+    alice = unguarded_client_factory(
+        "alice-b5", is_superuser=False, internal_worker_user=None
+    )
 
     resp = alice.put(
         "/v1/joblib/rooms/room-42/providers",
@@ -867,9 +867,7 @@ def test_legitimate_json_with_error_type_keys_is_not_mis_flagged(
     )
     assert upload_resp.status_code == 204
 
-    resp = alice.get(
-        f"/v1/joblib/rooms/room-42/providers/{provider_full_name}?path=/"
-    )
+    resp = alice.get(f"/v1/joblib/rooms/room-42/providers/{provider_full_name}?path=/")
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"type": "object", "error": None, "ok": True}
 
@@ -957,6 +955,7 @@ def test_error_status_visible_before_payload_via_notify(client_factory):
     async def _check() -> None:
         assert await result_backend.get(status_key) == b"error"
         assert await result_backend.get(cache_key) is not None
+
     asyncio.run(_check())
 
     # And read_provider must see the error branch, not success.
@@ -1117,8 +1116,7 @@ def test_internal_filesystem_gate_disabled_by_flag(
         resp = alice.get("/v1/joblib/rooms/room-42/providers")
         items = resp.json()["items"]
         assert any(
-            p["full_name"] == "@internal:filesystem:FilesystemReadB7C"
-            for p in items
+            p["full_name"] == "@internal:filesystem:FilesystemReadB7C" for p in items
         )
     finally:
         alice.app.state.joblib_settings.filebrowser_require_superuser = True

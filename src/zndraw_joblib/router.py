@@ -1025,11 +1025,7 @@ async def _resolve_provider(
     provider_room_id, category, name = parts
 
     # Visibility check — mirror _room_provider_filter semantics.
-    allowed = (
-        {"@global"}
-        if room_id == "@global"
-        else {"@global", "@internal", room_id}
-    )
+    allowed = {"@global"} if room_id == "@global" else {"@global", "@internal", room_id}
     if provider_room_id not in allowed:
         raise ProviderNotFound.exception(
             detail=f"Provider '{provider_name}' not accessible from room '{room_id}'"
