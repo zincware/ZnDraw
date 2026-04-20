@@ -106,14 +106,6 @@ class Settings(BaseSettings):
     parse to ``None``. Audit new fields before adding them.
     """
 
-    filebrowser_require_superuser: bool = True
-    """When True, @internal filesystem providers are accessible only to
-    superusers. Flip to False to allow all authenticated users.
-
-    Secure default — prevents any authenticated user in any room from
-    reading the directory at ``filebrowser_path``.
-    """
-
     # Taskiq broker / result backend isolation (per-server namespacing)
     task_queue_name: str = "zndraw:tasks"
     result_backend_key_prefix: str = "zndraw"

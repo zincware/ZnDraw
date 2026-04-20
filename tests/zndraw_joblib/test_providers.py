@@ -1122,3 +1122,72 @@ def test_internal_filesystem_gate_disabled_by_flag(
         )
     finally:
         alice.app.state.joblib_settings.filebrowser_require_superuser = True
+
+
+def test_list_providers_pagination_correct_with_gate(
+    client_factory, async_session_factory
+):
+    """When the gate is on and the DB has many @internal:filesystem:*
+    rows, pagination.total must reflect the post-filter count, not the
+    current page's len(items). Regression for B7's SQL-level filter."""
+    import asyncio
+    import uuid
+
+    from zndraw_auth import User
+    from zndraw_joblib.models import ProviderRecord
+
+    async def seed() -> None:
+        async with async_session_factory() as session:
+            user = User(
+                id=uuid.uuid4(),
+                email="int-b7d@test",
+                hashed_password="x",
+                is_active=True,
+                is_superuser=True,
+                is_verified=True,
+            )
+            session.add(user)
+            await session.flush()
+            # Add a visible room-42 provider too — ensure filtering
+            # doesn't leak into non-gated rows.
+            session.add(
+                ProviderRecord(
+                    room_id="room-42",
+                    category="filesystem",
+                    name="VisibleRoomProvider",
+                    schema_={},
+                    user_id=user.id,
+                    worker_id=None,
+                )
+            )
+            # Add 5 gated @internal:filesystem:* rows
+            for i in range(5):
+                session.add(
+                    ProviderRecord(
+                        room_id="@internal",
+                        category="filesystem",
+                        name=f"FilesystemReadB7D{i}",
+                        schema_={},
+                        user_id=user.id,
+                        worker_id=None,
+                    )
+                )
+            await session.commit()
+
+    asyncio.run(seed())
+
+    alice = client_factory("alice-b7d", is_superuser=False)
+    resp = alice.get("/v1/joblib/rooms/room-42/providers?limit=100")
+    assert resp.status_code == 200
+    data = resp.json()
+    # None of the 5 gated providers should appear
+    names = [p["full_name"] for p in data["items"]]
+    assert not any(
+        n.startswith("@internal:filesystem:FilesystemReadB7D") for n in names
+    )
+    # And total must be len(items) — if the old post-filter logic set
+    # total correctly we'd see it match. With SQL-level filter they
+    # agree by construction.
+    assert data["total"] == len(data["items"])
+    # The room-42 provider should be visible
+    assert any(n == "room-42:filesystem:VisibleRoomProvider" for n in names)

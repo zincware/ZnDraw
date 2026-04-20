@@ -9,7 +9,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
-from sqlalchemy import func, update
+from sqlalchemy import and_, func, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import selectinload
@@ -1152,7 +1152,16 @@ async def list_providers(
     """List providers visible from a room (room-scoped + @global)."""
     validate_room_id(room_id)
 
-    base_query = select(ProviderRecord).where(_room_provider_filter(room_id))
+    filter_ = _room_provider_filter(room_id)
+    # Hide @internal:filesystem:* from non-superusers when the gate is on.
+    if settings.filebrowser_require_superuser and not _current_user.is_superuser:
+        gate_filter = ~(
+            (ProviderRecord.room_id == "@internal")
+            & (ProviderRecord.category == "filesystem")
+        )
+        filter_ = and_(filter_, gate_filter)
+
+    base_query = select(ProviderRecord).where(filter_)
 
     total_result = await session.exec(
         select(func.count()).select_from(base_query.subquery())
@@ -1167,16 +1176,6 @@ async def list_providers(
     providers = result.all()
 
     items = [ProviderResponse.from_record(p) for p in providers]
-
-    # Post-filter @internal:filesystem:* for non-superusers when the gate is on
-    if settings.filebrowser_require_superuser and not _current_user.is_superuser:
-        items = [
-            p
-            for p in items
-            if not (p.room_id == "@internal" and p.category == "filesystem")
-        ]
-        total = len(items)
-
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
 
