@@ -145,17 +145,31 @@ def request_hash(params: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
-async def get_worker_token(request: Request) -> str:
-    """Return a fresh JWT for the internal worker user.
+async def mint_internal_worker_token(app) -> str:
+    """Mint a fresh JWT for the cached internal-worker user.
 
-    Reads the cached ``User`` object from ``app.state.internal_worker_user``
-    (populated once at lifespan startup). Avoids any DB session — opening one
-    here would deadlock under the SQLite serialization lock for routes that
-    also take a yield-based ``SessionDep`` (e.g. ``submit_task``).
+    Parameters
+    ----------
+    app : fastapi.FastAPI
+        The running application whose ``state`` holds the cached user and
+        auth/settings objects.
+
+    Returns
+    -------
+    str
+        A signed JWT bearer token for the internal worker user.
+
+    Raises
+    ------
+    RuntimeError
+        If ``app.state.internal_worker_user`` is not populated. The cache
+        is primed during lifespan; if it is absent the DB-init step either
+        did not run (``init_db_on_startup=False``) or the worker row is
+        missing.
     """
-    settings = request.app.state.settings
-    auth_settings = request.app.state.auth_settings
-    user = getattr(request.app.state, "internal_worker_user", None)
+    settings = app.state.settings
+    auth_settings = app.state.auth_settings
+    user = getattr(app.state, "internal_worker_user", None)
     if user is None:
         raise RuntimeError(
             f"Internal worker user '{settings.internal_worker_email}' not found. "
@@ -166,6 +180,17 @@ async def get_worker_token(request: Request) -> str:
         lifetime_seconds=auth_settings.token_lifetime_seconds,
     )
     return await strategy.write_token(user)
+
+
+async def get_worker_token(request: Request) -> str:
+    """Return a fresh JWT for the internal worker user.
+
+    Reads the cached ``User`` object from ``app.state.internal_worker_user``
+    (populated once at lifespan startup). Avoids any DB session — opening one
+    here would deadlock under the SQLite serialization lock for routes that
+    also take a yield-based ``SessionDep`` (e.g. ``submit_task``).
+    """
+    return await mint_internal_worker_token(request.app)
 
 
 WorkerTokenDep = Annotated[str, Depends(get_worker_token)]

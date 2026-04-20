@@ -33,6 +33,7 @@ from zndraw_joblib.dependencies import (
     get_internal_provider_registry,
     get_internal_registry,
     get_tsio,
+    mint_internal_worker_token,
     request_hash,
     validate_room_id,
 )
@@ -1163,7 +1164,6 @@ async def read_provider(
     settings: SettingsDep,
     tsio: TsioDep,
     internal_provider_registry: InternalProviderRegistryDep,
-    worker_token: WorkerTokenDep,
     prefer: Annotated[str | None, Header()] = None,
 ):
     """Read data from a provider. Long-polls until result is available."""
@@ -1213,6 +1213,7 @@ async def read_provider(
                         )
                     )
                 params_json = json.dumps(params, sort_keys=True, separators=(",", ":"))
+                worker_token = await mint_internal_worker_token(request.app)
                 await internal_provider_registry.tasks[provider.full_name].kiq(
                     request_id=rhash,
                     provider_id=str(provider.id),

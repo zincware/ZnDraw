@@ -688,7 +688,9 @@ def test_read_internal_provider_dispatches_via_taskiq(
     assert json.loads(call["params_json"]) == {"path": "/data"}
     assert "request_id" in call
     assert "provider_id" in call
-    assert call["token"] == "test-worker-token"
+    # Token is now minted on-demand inside the @internal branch via
+    # mint_internal_worker_token — it is a real JWT, not the stub string.
+    assert isinstance(call["token"], str) and len(call["token"]) > 0
 
 
 def test_provider_response_from_record_accepts_null_worker_id():
@@ -785,3 +787,40 @@ def test_global_scope_cannot_resolve_internal_provider(
         "/v1/joblib/rooms/@global/providers/@internal:filesystem:FilesystemReadB3"
     )
     assert resp.status_code == 404, resp.text
+
+
+# --- B5 regression: worker_token must not be resolved for remote providers ---
+
+
+def test_read_remote_provider_works_with_no_internal_worker_cache(
+    unguarded_client_factory,
+):
+    """A remote provider read must not require app.state.internal_worker_user.
+
+    That cache is only needed for @internal dispatch. On a fresh deploy where
+    init_db_on_startup=False and the worker-seed step has not run yet, every
+    provider read would 500 if WorkerTokenDep is a route-level dependency —
+    including remote reads that never need the token.
+    """
+    # Build a client where get_worker_token is NOT stubbed and
+    # internal_worker_user is None (simulating a cold deploy).
+    alice = unguarded_client_factory("alice-b5", is_superuser=False, internal_worker_user=None)
+
+    resp = alice.put(
+        "/v1/joblib/rooms/room-42/providers",
+        json={"category": "filesystem", "name": "local", "schema": {}},
+    )
+    assert resp.status_code == 201, resp.text
+
+    # A remote provider read should reach the dispatch path without touching
+    # internal_worker_user. Acceptable outcomes:
+    #   504 — no remote worker delivered results within the wait window
+    #   409 — no connected worker (NoWorkersAvailable)
+    # Unacceptable: 500 (WorkerTokenDep raises RuntimeError before dispatch).
+    resp = alice.get(
+        "/v1/joblib/rooms/room-42/providers/room-42:filesystem:local?path=/",
+        headers={"Prefer": "wait=0"},
+    )
+    assert resp.status_code in (504, 409), (
+        f"Expected 504 or 409 (dispatch reached), got {resp.status_code}: {resp.text}"
+    )
