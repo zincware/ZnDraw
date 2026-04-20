@@ -838,3 +838,81 @@ def test_mint_internal_worker_token_raises_runtime_error_on_missing_cache():
     app = SimpleNamespace(state=SimpleNamespace())  # no settings, no user
     with pytest.raises(RuntimeError, match="Internal worker user"):
         asyncio.run(mint_internal_worker_token(app))
+
+
+def test_legitimate_json_with_error_type_keys_is_not_mis_flagged(
+    client_factory,
+):
+    """A provider returning valid JSON with top-level 'error' and 'type'
+    keys (e.g., JSON-Schema) must be returned as-is, not translated to
+    an HTTP 400."""
+    alice = client_factory("alice-b6a", is_superuser=True)
+    resp = alice.put(
+        "/v1/joblib/rooms/room-42/providers",
+        json={"category": "filesystem", "name": "local", "schema": {}},
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    provider_id = data["id"]
+    provider_full_name = data["full_name"]
+
+    payload = json.dumps({"type": "object", "error": None, "ok": True}).encode()
+    rhash = request_hash({"path": "/"})
+
+    # Seed the result via the upload endpoint (no X-Result-Status = success)
+    upload_resp = alice.post(
+        f"/v1/joblib/providers/{provider_id}/results",
+        content=payload,
+        headers={"X-Request-Hash": rhash},
+    )
+    assert upload_resp.status_code == 204
+
+    resp = alice.get(
+        f"/v1/joblib/rooms/room-42/providers/{provider_full_name}?path=/"
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"type": "object", "error": None, "ok": True}
+
+
+def test_provider_error_path_returns_problem_detail(
+    client_factory,
+):
+    """When an executor posts an error, read_provider returns RFC 9457
+    problem+json with the status from the payload."""
+    from zndraw_joblib.exceptions import ProviderExecutionFailed
+
+    alice = client_factory("alice-b6b", is_superuser=True)
+    resp = alice.put(
+        "/v1/joblib/rooms/room-42/providers",
+        json={"category": "filesystem", "name": "local", "schema": {}},
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    provider_id = data["id"]
+    provider_full_name = data["full_name"]
+
+    problem = ProviderExecutionFailed.create(detail="FileNotFoundError: /nope")
+    payload = problem.model_dump_json(exclude_none=True).encode()
+    rhash = request_hash({"path": "/nope"})
+
+    # Seed the result via the upload endpoint with X-Result-Status: error
+    upload_resp = alice.post(
+        f"/v1/joblib/providers/{provider_id}/results",
+        content=payload,
+        headers={
+            "X-Request-Hash": rhash,
+            "X-Result-Status": "error",
+            "Content-Type": "application/problem+json",
+        },
+    )
+    assert upload_resp.status_code == 204
+
+    resp = alice.get(
+        f"/v1/joblib/rooms/room-42/providers/{provider_full_name}?path=/nope"
+    )
+    assert resp.status_code == 400
+    assert resp.headers["content-type"].startswith("application/problem+json")
+    body = resp.json()
+    assert body["title"] == "Bad Request"
+    assert body["status"] == 400
+    assert "FileNotFoundError" in body["detail"]

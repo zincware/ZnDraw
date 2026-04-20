@@ -81,7 +81,7 @@ def _poll_read_provider(
 
 
 def test_internal_filesystem_provider_surfaces_error(server_factory):
-    """A provider read that raises must surface as a 4xx with an error body,
+    """A provider read that raises must surface as a 4xx RFC 9457 problem+json,
     not a 504 timeout.
     """
     instance = server_factory({"ZNDRAW_SERVER_FILEBROWSER_PATH": "."})
@@ -94,8 +94,11 @@ def test_internal_filesystem_provider_surfaces_error(server_factory):
         )
         assert status in (400, 404, 422), f"got {status}: {body!r}"
         parsed = json.loads(body)
-        assert "error" in parsed, parsed
-        assert "type" in parsed, parsed
+        # Executor now emits RFC 9457 ProblemDetail, not ad-hoc {"error","type"}
+        assert "title" in parsed, parsed
+        assert "status" in parsed, parsed
+        assert "detail" in parsed, parsed
+        assert "FileNotFoundError" in parsed["detail"], parsed
     finally:
         vis.disconnect()
 

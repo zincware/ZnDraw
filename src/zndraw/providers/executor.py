@@ -56,28 +56,38 @@ class InternalProviderExecutor:
         transport = self._transport
 
         def _run() -> None:
+            json_body: dict[str, Any] | None = None
+            content: bytes | None = None
+
             try:
                 handler = self._resolve_handler(provider_cls)
                 params = json.loads(params_json) if params_json else {}
                 instance = provider_cls(**params)
                 result = instance.read(handler)
                 if provider_cls.content_type == "application/json":
-                    content: bytes = json.dumps(result).encode()
+                    content = json.dumps(result).encode()
                 else:
                     content = result  # type: ignore[assignment]
                 headers = {
                     "Authorization": f"Bearer {token}",
                     "X-Request-Hash": request_id,
                 }
-            except Exception as err:  # noqa: BLE001 — intentional: any error is POSTed back as a structured payload
-                content = json.dumps(
-                    {"error": str(err), "type": type(err).__name__}
-                ).encode()
+            except Exception as err:
+                log.exception(
+                    "InternalProviderExecutor failed for %s",
+                    provider_cls.__name__,
+                )
+                from zndraw_joblib.exceptions import ProviderExecutionFailed
+
+                problem = ProviderExecutionFailed.create(
+                    detail=f"{type(err).__name__}: {err}",
+                )
+                json_body = problem.model_dump(exclude_none=True)
                 headers = {
                     "Authorization": f"Bearer {token}",
                     "X-Request-Hash": request_id,
                     "X-Result-Status": "error",
-                    "Content-Type": "application/json",
+                    "Content-Type": "application/problem+json",
                 }
 
             client_kwargs: dict[str, Any] = {"timeout": self.timeout_seconds}
@@ -85,11 +95,18 @@ class InternalProviderExecutor:
                 client_kwargs["transport"] = transport
 
             with httpx.Client(**client_kwargs) as client:
-                resp = client.post(
-                    f"{base_url}/v1/joblib/providers/{provider_id}/results",
-                    content=content,
-                    headers=headers,
-                )
+                if json_body is not None:
+                    resp = client.post(
+                        f"{base_url}/v1/joblib/providers/{provider_id}/results",
+                        json=json_body,
+                        headers=headers,
+                    )
+                else:
+                    resp = client.post(
+                        f"{base_url}/v1/joblib/providers/{provider_id}/results",
+                        content=content,
+                        headers=headers,
+                    )
                 resp.raise_for_status()
 
         await asyncio.to_thread(_run)

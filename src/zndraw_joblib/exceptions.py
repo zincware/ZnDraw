@@ -192,3 +192,10 @@ class ProviderTimeout(ProblemType):
     @classmethod
     def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
         raise ProviderTimeoutError(problem.detail or problem.title)
+
+
+class ProviderExecutionFailed(ProblemType):
+    """The provider failed to execute the requested read."""
+
+    title: ClassVar[str] = "Bad Request"
+    status: ClassVar[int] = 400

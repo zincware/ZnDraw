@@ -1176,22 +1176,23 @@ async def read_provider(
     params = dict(request.query_params)
     rhash = request_hash(params)
     cache_key = f"provider-result:{provider.full_name}:{rhash}"
+    status_key = f"{cache_key}:status"
     inflight_key = f"provider-inflight:{provider.full_name}:{rhash}"
 
     # Fast path: cache hit
     cached = await result_backend.get(cache_key)
     if cached is not None:
-        try:
-            cached_parsed = json.loads(cached)
-        except (ValueError, TypeError):
-            cached_parsed = None
-        if (
-            isinstance(cached_parsed, dict)
-            and "error" in cached_parsed
-            and "type" in cached_parsed
-        ):
+        cached_status = await result_backend.get(status_key)
+        if cached_status == b"error":
+            try:
+                problem = json.loads(cached)
+                status_code = int(problem.get("status", 500))
+            except (ValueError, TypeError, KeyError):
+                status_code = 500
             return Response(
-                content=cached, media_type="application/json", status_code=400
+                content=cached,
+                media_type="application/problem+json",
+                status_code=status_code,
             )
         return Response(content=cached, media_type=provider.content_type)
 
@@ -1248,21 +1249,20 @@ async def read_provider(
 
     result = await result_backend.wait_for_key(cache_key, timeout)
     if result is not None:
+        result_status = await result_backend.get(status_key)
         headers = {}
         if requested_wait is not None:
             headers["Preference-Applied"] = f"wait={int(timeout)}"
-        # Error payloads from the executor are JSON bodies with {"error","type"}.
-        # Translate to a 400 so the client sees a structured error rather than
-        # a binary blob that doesn't match the provider's declared content_type.
-        try:
-            parsed = json.loads(result)
-        except (ValueError, TypeError):
-            parsed = None
-        if isinstance(parsed, dict) and "error" in parsed and "type" in parsed:
+        if result_status == b"error":
+            try:
+                problem = json.loads(result)
+                status_code = int(problem.get("status", 500))
+            except (ValueError, TypeError, KeyError):
+                status_code = 500
             return Response(
                 content=result,
-                media_type="application/json",
-                status_code=400,
+                media_type="application/problem+json",
+                status_code=status_code,
                 headers=headers,
             )
         return Response(
@@ -1316,6 +1316,7 @@ async def upload_provider_result(
     settings: SettingsDep,
     tsio: TsioDep,
     x_request_hash: Annotated[str, Header()],
+    x_result_status: Annotated[str | None, Header()] = None,
 ):
     """Provider worker uploads a read result."""
     async with session_maker() as session:
@@ -1334,6 +1335,7 @@ async def upload_provider_result(
             )
 
     cache_key = f"provider-result:{provider.full_name}:{x_request_hash}"
+    status_key = f"{cache_key}:status"
     inflight_key = f"provider-inflight:{provider.full_name}:{x_request_hash}"
 
     # Store raw body as-is (JSON or binary depending on provider content_type)
@@ -1343,6 +1345,12 @@ async def upload_provider_result(
         data,
         settings.provider_result_ttl_seconds,
     )
+    if x_result_status == "error":
+        await result_backend.store(
+            status_key,
+            b"error",
+            settings.provider_result_ttl_seconds,
+        )
 
     # Release inflight lock
     await result_backend.release_inflight(inflight_key)
