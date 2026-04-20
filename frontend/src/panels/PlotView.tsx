@@ -240,7 +240,7 @@ function findPointsWithValue(
 
 			const pointValue = getCustomDataValue(customDataPoint, dimensionIndex);
 
-			// Use loose equality to handle string vs number comparison
+			// biome-ignore lint/suspicious/noDoubleEquals: intentional loose equality — plotly values may be string or number, coercion is required
 			if (pointValue != null && pointValue == value) {
 				points.push({
 					x: track.xData[i] ?? i,

@@ -1,6 +1,7 @@
 import { Box } from "@mui/material";
 import { useCallback, useRef } from "react";
 import { useAppStore } from "../store";
+import { shimmer } from "./dragStyles";
 import {
 	type BarPosition,
 	PANELS,
@@ -8,7 +9,6 @@ import {
 	SIDEBAR_MAX_PX,
 	SIDEBAR_MIN_PX,
 } from "./registry";
-import { shimmer } from "./dragStyles";
 import { useDragHover } from "./useDragHover";
 
 const DRAG_MIME = "application/x-zndraw-panel-id";

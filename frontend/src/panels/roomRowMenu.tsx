@@ -4,8 +4,9 @@ import DownloadIcon from "@mui/icons-material/Download";
 import DuplicateIcon from "@mui/icons-material/FileCopy";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
-import StarBorderIcon from "@mui/icons-material/StarBorder";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
 import {
 	IconButton,
 	ListItemIcon,
@@ -14,12 +15,11 @@ import {
 	MenuItem,
 	Tooltip,
 } from "@mui/material";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useState } from "react";
 import DuplicateRoomDialog from "../components/DuplicateRoomDialog";
 import {
-	type Room,
 	downloadFrames,
+	type Room,
 	setDefaultRoom,
 	updateRoom,
 } from "../myapi/client";

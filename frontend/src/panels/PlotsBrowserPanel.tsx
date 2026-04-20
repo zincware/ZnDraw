@@ -30,6 +30,7 @@ function useOpenPlotKeys(): Set<string> {
 		};
 	}, [api]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: version is an intentional tick trigger — it forces recompute when panels are added/removed
 	return useMemo(() => {
 		if (!api) return new Set<string>();
 		return new Set(
@@ -37,7 +38,6 @@ function useOpenPlotKeys(): Set<string> {
 				.filter((p) => p.id.startsWith("plot-"))
 				.map((p) => p.id.slice("plot-".length)),
 		);
-		// biome-ignore lint/correctness/useExhaustiveDependencies: version is a tick trigger
 	}, [api, version]);
 }
 

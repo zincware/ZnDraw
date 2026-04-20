@@ -1,6 +1,10 @@
 export { ActivityBar } from "./ActivityBar";
 export { BottomZone } from "./BottomZone";
-export { DockviewLayout, ensureViewerPanel, resetDockview } from "./DockviewLayout";
-export { SidebarZone } from "./SidebarZone";
+export {
+	DockviewLayout,
+	ensureViewerPanel,
+	resetDockview,
+} from "./DockviewLayout";
+export type { BarPosition, PanelId } from "./registry";
 export { PANELS } from "./registry";
-export type { PanelId, BarPosition } from "./registry";
+export { SidebarZone } from "./SidebarZone";

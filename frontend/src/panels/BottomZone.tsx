@@ -1,8 +1,8 @@
 import { Box } from "@mui/material";
 import { useCallback, useRef } from "react";
 import { useAppStore } from "../store";
-import { BOTTOM_MAX_PX, BOTTOM_MIN_PX, PANELS, type PanelId } from "./registry";
 import { shimmer } from "./dragStyles";
+import { BOTTOM_MAX_PX, BOTTOM_MIN_PX, PANELS, type PanelId } from "./registry";
 import { useDragHover } from "./useDragHover";
 
 const DRAG_MIME = "application/x-zndraw-panel-id";

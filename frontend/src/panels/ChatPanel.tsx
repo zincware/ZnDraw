@@ -196,17 +196,18 @@ const ChatPanel = () => {
 	const sendMessage = useSendMessage(roomId || "");
 	const editMessage = useEditMessage(roomId || "");
 
-	const scrollToBottom = () => {
+	const scrollToBottom = useCallback(() => {
 		if (scrollContainerRef.current) {
 			scrollContainerRef.current.scrollTop =
 				scrollContainerRef.current.scrollHeight;
 		}
-	};
+	}, []);
 
 	// Scroll on new data, regardless of visibility.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: data is an intentional tick trigger — the effect scrolls when new messages arrive
 	useEffect(() => {
 		setTimeout(scrollToBottom, 100);
-	}, [data]);
+	}, [data, scrollToBottom]);
 
 	// Reset unread count only while the panel is visible. ChatPanel renders
 	// inside SidebarZone, so visibility is "the chat icon is the active tool
@@ -218,6 +219,7 @@ const ChatPanel = () => {
 			s.activeRight === "chat" ||
 			s.activeBottom === "chat",
 	);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: data is an intentional tick trigger — the effect runs on new messages to clear the badge
 	useEffect(() => {
 		if (isChatActive) {
 			useAppStore.getState().resetChatUnread();

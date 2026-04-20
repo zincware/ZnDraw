@@ -1,3 +1,4 @@
+import type { SvgIconComponent } from "@mui/icons-material";
 import Analytics from "@mui/icons-material/Analytics";
 import Build from "@mui/icons-material/Build";
 import Category from "@mui/icons-material/Category";
@@ -6,7 +7,6 @@ import FilterCenterFocus from "@mui/icons-material/FilterCenterFocus";
 import Folder from "@mui/icons-material/Folder";
 import MeetingRoom from "@mui/icons-material/MeetingRoom";
 import ShowChart from "@mui/icons-material/ShowChart";
-import type { SvgIconComponent } from "@mui/icons-material";
 import type { IDockviewPanelProps } from "dockview-react";
 import type { ComponentType } from "react";
 import { GeometryPanel } from "../components/geometry/GeometryPanel";

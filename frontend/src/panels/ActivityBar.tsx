@@ -1,11 +1,11 @@
-import Badge from "@mui/material/Badge";
 import { Box, IconButton, Tooltip } from "@mui/material";
+import Badge from "@mui/material/Badge";
 import { useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useHasFilesystemProviders } from "../hooks/useHasFilesystemProviders";
 import { useAppStore } from "../store";
-import { type BarPosition, type PanelId, PANELS } from "./registry";
 import { shimmer } from "./dragStyles";
+import { type BarPosition, PANELS, type PanelId } from "./registry";
 import { useDragHover } from "./useDragHover";
 
 const DRAG_MIME = "application/x-zndraw-panel-id";
@@ -111,7 +111,8 @@ export function ActivityBar({ position }: ActivityBarProps) {
 				borderColor: "divider",
 				bgcolor: "background.paper",
 				alignItems: "center",
-				transition: "width 120ms ease, height 120ms ease, background-color 120ms ease",
+				transition:
+					"width 120ms ease, height 120ms ease, background-color 120ms ease",
 				...BAR_SX[position],
 				...(empty
 					? position === "bottom"

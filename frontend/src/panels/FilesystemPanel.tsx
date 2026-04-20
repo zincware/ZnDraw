@@ -22,10 +22,10 @@ import type { LoadFileParams } from "../components/filesystem/LoadFileDialog";
 import { useFilesystemProviders } from "../hooks/useFilesystemProviders";
 import { useLeaveRoom } from "../hooks/useLeaveRoom";
 import {
-	type FilesystemFileItem,
-	type ProviderInfo,
 	createRoom,
+	type FilesystemFileItem,
 	listRooms,
+	type ProviderInfo,
 	readProvider,
 	submitTask,
 } from "../myapi/client";
@@ -108,8 +108,10 @@ export function FilesystemPanel() {
 			currentPath,
 			activeGlob,
 		],
-		queryFn: () =>
-			readProvider(roomId!, selectedProvider!.full_name, providerParams),
+		queryFn: () => {
+			if (!roomId || !selectedProvider) return Promise.resolve([]);
+			return readProvider(roomId, selectedProvider.full_name, providerParams);
+		},
 		enabled: !!roomId && !!selectedProvider,
 	});
 
@@ -196,7 +198,7 @@ export function FilesystemPanel() {
 	const handleGoToParent = () => {
 		const pathParts = currentPath.split("/").filter(Boolean);
 		if (pathParts.length > 1) {
-			setCurrentPath("/" + pathParts.slice(0, -1).join("/"));
+			setCurrentPath(`/${pathParts.slice(0, -1).join("/")}`);
 		} else {
 			setCurrentPath("/");
 		}

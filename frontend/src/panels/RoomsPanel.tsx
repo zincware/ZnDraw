@@ -85,7 +85,7 @@ export function RoomsPanel() {
 		return rooms.filter(
 			(r) =>
 				r.id.toLowerCase().includes(q) ||
-				(r.description && r.description.toLowerCase().includes(q)),
+				r.description?.toLowerCase().includes(q),
 		);
 	}, [rooms, query]);
 
