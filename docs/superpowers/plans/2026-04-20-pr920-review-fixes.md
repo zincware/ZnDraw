@@ -1774,7 +1774,7 @@ Expected: all tests pass.
 git add frontend/src/panels/DockviewLayout.tsx frontend/src/pages/landingPage.tsx
 git commit -m "refactor(panels): resetDockview + ensureViewerPanel helpers
 
-Three paths previously re-declared the viewer panel config (id,
+Three paths previously redeclared the viewer panel config (id,
 component, title): DockviewLayout.onReady, roomId useEffect, and the
 Reset-layout MenuItem. Extract two helpers colocated with addViewerPanel;
 consumers import and call.

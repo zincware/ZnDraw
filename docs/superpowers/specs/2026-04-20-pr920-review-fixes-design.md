@@ -403,7 +403,7 @@ Same pattern applies to `SidebarZone.tsx` and `BottomZone.tsx` — consistency.
 
 ### 3.7 Extract `resetDockview` + `ensureViewerPanel` helpers (Important)
 
-**Defect:** Three code paths re-declare the viewer panel's shape (`id, component, title`):
+**Defect:** Three code paths redeclare the viewer panel's shape (`id, component, title`):
 - `DockviewLayout.tsx:31-37` — `addViewerPanel` (initial mount).
 - `landingPage.tsx:219-230` — useEffect re-adds on `roomId` change.
 - `landingPage.tsx:459-473` — Reset-layout MenuItem inline closes panels and re-adds viewer.

@@ -690,7 +690,8 @@ def test_read_internal_provider_dispatches_via_taskiq(
     assert "provider_id" in call
     # Token is now minted on-demand inside the @internal branch via
     # mint_internal_worker_token — it is a real JWT, not the stub string.
-    assert isinstance(call["token"], str) and len(call["token"]) > 0
+    assert isinstance(call["token"], str)
+    assert len(call["token"]) > 0
 
 
 def test_provider_response_from_record_accepts_null_worker_id():
@@ -937,9 +938,13 @@ def test_error_status_visible_before_payload_via_notify(client_factory):
     status_key = f"{cache_key}:status"
 
     # Post an error payload through the real upload endpoint.
+    error_body = (
+        b'{"type":"/v1/problems/provider-execution-failed",'
+        b'"title":"Bad Request","status":400,"detail":"X"}'
+    )
     upload_resp = alice.post(
         f"/v1/joblib/providers/{provider_id}/results",
-        content=b'{"type":"/v1/problems/provider-execution-failed","title":"Bad Request","status":400,"detail":"X"}',
+        content=error_body,
         headers={
             "X-Request-Hash": rhash,
             "X-Result-Status": "error",
