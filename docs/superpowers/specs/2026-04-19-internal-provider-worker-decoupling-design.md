@@ -154,7 +154,7 @@ An end-of-task grep (`grep -rn "provider.worker_id\|\.worker_id" src/zndraw_jobl
 
 Single commit on `spec/dockview-ui-redesign`:
 
-```
+```text
 fix(providers): decouple @internal providers from the Worker table
 
 - ProviderRecord.worker_id: nullable; @internal rows store NULL.

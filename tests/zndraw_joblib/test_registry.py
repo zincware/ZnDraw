@@ -312,7 +312,6 @@ async def test_ensure_internal_providers_idempotent(async_session_factory):
     assert len(rows) == 1
 
 
-@pytest.mark.asyncio
 async def test_ensure_internal_providers_concurrent_startup_safe(tmp_path):
     """Two concurrent ensure_internal_providers calls produce exactly one row.
 

@@ -518,12 +518,7 @@ def test_delete_provider_forbidden_other_user(client_factory):
     alice = client_factory("alice", is_superuser=False)
     bob = client_factory("bob", is_superuser=False)
 
-    # Alice registers a provider
-    resp = alice.put(
-        "/v1/joblib/rooms/@global/providers",
-        json={"category": "filesystem", "name": "local", "schema": {}},
-    )
-    # Non-superuser can't register @global, so use a room
+    # Non-superusers can't register @global providers, so use a room.
     resp = alice.put(
         "/v1/joblib/rooms/room-42/providers",
         json={"category": "filesystem", "name": "local", "schema": {}},
@@ -690,7 +685,7 @@ def test_read_internal_provider_dispatches_via_taskiq(
     assert resp.status_code == 504
     assert len(kiq_calls) == 1
     call = kiq_calls[0]
-    assert call["params_json"] == '{"path":"/data"}'
+    assert json.loads(call["params_json"]) == {"path": "/data"}
     assert "request_id" in call
     assert "provider_id" in call
     assert call["token"] == "test-worker-token"
