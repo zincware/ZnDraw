@@ -385,7 +385,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         redis_backend = RedisResultBackend(
             redis_raw, key_prefix=settings.result_backend_key_prefix
         )
-        frame_cache = StorageResultBackend(app.state.frame_storage)
+        frame_cache = StorageResultBackend(
+            app.state.frame_storage,
+            key_prefix=settings.result_backend_key_prefix,
+        )
         result_backend = CompositeResultBackend(redis=redis_backend, frames=frame_cache)
         app.state.result_backend = result_backend
         app.dependency_overrides[get_result_backend] = lambda: result_backend

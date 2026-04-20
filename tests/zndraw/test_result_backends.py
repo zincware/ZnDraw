@@ -310,6 +310,24 @@ async def test_key_prefix_namespaces_all_operations():
 
 
 @pytest.mark.asyncio
+async def test_storage_result_backend_key_prefix_isolates_instances(frame_storage):
+    """Two StorageResultBackends with different key_prefixes must not
+    collide when sharing the same underlying FrameStorage."""
+    backend_a = StorageResultBackend(frame_storage, key_prefix="server-a")
+    backend_b = StorageResultBackend(frame_storage, key_prefix="server-b")
+
+    await backend_a.store("result-key", b"payload-a", ttl=0)
+    await backend_b.store("result-key", b"payload-b", ttl=0)
+
+    assert await backend_a.get("result-key") == b"payload-a"
+    assert await backend_b.get("result-key") == b"payload-b"
+
+    await backend_a.delete("result-key")
+    assert await backend_a.get("result-key") is None
+    assert await backend_b.get("result-key") == b"payload-b"
+
+
+@pytest.mark.asyncio
 async def test_notify_channel_namespaced_by_prefix():
     # Two backends on different prefixes must not wake each other's waiters.
     redis_a = Redis.from_url("redis://localhost", decode_responses=False)

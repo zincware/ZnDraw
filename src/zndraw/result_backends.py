@@ -145,14 +145,26 @@ class StorageResultBackend:
     ----------
     storage
         The FrameStorage registry to delegate to (same instance as the
-        main frame storage is fine — cache keys are namespaced).
+        main frame storage is fine — cache keys are namespaced via
+        ``key_prefix``).
+    key_prefix
+        Optional namespace prefix.  When non-empty every storage key is
+        stored as ``{key_prefix}:{key}``. Required for multi-server
+        deployments sharing a single FrameStorage instance.
     """
 
-    def __init__(self, storage: FrameStorage) -> None:
+    def __init__(self, storage: FrameStorage, key_prefix: str = "") -> None:
         self._storage = storage
+        self._key_prefix = key_prefix
+
+    def _k(self, key: str) -> str:
+        """Return the namespaced key, prepending the prefix when set."""
+        if self._key_prefix:
+            return f"{self._key_prefix}:{key}"
+        return key
 
     async def store(self, key: str, data: bytes, ttl: int) -> None:  # noqa: ARG002
-        io = self._storage[key]
+        io = self._storage[self._k(key)]
         await io.clear()
         # Wrap in msgpack so the blob↔object adapter round-trip works
         packed = msgpack.packb(data)
@@ -160,7 +172,7 @@ class StorageResultBackend:
         await io.extend([{b"_": packed}])
 
     async def get(self, key: str) -> bytes | None:
-        io = self._storage[key]
+        io = self._storage[self._k(key)]
         if await io.len() == 0:
             return None
         packed = await io[b"_"][0]
@@ -169,7 +181,7 @@ class StorageResultBackend:
         return msgpack.unpackb(packed)
 
     async def delete(self, key: str) -> None:
-        await self._storage[key].clear()
+        await self._storage[self._k(key)].clear()
 
     async def acquire_inflight(self, key: str, ttl: int) -> bool:
         raise NotImplementedError("Use Redis for inflight locks")
