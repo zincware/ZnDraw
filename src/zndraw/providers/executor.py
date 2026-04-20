@@ -18,7 +18,7 @@ import fsspec
 import httpx
 from fsspec.implementations.dirfs import DirFileSystem
 
-from zndraw_joblib.exceptions import ProviderExecutionFailed
+from zndraw_joblib.exceptions import ProblemDetail, ProviderExecutionFailed
 
 if TYPE_CHECKING:
     from zndraw_joblib.provider import Provider
@@ -91,7 +91,7 @@ class InternalProviderExecutor:
                     "Authorization": f"Bearer {token}",
                     "X-Request-Hash": request_id,
                     "X-Result-Status": "error",
-                    "Content-Type": "application/problem+json",
+                    "Content-Type": ProblemDetail.MEDIA_TYPE,
                 }
 
             client_kwargs: dict[str, Any] = {"timeout": self.timeout_seconds}

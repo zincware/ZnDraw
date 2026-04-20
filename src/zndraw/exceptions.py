@@ -678,6 +678,8 @@ def problem_responses(
 class ProblemDetail(BaseModel):
     """RFC 9457 Problem Details."""
 
+    MEDIA_TYPE: ClassVar[str] = "application/problem+json"
+
     type: str = "about:blank"
     title: str
     status: int
@@ -706,6 +708,6 @@ async def problem_exception_handler(request: Request, exc: Exception) -> JSONRes
     return JSONResponse(
         status_code=exc.problem.status,
         content=exc.problem.model_dump(exclude_none=True),
-        media_type="application/problem+json",
+        media_type=ProblemDetail.MEDIA_TYPE,
         headers=exc.headers,
     )

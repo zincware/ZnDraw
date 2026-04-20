@@ -54,6 +54,7 @@ from zndraw_joblib.exceptions import (
     InvalidTaskTransition,
     JobNotFound,
     NoWorkersAvailable,
+    ProblemDetail,
     ProviderNotFound,
     ProviderTimeout,
     SchemaConflict,
@@ -1238,7 +1239,7 @@ async def read_provider(
                 status_code = 500
             return Response(
                 content=cached,
-                media_type="application/problem+json",
+                media_type=ProblemDetail.MEDIA_TYPE,
                 status_code=status_code,
             )
         return Response(content=cached, media_type=provider.content_type)
@@ -1308,7 +1309,7 @@ async def read_provider(
                 status_code = 500
             return Response(
                 content=result,
-                media_type="application/problem+json",
+                media_type=ProblemDetail.MEDIA_TYPE,
                 status_code=status_code,
                 headers=headers,
             )
