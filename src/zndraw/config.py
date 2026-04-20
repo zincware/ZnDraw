@@ -27,7 +27,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ZNDRAW_SERVER_",
         pyproject_toml_table_header=("tool", "zndraw", "server"),
-        env_parse_none_str="none",
     )
 
     @classmethod
@@ -93,17 +92,17 @@ class Settings(BaseSettings):
     internal_url: str | None = None  # For TaskIQ workers to reach FastAPI
 
     # Filesystem provider
-    filebrowser_path: str | None = "."
-    """Path for the default @internal filesystem provider.
+    filebrowser_enabled: bool = True
+    """Whether the default @internal filesystem provider is registered.
 
-    ``"."`` (default) roots at the process cwd. ``None`` (env form
-    ``ZNDRAW_SERVER_FILEBROWSER_PATH=none``) disables the default
-    filesystem provider entirely — no DB row, no task registration,
-    and the frontend filesystem activity-bar icon is hidden.
+    Set ``ZNDRAW_SERVER_FILEBROWSER_ENABLED=false`` to disable — no DB row,
+    no task registration, and the frontend filesystem activity-bar icon
+    is hidden (via the providers list being empty for that category).
+    """
 
-    Note: because ``env_parse_none_str="none"`` is model-wide, any
-    string field where ``"none"`` is a legitimate value will also
-    parse to ``None``. Audit new fields before adding them.
+    filebrowser_path: str = "."
+    """Path rooting the default @internal filesystem provider. Ignored
+    when ``filebrowser_enabled`` is False.
     """
 
     # Taskiq broker / result backend isolation (per-server namespacing)

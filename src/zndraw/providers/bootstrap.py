@@ -32,7 +32,7 @@ def register_filebrowser_providers(
 ) -> InternalProviderRegistry | None:
     """Register the default @internal filesystem provider on ``broker``.
 
-    Returns ``None`` when ``settings.filebrowser_path is None``
+    Returns ``None`` when ``settings.filebrowser_enabled`` is False
     (feature disabled).
 
     Parameters
@@ -42,10 +42,10 @@ def register_filebrowser_providers(
     base_url
         ZnDraw server URL (e.g. ``http://127.0.0.1:8000``).
     settings
-        Application settings supplying ``filebrowser_path`` and
-        ``provider_executor_timeout``.
+        Application settings supplying ``filebrowser_enabled``,
+        ``filebrowser_path`` and ``provider_executor_timeout``.
     """
-    if settings.filebrowser_path is None:
+    if not settings.filebrowser_enabled:
         return None
 
     from zndraw.database import _collect_providers
@@ -68,12 +68,12 @@ def build_internal_providers_resolver(
     The callable maps each bundled @internal provider's full name to the
     backend handle it reads through — the SAME handle the provider itself
     uses, obtained via the shared ``resolve_internal_provider_handler``.
-    Returns ``None`` when ``settings.filebrowser_path is None``.
+    Returns ``None`` when ``settings.filebrowser_enabled`` is False.
 
     Used by ``InternalExtensionExecutor.providers_resolver`` so server-side
     modifiers (e.g. ``LoadFile``) can reach the same filesystem handle.
     """
-    if settings.filebrowser_path is None:
+    if not settings.filebrowser_enabled:
         return None
 
     from zndraw.database import _collect_providers

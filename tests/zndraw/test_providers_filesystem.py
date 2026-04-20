@@ -321,7 +321,12 @@ def _poll_until_200(
 
 def test_default_internal_filesystem_listed(server_factory):
     """The default @internal:filesystem:FilesystemRead is listed in every room."""
-    instance = server_factory({"ZNDRAW_SERVER_FILEBROWSER_PATH": "."})
+    instance = server_factory(
+        {
+            "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "true",
+            "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
+        }
+    )
     vis = ZnDraw(url=instance.url)
     try:
         providers = _list_providers(vis)
@@ -335,7 +340,12 @@ def test_default_internal_filesystem_listed(server_factory):
 
 def test_default_internal_filesystem_read(server_factory):
     """Reading @internal:filesystem:FilesystemRead returns a list."""
-    instance = server_factory({"ZNDRAW_SERVER_FILEBROWSER_PATH": "."})
+    instance = server_factory(
+        {
+            "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "true",
+            "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
+        }
+    )
     vis = ZnDraw(url=instance.url)
     try:
         items = _poll_until_200(
@@ -346,9 +356,9 @@ def test_default_internal_filesystem_read(server_factory):
         vis.disconnect()
 
 
-def test_filebrowser_path_none_disables_default(server_factory):
-    """Setting ZNDRAW_SERVER_FILEBROWSER_PATH=none drops the @internal provider."""
-    instance = server_factory({"ZNDRAW_SERVER_FILEBROWSER_PATH": "none"})
+def test_filebrowser_disabled_hides_default_provider(server_factory):
+    """ZNDRAW_SERVER_FILEBROWSER_ENABLED=false drops the @internal provider."""
+    instance = server_factory({"ZNDRAW_SERVER_FILEBROWSER_ENABLED": "false"})
     vis = ZnDraw(url=instance.url)
     try:
         providers = _list_providers(vis)
@@ -357,19 +367,8 @@ def test_filebrowser_path_none_disables_default(server_factory):
         vis.disconnect()
 
 
-def test_filebrowser_path_none_disables_default_provider(server_factory):
-    """With FILEBROWSER_PATH=none, the @internal provider is not registered."""
-    import httpx
-
-    server = server_factory({"ZNDRAW_SERVER_FILEBROWSER_PATH": "none"})
-    # Default admin exists in dev mode so a guest token is fine for the list.
-    resp = httpx.get(f"{server.url}/v1/joblib/rooms/@internal/providers")
-    # Unauthenticated → 401. That's fine; we just want to confirm boot.
-    assert resp.status_code in (200, 401)
-
-
-def test_filebrowser_path_none_removes_stale_rows(server_factory, tmp_path):
-    """Toggle path on → off across two runs sharing one DB → no @internal rows."""
+def test_filebrowser_disabled_removes_stale_rows(server_factory, tmp_path):
+    """Toggle enabled on → off across two runs sharing one DB → no @internal rows."""
     import asyncio
 
     from sqlalchemy import text
@@ -381,6 +380,7 @@ def test_filebrowser_path_none_removes_stale_rows(server_factory, tmp_path):
     # Boot 1: feature on — seed @internal rows.
     server_factory(
         {
+            "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "true",
             "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
             "ZNDRAW_SERVER_DATABASE_URL": db_url,
         }
@@ -404,7 +404,7 @@ def test_filebrowser_path_none_removes_stale_rows(server_factory, tmp_path):
     # Boot 2: feature off — must clean up.
     server_factory(
         {
-            "ZNDRAW_SERVER_FILEBROWSER_PATH": "none",
+            "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "false",
             "ZNDRAW_SERVER_DATABASE_URL": db_url,
         }
     )

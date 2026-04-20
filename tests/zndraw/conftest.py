@@ -249,7 +249,7 @@ def server_factory_fixture() -> Generator[ServerFactory, None, None]:
             "ZNDRAW_SERVER_PORT": str(port),
             "ZNDRAW_SERVER_TASK_QUEUE_NAME": f"zndraw:tasks:{port}",
             "ZNDRAW_SERVER_RESULT_BACKEND_KEY_PREFIX": f"zndraw:{port}",
-            "ZNDRAW_SERVER_FILEBROWSER_PATH": "none",
+            "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "false",
         }
         defaults.update(env_overrides or {})
         env_overrides = defaults

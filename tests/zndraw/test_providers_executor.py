@@ -84,7 +84,12 @@ def test_internal_filesystem_provider_surfaces_error(server_factory):
     """A provider read that raises must surface as a 4xx RFC 9457 problem+json,
     not a 504 timeout.
     """
-    instance = server_factory({"ZNDRAW_SERVER_FILEBROWSER_PATH": "."})
+    instance = server_factory(
+        {
+            "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "true",
+            "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
+        }
+    )
     vis = ZnDraw(url=instance.url)
     try:
         status, body = _poll_read_provider(
@@ -107,6 +112,7 @@ def test_executor_timeout_from_settings(server_factory):
     """Server boots with a custom executor timeout."""
     instance = server_factory(
         {
+            "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "true",
             "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
             "ZNDRAW_SERVER_PROVIDER_EXECUTOR_TIMEOUT": "5",
         }

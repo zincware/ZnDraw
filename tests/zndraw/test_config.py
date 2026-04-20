@@ -248,8 +248,22 @@ def test_missing_pyproject_toml_is_silent(tmp_path, monkeypatch):
     assert settings.port == 8000
 
 
-class TestFilebrowserPath:
-    """Test filebrowser_path configuration."""
+class TestFilebrowserConfig:
+    """Test filebrowser_enabled and filebrowser_path configuration."""
+
+    def test_default_filebrowser_enabled(self) -> None:
+        """Filebrowser should be enabled by default."""
+        settings = Settings()
+        assert settings.filebrowser_enabled is True
+
+    def test_filebrowser_enabled_from_env(self) -> None:
+        """Configurable via ZNDRAW_SERVER_FILEBROWSER_ENABLED env var."""
+        os.environ["ZNDRAW_SERVER_FILEBROWSER_ENABLED"] = "false"
+        try:
+            settings = Settings()
+            assert settings.filebrowser_enabled is False
+        finally:
+            os.environ.pop("ZNDRAW_SERVER_FILEBROWSER_ENABLED", None)
 
     def test_default_filebrowser_path_is_cwd(self) -> None:
         """Default filebrowser_path should be '.'."""
@@ -265,28 +279,33 @@ class TestFilebrowserPath:
         finally:
             os.environ.pop("ZNDRAW_SERVER_FILEBROWSER_PATH", None)
 
-    def test_filebrowser_path_uppercase_none_is_just_a_string(self) -> None:
-        """Uppercase 'NONE' is no longer a disable-sentinel after the
-        env_parse_none_str migration — it is just a string path. Only
-        lowercase 'none' (per env_parse_none_str) parses to Python None.
-        """
-        os.environ["ZNDRAW_SERVER_FILEBROWSER_PATH"] = "NONE"
+    def test_filebrowser_path_none_str_is_literal(self) -> None:
+        """Without env_parse_none_str, lowercase 'none' is a literal path string."""
+        os.environ["ZNDRAW_SERVER_FILEBROWSER_PATH"] = "none"
         try:
             settings = Settings()
-            assert settings.filebrowser_path == "NONE"
+            assert settings.filebrowser_path == "none"
         finally:
             os.environ.pop("ZNDRAW_SERVER_FILEBROWSER_PATH", None)
-
-
-def test_filebrowser_path_none_parses_to_none(monkeypatch):
-    monkeypatch.setenv("ZNDRAW_SERVER_FILEBROWSER_PATH", "none")
-    s = Settings()
-    assert s.filebrowser_path is None
 
 
 def test_filebrowser_path_default_is_cwd():
     s = Settings()
     assert s.filebrowser_path == "."
+
+
+def test_guest_password_literal_none_not_coerced(monkeypatch):
+    """Dropping env_parse_none_str means 'none' is a literal string
+    everywhere, not an implicit None sentinel.
+    """
+    from pydantic import SecretStr
+
+    from zndraw.config import Settings
+
+    monkeypatch.setenv("ZNDRAW_SERVER_GUEST_PASSWORD", "none")
+    s = Settings()
+    assert isinstance(s.guest_password, SecretStr)
+    assert s.guest_password.get_secret_value() == "none"
 
 
 def test_task_queue_name_default():

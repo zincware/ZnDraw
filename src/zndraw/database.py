@@ -193,7 +193,7 @@ async def init_database(
     # Seed @internal provider rows. @internal providers are server-owned —
     # they have no Worker row, so we only need the internal worker User.id
     # (used at mint time for JWTs in get_worker_token).
-    if settings.filebrowser_path is not None:
+    if settings.filebrowser_enabled:
         from zndraw_joblib.registry import ensure_internal_providers
 
         async with session_maker() as session:

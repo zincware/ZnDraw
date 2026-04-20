@@ -37,7 +37,10 @@ def test_load_file_e2e_via_internal_dispatch(server_factory, tmp_path):
     ase.io.write(xyz_path, atoms)
 
     instance = server_factory(
-        {"ZNDRAW_SERVER_FILEBROWSER_PATH": str(tmp_path.resolve())}
+        {
+            "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "true",
+            "ZNDRAW_SERVER_FILEBROWSER_PATH": str(tmp_path.resolve()),
+        }
     )
 
     vis = ZnDraw(url=instance.url)

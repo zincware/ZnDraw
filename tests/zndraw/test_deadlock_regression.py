@@ -16,7 +16,12 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_read_provider_completes_without_deadlock(server_factory):
-    server = server_factory({"ZNDRAW_SERVER_FILEBROWSER_PATH": "."})
+    server = server_factory(
+        {
+            "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "true",
+            "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
+        }
+    )
     async with httpx.AsyncClient(base_url=server.url, timeout=5.0) as client:
         # @internal filesystem provider is seeded by lifespan.
         resp = await client.get(
@@ -30,7 +35,12 @@ async def test_read_provider_completes_without_deadlock(server_factory):
 
 @pytest.mark.asyncio
 async def test_concurrent_reads_no_deadlock(server_factory):
-    server = server_factory({"ZNDRAW_SERVER_FILEBROWSER_PATH": "."})
+    server = server_factory(
+        {
+            "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "true",
+            "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
+        }
+    )
     async with httpx.AsyncClient(base_url=server.url, timeout=5.0) as client:
         tasks = [
             client.get(
