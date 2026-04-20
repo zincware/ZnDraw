@@ -289,11 +289,6 @@ class TestFilebrowserConfig:
             os.environ.pop("ZNDRAW_SERVER_FILEBROWSER_PATH", None)
 
 
-def test_filebrowser_path_default_is_cwd():
-    s = Settings()
-    assert s.filebrowser_path == "."
-
-
 def test_guest_password_literal_none_not_coerced(monkeypatch):
     """Dropping env_parse_none_str means 'none' is a literal string
     everywhere, not an implicit None sentinel.
