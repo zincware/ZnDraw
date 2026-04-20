@@ -721,3 +721,67 @@ def test_provider_response_from_record_accepts_null_worker_id():
     payload = json.loads(response.model_dump_json())
     assert "worker_id" in payload
     assert payload["worker_id"] is None
+
+
+def test_global_scope_cannot_resolve_room_provider(client_factory):
+    """A @global caller must not reach room-scoped providers (security: LIST
+    policy excludes them; resolve must agree)."""
+    alice = client_factory("alice-b3", is_superuser=False)
+    admin = client_factory("admin-b3", is_superuser=True)
+
+    resp = alice.put(
+        "/v1/joblib/rooms/room-42/providers",
+        json={"category": "filesystem", "name": "local", "schema": {}},
+    )
+    assert resp.status_code == 201
+
+    # admin, calling with @global scope, must not resolve a room-42 provider.
+    resp = admin.get(
+        "/v1/joblib/rooms/@global/providers/room-42:filesystem:local"
+    )
+    assert resp.status_code == 404, resp.text
+
+
+def test_global_scope_cannot_resolve_internal_provider(
+    client_factory, async_session_factory
+):
+    """A @global caller must not reach @internal providers either — test
+    pins the LIST-vs-RESOLVE symmetry documented in
+    test_list_providers_includes_internal."""
+    import asyncio
+    import uuid
+
+    from zndraw_auth import User
+    from zndraw_joblib.models import ProviderRecord
+
+    async def seed() -> None:
+        async with async_session_factory() as session:
+            user = User(
+                id=uuid.uuid4(),
+                email="int-b3@test",
+                hashed_password="x",
+                is_active=True,
+                is_superuser=True,
+                is_verified=True,
+            )
+            session.add(user)
+            await session.flush()
+            session.add(
+                ProviderRecord(
+                    room_id="@internal",
+                    category="filesystem",
+                    name="FilesystemReadB3",
+                    schema_={},
+                    user_id=user.id,
+                    worker_id=None,
+                )
+            )
+            await session.commit()
+
+    asyncio.run(seed())
+
+    admin = client_factory("admin-b3-2", is_superuser=True)
+    resp = admin.get(
+        "/v1/joblib/rooms/@global/providers/@internal:filesystem:FilesystemReadB3"
+    )
+    assert resp.status_code == 404, resp.text
