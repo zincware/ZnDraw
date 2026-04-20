@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from zndraw.database import _collect_providers
+from zndraw.providers import BUNDLED_PROVIDERS
 from zndraw.providers.executor import (
     InternalProviderExecutor,
     resolve_internal_provider_handler,
@@ -55,7 +55,7 @@ def register_filebrowser_providers(
         filebrowser_path=str(Path(settings.filebrowser_path).resolve()),
         timeout_seconds=settings.provider_executor_timeout,
     )
-    return register_internal_providers(broker, _collect_providers(), executor)
+    return register_internal_providers(broker, list(BUNDLED_PROVIDERS), executor)
 
 
 def build_internal_providers_resolver(
@@ -76,7 +76,7 @@ def build_internal_providers_resolver(
         return None
 
     filebrowser_path = str(Path(settings.filebrowser_path).resolve())
-    provider_classes = _collect_providers()
+    provider_classes = list(BUNDLED_PROVIDERS)
 
     def _resolve() -> dict[str, Any]:
         out: dict[str, Any] = {}

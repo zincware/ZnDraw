@@ -94,26 +94,28 @@ class RedisResultBackend:
         self._redis = redis
         self._key_prefix = key_prefix
 
-    def _k(self, key: str) -> str:
+    def _namespaced_key(self, key: str) -> str:
         """Return the namespaced key, prepending the prefix when set."""
         if self._key_prefix:
             return f"{self._key_prefix}:{key}"
         return key
 
     async def store(self, key: str, data: bytes, ttl: int) -> None:
-        await self._redis.set(self._k(key), data, ex=ttl)
+        await self._redis.set(self._namespaced_key(key), data, ex=ttl)
 
     async def get(self, key: str) -> bytes | None:
-        return await self._redis.get(self._k(key))
+        return await self._redis.get(self._namespaced_key(key))
 
     async def delete(self, key: str) -> None:
-        await self._redis.delete(self._k(key))
+        await self._redis.delete(self._namespaced_key(key))
 
     async def acquire_inflight(self, key: str, ttl: int) -> bool:
-        return bool(await self._redis.set(self._k(key), b"1", nx=True, ex=ttl))
+        return bool(
+            await self._redis.set(self._namespaced_key(key), b"1", nx=True, ex=ttl)
+        )
 
     async def release_inflight(self, key: str) -> None:
-        await self._redis.delete(self._k(key))
+        await self._redis.delete(self._namespaced_key(key))
 
     def pubsub(self) -> PubSub:
         """Return a pub/sub instance for this Redis connection."""
@@ -122,12 +124,12 @@ class RedisResultBackend:
     async def wait_for_key(self, key: str, timeout: float) -> bytes | None:  # noqa: ASYNC109
         """Wait for a cache key via Redis pub/sub (race-safe)."""
         return await _pubsub_wait_prefixed(
-            self.pubsub, self.get, key, self._k(key), timeout
+            self.pubsub, self.get, key, self._namespaced_key(key), timeout
         )
 
     async def notify_key(self, key: str) -> None:
         """Publish notification that a cache key has been populated."""
-        await self._redis.publish(f"{NOTIFY_PREFIX}{self._k(key)}", b"1")
+        await self._redis.publish(f"{NOTIFY_PREFIX}{self._namespaced_key(key)}", b"1")
 
 
 class StorageResultBackend:
@@ -157,14 +159,14 @@ class StorageResultBackend:
         self._storage = storage
         self._key_prefix = key_prefix
 
-    def _k(self, key: str) -> str:
+    def _namespaced_key(self, key: str) -> str:
         """Return the namespaced key, prepending the prefix when set."""
         if self._key_prefix:
             return f"{self._key_prefix}:{key}"
         return key
 
     async def store(self, key: str, data: bytes, ttl: int) -> None:  # noqa: ARG002
-        io = self._storage[self._k(key)]
+        io = self._storage[self._namespaced_key(key)]
         await io.clear()
         # Wrap in msgpack so the blob↔object adapter round-trip works
         packed = msgpack.packb(data)
@@ -172,7 +174,7 @@ class StorageResultBackend:
         await io.extend([{b"_": packed}])
 
     async def get(self, key: str) -> bytes | None:
-        io = self._storage[self._k(key)]
+        io = self._storage[self._namespaced_key(key)]
         if await io.len() == 0:
             return None
         packed = await io[b"_"][0]
@@ -181,7 +183,7 @@ class StorageResultBackend:
         return msgpack.unpackb(packed)
 
     async def delete(self, key: str) -> None:
-        await self._storage[self._k(key)].clear()
+        await self._storage[self._namespaced_key(key)].clear()
 
     async def acquire_inflight(self, key: str, ttl: int) -> bool:
         raise NotImplementedError("Use Redis for inflight locks")
@@ -245,7 +247,7 @@ class CompositeResultBackend:
             self._redis.pubsub,
             self.get,
             key,
-            self._redis._k(key),  # noqa: SLF001 — same-module helper
+            self._redis._namespaced_key(key),  # noqa: SLF001 — same-module helper
             timeout,
         )
 

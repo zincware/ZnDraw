@@ -25,7 +25,7 @@ class Distance(Analysis):
     - Frame changes highlight corresponding points
     """
 
-    def run(self, vis: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         import pandas as pd
         import plotly.express as px
 
@@ -94,7 +94,7 @@ class DihedralAngle(Analysis):
     Creates an interactive plot with bidirectional synchronization.
     """
 
-    def run(self, vis: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         import pandas as pd
         import plotly.express as px
 
@@ -170,7 +170,7 @@ class Properties1D(Analysis):
         },
     )
 
-    def run(self, vis: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         import pandas as pd
         import plotly.express as px
 
@@ -261,7 +261,7 @@ class Properties2D(Analysis):
         json_schema_extra={"format": "checkbox"},
     )
 
-    def run(self, vis: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         import pandas as pd
         import plotly.express as px
 

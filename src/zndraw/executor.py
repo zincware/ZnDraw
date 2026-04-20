@@ -9,7 +9,6 @@ Status transitions use the same JobManager HTTP API as external workers.
 from __future__ import annotations
 
 import asyncio
-import inspect
 import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -18,24 +17,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 log = logging.getLogger(__name__)
-
-
-def _extension_accepts_providers_kwarg(extension_cls: type) -> bool:
-    """True iff the extension's ``run`` signature accepts ``providers`` — either
-    via a named parameter or via ``**kwargs``. Keeps us from passing ``providers=``
-    to extensions (e.g. ``All``, ``NoneSelection``) that define ``run(self, vis)``
-    and would raise ``TypeError: unexpected keyword argument 'providers'``.
-    """
-    try:
-        sig = inspect.signature(extension_cls.run)
-    except (TypeError, ValueError):
-        return False
-    for param in sig.parameters.values():
-        if param.name == "providers":
-            return True
-        if param.kind is inspect.Parameter.VAR_KEYWORD:
-            return True
-    return False
 
 
 @dataclass
@@ -94,13 +75,10 @@ class InternalExtensionExecutor:
                     extension=instance,
                 )
                 vis.jobs.start(task)
-                if (
-                    providers_resolver is not None
-                    and _extension_accepts_providers_kwarg(extension_cls)
-                ):
-                    instance.run(vis, providers=providers_resolver())
-                else:
-                    instance.run(vis)
+                providers = (
+                    providers_resolver() if providers_resolver is not None else {}
+                )
+                instance.run(vis, providers=providers)
             except Exception as e:
                 try:
                     if task is not None:

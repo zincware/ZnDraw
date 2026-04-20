@@ -36,6 +36,7 @@ from zndraw.executor import InternalExtensionExecutor
 from zndraw.extensions.analysis import analysis
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
+from zndraw.providers import BUNDLED_PROVIDERS
 from zndraw.redis import RedisKey
 from zndraw.socket_events import FramesInvalidate
 from zndraw.socketio import tsio
@@ -68,13 +69,6 @@ def _collect_extensions() -> list[type]:
         *selections.values(),
         *analysis.values(),
     ]
-
-
-def _collect_providers() -> list[type]:
-    """Collect all built-in provider classes to register at @internal."""
-    from zndraw.providers import BUNDLED_PROVIDERS
-
-    return list(BUNDLED_PROVIDERS)
 
 
 log = logging.getLogger(__name__)
@@ -204,7 +198,7 @@ async def init_database(
             internal_user_id = internal_user.id
 
         await ensure_internal_providers(
-            _collect_providers(),
+            list(BUNDLED_PROVIDERS),
             session_maker,
             user_id=internal_user_id,
         )

@@ -21,7 +21,11 @@ from pydantic_settings import (
 class Settings(BaseSettings):
     """Application settings loaded from environment variables.
 
-    All settings use the ZNDRAW_SERVER_ prefix.
+    All settings use the ``ZNDRAW_SERVER_`` prefix.
+
+    The default ``@internal`` filesystem provider is gated on
+    ``filebrowser_enabled`` (no DB row, no task registration, frontend icon
+    hidden when disabled) and rooted at ``filebrowser_path``.
     """
 
     model_config = SettingsConfigDict(
@@ -93,17 +97,7 @@ class Settings(BaseSettings):
 
     # Filesystem provider
     filebrowser_enabled: bool = True
-    """Whether the default @internal filesystem provider is registered.
-
-    Set ``ZNDRAW_SERVER_FILEBROWSER_ENABLED=false`` to disable — no DB row,
-    no task registration, and the frontend filesystem activity-bar icon
-    is hidden (via the providers list being empty for that category).
-    """
-
     filebrowser_path: str = "."
-    """Path rooting the default @internal filesystem provider. Ignored
-    when ``filebrowser_enabled`` is False.
-    """
 
     # Taskiq broker / result backend isolation (per-server namespacing)
     task_queue_name: str = "zndraw:tasks"
