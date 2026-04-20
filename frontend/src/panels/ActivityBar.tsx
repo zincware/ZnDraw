@@ -1,10 +1,12 @@
 import Badge from "@mui/material/Badge";
-import { Box, IconButton, Tooltip, keyframes } from "@mui/material";
-import { useCallback, useMemo, useRef } from "react";
+import { Box, IconButton, Tooltip } from "@mui/material";
+import { useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useHasFilesystemProviders } from "../hooks/useHasFilesystemProviders";
 import { useAppStore } from "../store";
 import { type BarPosition, type PanelId, PANELS } from "./registry";
+import { shimmer } from "./dragStyles";
+import { useDragHover } from "./useDragHover";
 
 const DRAG_MIME = "application/x-zndraw-panel-id";
 
@@ -22,11 +24,6 @@ const ACTIVE_INDICATOR: Record<
 	right: (c) => ({ borderRight: `2px solid ${c}` }),
 	bottom: (c) => ({ borderTop: `2px solid ${c}` }),
 };
-
-const shimmer = keyframes`
-	0%, 100% { background-color: rgba(25, 118, 210, 0.12); }
-	50% { background-color: rgba(25, 118, 210, 0.28); }
-`;
 
 interface ActivityBarProps {
 	position: BarPosition;
@@ -53,12 +50,9 @@ export function ActivityBar({ position }: ActivityBarProps) {
 	const moveIconToBar = useAppStore((s) => s.moveIconToBar);
 	const chatUnread = useAppStore((s) => s.chatUnreadCount);
 	const isDragActive = useAppStore((s) => s.isPanelDragActive);
-	const hoverBar = useAppStore((s) => s.dragHoverBar);
-	const setHoverBar = useAppStore((s) => s.setDragHoverBar);
 	const setPanelDragActive = useAppStore((s) => s.setPanelDragActive);
 
-	const isHovered = hoverBar === position;
-	const dragDepth = useRef(0);
+	const { isHovered, dragHandlers } = useDragHover(position);
 
 	const hasFilesystemProviders = useHasFilesystemProviders();
 	const visibleIcons = useMemo(
@@ -74,43 +68,9 @@ export function ActivityBar({ position }: ActivityBarProps) {
 		e.dataTransfer.effectAllowed = "move";
 	}, []);
 
-	const onDragOver = useCallback((e: React.DragEvent) => {
-		if (e.dataTransfer.types.includes(DRAG_MIME)) {
-			e.preventDefault();
-			e.dataTransfer.dropEffect = "move";
-		}
-	}, []);
-
-	const onDragEnter = useCallback(
-		(e: React.DragEvent) => {
-			if (!e.dataTransfer.types.includes(DRAG_MIME)) return;
-			dragDepth.current++;
-			if (dragDepth.current === 1) setHoverBar(position);
-		},
-		[position, setHoverBar],
-	);
-
-	const onDragLeave = useCallback(() => {
-		dragDepth.current = Math.max(0, dragDepth.current - 1);
-		if (
-			dragDepth.current === 0 &&
-			useAppStore.getState().dragHoverBar === position
-		) {
-			setTimeout(() => {
-				if (
-					dragDepth.current === 0 &&
-					useAppStore.getState().dragHoverBar === position
-				) {
-					setHoverBar(null);
-				}
-			}, 0);
-		}
-	}, [position, setHoverBar]);
-
 	const onDropOnBar = useCallback(
 		(e: React.DragEvent) => {
 			const id = e.dataTransfer.getData(DRAG_MIME) as PanelId | "";
-			dragDepth.current = 0;
 			setPanelDragActive(false);
 			if (!id) return;
 			e.preventDefault();
@@ -123,7 +83,6 @@ export function ActivityBar({ position }: ActivityBarProps) {
 	const onDropOnIcon = useCallback(
 		(e: React.DragEvent, overIdx: number) => {
 			const id = e.dataTransfer.getData(DRAG_MIME) as PanelId | "";
-			dragDepth.current = 0;
 			setPanelDragActive(false);
 			if (!id) return;
 			e.preventDefault();
@@ -133,8 +92,7 @@ export function ActivityBar({ position }: ActivityBarProps) {
 		[moveIconToBar, position, setPanelDragActive],
 	);
 
-	// Hide the bar entirely when it has no icons and no drag is in progress.
-	if (visibleIcons.length === 0 && !isDragActive) return null;
+	const empty = visibleIcons.length === 0 && !isDragActive;
 
 	const dragBgSx = isDragActive
 		? isHovered
@@ -146,17 +104,20 @@ export function ActivityBar({ position }: ActivityBarProps) {
 		<Box
 			data-testid={`activity-bar-${position}`}
 			data-drop-hover={isHovered}
-			onDragEnter={onDragEnter}
-			onDragOver={onDragOver}
-			onDragLeave={onDragLeave}
+			{...dragHandlers}
 			onDrop={onDropOnBar}
 			sx={{
 				display: "flex",
 				borderColor: "divider",
 				bgcolor: "background.paper",
 				alignItems: "center",
-				transition: "background-color 120ms ease",
+				transition: "width 120ms ease, height 120ms ease, background-color 120ms ease",
 				...BAR_SX[position],
+				...(empty
+					? position === "bottom"
+						? { height: "4px" }
+						: { width: "4px" }
+					: {}),
 				...dragBgSx,
 			}}
 		>
@@ -190,7 +151,7 @@ export function ActivityBar({ position }: ActivityBarProps) {
 							data-testid={`activity-icon-${id}`}
 							draggable
 							onDragStart={(e) => onDragStart(e, id)}
-							onDragOver={onDragOver}
+							onDragOver={dragHandlers.onDragOver}
 							onDrop={(e) => onDropOnIcon(e, idx)}
 							onClick={() => toggleActive(position, id)}
 							color={isActive ? "primary" : "default"}

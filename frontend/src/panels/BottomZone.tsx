@@ -1,28 +1,22 @@
-import { Box, keyframes } from "@mui/material";
+import { Box } from "@mui/material";
 import { useCallback, useRef } from "react";
 import { useAppStore } from "../store";
 import { BOTTOM_MAX_PX, BOTTOM_MIN_PX, PANELS, type PanelId } from "./registry";
+import { shimmer } from "./dragStyles";
+import { useDragHover } from "./useDragHover";
 
 const DRAG_MIME = "application/x-zndraw-panel-id";
-
-const shimmer = keyframes`
-	0%, 100% { background-color: rgba(25, 118, 210, 0.12); }
-	50% { background-color: rgba(25, 118, 210, 0.28); }
-`;
 
 export function BottomZone() {
 	const active = useAppStore((s) => s.activeBottom);
 	const height = useAppStore((s) => s.bottomHeight);
 	const setBarSize = useAppStore((s) => s.setBarSize);
 	const isDragActive = useAppStore((s) => s.isPanelDragActive);
-	const hoverBar = useAppStore((s) => s.dragHoverBar);
-	const setHoverBar = useAppStore((s) => s.setDragHoverBar);
 	const dropIconOnPanel = useAppStore((s) => s.dropIconOnPanel);
 	const setPanelDragActive = useAppStore((s) => s.setPanelDragActive);
 	const zoneRef = useRef<HTMLDivElement | null>(null);
-	const dragDepth = useRef(0);
 
-	const isHovered = hoverBar === "bottom";
+	const { isHovered, dragHandlers } = useDragHover("bottom");
 
 	const onPointerDown = useCallback(
 		(e: React.PointerEvent<HTMLDivElement>) => {
@@ -49,43 +43,9 @@ export function BottomZone() {
 		[setBarSize, height],
 	);
 
-	const onDragOver = useCallback((e: React.DragEvent) => {
-		if (e.dataTransfer.types.includes(DRAG_MIME)) {
-			e.preventDefault();
-			e.dataTransfer.dropEffect = "move";
-		}
-	}, []);
-
-	const onDragEnter = useCallback(
-		(e: React.DragEvent) => {
-			if (!e.dataTransfer.types.includes(DRAG_MIME)) return;
-			dragDepth.current++;
-			if (dragDepth.current === 1) setHoverBar("bottom");
-		},
-		[setHoverBar],
-	);
-
-	const onDragLeave = useCallback(() => {
-		dragDepth.current = Math.max(0, dragDepth.current - 1);
-		if (
-			dragDepth.current === 0 &&
-			useAppStore.getState().dragHoverBar === "bottom"
-		) {
-			setTimeout(() => {
-				if (
-					dragDepth.current === 0 &&
-					useAppStore.getState().dragHoverBar === "bottom"
-				) {
-					setHoverBar(null);
-				}
-			}, 0);
-		}
-	}, [setHoverBar]);
-
 	const onDrop = useCallback(
 		(e: React.DragEvent) => {
 			const id = e.dataTransfer.getData(DRAG_MIME) as PanelId | "";
-			dragDepth.current = 0;
 			setPanelDragActive(false);
 			if (!id) return;
 			e.preventDefault();
@@ -106,9 +66,7 @@ export function BottomZone() {
 			ref={zoneRef}
 			data-testid="bottom-zone"
 			data-drop-hover={isHovered}
-			onDragEnter={onDragEnter}
-			onDragOver={onDragOver}
-			onDragLeave={onDragLeave}
+			{...dragHandlers}
 			onDrop={onDrop}
 			sx={{
 				position: "relative",
