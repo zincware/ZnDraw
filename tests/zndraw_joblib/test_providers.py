@@ -966,3 +966,159 @@ def test_error_status_visible_before_payload_via_notify(client_factory):
     )
     assert resp.status_code == 400
     assert resp.headers["content-type"].startswith("application/problem+json")
+
+
+# --- B7: filebrowser_require_superuser gate ---
+
+
+def test_internal_filesystem_requires_superuser_by_default(
+    client_factory, async_session_factory
+):
+    """With the default filebrowser_require_superuser=True, a non-superuser
+    is 403'd on @internal:filesystem:* read and the provider is absent from LIST.
+    """
+    import asyncio
+    import uuid
+
+    from zndraw_auth import User
+    from zndraw_joblib.models import ProviderRecord
+
+    async def seed() -> None:
+        async with async_session_factory() as session:
+            user = User(
+                id=uuid.uuid4(),
+                email="int-b7a@test",
+                hashed_password="x",
+                is_active=True,
+                is_superuser=True,
+                is_verified=True,
+            )
+            session.add(user)
+            await session.flush()
+            session.add(
+                ProviderRecord(
+                    room_id="@internal",
+                    category="filesystem",
+                    name="FilesystemReadB7A",
+                    schema_={},
+                    user_id=user.id,
+                    worker_id=None,
+                )
+            )
+            await session.commit()
+
+    asyncio.run(seed())
+
+    alice = client_factory("alice-b7a", is_superuser=False)
+
+    # Read must return 403
+    resp = alice.get(
+        "/v1/joblib/rooms/room-42/providers/@internal:filesystem:FilesystemReadB7A?path=/"
+    )
+    assert resp.status_code == 403, resp.text
+
+    # List must not include the gated provider
+    resp = alice.get("/v1/joblib/rooms/room-42/providers")
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert not any(
+        p["full_name"].startswith("@internal:filesystem:FilesystemReadB7A")
+        for p in items
+    )
+
+
+def test_internal_filesystem_superuser_bypasses_gate(
+    client_factory, async_session_factory
+):
+    """Superusers see and can read @internal:filesystem:* even with the
+    default flag on.
+    """
+    import asyncio
+    import uuid
+
+    from zndraw_auth import User
+    from zndraw_joblib.models import ProviderRecord
+
+    async def seed() -> None:
+        async with async_session_factory() as session:
+            user = User(
+                id=uuid.uuid4(),
+                email="int-b7b@test",
+                hashed_password="x",
+                is_active=True,
+                is_superuser=True,
+                is_verified=True,
+            )
+            session.add(user)
+            await session.flush()
+            session.add(
+                ProviderRecord(
+                    room_id="@internal",
+                    category="filesystem",
+                    name="FilesystemReadB7B",
+                    schema_={},
+                    user_id=user.id,
+                    worker_id=None,
+                )
+            )
+            await session.commit()
+
+    asyncio.run(seed())
+
+    admin = client_factory("admin-b7b", is_superuser=True)
+    resp = admin.get("/v1/joblib/rooms/room-42/providers")
+    items = resp.json()["items"]
+    assert any(
+        p["full_name"] == "@internal:filesystem:FilesystemReadB7B" for p in items
+    )
+
+
+def test_internal_filesystem_gate_disabled_by_flag(
+    client_factory, async_session_factory
+):
+    """With filebrowser_require_superuser=False, non-superusers can access."""
+    import asyncio
+    import uuid
+
+    from zndraw_auth import User
+    from zndraw_joblib.models import ProviderRecord
+
+    alice = client_factory("alice-b7c", is_superuser=False)
+    alice.app.state.joblib_settings.filebrowser_require_superuser = False
+
+    try:
+
+        async def seed() -> None:
+            async with async_session_factory() as session:
+                user = User(
+                    id=uuid.uuid4(),
+                    email="int-b7c@test",
+                    hashed_password="x",
+                    is_active=True,
+                    is_superuser=True,
+                    is_verified=True,
+                )
+                session.add(user)
+                await session.flush()
+                session.add(
+                    ProviderRecord(
+                        room_id="@internal",
+                        category="filesystem",
+                        name="FilesystemReadB7C",
+                        schema_={},
+                        user_id=user.id,
+                        worker_id=None,
+                    )
+                )
+                await session.commit()
+
+        asyncio.run(seed())
+
+        resp = alice.get("/v1/joblib/rooms/room-42/providers")
+        items = resp.json()["items"]
+        assert any(
+            p["full_name"] == "@internal:filesystem:FilesystemReadB7C"
+            for p in items
+        )
+    finally:
+        alice.app.state.joblib_settings.filebrowser_require_superuser = True

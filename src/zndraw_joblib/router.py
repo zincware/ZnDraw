@@ -982,6 +982,37 @@ def _room_provider_filter(room_id: str):
     return ProviderRecord.room_id.in_(["@global", "@internal", room_id])
 
 
+def _require_internal_filesystem_access(
+    provider: ProviderRecord, user, settings
+) -> None:
+    """Gate @internal:filesystem:* access on superuser status.
+
+    Parameters
+    ----------
+    provider : ProviderRecord
+        The provider record being accessed.
+    user : User
+        The authenticated user making the request.
+    settings : JobLibSettings
+        Current joblib settings (reads ``filebrowser_require_superuser``).
+
+    Raises
+    ------
+    ProblemError
+        403 Forbidden when the caller is non-superuser and the
+        ``filebrowser_require_superuser`` setting is True.
+    """
+    if (
+        provider.room_id == "@internal"
+        and provider.category == "filesystem"
+        and settings.filebrowser_require_superuser
+        and not user.is_superuser
+    ):
+        raise Forbidden.exception(
+            detail="@internal filesystem access requires superuser"
+        )
+
+
 async def _resolve_provider(
     session: AsyncSession, provider_name: str, room_id: str
 ) -> ProviderRecord:
@@ -1113,6 +1144,8 @@ async def register_provider(
 async def list_providers(
     room_id: str,
     session: SessionDep,
+    _current_user: CurrentUserDep,
+    settings: SettingsDep,
     limit: Annotated[int, Query(ge=0, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
@@ -1134,6 +1167,16 @@ async def list_providers(
     providers = result.all()
 
     items = [ProviderResponse.from_record(p) for p in providers]
+
+    # Post-filter @internal:filesystem:* for non-superusers when the gate is on
+    if settings.filebrowser_require_superuser and not _current_user.is_superuser:
+        items = [
+            p
+            for p in items
+            if not (p.room_id == "@internal" and p.category == "filesystem")
+        ]
+        total = len(items)
+
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
 
@@ -1145,10 +1188,13 @@ async def get_provider_info(
     room_id: str,
     provider_name: str,
     session: SessionDep,
+    _current_user: CurrentUserDep,
+    settings: SettingsDep,
 ):
     """Get provider details and JSON Schema."""
     validate_room_id(room_id)
     provider = await _resolve_provider(session, provider_name, room_id)
+    _require_internal_filesystem_access(provider, _current_user, settings)
 
     return ProviderResponse.from_record(provider)
 
@@ -1172,6 +1218,8 @@ async def read_provider(
     # Short-lived session — closed before long-poll
     async with session_maker() as session:
         provider = await _resolve_provider(session, provider_name, room_id)
+
+    _require_internal_filesystem_access(provider, _current_user, settings)
 
     params = dict(request.query_params)
     rhash = request_hash(params)
