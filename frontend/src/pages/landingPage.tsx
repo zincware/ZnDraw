@@ -110,6 +110,10 @@ export default function MainPage() {
 	const snackbar = useAppStore((state) => state.snackbar);
 	const hideSnackbar = useAppStore((state) => state.hideSnackbar);
 	const screenshotCapture = useAppStore((state) => state.screenshotCapture);
+	const activeLeft = useAppStore((state) => state.activeLeft);
+	const activeRight = useAppStore((state) => state.activeRight);
+	const activeBottom = useAppStore((state) => state.activeBottom);
+	const toggleActive = useAppStore((state) => state.toggleActive);
 	const [connectionDialogOpen, setConnectionDialogOpen] = useState(false);
 	const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 	const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
@@ -233,17 +237,16 @@ export default function MainPage() {
 		if (!panel || !(panel in PANELS)) return;
 		const def = PANELS[panel];
 		if (def.kind !== "tool" || def.default.bar === "editor") return;
-		const state = useAppStore.getState();
-		const activeKey =
+		const current =
 			def.default.bar === "left"
-				? "activeLeft"
+				? activeLeft
 				: def.default.bar === "right"
-					? "activeRight"
-					: "activeBottom";
-		if (state[activeKey] !== panel) {
-			state.toggleActive(def.default.bar, panel);
+					? activeRight
+					: activeBottom;
+		if (current !== panel) {
+			toggleActive(def.default.bar, panel);
 		}
-	}, [searchParams]);
+	}, [searchParams, activeLeft, activeRight, activeBottom, toggleActive]);
 
 	return (
 		<>
