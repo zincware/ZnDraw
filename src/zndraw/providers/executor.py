@@ -64,7 +64,9 @@ class InternalProviderExecutor:
             content: bytes | None = None
 
             try:
-                handler = self._resolve_handler(provider_cls)
+                handler = resolve_internal_provider_handler(
+                    provider_cls, filebrowser_path=self.filebrowser_path
+                )
                 params = json.loads(params_json) if params_json else {}
                 instance = provider_cls(**params)
                 result = instance.read(handler)
@@ -112,11 +114,6 @@ class InternalProviderExecutor:
                 resp.raise_for_status()
 
         await asyncio.to_thread(_run)
-
-    def _resolve_handler(self, provider_cls: type[Provider]) -> Any:
-        return resolve_internal_provider_handler(
-            provider_cls, filebrowser_path=self.filebrowser_path
-        )
 
 
 def resolve_internal_provider_handler(
