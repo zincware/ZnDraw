@@ -47,8 +47,10 @@ import {
 	ActivityBar,
 	BottomZone,
 	DockviewLayout,
+	ensureViewerPanel,
 	PANELS,
 	type PanelId,
+	resetDockview,
 	SidebarZone,
 } from "../panels";
 import { useDockviewApi } from "../stores/dockviewApiStore";
@@ -220,13 +222,7 @@ export default function MainPage() {
 		const api = useDockviewApi.getState().api;
 		if (!api) return;
 		if (!roomId) return;
-		if (!api.getPanel("viewer")) {
-			api.addPanel({
-				id: "viewer",
-				component: "viewer",
-				title: "3D Viewer",
-			});
-		}
+		ensureViewerPanel(api);
 	}, [roomId]);
 
 	// Auto-open a sidebar panel from `?panel=` query param (for redirect targets
@@ -461,16 +457,7 @@ export default function MainPage() {
 							handleProfileClose();
 							useAppStore.getState().resetLayout();
 							const api = useDockviewApi.getState().api;
-							if (api) {
-								for (const p of api.panels) {
-									p.api.close();
-								}
-								api.addPanel({
-									id: "viewer",
-									component: "viewer",
-									title: "3D Viewer",
-								});
-							}
+							if (api) resetDockview(api);
 						}}
 					>
 						<ListItemText>Reset layout</ListItemText>

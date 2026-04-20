@@ -31,6 +31,15 @@ function addViewerPanel(api: DockviewApi) {
 	});
 }
 
+export function resetDockview(api: DockviewApi): void {
+	for (const p of api.panels) p.api.close();
+	addViewerPanel(api);
+}
+
+export function ensureViewerPanel(api: DockviewApi): void {
+	if (!api.getPanel("viewer")) addViewerPanel(api);
+}
+
 function onDidDrop(event: DockviewDidDropEvent) {
 	const dt = (event.nativeEvent as DragEvent | undefined)?.dataTransfer;
 	const key = dt?.getData(DRAG_MIME_PLOT);
