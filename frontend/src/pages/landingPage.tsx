@@ -47,11 +47,11 @@ import {
 	ActivityBar,
 	BottomZone,
 	DockviewLayout,
-	getDockviewApi,
 	PANELS,
 	type PanelId,
 	SidebarZone,
 } from "../panels";
+import { useDockviewApi } from "../stores/dockviewApiStore";
 import { connectWithAuth } from "../socket";
 import { useAppStore } from "../store";
 import { logout as authLogout } from "../utils/auth";
@@ -217,7 +217,7 @@ export default function MainPage() {
 
 	// Re-add the viewer panel on roomId change if it has been closed.
 	useEffect(() => {
-		const api = getDockviewApi();
+		const api = useDockviewApi.getState().api;
 		if (!api) return;
 		if (!roomId) return;
 		if (!api.getPanel("viewer")) {
@@ -460,7 +460,7 @@ export default function MainPage() {
 						onClick={() => {
 							handleProfileClose();
 							useAppStore.getState().resetLayout();
-							const api = getDockviewApi();
+							const api = useDockviewApi.getState().api;
 							if (api) {
 								for (const p of api.panels) {
 									p.api.close();

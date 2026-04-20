@@ -30,7 +30,7 @@ import {
 	submitTask,
 } from "../myapi/client";
 import { useAppStore } from "../store";
-import { getDockviewApi } from "./DockviewLayout";
+import { useDockviewApi } from "../stores/dockviewApiStore";
 
 /**
  * FilesystemPanel — sidebar-embedded filesystem browser.
@@ -50,7 +50,8 @@ export function FilesystemPanel() {
 	const navigate = useNavigate();
 	const roomId = useAppStore((s) => s.roomId);
 	const showSnackbar = useAppStore((state) => state.showSnackbar);
-	const leaveRoom = useLeaveRoom({ api: () => getDockviewApi() });
+	const dockApi = useDockviewApi((s) => s.api);
+	const leaveRoom = useLeaveRoom({ api: dockApi });
 
 	const [selectedProvider, setSelectedProvider] = useState<ProviderInfo | null>(
 		null,

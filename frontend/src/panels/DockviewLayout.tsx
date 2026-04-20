@@ -9,6 +9,7 @@ import { DockviewReact, themeDark, themeLight } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
 import "./dockview-mui.css";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useDockviewApi } from "../stores/dockviewApiStore";
 import { GroupActions } from "./groupActions";
 import { PlotView } from "./PlotView";
 import { openPlotTab } from "./plotViewFactory";
@@ -21,12 +22,6 @@ const components = {
 };
 
 const DRAG_MIME_PLOT = "application/x-zndraw-plot-key";
-
-let sharedApi: DockviewApi | null = null;
-
-export function getDockviewApi(): DockviewApi | null {
-	return sharedApi;
-}
 
 function addViewerPanel(api: DockviewApi) {
 	api.addPanel({
@@ -56,7 +51,7 @@ export function DockviewLayout() {
 
 	const onReady = useCallback((event: DockviewReadyEvent) => {
 		apiRef.current = event.api;
-		sharedApi = event.api;
+		useDockviewApi.getState().setApi(event.api);
 
 		addViewerPanel(event.api);
 		setIsEmpty(event.api.panels.length === 0);
@@ -79,7 +74,7 @@ export function DockviewLayout() {
 		return () => {
 			for (const d of disposablesRef.current) d.dispose();
 			disposablesRef.current = [];
-			sharedApi = null;
+			useDockviewApi.getState().setApi(null);
 		};
 	}, []);
 

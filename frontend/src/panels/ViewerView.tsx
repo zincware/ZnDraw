@@ -3,13 +3,14 @@ import type { IDockviewPanelProps } from "dockview-react";
 import { useEffect, useRef, useState } from "react";
 import MyScene from "../components/Canvas";
 import { useLeaveRoom } from "../hooks/useLeaveRoom";
-import { getDockviewApi } from "./DockviewLayout";
+import { useDockviewApi } from "../stores/dockviewApiStore";
 
 export function ViewerView(props: IDockviewPanelProps) {
 	const { api } = props;
 	const [remountKey, setRemountKey] = useState(0);
 	const previousLocation = useRef(api.location.type);
-	const leaveRoom = useLeaveRoom({ api: () => getDockviewApi() });
+	const dockApi = useDockviewApi((s) => s.api);
+	const leaveRoom = useLeaveRoom({ api: dockApi });
 	const leaveRoomRef = useRef(leaveRoom);
 	useEffect(() => {
 		leaveRoomRef.current = leaveRoom;
@@ -23,23 +24,27 @@ export function ViewerView(props: IDockviewPanelProps) {
 			}
 		});
 
-		// When the viewer panel is removed (user closed the tab), run the
-		// leave-room cascade. DockviewPanelApi does not expose onDidDispose,
-		// so we listen on the top-level DockviewApi's onDidRemovePanel and
-		// filter by panel id. The cascade closes any remaining plot-* panels
-		// and resets the URL to "/".
-		const dockApi = getDockviewApi();
-		const removeDisposable = dockApi?.onDidRemovePanel((panel) => {
+		return () => {
+			locationDisposable.dispose();
+		};
+	}, [api]);
+
+	// When the viewer panel is removed (user closed the tab), run the
+	// leave-room cascade. DockviewPanelApi does not expose onDidDispose,
+	// so we listen on the top-level DockviewApi's onDidRemovePanel and
+	// filter by panel id. The cascade closes any remaining plot-* panels
+	// and resets the URL to "/".
+	useEffect(() => {
+		if (!dockApi) return;
+		const removeDisposable = dockApi.onDidRemovePanel((panel) => {
 			if (panel.id === api.id) {
 				void leaveRoomRef.current({ skipConfirm: true });
 			}
 		});
-
 		return () => {
-			locationDisposable.dispose();
-			removeDisposable?.dispose();
+			removeDisposable.dispose();
 		};
-	}, [api]);
+	}, [dockApi, api.id]);
 
 	return (
 		<Box

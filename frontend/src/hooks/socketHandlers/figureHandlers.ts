@@ -1,4 +1,4 @@
-import { getDockviewApi } from "../../panels/DockviewLayout";
+import { useDockviewApi } from "../../stores/dockviewApiStore";
 import { closePlotTab, openPlotTab } from "../../panels/plotViewFactory";
 import type { HandlerContext } from "./types";
 
@@ -11,7 +11,7 @@ export interface FigureInvalidateEvent {
 /**
  * Creates figure handler functions.
  *
- * Drives the dockview API via `getDockviewApi()` to open/close plot tabs
+ * Drives the dockview API via `useDockviewApi.getState().api` to open/close plot tabs
  * when figures are created, updated, or deleted server-side.
  */
 export function createFigureHandlers(ctx: HandlerContext) {
@@ -27,7 +27,7 @@ export function createFigureHandlers(ctx: HandlerContext) {
 			});
 
 			// Step 2: Close the dockview panel displaying this figure, if open
-			const api = getDockviewApi();
+			const api = useDockviewApi.getState().api;
 			if (api) closePlotTab(api, data.key);
 
 			// Step 3: Invalidate the figures list to update the UI
@@ -46,7 +46,7 @@ export function createFigureHandlers(ctx: HandlerContext) {
 			});
 
 			// Step 3: Auto-open as a tab — openPlotTab already no-ops if open.
-			const api = getDockviewApi();
+			const api = useDockviewApi.getState().api;
 			if (api) openPlotTab(api, data.key);
 		}
 	}

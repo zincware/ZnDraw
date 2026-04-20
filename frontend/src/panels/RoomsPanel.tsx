@@ -27,8 +27,8 @@ import {
 } from "../myapi/client";
 import { useRoomsStore } from "../roomsStore";
 import { useAppStore } from "../store";
+import { useDockviewApi } from "../stores/dockviewApiStore";
 import { extractDetail } from "../utils/errors";
-import { getDockviewApi } from "./DockviewLayout";
 import { RoomRowMenu } from "./roomRowMenu";
 import { RoomsHeaderActions } from "./roomsHeaderActions";
 
@@ -42,7 +42,8 @@ export function RoomsPanel() {
 	const fetchRooms = useRoomsStore((s) => s.fetchRooms);
 	const currentRoomId = useAppStore((s) => s.roomId);
 	const showSnackbar = useAppStore((s) => s.showSnackbar);
-	const leaveRoom = useLeaveRoom({ api: () => getDockviewApi() });
+	const dockApi = useDockviewApi((s) => s.api);
+	const leaveRoom = useLeaveRoom({ api: dockApi });
 	const navigate = useNavigate();
 	const [query, setQuery] = useState("");
 
