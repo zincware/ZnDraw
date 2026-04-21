@@ -1,7 +1,6 @@
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DownloadIcon from "@mui/icons-material/Download";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import ListIcon from "@mui/icons-material/List";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -204,11 +203,6 @@ export default function RoomManagementMenu() {
 		handleCloseMenu();
 	};
 
-	const handleGoToRoomList = () => {
-		navigate("/rooms");
-		handleCloseMenu();
-	};
-
 	const handleGoToFilesystem = () => {
 		if (!roomId) return;
 		navigate(`/rooms/${roomId}/files`);
@@ -384,13 +378,6 @@ export default function RoomManagementMenu() {
 						<DownloadIcon />
 					</ListItemIcon>
 					<ListItemText>All Frames (ExtXYZ)</ListItemText>
-				</MenuItem>
-
-				<MenuItem onClick={handleGoToRoomList}>
-					<ListItemIcon>
-						<ListIcon />
-					</ListItemIcon>
-					<ListItemText>Go to Room List</ListItemText>
 				</MenuItem>
 
 				{filesystemAvailable && (
