@@ -63,5 +63,9 @@ def _require_local_path(fs: t.Any, path: str) -> str:
             f"got backend {type(inner).__name__}"
         )
     if isinstance(fs, DirFileSystem):
-        return str(Path(fs.path) / path.lstrip("/"))
+        root = Path(fs.path).resolve()
+        target = (root / path.lstrip("/")).resolve()
+        if not target.is_relative_to(root):
+            raise PermissionError(f"path {path!r} escapes provider root")
+        return str(target)
     return path
