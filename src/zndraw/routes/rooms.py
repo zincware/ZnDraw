@@ -5,7 +5,6 @@ Uses string UUIDs for room IDs to match frontend expectations.
 """
 
 import json
-import logging
 import re
 from typing import Annotated, Any
 
@@ -51,6 +50,7 @@ from zndraw.models import (
     RoomBookmark,
     RoomFigure,
     RoomGeometry,
+    RoomMembership,
     SelectionGroup,
     ServerSettings,
 )
@@ -70,8 +70,6 @@ from zndraw.schemas import (
 from zndraw.socket_events import FramesInvalidate, RoomUpdate
 from zndraw.storage import FrameStorage
 from zndraw.transformations import InArrayTransform
-
-log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/rooms", tags=["rooms"])
 
@@ -280,6 +278,33 @@ async def build_room_update(
     )
 
 
+async def broadcast_room_update(
+    sio,
+    session: AsyncSession,
+    storage: FrameStorage,
+    room: Room,
+) -> None:
+    """Broadcast a full RoomUpdate to every authorized viewer.
+
+    Public rooms go to the shared ``rooms:feed`` channel — every
+    authenticated socket is a member, including any client currently
+    joined to ``room:{id}``, so this single emit reaches in-room
+    viewers too.
+
+    Private rooms fan out to each member's ``user:{uid}`` channel,
+    which similarly covers both in-room and out-of-room members.
+    """
+    event = await build_room_update(session, storage, room)
+    if room.is_public:
+        await sio.emit(event, room="rooms:feed")
+        return
+    result = await session.exec(
+        select(RoomMembership.user_id).where(RoomMembership.room_id == room.id)
+    )
+    for uid in result.all():
+        await sio.emit(event, room=f"user:{uid}")
+
+
 # =============================================================================
 # Room CRUD
 # =============================================================================
@@ -388,14 +413,12 @@ async def create_room(
 
     await session.commit()
 
-    # Broadcast room creation to @overview system room
-    event = await build_room_update(session, storage, room)
-    await sio.emit(event, room="room:@overview")
+    await broadcast_room_update(sio, session, storage, room)
 
     return RoomCreateResponse(
         status="ok",
         room_id=room_id,
-        frame_count=event.frame_count,
+        frame_count=frame_count,
         created=True,
     )
 
@@ -595,9 +618,6 @@ async def update_room(
     await session.commit()
 
     if changed:
-        event = await build_room_update(session, storage, room)
-        log.debug("Broadcasting RoomUpdate: %s", event.model_dump())
-        await sio.emit(event, room=f"room:{room.id}")
-        await sio.emit(event, room="room:@overview")
+        await broadcast_room_update(sio, session, storage, room)
 
     return RoomPatchResponse()

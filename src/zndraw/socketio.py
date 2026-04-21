@@ -105,6 +105,7 @@ async def on_connect(
     user_id = UUID(payload["sub"])
     await tsio.save_session(sid, {"user_id": user_id, "current_room_id": None})
     await tsio.enter_room(sid, f"user:{user_id}")
+    await tsio.enter_room(sid, "rooms:feed")
     return True
 
 
@@ -177,8 +178,8 @@ async def room_join(
 ) -> RoomJoinResponse:
     """Join a Socket.IO room for real-time updates.
 
-    Supports special system rooms with '@' prefix (e.g., @overview) that skip
-    database validation and camera creation.
+    Supports special system rooms with '@' prefix that skip database
+    validation and camera creation.
     """
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]

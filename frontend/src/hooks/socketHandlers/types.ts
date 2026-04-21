@@ -14,7 +14,6 @@ export interface HandlerContext {
 	// Identity / routing
 	roomId: string | undefined;
 	appStoreRoomId: string | null;
-	isOverview: boolean;
 	isCancelled: () => boolean;
 
 	// Query client

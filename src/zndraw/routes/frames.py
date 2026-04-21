@@ -41,7 +41,7 @@ from zndraw.exceptions import (
 )
 from zndraw.redis import RedisKey
 from zndraw.responses import MessagePackResponse
-from zndraw.routes.rooms import build_room_update
+from zndraw.routes.rooms import broadcast_room_update
 from zndraw.schemas import (
     FrameBulkResponse,
     FrameCreateRequest,
@@ -478,9 +478,7 @@ async def append_frames(
         FramesInvalidate(room_id=room_id, action="add", count=new_total),
         room=room_channel(room_id),
     )
-    # Notify @overview of updated frame count
-    event = await build_room_update(session, storage, room)
-    await sio.emit(event, room="room:@overview")
+    await broadcast_room_update(sio, session, storage, room)
 
     return FrameBulkResponse(
         frames=request.frames,
@@ -614,8 +612,6 @@ async def delete_frame(
         ),
         room=room_channel(room_id),
     )
-    # Notify @overview of updated frame count
-    event = await build_room_update(session, storage, room)
-    await sio.emit(event, room="room:@overview")
+    await broadcast_room_update(sio, session, storage, room)
 
     return StatusResponse()

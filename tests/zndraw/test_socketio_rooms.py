@@ -164,31 +164,6 @@ async def test_socketio_leave_room_after_switch_is_idempotent(
 
 
 @pytest.mark.asyncio
-async def test_socketio_join_system_room_overview(
-    server: str, http_client: AsyncClient
-) -> None:
-    """Test joining @overview system room (no DB validation, no presence)."""
-    token = await _get_user_token(http_client, "overview@example.com")
-
-    sio_client = socketio.AsyncClient()
-    await sio_client.connect(server, auth={"token": token})
-    tsio_client = wrap(sio_client)
-
-    # Join @overview system room (does not require DB record)
-    result = await tsio_client.call(
-        RoomJoin(room_id="@overview", client_type="frontend"),
-        response_model=RoomJoinResponse,
-    )
-    assert result.room_id == "@overview"
-    assert result.session_id is not None  # Server assigns session ID
-    assert result.step == 0  # System rooms have no frames
-    assert result.frame_count == 0  # System rooms have no frames
-    assert result.locked is False  # System rooms are never locked
-
-    await sio_client.disconnect()
-
-
-@pytest.mark.asyncio
 async def test_socketio_typing_events(server: str, http_client: AsyncClient) -> None:
     """Test typing start/stop events."""
     token = await _get_user_token(http_client, "typinguser@example.com")
@@ -666,3 +641,110 @@ async def test_rest_rejects_updating_other_users_session_camera(
     assert "forbidden" in response.json()["type"]
 
     await sio_a.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_rooms_feed_auto_join(server: str, http_client: AsyncClient) -> None:
+    """Every authenticated socket must auto-join rooms:feed on connect,
+    so room_update events from any public room are delivered without
+    an explicit join.
+
+    Regression test for #919: an idle client (in no room) receives a
+    room_update when another user creates a public room.
+    """
+    from zndraw.socket_events import RoomUpdate
+
+    token_a = await _get_user_token(http_client, "feed-a@example.com")
+    token_b = await _get_user_token(http_client, "feed-b@example.com")
+
+    # Client B connects but joins NO room.
+    sio_b = socketio.AsyncClient()
+    received: list[RoomUpdate] = []
+
+    @sio_b.on("room_update")
+    async def on_room_update(data: dict) -> None:
+        received.append(RoomUpdate.model_validate(data))
+
+    await sio_b.connect(server, auth={"token": token_b})
+
+    # Client A creates a public room via REST.
+    new_room_id = await _create_room(http_client, token_a)
+
+    # Give the event loop a beat to deliver the broadcast.
+    await asyncio.sleep(0.5)
+
+    assert any(e.id == new_room_id for e in received), (
+        f"Client B received no room_update for {new_room_id}; got {received}"
+    )
+
+    await sio_b.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_same_room_frame_append_updates_sidebar(
+    server: str, http_client: AsyncClient
+) -> None:
+    """Two clients viewing the same room must both receive a room_update
+    with the new frame_count when one of them appends frames.
+
+    Regression test for the screenshot in #919: two tabs on /rooms/s22
+    showed 44 frames and 22 frames respectively because frame mutations
+    only emitted room_update to @overview, never to room:{id}.
+    """
+    from zndraw.socket_events import RoomUpdate
+
+    token_a = await _get_user_token(http_client, "same-room-a@example.com")
+    token_b = await _get_user_token(http_client, "same-room-b@example.com")
+
+    room_id = await _create_room(http_client, token_a)
+
+    # Both clients join the same room.
+    sio_a = socketio.AsyncClient()
+    sio_b = socketio.AsyncClient()
+
+    received_b: list[RoomUpdate] = []
+
+    @sio_b.on("room_update")
+    async def on_room_update(data: dict) -> None:
+        received_b.append(RoomUpdate.model_validate(data))
+
+    await sio_a.connect(server, auth={"token": token_a})
+    await sio_b.connect(server, auth={"token": token_b})
+
+    tsio_a = wrap(sio_a)
+    tsio_b = wrap(sio_b)
+    await tsio_a.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_b.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+
+    # Drain any room_update emissions that predate the frame append.
+    await asyncio.sleep(0.3)
+    received_b.clear()
+
+    # Client A appends frames via REST. The endpoint validates required
+    # rendering keys (arrays.colors, arrays.radii), so we build proper
+    # frames via the serialization helper — the same path test_routes_frames
+    # uses. See src/zndraw/routes/frames.py:64 for the validation.
+    import ase  # local import keeps top-of-file imports untouched
+
+    from zndraw.client import atoms_to_json_dict
+
+    atoms = ase.Atoms("H2", positions=[[0, 0, 0], [1, 0, 0]])
+    frame = atoms_to_json_dict(atoms)
+
+    append_response = await http_client.post(
+        f"/v1/rooms/{room_id}/frames",
+        json={"frames": [frame, frame, frame]},
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert append_response.status_code == 201, append_response.text
+
+    await asyncio.sleep(0.5)
+
+    # Client B must see a room_update with the new total.
+    assert received_b, "Client B received no room_update"
+    latest = received_b[-1]
+    assert latest.id == room_id
+    assert latest.frame_count >= 3
+
+    await sio_a.disconnect()
+    await sio_b.disconnect()
