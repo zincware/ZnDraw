@@ -16,25 +16,12 @@ random-access formats (``.h5`` / ``.h5md`` / ``.lmdb``) that the
 format matrix runs through the real server + dispatch path.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-import numpy as np
+import ase
 
 from zndraw import ZnDraw
 from zndraw.extensions.filesystem import LoadFile
 
-if TYPE_CHECKING:
-    from ase import Atoms
-
-_WATER_SYMBOLS = ["H", "H", "O"]
-_WATER_POSITIONS = [[0, 0, 0], [0, 0, 1], [1, 0, 0]]
-
-
-def _assert_is_water(loaded: Atoms) -> None:
-    assert list(loaded.get_chemical_symbols()) == _WATER_SYMBOLS
-    np.testing.assert_array_almost_equal(loaded.positions, _WATER_POSITIONS)
+WATER = ase.Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [1, 0, 0]])
 
 
 def test_load_file_e2e_via_internal_dispatch(server_factory, water_file):
@@ -56,9 +43,8 @@ def test_load_file_e2e_via_internal_dispatch(server_factory, water_file):
         task.wait(timeout=30)
 
         assert task.status == "completed", f"expected completed, got {task.status!r}"
-
         assert len(vis) == 1
-        _assert_is_water(vis[-1])
+        assert vis[-1] == WATER
     finally:
         vis.disconnect()
 
@@ -88,7 +74,7 @@ def test_load_file_honours_slice_e2e(server_factory, water_trajectory_h5):
         assert task.status == "completed", f"expected completed, got {task.status!r}"
         # slice(1, 4, 2) over 5 identical frames -> 2 frames, both water
         assert len(vis) == 2
-        _assert_is_water(vis[0])
-        _assert_is_water(vis[-1])
+        assert vis[0] == WATER
+        assert vis[-1] == WATER
     finally:
         vis.disconnect()
