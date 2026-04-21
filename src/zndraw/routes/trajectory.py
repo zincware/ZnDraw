@@ -39,7 +39,7 @@ from zndraw.exceptions import (
     problem_responses,
 )
 from zndraw.redis import RedisKey
-from zndraw.routes.rooms import build_room_update
+from zndraw.routes.rooms import broadcast_room_update
 from zndraw.schemas import FrameBulkResponse
 from zndraw.socket_events import FramesInvalidate
 
@@ -320,8 +320,7 @@ async def upload_trajectory(
         FramesInvalidate(room_id=room_id, action="add", count=new_total),
         room=room_channel(room_id),
     )
-    event = await build_room_update(session, storage, room)
-    await sio.emit(event, room="room:@overview")
+    await broadcast_room_update(sio, session, storage, room)
 
     return FrameBulkResponse(
         frames=[],  # Don't echo back all frames

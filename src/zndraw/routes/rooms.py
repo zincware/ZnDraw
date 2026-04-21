@@ -5,7 +5,6 @@ Uses string UUIDs for room IDs to match frontend expectations.
 """
 
 import json
-import logging
 import re
 from typing import Annotated, Any
 
@@ -71,8 +70,6 @@ from zndraw.schemas import (
 from zndraw.socket_events import FramesInvalidate, RoomUpdate
 from zndraw.storage import FrameStorage
 from zndraw.transformations import InArrayTransform
-
-log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/rooms", tags=["rooms"])
 
@@ -418,14 +415,12 @@ async def create_room(
 
     await session.commit()
 
-    # Broadcast room creation to rooms:feed channel
-    event = await build_room_update(session, storage, room)
-    await sio.emit(event, room="rooms:feed")
+    await broadcast_room_update(sio, session, storage, room)
 
     return RoomCreateResponse(
         status="ok",
         room_id=room_id,
-        frame_count=event.frame_count,
+        frame_count=frame_count,
         created=True,
     )
 
@@ -625,9 +620,6 @@ async def update_room(
     await session.commit()
 
     if changed:
-        event = await build_room_update(session, storage, room)
-        log.debug("Broadcasting RoomUpdate: %s", event.model_dump())
-        await sio.emit(event, room=f"room:{room.id}")
-        await sio.emit(event, room="room:@overview")
+        await broadcast_room_update(sio, session, storage, room)
 
     return RoomPatchResponse()

@@ -17,7 +17,7 @@ from zndraw.dependencies import (
 )
 from zndraw.exceptions import Forbidden, RoomNotFound, problem_responses
 from zndraw.models import Room, ServerSettings
-from zndraw.routes.rooms import build_room_update
+from zndraw.routes.rooms import broadcast_room_update
 from zndraw.schemas import StatusResponse
 
 router = APIRouter(prefix="/v1/server-settings", tags=["server-settings"])
@@ -106,13 +106,9 @@ async def set_default_room(
     if old_default_id and old_default_id != request.room_id:
         old_room = await session.get(Room, old_default_id)
         if old_room:
-            event = await build_room_update(session, storage, old_room)
-            await sio.emit(event, room="room:@overview")
-            await sio.emit(event, room=f"room:{old_default_id}")
+            await broadcast_room_update(sio, session, storage, old_room)
 
-    event = await build_room_update(session, storage, room)
-    await sio.emit(event, room="room:@overview")
-    await sio.emit(event, room=f"room:{request.room_id}")
+    await broadcast_room_update(sio, session, storage, room)
 
     return DefaultRoomResponse(room_id=request.room_id)
 
@@ -141,8 +137,6 @@ async def unset_default_room(
 
         old_room = await session.get(Room, old_default_id)
         if old_room:
-            event = await build_room_update(session, storage, old_room)
-            await sio.emit(event, room="room:@overview")
-            await sio.emit(event, room=f"room:{old_default_id}")
+            await broadcast_room_update(sio, session, storage, old_room)
 
     return StatusResponse()
