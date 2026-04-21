@@ -13,18 +13,42 @@ from zndraw import ZnDraw
 from zndraw_joblib.client import Category, Extension
 from zndraw_joblib.schemas import JobSummary, TaskResponse
 
+_WATER = ase.Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [1, 0, 0]])
+
+
+def _write(path: Path, frames: list[ase.Atoms]) -> None:
+    if path.suffix in (".h5", ".h5md"):
+        import asebytes
+
+        with asebytes.ASEIO(str(path)) as db:
+            db.extend(frames)
+    else:
+        ase.io.write(path, frames)
+
+
+@pytest.fixture(params=[".xyz", ".h5", ".h5md"])
+def water_file(
+    request: pytest.FixtureRequest, tmp_path: Path
+) -> tuple[Path, list[ase.Atoms]]:
+    """``(path, frames)`` for one H2O frame in each format LoadFile must handle.
+
+    ``.lmdb`` is omitted: the asebytes LMDB backend returns mmap-backed
+    read-only arrays which downstream ``atoms.set_pbc(...)`` can't mutate —
+    pre-existing upstream issue unrelated to #923.
+    """
+    path = tmp_path / f"water{request.param}"
+    frames = [_WATER]
+    _write(path, frames)
+    return path, frames
+
 
 @pytest.fixture
-def water_xyz(tmp_path: Path) -> Path:
-    """Write a 3-atom H2O xyz file to ``tmp_path / water.xyz`` and return its path.
-
-    Shared by any test that needs a real on-disk structure file (e.g. the
-    ``@internal:modifiers:LoadFile`` e2e path).
-    """
-    atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [1, 0, 0]])
-    path = tmp_path / "water.xyz"
-    ase.io.write(path, atoms)
-    return path
+def water_trajectory_h5(tmp_path: Path) -> tuple[Path, list[ase.Atoms]]:
+    """``(path, frames)`` for a five-frame H2O trajectory in h5."""
+    path = tmp_path / "trj.h5"
+    frames = [_WATER] * 5
+    _write(path, frames)
+    return path, frames
 
 
 # =============================================================================
