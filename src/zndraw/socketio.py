@@ -105,6 +105,7 @@ async def on_connect(
     user_id = UUID(payload["sub"])
     await tsio.save_session(sid, {"user_id": user_id, "current_room_id": None})
     await tsio.enter_room(sid, f"user:{user_id}")
+    await tsio.enter_room(sid, "rooms:feed")
     return True
 
 

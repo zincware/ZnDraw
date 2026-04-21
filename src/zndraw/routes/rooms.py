@@ -388,9 +388,9 @@ async def create_room(
 
     await session.commit()
 
-    # Broadcast room creation to @overview system room
+    # Broadcast room creation to rooms:feed channel
     event = await build_room_update(session, storage, room)
-    await sio.emit(event, room="room:@overview")
+    await sio.emit(event, room="rooms:feed")
 
     return RoomCreateResponse(
         status="ok",

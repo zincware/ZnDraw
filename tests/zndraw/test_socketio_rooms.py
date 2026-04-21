@@ -666,3 +666,42 @@ async def test_rest_rejects_updating_other_users_session_camera(
     assert "forbidden" in response.json()["type"]
 
     await sio_a.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_rooms_feed_auto_join(
+    server: str, http_client: AsyncClient
+) -> None:
+    """Every authenticated socket must auto-join rooms:feed on connect,
+    so room_update events from any public room are delivered without
+    an explicit join.
+
+    Regression test for #919: an idle client (in no room) receives a
+    room_update when another user creates a public room.
+    """
+    from zndraw.socket_events import RoomUpdate
+
+    token_a = await _get_user_token(http_client, "feed-a@example.com")
+    token_b = await _get_user_token(http_client, "feed-b@example.com")
+
+    # Client B connects but joins NO room.
+    sio_b = socketio.AsyncClient()
+    received: list[RoomUpdate] = []
+
+    @sio_b.on("room_update")
+    async def on_room_update(data: dict) -> None:
+        received.append(RoomUpdate.model_validate(data))
+
+    await sio_b.connect(server, auth={"token": token_b})
+
+    # Client A creates a public room via REST.
+    new_room_id = await _create_room(http_client, token_a)
+
+    # Give the event loop a beat to deliver the broadcast.
+    await asyncio.sleep(0.5)
+
+    assert any(
+        e.id == new_room_id for e in received
+    ), f"Client B received no room_update for {new_room_id}; got {received}"
+
+    await sio_b.disconnect()
