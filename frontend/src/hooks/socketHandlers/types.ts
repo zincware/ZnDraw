@@ -7,7 +7,7 @@ import type { UserInfo } from "../../utils/auth";
  * Flat dependency context passed to all handler factories.
  *
  * Fields mirror the selectors extracted at the top of useSocketManager.
- * Values that change during the effect lifetime (e.g. `playing`, `chatOpen`)
+ * Values that change during the effect lifetime (e.g. `playing`, active panel)
  * are NOT included -- handlers read those via `useAppStore.getState()`.
  */
 export interface HandlerContext {
@@ -62,7 +62,4 @@ export interface HandlerContext {
 		update: Partial<Progress> & { progress_id: string },
 	) => void;
 	removeProgressTracker: (progressId: string) => void;
-
-	// Window manager
-	openWindow: (figureKey: string) => void;
 }

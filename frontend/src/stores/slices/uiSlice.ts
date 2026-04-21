@@ -2,7 +2,6 @@ import type { StateCreator } from "zustand";
 import type { AppState, Progress } from "../../store";
 
 export interface UISlice {
-	chatOpen: boolean;
 	chatUnreadCount: number;
 	typingUsers: Set<string>;
 	snackbar: {
@@ -16,7 +15,6 @@ export interface UISlice {
 	pathtracerCapture: (() => Promise<Blob>) | null;
 	pathtracingNeedsUpdate: boolean;
 
-	setChatOpen: (open: boolean) => void;
 	incrementChatUnread: () => void;
 	resetChatUnread: () => void;
 	addTypingUser: (email: string) => void;
@@ -42,7 +40,6 @@ export interface UISlice {
 export const createUISlice: StateCreator<AppState, [], [], UISlice> = (
 	set,
 ) => ({
-	chatOpen: false,
 	chatUnreadCount: 0,
 	typingUsers: new Set(),
 	snackbar: null,
@@ -51,8 +48,6 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (
 	screenshotCapture: null,
 	pathtracerCapture: null,
 	pathtracingNeedsUpdate: false,
-
-	setChatOpen: (open) => set({ chatOpen: open }),
 
 	incrementChatUnread: () =>
 		set((state) => ({ chatUnreadCount: state.chatUnreadCount + 1 })),

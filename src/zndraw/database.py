@@ -36,6 +36,7 @@ from zndraw.executor import InternalExtensionExecutor
 from zndraw.extensions.analysis import analysis
 from zndraw.extensions.modifiers import modifiers
 from zndraw.extensions.selections import selections
+from zndraw.providers import BUNDLED_PROVIDERS
 from zndraw.redis import RedisKey
 from zndraw.socket_events import FramesInvalidate
 from zndraw.socketio import tsio
@@ -183,6 +184,37 @@ async def init_database(
     # Seed @internal Job rows for built-in extensions
     await ensure_internal_jobs(_collect_extensions(), session_maker)
 
+    # Seed @internal provider rows. @internal providers are server-owned —
+    # they have no Worker row, so we only need the internal worker User.id
+    # (used at mint time for JWTs in get_worker_token).
+    if settings.filebrowser_enabled:
+        from zndraw_joblib.registry import ensure_internal_providers
+
+        async with session_maker() as session:
+            result = await session.exec(
+                select(User).where(User.email == settings.internal_worker_email)
+            )
+            internal_user = result.one()
+            internal_user_id = internal_user.id
+
+        await ensure_internal_providers(
+            list(BUNDLED_PROVIDERS),
+            session_maker,
+            user_id=internal_user_id,
+        )
+    else:
+        # Feature disabled — clean up any stale @internal provider rows from a
+        # previous run that had it enabled.
+        from sqlalchemy import delete
+
+        from zndraw_joblib.models import ProviderRecord
+
+        async with session_maker() as session:
+            await session.exec(
+                delete(ProviderRecord).where(ProviderRecord.room_id == "@internal")
+            )
+            await session.commit()
+
     # Only dispose if we created the engine (CLI mode)
     if own_engine:
         await engine.dispose()
@@ -208,10 +240,40 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine, class_=SQLModelAsyncSession, expire_on_commit=False
     )
 
+    # Pre-initialize all app.state attrs consumed by request-time dependencies.
+    # Downstream deps access these directly (no getattr fallback); lifespan
+    # sets them to None now and overwrites with real values below.
+    app.state.internal_worker_user = None
+    app.state.internal_provider_registry = None
+    app.state.internal_registry = None
+
     try:
         # Initialize tables on startup (dev mode)
         if settings.init_db_on_startup:
             await init_database(engine=engine, settings=settings)
+
+        # Cache the internal worker User for get_worker_token (avoids the
+        # SQLite-lock deadlock from re-querying mid-request when the route
+        # already holds a yield-based SessionDep).
+        async with app.state.session_maker() as session:
+            result = await session.exec(
+                select(User).where(User.email == settings.internal_worker_email)  # type: ignore[arg-type]
+            )
+            app.state.internal_worker_user = result.one_or_none()
+
+        # Seed @internal provider rows at every startup, not only inside
+        # init_database. Covers existing deployments (init_db_on_startup=False)
+        # whose DB was bootstrapped before the @internal providers feature
+        # landed — server restart backfills the rows. Idempotent: the function
+        # is IntegrityError-safe under concurrent startup.
+        if settings.filebrowser_enabled and app.state.internal_worker_user is not None:
+            from zndraw_joblib.registry import ensure_internal_providers
+
+            await ensure_internal_providers(
+                list(BUNDLED_PROVIDERS),
+                app.state.session_maker,
+                user_id=app.state.internal_worker_user.id,
+            )
 
         # SQLite locking (if needed)
         if _is_sqlite(settings.database_url):
@@ -284,12 +346,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await tsio.leave_room(sid, f"providers:{data.provider_name}")
 
         # zndraw-joblib: register internal extensions for TaskIQ dispatch
-        broker = ListQueueBroker(redis_url)
+        broker = ListQueueBroker(redis_url, queue_name=settings.task_queue_name)
         # Internal executor connects back to the same server — resolve
         # 0.0.0.0 (bind-all) to 127.0.0.1 (loopback) for the client URL.
         executor_host = "127.0.0.1" if settings.host == "0.0.0.0" else settings.host
+        from zndraw.providers.bootstrap import build_internal_providers_resolver
+
         executor = InternalExtensionExecutor(
             base_url=f"http://{executor_host}:{settings.port}",
+            providers_resolver=build_internal_providers_resolver(settings),
         )
 
         if settings.init_db_on_startup:
@@ -305,6 +370,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # broker tasks (no DB writes, avoids unique_job race).
             registry = register_internal_tasks(broker, _collect_extensions(), executor)
             app.state.internal_registry = registry
+
+        # Register @internal provider tasks
+        from zndraw.providers.bootstrap import register_filebrowser_providers
+
+        provider_registry = register_filebrowser_providers(
+            broker,
+            base_url=f"http://{executor_host}:{settings.port}",
+            settings=settings,
+        )
+        app.state.internal_provider_registry = provider_registry
+
         await broker.startup()
 
         # zndraw-joblib: wire ResultBackend for provider caching
@@ -321,8 +397,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
 
         redis_raw = redis_client.from_url(redis_url, **redis_kwargs)
-        redis_backend = RedisResultBackend(redis_raw)
-        frame_cache = StorageResultBackend(app.state.frame_storage)
+        redis_backend = RedisResultBackend(
+            redis_raw, key_prefix=settings.result_backend_key_prefix
+        )
+        frame_cache = StorageResultBackend(
+            app.state.frame_storage,
+            key_prefix=settings.result_backend_key_prefix,
+        )
         result_backend = CompositeResultBackend(redis=redis_backend, frames=frame_cache)
         app.state.result_backend = result_backend
         app.dependency_overrides[get_result_backend] = lambda: result_backend

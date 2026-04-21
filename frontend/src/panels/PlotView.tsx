@@ -1,15 +1,15 @@
-import Plotly from "plotly.js-dist-min";
-import type * as PlotlyJS from "plotly.js-dist-min";
+import { ErrorOutline as ErrorIcon } from "@mui/icons-material";
+import { Box, CircularProgress, Typography } from "@mui/material";
+import { useColorScheme } from "@mui/material/styles";
+import type { IDockviewPanelProps } from "dockview-react";
 // @ts-expect-error - plotly.js internal module lacks type declarations
 import { decodeTypedArraySpec } from "plotly.js/src/lib/array.js";
-import React, {
-	useRef,
-	useEffect,
-	useCallback,
-	useMemo,
-	useState,
-} from "react";
-import { type Position, Rnd } from "react-rnd";
+import type * as PlotlyJS from "plotly.js-dist-min";
+import Plotly from "plotly.js-dist-min";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useFigure } from "../hooks/useFigures";
+import { useStepControl } from "../hooks/useStepControl";
+import { useAppStore } from "../store";
 
 // Extend Plotly types to include custom meta property for step interactions
 declare module "plotly.js-dist-min" {
@@ -22,31 +22,6 @@ declare module "plotly.js-dist-min" {
 			}>;
 		};
 	}
-}
-import { useFigure, useFigureList } from "../hooks/useFigures";
-import { useStepControl } from "../hooks/useStepControl";
-import { useAppStore } from "../store";
-import { useWindowManagerStore } from "../stores/windowManagerStore";
-
-import {
-	Close as CloseIcon,
-	ErrorOutline as ErrorIcon,
-} from "@mui/icons-material";
-// MUI Imports
-import {
-	Autocomplete,
-	Box,
-	CircularProgress,
-	IconButton,
-	Paper,
-	TextField,
-	Tooltip,
-	Typography,
-} from "@mui/material";
-import { useColorScheme } from "@mui/material/styles";
-
-interface FigureWindowProps {
-	windowId: string;
 }
 
 /**
@@ -81,111 +56,6 @@ const MARKER_CONFIGS = {
 		borderWidth: 1.5,
 	},
 } as const;
-
-/**
- * Window template component that eliminates UI boilerplate duplication.
- * Provides consistent window structure across all states (loading, error, content).
- */
-interface WindowTemplateProps {
-	windowInstance: any;
-	allFiguresResponse: any;
-	handleDragStart: () => void;
-	handleDragStop: (event: any, d: Position) => void;
-	handleResizeStop: (
-		event: any,
-		direction: any,
-		ref: HTMLElement,
-		delta: any,
-		position: Position,
-	) => void;
-	handleMouseDown: () => void;
-	handleClose: () => void;
-	handleAutocompleteChange: (
-		event: React.SyntheticEvent,
-		newValue: string | null,
-	) => void;
-	markerControls?: React.ReactNode; // Optional marker visibility controls
-	children: React.ReactNode;
-}
-
-const WindowTemplate = React.memo(
-	({
-		windowInstance,
-		allFiguresResponse,
-		handleDragStart,
-		handleDragStop,
-		handleResizeStop,
-		handleMouseDown,
-		handleClose,
-		handleAutocompleteChange,
-		markerControls,
-		children,
-	}: WindowTemplateProps) => (
-		<Rnd
-			size={{ width: windowInstance.width, height: windowInstance.height }}
-			position={{ x: windowInstance.x, y: windowInstance.y }}
-			minWidth={350}
-			minHeight={300}
-			style={{ zIndex: windowInstance.zIndex }}
-			dragHandleClassName="drag-handle"
-			onDragStart={handleDragStart}
-			onDragStop={handleDragStop}
-			onResizeStop={handleResizeStop}
-			bounds=".drag-boundary-container"
-		>
-			<Paper
-				elevation={4}
-				sx={{
-					width: "100%",
-					height: "100%",
-					display: "flex",
-					flexDirection: "column",
-					overflow: "hidden",
-				}}
-			>
-				<Box
-					className="drag-handle"
-					onMouseDown={handleMouseDown}
-					sx={{
-						p: 1,
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "space-between",
-						borderBottom: 1,
-						borderColor: "divider",
-						cursor: "move",
-						gap: 1,
-					}}
-				>
-					<Autocomplete
-						options={allFiguresResponse?.items || []}
-						value={windowInstance.figureKey}
-						onChange={handleAutocompleteChange}
-						disableClearable
-						size="small"
-						onMouseDown={(event) => event.stopPropagation()}
-						disablePortal
-						sx={{ flexGrow: 1, minWidth: 150 }}
-						renderInput={(params) => (
-							<TextField
-								{...params}
-								label="Figure"
-								variant="outlined"
-								size="small"
-							/>
-						)}
-					/>
-					{markerControls}
-					<IconButton onClick={handleClose} size="small">
-						<CloseIcon />
-					</IconButton>
-				</Box>
-
-				{children}
-			</Paper>
-		</Rnd>
-	),
-);
 
 /**
  * Converts typed array specs (bdata + dtype) to regular arrays.
@@ -232,7 +102,7 @@ function convertToArray(data: any): any[] {
 			}
 
 			return flatArray;
-		} catch (e) {
+		} catch (_e) {
 			return [];
 		}
 	}
@@ -242,9 +112,15 @@ function convertToArray(data: any): any[] {
 
 /**
  * Recursively reshape a flat array into an n-dimensional array.
- * @param flatArray - The flat array to reshape
- * @param dims - Array of dimensions [d0, d1, d2, ...]
- * @param dimIndex - Current dimension being processed
+ *
+ * Parameters
+ * ----------
+ * flatArray : any[]
+ *     The flat array to reshape.
+ * dims : number[]
+ *     Array of dimensions [d0, d1, d2, ...].
+ * dimIndex : number
+ *     Current dimension being processed.
  */
 function reshapeFlat(flatArray: any[], dims: number[], dimIndex: number): any {
 	if (dimIndex === dims.length - 1) {
@@ -273,7 +149,7 @@ function reshapeFlat(flatArray: any[], dims: number[], dimIndex: number): any {
 }
 
 /**
- * [FIXED] Extracts a single numeric value from a customdata entry at a specific dimension.
+ * Extracts a single numeric value from a customdata entry at a specific dimension.
  * This handles various complex data structures that Plotly might return.
  */
 function getCustomDataValue(
@@ -311,7 +187,9 @@ function getCustomDataValue(
 			pointValue = element[0];
 		} else if (typeof element === "object" && element !== null) {
 			// Object with numeric keys like {"0": 8, "1": 8}
-			const numKeys = Object.keys(element).filter((k) => !isNaN(Number(k)));
+			const numKeys = Object.keys(element).filter(
+				(k) => !Number.isNaN(Number(k)),
+			);
 			if (numKeys.length > 0) {
 				pointValue = (element as Record<string, any>)[numKeys[0]];
 			}
@@ -324,7 +202,7 @@ function getCustomDataValue(
 	} else if (typeof customDataPoint === "object") {
 		// Object with numeric keys - handle for arbitrary dimension
 		const numKeys = Object.keys(customDataPoint).filter(
-			(k) => !isNaN(Number(k)),
+			(k) => !Number.isNaN(Number(k)),
 		);
 		if (numKeys.length > 0) {
 			const sortedKeys = numKeys.sort((a, b) => Number(a) - Number(b));
@@ -341,14 +219,12 @@ function getCustomDataValue(
 	}
 
 	const numericValue = Number(pointValue);
-	return isNaN(numericValue) ? undefined : numericValue;
+	return Number.isNaN(numericValue) ? undefined : numericValue;
 }
 
 /**
  * Find data points matching a specific value in a customdata dimension.
  * Returns array of {x, y} positions for all matching points.
- *
- * [REFACTORED] Uses getCustomDataValue helper.
  */
 function findPointsWithValue(
 	track: MarkerTrackInfo,
@@ -362,10 +238,9 @@ function findPointsWithValue(
 		for (let i = 0; i < track.customdata.length; i++) {
 			const customDataPoint = track.customdata[i];
 
-			// Use the new helper function
 			const pointValue = getCustomDataValue(customDataPoint, dimensionIndex);
 
-			// Use loose equality to handle string vs number comparison
+			// biome-ignore lint/suspicious/noDoubleEquals: intentional loose equality — plotly values may be string or number, coercion is required
 			if (pointValue != null && pointValue == value) {
 				points.push({
 					x: track.xData[i] ?? i,
@@ -389,7 +264,6 @@ function findPointsWithValue(
 /**
  * Find a data point at a specific frame in a trace (uses dimension 0 of customdata).
  * Returns the x, y position or null if no point exists at that frame.
- * Kept for backwards compatibility with existing step marker logic.
  */
 function findPointAtFrame(
 	track: MarkerTrackInfo,
@@ -399,16 +273,16 @@ function findPointAtFrame(
 	return points.length > 0 ? points[0] : null;
 }
 
-function FigureWindow({ windowId }: FigureWindowProps) {
-	// ===== LOCAL STATE: Marker Visibility Toggles =====
-	const [markerVisibility, setMarkerVisibility] = useState({
-		step: true, // Red markers for current frame
-		selection: true, // Blue markers for all selections (frame_selection + geometry selections)
-	});
+interface PlotViewParams {
+	figureKey: string;
+}
+
+export function PlotView(props: IDockviewPanelProps<PlotViewParams>) {
+	const figureKey = props.params?.figureKey ?? "";
 
 	// ===== DOM REFERENCES =====
 	// Plotly extends the HTML element at runtime with event methods
-	const plotContainer = useRef<PlotlyJS.PlotlyHTMLElement>(null);
+	const plotContainer = useRef<PlotlyJS.PlotlyHTMLElement | null>(null);
 
 	// ===== MARKER TRACKING =====
 	// Stores info about marker traces for efficient frame updates
@@ -424,24 +298,15 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 	>(null);
 	const onDeselectRef = useRef<(() => void) | null>(null);
 
-	// ===== STORE SELECTORS =====
-	const windowInstance = useWindowManagerStore(
-		(state) => state.openWindows[windowId],
-	);
-	const { updateWindowState, closeWindow, bringToFront, changeFigureInWindow } =
-		useWindowManagerStore();
-
 	// ===== DATA FETCHING =====
 	const {
 		data: figureResponse,
 		isLoading,
 		isError,
 		error,
-	} = useFigure(windowInstance?.figureKey, { enabled: !!windowInstance });
-	const { data: allFiguresResponse } = useFigureList();
+	} = useFigure(figureKey, { enabled: !!figureKey });
 
 	// ===== STORE ACTIONS & STATE =====
-	// Use individual selectors to prevent unnecessary re-renders
 	const updateSelectionForGeometry = useAppStore(
 		(state) => state.updateSelectionForGeometry,
 	);
@@ -464,14 +329,14 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 				return JSON.parse(figureResponse.figure.data);
 			} catch (e) {
 				console.error("Failed to parse Plotly JSON for figure:", {
-					figureKey: windowInstance?.figureKey,
+					figureKey,
 					error: e instanceof Error ? e.message : String(e),
 				});
 				return null;
 			}
 		}
 		return null;
-	}, [figureResponse?.figure, windowInstance?.figureKey]);
+	}, [figureResponse?.figure, figureKey]);
 
 	// ===== MEMOIZED: Layout with autosize and dark mode support =====
 	const plotLayout = useMemo(() => {
@@ -528,7 +393,6 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 							// Skip if interaction has no click action
 							if (!interaction.click) return;
 
-							// [FIXED] Extract value using the robust helper function
 							const numericValue = getCustomDataValue(
 								point.customdata,
 								dimensionIndex,
@@ -591,7 +455,6 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 							// Skip if interaction has no select action
 							if (!interaction.select) return;
 
-							// [FIXED] Extract value using the robust helper function
 							const numericValue = getCustomDataValue(
 								point.customdata,
 								dimensionIndex,
@@ -689,7 +552,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 							yData: yConverted,
 							customdata: customdataConverted,
 							interactionType: "selection",
-							interactionKey: interaction.select || "step", // Use the select value as key
+							interactionKey: interaction.select || "step",
 							customdataIndex: dimensionIdx,
 						});
 					}
@@ -704,13 +567,13 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 
 			// Initialize markers based on current state
 			let initialPoints: Array<{ x: number; y: number }> = [];
-			let initialText: string[] = [];
+			const initialText: string[] = [];
 
 			if (track.interactionType === "step") {
 				const point = findPointAtFrame(track, currentFrame);
 				if (point) {
 					initialPoints = [point];
-					initialText = [`<b>Current Frame</b><br>Frame: ${currentFrame}`];
+					initialText.push(`<b>Current Frame</b><br>Frame: ${currentFrame}`);
 				}
 			} else if (track.interactionType === "selection") {
 				// Initialize with existing selections from store
@@ -722,7 +585,6 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 					frame_selection.length > 0
 				) {
 					frame_selection.forEach((frame) => {
-						// Skip null/undefined frames
 						if (frame === null || frame === undefined) return;
 						const points = findPointsWithValue(
 							track,
@@ -734,14 +596,12 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 							initialText.push(`<b>Selected Frame</b><br>Frame: ${frame}`);
 						});
 					});
-				}
-				// Handle geometry selections (arbitrary dimensions)
-				else if (track.interactionKey !== "step") {
+				} else if (track.interactionKey !== "step") {
+					// Handle geometry selections (arbitrary dimensions)
 					const geometryName = track.interactionKey;
 					const selectedIndices = selections[geometryName];
 					if (Array.isArray(selectedIndices) && selectedIndices.length > 0) {
 						selectedIndices.forEach((index) => {
-							// Skip null/undefined indices
 							if (index === null || index === undefined) return;
 							const points = findPointsWithValue(
 								track,
@@ -797,7 +657,6 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 			markerTraceIndexMap.set(trace.name || "", baseDataLength + idx);
 		});
 
-		// [FIXED] Use the correct, full name (including customdataIndex) to find the new trace index
 		const updatedMarkerTracks = newMarkerTracks.map((track) => {
 			const nameKey = `_marker_${track.interactionType}_${track.interactionKey}_${track.customdataIndex}`;
 			return {
@@ -814,6 +673,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 		// This only re-renders changed traces and preserves interaction state
 		Plotly.react(plotContainer.current, finalPlotData, plotLayout, {
 			responsive: true,
+			displaylogo: false,
 			displayModeBar: true,
 		});
 
@@ -825,13 +685,11 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 		onDeselectRef.current = onPlotDeselect;
 
 		// Attach event listeners using Plotly.js API
-		// Plotly.js provides .on() method on the graph div element
 		container.on("plotly_click", onPlotClick);
 		container.on("plotly_selected", onPlotSelected);
 		container.on("plotly_deselect", onPlotDeselect);
 
 		// Cleanup: Remove listeners by calling removeAllListeners with event name
-		// Plotly.js API: removeAllListeners(eventName) removes all listeners for that specific event
 		return () => {
 			if (container) {
 				container.removeAllListeners("plotly_click");
@@ -844,10 +702,37 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 		plotLayout,
 		onPlotClick,
 		onPlotSelected,
+		onPlotDeselect,
 		frame_selection,
 		selections,
 		currentFrame,
 	]);
+
+	// ===== EFFECT: Purge Plotly on unmount =====
+	// Read plotContainer.current inside the cleanup so we capture the live ref
+	// at unmount, not the (possibly null) ref at first mount.
+	useEffect(() => {
+		return () => {
+			const container = plotContainer.current;
+			if (container) {
+				Plotly.purge(container);
+			}
+		};
+	}, []);
+
+	// ===== EFFECT: Re-layout Plotly on container size changes =====
+	// Dockview emits onDidDimensionsChange on splitter drag, popout, maximize,
+	// and viewport resize. Plotly's responsive:true handles window resizes but
+	// not intra-panel resizes, so we re-trigger its layout pass here.
+	useEffect(() => {
+		const disposable = props.api.onDidDimensionsChange(() => {
+			const container = plotContainer.current;
+			if (container) {
+				Plotly.Plots.resize(container);
+			}
+		});
+		return () => disposable.dispose();
+	}, [props.api]);
 
 	// ===== EFFECT: Update Step Markers on Frame Change =====
 	// Updates red markers for click="step" interaction
@@ -869,14 +754,6 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 		stepMarkers.forEach((track) => {
 			indices.push(track.markerTraceIndex);
 
-			// If visibility is off - hide markers
-			if (!markerVisibility.step) {
-				xUpdates.push([]);
-				yUpdates.push([]);
-				textUpdates.push([]);
-				return;
-			}
-
 			const point = findPointAtFrame(track, currentFrame);
 			if (point) {
 				xUpdates.push([point.x]);
@@ -895,7 +772,7 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 			{ x: xUpdates, y: yUpdates, text: textUpdates as any },
 			indices,
 		);
-	}, [currentFrame, markerVisibility.step]);
+	}, [currentFrame]);
 
 	// ===== EFFECT: Update Selection Markers =====
 	// Combines and updates all selection markers (frame_selection + geometry selections)
@@ -917,14 +794,6 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 		selectionMarkers.forEach((track) => {
 			indices.push(track.markerTraceIndex);
 
-			// If visibility is off - hide markers
-			if (!markerVisibility.selection) {
-				xUpdates.push([]);
-				yUpdates.push([]);
-				textUpdates.push([]);
-				return;
-			}
-
 			const allPoints: Array<{ x: number; y: number }> = [];
 			const tooltips: string[] = [];
 
@@ -935,7 +804,6 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 				frame_selection.length > 0
 			) {
 				frame_selection.forEach((frame) => {
-					// Skip null/undefined frames
 					if (frame === null || frame === undefined) return;
 					const points = findPointsWithValue(
 						track,
@@ -947,15 +815,13 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 						tooltips.push(`<b>Selected Frame</b><br>Frame: ${frame}`);
 					});
 				});
-			}
-			// Handle geometry selections (arbitrary dimensions)
-			else if (track.interactionKey !== "step") {
+			} else if (track.interactionKey !== "step") {
+				// Handle geometry selections (arbitrary dimensions)
 				const geometryName = track.interactionKey;
 				const selectedIndices = selections[geometryName];
 
 				if (Array.isArray(selectedIndices) && selectedIndices.length > 0) {
 					selectedIndices.forEach((index) => {
-						// Skip null/undefined indices
 						if (index === null || index === undefined) return;
 						const points = findPointsWithValue(
 							track,
@@ -982,320 +848,102 @@ function FigureWindow({ windowId }: FigureWindowProps) {
 			{ x: xUpdates, y: yUpdates, text: textUpdates as any },
 			indices,
 		);
-	}, [frame_selection, selections, markerVisibility.selection]);
-
-	// ===== STABLE CALLBACKS: Window Management =====
-
-	const handleAutocompleteChange = useCallback(
-		(_event: React.SyntheticEvent, newValue: string | null) => {
-			if (newValue) {
-				changeFigureInWindow(windowId, newValue);
-			}
-		},
-		[windowId, changeFigureInWindow],
-	);
-
-	const handleDragStart = useCallback(() => {
-		bringToFront(windowId);
-	}, [windowId, bringToFront]);
-
-	const handleDragStop = useCallback(
-		(_event: any, d: Position) => {
-			updateWindowState(windowId, { x: d.x, y: d.y });
-		},
-		[windowId, updateWindowState],
-	);
-
-	const handleResizeStop = useCallback(
-		(
-			_event: any,
-			_direction: any,
-			ref: HTMLElement,
-			_delta: any,
-			position: Position,
-		) => {
-			const newWidth = ref.offsetWidth;
-			const newHeight = ref.offsetHeight;
-
-			// Update window state
-			updateWindowState(windowId, {
-				width: newWidth,
-				height: newHeight,
-				...position,
-			});
-
-			// Trigger Plotly resize via relayout (only updates layout, preserves data and markers)
-			if (plotContainer.current) {
-				Plotly.relayout(plotContainer.current, plotLayout);
-			}
-		},
-		[windowId, updateWindowState, plotLayout],
-	);
-
-	const handleMouseDown = useCallback(() => {
-		bringToFront(windowId);
-	}, [windowId, bringToFront]);
-
-	const handleClose = useCallback(() => {
-		closeWindow(windowId);
-	}, [windowId, closeWindow]);
-
-	// ===== MARKER VISIBILITY CONTROLS =====
-	// Render toggle buttons for marker visibility (only for Plotly figures)
-	const markerControls = useMemo(() => {
-		if (figureResponse?.figure?.type !== "plotly") return null;
-
-		return (
-			<Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
-				<Typography variant="caption" sx={{ fontSize: "0.7rem", mr: 0.5 }}>
-					Markers:
-				</Typography>
-
-				{/* Frame Marker Toggle */}
-				<Tooltip
-					title={
-						markerVisibility.step
-							? "Hide frame marker (red)"
-							: "Show frame marker (red)"
-					}
-					placement="bottom"
-				>
-					<IconButton
-						size="small"
-						onClick={() =>
-							setMarkerVisibility((prev) => ({ ...prev, step: !prev.step }))
-						}
-						sx={{
-							p: 0.25,
-							bgcolor: markerVisibility.step
-								? "rgba(255, 0, 0, 0.1)"
-								: "transparent",
-							borderRadius: 1,
-							"&:hover": {
-								bgcolor: markerVisibility.step
-									? "rgba(255, 0, 0, 0.2)"
-									: "rgba(0, 0, 0, 0.05)",
-							},
-						}}
-					>
-						<Box
-							sx={{
-								width: 8,
-								height: 8,
-								borderRadius: "50%",
-								backgroundColor: "red",
-							}}
-						/>
-					</IconButton>
-				</Tooltip>
-
-				{/* Selection Markers Toggle (combines frame selection + geometry selections) */}
-				<Tooltip
-					title={
-						markerVisibility.selection
-							? "Hide selection markers (blue)"
-							: "Show selection markers (blue)"
-					}
-					placement="bottom"
-				>
-					<IconButton
-						size="small"
-						onClick={() =>
-							setMarkerVisibility((prev) => ({
-								...prev,
-								selection: !prev.selection,
-							}))
-						}
-						sx={{
-							p: 0.25,
-							bgcolor: markerVisibility.selection
-								? "rgba(70, 130, 180, 0.1)"
-								: "transparent",
-							borderRadius: 1,
-							"&:hover": {
-								bgcolor: markerVisibility.selection
-									? "rgba(70, 130, 180, 0.2)"
-									: "rgba(0, 0, 0, 0.05)",
-							},
-						}}
-					>
-						<Box
-							sx={{
-								width: 8,
-								height: 8,
-								borderRadius: "50%",
-								backgroundColor: "rgb(70, 130, 180)",
-							}}
-						/>
-					</IconButton>
-				</Tooltip>
-			</Box>
-		);
-	}, [figureResponse?.figure?.type, markerVisibility]);
-
-	// ===== EARLY RETURN: Window not found =====
-	if (!windowInstance) {
-		return null;
-	}
+	}, [frame_selection, selections]);
 
 	// ===== RENDER: Loading State =====
 	if (isLoading) {
 		return (
-			<WindowTemplate
-				windowInstance={windowInstance}
-				allFiguresResponse={allFiguresResponse}
-				handleDragStart={handleDragStart}
-				handleDragStop={handleDragStop}
-				handleResizeStop={handleResizeStop}
-				handleMouseDown={handleMouseDown}
-				handleClose={handleClose}
-				handleAutocompleteChange={handleAutocompleteChange}
-				markerControls={markerControls}
+			<Box
+				data-testid={`plot-view-${figureKey}`}
+				sx={{
+					width: "100%",
+					height: "100%",
+					display: "flex",
+					justifyContent: "center",
+					alignItems: "center",
+					backgroundColor: "background.paper",
+				}}
 			>
-				<Box
-					sx={{
-						flexGrow: 1,
-						p: 1,
-						overflow: "auto",
-						position: "relative",
-						backgroundColor: "background.paper",
-						display: "flex",
-						justifyContent: "center",
-						alignItems: "center",
-					}}
-				>
-					<CircularProgress />
-				</Box>
-			</WindowTemplate>
+				<CircularProgress />
+			</Box>
 		);
 	}
 
 	// ===== RENDER: Error State =====
 	if (isError) {
 		return (
-			<WindowTemplate
-				windowInstance={windowInstance}
-				allFiguresResponse={allFiguresResponse}
-				handleDragStart={handleDragStart}
-				handleDragStop={handleDragStop}
-				handleResizeStop={handleResizeStop}
-				handleMouseDown={handleMouseDown}
-				handleClose={handleClose}
-				handleAutocompleteChange={handleAutocompleteChange}
-				markerControls={markerControls}
+			<Box
+				data-testid={`plot-view-${figureKey}`}
+				sx={{
+					width: "100%",
+					height: "100%",
+					display: "flex",
+					flexDirection: "column",
+					justifyContent: "center",
+					alignItems: "center",
+					backgroundColor: "background.paper",
+				}}
 			>
-				<Box
-					sx={{
-						flexGrow: 1,
-						p: 1,
-						overflow: "auto",
-						position: "relative",
-						backgroundColor: "background.paper",
-						display: "flex",
-						flexDirection: "column",
-						justifyContent: "center",
-						alignItems: "center",
-					}}
-				>
-					<ErrorIcon sx={{ fontSize: 40, mb: 1, color: "error.main" }} />
-					<Typography variant="body1" color="error">
-						Error loading figure.
-					</Typography>
-					<Typography variant="caption" color="error">
-						{error?.message}
-					</Typography>
-				</Box>
-			</WindowTemplate>
+				<ErrorIcon sx={{ fontSize: 40, mb: 1, color: "error.main" }} />
+				<Typography variant="body1" color="error">
+					Error loading figure.
+				</Typography>
+				<Typography variant="caption" color="error">
+					{error?.message}
+				</Typography>
+			</Box>
 		);
 	}
 
 	// ===== RENDER: Invalid Figure Type =====
 	if (!figureResponse?.figure) {
 		return (
-			<WindowTemplate
-				windowInstance={windowInstance}
-				allFiguresResponse={allFiguresResponse}
-				handleDragStart={handleDragStart}
-				handleDragStop={handleDragStop}
-				handleResizeStop={handleResizeStop}
-				handleMouseDown={handleMouseDown}
-				handleClose={handleClose}
-				handleAutocompleteChange={handleAutocompleteChange}
-				markerControls={markerControls}
+			<Box
+				data-testid={`plot-view-${figureKey}`}
+				sx={{
+					width: "100%",
+					height: "100%",
+					p: 1,
+					backgroundColor: "background.paper",
+				}}
 			>
-				<Box
-					sx={{
-						flexGrow: 1,
-						p: 1,
-						overflow: "auto",
-						position: "relative",
-						backgroundColor: "background.paper",
-					}}
-				>
-					<Typography color="error">No figure data available.</Typography>
-				</Box>
-			</WindowTemplate>
+				<Typography color="error">No figure data available.</Typography>
+			</Box>
 		);
 	}
 
 	// ===== RENDER: Plotly Figure =====
-	if (figureResponse.figure.type === "plotly" && !isLoading) {
+	if (figureResponse.figure.type === "plotly") {
 		return (
-			<WindowTemplate
-				windowInstance={windowInstance}
-				allFiguresResponse={allFiguresResponse}
-				handleDragStart={handleDragStart}
-				handleDragStop={handleDragStop}
-				handleResizeStop={handleResizeStop}
-				handleMouseDown={handleMouseDown}
-				handleClose={handleClose}
-				handleAutocompleteChange={handleAutocompleteChange}
-				markerControls={markerControls}
-			>
-				{/* Plotly Chart Container - Direct DOM manipulation via Plotly.react */}
-				<Box
-					ref={plotContainer}
-					sx={{
-						flexGrow: 1,
-						width: "100%",
-						height: "100%",
-						overflow: "auto",
-						position: "relative",
-						backgroundColor: "background.paper",
-					}}
-				/>
-			</WindowTemplate>
+			<Box
+				data-testid={`plot-view-${figureKey}`}
+				ref={plotContainer}
+				sx={{
+					width: "100%",
+					height: "100%",
+					overflow: "auto",
+					position: "relative",
+					backgroundColor: "background.paper",
+				}}
+			/>
 		);
 	}
 
 	// ===== RENDER: Other Figure Types =====
 	return (
-		<WindowTemplate
-			windowInstance={windowInstance}
-			allFiguresResponse={allFiguresResponse}
-			handleDragStart={handleDragStart}
-			handleDragStop={handleDragStop}
-			handleResizeStop={handleResizeStop}
-			handleMouseDown={handleMouseDown}
-			handleClose={handleClose}
-			handleAutocompleteChange={handleAutocompleteChange}
-			markerControls={markerControls}
+		<Box
+			data-testid={`plot-view-${figureKey}`}
+			sx={{
+				width: "100%",
+				height: "100%",
+				p: 1,
+				overflow: "auto",
+				backgroundColor: "background.paper",
+			}}
 		>
-			<Box
-				sx={{
-					flexGrow: 1,
-					p: 1,
-					overflow: "auto",
-					position: "relative",
-					backgroundColor: "background.paper",
-				}}
-			>
-				<pre style={{ margin: 0 }}>
-					{JSON.stringify(figureResponse.figure, null, 2)}
-				</pre>
-			</Box>
-		</WindowTemplate>
+			<pre style={{ margin: 0 }}>
+				{JSON.stringify(figureResponse.figure, null, 2)}
+			</pre>
+		</Box>
 	);
 }
-
-export default React.memo(FigureWindow);

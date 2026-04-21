@@ -21,14 +21,14 @@ class Selection(Extension):
 class NoneSelection(Selection):
     """Clear all selected atoms."""
 
-    def run(self, vis: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         vis.selection = []
 
 
 class All(Selection):
     """Select all atoms."""
 
-    def run(self, vis: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         atoms = vis[vis.step]
         vis.selection = list(range(len(atoms)))
 
@@ -36,7 +36,7 @@ class All(Selection):
 class Invert(Selection):
     """Invert the current selection."""
 
-    def run(self, vis: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         atoms = vis[vis.step]
         selected_ids = vis.selection
         vis.selection = list(set(range(len(atoms))) - set(selected_ids))
@@ -49,7 +49,7 @@ class Range(Selection):
     end: int = Field(5, description="End index")
     step: int = Field(1, description="Step size")
 
-    def run(self, vis: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         vis.selection = list(range(self.start, self.end, self.step))
 
 
@@ -59,7 +59,7 @@ class Random(Selection):
     count: int = Field(..., description="Number of atoms to select")
     seed: int = Field(42, description="Random seed for reproducibility")
 
-    def run(self, vis: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         atoms = vis[vis.step]
         random.seed(self.seed)
         vis.selection = random.sample(range(len(atoms)), self.count)
@@ -68,7 +68,7 @@ class Random(Selection):
 class IdenticalSpecies(Selection):
     """Select all atoms of the same species as currently selected."""
 
-    def run(self, vis: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         atoms = vis[vis.step]
         selected_ids = vis.selection
         selected_ids = set(selected_ids)
@@ -83,7 +83,7 @@ class IdenticalSpecies(Selection):
 class ConnectedParticles(Selection):
     """Select all particles connected to the current selection."""
 
-    def run(self, vis: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         atoms = vis.atoms
         selected_ids = vis.selection
         total_ids = []
@@ -107,7 +107,7 @@ class Neighbour(Selection):
 
     order: int = Field(1, description="Order of neighbour")
 
-    def run(self, vis: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         total_ids = []
         atoms = vis[vis.step]
         selected_ids = vis.selection
@@ -130,7 +130,7 @@ class Neighbour(Selection):
 class UpdateSelection(Selection):
     """Reload the current selection (trigger update)."""
 
-    def run(self, vis: t.Any) -> None:
+    def run(self, vis: t.Any, **_kwargs: t.Any) -> None:
         vis.selection = vis.selection
 
 

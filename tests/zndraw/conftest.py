@@ -121,10 +121,19 @@ async def client_fixture(
     app.state.settings = Settings()
     app.state.auth_settings = AuthSettings()
 
-    # Ensure the internal worker user exists for WorkerTokenDep resolution
+    # Ensure the internal worker user exists for WorkerTokenDep resolution.
+    # Cache it on app.state so get_worker_token doesn't open its own session
+    # (which would deadlock under SQLite serialization in routes that already
+    # hold a yield-based SessionDep).
+    from sqlmodel import select as _select
+
     from zndraw.database import ensure_internal_worker
 
     await ensure_internal_worker(session, app.state.settings.internal_worker_email)
+    result = await session.exec(
+        _select(User).where(User.email == app.state.settings.internal_worker_email)  # type: ignore[arg-type]
+    )
+    app.state.internal_worker_user = result.one()
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
@@ -238,6 +247,9 @@ def server_factory_fixture() -> Generator[ServerFactory, None, None]:
             "ZNDRAW_SERVER_DATABASE_URL": "sqlite+aiosqlite://",
             "ZNDRAW_SERVER_HOST": host,
             "ZNDRAW_SERVER_PORT": str(port),
+            "ZNDRAW_SERVER_TASK_QUEUE_NAME": f"zndraw:tasks:{port}",
+            "ZNDRAW_SERVER_RESULT_BACKEND_KEY_PREFIX": f"zndraw:{port}",
+            "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "false",
         }
         defaults.update(env_overrides or {})
         env_overrides = defaults

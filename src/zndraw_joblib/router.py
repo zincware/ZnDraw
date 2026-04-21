@@ -1,5 +1,6 @@
 # src/zndraw_joblib/router.py
 import asyncio
+import json
 import logging
 import random
 import re
@@ -8,7 +9,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
-from sqlalchemy import func, update
+from sqlalchemy import and_, func, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import selectinload
@@ -29,8 +30,10 @@ from zndraw_joblib.dependencies import (
     ResultBackendDep,
     WorkerTokenDep,
     WritableRoomDep,
+    get_internal_provider_registry,
     get_internal_registry,
     get_tsio,
+    mint_internal_worker_token,
     request_hash,
     validate_room_id,
 )
@@ -51,6 +54,7 @@ from zndraw_joblib.exceptions import (
     InvalidTaskTransition,
     JobNotFound,
     NoWorkersAvailable,
+    ProblemDetail,
     ProviderNotFound,
     ProviderTimeout,
     SchemaConflict,
@@ -66,7 +70,7 @@ from zndraw_joblib.models import (
     Worker,
     WorkerJobLink,
 )
-from zndraw_joblib.registry import InternalRegistry
+from zndraw_joblib.registry import InternalProviderRegistry, InternalRegistry
 from zndraw_joblib.schemas import (
     JobRegisterRequest,
     JobResponse,
@@ -96,6 +100,9 @@ SessionMakerDep = Annotated[
     async_sessionmaker[AsyncSession], Depends(get_session_maker)
 ]
 InternalRegistryDep = Annotated[InternalRegistry | None, Depends(get_internal_registry)]
+InternalProviderRegistryDep = Annotated[
+    InternalProviderRegistry | None, Depends(get_internal_provider_registry)
+]
 TsioDep = Annotated[AsyncServerWrapper | None, Depends(get_tsio)]
 
 # Valid status transitions
@@ -971,7 +978,40 @@ def _room_provider_filter(room_id: str):
     """Build a SQLAlchemy filter for providers visible from a given room."""
     if room_id == "@global":
         return ProviderRecord.room_id == "@global"
-    return ProviderRecord.room_id.in_(["@global", room_id])
+    if room_id == "@internal":
+        return ProviderRecord.room_id == "@internal"
+    return ProviderRecord.room_id.in_(["@global", "@internal", room_id])
+
+
+def _require_internal_filesystem_access(
+    provider: ProviderRecord, user, settings
+) -> None:
+    """Gate @internal:filesystem:* access on superuser status.
+
+    Parameters
+    ----------
+    provider : ProviderRecord
+        The provider record being accessed.
+    user : User
+        The authenticated user making the request.
+    settings : JobLibSettings
+        Current joblib settings (reads ``filebrowser_require_superuser``).
+
+    Raises
+    ------
+    ProblemError
+        403 Forbidden when the caller is non-superuser and the
+        ``filebrowser_require_superuser`` setting is True.
+    """
+    if (
+        provider.room_id == "@internal"
+        and provider.category == "filesystem"
+        and settings.filebrowser_require_superuser
+        and not user.is_superuser
+    ):
+        raise Forbidden.exception(
+            detail="@internal filesystem access requires superuser"
+        )
 
 
 async def _resolve_provider(
@@ -985,11 +1025,9 @@ async def _resolve_provider(
         )
     provider_room_id, category, name = parts
 
-    # Visibility check: provider must be in the room or @global
-    if room_id not in ("@global",) and provider_room_id not in (
-        "@global",
-        room_id,
-    ):
+    # Visibility check — mirror _room_provider_filter semantics.
+    allowed = {"@global"} if room_id == "@global" else {"@global", "@internal", room_id}
+    if provider_room_id not in allowed:
         raise ProviderNotFound.exception(
             detail=f"Provider '{provider_name}' not accessible from room '{room_id}'"
         )
@@ -1022,6 +1060,10 @@ async def register_provider(
     tsio: TsioDep,
 ):
     """Register or update a provider. Idempotent on (room_id, category, name)."""
+    if room_id == "@internal":
+        raise Forbidden.exception(
+            detail="@internal providers cannot be registered via HTTP"
+        )
     if room_id == "@global" and not user.is_superuser:
         raise Forbidden.exception(
             detail="Admin required for @global provider registration"
@@ -1103,13 +1145,24 @@ async def register_provider(
 async def list_providers(
     room_id: str,
     session: SessionDep,
+    _current_user: CurrentUserDep,
+    settings: SettingsDep,
     limit: Annotated[int, Query(ge=0, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """List providers visible from a room (room-scoped + @global)."""
     validate_room_id(room_id)
 
-    base_query = select(ProviderRecord).where(_room_provider_filter(room_id))
+    filter_ = _room_provider_filter(room_id)
+    # Hide @internal:filesystem:* from non-superusers when the gate is on.
+    if settings.filebrowser_require_superuser and not _current_user.is_superuser:
+        gate_filter = ~(
+            (ProviderRecord.room_id == "@internal")
+            & (ProviderRecord.category == "filesystem")
+        )
+        filter_ = and_(filter_, gate_filter)
+
+    base_query = select(ProviderRecord).where(filter_)
 
     total_result = await session.exec(
         select(func.count()).select_from(base_query.subquery())
@@ -1135,10 +1188,13 @@ async def get_provider_info(
     room_id: str,
     provider_name: str,
     session: SessionDep,
+    _current_user: CurrentUserDep,
+    settings: SettingsDep,
 ):
     """Get provider details and JSON Schema."""
     validate_room_id(room_id)
     provider = await _resolve_provider(session, provider_name, room_id)
+    _require_internal_filesystem_access(provider, _current_user, settings)
 
     return ProviderResponse.from_record(provider)
 
@@ -1153,6 +1209,7 @@ async def read_provider(
     result_backend: ResultBackendDep,
     settings: SettingsDep,
     tsio: TsioDep,
+    internal_provider_registry: InternalProviderRegistryDep,
     prefer: Annotated[str | None, Header()] = None,
 ):
     """Read data from a provider. Long-polls until result is available."""
@@ -1162,14 +1219,29 @@ async def read_provider(
     async with session_maker() as session:
         provider = await _resolve_provider(session, provider_name, room_id)
 
+    _require_internal_filesystem_access(provider, _current_user, settings)
+
     params = dict(request.query_params)
     rhash = request_hash(params)
     cache_key = f"provider-result:{provider.full_name}:{rhash}"
+    status_key = f"{cache_key}:status"
     inflight_key = f"provider-inflight:{provider.full_name}:{rhash}"
 
     # Fast path: cache hit
     cached = await result_backend.get(cache_key)
     if cached is not None:
+        cached_status = await result_backend.get(status_key)
+        if cached_status == b"error":
+            try:
+                problem = json.loads(cached)
+                status_code = int(problem.get("status", 500))
+            except (ValueError, TypeError, KeyError):
+                status_code = 500
+            return Response(
+                content=cached,
+                media_type=ProblemDetail.MEDIA_TYPE,
+                status_code=status_code,
+            )
         return Response(content=cached, media_type=provider.content_type)
 
     # Dispatch if not already inflight
@@ -1177,20 +1249,44 @@ async def read_provider(
         inflight_key, settings.provider_inflight_ttl_seconds
     )
     if acquired:
-        provider_room = f"providers:{provider.full_name}"
-        await emit(
-            tsio,
-            {
-                Emission(
-                    ProviderRequest.from_dict_params(
-                        request_id=rhash,
-                        provider_name=provider.full_name,
-                        params=params,
-                    ),
-                    provider_room,
+        try:
+            if provider.room_id == "@internal":
+                if (
+                    internal_provider_registry is None
+                    or provider.full_name not in internal_provider_registry.tasks
+                ):
+                    raise InternalJobNotConfigured.exception(  # noqa: TRY301
+                        detail=(
+                            f"Internal provider '{provider.full_name}' is registered"
+                            " in the DB but no executor task is available"
+                        )
+                    )
+                params_json = json.dumps(params, sort_keys=True, separators=(",", ":"))
+                worker_token = await mint_internal_worker_token(request.app)
+                await internal_provider_registry.tasks[provider.full_name].kiq(
+                    request_id=rhash,
+                    provider_id=str(provider.id),
+                    params_json=params_json,
+                    token=worker_token,
                 )
-            },
-        )
+            else:
+                provider_room = f"providers:{provider.full_name}"
+                await emit(
+                    tsio,
+                    {
+                        Emission(
+                            ProviderRequest.from_dict_params(
+                                request_id=rhash,
+                                provider_name=provider.full_name,
+                                params=params,
+                            ),
+                            provider_room,
+                        )
+                    },
+                )
+        except BaseException:
+            await result_backend.release_inflight(inflight_key)
+            raise
 
     # Long-poll: wait for result via pub/sub
     requested_wait = parse_prefer_wait(prefer)
@@ -1201,9 +1297,22 @@ async def read_provider(
 
     result = await result_backend.wait_for_key(cache_key, timeout)
     if result is not None:
+        result_status = await result_backend.get(status_key)
         headers = {}
         if requested_wait is not None:
             headers["Preference-Applied"] = f"wait={int(timeout)}"
+        if result_status == b"error":
+            try:
+                problem = json.loads(result)
+                status_code = int(problem.get("status", 500))
+            except (ValueError, TypeError, KeyError):
+                status_code = 500
+            return Response(
+                content=result,
+                media_type=ProblemDetail.MEDIA_TYPE,
+                status_code=status_code,
+                headers=headers,
+            )
         return Response(
             content=result, media_type=provider.content_type, headers=headers
         )
@@ -1230,6 +1339,9 @@ async def delete_provider(
     if not provider:
         raise ProviderNotFound.exception(detail=f"Provider '{provider_id}' not found")
 
+    if provider.room_id == "@internal":
+        raise Forbidden.exception(detail="@internal providers cannot be deleted")
+
     if provider.user_id != user.id and not user.is_superuser:
         raise Forbidden.exception(detail="Provider belongs to different user")
 
@@ -1252,6 +1364,7 @@ async def upload_provider_result(
     settings: SettingsDep,
     tsio: TsioDep,
     x_request_hash: Annotated[str, Header()],
+    x_result_status: Annotated[str | None, Header()] = None,
 ):
     """Provider worker uploads a read result."""
     async with session_maker() as session:
@@ -1270,10 +1383,19 @@ async def upload_provider_result(
             )
 
     cache_key = f"provider-result:{provider.full_name}:{x_request_hash}"
+    status_key = f"{cache_key}:status"
     inflight_key = f"provider-inflight:{provider.full_name}:{x_request_hash}"
 
     # Store raw body as-is (JSON or binary depending on provider content_type)
     data = await request.body()
+    # Write status FIRST so any reader that wakes up on cache_key sees
+    # the status already populated.
+    if x_result_status == "error":
+        await result_backend.store(
+            status_key,
+            b"error",
+            settings.provider_result_ttl_seconds,
+        )
     await result_backend.store(
         cache_key,
         data,

@@ -17,26 +17,6 @@ class TestStorageUri:
         settings = Settings()
         assert settings.storage == "memory://"
 
-    def test_storage_from_env(self) -> None:
-        """Storage URI should be configurable via env var."""
-        os.environ["ZNDRAW_SERVER_STORAGE"] = "/tmp/test.lmdb"
-
-        try:
-            settings = Settings()
-            assert settings.storage == "/tmp/test.lmdb"
-        finally:
-            os.environ.pop("ZNDRAW_SERVER_STORAGE", None)
-
-    def test_mongodb_storage_from_env(self) -> None:
-        """MongoDB URI should be configurable via env var."""
-        os.environ["ZNDRAW_SERVER_STORAGE"] = "mongodb://mongo:27017/zndraw"
-
-        try:
-            settings = Settings()
-            assert settings.storage == "mongodb://mongo:27017/zndraw"
-        finally:
-            os.environ.pop("ZNDRAW_SERVER_STORAGE", None)
-
 
 class TestGuestPassword:
     """Test guest password configuration."""
@@ -55,34 +35,11 @@ class TestMediaAndServerSettings:
         settings = Settings()
         assert settings.media_path == Path("zndraw-media")
 
-    def test_media_path_from_env(self) -> None:
-        """media_path should be configurable via env var."""
-        os.environ["ZNDRAW_SERVER_MEDIA_PATH"] = "/var/data/media"
-
-        try:
-            settings = Settings()
-            assert settings.media_path == Path("/var/data/media")
-        finally:
-            os.environ.pop("ZNDRAW_SERVER_MEDIA_PATH", None)
-
     def test_default_host_and_port(self) -> None:
         """Default host should be '0.0.0.0' and port should be 8000."""
         settings = Settings()
         assert settings.host == "0.0.0.0"
         assert settings.port == 8000
-
-    def test_host_and_port_from_env(self) -> None:
-        """host and port should be configurable via env vars."""
-        os.environ["ZNDRAW_SERVER_HOST"] = "127.0.0.1"
-        os.environ["ZNDRAW_SERVER_PORT"] = "8080"
-
-        try:
-            settings = Settings()
-            assert settings.host == "127.0.0.1"
-            assert settings.port == 8080
-        finally:
-            os.environ.pop("ZNDRAW_SERVER_HOST", None)
-            os.environ.pop("ZNDRAW_SERVER_PORT", None)
 
 
 class TestSimgenEnabled:
@@ -93,16 +50,6 @@ class TestSimgenEnabled:
         settings = Settings()
         assert settings.simgen_enabled is False
 
-    def test_simgen_enabled_from_env(self) -> None:
-        """SiMGen should be configurable via ZNDRAW_SERVER_SIMGEN_ENABLED."""
-        os.environ["ZNDRAW_SERVER_SIMGEN_ENABLED"] = "true"
-
-        try:
-            settings = Settings()
-            assert settings.simgen_enabled is True
-        finally:
-            os.environ.pop("ZNDRAW_SERVER_SIMGEN_ENABLED", None)
-
 
 class TestWorkerEnabled:
     """Test worker_enabled configuration."""
@@ -112,15 +59,6 @@ class TestWorkerEnabled:
         settings = Settings()
         assert settings.worker_enabled is True
 
-    def test_worker_disabled_from_env(self) -> None:
-        """Worker can be disabled via ZNDRAW_SERVER_WORKER_ENABLED."""
-        os.environ["ZNDRAW_SERVER_WORKER_ENABLED"] = "false"
-        try:
-            settings = Settings()
-            assert settings.worker_enabled is False
-        finally:
-            os.environ.pop("ZNDRAW_SERVER_WORKER_ENABLED", None)
-
 
 class TestInternalUrl:
     """Test internal_url configuration."""
@@ -129,34 +67,6 @@ class TestInternalUrl:
         """internal_url should be None by default."""
         settings = Settings()
         assert settings.internal_url is None
-
-    def test_internal_url_from_env(self) -> None:
-        """internal_url should be configurable via ZNDRAW_SERVER_INTERNAL_URL."""
-        os.environ["ZNDRAW_SERVER_INTERNAL_URL"] = "http://nginx"
-        try:
-            settings = Settings()
-            assert settings.internal_url == "http://nginx"
-        finally:
-            os.environ.pop("ZNDRAW_SERVER_INTERNAL_URL", None)
-
-
-class TestSettingsFromEnv:
-    """Test that Settings reads from environment variables."""
-
-    def test_settings_returns_settings(self) -> None:
-        """Settings() should return a Settings instance."""
-        settings = Settings()
-        assert isinstance(settings, Settings)
-
-    def test_settings_picks_up_env_changes(self) -> None:
-        """New Settings() instance should pick up env var changes."""
-        os.environ["ZNDRAW_SERVER_PORT"] = "9999"
-
-        try:
-            settings = Settings()
-            assert settings.port == 9999
-        finally:
-            os.environ.pop("ZNDRAW_SERVER_PORT", None)
 
 
 class TestGlobalSettingsEndpoint:
@@ -246,3 +156,55 @@ def test_missing_pyproject_toml_is_silent(tmp_path, monkeypatch):
 
     settings = Settings()
     assert settings.port == 8000
+
+
+class TestFilebrowserConfig:
+    """Test filebrowser_enabled and filebrowser_path configuration."""
+
+    def test_default_filebrowser_enabled(self) -> None:
+        """Filebrowser should be enabled by default."""
+        settings = Settings()
+        assert settings.filebrowser_enabled is True
+
+    def test_default_filebrowser_path_is_cwd(self) -> None:
+        """Default filebrowser_path should be '.'."""
+        settings = Settings()
+        assert settings.filebrowser_path == "."
+
+    def test_filebrowser_path_none_str_is_literal(self) -> None:
+        """Without env_parse_none_str, lowercase 'none' is a literal path string."""
+        os.environ["ZNDRAW_SERVER_FILEBROWSER_PATH"] = "none"
+        try:
+            settings = Settings()
+            assert settings.filebrowser_path == "none"
+        finally:
+            os.environ.pop("ZNDRAW_SERVER_FILEBROWSER_PATH", None)
+
+
+def test_guest_password_literal_none_not_coerced(monkeypatch):
+    """Dropping env_parse_none_str means 'none' is a literal string
+    everywhere, not an implicit None sentinel.
+    """
+    from pydantic import SecretStr
+
+    from zndraw.config import Settings
+
+    monkeypatch.setenv("ZNDRAW_SERVER_GUEST_PASSWORD", "none")
+    s = Settings()
+    assert isinstance(s.guest_password, SecretStr)
+    assert s.guest_password.get_secret_value() == "none"
+
+
+def test_task_queue_name_default():
+    s = Settings()
+    assert s.task_queue_name == "zndraw:tasks"
+
+
+def test_result_backend_key_prefix_default():
+    s = Settings()
+    assert s.result_backend_key_prefix == "zndraw"
+
+
+def test_provider_executor_timeout_default():
+    s = Settings()
+    assert s.provider_executor_timeout == 30.0

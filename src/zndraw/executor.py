@@ -10,8 +10,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 log = logging.getLogger(__name__)
 
@@ -27,9 +30,19 @@ class InternalExtensionExecutor:
     ----------
     base_url
         ZnDraw server URL.
+    providers_resolver
+        Optional zero-arg callable returning a dict mapping
+        ``<@internal provider full_name> → <resolved handler>``. Injected
+        into ``extension.run(vis, providers=...)`` so server-side modifiers
+        (e.g. ``LoadFile``) can reach the same backend handle the
+        corresponding @internal provider reads through. ``None`` means no
+        injection — matches the pre-@internal-providers behavior.
     """
 
     base_url: str
+    providers_resolver: Callable[[], dict[str, Any]] | None = field(
+        default=None, repr=False
+    )
 
     async def __call__(
         self,
@@ -41,6 +54,7 @@ class InternalExtensionExecutor:
     ) -> None:
         """Execute extension via asyncio.to_thread."""
         base_url = self.base_url
+        providers_resolver = self.providers_resolver
 
         def _run() -> None:
             from zndraw.client import ZnDraw
@@ -61,7 +75,10 @@ class InternalExtensionExecutor:
                     extension=instance,
                 )
                 vis.jobs.start(task)
-                instance.run(vis)
+                providers = (
+                    providers_resolver() if providers_resolver is not None else {}
+                )
+                instance.run(vis, providers=providers)
             except Exception as e:
                 try:
                     if task is not None:

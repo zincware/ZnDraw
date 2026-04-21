@@ -97,4 +97,5 @@ const GeometryPanel = () => {
 	);
 };
 
+export { GeometryPanel };
 export default GeometryPanel;

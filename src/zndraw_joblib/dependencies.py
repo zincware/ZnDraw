@@ -5,13 +5,10 @@ from typing import Annotated, Any, Protocol, runtime_checkable
 
 from fastapi import Depends, Path, Request
 from fastapi_users.authentication import JWTStrategy
-from sqlmodel import select
 from zndraw_socketio import AsyncServerWrapper
 
-from zndraw_auth import User
-from zndraw_auth.db import SessionDep
 from zndraw_joblib.exceptions import InvalidRoomId
-from zndraw_joblib.registry import InternalRegistry
+from zndraw_joblib.registry import InternalProviderRegistry, InternalRegistry
 from zndraw_joblib.settings import JobLibSettings
 
 
@@ -26,6 +23,13 @@ JobLibSettingsDep = Annotated[JobLibSettings, Depends(get_joblib_settings)]
 async def get_internal_registry(request: Request) -> InternalRegistry | None:
     """Return the internal registry from app.state, or None if not configured."""
     return getattr(request.app.state, "internal_registry", None)
+
+
+async def get_internal_provider_registry(
+    request: Request,
+) -> InternalProviderRegistry | None:
+    """Return the internal provider registry from app.state, or None."""
+    return request.app.state.internal_provider_registry
 
 
 def get_tsio(request: Request) -> AsyncServerWrapper | None:
@@ -141,29 +145,52 @@ def request_hash(params: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
-async def get_worker_token(request: Request, session: SessionDep) -> str:
-    """Return a fresh JWT for the internal worker user.
+async def mint_internal_worker_token(app) -> str:
+    """Mint a fresh JWT for the cached internal-worker user.
 
-    Reads ``settings`` and ``auth_settings`` from ``request.app.state``
-    (set in the host app lifespan).  Accepts ``session`` via DI so
-    FastAPI reuses the request-scoped session (avoids SQLite deadlock).
+    Parameters
+    ----------
+    app : fastapi.FastAPI
+        The running application whose ``state`` holds the cached user and
+        auth/settings objects.
+
+    Returns
+    -------
+    str
+        A signed JWT bearer token for the internal worker user.
+
+    Raises
+    ------
+    RuntimeError
+        If ``app.state.internal_worker_user`` is not populated. The cache
+        is primed during lifespan; if it is absent the DB-init step either
+        did not run (``init_db_on_startup=False``) or the worker row is
+        missing.
     """
-    settings = request.app.state.settings
-    auth_settings = request.app.state.auth_settings
-    result = await session.exec(
-        select(User).where(User.email == settings.internal_worker_email)  # type: ignore[arg-type]
-    )
-    user = result.one_or_none()
+    user = app.state.internal_worker_user
     if user is None:
+        email = app.state.settings.internal_worker_email
         raise RuntimeError(
-            f"Internal worker user '{settings.internal_worker_email}' not found. "
+            f"Internal worker user '{email}' not found. "
             "Has the database been initialized?"
         )
+    auth_settings = app.state.auth_settings
     strategy = JWTStrategy(
         secret=auth_settings.secret_key.get_secret_value(),
         lifetime_seconds=auth_settings.token_lifetime_seconds,
     )
     return await strategy.write_token(user)
+
+
+async def get_worker_token(request: Request) -> str:
+    """Return a fresh JWT for the internal worker user.
+
+    Reads the cached ``User`` object from ``app.state.internal_worker_user``
+    (populated once at lifespan startup). Avoids any DB session — opening one
+    here would deadlock under the SQLite serialization lock for routes that
+    also take a yield-based ``SessionDep`` (e.g. ``submit_task``).
+    """
+    return await mint_internal_worker_token(request.app)
 
 
 WorkerTokenDep = Annotated[str, Depends(get_worker_token)]

@@ -5,9 +5,10 @@ from typing import Any, ClassVar, NoReturn
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 
 from zndraw_joblib.exceptions import (
+    ProblemDetail,
+    ProblemError,
     ProviderTimeout,
     TaskNotFound as JoblibTaskNotFound,
     WorkerNotFound as JoblibWorkerNotFound,
@@ -671,31 +672,13 @@ def problem_responses(
 
 
 # =============================================================================
-# Pydantic Models and Exception Handler
+# Exception Handler
 # =============================================================================
-
-
-class ProblemDetail(BaseModel):
-    """RFC 9457 Problem Details."""
-
-    type: str = "about:blank"
-    title: str
-    status: int
-    detail: str | None = None
-    instance: str | None = None
-
-
-class ProblemError(Exception):
-    """Exception that carries a ProblemDetail for RFC 9457 responses."""
-
-    def __init__(
-        self,
-        problem: ProblemDetail,
-        headers: dict[str, str] | None = None,
-    ) -> None:
-        self.problem = problem
-        self.headers = headers
-        super().__init__(problem.title)
+#
+# ``ProblemDetail`` and ``ProblemError`` are re-exported from
+# ``zndraw_joblib.exceptions`` — one canonical definition, used by both
+# packages. Only the zndraw-app exception handler below is unique (it
+# auto-fills ``problem.instance`` from the request URL path).
 
 
 async def problem_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -706,6 +689,6 @@ async def problem_exception_handler(request: Request, exc: Exception) -> JSONRes
     return JSONResponse(
         status_code=exc.problem.status,
         content=exc.problem.model_dump(exclude_none=True),
-        media_type="application/problem+json",
+        media_type=ProblemDetail.MEDIA_TYPE,
         headers=exc.headers,
     )

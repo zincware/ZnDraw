@@ -1,6 +1,12 @@
 import { create } from "zustand";
+import {
+	type ActivityBarSlice,
+	createActivityBarSlice,
+} from "./stores/slices/activityBarSlice";
 import type { ConnectionSlice } from "./stores/slices/connectionSlice";
 import { createConnectionSlice } from "./stores/slices/connectionSlice";
+import type { ExtensionFormSlice } from "./stores/slices/extensionFormSlice";
+import { createExtensionFormSlice } from "./stores/slices/extensionFormSlice";
 import type { LockSlice } from "./stores/slices/lockSlice";
 import { createLockSlice } from "./stores/slices/lockSlice";
 import type { PlaybackSlice } from "./stores/slices/playbackSlice";
@@ -40,7 +46,9 @@ export type AppState = ConnectionSlice &
 	PlaybackSlice &
 	SceneSlice &
 	LockSlice &
-	UISlice;
+	UISlice &
+	ActivityBarSlice &
+	ExtensionFormSlice;
 
 // --- Selectors ---
 
@@ -98,4 +106,6 @@ export const useAppStore = create<AppState>((...a) => ({
 	...createSceneSlice(...a),
 	...createLockSlice(...a),
 	...createUISlice(...a),
+	...createActivityBarSlice(...a),
+	...createExtensionFormSlice(...a),
 }));

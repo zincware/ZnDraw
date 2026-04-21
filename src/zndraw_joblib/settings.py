@@ -23,3 +23,4 @@ class JobLibSettings(BaseSettings):
     provider_inflight_ttl_seconds: int = 30
     provider_long_poll_default_seconds: int = 5
     provider_long_poll_max_seconds: int = 30
+    filebrowser_require_superuser: bool = True

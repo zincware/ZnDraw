@@ -10,6 +10,7 @@ from ase.data import chemical_symbols
 from pydantic import Field
 
 from zndraw.extensions.abc import Category, Extension
+from zndraw.extensions.filesystem import LoadFile
 from zndraw.extensions.molecule_building import molify_modifiers
 
 # Create an enum of all chemical symbols
@@ -258,3 +259,4 @@ modifiers: dict[str, type[Extension]] = {
 }
 
 modifiers.update(molify_modifiers)
+modifiers[LoadFile.__name__] = LoadFile

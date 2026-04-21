@@ -1,13 +1,6 @@
-import { useAppStore } from "../store";
-import { remarkFrameLink } from "../utils/remark-frame-link.js";
-
 import CancelIcon from "@mui/icons-material/Cancel";
 import CheckIcon from "@mui/icons-material/Check";
-import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
-import FullscreenIcon from "@mui/icons-material/Fullscreen";
-import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import SendIcon from "@mui/icons-material/Send";
 import {
 	Box,
@@ -18,41 +11,33 @@ import {
 	Paper,
 	TextField,
 	Typography,
-	useMediaQuery,
 } from "@mui/material";
 import { useColorScheme, useTheme } from "@mui/material/styles";
 import { format } from "date-fns";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Rnd } from "react-rnd";
 import { useParams } from "react-router-dom";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import {
+	oneDark,
+	oneLight,
+} from "react-syntax-highlighter/dist/esm/styles/prism";
 import TextareaAutosize from "react-textarea-autosize";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
-import { LAYOUT_CONSTANTS } from "../constants/layout";
+import { FrameReference } from "../components/FrameReference";
+import { MoleculePreview } from "../components/shared/MoleculePreview";
 import {
 	useChatMessages,
 	useEditMessage,
 	useSendMessage,
 } from "../hooks/useChat";
 import { socket } from "../socket";
+import { useAppStore } from "../store";
 import type { ChatMessage } from "../types/chat";
-import { FrameReference } from "./FrameReference";
-import { MoleculePreview } from "./shared/MoleculePreview";
+import { remarkFrameLink } from "../utils/remark-frame-link.js";
 
 import "katex/dist/katex.min.css";
-
-const CHAT_WIDTH = 400;
-const CHAT_HEIGHT = 500;
-const CHAT_PADDING = 20;
-
-interface ChatWindowProps {
-	open: boolean;
-	onClose: () => void;
-}
 
 const markdownPlugins = [remarkMath, remarkFrameLink];
 const htmlPlugins = [rehypeKatex];
@@ -192,46 +177,8 @@ const SmilesRenderer = ({ content }: { content: string }) => {
 
 const MemoizedMarkdown = memo(ReactMarkdown);
 
-/** Calculate initial position for the chat window */
-const getInitialPosition = () => {
-	const availableHeight =
-		window.innerHeight -
-		LAYOUT_CONSTANTS.APPBAR_HEIGHT -
-		LAYOUT_CONSTANTS.PROGRESSBAR_HEIGHT;
-	return {
-		x: Math.max(CHAT_PADDING, window.innerWidth - CHAT_WIDTH - CHAT_PADDING),
-		y: Math.max(
-			LAYOUT_CONSTANTS.APPBAR_HEIGHT + CHAT_PADDING,
-			LAYOUT_CONSTANTS.APPBAR_HEIGHT +
-				availableHeight -
-				CHAT_HEIGHT -
-				CHAT_PADDING,
-		),
-	};
-};
-
-/** Clamp position to keep window within viewport bounds */
-const clampPosition = (x: number, y: number, width: number, height: number) => {
-	const maxX = Math.max(CHAT_PADDING, window.innerWidth - width - CHAT_PADDING);
-	const minY = LAYOUT_CONSTANTS.APPBAR_HEIGHT + CHAT_PADDING;
-	const maxY = Math.max(
-		minY,
-		window.innerHeight -
-			LAYOUT_CONSTANTS.PROGRESSBAR_HEIGHT -
-			height -
-			CHAT_PADDING,
-	);
-
-	return {
-		x: Math.min(Math.max(CHAT_PADDING, x), maxX),
-		y: Math.min(Math.max(minY, y), maxY),
-	};
-};
-
-const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
+const ChatPanel = () => {
 	// Use individual selectors to prevent unnecessary re-renders
-	const setCurrentFrame = useAppStore((state) => state.setCurrentFrame);
-	const resetChatUnread = useAppStore((state) => state.resetChatUnread);
 	const userName = useAppStore((state) => state.user?.email ?? null);
 	const typingUsers = useAppStore((state) => state.typingUsers);
 	const { roomId } = useParams<{ roomId: string }>();
@@ -244,82 +191,42 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 	const { mode } = useColorScheme();
 	const theme = useTheme();
 
-	// Fullscreen and mobile handling
-	const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-	const [isFullscreen, setIsFullscreen] = useState(false);
-	const [position, setPosition] = useState(getInitialPosition);
-	const [size, setSize] = useState({ width: CHAT_WIDTH, height: CHAT_HEIGHT });
-	const rndRef = useRef<Rnd>(null);
-
-	// Auto-fullscreen on mobile
-	useEffect(() => {
-		setIsFullscreen(isMobile);
-	}, [isMobile]);
-
-	// Handle viewport resize - keep chat within bounds
-	useEffect(() => {
-		const handleResize = () => {
-			if (isFullscreen) return; // Don't adjust position in fullscreen mode
-
-			const clamped = clampPosition(
-				position.x,
-				position.y,
-				size.width,
-				size.height,
-			);
-			if (clamped.x !== position.x || clamped.y !== position.y) {
-				setPosition(clamped);
-				// Update Rnd component position
-				rndRef.current?.updatePosition(clamped);
-			}
-		};
-
-		window.addEventListener("resize", handleResize);
-		return () => window.removeEventListener("resize", handleResize);
-	}, [position, size, isFullscreen]);
-
-	// Reset position when opening chat (ensures proper initial position)
-	useEffect(() => {
-		if (open && !isFullscreen) {
-			const initialPos = getInitialPosition();
-			setPosition(initialPos);
-			rndRef.current?.updatePosition(initialPos);
-		}
-	}, [open, isFullscreen]);
-
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
 		useChatMessages(roomId || "", 50);
 	const sendMessage = useSendMessage(roomId || "");
 	const editMessage = useEditMessage(roomId || "");
 
-	useEffect(() => {
-		if (open) {
-			document.body.style.overflow = "hidden";
-		} else {
-			document.body.style.overflow = "unset";
-		}
-		return () => {
-			document.body.style.overflow = "unset";
-		};
-	}, [open]);
-
-	const scrollToBottom = () => {
+	const scrollToBottom = useCallback(() => {
 		if (scrollContainerRef.current) {
 			scrollContainerRef.current.scrollTop =
 				scrollContainerRef.current.scrollHeight;
 		}
-	};
+	}, []);
 
+	// Scroll on new data, regardless of visibility.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: data is an intentional tick trigger — the effect scrolls when new messages arrive
 	useEffect(() => {
-		if (open) {
-			// Use timeout to ensure DOM is updated before scrolling
-			setTimeout(scrollToBottom, 100);
-			// Reset unread count when chat is opened
-			resetChatUnread();
-		}
-	}, [open, data, resetChatUnread]); // Rerun when opened or when new data arrives
+		setTimeout(scrollToBottom, 100);
+	}, [data, scrollToBottom]);
 
-	const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+	// Reset unread count only while the panel is visible. ChatPanel renders
+	// inside SidebarZone, so visibility is "the chat icon is the active tool
+	// in some sidebar". Re-run on data changes and on activation so the badge
+	// clears when the user switches back.
+	const isChatActive = useAppStore(
+		(s) =>
+			s.activeLeft === "chat" ||
+			s.activeRight === "chat" ||
+			s.activeBottom === "chat",
+	);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: data is an intentional tick trigger — the effect runs on new messages to clear the badge
+	useEffect(() => {
+		if (isChatActive) {
+			useAppStore.getState().resetChatUnread();
+		}
+	}, [data, isChatActive]);
+
+	const handleScroll = (_e: React.UIEvent<HTMLDivElement>) => {
 		if (scrollContainerRef.current) {
 			const { scrollTop } = scrollContainerRef.current;
 			if (scrollTop < 50 && hasNextPage && !isFetchingNextPage) {
@@ -423,12 +330,8 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 				? `${typingNames.join(", ")} are typing...`
 				: null;
 
-	if (!open) {
-		return null;
-	}
-
 	const markdownComponents = {
-		code({ node, className, children, ...props }: any) {
+		code({ node: _node, className, children, ...props }: any) {
 			const match = /language-(\w+)/.exec(className || "");
 			const language = match?.[1];
 			const content = String(children).replace(/\n$/, "");
@@ -469,8 +372,16 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 		},
 	} as Record<string, React.ComponentType<any>>;
 
-	const chatBody = (
-		<>
+	return (
+		<Box
+			data-testid="chat-panel"
+			sx={{
+				display: "flex",
+				flexDirection: "column",
+				height: "100%",
+				overflow: "hidden",
+			}}
+		>
 			{/* Messages Container */}
 			<Box
 				ref={scrollContainerRef}
@@ -610,6 +521,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 			<Box sx={{ p: 2, backgroundColor: "background.default" }}>
 				<Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
 					<TextareaAutosize
+						data-testid="chat-input"
 						minRows={1}
 						maxRows={6}
 						placeholder="Type a message..."
@@ -618,7 +530,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 							setMessageInput(e.target.value);
 							if (e.target.value.trim()) emitTypingStart();
 						}}
-						onKeyPress={(e) => {
+						onKeyDown={(e) => {
 							if (e.key === "Enter" && !e.shiftKey) {
 								e.preventDefault();
 								handleSendMessage();
@@ -637,6 +549,7 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 						}}
 					/>
 					<IconButton
+						data-testid="chat-send"
 						color="primary"
 						onClick={handleSendMessage}
 						disabled={!messageInput.trim() || sendMessage.isPending}
@@ -645,136 +558,9 @@ const ChatWindow = ({ open, onClose }: ChatWindowProps) => {
 					</IconButton>
 				</Box>
 			</Box>
-		</>
-	);
-
-	// Fullscreen mode - render as fixed overlay
-	if (isFullscreen) {
-		return (
-			<Paper
-				elevation={4}
-				sx={{
-					position: "fixed",
-					top: LAYOUT_CONSTANTS.APPBAR_HEIGHT,
-					left: 0,
-					right: 0,
-					bottom: LAYOUT_CONSTANTS.PROGRESSBAR_HEIGHT,
-					zIndex: 1301,
-					display: "flex",
-					flexDirection: "column",
-					overflow: "hidden",
-					borderRadius: 0,
-				}}
-			>
-				{/* Header */}
-				<Box
-					sx={{
-						p: 1.4,
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "space-between",
-						borderBottom: 1,
-						borderColor: "divider",
-					}}
-				>
-					<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-						<Typography variant="h6">Chat</Typography>
-						<IconButton size="small" sx={{ color: "text.secondary" }}>
-							<HelpOutlineIcon fontSize="small" />
-						</IconButton>
-					</Box>
-					<Box>
-						{!isMobile && (
-							<IconButton
-								onClick={() => setIsFullscreen(false)}
-								size="small"
-								title="Exit fullscreen"
-							>
-								<FullscreenExitIcon />
-							</IconButton>
-						)}
-						<IconButton onClick={onClose} size="small">
-							<CloseIcon />
-						</IconButton>
-					</Box>
-				</Box>
-
-				{chatBody}
-			</Paper>
-		);
-	}
-
-	// Normal draggable/resizable mode
-	return (
-		<Rnd
-			ref={rndRef}
-			position={position}
-			size={size}
-			onDragStop={(e, d) => {
-				const clamped = clampPosition(d.x, d.y, size.width, size.height);
-				setPosition(clamped);
-			}}
-			onResizeStop={(e, direction, ref, delta, pos) => {
-				const newWidth = Number.parseInt(ref.style.width, 10);
-				const newHeight = Number.parseInt(ref.style.height, 10);
-				const clamped = clampPosition(pos.x, pos.y, newWidth, newHeight);
-				setSize({ width: newWidth, height: newHeight });
-				setPosition(clamped);
-			}}
-			minWidth={300}
-			minHeight={400}
-			bounds="window"
-			dragHandleClassName="drag-handle"
-			style={{ zIndex: 1301 }}
-		>
-			<Paper
-				elevation={4}
-				sx={{
-					width: "100%",
-					height: "100%",
-					display: "flex",
-					flexDirection: "column",
-					overflow: "hidden",
-				}}
-			>
-				{/* Header */}
-				<Box
-					className="drag-handle"
-					sx={{
-						p: 1.4,
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "space-between",
-						borderBottom: 1,
-						borderColor: "divider",
-						cursor: "move",
-					}}
-				>
-					<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-						<Typography variant="h6">Chat</Typography>
-						<IconButton size="small" sx={{ color: "text.secondary" }}>
-							<HelpOutlineIcon fontSize="small" />
-						</IconButton>
-					</Box>
-					<Box>
-						<IconButton
-							onClick={() => setIsFullscreen(true)}
-							size="small"
-							title="Fullscreen"
-						>
-							<FullscreenIcon />
-						</IconButton>
-						<IconButton onClick={onClose} size="small">
-							<CloseIcon />
-						</IconButton>
-					</Box>
-				</Box>
-
-				{chatBody}
-			</Paper>
-		</Rnd>
+		</Box>
 	);
 };
 
 // Memoize to prevent unnecessary re-renders
-export default memo(ChatWindow);
+export default memo(ChatPanel);

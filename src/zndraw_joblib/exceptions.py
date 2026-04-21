@@ -17,6 +17,8 @@ def _camel_to_kebab(name: str) -> str:
 class ProblemDetail(BaseModel):
     """RFC 9457 Problem Details."""
 
+    MEDIA_TYPE: ClassVar[str] = "application/problem+json"
+
     type: str = "about:blank"
     title: str
     status: int
@@ -88,7 +90,7 @@ async def problem_exception_handler(_request: Request, exc: Exception) -> JSONRe
     return JSONResponse(
         status_code=exc.problem.status,
         content=exc.problem.model_dump(exclude_none=True),
-        media_type="application/problem+json",
+        media_type=ProblemDetail.MEDIA_TYPE,
         headers=exc.headers,
     )
 
@@ -192,3 +194,10 @@ class ProviderTimeout(ProblemType):
     @classmethod
     def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
         raise ProviderTimeoutError(problem.detail or problem.title)
+
+
+class ProviderExecutionFailed(ProblemType):
+    """The provider failed to execute the requested read."""
+
+    title: ClassVar[str] = "Bad Request"
+    status: ClassVar[int] = 400

@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import react from "@vitejs/plugin-react-swc";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 /**
  * Gets the Python package version from the installed zndraw package.
@@ -100,6 +100,17 @@ export default defineConfig({
 			"/socket.io": {
 				target: "ws://localhost:8000",
 				ws: true,
+			},
+		},
+	},
+	test: {
+		environment: "jsdom",
+		globals: true,
+		setupFiles: ["./test-setup.ts"],
+		css: true,
+		server: {
+			deps: {
+				inline: ["@mui/x-data-grid"],
 			},
 		},
 	},

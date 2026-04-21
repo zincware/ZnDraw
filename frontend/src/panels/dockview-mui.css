@@ -1,0 +1,37 @@
+/* Maps dockview CSS variables to MUI palette tokens so tab chrome matches
+   the app. Applied whenever DockviewReact has either dockview-theme-light
+   or dockview-theme-dark class. The MUI tokens themselves flip with
+   colorScheme, so one rule serves both modes.
+
+   Requires <MuiCssVars /> in App.tsx so the --mui-palette-* custom
+   properties are emitted on :root. (MUI v7 uses <MuiCssVars />,
+   not the older cssVariables: true option on createTheme.) */
+
+/* Double class selector to out-specificity the dockview base theme rules,
+   which are injected into the DOM at runtime by dockview-react and therefore
+   appear later in the cascade than this module-imported stylesheet. */
+.dockview-theme-light.dockview-theme-light,
+.dockview-theme-dark.dockview-theme-dark {
+	--dv-group-view-background-color: var(--mui-palette-background-default);
+	--dv-tabs-and-actions-container-background-color: var(
+		--mui-palette-background-paper
+	);
+	--dv-activegroup-visiblepanel-tab-background-color: var(
+		--mui-palette-background-default
+	);
+	--dv-activegroup-hiddenpanel-tab-background-color: var(
+		--mui-palette-background-paper
+	);
+	--dv-inactivegroup-visiblepanel-tab-background-color: var(
+		--mui-palette-action-hover
+	);
+	--dv-inactivegroup-hiddenpanel-tab-background-color: var(
+		--mui-palette-background-paper
+	);
+	--dv-activegroup-visiblepanel-tab-color: var(--mui-palette-text-primary);
+	--dv-activegroup-hiddenpanel-tab-color: var(--mui-palette-text-secondary);
+	--dv-inactivegroup-visiblepanel-tab-color: var(--mui-palette-text-primary);
+	--dv-inactivegroup-hiddenpanel-tab-color: var(--mui-palette-text-secondary);
+	--dv-separator-border: var(--mui-palette-divider);
+	--dv-paneview-active-outline-color: var(--mui-palette-primary-main);
+}

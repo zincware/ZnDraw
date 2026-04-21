@@ -208,6 +208,18 @@ def fs_provider():
     return _FsProvider
 
 
+class _SettingsStub:
+    """Minimal stub for the host-app Settings object.
+
+    Only the attributes read by ``mint_internal_worker_token`` need to be
+    present. Tests that exercise the @internal dispatch path use this to
+    avoid importing ``zndraw.config.Settings`` (which is a host-app concern
+    and would require full app wiring).
+    """
+
+    internal_worker_email: str = "worker@internal.user"
+
+
 def _build_app(
     *,
     session_maker,
@@ -220,6 +232,7 @@ def _build_app(
         current_user_scoped_session,
     )
     from zndraw_auth.db import get_session_maker
+    from zndraw_auth.settings import AuthSettings
 
     app = FastAPI()
     app.include_router(router)
@@ -231,10 +244,21 @@ def _build_app(
     app.state.joblib_settings = JobLibSettings()
     result_backend = InMemoryResultBackend()
     app.dependency_overrides[get_result_backend] = lambda: result_backend
-    # WorkerTokenDep is always resolved by submit_task; stub it for @global tests
+    # WorkerTokenDep is still used by submit_task; stub it for @global tests.
     from zndraw_joblib.dependencies import get_worker_token
 
     app.dependency_overrides[get_worker_token] = lambda: "test-worker-token"
+
+    # Set up app.state attributes consumed by mint_internal_worker_token and
+    # get_internal_provider_registry. Per the "always set in lifespan" contract,
+    # every attribute accessed by request-time deps must be present (value or
+    # None) — no getattr fallbacks.
+    app.state.settings = _SettingsStub()
+    app.state.auth_settings = AuthSettings()
+    _worker_user = MagicMock(spec=User)
+    _worker_user.id = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    app.state.internal_worker_user = _worker_user
+    app.state.internal_provider_registry = None
     return app
 
 
@@ -340,3 +364,60 @@ async def async_client(async_session_factory, mock_current_user):
         base_url="http://test",
     ) as client:
         yield client
+
+
+@pytest.fixture
+def unguarded_client_factory(async_session_factory):
+    """Factory to create clients without the get_worker_token override.
+
+    Unlike ``client_factory``, this fixture does NOT stub out
+    ``get_worker_token``, so the real dependency runs and reads
+    ``app.state.internal_worker_user``. Intended for regression tests
+    that verify behaviour when that cache is absent.
+    """
+
+    def create_client(
+        identity: str,
+        is_superuser: bool = True,
+        *,
+        internal_worker_user=None,
+    ) -> TestClient:
+        user_id = uuid.uuid5(uuid.NAMESPACE_DNS, identity)
+
+        user = MagicMock(spec=User)
+        user.id = user_id
+        user.email = f"{identity}@example.com"
+        user.is_active = True
+        user.is_superuser = is_superuser
+        user.is_verified = True
+
+        async def get_current_user():
+            return user
+
+        from zndraw_auth import (
+            current_active_user,
+            current_superuser,
+            current_user_scoped_session,
+        )
+        from zndraw_auth.db import get_session_maker
+
+        app = FastAPI()
+        app.include_router(router)
+        app.add_exception_handler(ProblemError, problem_exception_handler)
+        app.dependency_overrides[get_session_maker] = lambda: async_session_factory
+        app.dependency_overrides[current_active_user] = get_current_user
+        app.dependency_overrides[current_superuser] = get_current_user
+        app.dependency_overrides[current_user_scoped_session] = get_current_user
+        app.state.joblib_settings = JobLibSettings()
+        result_backend = InMemoryResultBackend()
+        app.dependency_overrides[get_result_backend] = lambda: result_backend
+        # Intentionally NOT overriding get_worker_token — real dep runs.
+        app.state.internal_worker_user = internal_worker_user
+        app.state.internal_provider_registry = None
+        app.state.settings = _SettingsStub()
+
+        test_client = TestClient(app)
+        test_client.user_id = user_id
+        return test_client
+
+    return create_client

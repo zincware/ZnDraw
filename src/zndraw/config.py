@@ -21,7 +21,11 @@ from pydantic_settings import (
 class Settings(BaseSettings):
     """Application settings loaded from environment variables.
 
-    All settings use the ZNDRAW_SERVER_ prefix.
+    All settings use the ``ZNDRAW_SERVER_`` prefix.
+
+    The default ``@internal`` filesystem provider is gated on
+    ``filebrowser_enabled`` (no DB row, no task registration, frontend icon
+    hidden when disabled) and rooted at ``filebrowser_path``.
     """
 
     model_config = SettingsConfigDict(
@@ -90,6 +94,17 @@ class Settings(BaseSettings):
     # Worker
     worker_enabled: bool = True  # False in Docker (dedicated workers)
     internal_url: str | None = None  # For TaskIQ workers to reach FastAPI
+
+    # Filesystem provider
+    filebrowser_enabled: bool = True
+    filebrowser_path: str = "."
+
+    # Taskiq broker / result backend isolation (per-server namespacing)
+    task_queue_name: str = "zndraw:tasks"
+    result_backend_key_prefix: str = "zndraw"
+
+    # Provider executor
+    provider_executor_timeout: float = 30.0
 
 
 def get_zndraw_settings(request: Request) -> Settings:

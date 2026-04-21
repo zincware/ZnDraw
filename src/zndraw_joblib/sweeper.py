@@ -188,7 +188,11 @@ async def cleanup_stale_workers(
     all_emissions: set[Emission] = set()
     all_frame_rooms: set[str] = set()
 
-    # Find all stale workers
+    # Find all stale workers. @internal providers mirror @internal jobs —
+    # jobs have no WorkerJobLink entries, providers have worker_id=None —
+    # because both are server-owned (dispatched by the in-process taskiq
+    # broker, not a remote client). NULL sits outside cleanup_worker's
+    # concrete-UUID delete query, so no sweeper special case is needed.
     result = await session.exec(select(Worker).where(Worker.last_heartbeat < cutoff))
     stale_workers = result.all()
 

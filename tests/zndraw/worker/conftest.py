@@ -2,13 +2,30 @@
 
 import threading
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, ClassVar
 
+import ase
+import ase.io
 import pytest
 
 from zndraw import ZnDraw
 from zndraw_joblib.client import Category, Extension
 from zndraw_joblib.schemas import JobSummary, TaskResponse
+
+
+@pytest.fixture
+def water_xyz(tmp_path: Path) -> Path:
+    """Write a 3-atom H2O xyz file to ``tmp_path / water.xyz`` and return its path.
+
+    Shared by any test that needs a real on-disk structure file (e.g. the
+    ``@internal:modifiers:LoadFile`` e2e path).
+    """
+    atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [1, 0, 0]])
+    path = tmp_path / "water.xyz"
+    ase.io.write(path, atoms)
+    return path
+
 
 # =============================================================================
 # Test Extension Classes

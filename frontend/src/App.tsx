@@ -1,12 +1,23 @@
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import {
+	Navigate,
+	RouterProvider,
+	createBrowserRouter,
+	useParams,
+} from "react-router-dom";
+import { MuiCssVars } from "./MuiCssVars";
 import CliLoginApprovePage from "./pages/cliLoginApprove";
-import FilesystemBrowserPage from "./pages/filesystemBrowser";
 import MainPage from "./pages/landingPage";
 import RoomListPage from "./pages/roomList";
 import TemplateSelectionPage from "./pages/templateSelection";
+
+function FilesystemRedirect() {
+	const { roomId } = useParams<{ roomId: string }>();
+	if (!roomId) return <Navigate to="/" replace />;
+	return <Navigate to={`/rooms/${roomId}?panel=filesystem`} replace />;
+}
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -39,7 +50,7 @@ const router = createBrowserRouter([
 	},
 	{
 		path: "/rooms/:roomId/files",
-		element: <FilesystemBrowserPage />,
+		element: <FilesystemRedirect />,
 	},
 	{
 		path: "/rooms/:roomId",
@@ -55,6 +66,7 @@ export function App() {
 	return (
 		<ThemeProvider theme={theme}>
 			<CssBaseline />
+			<MuiCssVars />
 			<QueryClientProvider client={queryClient}>
 				<RouterProvider router={router} />
 			</QueryClientProvider>

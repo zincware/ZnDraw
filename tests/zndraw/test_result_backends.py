@@ -276,3 +276,75 @@ async def test_redis_wait_for_key_race_condition(redis_backend):
 async def test_redis_notify_key_no_waiters(redis_backend):
     """notify_key does not raise when there are no subscribers."""
     await redis_backend.notify_key("no-one-listening")
+
+
+# ---------------------------------------------------------------------------
+# key_prefix namespacing
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_key_prefix_namespaces_all_operations():
+    # Use separate clients: one with decode_responses=True for raw string
+    # assertions, one without (binary) for the backend so b.get returns bytes.
+    redis_raw_check = Redis.from_url("redis://localhost", decode_responses=True)
+    redis_backend_client = Redis.from_url("redis://localhost", decode_responses=False)
+    await redis_raw_check.flushdb()
+    try:
+        b = RedisResultBackend(redis_backend_client, key_prefix="zndraw:9999")
+        await b.store("k", b"v", ttl=10)
+        # Direct raw read under the prefixed key succeeds, bare key is empty.
+        assert await redis_raw_check.get("zndraw:9999:k") == "v"
+        assert await redis_raw_check.get("k") is None
+        # API path round-trips.
+        assert await b.get("k") == b"v"
+        # Inflight lock uses the same prefix.
+        assert await b.acquire_inflight("ik", ttl=5) is True
+        assert await redis_raw_check.get("zndraw:9999:ik") == "1"
+        await b.release_inflight("ik")
+        assert await redis_raw_check.get("zndraw:9999:ik") is None
+    finally:
+        await redis_raw_check.flushdb()
+        await redis_raw_check.aclose()
+        await redis_backend_client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_storage_result_backend_key_prefix_isolates_instances(frame_storage):
+    """Two StorageResultBackends with different key_prefixes must not
+    collide when sharing the same underlying FrameStorage."""
+    backend_a = StorageResultBackend(frame_storage, key_prefix="server-a")
+    backend_b = StorageResultBackend(frame_storage, key_prefix="server-b")
+
+    await backend_a.store("result-key", b"payload-a", ttl=0)
+    await backend_b.store("result-key", b"payload-b", ttl=0)
+
+    assert await backend_a.get("result-key") == b"payload-a"
+    assert await backend_b.get("result-key") == b"payload-b"
+
+    await backend_a.delete("result-key")
+    assert await backend_a.get("result-key") is None
+    assert await backend_b.get("result-key") == b"payload-b"
+
+
+@pytest.mark.asyncio
+async def test_notify_channel_namespaced_by_prefix():
+    # Two backends on different prefixes must not wake each other's waiters.
+    redis_a = Redis.from_url("redis://localhost", decode_responses=False)
+    redis_b = Redis.from_url("redis://localhost", decode_responses=False)
+    try:
+        a = RedisResultBackend(redis_a, key_prefix="A")
+        b = RedisResultBackend(redis_b, key_prefix="B")
+        import asyncio
+
+        async def wait_a():
+            return await a.wait_for_key("same", timeout=1.0)
+
+        waiter = asyncio.create_task(wait_a())
+        await asyncio.sleep(0.1)
+        await b.notify_key("same")  # Different channel
+        result = await waiter
+        assert result is None  # Timed out; B's notify did not cross over.
+    finally:
+        await redis_a.aclose()
+        await redis_b.aclose()
