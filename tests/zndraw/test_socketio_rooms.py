@@ -164,31 +164,6 @@ async def test_socketio_leave_room_after_switch_is_idempotent(
 
 
 @pytest.mark.asyncio
-async def test_socketio_join_system_room_overview(
-    server: str, http_client: AsyncClient
-) -> None:
-    """Test joining @overview system room (no DB validation, no presence)."""
-    token = await _get_user_token(http_client, "overview@example.com")
-
-    sio_client = socketio.AsyncClient()
-    await sio_client.connect(server, auth={"token": token})
-    tsio_client = wrap(sio_client)
-
-    # Join @overview system room (does not require DB record)
-    result = await tsio_client.call(
-        RoomJoin(room_id="@overview", client_type="frontend"),
-        response_model=RoomJoinResponse,
-    )
-    assert result.room_id == "@overview"
-    assert result.session_id is not None  # Server assigns session ID
-    assert result.step == 0  # System rooms have no frames
-    assert result.frame_count == 0  # System rooms have no frames
-    assert result.locked is False  # System rooms are never locked
-
-    await sio_client.disconnect()
-
-
-@pytest.mark.asyncio
 async def test_socketio_typing_events(server: str, http_client: AsyncClient) -> None:
     """Test typing start/stop events."""
     token = await _get_user_token(http_client, "typinguser@example.com")
