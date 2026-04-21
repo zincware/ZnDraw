@@ -231,10 +231,7 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 								{ room_id: ctx.roomId!, client_type: "frontend" },
 								(retryResponse: RoomJoinResponse | RoomJoinError) => {
 									if ("status" in retryResponse) {
-										console.error(
-											"Failed to join room:",
-											retryResponse,
-										);
+										console.error("Failed to join room:", retryResponse);
 										ctx.setInitializationError({
 											message: "Failed to join room",
 											details:
@@ -253,8 +250,7 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 							console.error("Failed to join room:", response);
 							ctx.setInitializationError({
 								message: "Failed to join room",
-								details:
-									response.detail || "Server rejected the connection",
+								details: response.detail || "Server rejected the connection",
 							});
 							return;
 						}

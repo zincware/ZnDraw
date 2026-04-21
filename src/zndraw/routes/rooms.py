@@ -299,9 +299,7 @@ async def broadcast_room_update(
         await sio.emit(event, room="rooms:feed")
         return
     result = await session.exec(
-        select(RoomMembership.user_id).where(
-            RoomMembership.room_id == room.id
-        )
+        select(RoomMembership.user_id).where(RoomMembership.room_id == room.id)
     )
     for uid in result.all():
         await sio.emit(event, room=f"user:{uid}")

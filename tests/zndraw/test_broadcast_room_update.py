@@ -47,9 +47,7 @@ async def test_broadcast_private_room_targets_each_member(
 
     room = Room(id="priv", is_public=False)
     session.add(room)
-    session.add(
-        RoomMembership(room_id="priv", user_id=member_a, role=MemberRole.OWNER)
-    )
+    session.add(RoomMembership(room_id="priv", user_id=member_a, role=MemberRole.OWNER))
     session.add(
         RoomMembership(room_id="priv", user_id=member_b, role=MemberRole.MEMBER)
     )
@@ -59,9 +57,7 @@ async def test_broadcast_private_room_targets_each_member(
     await broadcast_room_update(sio, session, frame_storage, room)
 
     rooms_targeted = sorted(call["room"] for call in sio.emitted)
-    assert rooms_targeted == sorted(
-        [f"user:{member_a}", f"user:{member_b}"]
-    )
+    assert rooms_targeted == sorted([f"user:{member_a}", f"user:{member_b}"])
     assert "rooms:feed" not in rooms_targeted
 
 

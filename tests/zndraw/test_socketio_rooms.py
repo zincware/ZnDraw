@@ -644,9 +644,7 @@ async def test_rest_rejects_updating_other_users_session_camera(
 
 
 @pytest.mark.asyncio
-async def test_rooms_feed_auto_join(
-    server: str, http_client: AsyncClient
-) -> None:
+async def test_rooms_feed_auto_join(server: str, http_client: AsyncClient) -> None:
     """Every authenticated socket must auto-join rooms:feed on connect,
     so room_update events from any public room are delivered without
     an explicit join.
@@ -675,9 +673,9 @@ async def test_rooms_feed_auto_join(
     # Give the event loop a beat to deliver the broadcast.
     await asyncio.sleep(0.5)
 
-    assert any(
-        e.id == new_room_id for e in received
-    ), f"Client B received no room_update for {new_room_id}; got {received}"
+    assert any(e.id == new_room_id for e in received), (
+        f"Client B received no room_update for {new_room_id}; got {received}"
+    )
 
     await sio_b.disconnect()
 
@@ -715,12 +713,8 @@ async def test_same_room_frame_append_updates_sidebar(
 
     tsio_a = wrap(sio_a)
     tsio_b = wrap(sio_b)
-    await tsio_a.call(
-        RoomJoin(room_id=room_id), response_model=RoomJoinResponse
-    )
-    await tsio_b.call(
-        RoomJoin(room_id=room_id), response_model=RoomJoinResponse
-    )
+    await tsio_a.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_b.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
 
     # Drain any room_update emissions that predate the frame append.
     await asyncio.sleep(0.3)
