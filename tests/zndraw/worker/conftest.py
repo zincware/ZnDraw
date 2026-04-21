@@ -13,7 +13,7 @@ from zndraw import ZnDraw
 from zndraw_joblib.client import Category, Extension
 from zndraw_joblib.schemas import JobSummary, TaskResponse
 
-WATER = ase.Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [1, 0, 0]])
+_WATER = ase.Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [1, 0, 0]])
 
 
 def _write(path: Path, frames: list[ase.Atoms]) -> None:
@@ -27,24 +27,28 @@ def _write(path: Path, frames: list[ase.Atoms]) -> None:
 
 
 @pytest.fixture(params=[".xyz", ".h5", ".h5md"])
-def water_file(request: pytest.FixtureRequest, tmp_path: Path) -> Path:
-    """One H2O frame in each format LoadFile must handle.
+def water_file(
+    request: pytest.FixtureRequest, tmp_path: Path
+) -> tuple[Path, list[ase.Atoms]]:
+    """``(path, frames)`` for one H2O frame in each format LoadFile must handle.
 
     ``.lmdb`` is omitted: the asebytes LMDB backend returns mmap-backed
     read-only arrays which downstream ``atoms.set_pbc(...)`` can't mutate —
     pre-existing upstream issue unrelated to #923.
     """
     path = tmp_path / f"water{request.param}"
-    _write(path, [WATER])
-    return path
+    frames = [_WATER]
+    _write(path, frames)
+    return path, frames
 
 
 @pytest.fixture
-def water_trajectory_h5(tmp_path: Path) -> Path:
-    """Five-frame H2O trajectory in h5 format for slice tests."""
+def water_trajectory_h5(tmp_path: Path) -> tuple[Path, list[ase.Atoms]]:
+    """``(path, frames)`` for a five-frame H2O trajectory in h5."""
     path = tmp_path / "trj.h5"
-    _write(path, [WATER] * 5)
-    return path
+    frames = [_WATER] * 5
+    _write(path, frames)
+    return path, frames
 
 
 # =============================================================================
