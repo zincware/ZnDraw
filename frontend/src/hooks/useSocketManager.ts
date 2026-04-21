@@ -15,7 +15,6 @@ import {
 
 interface SocketManagerOptions {
 	roomId?: string; // Room ID when on /rooms/:roomId page
-	isOverview?: boolean; // True when on /rooms page
 }
 
 export const useSocketManager = (options: SocketManagerOptions = {}) => {
@@ -58,12 +57,10 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 	// Use provided roomId from options, fallback to appStore roomId
 	const roomId = options.roomId || appStoreRoomId;
-	const { isOverview = false } = options;
 
 	useEffect(() => {
 		// Capture current room context for cleanup comparison
 		const effectRoomId = roomId;
-		const effectIsOverview = isOverview;
 
 		// Guard against stale async callbacks (React StrictMode double-mount).
 		let cancelled = false;
@@ -72,7 +69,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		const ctx: HandlerContext = {
 			roomId: roomId ?? undefined,
 			appStoreRoomId,
-			isOverview,
 			isCancelled: () => cancelled,
 			queryClient,
 			setConnected,
@@ -163,21 +159,8 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			// Note: room_leave is NOT emitted during room switching
 			// Backend automatically handles leaving old room in room_join handler
 			const currentState = useAppStore.getState();
-			const isNavigatingToOverview =
-				!effectIsOverview && options.isOverview === true;
-			const isLeavingRoom =
-				effectRoomId !== currentState.roomId ||
-				effectIsOverview !== options.isOverview;
+			const isLeavingRoom = effectRoomId !== currentState.roomId;
 
-			if (isNavigatingToOverview && effectRoomId) {
-				// Explicitly leaving a room to go to overview
-				socket.emit("room_leave", { room_id: effectRoomId });
-			} else if (isOverview) {
-				// Leaving overview system room
-				socket.emit("room_leave", { room_id: "@overview" });
-			}
-
-			// Only clear sessionId/cameraKey if we're actually leaving a room
 			if (isLeavingRoom) {
 				setSessionId(null);
 				setCameraKey(null);
@@ -222,7 +205,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		};
 	}, [
 		roomId,
-		isOverview,
 		setConnected,
 		setInitializationError,
 		setFrameCount,

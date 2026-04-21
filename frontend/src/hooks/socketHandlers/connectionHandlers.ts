@@ -194,36 +194,15 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 				console.warn(compatibility.message);
 			}
 
-			// Join appropriate room based on page
-			if (ctx.isOverview) {
-				// Join @overview system room for real-time room updates
-				socket.emit(
-					"room_join",
-					{ room_id: "@overview", client_type: "frontend" },
-					(response: RoomJoinResponse | RoomJoinError) => {
-						if ("status" in response) {
-							console.error("Failed to join overview room:", response);
-							ctx.setInitializationError({
-								message: "Failed to join overview",
-								details: response.detail || "Server rejected the connection",
-							});
-							return;
-						}
-						// Overview joined successfully
-						ctx.setConnected(true);
-					},
-				);
-			} else if (ctx.roomId) {
-				// Emit room_join event (matches RoomJoin model -> room_join)
+			// Join the specific room if one is set; otherwise connect is
+			// sufficient — rooms:feed is auto-joined server-side.
+			if (ctx.roomId) {
 				socket.emit(
 					"room_join",
 					{ room_id: ctx.roomId, client_type: "frontend" },
 					async (response: RoomJoinResponse | RoomJoinError) => {
 						// Handle 404 - room doesn't exist, create it via REST API
-						// Backend returns RFC 9457 problem details with status field
 						if ("status" in response && response.status === 404) {
-							// Check for explicit copy_from in URL, otherwise let server decide
-							// Server will use: copy_from > server default > @empty
 							const urlCopyFrom = new URLSearchParams(
 								window.location.search,
 							).get("copy_from");
@@ -252,7 +231,10 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 								{ room_id: ctx.roomId!, client_type: "frontend" },
 								(retryResponse: RoomJoinResponse | RoomJoinError) => {
 									if ("status" in retryResponse) {
-										console.error("Failed to join room:", retryResponse);
+										console.error(
+											"Failed to join room:",
+											retryResponse,
+										);
 										ctx.setInitializationError({
 											message: "Failed to join room",
 											details:
@@ -271,7 +253,8 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 							console.error("Failed to join room:", response);
 							ctx.setInitializationError({
 								message: "Failed to join room",
-								details: response.detail || "Server rejected the connection",
+								details:
+									response.detail || "Server rejected the connection",
 							});
 							return;
 						}
