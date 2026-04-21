@@ -10,7 +10,6 @@ import {
 import { MuiCssVars } from "./MuiCssVars";
 import CliLoginApprovePage from "./pages/cliLoginApprove";
 import MainPage from "./pages/landingPage";
-import RoomListPage from "./pages/roomList";
 import TemplateSelectionPage from "./pages/templateSelection";
 
 function FilesystemRedirect() {
@@ -43,10 +42,6 @@ const router = createBrowserRouter([
 	{
 		path: "/auth/cli",
 		element: <CliLoginApprovePage />,
-	},
-	{
-		path: "/rooms",
-		element: <RoomListPage />,
 	},
 	{
 		path: "/rooms/:roomId/files",
