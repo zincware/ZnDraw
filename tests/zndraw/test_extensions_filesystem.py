@@ -91,9 +91,9 @@ def test_load_file_honours_slice(tmp_path: Path) -> None:
     ase.io.write(tmp_path / "trj.xyz", [_water() for _ in range(5)])
     vis = _FakeVis()
 
-    LoadFile(
-        provider_name="fs", path="/trj.xyz", start=1, stop=4, step=2
-    ).run(vis, providers={"fs": _dir_fs(tmp_path)})
+    LoadFile(provider_name="fs", path="/trj.xyz", start=1, stop=4, step=2).run(
+        vis, providers={"fs": _dir_fs(tmp_path)}
+    )
 
     assert len(vis.frames) == 2
 
