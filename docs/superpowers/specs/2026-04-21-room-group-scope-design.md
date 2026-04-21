@@ -85,7 +85,7 @@ class Room(SQLModel, table=True):
     )
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     description: str | None = None
-    created_at: datetime = Field(default_factory=..., sa_type=UTCDateTime())
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime())
     created_by_id: UUID | None = Field(default=None, index=True)  # audit, immutable
     owner_user_id:  UUID | None = Field(default=None, foreign_key="user.id",  index=True)
     owner_group_id: UUID | None = Field(default=None, foreign_key="group.id", index=True)
@@ -99,7 +99,7 @@ class Group(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     name: str = Field(unique=True, index=True)
     description: str | None = None
-    created_at: datetime = Field(default_factory=..., sa_type=UTCDateTime())
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime())
     created_by_id: UUID = Field(foreign_key="user.id", index=True)
 
 
@@ -109,7 +109,7 @@ class GroupMembership(SQLModel, table=True):
     group_id: UUID = Field(foreign_key="group.id", index=True)
     user_id:  UUID = Field(foreign_key="user.id",  index=True)
     role: GroupRole = Field(default=GroupRole.VIEWER)
-    joined_at: datetime = Field(default_factory=..., sa_type=UTCDateTime())
+    joined_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime())
 
 
 class RoomShareLink(SQLModel, table=True):
@@ -118,7 +118,7 @@ class RoomShareLink(SQLModel, table=True):
     token: str = Field(unique=True, index=True)  # url-safe, ~32 bytes
     access: ShareAccess = Field(default=ShareAccess.VIEW)
     created_by_id: UUID = Field(foreign_key="user.id")
-    created_at: datetime = Field(default_factory=..., sa_type=UTCDateTime())
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime())
     expires_at: datetime | None = Field(default=None, sa_type=UTCDateTime())
     revoked_at: datetime | None = Field(default=None, sa_type=UTCDateTime())
 ```
@@ -143,6 +143,7 @@ existence.
 
 ```python
 def can_read(user: User, room: Room, share: ShareContext | None) -> bool:
+    # `share`, when not None, is guaranteed valid + room-matched by resolver
     if user.is_superuser:
         return True
     if room.visibility == Visibility.PUBLIC:
@@ -152,8 +153,8 @@ def can_read(user: User, room: Room, share: ShareContext | None) -> bool:
     if room.owner_group_id is not None:
         if user_in_group(user.id, room.owner_group_id):
             return True
-    if share is not None and share.room_id == room.id and share.valid:
-        return share.access in (ShareAccess.VIEW, ShareAccess.EDIT)
+    if share is not None:
+        return True  # any non-None ShareContext implies at least VIEW access
     return False
 
 
@@ -168,7 +169,7 @@ def can_edit(user: User, room: Room, share: ShareContext | None) -> bool:
             return True
     if room.owner_user_id is not None and room.visibility == Visibility.PUBLIC:
         return True  # chaotic-edit default for user-owned public rooms
-    if share is not None and share.room_id == room.id and share.valid:
+    if share is not None:
         return share.access == ShareAccess.EDIT
     return False
 
@@ -268,7 +269,7 @@ plural nouns; writes return the updated resource.
 ```
 POST   /v1/groups                              create group (creator → ADMIN)
 GET    /v1/groups                              list groups the caller belongs to
-GET    /v1/groups/{id}                         group details + member list (members+admins only)
+GET    /v1/groups/{id}                         group details + member list (any group member, regardless of role)
 PATCH  /v1/groups/{id}                         rename / describe (admin only)
 DELETE /v1/groups/{id}                         delete (admin only; rooms must be reassigned first)
 
@@ -292,9 +293,10 @@ DELETE /v1/rooms/{id}/share-links/{link_id}    revoke link (manager only)
   - caller satisfies `can_manage(room)`;
   - if `owner_group_id` is set, caller is a MEMBER or ADMIN of that
     group (you can transfer into a group you're in);
-  - if `owner_user_id` is changed to another user, that user must
-    accept on first read (captured as a future `accepted_at` field —
-    out of scope for this refactor; for now transfer is one-sided).
+  - if `owner_user_id` is changed to another user, transfer is
+    one-sided (effective immediately, no acceptance step). A future
+    "recipient must accept" flow is a deliberate non-goal of this
+    refactor.
 - `PATCH /v1/users/{id}` — this endpoint already exists via
   fastapi-users. `is_verified` is editable only by superusers; other
   fields follow fastapi-users' existing authorization rules. No new
@@ -336,8 +338,10 @@ fit; add new ones below.
 - `RoomNotFound` (404) — room ID does not exist, OR caller cannot
   `can_read` a PRIVATE / GROUP room (404 over 403 to avoid leaking
   existence).
-- `NotAuthenticated` (401) — only remaining case is the chain inside
-  `get_local_token_or_admin`; all routes use `CurrentUserDep`.
+- `NotAuthenticated` (401) — raised by fastapi-users' JWT strategy
+  on any route that uses `CurrentUserDep` when the token is missing,
+  malformed, or the user is inactive. Also raised by
+  `get_local_token_or_admin` when neither auth path succeeds.
 - `InvalidPayload` (422) — transfer requests with both owner fields
   set, unknown enum values, etc.
 
