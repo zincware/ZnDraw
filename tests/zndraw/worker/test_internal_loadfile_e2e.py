@@ -16,12 +16,10 @@ random-access formats (``.h5`` / ``.h5md`` / ``.lmdb``) that the
 format matrix runs through the real server + dispatch path.
 """
 
-import ase
-
 from zndraw import ZnDraw
 from zndraw.extensions.filesystem import LoadFile
 
-WATER = ase.Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [1, 0, 0]])
+from .conftest import WATER
 
 
 def test_load_file_e2e_via_internal_dispatch(server_factory, water_file):

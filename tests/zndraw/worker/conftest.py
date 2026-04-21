@@ -13,13 +13,11 @@ from zndraw import ZnDraw
 from zndraw_joblib.client import Category, Extension
 from zndraw_joblib.schemas import JobSummary, TaskResponse
 
-_WATER = ase.Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [1, 0, 0]])
-_ASEBYTES_EXTENSIONS = frozenset({".h5", ".h5md", ".lmdb"})
+WATER = ase.Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [1, 0, 0]])
 
 
-def _write_water(path: Path, frames: list[ase.Atoms]) -> None:
-    """Write *frames* to *path*, routing asebytes formats through ``ASEIO``."""
-    if path.suffix in _ASEBYTES_EXTENSIONS:
+def _write(path: Path, frames: list[ase.Atoms]) -> None:
+    if path.suffix in (".h5", ".h5md"):
         import asebytes
 
         with asebytes.ASEIO(str(path)) as db:
@@ -28,40 +26,24 @@ def _write_water(path: Path, frames: list[ase.Atoms]) -> None:
         ase.io.write(path, frames)
 
 
-@pytest.fixture
-def water_xyz(tmp_path: Path) -> Path:
-    """Write a 3-atom H2O xyz file to ``tmp_path / water.xyz`` and return its path.
-
-    Shared by any test that needs a real on-disk structure file (e.g. the
-    ``@internal:modifiers:LoadFile`` e2e path).
-    """
-    path = tmp_path / "water.xyz"
-    _write_water(path, [_WATER])
-    return path
-
-
 @pytest.fixture(params=[".xyz", ".h5", ".h5md"])
 def water_file(request: pytest.FixtureRequest, tmp_path: Path) -> Path:
-    """Parametric fixture: one H2O frame written in every format LoadFile must handle.
+    """One H2O frame in each format LoadFile must handle.
 
-    Covers both branches of ``zndraw.io.open_frames`` — ``ase.io.iread`` for
-    streaming text formats and ``asebytes.ASEIO`` for random-access formats.
     ``.lmdb`` is omitted: the asebytes LMDB backend returns mmap-backed
     read-only arrays which downstream ``atoms.set_pbc(...)`` can't mutate —
-    a pre-existing issue that also breaks the ``zndraw <file>.lmdb`` CLI
-    path and is unrelated to #923.
+    pre-existing upstream issue unrelated to #923.
     """
-    suffix = request.param
-    path = tmp_path / f"water{suffix}"
-    _write_water(path, [_WATER])
+    path = tmp_path / f"water{request.param}"
+    _write(path, [WATER])
     return path
 
 
 @pytest.fixture
 def water_trajectory_h5(tmp_path: Path) -> Path:
-    """Five-frame H2O trajectory in h5 format, for slice tests against LoadFile."""
+    """Five-frame H2O trajectory in h5 format for slice tests."""
     path = tmp_path / "trj.h5"
-    _write_water(path, [_WATER for _ in range(5)])
+    _write(path, [WATER] * 5)
     return path
 
 
