@@ -9,16 +9,11 @@ the task failed at runtime with::
     ValueError: Provider '@internal:filesystem:FilesystemRead' not found.
     Available providers: []
 
-This test submits a real LoadFile task against a real uvicorn server that
-has ``FILEBROWSER_PATH`` pointed at a temp dir, then waits for the task to
-reach a terminal status. A passing test requires:
-
-1. ``LoadFile`` is registered as ``@internal:modifiers:LoadFile`` (so the
-   POST to ``/tasks/@internal:modifiers:LoadFile`` is accepted).
-2. ``InternalExtensionExecutor`` resolves the @internal filesystem handler
-   and passes it via ``run(vis, providers=...)`` (so ``LoadFile.run`` can
-   read the file).
-3. The room ends up with frames from the file.
+ADDITIONAL PIN (#923): ``LoadFile`` used to open the provider file as a
+text stream and call ``ase.io.read`` on the handle, which can't read the
+random-access formats (``.h5`` / ``.h5md`` / ``.lmdb``) that the
+``zndraw <file>`` CLI supports. Every format is parametrised so the full
+format matrix runs through the real server + dispatch path.
 """
 
 from __future__ import annotations
@@ -27,11 +22,11 @@ from zndraw import ZnDraw
 from zndraw.extensions.filesystem import LoadFile
 
 
-def test_load_file_e2e_via_internal_dispatch(server_factory, water_xyz):
+def test_load_file_e2e_via_internal_dispatch(server_factory, water_file):
     instance = server_factory(
         {
             "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "true",
-            "ZNDRAW_SERVER_FILEBROWSER_PATH": str(water_xyz.parent.resolve()),
+            "ZNDRAW_SERVER_FILEBROWSER_PATH": str(water_file.parent.resolve()),
         }
     )
 
@@ -40,17 +35,45 @@ def test_load_file_e2e_via_internal_dispatch(server_factory, water_xyz):
         task = vis.run(
             LoadFile(
                 provider_name="@internal:filesystem:FilesystemRead",
-                path="/water.xyz",
+                path=f"/{water_file.name}",
             )
         )
         task.wait(timeout=30)
 
         assert task.status == "completed", f"expected completed, got {task.status!r}"
 
-        # LoadFile extends the room with atoms from the file.
         assert len(vis) >= 1
         loaded = vis[-1]
         assert len(loaded) == 3
         assert loaded.get_chemical_formula() == "H2O"
+    finally:
+        vis.disconnect()
+
+
+def test_load_file_honours_slice_e2e(server_factory, water_trajectory_h5):
+    """LoadFile must apply ``start``/``stop``/``step`` on asebytes formats too."""
+    instance = server_factory(
+        {
+            "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "true",
+            "ZNDRAW_SERVER_FILEBROWSER_PATH": str(water_trajectory_h5.parent.resolve()),
+        }
+    )
+
+    vis = ZnDraw(url=instance.url)
+    try:
+        task = vis.run(
+            LoadFile(
+                provider_name="@internal:filesystem:FilesystemRead",
+                path=f"/{water_trajectory_h5.name}",
+                start=1,
+                stop=4,
+                step=2,
+            )
+        )
+        task.wait(timeout=30)
+
+        assert task.status == "completed", f"expected completed, got {task.status!r}"
+        # slice(1, 4, 2) over 5 frames -> 2 frames
+        assert len(vis) == 2
     finally:
         vis.disconnect()

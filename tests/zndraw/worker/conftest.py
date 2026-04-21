@@ -13,6 +13,20 @@ from zndraw import ZnDraw
 from zndraw_joblib.client import Category, Extension
 from zndraw_joblib.schemas import JobSummary, TaskResponse
 
+_WATER = ase.Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [1, 0, 0]])
+_ASEBYTES_EXTENSIONS = frozenset({".h5", ".h5md", ".lmdb"})
+
+
+def _write_water(path: Path, frames: list[ase.Atoms]) -> None:
+    """Write *frames* to *path*, routing asebytes formats through ``ASEIO``."""
+    if path.suffix in _ASEBYTES_EXTENSIONS:
+        import asebytes
+
+        with asebytes.ASEIO(str(path)) as db:
+            db.extend(frames)
+    else:
+        ase.io.write(path, frames)
+
 
 @pytest.fixture
 def water_xyz(tmp_path: Path) -> Path:
@@ -21,9 +35,33 @@ def water_xyz(tmp_path: Path) -> Path:
     Shared by any test that needs a real on-disk structure file (e.g. the
     ``@internal:modifiers:LoadFile`` e2e path).
     """
-    atoms = ase.Atoms("H2O", positions=[[0, 0, 0], [0, 0, 1], [1, 0, 0]])
     path = tmp_path / "water.xyz"
-    ase.io.write(path, atoms)
+    _write_water(path, [_WATER])
+    return path
+
+
+@pytest.fixture(params=[".xyz", ".h5", ".h5md"])
+def water_file(request: pytest.FixtureRequest, tmp_path: Path) -> Path:
+    """Parametric fixture: one H2O frame written in every format LoadFile must handle.
+
+    Covers both branches of ``zndraw.io.open_frames`` — ``ase.io.iread`` for
+    streaming text formats and ``asebytes.ASEIO`` for random-access formats.
+    ``.lmdb`` is omitted: the asebytes LMDB backend returns mmap-backed
+    read-only arrays which downstream ``atoms.set_pbc(...)`` can't mutate —
+    a pre-existing issue that also breaks the ``zndraw <file>.lmdb`` CLI
+    path and is unrelated to #923.
+    """
+    suffix = request.param
+    path = tmp_path / f"water{suffix}"
+    _write_water(path, [_WATER])
+    return path
+
+
+@pytest.fixture
+def water_trajectory_h5(tmp_path: Path) -> Path:
+    """Five-frame H2O trajectory in h5 format, for slice tests against LoadFile."""
+    path = tmp_path / "trj.h5"
+    _write_water(path, [_WATER for _ in range(5)])
     return path
 
 

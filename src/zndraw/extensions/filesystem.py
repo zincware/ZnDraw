@@ -1,8 +1,13 @@
 """Filesystem extension for loading files from registered providers."""
 
 import typing as t
+from pathlib import Path
+
+from fsspec.implementations.dirfs import DirFileSystem
+from fsspec.implementations.local import LocalFileSystem
 
 from zndraw.extensions.abc import Category, Extension
+from zndraw.io import open_frames
 
 
 class LoadFile(Extension):
@@ -23,8 +28,6 @@ class LoadFile(Extension):
         formats (``.h5``, ``.h5md``, ``.lmdb``) are supported alongside
         everything ``ase.io.iread`` can stream.
         """
-        from zndraw.io import open_frames
-
         providers: dict[str, t.Any] = kwargs.get("providers") or {}
         fs = providers.get(self.provider_name)
         if fs is None:
@@ -53,11 +56,6 @@ def _require_local_path(fs: t.Any, path: str) -> str:
     ``LocalFileSystem`` (for the ``@internal`` provider), so we cover
     that and bare ``LocalFileSystem``.
     """
-    from pathlib import Path
-
-    from fsspec.implementations.dirfs import DirFileSystem
-    from fsspec.implementations.local import LocalFileSystem
-
     inner = fs.fs if isinstance(fs, DirFileSystem) else fs
     if not isinstance(inner, LocalFileSystem):
         raise NotImplementedError(
