@@ -51,6 +51,7 @@ from zndraw.models import (
     RoomBookmark,
     RoomFigure,
     RoomGeometry,
+    RoomMembership,
     SelectionGroup,
     ServerSettings,
 )
@@ -278,6 +279,35 @@ async def build_room_update(
         locked=room.locked,
         is_default=(room.id == default_room_id),
     )
+
+
+async def broadcast_room_update(
+    sio,
+    session: AsyncSession,
+    storage: FrameStorage,
+    room: Room,
+) -> None:
+    """Broadcast a full RoomUpdate to every authorized viewer.
+
+    Public rooms go to the shared ``rooms:feed`` channel — every
+    authenticated socket is a member, including any client currently
+    joined to ``room:{id}``, so this single emit reaches in-room
+    viewers too.
+
+    Private rooms fan out to each member's ``user:{uid}`` channel,
+    which similarly covers both in-room and out-of-room members.
+    """
+    event = await build_room_update(session, storage, room)
+    if room.is_public:
+        await sio.emit(event, room="rooms:feed")
+        return
+    result = await session.exec(
+        select(RoomMembership.user_id).where(
+            RoomMembership.room_id == room.id
+        )
+    )
+    for uid in result.all():
+        await sio.emit(event, room=f"user:{uid}")
 
 
 # =============================================================================
