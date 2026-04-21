@@ -17,9 +17,13 @@ class LoadFile(Extension):
     step: int | None = None
 
     def run(self, vis: t.Any, **kwargs: t.Any) -> None:
-        """Read file via the filesystem handler and extend the room."""
-        import ase.io
-        from ase.io.formats import filetype
+        """Read frames via ``open_frames`` and extend the room.
+
+        Uses the same loader as the ``zndraw <file>`` CLI so random-access
+        formats (``.h5``, ``.h5md``, ``.lmdb``) are supported alongside
+        everything ``ase.io.iread`` can stream.
+        """
+        from zndraw.io import open_frames
 
         providers: dict[str, t.Any] = kwargs.get("providers") or {}
         fs = providers.get(self.provider_name)
@@ -29,16 +33,37 @@ class LoadFile(Extension):
                 f"Provider '{self.provider_name}' not found. "
                 f"Available providers: {available}"
             )
-        # Infer format from path extension — fsspec file objects lack .name,
-        # so ASE's auto-detection falls back to magic-byte sniffing which
-        # fails on text-mode streams.
-        fmt = filetype(self.path, read=False)
-        with fs.open(self.path, "r") as f:
-            atoms_list = ase.io.read(
-                f, index=slice(self.start, self.stop, self.step), format=fmt
-            )
 
-        if not isinstance(atoms_list, list):
-            atoms_list = [atoms_list]
+        local_path = _require_local_path(fs, self.path)
+        frames = open_frames(
+            local_path,
+            start=self.start,
+            stop=self.stop,
+            step=self.step,
+        )
+        vis.extend(frames)
 
-        vis.extend(atoms_list)
+
+def _require_local_path(fs: t.Any, path: str) -> str:
+    """Resolve an fsspec filesystem + path to a local filesystem path.
+
+    Random-access formats like ``.h5`` can't be opened through an
+    ``fs.open`` handle — ``asebytes.ASEIO`` needs a real on-disk path.
+    The only handler the server materialises is a ``DirFileSystem`` over
+    ``LocalFileSystem`` (for the ``@internal`` provider), so we cover
+    that and bare ``LocalFileSystem``.
+    """
+    from pathlib import Path
+
+    from fsspec.implementations.dirfs import DirFileSystem
+    from fsspec.implementations.local import LocalFileSystem
+
+    inner = fs.fs if isinstance(fs, DirFileSystem) else fs
+    if not isinstance(inner, LocalFileSystem):
+        raise NotImplementedError(
+            f"LoadFile requires a local filesystem provider; "
+            f"got backend {type(inner).__name__}"
+        )
+    if isinstance(fs, DirFileSystem):
+        return str(Path(fs.path) / path.lstrip("/"))
+    return path
