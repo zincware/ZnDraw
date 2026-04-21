@@ -241,55 +241,73 @@ setting `revoked_at` (preferred over row delete, keeps audit).
 
 The existing per-geometry edit lock
 (`dependencies.py:293-330`) is runtime coordination, not permission,
-and stays. Formalize the rule:
+and stays. The rule going forward:
 
 - Lock key: `lock:{room_id}:{resource}` in Redis, TTL ~30s, refreshed
   on activity.
 - Holder: `user_id + session_id`, stored as the value.
 - Auto-expire if the TTL runs out (holder went silent).
-- Force-release allowed: any caller whose `can_edit` check passes for
-  the same resource may steal a stale lock. The UI shows "X is
-  editing — take over?" after a threshold.
+- The permission check and the lock acquisition are separate calls.
+  The lock never authorizes; it only serializes among already-
+  authorized writers.
 
-The permission decision and the coordination decision are separate
-calls. The lock never authorizes; it only serializes among already-
-authorized writers.
+**Deferred (follow-up, not this refactor):** explicit force-release
+endpoint so any caller with `can_edit` on the same resource can steal
+an abandoned lock without waiting for TTL. TTL-based expiry covers
+the common case; force-release is a UX enhancement for the next
+iteration.
 
 ### API surface
+
+All routes follow REST resource conventions — nouns, not verbs.
+State transitions are `PATCH`es on the resource; collections are
+plural nouns; writes return the updated resource.
 
 **New routes:**
 
 ```
-POST   /v1/groups                         create group (creator → ADMIN)
-GET    /v1/groups                         list groups the caller belongs to
-GET    /v1/groups/{id}                    group details + member list (members+admins only)
-PATCH  /v1/groups/{id}                    rename / describe (admin only)
-DELETE /v1/groups/{id}                    delete (admin only; rooms must be transferred first)
+POST   /v1/groups                              create group (creator → ADMIN)
+GET    /v1/groups                              list groups the caller belongs to
+GET    /v1/groups/{id}                         group details + member list (members+admins only)
+PATCH  /v1/groups/{id}                         rename / describe (admin only)
+DELETE /v1/groups/{id}                         delete (admin only; rooms must be reassigned first)
 
-POST   /v1/groups/{id}/members            add member (admin only)
-DELETE /v1/groups/{id}/members/{user_id}  remove member (admin only, or self)
-PATCH  /v1/groups/{id}/members/{user_id}  change role (admin only)
+POST   /v1/groups/{id}/members                 add member (admin only)
+DELETE /v1/groups/{id}/members/{user_id}       remove member (admin only, or self)
+PATCH  /v1/groups/{id}/members/{user_id}       change role (admin only)
 
-POST   /v1/rooms/{id}/transfer            transfer ownership
-                                          body: {to_user_id?, to_group_id?, new_visibility?}
-POST   /v1/rooms/{id}/share               create share link; returns {token, url, access, expires_at?}
-GET    /v1/rooms/{id}/share               list active links (manager only)
-DELETE /v1/rooms/{id}/share/{link_id}     revoke link (manager only)
-
-PATCH  /v1/users/{id}/verify              flip is_verified (superuser only)
+POST   /v1/rooms/{id}/share-links              create share link
+GET    /v1/rooms/{id}/share-links              list active links (manager only)
+DELETE /v1/rooms/{id}/share-links/{link_id}    revoke link (manager only)
 ```
 
-**Modified routes:**
+**Modified routes (state transitions as PATCH on the resource):**
 
-- Every `OptionalUserDep` call site → `CurrentUserDep`. List of sites
-  in Migration below.
-- `GET /v1/rooms` list filter: union of public / owner-user / group-member,
-  replacing today's `is_public=True` filter.
+- `PATCH /v1/rooms/{id}` gains `owner_user_id`, `owner_group_id`,
+  `visibility`, `description` as updatable fields. Ownership transfer
+  is just "set the owner field; server validates target exists + the
+  caller is allowed + invariants hold." Body is a partial — any
+  subset of the above. Server enforces:
+  - exactly-one-owner invariant (XOR via CHECK);
+  - caller satisfies `can_manage(room)`;
+  - if `owner_group_id` is set, caller is a MEMBER or ADMIN of that
+    group (you can transfer into a group you're in);
+  - if `owner_user_id` is changed to another user, that user must
+    accept on first read (captured as a future `accepted_at` field —
+    out of scope for this refactor; for now transfer is one-sided).
+- `PATCH /v1/users/{id}` — this endpoint already exists via
+  fastapi-users. `is_verified` is editable only by superusers; other
+  fields follow fastapi-users' existing authorization rules. No new
+  route; new server-side policy.
+- Every `OptionalUserDep` call site → `CurrentUserDep`. Site list in
+  the Refactor sites section below.
+- `GET /v1/rooms` list filter: union of public / owner-user /
+  group-member, replacing today's `is_public=True` filter.
 - `GET /v1/rooms/{id}` detail: uses `can_read` (supports share
   tokens).
 - Content routes (geometry, figures, trajectory, frames) gate on
   `can_edit`.
-- Delete / visibility change / transfer gate on `can_manage`.
+- Delete gates on `can_manage`.
 
 **Socketio:**
 
@@ -302,85 +320,112 @@ PATCH  /v1/users/{id}/verify              flip is_verified (superuser only)
   unchanged; the room-channel pubsub (`room:{room_id}`) still scopes
   fan-out.
 
-### Defaults
+### Error types (RFC 9457 Problem Details)
+
+All new errors follow the existing `ProblemType` pattern in
+`src/zndraw/exceptions.py` (kebab-case problem IDs under
+`/v1/problems/`, `ProblemDetail` responses, `.exception()` raisers
+wired through the global handler). Reuse existing types where they
+fit; add new ones below.
+
+**Reused:**
+
+- `Forbidden` (403) — caller lacks required role for the operation.
+  Used when `can_edit` / `can_manage` fails but the caller can still
+  see the room.
+- `RoomNotFound` (404) — room ID does not exist, OR caller cannot
+  `can_read` a PRIVATE / GROUP room (404 over 403 to avoid leaking
+  existence).
+- `NotAuthenticated` (401) — only remaining case is the chain inside
+  `get_local_token_or_admin`; all routes use `CurrentUserDep`.
+- `InvalidPayload` (422) — transfer requests with both owner fields
+  set, unknown enum values, etc.
+
+**New (to add in `exceptions.py`):**
+
+| Type | Status | When |
+|---|---|---|
+| `GroupNotFound` | 404 | group ID unknown, or caller cannot see it |
+| `GroupNameTaken` | 409 | `POST /v1/groups` with a name already in use |
+| `NotGroupMember` | 403 | caller must be a member (any role) of the group to perform the op |
+| `NotGroupAdmin` | 403 | caller must be ADMIN of the group |
+| `LastGroupAdmin` | 409 | attempt to demote / remove the sole ADMIN of a group |
+| `GroupHasRooms` | 409 | `DELETE /v1/groups/{id}` when one or more rooms are still owned by the group |
+| `TransferTargetInvalid` | 409 | `PATCH /v1/rooms/{id}` changes owner_group_id to a group the caller is not in |
+| `ShareLinkNotFound` | 404 | revoke / list target does not exist, expired, or already revoked |
+| `ShareLinkInvalid` | 401 | provided `X-Room-Share-Token` is unknown, revoked, expired, or targets a different room |
+
+Each new type inherits from `ProblemType`, defines `title` + `status`,
+and provides `raise_for_client` for symmetric client-side mapping
+matching existing conventions (e.g. `raise PermissionError` for 403,
+`raise ValueError` for 409). Route decorators use `problem_responses(
+...)` to register them in OpenAPI.
+
+### Defaults and group-management rules
 
 - Room creation: `visibility = Visibility.PUBLIC`,
-  `owner_user_id = creator.id`, `owner_group_id = None`. Preserves the
-  current `zndraw file.xyz` CLI workflow (chaotic-edit public demos).
-  Configurable via `Settings.default_room_visibility` (Pydantic
-  field).
+  `owner_user_id = creator.id`, `owner_group_id = None`. Preserves
+  the current `zndraw file.xyz` CLI workflow (chaotic-edit public
+  demos). Configurable via `Settings.default_room_visibility`
+  (Pydantic field).
 - Group creation: any active user may create. Creator is sole
   `ADMIN`.
+- Group names are **globally unique** — `Group.name` has a UNIQUE
+  index. Collisions return `GroupNameTaken` (409).
 - Group join: new members default to `VIEWER` (least privilege).
   Admins explicitly promote to `MEMBER` / `ADMIN`.
+- Group deletion: **forbidden while any room is still owned by the
+  group.** `DELETE /v1/groups/{id}` with group-owned rooms returns
+  `GroupHasRooms` (409). Admins must reassign each room's owner
+  (`PATCH /v1/rooms/{id}`) before deleting.
+- **Last-admin protection.** The sole ADMIN of a group cannot
+  self-remove, demote themselves, or otherwise leave the group admin-
+  less. Returns `LastGroupAdmin` (409). To leave, they must first
+  promote another member to ADMIN (or delete the group after
+  reassigning rooms).
 - Share links: `access = VIEW`, `expires_at = None`.
 
-### Migration
+### Schema change (no data migration)
 
-Schema migration is additive then subtractive; backfill happens
-between the two phases.
+**There is no alembic migration and none is wanted.** The project is
+pre-v1.0.0; schema breakage is acceptable. On the release that ships
+this refactor, **users must recreate their database** — drop the old
+SQLite/Postgres schema, let the app re-run `create_all` on startup
+against the new models, and resume from a blank state. Existing
+rooms, memberships, and ACLs are not preserved. Document this
+prominently in the release notes / CHANGELOG.
 
-**Phase 1 — additive (Alembic revision 1):**
+This keeps the refactor surface clean: no backfill scripts, no
+dual-read shim, no compatibility window.
 
-1. Create `Group`, `GroupMembership`, `RoomShareLink` tables.
-2. Add `Room.owner_user_id`, `Room.owner_group_id`, `Room.visibility`
-   (all nullable).
-3. Add `User.is_guest` to zndraw-auth (default False).
+### Refactor sites (code)
 
-**Phase 2 — backfill (data migration script, runs between the two
-alembic revisions):**
+All call-site changes needed to realize the new model. Each of these
+gets covered by the implementation plan.
 
-1. `UPDATE room SET owner_user_id = created_by_id`
-   for rows where `created_by_id IS NOT NULL`.
-2. `UPDATE room SET visibility = CASE WHEN is_public THEN 'public'
-   ELSE 'private' END`.
-3. `UPDATE user SET is_guest = TRUE WHERE email LIKE '%@guest.user'`.
-4. For any room where `created_by_id IS NULL` (orphaned): assign to
-   a bootstrap admin user. The implementation step MUST verify the
-   bootstrap user exists (env `DEFAULT_ADMIN_EMAIL` → lookup); if
-   none is configured, the migration fails loudly rather than
-   fabricating ownership.
-5. **`RoomMembership` data loss.** The existing `RoomMembership`
-   table holds the only per-user ACL for private rooms. Under the
-   new model there is no per-room ACL. Two choices:
-   - **Drop silently.** Acceptable only if `RoomMembership` is
-     known-empty or known-redundant in production (the role enum is
-     underutilized today — no MODERATOR/OWNER distinction is
-     enforced anywhere, and ownership is already tracked in
-     `created_by_id`). Document in release notes.
-   - **Reconstitute as groups.** For each room with >1 distinct
-     `user_id` in `RoomMembership` (beyond the creator), auto-create
-     a `Group` named `room-{room_id[:8]}` with the members as MEMBER
-     role (creator as ADMIN), set `owner_group_id = group.id`,
-     `visibility = GROUP`. More work; preserves intent.
-
-   Recommendation: inspect the prod DB row count before the
-   implementation plan locks this in. If there are zero meaningful
-   non-creator memberships, drop. Otherwise reconstitute.
-
-**Phase 3 — subtractive (Alembic revision 2):**
-
-1. Add `CheckConstraint`s on `Room` (owner XOR, visibility matches owner).
-2. `ALTER COLUMN Room.visibility SET NOT NULL`.
-3. Drop `Room.is_public`, `Room.locked`.
-4. Drop `RoomMembership` table.
-5. Drop `MemberRole` enum.
-
-**Code migration:**
-
-- `OptionalUserDep` call sites — rewrite to `CurrentUserDep`:
+- `OptionalUserDep` → `CurrentUserDep`:
   - `routes/rooms.py:430` (`list_rooms`)
   - `routes/geometries.py:97, 129, 149, 383`
   - `routes/figures.py:41, 59`
   - `routes/trajectory.py:93`
-- `get_local_token_or_admin` (`dependencies.py:47-76`): stops depending
-  on `OptionalUserDep`; chain its two paths with a dedicated local
-  helper. Remove the `OptionalUserDep` export.
+- `get_local_token_or_admin` (`dependencies.py:47-76`): stops
+  depending on `OptionalUserDep`; chain its two paths with a
+  dedicated local helper. Remove the `OptionalUserDep` export.
 - `socketio.py:171-323` `room_join`: replace `RoomMembership` lookup
   with `can_read`, accept share token in auth payload.
 - Geometry edit-lock logic (`dependencies.py:293-330`): permission
-  gate becomes `can_edit`; the lock itself stays. Add force-release
-  endpoint.
+  gate becomes `can_edit`; the lock itself stays.
+- Guest creation (`routes/auth.py:32`): set `is_guest=True` on the
+  `UserCreate` payload. Remove any existing `@guest.user` suffix
+  checks elsewhere.
+- Room model: drop `is_public`, `locked`. Add `owner_user_id`,
+  `owner_group_id`, `visibility`, the two CHECK constraints.
+- `RoomMembership` + `MemberRole`: delete. Remove
+  `NotRoomMember` / `AlreadyRoomMember` problem types.
+- Frontend: update room-creation UI to include the three-value
+  visibility selector (replacing the public checkbox), add the Share
+  dialog with link management, add a Groups section, wire the
+  `?share=` URL param → `X-Room-Share-Token` header.
 
 ### Capability and guest policy
 
@@ -388,8 +433,10 @@ alembic revisions):**
   own rooms, create groups, get invited. The only current capability
   gate is informational (`is_verified`); future email-verification
   gates can consult `is_guest` or `is_verified` as needed.
-- Admins (`is_superuser=True`) can manually verify any user via
-  `PATCH /v1/users/{id}/verify`.
+- Admins (`is_superuser=True`) can manually verify any user by
+  `PATCH /v1/users/{id}` with `is_verified: true`. The superuser-
+  only field-level check lives in the user-update handler (the route
+  itself is from fastapi-users).
 
 ### Testing strategy
 
@@ -404,24 +451,28 @@ Key scenarios:
   `can_manage` return the expected values. Parameterized table test.
 - **CHECK constraints.** Inserting a room with both owner FKs set,
   or visibility mismatched to owner, raises `IntegrityError`.
-- **Transfer flows.** user→user, user→group, group→user, all edge
-  cases including non-member target group rejection and
-  already-ADMIN preservation.
+- **Ownership transfer via PATCH.** user→user, user→group, group→
+  user, and combined visibility-change cases. Edge cases: target
+  group caller is not in (expect `TransferTargetInvalid`);
+  non-manager caller attempts transfer (expect `Forbidden`);
+  invariant-violating payload (both owner fields) rejected as
+  `InvalidPayload`.
 - **Share links.** Create (view/edit), use by guest, expire, revoke,
-  wrong-token 404, token for a different room 404. Include a socketio
-  join test with a share token in the auth payload.
+  unknown token → `ShareLinkInvalid`, token for a different room →
+  `ShareLinkInvalid`. Include a socketio join test with a share
+  token in the auth payload.
 - **Group membership.** Add/remove, role change, last-admin
-  protection (cannot remove or demote the sole admin),
-  default-role-on-add is VIEWER.
-- **Guest promotion.** Guest creates room → registers with email →
-  room ownership preserved (future-proofing assertion on linking
-  behavior, even though external auth is not in this scope).
-- **Migration determinism.** A snapshot of a pre-migration DB (with
-  `is_public`, `locked`, `RoomMembership` rows) runs through Phase 1
-  + backfill + Phase 3 and lands on identical permission decisions as
-  the old code for the same caller/room pairs.
-- **`OptionalUserDep` removal.** Every route that used it now returns
-  401 on missing auth (previously returned 200 with partial data).
+  protection (`LastGroupAdmin` when demoting or removing the sole
+  admin, including self-removal), default-role-on-add is VIEWER,
+  duplicate-name creation → `GroupNameTaken`.
+- **Group deletion.** Empty group deletable by admin; group with
+  owned rooms → `GroupHasRooms`; non-admin → `Forbidden`.
+- **Auth gate.** Every route that previously used `OptionalUserDep`
+  now returns 401 on missing auth (previously returned 200 with
+  partial data).
+- **Problem-type OpenAPI coverage.** Each new `ProblemType` is
+  referenced by at least one route's `responses=problem_responses(
+  ...)` so the OpenAPI schema documents the error envelope.
 
 ## Interaction with existing features
 
@@ -441,15 +492,3 @@ Key scenarios:
   unaffected by this refactor; they key on `room_id` and their
   existing access paths go through the permission layer above.
 
-## Open questions
-
-- **Group deletion with rooms present.** Forbid (require transfer
-  first), or cascade orphan rooms to the ADMIN who deletes the group?
-  Recommendation: forbid. Matches GitHub org-delete semantics.
-- **Group name uniqueness.** Global vs per-creator namespace? Global
-  simpler, but users may compete for common names ("research",
-  "team-a"). Recommendation: global with a friendly slug collision
-  error. Worth revisiting if friction emerges.
-- **Last-admin protection.** If a group has one ADMIN and they leave,
-  what happens? Recommendation: block self-removal when sole admin;
-  require either promoting another member or deleting the group.
