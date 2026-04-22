@@ -45,12 +45,12 @@ from zndraw.geometries.lights import (
 from zndraw.geometries.pathtracing import PathTracing
 from zndraw.geometries.property_inspector import PropertyInspector
 from zndraw.materials import MeshBasicMaterial
+from zndraw.access import Visibility
 from zndraw.models import (
     Room,
     RoomBookmark,
     RoomFigure,
     RoomGeometry,
-    RoomMembership,
     SelectionGroup,
     ServerSettings,
 )
@@ -273,7 +273,9 @@ async def build_room_update(
         id=room.id,
         description=room.description,
         frame_count=frame_count,
-        locked=room.locked,
+        visibility=room.visibility,
+        owner_user_id=room.owner_user_id,
+        owner_group_id=room.owner_group_id,
         is_default=(room.id == default_room_id),
     )
 
@@ -295,14 +297,22 @@ async def broadcast_room_update(
     which similarly covers both in-room and out-of-room members.
     """
     event = await build_room_update(session, storage, room)
-    if room.is_public:
+    if room.visibility == Visibility.PUBLIC:
         await sio.emit(event, room="rooms:feed")
         return
-    result = await session.exec(
-        select(RoomMembership.user_id).where(RoomMembership.room_id == room.id)
-    )
-    for uid in result.all():
-        await sio.emit(event, room=f"user:{uid}")
+    if room.owner_group_id is not None:
+        from zndraw.models import GroupMembership
+
+        result = await session.exec(
+            select(GroupMembership.user_id).where(
+                GroupMembership.group_id == room.owner_group_id
+            )
+        )
+        for uid in result.all():
+            await sio.emit(event, room=f"user:{uid}")
+        return
+    if room.owner_user_id is not None:
+        await sio.emit(event, room=f"user:{room.owner_user_id}")
 
 
 # =============================================================================
@@ -379,11 +389,14 @@ async def create_room(
                 "Cannot copy from a room with a mounted source"
             )
 
-    # Create room in database
+    # Create room in database (bridge: owner=current_user, visibility=PUBLIC;
+    # Task 11 will respect request.visibility / request.owner_group_id)
     room = Room(
         id=room_id,
         description=request.description,
         created_by_id=current_user.id,
+        owner_user_id=current_user.id,
+        visibility=Visibility.PUBLIC,
         step=source_room.step if source_room else 0,
     )
     session.add(room)
@@ -438,8 +451,8 @@ async def list_rooms(
     # Get the default room ID for isDefault computation
     default_room_id = await _get_default_room_id(session)
 
-    # Get all rooms (for PoC, show all public rooms)
-    statement = select(Room).where(Room.is_public.is_(True))
+    # Get public rooms (Task 11 will expand this to the full scope union)
+    statement = select(Room).where(Room.visibility == Visibility.PUBLIC)
     result = await session.exec(statement)
     rooms = list(result.all())
 
@@ -461,7 +474,9 @@ async def list_rooms(
                 id=room.id,
                 description=room.description,
                 frame_count=frame_count,
-                locked=room.locked,
+                visibility=room.visibility,
+                owner_user_id=room.owner_user_id,
+                owner_group_id=room.owner_group_id,
                 is_default=(room.id == default_room_id),
             )
         )
@@ -488,7 +503,9 @@ async def get_room(
         id=room.id,
         description=room.description,
         frame_count=frame_count,
-        locked=room.locked,
+        visibility=room.visibility,
+        owner_user_id=room.owner_user_id,
+        owner_group_id=room.owner_group_id,
         is_default=(room.id == default_room_id),
     )
 
@@ -599,8 +616,8 @@ async def update_room(
         room.description = updates.description
         changed = True
 
-    if updates.locked is not None:
-        room.locked = updates.locked
+    if updates.visibility is not None:
+        room.visibility = updates.visibility
         changed = True
 
     if updates.frame_count is not None:

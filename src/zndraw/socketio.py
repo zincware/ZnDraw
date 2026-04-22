@@ -7,19 +7,18 @@ import socketio
 from fastapi import Depends
 from fastapi_users.jwt import decode_jwt
 from jwt import InvalidTokenError
-from sqlmodel import and_, select
+from sqlmodel import select  # noqa: F401  (used by Task 17 rewrite)
 from zndraw_socketio import EventContext, wrap
 
 from zndraw.dependencies import FrameStorageDep, RedisDep, room_channel
 from zndraw.exceptions import (
     NotInRoom,
-    NotRoomMember,
     ProblemError,
     RoomNotFound,
     UserNotFound,
 )
 from zndraw.geometries.camera import Camera
-from zndraw.models import Room, RoomGeometry, RoomMembership
+from zndraw.models import Room, RoomGeometry
 from zndraw.redis import RedisKey
 from zndraw.schemas import ProgressResponse
 from zndraw.socket_events import (
@@ -196,20 +195,7 @@ async def room_join(
         if room is None:
             raise RoomNotFound.exception(f"Room with id {data.room_id} not found")
 
-        room_locked = room.locked
-
-        result = await session.exec(  # type: ignore[attr-defined]
-            select(RoomMembership).where(
-                and_(
-                    RoomMembership.room_id == data.room_id,
-                    RoomMembership.user_id == user_id,
-                )
-            )
-        )
-        membership = result.first()
-
-        if membership is None and not room.is_public:
-            raise NotRoomMember.exception("Not a member of this private room")
+        # Bridge: permissive join until Task 17 wires can_read + share token.
 
     user = await session.get(User, user_id)
     email = user.email if user else None
