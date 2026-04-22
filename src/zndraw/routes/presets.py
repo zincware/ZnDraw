@@ -9,12 +9,11 @@ from fastapi import APIRouter
 from sqlmodel import select
 
 from zndraw.dependencies import (
-    CurrentUserDep,
+    AccessReadDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
     room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     InvalidPresetRule,
@@ -88,7 +87,7 @@ def _row_to_preset(row: RoomPreset) -> Preset:
 )
 async def list_presets(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
 ) -> PresetsListResponse:
     """List all presets for a room.
@@ -96,7 +95,6 @@ async def list_presets(
     Merges bundled presets with room-level DB presets.
     DB presets override bundled ones with the same name.
     """
-    await verify_room(session, room_id)
     result = await session.exec(select(RoomPreset).where(RoomPreset.room_id == room_id))
     rows = result.all()
 
@@ -114,7 +112,7 @@ async def list_presets(
 )
 async def get_preset(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
     name: str,
 ) -> Preset:
@@ -122,7 +120,6 @@ async def get_preset(
 
     DB preset takes priority; falls back to bundled preset.
     """
-    await verify_room(session, room_id)
     row = await session.get(RoomPreset, (room_id, name))
     if row is not None:
         return _row_to_preset(row)

@@ -4,12 +4,11 @@ from fastapi import APIRouter, status
 from sqlmodel import select
 
 from zndraw.dependencies import (
-    CurrentUserDep,
+    AccessReadDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
     room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     FigureNotFound,
@@ -38,11 +37,10 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/figures", tags=["figures"])
 )
 async def list_figures(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
 ) -> CollectionResponse[str]:
     """List all figure keys in a room."""
-    await verify_room(session, room_id)
     result = await session.exec(
         select(RoomFigure.key).where(RoomFigure.room_id == room_id)
     )
@@ -56,12 +54,11 @@ async def list_figures(
 )
 async def get_figure(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
     key: str,
 ) -> FigureResponse:
     """Get a single figure by key."""
-    await verify_room(session, room_id)
     row = await session.get(RoomFigure, (room_id, key))
     if row is None:
         raise FigureNotFound.exception(f"Figure '{key}' not found")

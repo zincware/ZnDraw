@@ -4,12 +4,11 @@ from fastapi import APIRouter
 from sqlmodel import select
 
 from zndraw.dependencies import (
-    CurrentUserDep,
+    AccessReadDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
     room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     BookmarkNotFound,
@@ -36,11 +35,10 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/bookmarks", tags=["bookmarks"])
 )
 async def list_bookmarks(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
 ) -> BookmarksResponse:
     """Get all bookmarks for a room."""
-    await verify_room(session, room_id)
     result = await session.exec(
         select(RoomBookmark).where(RoomBookmark.room_id == room_id)
     )
@@ -55,12 +53,11 @@ async def list_bookmarks(
 )
 async def get_bookmark(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
     index: int,
 ) -> BookmarkResponse:
     """Get a single bookmark by frame index."""
-    await verify_room(session, room_id)
     row = await session.get(RoomBookmark, (room_id, index))
     if row is None:
         raise BookmarkNotFound.exception(f"Bookmark '{index}' not found")

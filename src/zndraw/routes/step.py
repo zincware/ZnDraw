@@ -3,13 +3,12 @@
 from fastapi import APIRouter
 
 from zndraw.dependencies import (
-    CurrentUserDep,
+    AccessReadDep,
     FrameStorageDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
     room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     NotAuthenticated,
@@ -31,7 +30,7 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/step", tags=["step"])
 async def get_step(
     session: SessionDep,
     storage: FrameStorageDep,
-    _current_user: CurrentUserDep,
+    access: AccessReadDep,
     room_id: str,
 ) -> StepResponse:
     """Get current step (frame index) for a room.
@@ -39,7 +38,7 @@ async def get_step(
     Returns current step and total frame count. Clamps step to valid range
     if frames were deleted.
     """
-    room = await verify_room(session, room_id)
+    room = access.room
     step = room.step
     total = await storage.get_length(room_id)
 

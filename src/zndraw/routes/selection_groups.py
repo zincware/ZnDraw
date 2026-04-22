@@ -5,12 +5,11 @@ import json
 from fastapi import APIRouter
 
 from zndraw.dependencies import (
-    CurrentUserDep,
+    AccessReadDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
     room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     NotAuthenticated,
@@ -39,12 +38,10 @@ router = APIRouter(
 )
 async def list_selection_groups(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
 ) -> SelectionGroupsListResponse:
     """List all selection groups for a room."""
-    await verify_room(session, room_id)
-
     from sqlmodel import select
 
     result = await session.exec(
@@ -63,12 +60,11 @@ async def list_selection_groups(
 )
 async def get_selection_group(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
     group_name: str,
 ) -> SelectionGroupResponse:
     """Get a selection group by name."""
-    await verify_room(session, room_id)
     row = await session.get(SelectionGroup, (room_id, group_name))
     if row is None:
         raise SelectionGroupNotFound.exception(

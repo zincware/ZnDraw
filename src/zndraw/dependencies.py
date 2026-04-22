@@ -17,7 +17,7 @@ from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from zndraw_socketio import AsyncServerWrapper
 
-from zndraw.access import GroupRole, ShareContext
+from zndraw.access import GroupRole, ShareAccess, ShareContext, can_edit, can_manage, can_read
 from zndraw.exceptions import (
     Forbidden,
     NotAuthenticated,
@@ -182,218 +182,6 @@ def room_channel(room_id: str) -> str:
     return f"room:{room_id}"
 
 
-async def _check_locks(
-    redis: AsyncRedis,
-    room_id: str,
-    room: Room,
-    user: User,  # type: ignore[type-arg]
-    lock_token: str | None = None,
-) -> None:
-    """Check admin lock and edit lock; raise RoomLocked (423) if blocked."""
-    if room.locked and not user.is_superuser:
-        raise RoomLocked.exception("Room is locked by an administrator")
-
-    raw = await redis.get(RedisKey.edit_lock(room_id))
-    if raw is not None:
-        holder = json.loads(raw)
-        if lock_token is None:
-            raise RoomLocked.exception("Room is being edited; Lock-Token required")
-        if holder["lock_token"] != lock_token:
-            raise RoomLocked.exception("Room is being edited by another session")
-
-
-async def get_writable_room(
-    request: Request,
-    session: SessionDep,
-    current_user: CurrentUserDep,
-    redis: RedisDep,
-    room_id: str = Path(),
-) -> Room:
-    """Verify room exists and is writable by the current user.
-
-    Validates room_id format, checks admin lock (SQL) and edit lock (Redis).
-    Raises RoomLocked (423) if the room cannot be modified.
-    """
-    validate_room_id(room_id)
-    room = await verify_room(session, room_id)
-    lock_token = request.headers.get("Lock-Token")
-    await _check_locks(redis, room_id, room, current_user, lock_token)
-    return room
-
-
-WritableRoomDep = Annotated[Room, Depends(get_writable_room)]
-
-
-async def get_verified_session_id(
-    current_user: CurrentUserDep,
-    redis: RedisDep,
-    room_id: str = Path(),
-    session_id: str = Path(),
-) -> str:
-    """Verify session belongs to the current user, or raise 404.
-
-    Finds the session's own camera in room_cameras (by SID match) to
-    verify ownership. The active camera may point to another user's
-    camera (sessions can view through any camera in the room), so we
-    cannot use the active_cameras chain for ownership verification.
-    """
-    if not await redis.hexists(RedisKey.active_cameras(room_id), session_id):  # type: ignore[misc]
-        raise SessionNotFound.exception("Session not found")
-    all_cameras: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
-        RedisKey.room_cameras(room_id)
-    )
-    uid = str(current_user.id)
-    for raw in all_cameras.values():
-        entry = json.loads(raw)
-        if entry.get("sid") == session_id and Camera(**entry["data"]).owner == uid:
-            return session_id
-    raise SessionNotFound.exception("Session not found")
-
-
-VerifiedSessionDep = Annotated[str, Depends(get_verified_session_id)]
-
-
-async def get_active_session_cam_id(
-    redis: RedisDep,
-    room_id: str = Path(),
-    session_id: str = Path(),
-) -> str:
-    """Verify session exists in active-cameras (no ownership check).
-
-    Use for read-only access where any room participant may view
-    session state. For mutations, use ``VerifiedSessionDep``.
-    """
-    if not await redis.hexists(RedisKey.active_cameras(room_id), session_id):  # type: ignore[misc]
-        raise SessionNotFound.exception("Session not found")
-    return session_id
-
-
-ActiveSessionCamDep = Annotated[str, Depends(get_active_session_cam_id)]
-
-
-async def get_owner_from_geometry(
-    redis: AsyncRedis,  # type: ignore[type-arg]
-    session: AsyncSession,
-    room_id: str,
-    key: str,
-) -> str | None:
-    """Read owner from geometry config via Pydantic validation.
-
-    Tries Redis hash first (session cameras), then SQL.
-    Returns None if geometry doesn't exist or has no owner.
-    """
-    raw = await redis.hget(RedisKey.room_cameras(room_id), key)  # type: ignore[misc]
-    if raw is not None:
-        entry = json.loads(raw)
-        return Camera(**entry["data"]).owner
-
-    row = await session.get(RoomGeometry, (room_id, key))
-    if row is not None:
-        model_cls = geometry_models.get(row.type)
-        if model_cls is not None:
-            return model_cls(**json.loads(row.config)).owner
-
-    return None
-
-
-class WritableGeometryInfo(NamedTuple):
-    """Resolved room and current owner for a writable geometry."""
-
-    room: Room
-    current_owner: str | None
-
-
-async def check_geometry_write_access(
-    session: AsyncSession,
-    redis: AsyncRedis,  # type: ignore[type-arg]
-    room_id: str,
-    geometry_key: str,
-    current_user: User,
-    lock_token: str | None = None,
-) -> WritableGeometryInfo:
-    """Check that the current user can write to a geometry.
-
-    Combines lock checks with ownership: owners can edit their own geometries
-    even when the room is admin-locked.
-
-    Lock precedence
-    ---------------
-    1. Edit lock: blocks non-holders (even owners)
-    2. Admin lock: blocks non-owners (owners bypass)
-    3. Ownership: blocks non-owners always
-    """
-    validate_room_id(room_id)
-    room = await verify_room(session, room_id)
-
-    # Edit lock: always blocks non-holders (even owners)
-    raw = await redis.get(RedisKey.edit_lock(room_id))
-    if raw is not None:
-        holder = json.loads(raw)
-        if lock_token is not None:
-            if holder["lock_token"] != lock_token:
-                raise RoomLocked.exception("Room is being edited by another session")
-        else:
-            if holder["user_id"] != str(current_user.id):
-                raise RoomLocked.exception("Room is being edited by another user")
-
-    # Resolve owner once — reused for lock bypass and ownership check
-    current_owner = await get_owner_from_geometry(redis, session, room_id, geometry_key)
-    user_id_str = str(current_user.id)
-    is_unowned = current_owner is None
-    is_mine = current_owner == user_id_str
-
-    # Admin lock: only owners of their OWN geometry bypass
-    if room.locked and not current_user.is_superuser and not is_mine:
-        raise RoomLocked.exception("Room is locked by an administrator")
-
-    # Ownership check: non-owners blocked even without locks
-    if not current_user.is_superuser and not is_unowned and not is_mine:
-        raise Forbidden.exception("Not the geometry owner")
-
-    return WritableGeometryInfo(room=room, current_owner=current_owner)
-
-
-async def get_writable_geometry(
-    request: Request,
-    session: SessionDep,
-    current_user: CurrentUserDep,
-    redis: RedisDep,
-    room_id: str = Path(),
-    key: str = Path(),
-) -> WritableGeometryInfo:
-    """FastAPI dependency wrapping check_geometry_write_access."""
-    lock_token = request.headers.get("Lock-Token")
-    return await check_geometry_write_access(
-        session, redis, room_id, key, current_user, lock_token
-    )
-
-
-WritableGeometryDep = Annotated[WritableGeometryInfo, Depends(get_writable_geometry)]
-
-
-async def get_writable_room_id(
-    request: Request,
-    session: SessionDep,
-    current_user: CurrentUserDep,
-    redis: RedisDep,
-    room_id: str = Path(),
-) -> str:
-    """Verify room is writable and return its id.
-
-    Override for zndraw-joblib's ``verify_writable_room``.
-    Same checks as ``get_writable_room`` but returns ``str``.
-    Virtual rooms (@global, @internal) skip DB/lock checks since they
-    are not stored as Room records — access is controlled by joblib's
-    own admin check in the registration endpoint.
-    """
-    validate_room_id(room_id)
-    if room_id not in ("@global", "@internal"):
-        room = await verify_room(session, room_id)
-        lock_token = request.headers.get("Lock-Token")
-        await _check_locks(redis, room_id, room, current_user, lock_token)
-    return room_id
-
-
 # =============================================================================
 # Group membership helpers
 # =============================================================================
@@ -499,10 +287,205 @@ ShareTokenDep = Annotated[ShareContext | None, Depends(get_share_context)]
 
 
 # =============================================================================
-# Access composites — room + auth context bundled together
+# Edit lock helper
 # =============================================================================
 
-from zndraw.access import can_edit, can_manage, can_read  # noqa: E402
+
+async def _check_edit_lock(
+    redis: AsyncRedis,  # type: ignore[type-arg]
+    room_id: str,
+    lock_token: str | None = None,
+) -> None:
+    """Redis edit-lock check only — no admin lock, no permission logic."""
+    raw = await redis.get(RedisKey.edit_lock(room_id))
+    if raw is None:
+        return
+    holder = json.loads(raw)
+    if lock_token is None:
+        raise RoomLocked.exception("Room is being edited; Lock-Token required")
+    if holder["lock_token"] != lock_token:
+        raise RoomLocked.exception("Room is being edited by another session")
+
+
+# =============================================================================
+# Session camera helpers
+# =============================================================================
+
+
+async def get_verified_session_id(
+    current_user: CurrentUserDep,
+    redis: RedisDep,
+    room_id: str = Path(),
+    session_id: str = Path(),
+) -> str:
+    """Verify session belongs to the current user, or raise 404.
+
+    Finds the session's own camera in room_cameras (by SID match) to
+    verify ownership. The active camera may point to another user's
+    camera (sessions can view through any camera in the room), so we
+    cannot use the active_cameras chain for ownership verification.
+    """
+    if not await redis.hexists(RedisKey.active_cameras(room_id), session_id):  # type: ignore[misc]
+        raise SessionNotFound.exception("Session not found")
+    all_cameras: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
+        RedisKey.room_cameras(room_id)
+    )
+    uid = str(current_user.id)
+    for raw in all_cameras.values():
+        entry = json.loads(raw)
+        if entry.get("sid") == session_id and Camera(**entry["data"]).owner == uid:
+            return session_id
+    raise SessionNotFound.exception("Session not found")
+
+
+VerifiedSessionDep = Annotated[str, Depends(get_verified_session_id)]
+
+
+async def get_active_session_cam_id(
+    redis: RedisDep,
+    room_id: str = Path(),
+    session_id: str = Path(),
+) -> str:
+    """Verify session exists in active-cameras (no ownership check).
+
+    Use for read-only access where any room participant may view
+    session state. For mutations, use ``VerifiedSessionDep``.
+    """
+    if not await redis.hexists(RedisKey.active_cameras(room_id), session_id):  # type: ignore[misc]
+        raise SessionNotFound.exception("Session not found")
+    return session_id
+
+
+ActiveSessionCamDep = Annotated[str, Depends(get_active_session_cam_id)]
+
+
+# =============================================================================
+# Geometry write access
+# =============================================================================
+
+
+async def get_owner_from_geometry(
+    redis: AsyncRedis,  # type: ignore[type-arg]
+    session: AsyncSession,
+    room_id: str,
+    key: str,
+) -> str | None:
+    """Read owner from geometry config via Pydantic validation.
+
+    Tries Redis hash first (session cameras), then SQL.
+    Returns None if geometry doesn't exist or has no owner.
+    """
+    raw = await redis.hget(RedisKey.room_cameras(room_id), key)  # type: ignore[misc]
+    if raw is not None:
+        entry = json.loads(raw)
+        return Camera(**entry["data"]).owner
+
+    row = await session.get(RoomGeometry, (room_id, key))
+    if row is not None:
+        model_cls = geometry_models.get(row.type)
+        if model_cls is not None:
+            return model_cls(**json.loads(row.config)).owner
+
+    return None
+
+
+class WritableGeometryInfo(NamedTuple):
+    """Resolved room and current owner for a writable geometry."""
+
+    room: Room
+    current_owner: str | None
+
+
+async def check_geometry_write_access(
+    session: AsyncSession,
+    redis: AsyncRedis,  # type: ignore[type-arg]
+    room_id: str,
+    geometry_key: str,
+    current_user: User,
+    share: ShareContext | None,
+    lock_token: str | None = None,
+) -> WritableGeometryInfo:
+    """Verify: (1) Redis edit lock, (2) can_edit permission, (3) geometry ownership."""
+    validate_room_id(room_id)
+    room = await verify_room(session, room_id)
+
+    # 1. Redis edit-lock (serialization, not auth)
+    raw = await redis.get(RedisKey.edit_lock(room_id))
+    if raw is not None:
+        holder = json.loads(raw)
+        if lock_token is not None:
+            if holder["lock_token"] != lock_token:
+                raise RoomLocked.exception("Room is being edited by another session")
+        elif holder["user_id"] != str(current_user.id):
+            raise RoomLocked.exception("Room is being edited by another user")
+
+    # 2. can_edit gate
+    group_role: GroupRole | None = None
+    if room.owner_group_id is not None:
+        group_role = await fetch_group_role(
+            session, current_user.id, room.owner_group_id
+        )
+    if not can_edit(current_user, room, share, group_role=group_role):
+        raise Forbidden.exception("You may not edit this room")
+
+    # 3. Per-geometry ownership
+    current_owner = await get_owner_from_geometry(redis, session, room_id, geometry_key)
+    user_id_str = str(current_user.id)
+    is_unowned = current_owner is None
+    is_mine = current_owner == user_id_str
+    if not current_user.is_superuser and not is_unowned and not is_mine:
+        raise Forbidden.exception("Not the geometry owner")
+
+    return WritableGeometryInfo(room=room, current_owner=current_owner)
+
+
+async def get_writable_geometry(
+    request: Request,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    redis: RedisDep,
+    share: ShareTokenDep,
+    room_id: str = Path(),
+    key: str = Path(),
+) -> WritableGeometryInfo:
+    """FastAPI dependency wrapping check_geometry_write_access."""
+    lock_token = request.headers.get("Lock-Token")
+    return await check_geometry_write_access(
+        session, redis, room_id, key, current_user, share, lock_token
+    )
+
+
+WritableGeometryDep = Annotated[WritableGeometryInfo, Depends(get_writable_geometry)]
+
+
+async def get_writable_room_id(
+    request: Request,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    share: ShareTokenDep,
+    redis: RedisDep,
+    room_id: str = Path(),
+) -> str:
+    """Verify room is writable and return its id. Virtual rooms skip checks."""
+    validate_room_id(room_id)
+    if room_id in ("@global", "@internal"):
+        return room_id
+    room = await verify_room(session, room_id)
+    group_role: GroupRole | None = None
+    if room.owner_group_id is not None:
+        group_role = await fetch_group_role(
+            session, current_user.id, room.owner_group_id
+        )
+    if not can_edit(current_user, room, share, group_role=group_role):
+        raise Forbidden.exception("You may not edit this room")
+    lock_token = request.headers.get("Lock-Token")
+    await _check_edit_lock(redis, room_id, lock_token)
+    return room_id
+
+
+# =============================================================================
+# Access composites — room + auth context bundled together
+# =============================================================================
 
 
 class AccessContext(NamedTuple):
@@ -616,3 +599,17 @@ async def get_manageable_room(
 AccessReadDep = Annotated[AccessContext, Depends(get_readable_room)]
 AccessEditDep = Annotated[AccessContext, Depends(get_editable_room)]
 AccessManageDep = Annotated[AccessContext, Depends(get_manageable_room)]
+
+
+async def get_writable_room(
+    request: Request,
+    access: AccessEditDep,
+    redis: RedisDep,
+) -> Room:
+    """Edit-gated room + Redis edit-lock coordination."""
+    lock_token = request.headers.get("Lock-Token")
+    await _check_edit_lock(redis, access.room.id, lock_token)
+    return access.room
+
+
+WritableRoomDep = Annotated[Room, Depends(get_writable_room)]

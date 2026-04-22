@@ -8,11 +8,12 @@ from sqlalchemy import func
 from sqlmodel import col, select
 
 from zndraw.dependencies import (
+    AccessEditDep,
+    AccessReadDep,
     CurrentUserDep,
     SessionDep,
     SioDep,
     room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     MessageNotFound,
@@ -59,13 +60,12 @@ def _message_to_response(msg: Message, email: str | None = None) -> MessageRespo
 )
 async def list_messages(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
     limit: Annotated[int, Query(ge=1, le=100)] = 30,
     before: Annotated[int | None, Query(description="Unix ms cursor")] = None,
 ) -> MessagesResponse:
     """List messages with cursor pagination (newest first)."""
-    await verify_room(session, room_id)
 
     stmt = select(Message).where(Message.room_id == room_id)
 
@@ -124,11 +124,11 @@ async def create_message(
     session: SessionDep,
     sio: SioDep,
     current_user: CurrentUserDep,
+    _access: AccessEditDep,
     room_id: str,
     request: MessageCreate,
 ) -> MessageResponse:
     """Create a new chat message."""
-    await verify_room(session, room_id)
 
     msg = Message(
         room_id=room_id,
@@ -166,12 +166,12 @@ async def edit_message(
     session: SessionDep,
     sio: SioDep,
     current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
     message_id: int,
     request: MessageEditRequest,
 ) -> MessageResponse:
     """Edit an existing chat message. Only the author can edit."""
-    await verify_room(session, room_id)
 
     msg = await session.get(Message, message_id)
     if msg is None or msg.room_id != room_id:

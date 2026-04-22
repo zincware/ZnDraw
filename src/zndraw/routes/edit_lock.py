@@ -92,10 +92,7 @@ async def acquire_edit_lock(
     - Returns 409 if Lock-Token is provided but the lock has expired.
     - Returns 423 if another session holds the lock.
     """
-    room = await verify_room(session, room_id)
-
-    if room.locked and not current_user.is_superuser:
-        raise RoomLocked.exception("Room is locked by an administrator")
+    await verify_room(session, room_id)
 
     user_id = str(current_user.id)
     key = RedisKey.edit_lock(room_id)

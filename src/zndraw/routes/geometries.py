@@ -9,13 +9,14 @@ from pydantic import ValidationError
 from sqlmodel import select
 
 from zndraw.dependencies import (
+    AccessEditDep,
+    AccessReadDep,
     CurrentUserDep,
     RedisDep,
     SessionDep,
     SioDep,
     WritableGeometryDep,
     room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     Forbidden,
@@ -93,15 +94,13 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/geometries", tags=["geometries"])
 async def list_geometries(
     session: SessionDep,
     redis: RedisDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
 ) -> GeometriesResponse:
     """List all geometries in a room.
 
     Merges SQL geometries with Redis session cameras.
     """
-    await verify_room(session, room_id)
-
     # SQL geometries
     result = await session.exec(
         select(RoomGeometry).where(RoomGeometry.room_id == room_id)
@@ -125,12 +124,11 @@ async def list_geometries(
 )
 async def get_geometry_selection(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
     key: str,
 ) -> GeometrySelectionResponse:
     """Get selection for a specific geometry."""
-    await verify_room(session, room_id)
     row = await session.get(RoomGeometry, (room_id, key))
     if row is None:
         raise GeometryNotFound.exception(f"Geometry '{key}' not found")
@@ -145,13 +143,11 @@ async def get_geometry_selection(
 async def get_geometry(
     session: SessionDep,
     redis: RedisDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
     key: str,
 ) -> GeometryResponse:
     """Get a single geometry by key."""
-    await verify_room(session, room_id)
-
     # Try Redis hash first (session cameras), then SQL
     hash_key = RedisKey.room_cameras(room_id)
     raw = await redis.hget(hash_key, key)  # type: ignore[misc]
@@ -378,13 +374,11 @@ default_camera_router = APIRouter(prefix="/v1/rooms/{room_id}", tags=["geometrie
     responses=problem_responses(RoomNotFound),
 )
 async def get_default_camera(
-    session: SessionDep,
-    _user: CurrentUserDep,
+    access: AccessReadDep,
     room_id: str,
 ) -> DefaultCameraResponse:
     """Get the default camera geometry key for a room."""
-    room = await verify_room(session, room_id)
-    return DefaultCameraResponse(default_camera=room.default_camera)
+    return DefaultCameraResponse(default_camera=access.room.default_camera)
 
 
 @default_camera_router.put(
@@ -396,12 +390,12 @@ async def get_default_camera(
 async def set_default_camera(
     session: SessionDep,
     sio: SioDep,
-    _user: CurrentUserDep,
+    access: AccessEditDep,
     room_id: str,
     body: DefaultCameraRequest,
 ) -> DefaultCameraResponse:
     """Set or unset the default camera for a room."""
-    room = await verify_room(session, room_id)
+    room = access.room
 
     if body.default_camera is not None:
         row = await session.get(RoomGeometry, (room_id, body.default_camera))
