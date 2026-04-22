@@ -5,17 +5,18 @@ Authentication uses zndraw-auth package.
 """
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path as FilePath
 from typing import Annotated, NamedTuple
 from uuid import UUID
 
-from fastapi import Depends, Path, Request
+from fastapi import Depends, Header, Path, Request
 from sqlmodel import select
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from zndraw_socketio import AsyncServerWrapper
 
-from zndraw.access import GroupRole
+from zndraw.access import GroupRole, ShareAccess, ShareContext
 from zndraw.exceptions import (
     Forbidden,
     NotAuthenticated,
@@ -26,7 +27,7 @@ from zndraw.exceptions import (
 )
 from zndraw.geometries import geometries as geometry_models
 from zndraw.geometries.camera import Camera
-from zndraw.models import GroupMembership, Room, RoomGeometry
+from zndraw.models import GroupMembership, Room, RoomGeometry, RoomShareLink
 from zndraw.redis import RedisKey
 from zndraw.storage import FrameStorage
 from zndraw_auth import (
@@ -426,3 +427,53 @@ async def get_my_group_ids(
 
 
 MyGroupIdsDep = Annotated[list[UUID], Depends(get_my_group_ids)]
+
+
+# =============================================================================
+# Share-token resolver
+# =============================================================================
+
+
+async def resolve_share_token(
+    session: AsyncSession, token: str | None, room_id: str
+) -> ShareContext | None:
+    """Resolve an ``X-Room-Share-Token`` header to a validated ShareContext.
+
+    Returns ``None`` — never raises — when the token is missing, unknown,
+    targets a different room, revoked, or expired.
+
+    Parameters
+    ----------
+    session
+        Async database session.
+    token
+        The raw token string from the request header, or ``None`` when the
+        header is absent.
+    room_id
+        The room the token must be scoped to.
+    """
+    if token is None:
+        return None
+    result = await session.exec(
+        select(RoomShareLink).where(RoomShareLink.token == token)
+    )
+    link = result.first()
+    if link is None or link.room_id != room_id:
+        return None
+    if link.revoked_at is not None:
+        return None
+    if link.expires_at is not None and link.expires_at <= datetime.now(UTC):
+        return None
+    return ShareContext(room_id=link.room_id, access=link.access)
+
+
+async def get_share_context(
+    session: SessionDep,
+    room_id: str = Path(),
+    x_room_share_token: str | None = Header(default=None, alias="X-Room-Share-Token"),
+) -> ShareContext | None:
+    """FastAPI dependency resolving the share-token header to a ShareContext."""
+    return await resolve_share_token(session, x_room_share_token, room_id)
+
+
+ShareTokenDep = Annotated[ShareContext | None, Depends(get_share_context)]
