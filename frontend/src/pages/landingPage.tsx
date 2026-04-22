@@ -57,15 +57,20 @@ import { useDockviewApi } from "../stores/dockviewApiStore";
 import { connectWithAuth } from "../socket";
 import { useAppStore } from "../store";
 import { logout as authLogout } from "../utils/auth";
+import { parseShareFromLocation } from "../utils/shareToken";
 import { downloadScreenshot } from "../utils/screenshot";
 
 export default function MainPage() {
 	const { roomId } = useParams<{ roomId: string }>();
 	const setRoomId = useAppStore((state) => state.setRoomId);
 
-	// Set roomId in store for child components that read from it
+	// Set roomId in store for child components that read from it.
+	// Also extract ?share= token so it is available before any fetches fire.
 	useEffect(() => {
-		if (roomId) setRoomId(roomId);
+		if (roomId) {
+			parseShareFromLocation(roomId);
+			setRoomId(roomId);
+		}
 	}, [roomId, setRoomId]);
 
 	useSocketManager({ roomId });

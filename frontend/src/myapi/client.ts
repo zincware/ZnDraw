@@ -1,6 +1,7 @@
 import axios from "axios";
 import { useAppStore } from "../store";
 import { acquireToken, getToken, logout } from "../utils/auth";
+import { getShareToken } from "../utils/shareToken";
 import { packBinary, unpackBinary } from "../utils/msgpack-numpy";
 import type { ChatMessage, ChatMessagesResponse } from "../types/chat";
 import type { TaskStatus } from "../types/jobs";
@@ -87,7 +88,7 @@ export interface GlobalSettings {
 
 const apiClient = axios.create({});
 
-// Add interceptor to include JWT token, session ID, and lock token in all requests
+// Add interceptor to include JWT token, session ID, lock token, and share token in all requests
 apiClient.interceptors.request.use((config) => {
 	const token = getToken();
 	if (token) {
@@ -103,6 +104,16 @@ apiClient.interceptors.request.use((config) => {
 	const lockToken = useAppStore.getState().lockToken;
 	if (lockToken) {
 		config.headers["Lock-Token"] = lockToken;
+	}
+
+	// Include X-Room-Share-Token for room-scoped requests when a share token is known
+	const url = config.url ?? "";
+	const roomMatch = /\/v1\/rooms\/([^/]+)/.exec(url);
+	if (roomMatch) {
+		const shareToken = getShareToken(roomMatch[1]);
+		if (shareToken) {
+			config.headers["X-Room-Share-Token"] = shareToken;
+		}
 	}
 
 	return config;
