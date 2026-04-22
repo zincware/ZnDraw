@@ -1,12 +1,19 @@
 import uuid as uuid_mod
 from datetime import UTC, datetime
-from enum import StrEnum
 from uuid import UUID
 
-from sqlalchemy import Column, ForeignKey, String, TypeDecorator
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    ForeignKey,
+    String,
+    TypeDecorator,
+    UniqueConstraint,
+)
 from sqlalchemy.types import DateTime
 from sqlmodel import Field, SQLModel
 
+from zndraw.access import GroupRole, ShareAccess, Visibility
 from zndraw_joblib.models import Job, Task, Worker, WorkerJobLink  # noqa: F401
 
 
@@ -28,18 +35,21 @@ class UTCDateTime(TypeDecorator):
         return value
 
 
-class MemberRole(StrEnum):
-    MEMBER = "member"
-    MODERATOR = "moderator"
-    OWNER = "owner"
-
-
 class Room(SQLModel, table=True):
-    """Room model with string UUID as primary key.
+    """Room with polymorphic ownership and three-value visibility."""
 
-    This matches the frontend expectation of string room IDs (UUIDs).
-    Frames are stored separately in the storage layer (memory/LMDB/etc).
-    """
+    __table_args__ = (
+        CheckConstraint(
+            "(owner_user_id IS NOT NULL) <> (owner_group_id IS NOT NULL)",
+            name="room_owner_exactly_one",
+        ),
+        CheckConstraint(
+            "(visibility = 'private' AND owner_user_id IS NOT NULL) OR "
+            "(visibility = 'group'   AND owner_group_id IS NOT NULL) OR "
+            "(visibility = 'public')",
+            name="room_visibility_matches_owner",
+        ),
+    )
 
     id: str = Field(default_factory=lambda: str(uuid_mod.uuid4()), primary_key=True)
     description: str | None = None
@@ -47,11 +57,47 @@ class Room(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
     )
-    is_public: bool = Field(default=True)
-    locked: bool = Field(default=False)  # Admin lock status
+    owner_user_id: UUID | None = Field(default=None, foreign_key="user.id", index=True)
+    owner_group_id: UUID | None = Field(default=None, foreign_key="group.id", index=True)
+    visibility: Visibility = Field(default=Visibility.PUBLIC)
     step: int = Field(default=0)
-    frame_selection: str | None = Field(default=None)  # JSON list[int]
-    default_camera: str | None = Field(default=None)  # Geometry key for default camera
+    frame_selection: str | None = Field(default=None)
+    default_camera: str | None = Field(default=None)
+
+
+class Group(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid_mod.uuid4, primary_key=True)
+    name: str = Field(unique=True, index=True)
+    description: str | None = None
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+    )
+    created_by_id: UUID = Field(foreign_key="user.id", index=True)
+
+
+class GroupMembership(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("group_id", "user_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    group_id: UUID = Field(foreign_key="group.id", index=True)
+    user_id: UUID = Field(foreign_key="user.id", index=True)
+    role: GroupRole = Field(default=GroupRole.VIEWER)
+    joined_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+    )
+
+
+class RoomShareLink(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid_mod.uuid4, primary_key=True)
+    room_id: str = Field(foreign_key="room.id", index=True)
+    token: str = Field(unique=True, index=True)
+    access: ShareAccess = Field(default=ShareAccess.VIEW)
+    created_by_id: UUID = Field(foreign_key="user.id")
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+    )
+    expires_at: datetime | None = Field(default=None, sa_type=UTCDateTime())
+    revoked_at: datetime | None = Field(default=None, sa_type=UTCDateTime())
 
 
 class Message(SQLModel, table=True):
@@ -63,16 +109,6 @@ class Message(SQLModel, table=True):
         default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
     )
     updated_at: datetime | None = Field(default=None, sa_type=UTCDateTime())
-
-
-class RoomMembership(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    room_id: str = Field(foreign_key="room.id", index=True)
-    user_id: UUID = Field(index=True)
-    joined_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
-    )
-    role: MemberRole = Field(default=MemberRole.MEMBER)
 
 
 class RoomGeometry(SQLModel, table=True):

@@ -7,8 +7,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from zndraw.models import MemberRole
-
 
 def deep_merge(base: dict, override: dict) -> dict:
     """Recursively merge *override* into *base*. Override wins for leaf values."""
@@ -89,17 +87,6 @@ class RoomPatchResponse(BaseModel):
     """Response body for PATCH /rooms/{room_id}."""
 
     status: Literal["ok"] = "ok"
-
-
-class RoomMemberResponse(BaseModel):
-    """Response body for room member details."""
-
-    user_id: UUID
-    email: str | None
-    role: MemberRole
-    joined_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class MessageCreate(BaseModel):
