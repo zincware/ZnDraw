@@ -71,7 +71,7 @@ export default function GroupsPage() {
 						value={name}
 						onChange={(e) => setName(e.target.value)}
 						size="small"
-						inputProps={{ pattern: "[a-zA-Z0-9_-]+", maxLength: 64 }}
+						inputProps={{ pattern: "[-a-zA-Z0-9_]+", maxLength: 64 }}
 					/>
 					<TextField
 						label="Description (optional)"
