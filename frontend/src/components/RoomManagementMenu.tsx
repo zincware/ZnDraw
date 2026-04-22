@@ -4,6 +4,7 @@ import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import LockIcon from "@mui/icons-material/Lock";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
+import ShareIcon from "@mui/icons-material/Share";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import Button from "@mui/material/Button";
@@ -35,6 +36,7 @@ import { useRoomsStore } from "../roomsStore";
 import { socket } from "../socket";
 import { useAppStore } from "../store";
 import DuplicateRoomDialog from "./DuplicateRoomDialog";
+import ShareDialog from "./ShareDialog";
 import VisibilitySelector from "./VisibilitySelector";
 
 /**
@@ -61,6 +63,7 @@ export default function RoomManagementMenu() {
 	const [filesystemAvailable, setFilesystemAvailable] = useState(false);
 	const [duplicateOpen, setDuplicateOpen] = useState(false);
 	const [shutdownDialog, setShutdownDialog] = useState(false);
+	const [shareOpen, setShareOpen] = useState(false);
 	const [visibility, setVisibility] = useState<Visibility>("public");
 
 	// Subscribe to rooms from Zustand store (triggers re-render on changes)
@@ -336,6 +339,20 @@ export default function RoomManagementMenu() {
 					</MenuItem>
 				)}
 
+				{canManage && (
+					<MenuItem
+						onClick={() => {
+							setShareOpen(true);
+							handleCloseMenu();
+						}}
+					>
+						<ListItemIcon>
+							<ShareIcon fontSize="small" />
+						</ListItemIcon>
+						<ListItemText>Share…</ListItemText>
+					</MenuItem>
+				)}
+
 				<MenuItem onClick={handleOpenDuplicateDialog}>
 					<ListItemIcon>
 						<ContentCopyIcon />
@@ -410,6 +427,15 @@ export default function RoomManagementMenu() {
 				existingRoomIds={rooms.map((r) => r.id)}
 				onClose={() => setDuplicateOpen(false)}
 			/>
+
+			{/* Share Dialog */}
+			{roomId && (
+				<ShareDialog
+					roomId={roomId}
+					open={shareOpen}
+					onClose={() => setShareOpen(false)}
+				/>
+			)}
 		</>
 	);
 }
