@@ -86,25 +86,18 @@ async def create_test_user_in_db(
 async def create_test_room(
     session: AsyncSession, user: User, description: str = "Test Room"
 ) -> Room:
-    """Create a room with user as owner and return it."""
-    from zndraw.models import MemberRole, RoomMembership
+    """Create a PUBLIC user-owned room and return it."""
+    from zndraw.access import Visibility
 
     room = Room(
         description=description,
         created_by_id=user.id,  # type: ignore[arg-type]
-        is_public=True,
+        owner_user_id=user.id,  # type: ignore[arg-type]
+        visibility=Visibility.PUBLIC,
     )
     session.add(room)
     await session.commit()
     await session.refresh(room)
-
-    membership = RoomMembership(
-        room_id=room.id,  # type: ignore[arg-type]
-        user_id=user.id,  # type: ignore[arg-type]
-        role=MemberRole.OWNER,
-    )
-    session.add(membership)
-    await session.commit()
     return room
 
 
