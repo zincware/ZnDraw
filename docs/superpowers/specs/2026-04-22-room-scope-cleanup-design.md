@@ -89,7 +89,7 @@ the existing POST handler leaks existence directly. The frontend
 change is required on its own — the auto-create retry turns any
 `can_read` denial into a confusing "not found" snackbar.
 
-**Backend — `POST /v1/rooms` on collision.**
+**Backend — `POST /v1/rooms` always suffixes the `room_id`.**
 
 Current behavior (`src/zndraw/routes/rooms.py:360-369`) returns 200
 with the existing room's `frame_count` whenever the requested
@@ -100,28 +100,36 @@ learn whether it exists (201 = new, 200 = taken). This bypasses the
 `room_join` already honor, and it also leaks `frame_count` for
 private rooms.
 
-New behavior:
+A two-tier fix (suffix only on unreadable collision, echo verbatim
+otherwise) is insufficient: a caller can still compare the returned
+`room_id` against the requested value to distinguish "free" (echoed
+verbatim) from "taken-but-hidden" (suffixed). Any conditional
+suffixing is a side-channel.
 
-- If the requested `room_id` exists and the caller `can_read` it →
-  return existing (200, idempotent). No leak: the caller already sees
-  the row via normal APIs.
-- If the requested `room_id` exists and the caller cannot `can_read` →
-  **generate a fresh `room_id` by appending `-<6 random url-safe
-  chars>` to the requested value, create a new room at the suffixed
-  ID, and return 201 with the actual new `room_id`.** If the suffixed
-  ID also collides (astronomically unlikely), regenerate; cap at 10
-  tries and raise 500 on exhaustion.
-- If the requested `room_id` does not exist → create (unchanged, 201).
+New behavior: **every successful `POST /v1/rooms` returns a new room
+at `{request.room_id}-{6 random url-safe chars}`.** No idempotent
+"return existing" branch, no verbatim echo, no conditionals. The
+request's `room_id` becomes a prefix hint; the server chooses the
+final ID. If the suffixed ID itself collides (astronomically
+unlikely), regenerate; cap at 10 tries and raise 500 on exhaustion.
 
-Helper: add `_resolve_available_room_id(session, desired, max_tries=10)`
-in `rooms.py` that encapsulates the loop. The suffix alphabet is
-`string.ascii_letters + string.digits` (same character class already
-accepted by the `^[a-zA-Z0-9\-_]+$` validator), length 6.
+- Add `_resolve_available_room_id(session, prefix, max_tries=10)` in
+  `rooms.py` that generates `{prefix}-{suffix}`, checks for
+  collision, and retries until free. Suffix alphabet is
+  `string.ascii_letters + string.digits` (consistent with the
+  `^[a-zA-Z0-9\-_]+$` validator), length 6.
+- Delete the `if existing is not None: return ...` early-return
+  block entirely.
+- `RoomCreateResponse.created: bool` is removed — every call now
+  creates a new room; the field is always `True` and carries no
+  information.
 
-From the caller's perspective, `POST /v1/rooms` now always succeeds
-with 200 or 201 and the response `room_id` tells them the actual
-resource location — which may differ from what they requested when
-collision-with-unreadable occurs.
+From the caller's perspective, `POST /v1/rooms` always returns 201
+with a `room_id` that differs from the request. The network surface
+is identical regardless of whether the requested prefix collides
+with anything in the database. No existence leak, no `frame_count`
+leak, no idempotency for replays (which no caller relied on — every
+legitimate create flow generates a fresh UUID and navigates away).
 
 **Frontend — consume the returned `room_id`; drop the socket auto-create.**
 
@@ -138,27 +146,29 @@ text that would leak the spec's existence-hiding promise on the UX
 surface. Drop the now-unused `createRoom` import at the top of the
 file.
 
-Second, audit the create-and-navigate call sites so they route to
-`response.room_id` (the actual server-assigned ID) rather than the
-value they passed in. Current state:
+Second, every create-and-navigate call site must route to
+`response.room_id` (the actual server-assigned ID), because the
+returned ID is now *always* different from the request. This is
+correctness-critical, not an edge-case audit.
 
 - `components/DuplicateRoomDialog.tsx:59` — already uses
   `result.room_id`. No change.
-- `pages/templateSelection.tsx:~122` — verify.
-- `panels/RoomsPanel.tsx:~52` — verify.
-- `panels/roomsHeaderActions.tsx:21, 32, 50` — currently navigates
-  with the locally-generated `id`. Change to navigate with the value
-  returned from `createRoom`.
+- `pages/templateSelection.tsx:122` — currently navigates via state
+  derived from `newRoomId` (the requested). Switch to the returned
+  value.
+- `panels/RoomsPanel.tsx:52` — same pattern; switch.
+- `panels/roomsHeaderActions.tsx:21, 32, 50` — currently
+  `navigate('/rooms/${id}')` using the locally-generated `id`.
+  Switch to the returned `room_id`.
 - `panels/FilesystemPanel.tsx:131-159` — `targetRoomId` is the
-  requested value; switch to the returned `room_id` before the
-  `leaveRoom` + navigate step.
+  requested value; replace with the returned `room_id` before the
+  `leaveRoom` + navigate step, and reuse it for the subsequent
+  `uploadTrajectory` calls so uploads land on the actual new room.
 
-Each site today generates a fresh `crypto.randomUUID()`, so the
-suffixed branch is effectively dead code — the audit is a correctness
-guarantee so that the one scenario where it fires (a
-`DuplicateRoomDialog` user typing an ID that happens to collide with
-an unreadable room) routes cleanly instead of stranding the UI on
-the wrong URL.
+The request-side `room_id` remains a required field on `RoomCreate`
+(callers still pass a UUID); it is now a prefix the server uses to
+name the created resource. `RoomCreateResponse.created` is removed
+from the TypeScript client alongside the backend field.
 
 ### Existence-hiding contract
 
@@ -167,53 +177,59 @@ hide room existence. That choice stands. After this cleanup:
 
 - `room_join` 404 produces a generic frontend error, never an
   auto-create side-channel.
-- `POST /v1/rooms` no longer distinguishes the two collision states
-  at the network surface. A caller who probes an ID owned by an
-  unreadable room gets a 201 with a different `room_id` (the
-  suffixed one) — the information they learn is "my ID suggestion
-  wasn't used verbatim," not "a private room exists here." That
-  residual signal is acceptable: with fresh v4 UUIDs the branch is
-  statistically unreachable, and the content of the private room
-  remains completely opaque.
+- `POST /v1/rooms` returns the same response shape in every case:
+  201 with a server-chosen `{prefix}-{suffix}` ID. A caller who
+  posts `{room_id: "target-id"}` cannot distinguish the three
+  underlying cases ("target-id" is free / exists-readable /
+  exists-unreadable) — the response is structurally identical. No
+  existence leak, no `frame_count` leak.
 
 ## Testing
 
-- **Backend — existence leak.** New test in
-  `tests/zndraw/test_rooms.py` (or a dedicated file): two users, user
-  A creates a private room `X`, user B posts `POST /v1/rooms`
-  `{room_id: "X"}`. Assert response is 201 with `room_id` *not equal
-  to* `"X"` (suffixed) and `created=True`. Assert user A's room `X`
-  is untouched.
-- **Backend — idempotent create for authorized caller.** User A
-  posts `POST /v1/rooms` `{room_id: "X"}` twice; second call returns
-  200 with `room_id == "X"` and `created=False`.
+- **Backend — response shape is invariant across collision states.**
+  New test in `tests/zndraw/test_rooms.py`: parameterized over
+  (no existing row, existing readable row, existing unreadable row
+  owned by a second user). In every case, `POST /v1/rooms
+  {room_id: "X"}` returns 201 with a `room_id` matching the pattern
+  `^X-[A-Za-z0-9]{6}$`. Untouched rooms remain untouched.
+- **Backend — double-post yields two distinct rooms.** Same user
+  posts `{room_id: "X"}` twice; both calls succeed, both return
+  201, and the two returned `room_id` values are different. (This
+  pins the removal of the idempotent-return branch.)
 - **Backend — socket_events construction.** Update
   `tests/zndraw/test_socket_commands.py` for the two
   `RoomJoinResponse` constructions: drop the `locked=...` field and
   the `resp.locked` assertion.
+- **Backend — existing tests that assume verbatim `room_id`.** Sweep
+  for `response.json()["room_id"] == ...` patterns in existing room
+  tests (grep `tests/zndraw/test_rooms.py`,
+  `tests/zndraw/test_socketio_rooms.py`, and related); update each
+  to use `startswith(prefix + "-")` or capture the returned ID and
+  use it for follow-up calls.
+- **Frontend tests / Playwright smoke.** Any Playwright spec that
+  relies on the URL after a create operation must read the ID from
+  the post-create URL / response, not hard-code it. Create-and-
+  navigate assertions need to accept the suffixed ID.
 - **Type-check pass.** `bun run typecheck` and `uv run pyright` must
-  be clean after the edits. The `superuserLock` removal cascades from
-  slice → store → context; the `locked` removal cascades from the
-  backend Pydantic model to the frontend interface.
-- **Manual / Playwright smoke.** Navigating to a brand-new UUID URL
-  should land on the initialization-error screen, not on a
-  freshly-created room. Navigating to an existing accessible room
-  should continue to load normally. Creating a room via the landing
-  page, `roomsHeaderActions`, and `FilesystemPanel` should all
-  navigate to the server-returned `room_id`.
+  be clean after the edits. The `superuserLock` removal cascades
+  from slice → store → context; the `locked` removal cascades from
+  the backend Pydantic model to the frontend interface;
+  `RoomCreateResponse.created` removal cascades across the TS
+  client and any reader.
 
 ## Risks
 
 - **Hidden readers of `RoomJoinResponse.locked`.** Grep across the
   repo (including tests and the pyclient) confirms the only reader
-  after Change 1 is the `connectionHandlers.ts` line being removed in
-  the same patch.
-- **Residual leak via suffixed `room_id`.** When
-  `POST /v1/rooms` is called with an ID that collides with an
-  unreadable room, the 201 response carries a suffixed ID — the
-  caller learns their verbatim ID "was not used." With fresh v4
-  UUIDs (all legitimate callers), this branch is statistically
-  unreachable; only a caller who manually enters a colliding ID in
-  `DuplicateRoomDialog` could trigger it. Content of the private
-  room remains fully opaque. Accepted as a design tradeoff vs.
-  mandating server-generated IDs across every caller.
+  after Change 1 is the `connectionHandlers.ts` line being removed
+  in the same patch.
+- **Callers that hard-code post-create `room_id`.** The `POST
+  /v1/rooms` response ID now always differs from the request.
+  Anything that reuses the requested ID for follow-up navigation,
+  uploads, or test assertions breaks. Mitigation: the audit in
+  Change 3 covers all frontend sites; the test sweep entry in the
+  Testing section covers backend tests. External pyclient / CLI
+  callers must be updated to read `response.room_id` (acceptable
+  per the unshipped-code compat rule).
+- **URL aesthetics.** Room URLs grow from 36 to 43 chars
+  (`<uuid>-<6>`). No functional impact.
