@@ -72,6 +72,20 @@ async def test_guest_sessions_unique_tokens(client: AsyncClient) -> None:
     assert response1.json()["access_token"] != response2.json()["access_token"]
 
 
+@pytest.mark.asyncio
+async def test_guest_user_has_is_guest_true(client: AsyncClient, session) -> None:
+    """POST /v1/auth/guest must mark the created user with is_guest=True."""
+    from sqlmodel import select
+    from zndraw_auth import User
+
+    r = await client.post("/v1/auth/guest")
+    assert r.status_code == 200
+    email = r.json()["email"]
+    result = await session.exec(select(User).where(User.email == email))
+    user = result.one()
+    assert user.is_guest is True
+
+
 # =============================================================================
 # Registration Tests
 # =============================================================================
