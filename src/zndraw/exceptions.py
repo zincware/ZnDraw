@@ -188,36 +188,6 @@ class SessionNotFound(ProblemType):
         raise KeyError(problem.detail or problem.title)
 
 
-class NotRoomMember(ProblemType):
-    """The user is not a member of this room.
-
-    This error occurs when attempting to access a private room
-    without being a member, or when performing member-only actions.
-    """
-
-    title: ClassVar[str] = "Forbidden"
-    status: ClassVar[int] = 403
-
-    @classmethod
-    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
-        raise PermissionError(problem.detail or problem.title)
-
-
-class AlreadyRoomMember(ProblemType):
-    """The user is already a member of this room.
-
-    This error occurs when attempting to join a room
-    that the user is already a member of.
-    """
-
-    title: ClassVar[str] = "Conflict"
-    status: ClassVar[int] = 409
-
-    @classmethod
-    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
-        raise ValueError(problem.detail or problem.title)
-
-
 class InvalidPayload(ProblemType):
     """The request payload is missing or malformed.
 
@@ -437,6 +407,105 @@ class Forbidden(ProblemType):
         raise PermissionError(problem.detail or problem.title)
 
 
+class GroupNotFound(ProblemType):
+    """The requested group does not exist or is not visible to the caller."""
+
+    title: ClassVar[str] = "Not Found"
+    status: ClassVar[int] = 404
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise KeyError(problem.detail or problem.title)
+
+
+class GroupNameTaken(ProblemType):
+    """A group with this name already exists."""
+
+    title: ClassVar[str] = "Conflict"
+    status: ClassVar[int] = 409
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise ValueError(problem.detail or problem.title)
+
+
+class NotGroupMember(ProblemType):
+    """The caller is not a member of this group."""
+
+    title: ClassVar[str] = "Forbidden"
+    status: ClassVar[int] = 403
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise PermissionError(problem.detail or problem.title)
+
+
+class NotGroupAdmin(ProblemType):
+    """The caller must be a group admin to perform this operation."""
+
+    title: ClassVar[str] = "Forbidden"
+    status: ClassVar[int] = 403
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise PermissionError(problem.detail or problem.title)
+
+
+class LastGroupAdmin(ProblemType):
+    """Cannot demote or remove the sole admin of a group."""
+
+    title: ClassVar[str] = "Conflict"
+    status: ClassVar[int] = 409
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise ValueError(problem.detail or problem.title)
+
+
+class GroupHasRooms(ProblemType):
+    """Cannot delete a group that still owns rooms. Reassign or delete rooms first."""
+
+    title: ClassVar[str] = "Conflict"
+    status: ClassVar[int] = 409
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise ValueError(problem.detail or problem.title)
+
+
+class TransferTargetInvalid(ProblemType):
+    """Ownership transfer target is invalid (unknown group, or caller not a member)."""
+
+    title: ClassVar[str] = "Conflict"
+    status: ClassVar[int] = 409
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise ValueError(problem.detail or problem.title)
+
+
+class ShareLinkNotFound(ProblemType):
+    """The share link does not exist, has been revoked, or has expired."""
+
+    title: ClassVar[str] = "Not Found"
+    status: ClassVar[int] = 404
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise KeyError(problem.detail or problem.title)
+
+
+class ShareLinkInvalid(ProblemType):
+    """The provided X-Room-Share-Token is unknown, revoked, expired, or wrong room."""
+
+    title: ClassVar[str] = "Unauthorized"
+    status: ClassVar[int] = 401
+
+    @classmethod
+    def raise_for_client(cls, problem: "ProblemDetail") -> NoReturn:
+        raise PermissionError(problem.detail or problem.title)
+
+
 class ScreenshotNotFound(ProblemType):
     """The requested screenshot does not exist.
 
@@ -607,8 +676,6 @@ PROBLEM_TYPES: dict[str, type[ProblemType]] = {
         UserNotFound,
         RoomNotFound,
         SessionNotFound,
-        NotRoomMember,
-        AlreadyRoomMember,
         InvalidPayload,
         UnprocessableContent,
         NotInRoom,
@@ -622,6 +689,15 @@ PROBLEM_TYPES: dict[str, type[ProblemType]] = {
         ProgressNotFound,
         NotMessageOwner,
         Forbidden,
+        GroupNotFound,
+        GroupNameTaken,
+        NotGroupMember,
+        NotGroupAdmin,
+        LastGroupAdmin,
+        GroupHasRooms,
+        TransferTargetInvalid,
+        ShareLinkNotFound,
+        ShareLinkInvalid,
         StepOutOfBounds,
         ScreenshotNotFound,
         ScreenshotTooLarge,
