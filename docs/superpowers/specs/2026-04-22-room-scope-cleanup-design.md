@@ -82,61 +82,115 @@ No other producer or consumer of the field exists. The pyclient
 `RoomJoinResponse.model_validate` but never reads `locked`, so dropping
 it is transparent there once the model is updated.
 
-### Change 3 — disable URL-based room auto-creation
+### Change 3 — close the room-create existence leak + drop URL auto-create
 
-Frontend-only change in `frontend/src/hooks/socketHandlers/connectionHandlers.ts`.
+Two coordinated changes. The backend change is required on its own —
+the existing POST handler leaks existence directly. The frontend
+change is required on its own — the auto-create retry turns any
+`can_read` denial into a confusing "not found" snackbar.
 
-Current behavior (lines 202-259): on a `room_join` reply with
-`status === 404`, the handler reads `?copy_from=` from the URL, calls
-`createRoom({room_id, copy_from})`, catches 409 to keep going on a
-race, and retries `room_join`. That success path hides both "room did
-not exist" (now does) and "caller cannot access the existing room"
-(still 404s on retry, surfacing as the misleading snackbar).
+**Backend — `POST /v1/rooms` on collision.**
+
+Current behavior (`src/zndraw/routes/rooms.py:360-369`) returns 200
+with the existing room's `frame_count` whenever the requested
+`room_id` already exists, *regardless of whether the caller can_read
+the existing row*. A caller can therefore probe any `room_id` and
+learn whether it exists (201 = new, 200 = taken). This bypasses the
+`404-hides-existence` contract that `GET /v1/rooms/{id}` and
+`room_join` already honor, and it also leaks `frame_count` for
+private rooms.
 
 New behavior:
 
-- On any non-200 `room_join` reply, set `initializationError` to a
-  single generic value:
-  - `message`: `"Room not found or not accessible"`
-  - `details`: the numeric `status` (for debuggability). The
-    server-supplied `detail` string is discarded — it carries the
-    misleading "Room with id X not found" message that violates the
-    existence-hiding contract on the UX surface.
-- The handler does not call `createRoom`, does not read `copy_from`
-  from the URL, and does not retry. The fallback block and its
-  `?copy_from=` URL lookup are deleted together.
-- The `createRoom` import at the top of `connectionHandlers.ts`
-  becomes unused and is removed.
+- If the requested `room_id` exists and the caller `can_read` it →
+  return existing (200, idempotent). No leak: the caller already sees
+  the row via normal APIs.
+- If the requested `room_id` exists and the caller cannot `can_read` →
+  **generate a fresh `room_id` by appending `-<6 random url-safe
+  chars>` to the requested value, create a new room at the suffixed
+  ID, and return 201 with the actual new `room_id`.** If the suffixed
+  ID also collides (astronomically unlikely), regenerate; cap at 10
+  tries and raise 500 on exhaustion.
+- If the requested `room_id` does not exist → create (unchanged, 201).
 
-Room creation remains available through the intentional paths, all of
-which still work unchanged:
+Helper: add `_resolve_available_room_id(session, desired, max_tries=10)`
+in `rooms.py` that encapsulates the loop. The suffix alphabet is
+`string.ascii_letters + string.digits` (same character class already
+accepted by the `^[a-zA-Z0-9\-_]+$` validator), length 6.
 
-- Landing page (`pages/templateSelection.tsx`, line 122).
-- `RoomsPanel` and `roomsHeaderActions`.
-- `DuplicateRoomDialog`.
-- `FilesystemPanel`.
-- CLI `zndraw file.xyz`, which hits `POST /v1/rooms` directly and then
-  redirects the browser to the new URL.
+From the caller's perspective, `POST /v1/rooms` now always succeeds
+with 200 or 201 and the response `room_id` tells them the actual
+resource location — which may differ from what they requested when
+collision-with-unreadable occurs.
 
-The initialization-error surface already exists and renders via the
-main layout; no new component is needed. A "Go back" / "Create new
-room" link to `/` is already present on the error screen.
+**Frontend — consume the returned `room_id`; drop the socket auto-create.**
+
+First, the socket handler. Remove the `createRoom` fallback block in
+`frontend/src/hooks/socketHandlers/connectionHandlers.ts:202-259`
+(the `?copy_from=` URL lookup, the `createRoom` call, the 409 catch,
+and the nested retry). On any non-200 `room_join` reply, set
+`initializationError` to
+`{message: "Room not found or not accessible", details: \`HTTP ${status}\`}`
+(the `details` slot is typed `string`, so we stringify the status
+code for debuggability). The server-supplied `detail` string is
+discarded — it carries the misleading "Room with id X not found"
+text that would leak the spec's existence-hiding promise on the UX
+surface. Drop the now-unused `createRoom` import at the top of the
+file.
+
+Second, audit the create-and-navigate call sites so they route to
+`response.room_id` (the actual server-assigned ID) rather than the
+value they passed in. Current state:
+
+- `components/DuplicateRoomDialog.tsx:59` — already uses
+  `result.room_id`. No change.
+- `pages/templateSelection.tsx:~122` — verify.
+- `panels/RoomsPanel.tsx:~52` — verify.
+- `panels/roomsHeaderActions.tsx:21, 32, 50` — currently navigates
+  with the locally-generated `id`. Change to navigate with the value
+  returned from `createRoom`.
+- `panels/FilesystemPanel.tsx:131-159` — `targetRoomId` is the
+  requested value; switch to the returned `room_id` before the
+  `leaveRoom` + navigate step.
+
+Each site today generates a fresh `crypto.randomUUID()`, so the
+suffixed branch is effectively dead code — the audit is a correctness
+guarantee so that the one scenario where it fires (a
+`DuplicateRoomDialog` user typing an ID that happens to collide with
+an unreadable room) routes cleanly instead of stranding the UI on
+the wrong URL.
 
 ### Existence-hiding contract
 
 The parent refactor spec chose 404 over 403 on `can_read` denials to
-hide room existence. That choice stands. With the auto-create fallback
-gone, the frontend can no longer betray existence through a
-"create-then-retry" side channel — a caller who hits a room they
-cannot see gets the same generic "not found or not accessible"
-message as a caller who mistyped a URL.
+hide room existence. That choice stands. After this cleanup:
+
+- `room_join` 404 produces a generic frontend error, never an
+  auto-create side-channel.
+- `POST /v1/rooms` no longer distinguishes the two collision states
+  at the network surface. A caller who probes an ID owned by an
+  unreadable room gets a 201 with a different `room_id` (the
+  suffixed one) — the information they learn is "my ID suggestion
+  wasn't used verbatim," not "a private room exists here." That
+  residual signal is acceptable: with fresh v4 UUIDs the branch is
+  statistically unreachable, and the content of the private room
+  remains completely opaque.
 
 ## Testing
 
-- **Backend.** Update `tests/zndraw/test_socket_commands.py` for the
-  two `RoomJoinResponse` constructions. No new backend test is needed;
-  the existing access-matrix and share-link suites already cover the
-  404-vs-200 semantics on `room_join`.
+- **Backend — existence leak.** New test in
+  `tests/zndraw/test_rooms.py` (or a dedicated file): two users, user
+  A creates a private room `X`, user B posts `POST /v1/rooms`
+  `{room_id: "X"}`. Assert response is 201 with `room_id` *not equal
+  to* `"X"` (suffixed) and `created=True`. Assert user A's room `X`
+  is untouched.
+- **Backend — idempotent create for authorized caller.** User A
+  posts `POST /v1/rooms` `{room_id: "X"}` twice; second call returns
+  200 with `room_id == "X"` and `created=False`.
+- **Backend — socket_events construction.** Update
+  `tests/zndraw/test_socket_commands.py` for the two
+  `RoomJoinResponse` constructions: drop the `locked=...` field and
+  the `resp.locked` assertion.
 - **Type-check pass.** `bun run typecheck` and `uv run pyright` must
   be clean after the edits. The `superuserLock` removal cascades from
   slice → store → context; the `locked` removal cascades from the
@@ -144,18 +198,22 @@ message as a caller who mistyped a URL.
 - **Manual / Playwright smoke.** Navigating to a brand-new UUID URL
   should land on the initialization-error screen, not on a
   freshly-created room. Navigating to an existing accessible room
-  should continue to load normally.
+  should continue to load normally. Creating a room via the landing
+  page, `roomsHeaderActions`, and `FilesystemPanel` should all
+  navigate to the server-returned `room_id`.
 
 ## Risks
 
-- **User muscle memory on URL-based create.** Users who relied on
-  pasting a UUID to spin up a fresh room lose the shortcut. The error
-  screen's "Create new room" link to `/` covers the remaining flow.
 - **Hidden readers of `RoomJoinResponse.locked`.** Grep across the
   repo (including tests and the pyclient) confirms the only reader
   after Change 1 is the `connectionHandlers.ts` line being removed in
   the same patch.
-- **Stale `?copy_from=` URL params.** If any documentation or bookmark
-  relied on entering `/rooms/new-id?copy_from=template` to
-  auto-create a copy, it will now fail. The landing page and
-  `DuplicateRoomDialog` still support `copy_from` explicitly.
+- **Residual leak via suffixed `room_id`.** When
+  `POST /v1/rooms` is called with an ID that collides with an
+  unreadable room, the 201 response carries a suffixed ID — the
+  caller learns their verbatim ID "was not used." With fresh v4
+  UUIDs (all legitimate callers), this branch is statistically
+  unreachable; only a caller who manually enters a colliding ID in
+  `DuplicateRoomDialog` could trigger it. Content of the private
+  room remains fully opaque. Accepted as a design tradeoff vs.
+  mandating server-generated IDs across every caller.
