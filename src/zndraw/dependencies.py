@@ -16,7 +16,7 @@ from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from zndraw_socketio import AsyncServerWrapper
 
-from zndraw.access import GroupRole, ShareAccess, ShareContext
+from zndraw.access import GroupRole, ShareContext
 from zndraw.exceptions import (
     Forbidden,
     NotAuthenticated,
