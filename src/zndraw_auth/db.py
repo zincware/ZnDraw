@@ -4,7 +4,7 @@ import logging
 import uuid
 from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import sqlalchemy as sa
 from fastapi import Depends, Request
@@ -47,9 +47,12 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
       created by POST /v1/auth/guest.
     """
 
-    is_guest: Mapped[bool] = mapped_column(
-        sa.Boolean, default=False, server_default=sa.false(), nullable=False
-    )
+    if TYPE_CHECKING:  # pragma: no cover
+        is_guest: bool
+    else:
+        is_guest: Mapped[bool] = mapped_column(
+            sa.Boolean, default=False, server_default=sa.false(), nullable=False
+        )
 
 
 class CLILoginChallenge(SQLModel, table=True):
