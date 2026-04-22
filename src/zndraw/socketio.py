@@ -7,7 +7,6 @@ import socketio
 from fastapi import Depends
 from fastapi_users.jwt import decode_jwt
 from jwt import InvalidTokenError
-from sqlmodel import select  # noqa: F401  (used by Task 17 rewrite)
 from zndraw_socketio import EventContext, wrap
 
 from zndraw.dependencies import FrameStorageDep, RedisDep, room_channel
@@ -102,7 +101,15 @@ async def on_connect(
         raise ConnectionRefusedError(f"Invalid token: {e}") from None
 
     user_id = UUID(payload["sub"])
-    await tsio.save_session(sid, {"user_id": user_id, "current_room_id": None})
+    share_token = auth.get("share_token") if isinstance(auth, dict) else None
+    await tsio.save_session(
+        sid,
+        {
+            "user_id": user_id,
+            "current_room_id": None,
+            "share_token": share_token,
+        },
+    )
     await tsio.enter_room(sid, f"user:{user_id}")
     await tsio.enter_room(sid, "rooms:feed")
     return True
@@ -177,28 +184,39 @@ async def room_join(
 ) -> RoomJoinResponse:
     """Join a Socket.IO room for real-time updates.
 
-    Supports special system rooms with '@' prefix that skip database
-    validation and camera creation.
+    System rooms (@-prefixed) skip DB validation and permission check.
+    For regular rooms, ``can_read`` gates access (share tokens from the
+    connect auth payload participate). Denial raises ``RoomNotFound``
+    (404) to avoid existence leaks.
     """
+    from zndraw.access import can_read
+    from zndraw.dependencies import fetch_group_role, resolve_share_token
+
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
+    share_token: str | None = sio_session.get("share_token")
 
-    # Check if this is a special system room (@ prefix)
     is_system_room = data.room_id.startswith("@")
-
-    # Validate and load room from database (skip for system rooms)
-    room_locked = False
-    email = None
     room: Room | None = None
+
     if not is_system_room:
         room = await session.get(Room, data.room_id)
         if room is None:
             raise RoomNotFound.exception(f"Room with id {data.room_id} not found")
 
-        # Bridge: permissive join until Task 17 wires can_read + share token.
+        user = await session.get(User, user_id)
+        if user is None:
+            raise UserNotFound.exception("User not found")
 
-    user = await session.get(User, user_id)
-    email = user.email if user else None
+        share = await resolve_share_token(session, share_token, data.room_id)
+        group_role = None
+        if room.owner_group_id is not None:
+            group_role = await fetch_group_role(session, user_id, room.owner_group_id)
+        if not can_read(user, room, share, group_role=group_role):
+            raise RoomNotFound.exception(f"Room with id {data.room_id} not found")
+
+    user_row = await session.get(User, user_id)
+    email = user_row.email if user_row else None
 
     # Leave previous room if any
     old_room_id: str | None = sio_session.get("current_room_id")
@@ -311,7 +329,7 @@ async def room_join(
         session_id=sid,
         step=room_step,
         frame_count=frame_count,
-        locked=room_locked,
+        locked=False,
         camera_key=camera_key,
         default_camera=room.default_camera,
         progress_trackers=progress_trackers,
