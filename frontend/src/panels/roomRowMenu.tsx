@@ -15,11 +15,7 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import DuplicateRoomDialog from "../components/DuplicateRoomDialog";
-import {
-	downloadFrames,
-	type Room,
-	setDefaultRoom,
-} from "../myapi/client";
+import { downloadFrames, type Room, setDefaultRoom } from "../myapi/client";
 import { useRoomsStore } from "../roomsStore";
 import { useAppStore } from "../store";
 

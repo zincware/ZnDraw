@@ -1,7 +1,7 @@
 """Every route that previously accepted OptionalUserDep now requires auth."""
+
 import pytest
 from httpx import AsyncClient
-
 
 ENDPOINTS = [
     ("GET", "/v1/rooms"),

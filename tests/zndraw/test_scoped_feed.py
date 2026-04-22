@@ -4,12 +4,13 @@ These tests drive `broadcast_room_update` directly (no socket client), which
 keeps the assertions isolated to the routing logic — the MockSioServer
 captures emit calls and the tests check which rooms received the event.
 """
+
 from uuid import uuid4
 
 import pytest
+from helpers import MockSioServer
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from helpers import MockSioServer
 from zndraw.access import GroupRole, Visibility
 from zndraw.models import Group, GroupMembership, Room
 from zndraw.routes.rooms import broadcast_room_update
@@ -70,7 +71,9 @@ async def test_group_room_emits_to_each_member(
     session.add_all(
         [
             GroupMembership(group_id=group.id, user_id=admin_id, role=GroupRole.ADMIN),
-            GroupMembership(group_id=group.id, user_id=member_id, role=GroupRole.VIEWER),
+            GroupMembership(
+                group_id=group.id, user_id=member_id, role=GroupRole.VIEWER
+            ),
         ]
     )
     await session.commit()

@@ -54,7 +54,7 @@ class RoomCreate(BaseModel):
     description: str | None = None
     copy_from: str | None = None  # Room ID or @-prefixed preset (@empty, @none)
     visibility: Visibility | None = None  # None → Settings.default_room_visibility
-    owner_group_id: UUID | None = None    # None → user-owned by creator
+    owner_group_id: UUID | None = None  # None → user-owned by creator
 
 
 class RoomResponse(BaseModel):

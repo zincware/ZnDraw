@@ -1,8 +1,8 @@
 """Scope-filtered room listing tests."""
-import pytest
-from httpx import AsyncClient
 
+import pytest
 from helpers import _register_and_login
+from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
@@ -25,14 +25,18 @@ async def test_list_rooms_union(client: AsyncClient) -> None:
     assert r.status_code == 201
 
     # User B creates a group; A joins as a viewer; B creates a group-room.
-    gid = (await client.post(
-        "/v1/groups",
-        json={"name": "listing-test"},
-        headers={"Authorization": f"Bearer {token_b}"},
-    )).json()["id"]
-    me_a = (await client.get(
-        "/v1/auth/users/me", headers={"Authorization": f"Bearer {token_a}"}
-    )).json()
+    gid = (
+        await client.post(
+            "/v1/groups",
+            json={"name": "listing-test"},
+            headers={"Authorization": f"Bearer {token_b}"},
+        )
+    ).json()["id"]
+    me_a = (
+        await client.get(
+            "/v1/auth/users/me", headers={"Authorization": f"Bearer {token_a}"}
+        )
+    ).json()
     add_r = await client.post(
         f"/v1/groups/{gid}/members",
         json={"user_id": me_a["id"], "role": "viewer"},
@@ -47,16 +51,12 @@ async def test_list_rooms_union(client: AsyncClient) -> None:
     assert r.status_code == 201
 
     # A sees: public (r-pub), own private (r-priv), group member (r-grp)
-    r = await client.get(
-        "/v1/rooms", headers={"Authorization": f"Bearer {token_a}"}
-    )
+    r = await client.get("/v1/rooms", headers={"Authorization": f"Bearer {token_a}"})
     ids = {it["id"] for it in r.json()["items"]}
     assert {"r-pub", "r-priv", "r-grp"} <= ids
 
     # B sees: public (r-pub), own group (r-grp); not A's private
-    r = await client.get(
-        "/v1/rooms", headers={"Authorization": f"Bearer {token_b}"}
-    )
+    r = await client.get("/v1/rooms", headers={"Authorization": f"Bearer {token_b}"})
     ids = {it["id"] for it in r.json()["items"]}
     assert {"r-pub", "r-grp"} <= ids
     assert "r-priv" not in ids
@@ -100,11 +100,13 @@ async def test_create_group_room_requires_membership(
     _outsider_user, outsider = await create_test_user_in_db(
         session, email="goro-out@test.com", is_superuser=False
     )
-    gid = (await client.post(
-        "/v1/groups",
-        json={"name": "gr-owned"},
-        headers={"Authorization": f"Bearer {owner}"},
-    )).json()["id"]
+    gid = (
+        await client.post(
+            "/v1/groups",
+            json={"name": "gr-owned"},
+            headers={"Authorization": f"Bearer {owner}"},
+        )
+    ).json()["id"]
 
     r = await client.post(
         "/v1/rooms",
@@ -141,9 +143,7 @@ async def test_patch_room_visibility(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_private_room_404_to_non_owner(
-    client: AsyncClient, session
-) -> None:
+async def test_get_private_room_404_to_non_owner(client: AsyncClient, session) -> None:
     from helpers import create_test_user_in_db
 
     owner = await _register_and_login(client, "pgo@test.com")

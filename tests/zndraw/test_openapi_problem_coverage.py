@@ -1,4 +1,5 @@
 """Every new problem type must appear in at least one route's OpenAPI responses."""
+
 import json
 
 import pytest

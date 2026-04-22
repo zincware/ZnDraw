@@ -15,7 +15,6 @@ from asebytes import decode, encode
 from fastapi import APIRouter, Depends, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from zndraw_auth import User as _User, current_optional_user
 
 from zndraw.connectivity import add_connectivity
 from zndraw.dependencies import (
@@ -29,6 +28,7 @@ from zndraw.dependencies import (
     room_channel,
     verify_room,
 )
+from zndraw_auth import User as _User, current_optional_user
 
 # Anonymous-by-token path for `zndraw-cli download`; keep optional auth here only.
 _OptionalUserTokenDep = Annotated[_User | None, Depends(current_optional_user)]

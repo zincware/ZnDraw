@@ -120,9 +120,7 @@ async def _register_and_login(
     password
         Password for the new user.
     """
-    await client.post(
-        "/v1/auth/register", json={"email": email, "password": password}
-    )
+    await client.post("/v1/auth/register", json={"email": email, "password": password})
     r = await client.post(
         "/v1/auth/jwt/login",
         data={"username": email, "password": password},

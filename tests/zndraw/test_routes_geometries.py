@@ -580,34 +580,6 @@ async def test_list_geometries_includes_selection(
 
 
 @pytest.mark.asyncio
-async def test_list_geometries_public(
-    client: AsyncClient,
-    session: AsyncSession,
-) -> None:
-    """Test GET without auth succeeds (public endpoint)."""
-    user, _ = await create_test_user_in_db(session)
-    room = await create_test_room(session, user)
-
-    response = await client.get(f"/v1/rooms/{room.id}/geometries")
-    assert response.status_code == 200
-
-
-@pytest.mark.asyncio
-async def test_get_geometry_public(
-    client: AsyncClient,
-    session: AsyncSession,
-) -> None:
-    """Test GET single geometry without auth succeeds (public endpoint)."""
-    user, _ = await create_test_user_in_db(session)
-    room = await create_test_room(session, user)
-
-    await _add_geometry(session, room.id, "somekey", "Sphere", {"radius": [1.0]})
-
-    response = await client.get(f"/v1/rooms/{room.id}/geometries/somekey")
-    assert response.status_code == 200
-
-
-@pytest.mark.asyncio
 async def test_upsert_geometry_requires_auth(
     client: AsyncClient, session: AsyncSession
 ) -> None:

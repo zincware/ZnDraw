@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from zndraw.access import Visibility
 from zndraw.config import SettingsDep
 from zndraw.dependencies import (
     AccessManageDep,
@@ -51,7 +52,6 @@ from zndraw.geometries.lights import (
 from zndraw.geometries.pathtracing import PathTracing
 from zndraw.geometries.property_inspector import PropertyInspector
 from zndraw.materials import MeshBasicMaterial
-from zndraw.access import Visibility
 from zndraw.models import (
     Room,
     RoomBookmark,

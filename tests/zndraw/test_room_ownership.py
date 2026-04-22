@@ -1,4 +1,5 @@
 """CHECK-constraint tests for Room ownership invariants."""
+
 from uuid import uuid4
 
 import pytest

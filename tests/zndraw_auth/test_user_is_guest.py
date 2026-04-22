@@ -1,4 +1,5 @@
 """Test the is_guest column on User."""
+
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -19,7 +20,9 @@ async def test_user_is_guest_defaults_false() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
 
-    session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    session_maker = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
     async with session_maker() as session:
         user = User(email="u@test", hashed_password="x")
         session.add(user)
@@ -41,7 +44,9 @@ async def test_user_is_guest_can_be_true() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
 
-    session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    session_maker = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
     async with session_maker() as session:
         user = User(email="g@test", hashed_password="x", is_guest=True)
         session.add(user)

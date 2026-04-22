@@ -12,12 +12,18 @@ from uuid import UUID
 
 from fastapi import Depends, Header, Path, Request
 from fastapi_users.authentication import JWTStrategy
-from sqlmodel import select
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlmodel import select
 from zndraw_socketio import AsyncServerWrapper
 
-from zndraw.access import GroupRole, ShareAccess, ShareContext, can_edit, can_manage, can_read
+from zndraw.access import (
+    GroupRole,
+    ShareContext,
+    can_edit,
+    can_manage,
+    can_read,
+)
 from zndraw.exceptions import (
     Forbidden,
     NotAuthenticated,
@@ -77,7 +83,9 @@ async def get_local_token_or_admin(
         )
         try:
             from fastapi_users.jwt import decode_jwt
+
             from zndraw_joblib.exceptions import ProblemError
+
             data = decode_jwt(
                 token,
                 secret=strategy.decode_key,
@@ -529,7 +537,9 @@ async def _load_access_context(
     room = await verify_room(session, room_id)
     group_role: GroupRole | None = None
     if room.owner_group_id is not None:
-        group_role = await fetch_group_role(session, current_user.id, room.owner_group_id)
+        group_role = await fetch_group_role(
+            session, current_user.id, room.owner_group_id
+        )
     return AccessContext(room=room, share=share, group_role=group_role)
 
 

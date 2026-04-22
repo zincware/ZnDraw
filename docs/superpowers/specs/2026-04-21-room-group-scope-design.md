@@ -495,4 +495,3 @@ Key scenarios:
 - **RoomGeometry, RoomBookmark, RoomFigure, RoomPreset** tables:
   unaffected by this refactor; they key on `room_id` and their
   existing access paths go through the permission layer above.
-

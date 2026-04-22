@@ -3,6 +3,7 @@
 Uses ``server_auth`` fixture so dev-mode auto-promote is OFF; registered
 users are ordinary active users.
 """
+
 import pytest
 from httpx import AsyncClient
 
@@ -26,9 +27,7 @@ async def _register_and_login(
     str
         JWT access token for the registered user.
     """
-    await client.post(
-        "/v1/auth/register", json={"email": email, "password": password}
-    )
+    await client.post("/v1/auth/register", json={"email": email, "password": password})
     r = await client.post(
         "/v1/auth/jwt/login",
         data={"username": email, "password": password},
@@ -65,14 +64,18 @@ async def test_full_group_workflow(server_auth: str) -> None:
         outsider = await _register_and_login(client, "e2e-out@test.com")
 
         # Create group + add member (role=MEMBER to enable edit, not manage)
-        gid = (await client.post(
-            "/v1/groups",
-            json={"name": "e2e-team"},
-            headers={"Authorization": f"Bearer {admin}"},
-        )).json()["id"]
-        me = (await client.get(
-            "/v1/auth/users/me", headers={"Authorization": f"Bearer {member}"}
-        )).json()
+        gid = (
+            await client.post(
+                "/v1/groups",
+                json={"name": "e2e-team"},
+                headers={"Authorization": f"Bearer {admin}"},
+            )
+        ).json()["id"]
+        me = (
+            await client.get(
+                "/v1/auth/users/me", headers={"Authorization": f"Bearer {member}"}
+            )
+        ).json()
         add_r = await client.post(
             f"/v1/groups/{gid}/members",
             json={"user_id": me["id"], "role": "member"},
@@ -110,11 +113,13 @@ async def test_full_group_workflow(server_auth: str) -> None:
         assert r.status_code == 404
 
         # Share link (view) lets outsider read
-        link = (await client.post(
-            "/v1/rooms/e2e-grp/share-links",
-            json={"access": "view"},
-            headers={"Authorization": f"Bearer {admin}"},
-        )).json()
+        link = (
+            await client.post(
+                "/v1/rooms/e2e-grp/share-links",
+                json={"access": "view"},
+                headers={"Authorization": f"Bearer {admin}"},
+            )
+        ).json()
         r = await client.get(
             "/v1/rooms/e2e-grp",
             headers={

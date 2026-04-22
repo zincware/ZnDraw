@@ -941,9 +941,12 @@ export const updateGroupMemberRole = async (
 	user_id: string,
 	role: GroupRole,
 ): Promise<GroupMember> => {
-	const response = await apiClient.patch(`/v1/groups/${id}/members/${user_id}`, {
-		role,
-	});
+	const response = await apiClient.patch(
+		`/v1/groups/${id}/members/${user_id}`,
+		{
+			role,
+		},
+	);
 	return response.data;
 };
 

@@ -265,16 +265,6 @@ async def test_delete_nonexistent_figure_returns_404(
 
 
 @pytest.mark.asyncio
-async def test_list_figures_public(client: AsyncClient, session: AsyncSession) -> None:
-    """Test GET without auth succeeds (public endpoint)."""
-    user, _ = await create_test_user_in_db(session)
-    room = await create_test_room(session, user)
-
-    response = await client.get(f"/v1/rooms/{room.id}/figures")
-    assert response.status_code == 200
-
-
-@pytest.mark.asyncio
 async def test_create_figure_requires_auth(
     client: AsyncClient, session: AsyncSession
 ) -> None:

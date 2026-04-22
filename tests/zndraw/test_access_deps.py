@@ -9,17 +9,18 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw.access import GroupRole, ShareAccess, ShareContext, Visibility
 from zndraw.dependencies import (
-    _load_access_context,
     get_editable_room,
     get_manageable_room,
     get_readable_room,
 )
-from zndraw.exceptions import Forbidden, ProblemError, RoomNotFound
+from zndraw.exceptions import ProblemError
 from zndraw.models import Group, GroupMembership, Room
 from zndraw_auth import User
 
 
-async def _make_user(session: AsyncSession, email: str, *, superuser: bool = False) -> User:
+async def _make_user(
+    session: AsyncSession, email: str, *, superuser: bool = False
+) -> User:
     u = User(email=email, hashed_password="x", is_superuser=superuser)
     session.add(u)
     await session.commit()

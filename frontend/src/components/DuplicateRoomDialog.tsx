@@ -109,10 +109,7 @@ export default function DuplicateRoomDialog({
 					sx={{ mb: 2 }}
 				/>
 
-				<VisibilitySelector
-					value={visibility}
-					onChange={setVisibility}
-				/>
+				<VisibilitySelector value={visibility} onChange={setVisibility} />
 			</DialogContent>
 			<DialogActions>
 				<Button onClick={onClose}>Cancel</Button>

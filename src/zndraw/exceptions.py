@@ -49,9 +49,7 @@ class ProblemType:
         cls, description: str | None = None
     ) -> dict[int | str, dict[str, Any]]:
         """Generate OpenAPI response entry for this problem type."""
-        base = description or (
-            cls.__doc__.split("\n")[0] if cls.__doc__ else cls.title
-        )
+        base = description or (cls.__doc__.split("\n")[0] if cls.__doc__ else cls.title)
         return {
             cls.status: {
                 "model": ProblemDetail,

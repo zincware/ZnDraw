@@ -1,4 +1,5 @@
 """Integration test for the share-token resolver."""
+
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 

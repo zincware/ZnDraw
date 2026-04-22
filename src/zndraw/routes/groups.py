@@ -37,9 +37,7 @@ from zndraw_auth import User
 router = APIRouter(prefix="/v1/groups", tags=["groups"])
 
 
-async def _require_admin(
-    session: SessionDep, user_id: UUID, group_id: UUID
-) -> None:
+async def _require_admin(session: SessionDep, user_id: UUID, group_id: UUID) -> None:
     """Raise NotGroupMember or NotGroupAdmin if user is not a group admin.
 
     Parameters
@@ -242,9 +240,7 @@ async def delete_group(
         raise GroupNotFound.exception("Group not found")
     if not current_user.is_superuser:
         await _require_admin(session, current_user.id, group_id)
-    rooms = await session.exec(
-        select(Room.id).where(Room.owner_group_id == group_id)
-    )
+    rooms = await session.exec(select(Room.id).where(Room.owner_group_id == group_id))
     if rooms.first() is not None:
         raise GroupHasRooms.exception(
             "Group still owns one or more rooms; reassign or delete them first"

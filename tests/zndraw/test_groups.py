@@ -1,9 +1,9 @@
 """Integration tests for /v1/groups endpoints."""
+
 import pytest
+from helpers import _register_and_login, auth_header, create_test_user_in_db
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
-
-from helpers import _register_and_login, auth_header, create_test_user_in_db
 
 
 @pytest.mark.asyncio
@@ -134,6 +134,7 @@ async def test_delete_group_with_rooms_blocked(
 
     # Insert a group-owned room directly via the session fixture
     from uuid import UUID
+
     session.add(
         Room(
             id="g-room",

@@ -1,4 +1,5 @@
 """Integration test for group membership helpers."""
+
 from uuid import uuid4
 
 import pytest
@@ -19,10 +20,12 @@ async def test_fetch_my_group_ids(session: AsyncSession) -> None:
     g2 = Group(name="g2", created_by_id=u.id)
     session.add_all([g1, g2])
     await session.commit()
-    session.add_all([
-        GroupMembership(group_id=g1.id, user_id=u.id, role=GroupRole.MEMBER),
-        GroupMembership(group_id=g2.id, user_id=u.id, role=GroupRole.VIEWER),
-    ])
+    session.add_all(
+        [
+            GroupMembership(group_id=g1.id, user_id=u.id, role=GroupRole.MEMBER),
+            GroupMembership(group_id=g2.id, user_id=u.id, role=GroupRole.VIEWER),
+        ]
+    )
     await session.commit()
 
     ids = await fetch_my_group_ids(session, u.id)

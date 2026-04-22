@@ -1,14 +1,12 @@
 """Share-link REST + permission-compose tests."""
-import pytest
-from httpx import AsyncClient
 
+import pytest
 from helpers import _register_and_login, create_test_user_in_db
+from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_create_and_use_view_link(
-    client: AsyncClient, session
-) -> None:
+async def test_create_and_use_view_link(client: AsyncClient, session) -> None:
     owner = await _register_and_login(client, "sl1-own@test.com")
     _guest_user, guest = await create_test_user_in_db(
         session, email="sl1-gst@test.com", is_superuser=False
@@ -42,9 +40,7 @@ async def test_create_and_use_view_link(
 
 
 @pytest.mark.asyncio
-async def test_list_share_links_requires_manage(
-    client: AsyncClient, session
-) -> None:
+async def test_list_share_links_requires_manage(client: AsyncClient, session) -> None:
     owner = await _register_and_login(client, "sl-list-own@test.com")
     _other_user, other = await create_test_user_in_db(
         session, email="sl-list-other@test.com", is_superuser=False
@@ -69,9 +65,7 @@ async def test_list_share_links_requires_manage(
 
 
 @pytest.mark.asyncio
-async def test_revoke_link(
-    client: AsyncClient, session
-) -> None:
+async def test_revoke_link(client: AsyncClient, session) -> None:
     owner = await _register_and_login(client, "sl2-own@test.com")
     _guest_user, guest = await create_test_user_in_db(
         session, email="sl2-gst@test.com", is_superuser=False
@@ -81,11 +75,13 @@ async def test_revoke_link(
         json={"room_id": "sl-room-2", "visibility": "private"},
         headers={"Authorization": f"Bearer {owner}"},
     )
-    link = (await client.post(
-        "/v1/rooms/sl-room-2/share-links",
-        json={"access": "view"},
-        headers={"Authorization": f"Bearer {owner}"},
-    )).json()
+    link = (
+        await client.post(
+            "/v1/rooms/sl-room-2/share-links",
+            json={"access": "view"},
+            headers={"Authorization": f"Bearer {owner}"},
+        )
+    ).json()
     r = await client.delete(
         f"/v1/rooms/sl-room-2/share-links/{link['id']}",
         headers={"Authorization": f"Bearer {owner}"},
@@ -95,15 +91,16 @@ async def test_revoke_link(
     # Guest can no longer use the revoked token
     r = await client.get(
         "/v1/rooms/sl-room-2",
-        headers={"Authorization": f"Bearer {guest}", "X-Room-Share-Token": link["token"]},
+        headers={
+            "Authorization": f"Bearer {guest}",
+            "X-Room-Share-Token": link["token"],
+        },
     )
     assert r.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_wrong_room_token_rejected(
-    client: AsyncClient, session
-) -> None:
+async def test_wrong_room_token_rejected(client: AsyncClient, session) -> None:
     owner = await _register_and_login(client, "sl4-own@test.com")
     _guest_user, guest = await create_test_user_in_db(
         session, email="sl4-gst@test.com", is_superuser=False
@@ -118,14 +115,19 @@ async def test_wrong_room_token_rejected(
         json={"room_id": "sl-room-4b", "visibility": "private"},
         headers={"Authorization": f"Bearer {owner}"},
     )
-    link = (await client.post(
-        "/v1/rooms/sl-room-4a/share-links",
-        json={"access": "view"},
-        headers={"Authorization": f"Bearer {owner}"},
-    )).json()
+    link = (
+        await client.post(
+            "/v1/rooms/sl-room-4a/share-links",
+            json={"access": "view"},
+            headers={"Authorization": f"Bearer {owner}"},
+        )
+    ).json()
     r = await client.get(
         "/v1/rooms/sl-room-4b",
-        headers={"Authorization": f"Bearer {guest}", "X-Room-Share-Token": link["token"]},
+        headers={
+            "Authorization": f"Bearer {guest}",
+            "X-Room-Share-Token": link["token"],
+        },
     )
     assert r.status_code == 404
 

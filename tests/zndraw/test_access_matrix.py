@@ -1,4 +1,5 @@
 """Pure-predicate tests for can_read / can_edit / can_manage."""
+
 from uuid import UUID, uuid4
 
 from zndraw.access import (

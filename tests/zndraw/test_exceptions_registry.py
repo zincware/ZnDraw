@@ -1,4 +1,5 @@
 """Problem-type registry presence tests."""
+
 from zndraw.exceptions import PROBLEM_TYPES
 
 

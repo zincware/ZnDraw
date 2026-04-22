@@ -76,6 +76,7 @@ async def test_guest_sessions_unique_tokens(client: AsyncClient) -> None:
 async def test_guest_user_has_is_guest_true(client: AsyncClient, session) -> None:
     """POST /v1/auth/guest must mark the created user with is_guest=True."""
     from sqlmodel import select
+
     from zndraw_auth import User
 
     r = await client.post("/v1/auth/guest")
@@ -170,17 +171,17 @@ async def test_non_superuser_cannot_set_is_verified(
     # request itself succeeds (200), but is_verified is unchanged.
     assert r.status_code == 200
 
-    me = (await client.get(
-        "/v1/auth/users/me",
-        headers={"Authorization": f"Bearer {token}"},
-    )).json()
+    me = (
+        await client.get(
+            "/v1/auth/users/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    ).json()
     assert me["is_verified"] is original_verified
 
 
 @pytest.mark.asyncio
-async def test_superuser_can_set_is_verified(
-    client: AsyncClient, session
-) -> None:
+async def test_superuser_can_set_is_verified(client: AsyncClient, session) -> None:
     """Superusers can verify other users via PATCH."""
     from helpers import create_test_user_in_db
 

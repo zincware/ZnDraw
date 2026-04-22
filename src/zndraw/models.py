@@ -58,7 +58,9 @@ class Room(SQLModel, table=True):
         default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
     )
     owner_user_id: UUID | None = Field(default=None, foreign_key="user.id", index=True)
-    owner_group_id: UUID | None = Field(default=None, foreign_key="group.id", index=True)
+    owner_group_id: UUID | None = Field(
+        default=None, foreign_key="group.id", index=True
+    )
     visibility: Visibility = Field(default=Visibility.PUBLIC)
     step: int = Field(default=0)
     frame_selection: str | None = Field(default=None)
