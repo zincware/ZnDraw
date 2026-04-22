@@ -7,29 +7,34 @@ Uses string UUIDs for room IDs to match frontend expectations.
 import json
 import re
 from typing import Annotated, Any
+from uuid import UUID
 
 from fastapi import APIRouter, Query, status
+from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from zndraw.config import SettingsDep
 from zndraw.dependencies import (
+    AccessManageDep,
+    AccessReadDep,
     CurrentUserDep,
     FrameStorageDep,
-    OptionalUserDep,
+    MyGroupIdsDep,
     RedisDep,
     SessionDep,
     SioDep,
-    WritableRoomDep,
+    fetch_group_role,
     room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     Forbidden,
     InvalidPayload,
     NotAuthenticated,
-    RoomLocked,
     RoomNotFound,
     RoomReadOnly,
+    TransferTargetInvalid,
     UnprocessableContent,
     problem_responses,
 )
@@ -323,28 +328,24 @@ async def broadcast_room_update(
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    responses=problem_responses(NotAuthenticated, RoomReadOnly),
+    responses=problem_responses(
+        NotAuthenticated, RoomReadOnly, InvalidPayload, TransferTargetInvalid
+    ),
 )
 async def create_room(
     session: SessionDep,
     storage: FrameStorageDep,
     sio: SioDep,
+    settings: SettingsDep,
     current_user: CurrentUserDep,
     request: RoomCreate,
 ) -> RoomCreateResponse:
     """Create a new room.
 
-    The room ID must contain only alphanumeric characters, hyphens, and
-    underscores.  System rooms (prefixed with ``@``) cannot be created via
-    the REST API.
-
-    The ``copyFrom`` field controls frame initialization:
-
-    - ``"<room-id>"`` - deep copy from that room (frames, geometries,
-      bookmarks, figures, selection groups, step)
-    - ``"@empty"`` - one empty frame (bypasses server default)
-    - ``"@none"`` - zero frames (bypasses server default)
-    - *omitted* - use server default room, fallback to one empty frame
+    Visibility defaults to ``Settings.default_room_visibility``. Ownership
+    defaults to ``owner_user_id = current_user.id`` unless
+    ``owner_group_id`` is supplied (in which case the caller must be a
+    group member and visibility must not be PRIVATE).
     """
     room_id = request.room_id
 
@@ -365,6 +366,28 @@ async def create_room(
             frame_count=frame_count,
             created=False,
         )
+
+    visibility = request.visibility or settings.default_room_visibility
+
+    owner_user_id: UUID | None = None
+    owner_group_id: UUID | None = request.owner_group_id
+    if owner_group_id is not None:
+        if visibility == Visibility.PRIVATE:
+            raise InvalidPayload.exception(
+                "PRIVATE visibility requires a user owner, not a group"
+            )
+        if not current_user.is_superuser:
+            role = await fetch_group_role(session, current_user.id, owner_group_id)
+            if role is None:
+                raise TransferTargetInvalid.exception(
+                    "You are not a member of the target group"
+                )
+    else:
+        if visibility == Visibility.GROUP:
+            raise InvalidPayload.exception(
+                "GROUP visibility requires an owner_group_id"
+            )
+        owner_user_id = current_user.id
 
     # Resolve copyFrom: @-prefixed presets, room IDs, or server default
     copy_from = request.copy_from
@@ -389,14 +412,13 @@ async def create_room(
                 "Cannot copy from a room with a mounted source"
             )
 
-    # Create room in database (bridge: owner=current_user, visibility=PUBLIC;
-    # Task 11 will respect request.visibility / request.owner_group_id)
     room = Room(
         id=room_id,
         description=request.description,
         created_by_id=current_user.id,
-        owner_user_id=current_user.id,
-        visibility=Visibility.PUBLIC,
+        owner_user_id=owner_user_id,
+        owner_group_id=owner_group_id,
+        visibility=visibility,
         step=source_room.step if source_room else 0,
     )
     session.add(room)
@@ -440,35 +462,37 @@ async def create_room(
 async def list_rooms(
     session: SessionDep,
     storage: FrameStorageDep,
-    _current_user: OptionalUserDep,
+    current_user: CurrentUserDep,
+    my_group_ids: MyGroupIdsDep,
     search: Annotated[str | None, Query(description="Search pattern")] = None,
 ) -> CollectionResponse[RoomResponse]:
-    """List available rooms.
+    """List rooms visible to the caller.
 
-    Returns a flat array of room objects matching frontend expectations.
-    Authentication is optional - unauthenticated users see public rooms only.
+    Union of: public rooms, rooms the caller owns, and rooms owned by
+    any group the caller is a member of.
     """
-    # Get the default room ID for isDefault computation
     default_room_id = await _get_default_room_id(session)
 
-    # Get public rooms (Task 11 will expand this to the full scope union)
-    statement = select(Room).where(Room.visibility == Visibility.PUBLIC)
-    result = await session.exec(statement)
+    conditions = [
+        Room.visibility == Visibility.PUBLIC,
+        Room.owner_user_id == current_user.id,
+    ]
+    if my_group_ids:
+        conditions.append(Room.owner_group_id.in_(my_group_ids))
+
+    stmt = select(Room).where(or_(*conditions))
+    result = await session.exec(stmt)
     rooms = list(result.all())
 
-    # Build response with frame counts
-    room_responses = []
+    room_responses: list[RoomResponse] = []
     for room in rooms:
-        frame_count = await storage.get_length(room.id)
-
-        # Apply search filter if provided
         if search:
-            search_lower = search.lower()
-            if search_lower not in room.id.lower() and (
-                room.description is None or search_lower not in room.description.lower()
+            sl = search.lower()
+            if sl not in room.id.lower() and (
+                room.description is None or sl not in room.description.lower()
             ):
                 continue
-
+        frame_count = await storage.get_length(room.id)
         room_responses.append(
             RoomResponse(
                 id=room.id,
@@ -480,7 +504,6 @@ async def list_rooms(
                 is_default=(room.id == default_room_id),
             )
         )
-
     return CollectionResponse(items=room_responses)
 
 
@@ -491,11 +514,11 @@ async def list_rooms(
 async def get_room(
     session: SessionDep,
     storage: FrameStorageDep,
-    _current_user: CurrentUserDep,
+    access: AccessReadDep,
     room_id: str,
 ) -> RoomResponse:
-    """Get details of a specific room."""
-    room = await verify_room(session, room_id)
+    """Get details of a specific room (read-gated)."""
+    room = access.room
     frame_count = await storage.get_length(room_id)
     default_room_id = await _get_default_room_id(session)
 
@@ -515,9 +538,8 @@ async def get_room(
     responses=problem_responses(RoomNotFound),
 )
 async def get_room_presence(
-    session: SessionDep,
     redis: RedisDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
 ) -> PresenceResponse:
     """Get presence (online users) for a room.
@@ -527,8 +549,6 @@ async def get_room_presence(
     are not included.
     """
     from uuid import UUID as _UUID
-
-    await verify_room(session, room_id)
 
     cameras_raw: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
         RedisKey.room_cameras(room_id)
@@ -555,9 +575,8 @@ async def get_room_presence(
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def list_sessions(
-    session: SessionDep,
     redis: RedisDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
     email: Annotated[str | None, Query(description="Filter by user email")] = None,
 ) -> SessionsListResponse:
@@ -566,8 +585,6 @@ async def list_sessions(
     Returns every frontend session (identified by having an entry in the
     active-cameras hash). Optional ``email`` query param filters by user.
     """
-    await verify_room(session, room_id)
-
     all_active: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
         RedisKey.active_cameras(room_id)
     )
@@ -595,25 +612,53 @@ async def list_sessions(
 
 @router.patch(
     "/{room_id}",
-    responses=problem_responses(RoomNotFound, RoomLocked, Forbidden),
+    responses=problem_responses(
+        RoomNotFound, Forbidden, TransferTargetInvalid, InvalidPayload
+    ),
 )
 async def update_room(
     session: SessionDep,
     storage: FrameStorageDep,
     sio: SioDep,
-    room: WritableRoomDep,
+    access: AccessManageDep,
+    current_user: CurrentUserDep,
     updates: RoomPatchRequest,
     room_id: str,  # noqa: ARG001
 ) -> RoomPatchResponse:
-    """Update room metadata (description, locked, frame_count).
+    """Update room metadata, ownership, or visibility (manage-gated).
 
-    Requires writable access (room must not be locked by another user).
-    Setting ``frame_count`` stores an external frame count in Redis
-    (used by provider-backed rooms).  Use 0 to clear the external count.
+    A transfer is expressed as a PATCH that sets exactly one of
+    ``owner_user_id`` or ``owner_group_id`` (the other is wiped to
+    preserve the XOR invariant). Transferring into a group requires
+    the caller to be a member of that group.
     """
+    room = access.room
     changed = False
+
     if updates.description is not None:
         room.description = updates.description
+        changed = True
+
+    if updates.owner_user_id is not None and updates.owner_group_id is not None:
+        raise InvalidPayload.exception(
+            "Set exactly one of owner_user_id or owner_group_id, not both"
+        )
+
+    if updates.owner_user_id is not None:
+        room.owner_user_id = updates.owner_user_id
+        room.owner_group_id = None
+        changed = True
+    elif updates.owner_group_id is not None:
+        if not current_user.is_superuser:
+            role = await fetch_group_role(
+                session, current_user.id, updates.owner_group_id
+            )
+            if role is None:
+                raise TransferTargetInvalid.exception(
+                    "You are not a member of the target group"
+                )
+        room.owner_group_id = updates.owner_group_id
+        room.owner_user_id = None
         changed = True
 
     if updates.visibility is not None:
@@ -632,7 +677,13 @@ async def update_room(
         )
         changed = True
 
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise InvalidPayload.exception(
+            "Room update violates visibility/owner invariants"
+        ) from exc
 
     if changed:
         await broadcast_room_update(sio, session, storage, room)
