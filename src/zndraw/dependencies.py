@@ -477,3 +477,123 @@ async def get_share_context(
 
 
 ShareTokenDep = Annotated[ShareContext | None, Depends(get_share_context)]
+
+
+# =============================================================================
+# Access composites — room + auth context bundled together
+# =============================================================================
+
+from zndraw.access import can_edit, can_manage, can_read  # noqa: E402
+
+
+class AccessContext(NamedTuple):
+    """Bundle of room + resolved auth context, reused across access deps.
+
+    Attributes
+    ----------
+    room
+        The resolved Room row.
+    share
+        Validated share context from request header, or ``None``.
+    group_role
+        Caller's role in ``room.owner_group_id``, or ``None`` when the room
+        is user-owned or the caller is not a member of the owning group.
+    """
+
+    room: Room
+    share: ShareContext | None
+    group_role: GroupRole | None
+
+
+async def _load_access_context(
+    session: AsyncSession,
+    room_id: str,
+    current_user: User,
+    share: ShareContext | None,
+) -> AccessContext:
+    """Load room from DB and resolve group role for the current user.
+
+    Parameters
+    ----------
+    session
+        Async database session.
+    room_id
+        Primary key of the room to load.
+    current_user
+        The authenticated requesting user.
+    share
+        Validated share context, or ``None``.
+    """
+    room = await verify_room(session, room_id)
+    group_role: GroupRole | None = None
+    if room.owner_group_id is not None:
+        group_role = await fetch_group_role(session, current_user.id, room.owner_group_id)
+    return AccessContext(room=room, share=share, group_role=group_role)
+
+
+async def get_readable_room(
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    share: ShareTokenDep,
+    room_id: str = Path(),
+) -> AccessContext:
+    """Load room + auth context; raise 404 (not 403) if caller cannot read.
+
+    The 404 response prevents existence leaks for PRIVATE / GROUP rooms.
+
+    Parameters
+    ----------
+    session
+        Async database session (injected by FastAPI).
+    current_user
+        Authenticated user (injected by FastAPI).
+    share
+        Resolved share context from ``X-Room-Share-Token`` header, or ``None``.
+    room_id
+        Path parameter identifying the room.
+    """
+    ctx = await _load_access_context(session, room_id, current_user, share)
+    if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
+        raise RoomNotFound.exception(f"Room with id {room_id} not found")
+    return ctx
+
+
+async def get_editable_room(
+    ctx: Annotated[AccessContext, Depends(get_readable_room)],
+    current_user: CurrentUserDep,
+) -> AccessContext:
+    """Require edit capability (share-edit, owner, group member+, superuser).
+
+    Parameters
+    ----------
+    ctx
+        Access context resolved by ``get_readable_room``.
+    current_user
+        Authenticated user (injected by FastAPI).
+    """
+    if not can_edit(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
+        raise Forbidden.exception("You may not edit this room")
+    return ctx
+
+
+async def get_manageable_room(
+    ctx: Annotated[AccessContext, Depends(get_readable_room)],
+    current_user: CurrentUserDep,
+) -> AccessContext:
+    """Require manage capability (owner, group admin, superuser).
+
+    Parameters
+    ----------
+    ctx
+        Access context resolved by ``get_readable_room``.
+    current_user
+        Authenticated user (injected by FastAPI).
+    """
+    if not can_manage(current_user, ctx.room, group_role=ctx.group_role):
+        raise Forbidden.exception("You may not manage this room")
+    return ctx
+
+
+AccessReadDep = Annotated[AccessContext, Depends(get_readable_room)]
+AccessEditDep = Annotated[AccessContext, Depends(get_editable_room)]
+AccessManageDep = Annotated[AccessContext, Depends(get_manageable_room)]

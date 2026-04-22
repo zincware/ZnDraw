@@ -44,9 +44,9 @@ class Room(SQLModel, table=True):
             name="room_owner_exactly_one",
         ),
         CheckConstraint(
-            "(visibility = 'private' AND owner_user_id IS NOT NULL) OR "
-            "(visibility = 'group'   AND owner_group_id IS NOT NULL) OR "
-            "(visibility = 'public')",
+            "(visibility = 'PRIVATE' AND owner_user_id IS NOT NULL) OR "
+            "(visibility = 'GROUP'   AND owner_group_id IS NOT NULL) OR "
+            "(visibility = 'PUBLIC')",
             name="room_visibility_matches_owner",
         ),
     )
