@@ -52,25 +52,10 @@ async def test_get_step_returns_current_step(
     frame_storage: FrameStorage,
 ) -> None:
     """Test GET returns previously set step."""
-    from zndraw.models import MemberRole, Room, RoomMembership
-
     user, token = await create_test_user_in_db(session)
-    # Create room with step=2 manually (create_test_room doesn't support step param)
-    room = Room(
-        description="Test Room",
-        created_by_id=user.id,  # type: ignore[arg-type]
-        is_public=True,
-        step=2,
-    )
+    room = await create_test_room(session, user)
+    room.step = 2
     session.add(room)
-    await session.commit()
-    await session.refresh(room)
-    membership = RoomMembership(
-        room_id=room.id,  # type: ignore[arg-type]
-        user_id=user.id,  # type: ignore[arg-type]
-        role=MemberRole.OWNER,
-    )
-    session.add(membership)
     await session.commit()
 
     # Add frames

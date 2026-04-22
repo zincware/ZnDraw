@@ -9,7 +9,6 @@ from httpx import AsyncClient
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zndraw.models import MemberRole, RoomMembership
 from zndraw.redis import RedisKey
 from zndraw.schemas import StatusResponse
 
@@ -255,17 +254,8 @@ async def test_acquire_edit_lock_conflict_with_other_user(
 ) -> None:
     """Test PUT returns 423 when another user holds the lock."""
     user1, token1 = await create_test_user_in_db(session, "user1@test")
-    user2, token2 = await create_test_user_in_db(session, "user2@test")
+    _user2, token2 = await create_test_user_in_db(session, "user2@test")
     room = await create_test_room(session, user1)
-
-    # Give user2 room membership
-    membership = RoomMembership(
-        room_id=room.id,  # type: ignore[arg-type]
-        user_id=user2.id,  # type: ignore[arg-type]
-        role=MemberRole.MEMBER,
-    )
-    session.add(membership)
-    await session.commit()
 
     # User1 acquires lock
     resp1 = await client.put(
@@ -286,40 +276,13 @@ async def test_acquire_edit_lock_conflict_with_other_user(
 
 
 @pytest.mark.asyncio
-async def test_acquire_edit_lock_blocked_by_admin_lock(
-    client: AsyncClient, session: AsyncSession
-) -> None:
-    """Test PUT returns 423 when room is admin-locked."""
-    user, token = await create_test_user_in_db(session)
-    room = await create_test_room(session, user)
-    room.locked = True
-    session.add(room)
-    await session.commit()
-
-    response = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
-        json={"msg": "editing"},
-        headers=auth_header(token),
-    )
-    assert response.status_code == 423
-
-
-@pytest.mark.asyncio
 async def test_lock_auto_expires_after_ttl(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     """Lock disappears from Redis after edit_lock_ttl without refresh."""
     user1, token1 = await create_test_user_in_db(session, "user1@test")
-    user2, token2 = await create_test_user_in_db(session, "user2@test")
+    _user2, token2 = await create_test_user_in_db(session, "user2@test")
     room = await create_test_room(session, user1)
-
-    membership = RoomMembership(
-        room_id=room.id,  # type: ignore[arg-type]
-        user_id=user2.id,  # type: ignore[arg-type]
-        role=MemberRole.MEMBER,
-    )
-    session.add(membership)
-    await session.commit()
 
     # User1 acquires
     resp = await client.put(
@@ -345,7 +308,7 @@ async def test_lock_auto_expires_after_ttl(
         headers=auth_header(token2),
     )
     assert resp2.status_code == 200
-    assert resp2.json()["user_id"] == str(user2.id)
+    assert resp2.json()["user_id"] == str(_user2.id)
 
 
 # =============================================================================
@@ -456,16 +419,8 @@ async def test_release_edit_lock_forbidden_for_non_holder(
 ) -> None:
     """Test DELETE returns 403 when non-holder tries to release."""
     user1, token1 = await create_test_user_in_db(session, "user1@test")
-    user2, token2 = await create_test_user_in_db(session, "user2@test")
+    _user2, token2 = await create_test_user_in_db(session, "user2@test")
     room = await create_test_room(session, user1)
-
-    membership = RoomMembership(
-        room_id=room.id,  # type: ignore[arg-type]
-        user_id=user2.id,  # type: ignore[arg-type]
-        role=MemberRole.MEMBER,
-    )
-    session.add(membership)
-    await session.commit()
 
     # User1 acquires
     await client.put(
@@ -487,19 +442,10 @@ async def test_admin_can_release_any_lock(
 ) -> None:
     """Test admin can release another user's lock."""
     user, token = await create_test_user_in_db(session, "user@test")
-    admin, admin_token = await create_test_user_in_db(
+    _admin, admin_token = await create_test_user_in_db(
         session, "admin@test", is_superuser=True
     )
     room = await create_test_room(session, user)
-
-    # Give admin membership
-    membership = RoomMembership(
-        room_id=room.id,  # type: ignore[arg-type]
-        user_id=admin.id,  # type: ignore[arg-type]
-        role=MemberRole.MEMBER,
-    )
-    session.add(membership)
-    await session.commit()
 
     # User acquires
     await client.put(
@@ -517,51 +463,6 @@ async def test_admin_can_release_any_lock(
 
 
 # =============================================================================
-# WritableRoomDep: Admin Lock Enforcement
-# =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_writable_room_blocks_non_admin_on_admin_locked_room(
-    client: AsyncClient, session: AsyncSession
-) -> None:
-    """Test mutation returns 423 when room is admin-locked and user is not admin."""
-    user, token = await create_test_user_in_db(session)
-    room = await create_test_room(session, user)
-    room.locked = True
-    session.add(room)
-    await session.commit()
-
-    # Try to set a bookmark (mutation endpoint using WritableRoomDep)
-    response = await client.put(
-        f"/v1/rooms/{room.id}/bookmarks/0",
-        json={"label": "test"},
-        headers=auth_header(token),
-    )
-    assert response.status_code == 423
-    assert "locked" in response.json()["type"]
-
-
-@pytest.mark.asyncio
-async def test_writable_room_allows_admin_on_admin_locked_room(
-    client: AsyncClient, session: AsyncSession
-) -> None:
-    """Test admin can mutate even when room is admin-locked."""
-    admin, token = await create_test_user_in_db(session, is_superuser=True)
-    room = await create_test_room(session, admin)
-    room.locked = True
-    session.add(room)
-    await session.commit()
-
-    response = await client.put(
-        f"/v1/rooms/{room.id}/bookmarks/0",
-        json={"label": "admin edit"},
-        headers=auth_header(token),
-    )
-    assert response.status_code == 200
-
-
-# =============================================================================
 # WritableRoomDep: Edit Lock Enforcement with Lock-Token
 # =============================================================================
 
@@ -572,16 +473,8 @@ async def test_writable_room_blocks_non_holder(
 ) -> None:
     """Test mutation returns 423 when another user holds the edit lock."""
     user1, token1 = await create_test_user_in_db(session, "user1@test")
-    user2, token2 = await create_test_user_in_db(session, "user2@test")
+    _user2, token2 = await create_test_user_in_db(session, "user2@test")
     room = await create_test_room(session, user1)
-
-    membership = RoomMembership(
-        room_id=room.id,  # type: ignore[arg-type]
-        user_id=user2.id,  # type: ignore[arg-type]
-        role=MemberRole.MEMBER,
-    )
-    session.add(membership)
-    await session.commit()
 
     # User1 acquires lock
     await client.put(
@@ -655,16 +548,8 @@ async def test_writable_room_allows_get_when_locked(
 ) -> None:
     """Test GET endpoints still work when room has edit lock."""
     user1, token1 = await create_test_user_in_db(session, "user1@test")
-    user2, token2 = await create_test_user_in_db(session, "user2@test")
+    _user2, token2 = await create_test_user_in_db(session, "user2@test")
     room = await create_test_room(session, user1)
-
-    membership = RoomMembership(
-        room_id=room.id,  # type: ignore[arg-type]
-        user_id=user2.id,  # type: ignore[arg-type]
-        role=MemberRole.MEMBER,
-    )
-    session.add(membership)
-    await session.commit()
 
     # User1 acquires lock
     await client.put(

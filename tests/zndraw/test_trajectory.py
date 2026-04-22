@@ -12,7 +12,7 @@ from helpers import auth_header, create_test_room, create_test_user_in_db
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from zndraw.exceptions import InvalidPayload, ProblemDetail, RoomLocked, RoomReadOnly
+from zndraw.exceptions import InvalidPayload, ProblemDetail, RoomReadOnly
 from zndraw.schemas import FrameBulkResponse
 from zndraw.storage import FrameStorage
 
@@ -533,32 +533,6 @@ async def test_upload_requires_auth(
         files={"file": ("traj.extxyz", content, "application/octet-stream")},
     )
     assert response.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_upload_locked_room(
-    client: AsyncClient,
-    session: AsyncSession,
-) -> None:
-    """Test uploading to a locked room returns 423."""
-    user, token = await create_test_user_in_db(session)
-    room = await create_test_room(session, user)
-    room.locked = True
-    session.add(room)
-    await session.commit()
-
-    atoms = _make_atoms()
-    content = _atoms_to_file_bytes([atoms], "extxyz")
-
-    response = await client.post(
-        f"/v1/rooms/{room.id}/trajectory",
-        files={"file": ("traj.extxyz", content, "application/octet-stream")},
-        headers=auth_header(token),
-    )
-    assert response.status_code == 423
-
-    problem = ProblemDetail.model_validate(response.json())
-    assert problem.type == RoomLocked.type_uri()
 
 
 @pytest.mark.asyncio

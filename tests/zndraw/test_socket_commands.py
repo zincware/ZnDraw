@@ -295,10 +295,9 @@ def test_lock_update_full() -> None:
 
 def test_room_update_snapshot() -> None:
     """RoomUpdate is a full room snapshot with all required fields."""
-    event = RoomUpdate(id="r", frame_count=5, locked=True, is_default=False)
+    event = RoomUpdate(id="r", frame_count=5, is_default=False)
     assert event.id == "r"
     assert event.frame_count == 5
-    assert event.locked is True
     assert event.is_default is False
     assert event.description is None
 

@@ -514,16 +514,6 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         """
         return Tasks(self.api)
 
-    @property
-    def locked(self) -> bool:
-        """Whether the room is locked."""
-        info = self.api.get_room_info()
-        return info.get("locked", False)
-
-    @locked.setter
-    def locked(self, value: bool) -> None:
-        self.api.update_room({"locked": value})
-
     def log(self, message: str) -> None:
         """Send a chat message to the room.
 

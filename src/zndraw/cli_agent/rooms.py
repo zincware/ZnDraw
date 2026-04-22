@@ -10,7 +10,6 @@ from zndraw.schemas import (
     CollectionResponse,
     RoomCreate,
     RoomCreateResponse,
-    RoomPatchResponse,
     RoomResponse,
 )
 
@@ -86,40 +85,6 @@ def room_info(
         room = resolve_room(room)
         vis = get_zndraw(url, token, room, user, password)
         json_print(RoomResponse.model_validate(vis.api.get_room_info()))
-        vis.disconnect()
-
-
-@rooms_app.command("lock")
-def lock_room(
-    url: UrlOpt = None,
-    token: TokenOpt = None,
-    user: UserOpt = None,
-    password: PasswordOpt = None,
-    room: RoomOpt = None,
-) -> None:
-    """Lock a room (prevent edits by non-admin users)."""
-    with cli_error_handler():
-        room = resolve_room(room)
-        vis = get_zndraw(url, token, room, user, password)
-        vis.locked = True
-        json_print(RoomPatchResponse.model_validate(vis.api.get_room_info()))
-        vis.disconnect()
-
-
-@rooms_app.command("unlock")
-def unlock_room(
-    url: UrlOpt = None,
-    token: TokenOpt = None,
-    user: UserOpt = None,
-    password: PasswordOpt = None,
-    room: RoomOpt = None,
-) -> None:
-    """Unlock a room (allow edits again)."""
-    with cli_error_handler():
-        room = resolve_room(room)
-        vis = get_zndraw(url, token, room, user, password)
-        vis.locked = False
-        json_print(RoomPatchResponse.model_validate(vis.api.get_room_info()))
         vis.disconnect()
 
 

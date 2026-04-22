@@ -145,29 +145,6 @@ def test_constructor_explicit_url_still_works(server: str):
 
 
 # =============================================================================
-# ZnDraw.locked property
-# =============================================================================
-
-
-def test_locked_default_false(server: str):
-    """New rooms are unlocked by default."""
-    vis = ZnDraw(url=server)
-    assert vis.locked is False
-    vis.disconnect()
-
-
-def test_locked_roundtrip(server: str):
-    """Setting locked=True locks the room, False unlocks."""
-    vis = ZnDraw(url=server)
-    vis.locked = True
-    assert vis.locked is True
-
-    vis.locked = False
-    assert vis.locked is False
-    vis.disconnect()
-
-
-# =============================================================================
 # ZnDraw.chat Sequence property
 # =============================================================================
 
