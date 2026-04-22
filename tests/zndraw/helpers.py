@@ -9,6 +9,7 @@ from typing import Any
 
 import msgpack
 from fastapi_users.password import PasswordHelper
+from httpx import AsyncClient
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -110,6 +111,32 @@ async def create_test_room(
 def auth_header(token: str) -> dict[str, str]:
     """Return Authorization header dict."""
     return {"Authorization": f"Bearer {token}"}
+
+
+async def _register_and_login(
+    client: AsyncClient, email: str, password: str = "test12345"
+) -> str:
+    """Register a new user and return their JWT access token.
+
+    Parameters
+    ----------
+    client
+        The async HTTP client to use for requests.
+    email
+        Email address for the new user.
+    password
+        Password for the new user.
+    """
+    await client.post(
+        "/v1/auth/register", json={"email": email, "password": password}
+    )
+    r = await client.post(
+        "/v1/auth/jwt/login",
+        data={"username": email, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    r.raise_for_status()
+    return r.json()["access_token"]
 
 
 class MockSioServer:
