@@ -34,6 +34,7 @@ from zndraw.exceptions import (
     NotAuthenticated,
     RoomNotFound,
     RoomReadOnly,
+    ShareLinkInvalid,
     TransferTargetInvalid,
     UnprocessableContent,
     problem_responses,
@@ -509,7 +510,9 @@ async def list_rooms(
 
 @router.get(
     "/{room_id}",
-    responses=problem_responses(RoomNotFound),
+    # ShareLinkInvalid is documentation-only: raised by ShareTokenDep when a
+    # token header is supplied but invalid; absence silently reduces scope.
+    responses=problem_responses(RoomNotFound, ShareLinkInvalid),
 )
 async def get_room(
     session: SessionDep,
