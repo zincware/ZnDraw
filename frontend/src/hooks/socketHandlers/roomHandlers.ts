@@ -8,7 +8,6 @@ import type { HandlerContext } from "./types";
 export interface RoomUpdateEvent {
 	id: string;
 	frame_count?: number | null;
-	locked?: boolean | null;
 	[key: string]: unknown;
 }
 
@@ -55,16 +54,12 @@ export function createRoomHandlers(ctx: HandlerContext) {
 			if (data.frame_count != null) {
 				ctx.setFrameCount(data.frame_count);
 			}
-			if (data.locked != null) {
-				console.debug("[RoomUpdate] lock change:", data.locked);
-				ctx.setSuperuserLock(data.locked);
-			}
 		}
 
 		// Upsert into rooms store (full snapshot -- always safe to overwrite)
 		// Server sends complete Room objects; the event type is permissive for
 		// partial reads above, so cast to Room for the store API.
-		useRoomsStore.getState().setRoom(data.id, data as Room);
+		useRoomsStore.getState().setRoom(data.id, data as unknown as Room);
 	}
 
 	function onRoomDelete(data: RoomDeleteEvent) {

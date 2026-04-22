@@ -65,7 +65,7 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
 				const newRoom: Room = {
 					id: roomId,
 					frame_count: 0,
-					locked: false,
+					visibility: "public",
 					is_default: false,
 					...updates,
 				};

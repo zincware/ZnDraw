@@ -435,7 +435,9 @@ export interface RoomInfo {
 	id: string;
 	description: string | null;
 	frame_count: number;
-	locked: boolean;
+	visibility: Visibility;
+	owner_user_id?: string | null;
+	owner_group_id?: string | null;
 	hidden: boolean;
 }
 
@@ -755,26 +757,56 @@ export const editChatMessage = async (
 
 // ==================== Room Management API ====================
 
+export type Visibility = "private" | "group" | "public";
+export type GroupRole = "viewer" | "member" | "admin";
+export type ShareAccess = "view" | "edit";
+
+export interface Group {
+	id: string;
+	name: string;
+	description?: string | null;
+	created_at: string;
+	created_by_id: string;
+	my_role?: GroupRole | null;
+}
+
+export interface GroupMember {
+	user_id: string;
+	email: string | null;
+	role: GroupRole;
+	joined_at: string;
+}
+
+export interface ShareLink {
+	id: string;
+	room_id: string;
+	token: string;
+	access: ShareAccess;
+	created_by_id: string;
+	created_at: string;
+	expires_at: string | null;
+	revoked_at: string | null;
+}
+
 export interface Room {
 	id: string;
 	description?: string | null;
 	frame_count: number;
-	locked: boolean;
-	is_default?: boolean;
+	visibility: Visibility;
+	owner_user_id?: string | null;
+	owner_group_id?: string | null;
+	is_default: boolean;
 	metadata?: Record<string, string>;
 }
 
-export interface RoomDetail {
-	id: string;
-	description?: string | null;
-	frame_count: number;
-	locked: boolean;
-	is_default?: boolean;
-}
+export interface RoomDetail extends Room {}
 
 export interface RoomUpdateRequest {
 	description?: string | null;
-	locked?: boolean;
+	frame_count?: number;
+	visibility?: Visibility;
+	owner_user_id?: string | null;
+	owner_group_id?: string | null;
 }
 
 export interface DefaultRoomResponse {
@@ -833,6 +865,99 @@ export const getEditLockStatus = async (
 ): Promise<EditLockResponse> => {
 	const { data } = await apiClient.get(`/v1/rooms/${roomId}/edit-lock`);
 	return data;
+};
+
+// ==================== Groups API ====================
+
+export const listGroups = async (): Promise<Group[]> => {
+	const response = await apiClient.get("/v1/groups");
+	return response.data.items;
+};
+
+export const createGroup = async (
+	name: string,
+	description?: string,
+): Promise<Group> => {
+	const response = await apiClient.post("/v1/groups", { name, description });
+	return response.data;
+};
+
+export const getGroup = async (id: string): Promise<Group> => {
+	const response = await apiClient.get(`/v1/groups/${id}`);
+	return response.data;
+};
+
+export const updateGroup = async (
+	id: string,
+	patch: { name?: string; description?: string },
+): Promise<Group> => {
+	const response = await apiClient.patch(`/v1/groups/${id}`, patch);
+	return response.data;
+};
+
+export const deleteGroup = async (id: string): Promise<void> => {
+	await apiClient.delete(`/v1/groups/${id}`);
+};
+
+export const listGroupMembers = async (id: string): Promise<GroupMember[]> => {
+	const response = await apiClient.get(`/v1/groups/${id}/members`);
+	return response.data.items;
+};
+
+export const addGroupMember = async (
+	id: string,
+	user_id: string,
+	role: GroupRole = "viewer",
+): Promise<GroupMember> => {
+	const response = await apiClient.post(`/v1/groups/${id}/members`, {
+		user_id,
+		role,
+	});
+	return response.data;
+};
+
+export const removeGroupMember = async (
+	id: string,
+	user_id: string,
+): Promise<void> => {
+	await apiClient.delete(`/v1/groups/${id}/members/${user_id}`);
+};
+
+export const updateGroupMemberRole = async (
+	id: string,
+	user_id: string,
+	role: GroupRole,
+): Promise<GroupMember> => {
+	const response = await apiClient.patch(`/v1/groups/${id}/members/${user_id}`, {
+		role,
+	});
+	return response.data;
+};
+
+// ==================== Share Links API ====================
+
+export const listShareLinks = async (roomId: string): Promise<ShareLink[]> => {
+	const response = await apiClient.get(`/v1/rooms/${roomId}/share-links`);
+	return response.data.items;
+};
+
+export const createShareLink = async (
+	roomId: string,
+	access: ShareAccess = "view",
+	expires_at?: string,
+): Promise<ShareLink> => {
+	const response = await apiClient.post(`/v1/rooms/${roomId}/share-links`, {
+		access,
+		expires_at,
+	});
+	return response.data;
+};
+
+export const revokeShareLink = async (
+	roomId: string,
+	linkId: string,
+): Promise<void> => {
+	await apiClient.delete(`/v1/rooms/${roomId}/share-links/${linkId}`);
 };
 
 // ==================== Trajectory Upload API ====================

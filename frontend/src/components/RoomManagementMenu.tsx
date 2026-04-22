@@ -2,7 +2,6 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DownloadIcon from "@mui/icons-material/Download";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import LockIcon from "@mui/icons-material/Lock";
-import LockOpenIcon from "@mui/icons-material/LockOpen";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
 import StarIcon from "@mui/icons-material/Star";
@@ -29,7 +28,6 @@ import {
 	listProviders,
 	setDefaultRoom,
 	shutdownServer,
-	updateRoom,
 } from "../myapi/client";
 import { useRoomsStore } from "../roomsStore";
 import { socket } from "../socket";
@@ -111,10 +109,7 @@ export default function RoomManagementMenu() {
 
 	const menuOpen = Boolean(anchorEl);
 
-	// Determine if any lock is active
-	const isRoomLocked = useAppStore((state) => state.superuserLock);
 	const isEditLocked = userLock !== null;
-	const isAnyLockActive = isRoomLocked || isEditLocked;
 
 	const handleOpenMenu = async (event: React.MouseEvent<HTMLElement>) => {
 		setAnchorEl(event.currentTarget);
@@ -134,46 +129,12 @@ export default function RoomManagementMenu() {
 		setAnchorEl(null);
 	};
 
-	const handleLockIconClick = async () => {
-		if (isEditLocked && !isRoomLocked) {
-			// Edit lock active but no superuser lock — just show info
+	const handleLockIconClick = () => {
+		if (isEditLocked) {
 			showSnackbar(
 				`Locked by ${userLock || "another user"}: ${userLockMessage || "in use"}`,
 				"info",
 			);
-			return;
-		}
-		// Toggle superuser lock
-		await handleToggleLock();
-	};
-
-	const handleToggleLock = async () => {
-		if (!roomId) return;
-
-		// Fetch latest room detail if not available
-		let currentRoomDetail = roomDetail;
-		if (!currentRoomDetail) {
-			try {
-				currentRoomDetail = await getRoom(roomId);
-				setRoomDetail(currentRoomDetail);
-			} catch (err) {
-				showSnackbar("Failed to fetch room details", "error");
-				return;
-			}
-		}
-
-		try {
-			await updateRoom(roomId, { locked: !currentRoomDetail.locked });
-			setRoomDetail({
-				...currentRoomDetail,
-				locked: !currentRoomDetail.locked,
-			});
-			showSnackbar(
-				currentRoomDetail.locked ? "Room unlocked" : "Room locked",
-				"success",
-			);
-		} catch (err) {
-			showSnackbar("Failed to update lock status", "error");
 		}
 	};
 
@@ -257,19 +218,8 @@ export default function RoomManagementMenu() {
 		return null;
 	}
 
-	// Build tooltip text for lock icon
+	// Build tooltip text for edit-lock icon
 	const getLockTooltip = () => {
-		if (isAdmin) {
-			if (isRoomLocked) return "Click to unlock room";
-			if (isEditLocked) {
-				const user = userLock || "Someone";
-				const action = userLockMessage || "using this room";
-				return `${user}: ${action} - cannot unlock`;
-			}
-			return "Click to lock room";
-		}
-		// Non-admin tooltips (read-only)
-		if (isRoomLocked) return "Room is locked by an administrator";
 		if (isEditLocked) {
 			const user = userLock || "Someone";
 			const action = userLockMessage || "using this room";
@@ -280,36 +230,18 @@ export default function RoomManagementMenu() {
 
 	return (
 		<>
-			{/* Lock icon — admins: clickable toggle, non-admins: read-only indicator when locked */}
-			{isAdmin ? (
+			{/* Edit-lock indicator — shown when another user holds the edit lock */}
+			{/* TODO(scope-refactor): Task 21 replaces lock UI with visibility */}
+			{isEditLocked && (
 				<Tooltip title={getLockTooltip()} arrow>
 					<IconButton
 						size="small"
 						onClick={handleLockIconClick}
-						sx={{
-							color: isAnyLockActive
-								? isRoomLocked
-									? "error.main"
-									: "warning.main"
-								: "action.disabled",
-							mr: 0.5,
-						}}
+						sx={{ color: "warning.main", mr: 0.5 }}
 					>
-						{isAnyLockActive ? <LockIcon /> : <LockOpenIcon />}
+						<LockIcon />
 					</IconButton>
 				</Tooltip>
-			) : (
-				isAnyLockActive && (
-					<Tooltip title={getLockTooltip()} arrow>
-						<LockIcon
-							fontSize="small"
-							sx={{
-								color: isRoomLocked ? "error.main" : "warning.main",
-								mr: 0.5,
-							}}
-						/>
-					</Tooltip>
-				)
 			)}
 
 			{/* Template room indicator - always visible */}

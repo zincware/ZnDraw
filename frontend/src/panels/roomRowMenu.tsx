@@ -2,8 +2,6 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DownloadIcon from "@mui/icons-material/Download";
 import DuplicateIcon from "@mui/icons-material/FileCopy";
-import LockIcon from "@mui/icons-material/Lock";
-import LockOpenIcon from "@mui/icons-material/LockOpen";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
@@ -21,7 +19,6 @@ import {
 	downloadFrames,
 	type Room,
 	setDefaultRoom,
-	updateRoom,
 } from "../myapi/client";
 import { useRoomsStore } from "../roomsStore";
 import { useAppStore } from "../store";
@@ -50,16 +47,6 @@ export function RoomRowMenu({ room }: Props) {
 			);
 		} catch {
 			showSnackbar("Failed to update template", "error");
-		}
-	};
-
-	const onToggleLock = async () => {
-		setAnchor(null);
-		try {
-			await updateRoom(room.id, { locked: !room.locked });
-			showSnackbar(room.locked ? "Room unlocked" : "Room locked", "success");
-		} catch {
-			showSnackbar("Failed to update lock", "error");
 		}
 	};
 
@@ -108,12 +95,7 @@ export function RoomRowMenu({ room }: Props) {
 					</ListItemIcon>
 					<ListItemText>Duplicate room</ListItemText>
 				</MenuItem>
-				<MenuItem onClick={onToggleLock}>
-					<ListItemIcon>
-						{room.locked ? <LockOpenIcon /> : <LockIcon />}
-					</ListItemIcon>
-					<ListItemText>{room.locked ? "Unlock" : "Lock"}</ListItemText>
-				</MenuItem>
+				{/* TODO(scope-refactor): Task 21 replaces lock UI with visibility */}
 				<MenuItem onClick={onCopyLink}>
 					<ListItemIcon>
 						<ContentCopyIcon />

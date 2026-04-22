@@ -1,5 +1,3 @@
-import LockIcon from "@mui/icons-material/Lock";
-import LockOpenIcon from "@mui/icons-material/LockOpen";
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
@@ -228,16 +226,6 @@ function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
 		}
 	};
 
-	const onToggleLock = async (e: React.MouseEvent) => {
-		e.stopPropagation();
-		try {
-			await updateRoom(room.id, { locked: !room.locked });
-			showSnackbar(room.locked ? "Room unlocked" : "Room locked", "success");
-		} catch {
-			showSnackbar("Failed to update lock", "error");
-		}
-	};
-
 	return (
 		<ListItemButton
 			data-testid={`rooms-row-${room.id}`}
@@ -280,23 +268,7 @@ function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
 					},
 				}}
 			/>
-			<Tooltip
-				title={
-					room.locked ? "Locked (click to unlock)" : "Unlocked (click to lock)"
-				}
-			>
-				<IconButton
-					size="small"
-					data-testid={`rooms-row-lock-${room.id}`}
-					onClick={onToggleLock}
-				>
-					{room.locked ? (
-						<LockIcon fontSize="small" color="error" />
-					) : (
-						<LockOpenIcon fontSize="small" color="success" />
-					)}
-				</IconButton>
-			</Tooltip>
+			{/* TODO(scope-refactor): Task 21 replaces lock UI with visibility */}
 			<RoomRowMenu room={room} />
 		</ListItemButton>
 	);

@@ -65,8 +65,7 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 		ctx.setFrameCount(frameCount);
 		ctx.setCurrentFrame(step);
 
-		// Superuser lock from join response (SQL room.locked)
-		console.debug("[RoomJoin] locked:", response.locked);
+		// Edit-lock state from join response (always false now that Room.locked is removed)
 		ctx.setSuperuserLock(response.locked ?? false);
 
 		// Set progress trackers from join response
