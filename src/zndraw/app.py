@@ -18,6 +18,7 @@ from zndraw.exceptions import (
 from zndraw.routes.admin import router as admin_router
 from zndraw.routes.auth import router as auth_router
 from zndraw.routes.groups import router as groups_router
+from zndraw.routes.share_links import router as share_links_router
 from zndraw.routes.bookmarks import router as bookmarks_router
 from zndraw.routes.chat import router as chat_router
 from zndraw.routes.edit_lock import router as edit_lock_router
@@ -94,6 +95,7 @@ async def _unhandled_exception_handler(
 app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(groups_router)
+app.include_router(share_links_router)
 app.include_router(bookmarks_router)
 app.include_router(chat_router)
 app.include_router(figures_router)
