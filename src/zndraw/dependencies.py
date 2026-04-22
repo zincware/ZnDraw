@@ -7,12 +7,15 @@ Authentication uses zndraw-auth package.
 import json
 from pathlib import Path as FilePath
 from typing import Annotated, NamedTuple
+from uuid import UUID
 
 from fastapi import Depends, Path, Request
+from sqlmodel import select
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from zndraw_socketio import AsyncServerWrapper
 
+from zndraw.access import GroupRole
 from zndraw.exceptions import (
     Forbidden,
     NotAuthenticated,
@@ -23,7 +26,7 @@ from zndraw.exceptions import (
 )
 from zndraw.geometries import geometries as geometry_models
 from zndraw.geometries.camera import Camera
-from zndraw.models import Room, RoomGeometry
+from zndraw.models import GroupMembership, Room, RoomGeometry
 from zndraw.redis import RedisKey
 from zndraw.storage import FrameStorage
 from zndraw_auth import (
@@ -369,3 +372,57 @@ async def get_writable_room_id(
         lock_token = request.headers.get("Lock-Token")
         await _check_locks(redis, room_id, room, current_user, lock_token)
     return room_id
+
+
+# =============================================================================
+# Group membership helpers
+# =============================================================================
+
+
+async def fetch_my_group_ids(session: AsyncSession, user_id: UUID) -> list[UUID]:
+    """Return all group ids the user is a member of (any role).
+
+    Parameters
+    ----------
+    session
+        Async database session.
+    user_id
+        The user whose memberships to query.
+    """
+    result = await session.exec(
+        select(GroupMembership.group_id).where(GroupMembership.user_id == user_id)
+    )
+    return list(result.all())
+
+
+async def fetch_group_role(
+    session: AsyncSession, user_id: UUID, group_id: UUID
+) -> GroupRole | None:
+    """Return the user's role in the given group, or None if not a member.
+
+    Parameters
+    ----------
+    session
+        Async database session.
+    user_id
+        The user to check.
+    group_id
+        The group to check membership in.
+    """
+    result = await session.exec(
+        select(GroupMembership.role).where(
+            GroupMembership.user_id == user_id,
+            GroupMembership.group_id == group_id,
+        )
+    )
+    return result.first()
+
+
+async def get_my_group_ids(
+    session: SessionDep, current_user: CurrentUserDep
+) -> list[UUID]:
+    """FastAPI dependency returning group ids for the current user."""
+    return await fetch_my_group_ids(session, current_user.id)
+
+
+MyGroupIdsDep = Annotated[list[UUID], Depends(get_my_group_ids)]
