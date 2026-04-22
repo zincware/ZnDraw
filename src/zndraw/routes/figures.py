@@ -4,7 +4,7 @@ from fastapi import APIRouter, status
 from sqlmodel import select
 
 from zndraw.dependencies import (
-    OptionalUserDep,
+    CurrentUserDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
@@ -38,7 +38,7 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/figures", tags=["figures"])
 )
 async def list_figures(
     session: SessionDep,
-    _current_user: OptionalUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
 ) -> CollectionResponse[str]:
     """List all figure keys in a room."""
@@ -56,7 +56,7 @@ async def list_figures(
 )
 async def get_figure(
     session: SessionDep,
-    _current_user: OptionalUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
     key: str,
 ) -> FigureResponse:

@@ -11,6 +11,7 @@ from typing import Annotated, NamedTuple
 from uuid import UUID
 
 from fastapi import Depends, Header, Path, Request
+from fastapi_users.authentication import JWTStrategy
 from sqlmodel import select
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -34,48 +35,66 @@ from zndraw_auth import (
     SessionDep,
     User,
     current_active_user,
-    current_optional_user,
     current_superuser,
     current_user_scoped_session,
+    get_auth_settings,
 )
 from zndraw_auth.db import get_session_maker
+from zndraw_auth.settings import AuthSettings
 from zndraw_joblib.dependencies import ResultBackend, validate_room_id
 from zndraw_joblib.settings import JobLibSettings
 
 # Re-export auth dependencies for convenience
 CurrentUserDep = Annotated[User, Depends(current_active_user)]
 AdminUserDep = Annotated[User, Depends(current_superuser)]
-OptionalUserDep = Annotated[User | None, Depends(current_optional_user)]
 
 
 async def get_local_token_or_admin(
     request: Request,
-    user: OptionalUserDep,
+    session: SessionDep,
+    auth_settings: Annotated[AuthSettings, Depends(get_auth_settings)],
 ) -> User:
-    """Accept local_token as superuser OR require normal admin auth.
+    """Admin-or-local-token auth. Tries local token first, then JWT superuser.
 
-    When the request carries ``Authorization: Bearer <local_token>`` and
-    it matches ``app.state.local_token``, a synthetic superuser identity
-    is returned without touching the database.
-
-    Otherwise, falls through to normal JWT auth via ``OptionalUserDep``.
+    - Local token matches ``app.state.local_token`` → synthetic superuser.
+    - Otherwise, extract JWT from Authorization header and require superuser.
     """
-    # Path 1: Normal JWT auth succeeded -> check superuser
-    if user is not None:
-        if not user.is_superuser:
-            raise Forbidden.exception("Not a superuser")
-        return user
+    auth_header = request.headers.get("Authorization", "")
 
-    # Path 2: Check local admin token
+    # Path 1: Local admin token (fastest — no DB hit)
     local_token: str | None = getattr(request.app.state, "local_token", None)
-    if local_token is not None:
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header == f"Bearer {local_token}":
-            return User(
-                email="local-admin@localhost",
-                hashed_password="",
-                is_superuser=True,
+    if local_token is not None and auth_header == f"Bearer {local_token}":
+        return User(
+            email="local-admin@localhost", hashed_password="", is_superuser=True
+        )
+
+    # Path 2: JWT → must resolve to an active superuser
+    if auth_header.startswith("Bearer "):
+        token = auth_header.removeprefix("Bearer ")
+        strategy = JWTStrategy(
+            secret=auth_settings.secret_key.get_secret_value(),
+            lifetime_seconds=auth_settings.token_lifetime_seconds,
+        )
+        try:
+            from fastapi_users.jwt import decode_jwt
+            from zndraw_joblib.exceptions import ProblemError
+            data = decode_jwt(
+                token,
+                secret=strategy.decode_key,
+                audience=strategy.token_audience,
+                algorithms=[strategy.algorithm],
             )
+            user_id_raw = data.get("sub")
+            if user_id_raw:
+                user = await session.get(User, UUID(user_id_raw))
+                if user is not None and user.is_active:
+                    if not user.is_superuser:
+                        raise Forbidden.exception("Not a superuser")
+                    return user
+        except ProblemError:
+            raise
+        except Exception:  # InvalidTokenError, ValueError from bad UUID, etc.
+            pass
 
     raise NotAuthenticated.exception("Not authenticated")
 

@@ -10,7 +10,6 @@ from sqlmodel import select
 
 from zndraw.dependencies import (
     CurrentUserDep,
-    OptionalUserDep,
     RedisDep,
     SessionDep,
     SioDep,
@@ -94,7 +93,7 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/geometries", tags=["geometries"])
 async def list_geometries(
     session: SessionDep,
     redis: RedisDep,
-    _current_user: OptionalUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
 ) -> GeometriesResponse:
     """List all geometries in a room.
@@ -126,7 +125,7 @@ async def list_geometries(
 )
 async def get_geometry_selection(
     session: SessionDep,
-    _current_user: OptionalUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
     key: str,
 ) -> GeometrySelectionResponse:
@@ -146,7 +145,7 @@ async def get_geometry_selection(
 async def get_geometry(
     session: SessionDep,
     redis: RedisDep,
-    _current_user: OptionalUserDep,
+    _current_user: CurrentUserDep,
     room_id: str,
     key: str,
 ) -> GeometryResponse:
@@ -380,7 +379,7 @@ default_camera_router = APIRouter(prefix="/v1/rooms/{room_id}", tags=["geometrie
 )
 async def get_default_camera(
     session: SessionDep,
-    _user: OptionalUserDep,
+    _user: CurrentUserDep,
     room_id: str,
 ) -> DefaultCameraResponse:
     """Get the default camera geometry key for a room."""

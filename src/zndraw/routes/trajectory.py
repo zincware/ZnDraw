@@ -12,15 +12,15 @@ from typing import Annotated
 
 import ase.io
 from asebytes import decode, encode
-from fastapi import APIRouter, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from zndraw_auth import User as _User, current_optional_user
 
 from zndraw.connectivity import add_connectivity
 from zndraw.dependencies import (
     CurrentUserDep,
     FrameStorageDep,
-    OptionalUserDep,
     RedisDep,
     RequireWritableDep,
     SessionDep,
@@ -29,6 +29,9 @@ from zndraw.dependencies import (
     room_channel,
     verify_room,
 )
+
+# Anonymous-by-token path for `zndraw-cli download`; keep optional auth here only.
+_OptionalUserTokenDep = Annotated[_User | None, Depends(current_optional_user)]
 from zndraw.enrichment import add_colors, add_radii
 from zndraw.exceptions import (
     InvalidPayload,
@@ -90,7 +93,7 @@ async def download_trajectory(
     session: SessionDep,
     storage: FrameStorageDep,
     redis: RedisDep,
-    user: OptionalUserDep,
+    user: _OptionalUserTokenDep,
     room_id: str,
     format: Annotated[str, Query(description="Output format")] = "extxyz",  # noqa: A002
     indices: Annotated[
