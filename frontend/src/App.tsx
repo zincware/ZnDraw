@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import { MuiCssVars } from "./MuiCssVars";
 import CliLoginApprovePage from "./pages/cliLoginApprove";
+import GroupsPage from "./pages/GroupsPage";
 import MainPage from "./pages/landingPage";
 import TemplateSelectionPage from "./pages/templateSelection";
 
@@ -42,6 +43,10 @@ const router = createBrowserRouter([
 	{
 		path: "/auth/cli",
 		element: <CliLoginApprovePage />,
+	},
+	{
+		path: "/groups",
+		element: <GroupsPage />,
 	},
 	{
 		path: "/rooms/:roomId/files",
