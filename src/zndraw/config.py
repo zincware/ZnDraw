@@ -17,6 +17,8 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 
+from zndraw.access import Visibility
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables.
@@ -90,6 +92,7 @@ class Settings(BaseSettings):
 
     # Feature flags
     simgen_enabled: bool = False
+    default_room_visibility: Visibility = Visibility.PUBLIC
 
     # Worker
     worker_enabled: bool = True  # False in Docker (dedicated workers)

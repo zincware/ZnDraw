@@ -208,3 +208,18 @@ def test_result_backend_key_prefix_default():
 def test_provider_executor_timeout_default():
     s = Settings()
     assert s.provider_executor_timeout == 30.0
+
+
+def test_default_room_visibility_default() -> None:
+    from zndraw.access import Visibility
+    from zndraw.config import Settings
+
+    assert Settings().default_room_visibility is Visibility.PUBLIC
+
+
+def test_default_room_visibility_from_env(monkeypatch) -> None:
+    from zndraw.access import Visibility
+    from zndraw.config import Settings
+
+    monkeypatch.setenv("ZNDRAW_SERVER_DEFAULT_ROOM_VISIBILITY", "private")
+    assert Settings().default_room_visibility is Visibility.PRIVATE
