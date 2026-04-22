@@ -13,11 +13,12 @@ import asyncio
 from typing import Annotated
 
 import msgpack
-from fastapi import APIRouter, Query, Request, Response, status
+from fastapi import APIRouter, Header, Query, Request, Response, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from zndraw_socketio import AsyncServerWrapper
 
+from zndraw.access import can_read
 from zndraw.dependencies import (
     CurrentUserFactoryDep,
     FrameStorageDep,
@@ -28,8 +29,9 @@ from zndraw.dependencies import (
     SessionMakerDep,
     SioDep,
     WritableRoomDep,
+    _load_access_context,
+    resolve_share_token,
     room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     FrameNotFound,
@@ -181,7 +183,7 @@ def _filter_frames_by_keys(
 async def list_frames(
     session_maker: SessionMakerDep,
     storage: FrameStorageDep,
-    _current_user: CurrentUserFactoryDep,
+    current_user: CurrentUserFactoryDep,
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
@@ -195,6 +197,9 @@ async def list_frames(
     ] = None,
     keys: Annotated[
         str | None, Query(description="Comma-separated frame keys to include")
+    ] = None,
+    x_room_share_token: Annotated[
+        str | None, Header(alias="X-Room-Share-Token")
     ] = None,
 ) -> Response:
     """List frames with optional range or specific indices.
@@ -211,7 +216,10 @@ async def list_frames(
     - Use keys to filter which keys are included in each frame
     """
     async with session_maker() as session:
-        await verify_room(session, room_id)
+        share = await resolve_share_token(session, x_room_share_token, room_id)
+        ctx = await _load_access_context(session, room_id, current_user, share)
+        if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
+            raise RoomNotFound.exception(f"Room {room_id} not found")
         total = await storage.get_length(room_id)
 
         requested_indices: list[int]
@@ -299,7 +307,7 @@ async def list_frames(
 async def get_frame(
     session_maker: SessionMakerDep,
     storage: FrameStorageDep,
-    _current_user: CurrentUserFactoryDep,
+    current_user: CurrentUserFactoryDep,
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
@@ -307,6 +315,9 @@ async def get_frame(
     index: int,
     keys: Annotated[
         str | None, Query(description="Comma-separated frame keys to include")
+    ] = None,
+    x_room_share_token: Annotated[
+        str | None, Header(alias="X-Room-Share-Token")
     ] = None,
 ) -> Response:
     """Get a single frame by index.
@@ -318,7 +329,10 @@ async def get_frame(
     request and returns 504 with Retry-After if the result is not yet cached.
     """
     async with session_maker() as session:
-        await verify_room(session, room_id)
+        share = await resolve_share_token(session, x_room_share_token, room_id)
+        ctx = await _load_access_context(session, room_id, current_user, share)
+        if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
+            raise RoomNotFound.exception(f"Room {room_id} not found")
         total = await storage.get_length(room_id)
         if index < 0 or index >= total:
             _raise_frame_not_found(index, total)
@@ -393,12 +407,15 @@ def _extract_property_meta(value_bytes: bytes) -> PropertyMeta:
 async def get_frame_metadata(
     session_maker: SessionMakerDep,
     storage: FrameStorageDep,
-    _current_user: CurrentUserFactoryDep,
+    current_user: CurrentUserFactoryDep,
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
     room_id: str,
     index: int,
+    x_room_share_token: Annotated[
+        str | None, Header(alias="X-Room-Share-Token")
+    ] = None,
 ) -> FrameMetadataResponse:
     """Get metadata (keys with dtype/shape) for a specific frame.
 
@@ -409,7 +426,10 @@ async def get_frame_metadata(
     request and returns 504 with Retry-After if the result is not yet cached.
     """
     async with session_maker() as session:
-        await verify_room(session, room_id)
+        share = await resolve_share_token(session, x_room_share_token, room_id)
+        ctx = await _load_access_context(session, room_id, current_user, share)
+        if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
+            raise RoomNotFound.exception(f"Room {room_id} not found")
         total = await storage.get_length(room_id)
         if index < 0 or index >= total:
             _raise_frame_not_found(index, total)

@@ -7,8 +7,9 @@ from typing import Annotated
 import msgpack
 import msgpack_numpy
 import numpy as np
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Header, Query, Response
 
+from zndraw.access import can_read
 from zndraw.dependencies import (
     CurrentUserFactoryDep,
     FrameStorageDep,
@@ -16,7 +17,8 @@ from zndraw.dependencies import (
     ResultBackendDep,
     SessionMakerDep,
     SioDep,
-    verify_room,
+    _load_access_context,
+    resolve_share_token,
 )
 from zndraw.exceptions import (
     FrameNotFound,
@@ -89,7 +91,7 @@ async def get_isosurface(
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
-    _current_user: CurrentUserFactoryDep,
+    current_user: CurrentUserFactoryDep,
     room_id: str,
     index: int,
     cube_key: Annotated[str, Query(description="Frame key for volumetric data dict")],
@@ -101,10 +103,16 @@ async def get_isosurface(
         float,
         Query(ge=0.0, le=5.0, description="Gaussian smoothing sigma (0=disabled)"),
     ] = 0.0,
+    x_room_share_token: Annotated[
+        str | None, Header(alias="X-Room-Share-Token")
+    ] = None,
 ) -> Response:
     """Extract an isosurface mesh from volumetric frame data."""
     async with session_maker() as session:
-        await verify_room(session, room_id)
+        share = await resolve_share_token(session, x_room_share_token, room_id)
+        ctx = await _load_access_context(session, room_id, current_user, share)
+        if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
+            raise RoomNotFound.exception(f"Room {room_id} not found")
         total = await storage.get_length(room_id)
         if index < 0 or index >= total:
             FrameNotFound.raise_out_of_range(index, total)

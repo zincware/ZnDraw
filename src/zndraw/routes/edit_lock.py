@@ -9,12 +9,12 @@ from fastapi import APIRouter, Header
 
 from zndraw.config import SettingsDep
 from zndraw.dependencies import (
+    AccessEditDep,
+    AccessReadDep,
     CurrentUserDep,
     RedisDep,
-    SessionDep,
     SioDep,
     room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     Forbidden,
@@ -58,13 +58,11 @@ async def _read_lock(redis: RedisDep, room_id: str) -> EditLockResponse:
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def get_edit_lock(
-    session: SessionDep,
     redis: RedisDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
 ) -> EditLockResponse:
     """Get current edit lock status for a room."""
-    await verify_room(session, room_id)
     return await _read_lock(redis, room_id)
 
 
@@ -75,11 +73,11 @@ async def get_edit_lock(
     ),
 )
 async def acquire_edit_lock(
-    session: SessionDep,
     redis: RedisDep,
     sio: SioDep,
     settings: SettingsDep,
     current_user: CurrentUserDep,
+    _access: AccessEditDep,
     room_id: str,
     request: EditLockRequest,
     lock_token: Annotated[str | None, Header(alias="Lock-Token")] = None,
@@ -92,7 +90,6 @@ async def acquire_edit_lock(
     - Returns 409 if Lock-Token is provided but the lock has expired.
     - Returns 423 if another session holds the lock.
     """
-    await verify_room(session, room_id)
 
     user_id = str(current_user.id)
     key = RedisKey.edit_lock(room_id)
@@ -164,15 +161,14 @@ async def acquire_edit_lock(
     responses=problem_responses(NotAuthenticated, RoomNotFound, Forbidden),
 )
 async def release_edit_lock(
-    session: SessionDep,
     redis: RedisDep,
     sio: SioDep,
     current_user: CurrentUserDep,
+    _access: AccessEditDep,
     room_id: str,
     lock_token: Annotated[str | None, Header(alias="Lock-Token")] = None,
 ) -> StatusResponse:
     """Release the room edit lock."""
-    await verify_room(session, room_id)
 
     key = RedisKey.edit_lock(room_id)
     raw = await redis.get(key)

@@ -10,12 +10,13 @@ from sqlalchemy import func
 from sqlmodel import col, select
 
 from zndraw.dependencies import (
+    AccessEditDep,
+    AccessReadDep,
     CurrentUserDep,
     MediaPathDep,
     RedisDep,
     SessionDep,
     SioDep,
-    verify_room,
 )
 from zndraw.exceptions import (
     InvalidScreenshotFormat,
@@ -99,6 +100,7 @@ async def upload_screenshot(
     session: SessionDep,
     current_user: CurrentUserDep,
     media_path: MediaPathDep,
+    _access: AccessEditDep,
     room_id: str,
     file: UploadFile,
     fmt: Annotated[str, Form(alias="format")] = "png",
@@ -106,7 +108,6 @@ async def upload_screenshot(
     height: Annotated[int | None, Form()] = None,
 ) -> ScreenshotResponse:
     """Upload a screenshot file directly."""
-    await verify_room(session, room_id)
 
     file_bytes = _validate_upload(fmt, await file.read())
 
@@ -152,11 +153,11 @@ async def request_capture(
     current_user: CurrentUserDep,
     sio: SioDep,
     redis: RedisDep,
+    _access: AccessEditDep,
     room_id: str,
     request: ScreenshotCaptureCreate,
 ) -> Response:
     """Request a screenshot capture from a frontend session."""
-    await verify_room(session, room_id)
 
     # Verify session_id is a live frontend session
     active_cam = await redis.hexists(  # type: ignore[misc]
@@ -222,13 +223,12 @@ async def request_capture(
 )
 async def list_screenshots(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> OffsetPage[ScreenshotListItem]:
     """List completed screenshots with offset/limit pagination."""
-    await verify_room(session, room_id)
 
     stmt = (
         select(Screenshot)
@@ -275,13 +275,12 @@ async def list_screenshots(
 )
 async def get_screenshot(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     media_path: MediaPathDep,
     room_id: str,
     screenshot_id: int,
 ) -> ScreenshotResponse:
     """Get a single screenshot by ID."""
-    await verify_room(session, room_id)
 
     row = await session.get(Screenshot, screenshot_id)
     if row is None or row.room_id != room_id:
@@ -314,7 +313,7 @@ async def get_screenshot(
 )
 async def complete_screenshot(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessEditDep,
     media_path: MediaPathDep,
     room_id: str,
     screenshot_id: int,
@@ -324,7 +323,6 @@ async def complete_screenshot(
     height: Annotated[int | None, Form()] = None,
 ) -> ScreenshotResponse:
     """Complete a pending screenshot by uploading the captured image."""
-    await verify_room(session, room_id)
 
     row = await session.get(Screenshot, screenshot_id)
     if row is None or row.room_id != room_id:
@@ -369,13 +367,12 @@ async def complete_screenshot(
 )
 async def delete_screenshot(
     session: SessionDep,
-    _current_user: CurrentUserDep,
+    _access: AccessEditDep,
     media_path: MediaPathDep,
     room_id: str,
     screenshot_id: int,
 ) -> StatusResponse:
     """Delete a screenshot and its file."""
-    await verify_room(session, room_id)
 
     row = await session.get(Screenshot, screenshot_id)
     if row is None or row.room_id != room_id:

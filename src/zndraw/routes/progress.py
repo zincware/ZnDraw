@@ -8,12 +8,10 @@ import json
 from fastapi import APIRouter, Response, status
 
 from zndraw.dependencies import (
-    CurrentUserDep,
+    AccessEditDep,
     RedisDep,
-    SessionDep,
     SioDep,
     room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     NotAuthenticated,
@@ -36,15 +34,13 @@ PROGRESS_TTL = 3600  # 1 hour — auto-cleanup for orphaned trackers
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def create_progress(
-    session: SessionDep,
     sio: SioDep,
     redis: RedisDep,
-    _current_user: CurrentUserDep,
+    _access: AccessEditDep,
     room_id: str,
     request: ProgressCreate,
 ) -> ProgressResponse:
     """Create a new progress tracker in the room."""
-    await verify_room(session, room_id)
 
     tracker = ProgressResponse(
         progress_id=request.progress_id,
@@ -72,16 +68,14 @@ async def create_progress(
     responses=problem_responses(NotAuthenticated, RoomNotFound, ProgressNotFound),
 )
 async def update_progress(
-    session: SessionDep,
     sio: SioDep,
     redis: RedisDep,
-    _current_user: CurrentUserDep,
+    _access: AccessEditDep,
     room_id: str,
     progress_id: str,
     request: ProgressPatch,
 ) -> ProgressResponse:
     """Update an existing progress tracker."""
-    await verify_room(session, room_id)
 
     key = RedisKey.room_progress(room_id)
     raw = await redis.hget(key, progress_id)  # type: ignore[misc]
@@ -118,15 +112,13 @@ async def update_progress(
     responses=problem_responses(NotAuthenticated, RoomNotFound, ProgressNotFound),
 )
 async def delete_progress(
-    session: SessionDep,
     sio: SioDep,
     redis: RedisDep,
-    _current_user: CurrentUserDep,
+    _access: AccessEditDep,
     room_id: str,
     progress_id: str,
 ) -> Response:
     """Complete and remove a progress tracker."""
-    await verify_room(session, room_id)
 
     deleted = await redis.hdel(RedisKey.room_progress(room_id), progress_id)  # type: ignore[misc]
     if not deleted:

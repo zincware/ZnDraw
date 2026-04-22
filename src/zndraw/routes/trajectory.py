@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from zndraw.connectivity import add_connectivity
 from zndraw.dependencies import (
+    AccessReadDep,
     CurrentUserDep,
     FrameStorageDep,
     RedisDep,
@@ -25,6 +26,8 @@ from zndraw.dependencies import (
     SessionDep,
     SioDep,
     WritableRoomDep,
+    fetch_group_role,
+    resolve_share_token,
     room_channel,
     verify_room,
 )
@@ -90,6 +93,7 @@ class DownloadTokenResponse(BaseModel):
     responses=problem_responses(NotAuthenticated, RoomNotFound, InvalidPayload),
 )
 async def download_trajectory(
+    request: Request,
     session: SessionDep,
     storage: FrameStorageDep,
     redis: RedisDep,
@@ -120,8 +124,21 @@ async def download_trajectory(
         stored_room = await redis.getdel(RedisKey.download_token(token))
         if stored_room is None or stored_room != room_id:
             raise NotAuthenticated.exception()
+        # Token path: someone with read access minted the token; skip further check.
+        await verify_room(session, room_id)
+    else:
+        # Authenticated path: enforce can_read explicitly (no AccessReadDep
+        # because this handler uses _OptionalUserTokenDep, not CurrentUserDep).
+        from zndraw.access import can_read
 
-    await verify_room(session, room_id)
+        room = await verify_room(session, room_id)
+        x_room_share_token = request.headers.get("X-Room-Share-Token")
+        share = await resolve_share_token(session, x_room_share_token, room_id)
+        group_role = None
+        if room.owner_group_id is not None:
+            group_role = await fetch_group_role(session, user.id, room.owner_group_id)
+        if not can_read(user, room, share, group_role=group_role):
+            raise RoomNotFound.exception(f"Room {room_id} not found")
 
     if format not in _FORMAT_INFO:
         raise InvalidPayload.exception(
@@ -210,9 +227,8 @@ async def download_trajectory(
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def create_download_token(
-    session: SessionDep,
     redis: RedisDep,
-    _current_user: CurrentUserDep,
+    _access: AccessReadDep,
     room_id: str,
     request: Request,
     body: DownloadTokenRequest | None = None,
@@ -222,7 +238,6 @@ async def create_download_token(
     The token can be used as a query parameter on the GET endpoint,
     enabling downloads via browser navigation or wget without auth headers.
     """
-    await verify_room(session, room_id)
 
     ttl = body.ttl if body else _DEFAULT_TOKEN_TTL
     token_value = uuid.uuid4().hex

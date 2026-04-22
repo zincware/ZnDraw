@@ -11,6 +11,7 @@ from pydantic import BaseModel
 import zndraw
 from zndraw.config import SettingsDep
 from zndraw.dependencies import (
+    AccessReadDep,
     ActiveSessionCamDep,
     CurrentUserDep,
     RedisDep,
@@ -19,7 +20,6 @@ from zndraw.dependencies import (
     VerifiedSessionDep,
     WritableRoomDep,
     room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     GeometryNotFound,
@@ -103,13 +103,12 @@ async def get_global_settings(
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def get_frame_selection(
-    session: SessionDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
 ) -> FrameSelectionResponse:
     """Get selected frame indices for a room."""
-    room = await verify_room(session, room_id)
-    indices = json.loads(room.frame_selection) if room.frame_selection else None
+    indices = (
+        json.loads(access.room.frame_selection) if access.room.frame_selection else None
+    )
     return FrameSelectionResponse(frame_selection=indices)
 
 
