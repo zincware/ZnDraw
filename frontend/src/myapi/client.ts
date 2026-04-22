@@ -425,6 +425,8 @@ export interface CreateRoomRequest {
 	room_id: string;
 	description?: string;
 	copy_from?: string; // Room ID, or @-prefixed preset (@empty, @none)
+	visibility?: Visibility;
+	owner_group_id?: string | null;
 }
 
 export interface CreateRoomResponse {

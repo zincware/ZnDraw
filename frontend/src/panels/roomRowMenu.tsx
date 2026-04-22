@@ -95,7 +95,6 @@ export function RoomRowMenu({ room }: Props) {
 					</ListItemIcon>
 					<ListItemText>Duplicate room</ListItemText>
 				</MenuItem>
-				{/* TODO(scope-refactor): Task 21 replaces lock UI with visibility */}
 				<MenuItem onClick={onCopyLink}>
 					<ListItemIcon>
 						<ContentCopyIcon />

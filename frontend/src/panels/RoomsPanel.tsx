@@ -268,7 +268,6 @@ function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
 					},
 				}}
 			/>
-			{/* TODO(scope-refactor): Task 21 replaces lock UI with visibility */}
 			<RoomRowMenu room={room} />
 		</ListItemButton>
 	);

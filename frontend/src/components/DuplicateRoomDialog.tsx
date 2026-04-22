@@ -7,8 +7,9 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createRoom } from "../myapi/client";
+import { type Visibility, createRoom } from "../myapi/client";
 import { validateRoomId } from "../utils/roomValidation";
+import VisibilitySelector from "./VisibilitySelector";
 
 interface DuplicateRoomDialogProps {
 	open: boolean;
@@ -29,12 +30,14 @@ export default function DuplicateRoomDialog({
 	const [newRoomId, setNewRoomId] = useState("");
 	const [description, setDescription] = useState("");
 	const [error, setError] = useState<string | null>(null);
+	const [visibility, setVisibility] = useState<Visibility>("public");
 
 	// Reset form when dialog opens
 	const handleEnter = () => {
 		setNewRoomId("");
 		setDescription(`Copy of ${sourceDescription || sourceRoomId}`);
 		setError(null);
+		setVisibility("public");
 	};
 
 	const handleDuplicate = async () => {
@@ -50,6 +53,7 @@ export default function DuplicateRoomDialog({
 				room_id: roomId,
 				copy_from: sourceRoomId,
 				description,
+				visibility,
 			});
 			onClose();
 			navigate(`/rooms/${result.room_id}`);
@@ -102,6 +106,12 @@ export default function DuplicateRoomDialog({
 					variant="outlined"
 					value={description}
 					onChange={(e) => setDescription(e.target.value)}
+					sx={{ mb: 2 }}
+				/>
+
+				<VisibilitySelector
+					value={visibility}
+					onChange={setVisibility}
 				/>
 			</DialogContent>
 			<DialogActions>

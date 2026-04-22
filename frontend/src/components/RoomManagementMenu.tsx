@@ -23,16 +23,19 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
 	type RoomDetail,
+	type Visibility,
 	downloadFrames,
 	getRoom,
 	listProviders,
 	setDefaultRoom,
 	shutdownServer,
+	updateRoom,
 } from "../myapi/client";
 import { useRoomsStore } from "../roomsStore";
 import { socket } from "../socket";
 import { useAppStore } from "../store";
 import DuplicateRoomDialog from "./DuplicateRoomDialog";
+import VisibilitySelector from "./VisibilitySelector";
 
 /**
  * RoomManagementMenu provides room management actions in the AppBar:
@@ -46,6 +49,7 @@ export default function RoomManagementMenu() {
 	const navigate = useNavigate();
 	// Use individual selectors to prevent unnecessary re-renders
 	const userName = useAppStore((state) => state.user?.email ?? null);
+	const userId = useAppStore((state) => state.user?.id ?? null);
 	const isAdmin = useAppStore((state) => state.user?.is_superuser ?? false);
 	const currentFrame = useAppStore((state) => state.currentFrame);
 	const showSnackbar = useAppStore((state) => state.showSnackbar);
@@ -57,6 +61,7 @@ export default function RoomManagementMenu() {
 	const [filesystemAvailable, setFilesystemAvailable] = useState(false);
 	const [duplicateOpen, setDuplicateOpen] = useState(false);
 	const [shutdownDialog, setShutdownDialog] = useState(false);
+	const [visibility, setVisibility] = useState<Visibility>("public");
 
 	// Subscribe to rooms from Zustand store (triggers re-render on changes)
 	const rooms = useRoomsStore((state) => state.roomsArray);
@@ -77,6 +82,13 @@ export default function RoomManagementMenu() {
 			setRoomDetail(currentRoomFromStore);
 		}
 	}, [currentRoomFromStore]);
+
+	// Sync visibility from store
+	useEffect(() => {
+		if (currentRoomFromStore?.visibility) {
+			setVisibility(currentRoomFromStore.visibility);
+		}
+	}, [currentRoomFromStore?.visibility]);
 
 	// Derive isDefault from room data (either from store or local state)
 	const isDefault =
@@ -137,6 +149,29 @@ export default function RoomManagementMenu() {
 			);
 		}
 	};
+
+	const handleVisibility = async (v: Visibility) => {
+		if (!roomId) return;
+		setVisibility(v);
+		try {
+			await updateRoom(roomId, { visibility: v });
+			useRoomsStore.getState().updateRoom(roomId, { visibility: v });
+			showSnackbar(`Visibility updated to ${v}`, "success");
+		} catch {
+			showSnackbar("Failed to update visibility", "error");
+			// revert
+			if (currentRoomFromStore?.visibility) {
+				setVisibility(currentRoomFromStore.visibility);
+			}
+		}
+	};
+
+	const canManage =
+		isAdmin ||
+		(userId !== null &&
+			currentRoomFromStore?.owner_user_id !== undefined &&
+			currentRoomFromStore?.owner_user_id !== null &&
+			currentRoomFromStore.owner_user_id === userId);
 
 	const handleToggleDefault = async () => {
 		if (!roomId) return;
@@ -231,7 +266,6 @@ export default function RoomManagementMenu() {
 	return (
 		<>
 			{/* Edit-lock indicator — shown when another user holds the edit lock */}
-			{/* TODO(scope-refactor): Task 21 replaces lock UI with visibility */}
 			{isEditLocked && (
 				<Tooltip title={getLockTooltip()} arrow>
 					<IconButton
@@ -280,6 +314,17 @@ export default function RoomManagementMenu() {
 					horizontal: "right",
 				}}
 			>
+				<MenuItem disableRipple sx={{ display: "block", px: 2, py: 1 }}>
+					<Typography variant="caption" sx={{ mb: 0.5, display: "block" }}>
+						Visibility
+					</Typography>
+					<VisibilitySelector
+						value={visibility}
+						onChange={handleVisibility}
+						disabled={!canManage}
+					/>
+				</MenuItem>
+
 				{isAdmin && (
 					<MenuItem onClick={handleToggleDefault}>
 						<ListItemIcon>
