@@ -27,7 +27,7 @@ This spec also folds in the two smaller cleanups from the prior spec that are st
 - Human-readable owner slugs. UUIDs are used as namespace prefixes throughout. A future spec may layer a slug subsystem on top; out of scope here.
 - Old-link redirect table after transfer. Old composed addresses break on transfer, by design (KISS). A future spec may introduce an aliases table.
 - Group management UI improvements. Separate work.
-- Preserving the URL-paste-creates-room convenience. Removed in this spec (it is the existence-leak channel).
+- Cross-namespace URL-paste-creates-room. Removed in this spec — it was the existence-leak channel. The **own-namespace** case (User A pastes a URL in their own namespace, room doesn't exist yet → frontend auto-creates) is preserved and is leak-free by construction.
 
 ## Architecture
 
@@ -254,6 +254,8 @@ Affected response models: `RoomCreateResponse`, `RoomDetailResponse`, `RoomListI
 | `POST /v1/rooms {owner=self, name=Y}` | Y doesn't exist | 201, `created: true` |
 | `POST /v1/rooms {owner=self, name=Y}` | Y exists in self's namespace | 200, `created: false` |
 | `room_join {owner_id, room_name}` | any failure | 404-equivalent error |
+| URL paste `/rooms/<self_uuid>/Y` | (any state, frontend retries via own-namespace POST) | 200/201 from POST — never reveals more than the matching POST row above |
+| URL paste `/rooms/<foreign>/Y` | (any state) | generic frontend error; no POST attempt |
 
 All cross-namespace responses are byte-identical. Within-own-namespace responses leak only the caller's own state (which they can already see).
 
@@ -311,10 +313,13 @@ The room-list UI uses the new `owner_label` + `owner_kind` fields from response 
 
 - L24-31 `RoomJoinResponse` interface: remove `locked: boolean`.
 - L69 `superuserLock` write: removed.
-- L204-246 `createRoom` fallback block: removed entirely. `createRoom` import at top of file removed.
-- L205-207 `?copy_from=` URL-param read: removed (only used by the deleted fallback block; the `copy_from` feature itself stays in the explicit `DuplicateRoomDialog` flow).
-- Replace 404 handling with `setInitializationError({message: "Room not found or not accessible", details: \`HTTP ${status}\`})`. The server's `detail` string is discarded.
+- L204-246 `createRoom` fallback block: **rewritten, not deleted.** New logic gates on namespace ownership:
+  - If `ownerId === currentUser.id` (URL points at the caller's own user namespace): POST `/v1/rooms {owner_user_id: currentUser.id, name: roomName, copy_from?: <from URL param>}`. On success, retry `room_join` at the new room. The `?copy_from=` URL param (L205-207) is **kept** for this flow — it remains a useful URL-template entry point. The 409 catch-and-retry stays (handles the idempotent-reuse race).
+  - Otherwise (cross-namespace, including group URLs the caller may not be a member of): set `initializationError = {message: "Room not found or not accessible", details: \`HTTP ${status}\`}` and stop. No POST attempt. The server's `detail` string is discarded.
+  - The `createRoom` import at the top of the file is **kept** (still used by the gated path).
 - `RoomJoin` socket emit: send `{owner_id, room_name, client_type}` (split form).
+
+Note: scoping auto-create to the caller's own *user* namespace (not their groups) is intentional KISS — group rooms are created via the explicit group-room UI, not URL paste. A user who wants a group room can use the rooms panel from the group view. This avoids the frontend needing to enumerate the caller's group memberships before deciding whether to POST.
 
 ### Store: `selectIsRoomReadOnly` (`frontend/src/store.tsx:59-68`)
 
@@ -373,7 +378,7 @@ Backend:
 Frontend:
 - `frontend/src/App.tsx:60` — `/room/:roomId` legacy alias.
 - `connectionHandlers.ts:69` — `setSuperuserLock` write.
-- `connectionHandlers.ts:204-246` — `createRoom` fallback block (carrying L205-207 `?copy_from=` URL-param read).
+- `connectionHandlers.ts:204-246` `createRoom` fallback block: **rewritten** (not removed) — gated on own-user-namespace; cross-namespace 404 → generic error. See the connectionHandlers.ts rewrites section above.
 - `connectionHandlers.ts:24-31` — `locked: boolean` from `RoomJoinResponse` interface.
 - All `crypto.randomUUID()` client-side room ID generation: `DuplicateRoomDialog.tsx:51`, `templateSelection.tsx:113`, `RoomsPanel.tsx:50`, `roomsHeaderActions.tsx:18, 29, 43`.
 - `superuserLock` field/action/selector/branch across `lockSlice.ts`, `store.tsx`, `GeometryGrid.tsx`, `useSocketManager.ts`, `socketHandlers/types.ts`.
