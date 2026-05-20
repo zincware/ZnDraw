@@ -31,6 +31,15 @@ This spec also folds in the two smaller cleanups from the prior spec that are st
 
 ## Architecture
 
+### Core principle: storage UUID vs. surface address
+
+One rule, applied everywhere:
+
+- **Internal/storage:** `Room.id` (a surrogate UUID) is the identity. Used in FK references, frame-storage prefixes, Redis keys, pub/sub channel names. Never surfaces to humans.
+- **Wire protocol & user surfaces:** the composed `{owner_id}/{room_name}` is the identity. Used in HTTP URLs, socket event payloads, share links, Python `ZnDraw(room=...)`, CLI args, response bodies.
+
+A surface field is never the surrogate UUID; an internal key is never the composed string. If you see a surrogate UUID in a response or a composed address in a Redis key, it's a bug.
+
 ### Composed addresses
 
 Rooms are addressed publicly as **two-segment strings**: `{owner_uuid}/{room_name}`.
@@ -102,26 +111,17 @@ The old `Room.id` field-level regex validator (single-segment `^[a-zA-Z0-9\-_]+$
 
 ### Composed-address helpers
 
-Backend `src/zndraw/access.py` (or a new `src/zndraw/room_address.py`):
+**Backend: no parser needed.** Every wire surface carries the split form — URL routes use two path params (`{owner_id}/{room_name}`), POST bodies and all socket events use split fields. FastAPI parses path params; Pydantic validates each field independently. There is no central `parse_room_address` helper. The composed string only appears in *outbound* response fields, built by `Room.public_address`.
 
-```python
-def parse_room_address(addr: str) -> tuple[UUID, str]:
-    """Split '{uuid}/{name}' into (UUID, name). Raises InvalidPayload on malformed input."""
-```
-
-Single point of validation; called by every route entry and socket handler that accepts a composed address.
-
-Frontend `frontend/src/utils/roomAddress.ts`:
+**Frontend `frontend/src/utils/roomAddress.ts`:** only a composer is needed.
 
 ```ts
 export const composeRoomAddress = (ownerId: string, name: string) => `${ownerId}/${name}`;
-export const parseRoomAddress = (address: string) => {
-  const [ownerId, ...rest] = address.split("/");
-  return { ownerId, roomName: rest.join("/") };
-};
 ```
 
-Mirrors the backend, used by every URL builder and socket payload.
+React Router's `useParams<{ownerId, roomName}>()` already gives the split form; socket emits use split fields. The composer is only used for share-link URLs and other display contexts.
+
+**Python client: parses once, inline.** `src/zndraw/client/core.py` accepts `ZnDraw(room="<owner_uuid>/<name>")` and splits at `__init__` (single `str.split("/", 1)` call with a validation check). No helper module needed; the parse is one line at one site.
 
 ## API contract
 
@@ -159,27 +159,36 @@ Failure paths all return 404 — never 403 — for read/list paths to preserve e
 
 ### `POST /v1/rooms`
 
-Request body changes from `{room_id: str, ...}` to:
+The existing `RoomCreate` Pydantic model (`src/zndraw/schemas.py:50-57`) currently has `{room_id: str, owner_group_id: UUID | None, ...}`. It is restructured to:
 
 ```json
 {
-  "owner_user_id": "8f3a..." | null,
-  "owner_group_id": null | "...",
+  "owner_id": "8f3a-...",
   "name": "my-experiment",
   "description": "..." | null,
   "copy_from": "..." | null
 }
 ```
 
-Server validation:
+A **single `owner_id` field** identifies the target namespace. The server resolves whether `owner_id` refers to a user or a group by lookup, then writes to the appropriate column. This follows the standard polymorphic-ownership pattern used by GitLab (`namespace_id`), HuggingFace (`{namespace}/{name}`), and similar systems — KISS for callers; the boolean type-tag (`is_group`) is redundant when the UUID is already globally unique across user/group tables.
 
-1. Pydantic-level XOR: exactly one of `owner_user_id` / `owner_group_id` is set.
-2. If `owner_user_id` set → must equal `current_user.id` (or caller is superuser).
-3. If `owner_group_id` set → caller must have ≥ MEMBER role in that group.
-4. `name` matches `^[a-zA-Z0-9\-_]+$`.
-5. `(owner_id, name)` collision in caller's own namespace → 200 with `created: false` (idempotent reuse, returns existing room).
+Server validation (in order):
 
-Steps 2 and 3 gate before any DB lookup against the target namespace. Foreign-namespace probes (failing step 2 or 3) return identical 403 responses regardless of room state inside that namespace.
+1. `name` matches `^[a-zA-Z0-9\-_]+$` (Pydantic field validator).
+2. **Permission gate, before any room-table lookup:**
+   - If `owner_id == current_user.id` (or caller is superuser) → user-owned create permitted; skip to step 4 with the user column targeted.
+   - Otherwise, look up `owner_id` in the `group` table.
+     - Found AND caller has ≥ MEMBER role → group-owned create permitted; skip to step 4 with the group column targeted.
+     - Found but caller is not a member → 403.
+     - Not found in `group` table (i.e. `owner_id` is neither caller's own UUID nor a group) → 403, identical response.
+3. (Superuser only) Look up `owner_id` in `user` table when it didn't match a group; if it's a real user that isn't the caller, create on their behalf with the user column targeted.
+4. Insert or fetch existing row by `(COALESCE(owner_user_id, owner_group_id), name)` via the UNIQUE index:
+   - No match → INSERT → 201 `created: true`.
+   - Match → return existing row → 200 `created: false` (idempotent reuse; possible only within caller's own namespace because step 2 already gated foreign-namespace POSTs).
+
+All "you cannot create here" cases (step 2) return identical 403 bodies regardless of whether the foreign namespace exists, is a user, is a group, or contains a room with the requested name.
+
+Two PK lookups per POST is acceptable (`user` and `group` UUID lookups are O(1)). The flow short-circuits in the common case (`owner_id == current_user.id`) with zero auxiliary lookups.
 
 Response shape:
 
@@ -195,33 +204,58 @@ The early-return branch currently at `src/zndraw/routes/rooms.py:361-369` and it
 
 ### `PATCH /v1/rooms/{owner_id}/{room_name}` — transfer (C1)
 
-Body unchanged structurally (`owner_user_id`, `owner_group_id`, `description`, `visibility`, `frame_count`). Transfer is a PATCH that changes either owner field.
+Body uses the same single-`owner_id` shape as POST. The transfer field is `new_owner_id: UUID` (replaces the two XOR fields the current PATCH uses at `rooms.py:633-665`):
 
-Server logic:
-- Validate the new owner per existing checks (group-membership for group transfers; superuser-only for user-to-user transfers — current behavior at `rooms.py:633-665`).
-- **Destination collision check.** If `(new_owner_id, room.room_name)` already exists in the unique index, return 409 `TransferTargetInvalid`. No mutation.
-- **Mutate owner column only.** `Room.id` (surrogate UUID), all FK references (`RoomShareLink.room_id`, frame storage prefix, `room_channel(room.id)`, all Redis keys) are untouched. The composed `public_address` changes because the underlying owner column changed.
-- **Emit `room_renamed` socket event** on the existing channel (`room_channel(room.id)`, i.e. the surrogate UUID — unchanged) with `{old_address, new_address}` so connected clients can navigate to the new URL.
+```json
+{
+  "new_owner_id": "..." | null,
+  "description": "..." | null,
+  "visibility": "..." | null,
+  "frame_count": 0 | null
+}
+```
+
+Server logic when `new_owner_id` is set:
+- Resolve kind via lookup (user table first if it equals caller, else group table — same pattern as POST step 2).
+- Validate caller can transfer to that destination (group membership for group transfers; superuser for user-to-user transfers — preserve current rules).
+- **Destination collision check.** If a row already exists with `(COALESCE(new_owner_user_id, new_owner_group_id), room.room_name)`, return 409 `TransferTargetInvalid`. No mutation.
+- **Mutate owner columns only.** `Room.id` (surrogate UUID) and all FK references (`RoomShareLink.room_id`, frame storage prefix, `room_channel(room.id)`, all Redis keys) are untouched. The composed `public_address` changes because the underlying owner columns changed.
+- **Emit `room_renamed` socket event** on the existing channel (`room_channel(room.id)` — the surrogate UUID, unchanged) with `{old_address, new_address}` so connected clients can navigate to the new URL.
 - Response includes the new composed `room_id`.
 
 Old composed addresses break. The implementation plan does not include an alias/redirect mechanism.
 
 ### Socket layer
 
-`RoomJoin` in `src/zndraw/socket_events.py:21-25` splits into:
+**All four room-scoped event models in `src/zndraw/socket_events.py` split `room_id: str` into `(owner_id: UUID, room_name: str)`:**
 
 ```python
 class RoomJoin(BaseModel):
     owner_id: UUID
     room_name: str
     client_type: Literal["frontend", "pyclient"] = "frontend"
+
+class RoomLeave(BaseModel):           # was lines 28-31
+    owner_id: UUID
+    room_name: str
+
+class TypingStart(BaseModel):         # was lines 38-41
+    owner_id: UUID
+    room_name: str
+
+class TypingStop(BaseModel):          # was lines 44-47
+    owner_id: UUID
+    room_name: str
 ```
 
-Wire-protocol-vs-human-surface separation: split form for machine payloads (POST body, socket events), composed string for URLs and human-facing identifiers.
+Server handlers for each look up the row by `(owner_id, room_name)` via the UNIQUE index, then operate on the surrogate UUID internally (e.g. `room_channel(room.id)`). Per-field Pydantic validation gives clear errors for malformed UUIDs vs malformed names.
 
-`RoomJoinResponse` at `src/zndraw/socket_events.py:55-66`: **remove `locked: bool`** (carried from parent spec). Both construction sites in `src/zndraw/socketio.py` (system-room path at lines 244-251, normal path at lines 327-336) drop the `locked=False` argument.
+**Outbound `RoomJoinResponse`** at `src/zndraw/socket_events.py:55-66`:
+- Remove `locked: bool` (carried from parent spec).
+- `room_id: str` field carries the **composed address** (`Room.public_address`), not the surrogate UUID. Surface = composed, per the core principle.
+- Both construction sites in `src/zndraw/socketio.py` (system-room path at lines 244-251, normal path at lines 327-336) update accordingly.
 
-`room_channel(room_id: str)` at `src/zndraw/dependencies.py:188-190` continues to use the surrogate UUID — `f"room:{room_id}"` where `room_id` is the `Room.id` column. Pub/sub channel keys are stable across transfers.
+`room_channel(room_id: str)` at `src/zndraw/dependencies.py:188-190` continues to use the surrogate UUID internally — `f"room:{room_id}"` where `room_id` is the `Room.id` column. Pub/sub channel keys are stable across transfers. The composed address never appears in Redis or pub/sub key space.
 
 The `room_join` handler at `src/zndraw/socketio.py:178-184` resolves `(owner_id, room_name)` via the new dependency factory; 404-equivalent error response on any lookup failure or access denial.
 
@@ -235,12 +269,14 @@ Frontend handler:
 
 ### Response envelopes — owner display labels (frontend-dumb path)
 
-Every room response that flows to the frontend gains `owner_label: str` and `owner_kind: Literal["user", "group"]`:
+Every room response that flows to the frontend gains:
 
-- `owner_kind` is determined by which owner column is non-null.
-- `owner_label` is the user's email (for user owners) or the group's `name` (for group owners). Backend resolves once at serialization time. Avoids N+1 fetches on the frontend.
+- `room_id: str` — the composed `{owner_id}/{room_name}` (the public address).
+- `owner_id: UUID` — the bare owner UUID (convenience for permission equality checks on the frontend).
+- `owner_kind: Literal["user", "group"]` — determined by which owner column is non-null.
+- `owner_label: str` — user's email (for user owners) or group's `name` (for group owners). Backend resolves once at serialization time. Avoids N+1 fetches on the frontend.
 
-Affected response models: `RoomCreateResponse`, `RoomDetailResponse`, `RoomListItem`, `RoomPatchResponse`. Exact field locations to be confirmed during implementation.
+`RoomResponse` at `src/zndraw/schemas.py:60-72` is restructured: drop the separate `owner_user_id` / `owner_group_id` fields in favor of `owner_id` + `owner_kind` (no info loss; the frontend never needs to distinguish them as separate UUID slots). Other room response models (`RoomCreateResponse`, the room-detail response if separate, room list items) gain the same fields.
 
 ### Existence-hiding response matrix (final)
 
@@ -366,6 +402,58 @@ Stays as today's structure (GET to detect existence, POST to create if missing) 
 
 The pyclient subscribes to `room_renamed` events. On rename, updates `self.room` to the new composed address and continues. (Symmetric to the frontend handler.)
 
+## Other in-repo callers (CLI, joblib, executor, MCP, docs)
+
+Audit findings — every site that constructs room URLs or instantiates `ZnDraw` with a room argument needs updating in lockstep with the core refactor.
+
+### CLI (`src/zndraw/cli.py` and `src/zndraw/cli_agent/`)
+
+| File | Line | Site | Change |
+|---|---|---|---|
+| `src/zndraw/cli.py` | 184 | `upload_file()` passes a positional room string to `ZnDraw(...)` | Accept the composed `<owner_uuid>/<name>` form; reject single-segment input. |
+| `src/zndraw/cli_agent/rooms.py` | 47 | `list_rooms()` calls `GET /v1/rooms` | Response shape gains `owner_id`/`owner_kind`/`owner_label`/`room_id` (composed). Update display. |
+| `src/zndraw/cli_agent/rooms.py` | 71 | `create_room()` POSTs `RoomCreate.model_dump()` | Build `{owner_id, name, ...}` body. Default `owner_id` to the authenticated caller's UUID. |
+| `src/zndraw/cli_agent/rooms.py` | 118 | `open_room()` builds `room_url = f"{settings.url}/rooms/{room}"` | `{room}` is now a composed string; URL becomes `/rooms/{owner_id}/{room_name}`. |
+| `src/zndraw/cli_agent/connection.py` | 214 | `get_current_step()` calls `/v1/rooms/{room}/step` | Pass the composed address as a two-segment path. |
+| `src/zndraw/cli_agent/connection.py` | 309 | `get_zndraw()` passes `room=` to `ZnDraw(...)` | `room` must be composed form by this point. |
+| `src/zndraw/cli_agent/mount.py` | 49 | `url: f"{conn.base_url}/room/{vis.room}"` | Two issues: legacy `/room/` (single) is removed; URL becomes `/rooms/{vis.room}` where `vis.room` is composed. |
+
+### joblib (`src/zndraw_joblib/client.py`)
+
+| Line | Site | Change |
+|---|---|---|
+| 102-108 | `ClaimedTask.__init__(room_id: str)` | The `room_id` field carries the composed address from the API layer. Type stays `str`; semantics change. |
+| 424 | `GET /v1/joblib/rooms/{room_id}/jobs` | Use composed two-segment form (route on the backend updates correspondingly). |
+| 575 | `POST /v1/joblib/rooms/{room}/tasks/{job_name}` | Same. |
+| 806 | `POST /v1/rooms/{room_id}/chat/messages` | Same. |
+
+Backend joblib routes under `/v1/joblib/rooms/` also need their path params split — flag for the implementation plan to enumerate alongside the 15 content sub-routes.
+
+### Executor (`src/zndraw/executor.py:63-67`)
+
+`_run()` instantiates `ZnDraw(..., room=room_id)`. `room_id` arriving here originates from a `ClaimedTask` (joblib). With the joblib chain updated, the value is already composed; no logic change here, just verify the type carries through.
+
+### CLI scripts integration test surface
+
+E2E specs use CLI invocations like `rooms create --room ${ROOM}` (`frontend/e2e/socket-sync.spec.ts`). The CLI's `--room` arg now requires the composed form. Rewriting specs to capture the composed address from a real `rooms create` response (rather than hardcoding) is the cleaner approach.
+
+### Documentation
+
+| File | Lines | Current | Change |
+|---|---|---|---|
+| `README.md` | 60, 70 | `ZnDraw(url="...", room="my-room")` | Use a composed example, e.g. `ZnDraw(url="...", room=f"{user_uuid}/my-room")`. Add a note that `room=` accepts the composed form returned by the server. |
+| `docs/source/python-api.rst` | 22 | Same | Same. |
+| `docs/source/python-api.rst` | 1033, 1040 | `vis.register_job(..., room="my-room-id")` / `room="@global"` | Update examples; verify whether `@global` magic still applies (likely retained as a sigil for the system room; flag for implementation). |
+
+### Tests (Python)
+
+The audit identified ~144 `ZnDraw(...)` instantiations across 14 test files. Patterns to rewrite:
+
+- `ZnDraw(url=server, room="literal-string")` → construct the room via the model layer (or via the CLI/API), capture the composed address, use that.
+- `ZnDraw(url=server, room=uuid.uuid4().hex)` → no longer a valid room ID by itself; prepend the test user's UUID: `room=f"{test_user.id}/{uuid.uuid4().hex}"`.
+
+The test fixtures should expose a helper (e.g., `make_room_address(user_id, name)`) — `tests/zndraw/conftest.py` is the natural home.
+
 ## Removals summary
 
 Backend:
@@ -374,6 +462,9 @@ Backend:
 - `Room.id` field-level regex validator (single-segment).
 - `RoomJoinResponse.locked: bool` field + both construction sites in `src/zndraw/socketio.py` (lines 244-251, 327-336).
 - Single-segment `RoomDep`-shaped path-param dependencies (functions at `dependencies.py:546-606`, dep types at lines 609-611) — replaced by two-segment variants.
+- `src/zndraw/schemas.py:50-57` `RoomCreate`: the `{room_id: str, owner_group_id: UUID | None}` shape replaced by `{owner_id: UUID, name: str, ...}`.
+- `src/zndraw/schemas.py:60-72` `RoomResponse`: separate `owner_user_id` / `owner_group_id` fields replaced by `owner_id` + `owner_kind` + `owner_label`; gains composed `room_id`.
+- `src/zndraw/socket_events.py:28-31, 38-41, 44-47` — single `room_id: str` on `RoomLeave`, `TypingStart`, `TypingStop` replaced by split `(owner_id, room_name)`.
 
 Frontend:
 - `frontend/src/App.tsx:60` — `/room/:roomId` legacy alias.
@@ -457,5 +548,7 @@ Rewrite the 5 listed Playwright specs to capture the response address from a rea
 - **Owner display label sourcing.** Backend serializers gain `owner_label` (email for users, name for groups). Need to confirm no PII concern; emails are visible to anyone granted access today, so no new exposure. Document in implementation plan.
 - **Python `ZnDraw(room="X")` breaking change.** Single-segment IDs now error out. Acceptable per unshipped-code policy; clearly documented in error message.
 - **5 E2E specs break on day one.** Implementation plan must update them in the same PR.
-- **CLI room args.** `rooms create --room ${ROOM}` and similar in tests need the new two-segment form. Implementation plan must audit the CLI surface.
+- **CLI room args.** `rooms create --room ${ROOM}` and similar in tests need the new two-segment form. Implementation plan must audit the CLI surface — concrete sites enumerated in the "Other in-repo callers" section.
+- **joblib routes (`/v1/joblib/rooms/{room_id}/...`).** Backend joblib routes parallel the content sub-routes and need the same two-segment path-param treatment. Locations: under `src/zndraw_joblib/`. Implementation plan should enumerate them as a separate checklist (the 15 content sub-routes do *not* include these).
+- **Polymorphic owner_id resolution requires user/group UUID uniqueness.** Both tables use UUID v4 PKs; collision probability is astronomical (2^122 namespace, single shared global UUID space). No additional disambiguator is needed. If the design ever moves to non-UUID identifiers per table, the polymorphic `owner_id` field must be revisited.
 - **URL length.** Public URLs grow from ~36 chars to ~80 chars. Cosmetic; accepted as the price of KISS (no slug subsystem).
