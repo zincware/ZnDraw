@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import UUID
 
 import msgpack
 import msgpack_numpy
@@ -18,6 +19,7 @@ from zndraw.dependencies import (
     SessionMakerDep,
     SioDep,
     _load_access_context,
+    _load_room_by_address,
     resolve_share_token,
 )
 from zndraw.exceptions import (
@@ -29,7 +31,7 @@ from zndraw.exceptions import (
 from zndraw.routes.frames import _dispatch_provider_frame, _find_frames_provider
 
 router = APIRouter(
-    prefix="/v1/rooms/{room_id}/frames/{index}/isosurface",
+    prefix="/v1/rooms/{owner_id}/{room_name}/frames/{index}/isosurface",
     tags=["isosurface"],
 )
 
@@ -92,7 +94,8 @@ async def get_isosurface(
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
     current_user: CurrentUserFactoryDep,
-    room_id: str,
+    owner_id: UUID,
+    room_name: str,
     index: int,
     cube_key: Annotated[str, Query(description="Frame key for volumetric data dict")],
     isovalue: Annotated[float, Query(description="Scalar threshold")],
@@ -109,10 +112,14 @@ async def get_isosurface(
 ) -> Response:
     """Extract an isosurface mesh from volumetric frame data."""
     async with session_maker() as session:
+        room = await _load_room_by_address(session, owner_id, room_name)
+        if room is None:
+            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+        room_id = room.id
         share = await resolve_share_token(session, x_room_share_token, room_id)
-        ctx = await _load_access_context(session, room_id, current_user, share)
+        ctx = await _load_access_context(session, owner_id, room_name, current_user, share)
         if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
-            raise RoomNotFound.exception(f"Room {room_id} not found")
+            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
         total = await storage.get_length(room_id)
         if index < 0 or index >= total:
             FrameNotFound.raise_out_of_range(index, total)

@@ -446,23 +446,6 @@ async def check_geometry_write_access(
     return WritableGeometryInfo(room=room, current_owner=current_owner)
 
 
-async def get_writable_geometry(
-    request: Request,
-    session: SessionDep,
-    current_user: CurrentUserDep,
-    redis: RedisDep,
-    share: ShareTokenDep,
-    room_id: str = Path(),
-    key: str = Path(),
-) -> WritableGeometryInfo:
-    """FastAPI dependency wrapping check_geometry_write_access."""
-    lock_token = request.headers.get("Lock-Token")
-    return await check_geometry_write_access(
-        session, redis, room_id, key, current_user, share, lock_token
-    )
-
-
-WritableGeometryDep = Annotated[WritableGeometryInfo, Depends(get_writable_geometry)]
 
 
 async def get_writable_room_id(
@@ -599,6 +582,27 @@ async def get_manageable_room(
 AccessReadDep = Annotated[AccessContext, Depends(get_readable_room)]
 AccessEditDep = Annotated[AccessContext, Depends(get_editable_room)]
 AccessManageDep = Annotated[AccessContext, Depends(get_manageable_room)]
+
+
+async def get_writable_geometry(
+    request: Request,
+    access: AccessEditDep,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    redis: RedisDep,
+    key: str = Path(),
+) -> WritableGeometryInfo:
+    """Edit-gated room + Redis edit-lock + per-geometry ownership check."""
+    lock_token = request.headers.get("Lock-Token")
+    await _check_edit_lock(redis, access.room.id, lock_token)
+    current_owner = await get_owner_from_geometry(redis, session, access.room.id, key)
+    user_id_str = str(current_user.id)
+    if not current_user.is_superuser and current_owner is not None and current_owner != user_id_str:
+        raise Forbidden.exception("Not the geometry owner")
+    return WritableGeometryInfo(room=access.room, current_owner=current_owner)
+
+
+WritableGeometryDep = Annotated[WritableGeometryInfo, Depends(get_writable_geometry)]
 
 
 async def require_writable_room(
