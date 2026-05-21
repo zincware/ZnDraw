@@ -61,6 +61,7 @@ class RoomResponse(BaseModel):
     """Response body for room details — matches frontend Room interface."""
 
     room_id: str  # composed: {owner_id}/{room_name}
+    id: str  # surrogate UUID (internal, read-only)
     description: str | None = None
     frame_count: int = 0
     visibility: Visibility = Visibility.PUBLIC

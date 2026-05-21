@@ -168,8 +168,20 @@ MediaPathDep = Annotated[FilePath, Depends(get_media_path)]
 
 
 async def verify_room(session: AsyncSession, room_id: str) -> Room:
-    """Verify room exists and return it, or raise RoomNotFound."""
-    room = await session.get(Room, room_id)
+    """Verify room exists and return it, or raise RoomNotFound.
+
+    Accepts either the surrogate UUID primary key or a composed
+    ``<owner_uuid>/<room_name>`` address.
+    """
+    if "/" in room_id:
+        owner_str, _, name_part = room_id.partition("/")
+        try:
+            owner_uuid = UUID(owner_str)
+        except ValueError:
+            raise RoomNotFound.exception(f"Room with id {room_id} not found")
+        room = await _load_room_by_address(session, owner_uuid, name_part)
+    else:
+        room = await session.get(Room, room_id)
     if room is None:
         raise RoomNotFound.exception(f"Room with id {room_id} not found")
     return room
@@ -322,7 +334,9 @@ async def _check_edit_lock(
 async def get_verified_session_id(
     current_user: CurrentUserDep,
     redis: RedisDep,
-    room_id: str = Path(),
+    session: SessionDep,
+    owner_id: UUID = Path(),
+    room_name: str = Path(),
     session_id: str = Path(),
 ) -> str:
     """Verify session belongs to the current user, or raise 404.
@@ -332,6 +346,10 @@ async def get_verified_session_id(
     camera (sessions can view through any camera in the room), so we
     cannot use the active_cameras chain for ownership verification.
     """
+    room = await _load_room_by_address(session, owner_id, room_name)
+    if room is None:
+        raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+    room_id = room.id
     if not await redis.hexists(RedisKey.active_cameras(room_id), session_id):  # type: ignore[misc]
         raise SessionNotFound.exception("Session not found")
     all_cameras: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
@@ -350,7 +368,9 @@ VerifiedSessionDep = Annotated[str, Depends(get_verified_session_id)]
 
 async def get_active_session_cam_id(
     redis: RedisDep,
-    room_id: str = Path(),
+    session: SessionDep,
+    owner_id: UUID = Path(),
+    room_name: str = Path(),
     session_id: str = Path(),
 ) -> str:
     """Verify session exists in active-cameras (no ownership check).
@@ -358,7 +378,10 @@ async def get_active_session_cam_id(
     Use for read-only access where any room participant may view
     session state. For mutations, use ``VerifiedSessionDep``.
     """
-    if not await redis.hexists(RedisKey.active_cameras(room_id), session_id):  # type: ignore[misc]
+    room = await _load_room_by_address(session, owner_id, room_name)
+    if room is None:
+        raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+    if not await redis.hexists(RedisKey.active_cameras(room.id), session_id):  # type: ignore[misc]
         raise SessionNotFound.exception("Session not found")
     return session_id
 
@@ -469,7 +492,7 @@ async def get_writable_room_id(
     if not can_edit(current_user, room, share, group_role=group_role):
         raise Forbidden.exception("You may not edit this room")
     lock_token = request.headers.get("Lock-Token")
-    await _check_edit_lock(redis, room_id, lock_token)
+    await _check_edit_lock(redis, room.id, lock_token)
     return room_id
 
 

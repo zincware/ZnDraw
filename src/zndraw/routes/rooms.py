@@ -418,8 +418,12 @@ async def create_room(
 
     source_room: Room | None = None
     if not copy_from.startswith("@"):
-        source_room = await session.get(Room, copy_from)
-        if source_room is not None and await storage.has_mount(copy_from):
+        if "/" in copy_from:
+            owner_str, _, name_part = copy_from.partition("/")
+            source_room = await _load_room_by_address(session, UUID(owner_str), name_part)
+        else:
+            source_room = await session.get(Room, copy_from)
+        if source_room is not None and await storage.has_mount(source_room.id):
             raise RoomReadOnly.exception(
                 "Cannot copy from a room with a mounted source"
             )
