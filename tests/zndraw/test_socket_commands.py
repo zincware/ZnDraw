@@ -39,20 +39,22 @@ from zndraw.socket_events import (
 
 def test_room_join_serialization() -> None:
     """RoomJoin serializes with default client_type."""
-    event = RoomJoin(room_id="room-1")
+    uid = uuid4()
+    event = RoomJoin(owner_id=uid, room_name="room-1")
     data = event.model_dump(mode="json")
-    assert data["room_id"] == "room-1"
+    assert data["owner_id"] == str(uid)
+    assert data["room_name"] == "room-1"
     assert data["client_type"] == "frontend"
 
 
 def test_room_join_custom_client_type() -> None:
     """RoomJoin accepts custom client_type."""
-    event = RoomJoin(room_id="room-1", client_type="pyclient")
+    event = RoomJoin(owner_id=uuid4(), room_name="room-1", client_type="pyclient")
     assert event.client_type == "pyclient"
 
 
-def test_room_join_missing_room_id() -> None:
-    """RoomJoin requires room_id."""
+def test_room_join_missing_required() -> None:
+    """RoomJoin requires owner_id and room_name."""
     with pytest.raises(ValidationError):
         RoomJoin()  # type: ignore[call-arg]
 
@@ -62,12 +64,14 @@ def test_room_join_missing_room_id() -> None:
     [RoomLeave, TypingStart, TypingStop],
     ids=["RoomLeave", "TypingStart", "TypingStop"],
 )
-def test_room_id_only_request_roundtrip(model_cls: type) -> None:
-    """Request models with only room_id serialize/deserialize correctly."""
-    instance = model_cls(room_id="test-room")
+def test_owner_room_request_roundtrip(model_cls: type) -> None:
+    """Request models with owner_id/room_name serialize/deserialize correctly."""
+    uid = uuid4()
+    instance = model_cls(owner_id=uid, room_name="test-room")
     data = instance.model_dump(mode="json")
     restored = model_cls.model_validate(data)
-    assert restored.room_id == "test-room"
+    assert restored.owner_id == uid
+    assert restored.room_name == "test-room"
 
 
 def test_user_get_no_fields() -> None:
@@ -88,7 +92,6 @@ def test_room_join_response_serialization() -> None:
         session_id="sess-1",
         step=3,
         frame_count=10,
-        locked=True,
         camera_key="cam:user@test.com:a1b2c3d4",
     )
     data = resp.model_dump(mode="json")
@@ -97,7 +100,6 @@ def test_room_join_response_serialization() -> None:
         "session_id": "sess-1",
         "step": 3,
         "frame_count": 10,
-        "locked": True,
         "camera_key": "cam:user@test.com:a1b2c3d4",
         "default_camera": None,
         "progress_trackers": {},
@@ -295,8 +297,18 @@ def test_lock_update_full() -> None:
 
 def test_room_update_snapshot() -> None:
     """RoomUpdate is a full room snapshot with all required fields."""
-    event = RoomUpdate(id="r", frame_count=5, is_default=False)
-    assert event.id == "r"
+    uid = uuid4()
+    event = RoomUpdate(
+        room_id=f"{uid}/main",
+        owner_id=uid,
+        owner_kind="user",
+        owner_label="alice",
+        frame_count=5,
+        is_default=False,
+    )
+    assert event.room_id == f"{uid}/main"
+    assert event.owner_id == uid
+    assert event.owner_kind == "user"
     assert event.frame_count == 5
     assert event.is_default is False
     assert event.description is None
