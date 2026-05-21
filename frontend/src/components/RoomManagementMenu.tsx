@@ -22,6 +22,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { composeRoomAddress } from "../utils/roomAddress";
 import {
 	type RoomDetail,
 	type Visibility,
@@ -47,7 +48,8 @@ import VisibilitySelector from "./VisibilitySelector";
  * - Go to room list
  */
 export default function RoomManagementMenu() {
-	const { roomId } = useParams<{ roomId: string }>();
+	const { ownerId, roomName } = useParams<{ ownerId: string; roomName: string }>();
+	const roomId = ownerId && roomName ? composeRoomAddress(ownerId, roomName) : undefined;
 	const navigate = useNavigate();
 	// Use individual selectors to prevent unnecessary re-renders
 	const userName = useAppStore((state) => state.user?.email ?? null);

@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { useParams } from "react-router-dom";
+import { composeRoomAddress } from "../utils/roomAddress";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
 	oneDark,
@@ -181,7 +182,8 @@ const ChatPanel = () => {
 	// Use individual selectors to prevent unnecessary re-renders
 	const userName = useAppStore((state) => state.user?.email ?? null);
 	const typingUsers = useAppStore((state) => state.typingUsers);
-	const { roomId } = useParams<{ roomId: string }>();
+	const { ownerId, roomName } = useParams<{ ownerId: string; roomName: string }>();
+	const roomId = ownerId && roomName ? composeRoomAddress(ownerId, roomName) : undefined;
 	const [messageInput, setMessageInput] = useState("");
 	const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
 	const [editContent, setEditContent] = useState("");
@@ -255,25 +257,25 @@ const ChatPanel = () => {
 	};
 
 	const emitTypingStart = useCallback(() => {
-		if (!roomId) return;
-		socket.emit("typing_start", { room_id: roomId });
+		if (!ownerId || !roomName) return;
+		socket.emit("typing_start", { owner_id: ownerId, room_name: roomName });
 		// Clear previous stop timeout
 		if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 		// Auto-stop after 3s of inactivity
 		typingTimeoutRef.current = setTimeout(() => {
-			socket.emit("typing_stop", { room_id: roomId });
+			socket.emit("typing_stop", { owner_id: ownerId, room_name: roomName });
 			typingTimeoutRef.current = null;
 		}, 3000);
-	}, [roomId]);
+	}, [ownerId, roomName]);
 
 	const emitTypingStop = useCallback(() => {
-		if (!roomId) return;
+		if (!ownerId || !roomName) return;
 		if (typingTimeoutRef.current) {
 			clearTimeout(typingTimeoutRef.current);
 			typingTimeoutRef.current = null;
 		}
-		socket.emit("typing_stop", { room_id: roomId });
-	}, [roomId]);
+		socket.emit("typing_stop", { owner_id: ownerId, room_name: roomName });
+	}, [ownerId, roomName]);
 
 	// Clean up typing timeout on unmount
 	useEffect(() => {

@@ -7,6 +7,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import { useColorScheme } from "@mui/material/styles";
 import { useParams } from "react-router-dom";
+import { composeRoomAddress } from "../utils/roomAddress";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -18,7 +19,8 @@ interface ConnectionDialogProps {
 }
 
 const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
-	const { roomId } = useParams<{ roomId: string }>();
+	const { ownerId, roomName } = useParams<{ ownerId: string; roomName: string }>();
+	const roomId = ownerId && roomName ? composeRoomAddress(ownerId, roomName) : undefined;
 	const userName = useAppStore((state) => state.user?.email ?? null);
 	const sessionId = useAppStore((state) => state.sessionId);
 	const { mode } = useColorScheme();
