@@ -14,8 +14,9 @@ from uuid import UUID
 from fastapi import Depends, Header, Path, Request
 from fastapi_users.authentication import JWTStrategy
 from redis.asyncio import Redis as AsyncRedis
+from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from zndraw_socketio import AsyncServerWrapper
 
@@ -507,44 +508,42 @@ async def get_writable_room_id(
 
 
 class AccessContext(NamedTuple):
-    """Bundle of room + resolved auth context, reused across access deps.
-
-    Attributes
-    ----------
-    room
-        The resolved Room row.
-    share
-        Validated share context from request header, or ``None``.
-    group_role
-        Caller's role in ``room.owner_group_id``, or ``None`` when the room
-        is user-owned or the caller is not a member of the owning group.
-    """
+    """Bundle of room + resolved auth context, reused across access deps."""
 
     room: Room
     share: ShareContext | None
     group_role: GroupRole | None
 
 
+async def _load_room_by_address(
+    session: AsyncSession, owner_id: UUID, room_name: str
+) -> Room | None:
+    """Look up ``(owner_id, room_name)`` via the unique index."""
+    result = await session.exec(
+        select(Room).where(
+            or_(
+                col(Room.owner_user_id) == owner_id,
+                col(Room.owner_group_id) == owner_id,
+            ),
+            col(Room.room_name) == room_name,
+        )
+    )
+    return result.first()
+
+
 async def _load_access_context(
     session: AsyncSession,
-    room_id: str,
+    owner_id: UUID,
+    room_name: str,
     current_user: User,
     share: ShareContext | None,
 ) -> AccessContext:
-    """Load room from DB and resolve group role for the current user.
-
-    Parameters
-    ----------
-    session
-        Async database session.
-    room_id
-        Primary key of the room to load.
-    current_user
-        The authenticated requesting user.
-    share
-        Validated share context, or ``None``.
-    """
-    room = await verify_room(session, room_id)
+    """Load room from DB and resolve group role for the current user."""
+    room = await _load_room_by_address(session, owner_id, room_name)
+    if room is None:
+        raise RoomNotFound.exception(
+            f"Room {owner_id}/{room_name} not found"
+        )
     group_role: GroupRole | None = None
     if room.owner_group_id is not None:
         group_role = await fetch_group_role(
@@ -553,30 +552,41 @@ async def _load_access_context(
     return AccessContext(room=room, share=share, group_role=group_role)
 
 
+async def get_share_context_two_segment(
+    session: SessionDep,
+    owner_id: UUID = Path(),
+    room_name: str = Path(),
+    x_room_share_token: str | None = Header(default=None, alias="X-Room-Share-Token"),
+) -> ShareContext | None:
+    """Resolve the share-token header for the two-segment path."""
+    if x_room_share_token is None:
+        return None
+    room = await _load_room_by_address(session, owner_id, room_name)
+    if room is None:
+        return None
+    return await resolve_share_token(session, x_room_share_token, room.id)
+
+
+TwoSegmentShareTokenDep = Annotated[
+    ShareContext | None, Depends(get_share_context_two_segment)
+]
+
+
 async def get_readable_room(
     session: SessionDep,
     current_user: CurrentUserDep,
-    share: ShareTokenDep,
-    room_id: str = Path(),
+    share: TwoSegmentShareTokenDep,
+    owner_id: UUID = Path(),
+    room_name: str = Path(),
 ) -> AccessContext:
-    """Load room + auth context; raise 404 (not 403) if caller cannot read.
-
-    The 404 response prevents existence leaks for PRIVATE / GROUP rooms.
-
-    Parameters
-    ----------
-    session
-        Async database session (injected by FastAPI).
-    current_user
-        Authenticated user (injected by FastAPI).
-    share
-        Resolved share context from ``X-Room-Share-Token`` header, or ``None``.
-    room_id
-        Path parameter identifying the room.
-    """
-    ctx = await _load_access_context(session, room_id, current_user, share)
+    """Load room + auth context; raise 404 if caller cannot read."""
+    ctx = await _load_access_context(
+        session, owner_id, room_name, current_user, share
+    )
     if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
-        raise RoomNotFound.exception(f"Room with id {room_id} not found")
+        raise RoomNotFound.exception(
+            f"Room {owner_id}/{room_name} not found"
+        )
     return ctx
 
 
@@ -584,15 +594,6 @@ async def get_editable_room(
     ctx: Annotated[AccessContext, Depends(get_readable_room)],
     current_user: CurrentUserDep,
 ) -> AccessContext:
-    """Require edit capability (share-edit, owner, group member+, superuser).
-
-    Parameters
-    ----------
-    ctx
-        Access context resolved by ``get_readable_room``.
-    current_user
-        Authenticated user (injected by FastAPI).
-    """
     if not can_edit(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
         raise Forbidden.exception("You may not edit this room")
     return ctx
@@ -602,15 +603,6 @@ async def get_manageable_room(
     ctx: Annotated[AccessContext, Depends(get_readable_room)],
     current_user: CurrentUserDep,
 ) -> AccessContext:
-    """Require manage capability (owner, group admin, superuser).
-
-    Parameters
-    ----------
-    ctx
-        Access context resolved by ``get_readable_room``.
-    current_user
-        Authenticated user (injected by FastAPI).
-    """
     if not can_manage(current_user, ctx.room, group_role=ctx.group_role):
         raise Forbidden.exception("You may not manage this room")
     return ctx
