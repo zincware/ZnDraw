@@ -3,6 +3,7 @@
 
 from uuid import UUID
 
+from conftest import make_room_address
 from zndraw_joblib.exceptions import ProblemDetail
 from zndraw_joblib.schemas import JobResponse, JobSummary, PaginatedResponse
 
@@ -22,14 +23,15 @@ def test_register_job_global(client):
     assert data.worker_id is not None
 
 
-def test_register_job_private(client):
+def test_register_job_private(client, test_user_id):
+    addr = make_room_address(test_user_id, "room_123")
     response = client.put(
-        "/v1/joblib/rooms/room_123/jobs",
+        f"/v1/joblib/rooms/{addr}/jobs",
         json={"category": "selections", "name": "All", "schema": {}},
     )
     assert response.status_code == 201
     data = JobResponse.model_validate(response.json())
-    assert data.full_name == "room_123:selections:All"
+    assert data.full_name == f"{addr}:selections:All"
 
 
 def test_register_job_invalid_category(client):
@@ -210,14 +212,15 @@ def test_register_job_global_forbidden_for_non_superuser(client_factory):
 def test_register_job_private_room_allowed_for_non_superuser(client_factory):
     """Non-superuser should be allowed to register jobs in private rooms."""
     client = client_factory("regular-user", is_superuser=False)
+    addr = make_room_address(client.user_id, "my_room")
     response = client.put(
-        "/v1/joblib/rooms/my_room/jobs",
+        f"/v1/joblib/rooms/{addr}/jobs",
         json={"category": "modifiers", "name": "Rotate", "schema": {}},
     )
     assert response.status_code == 201
 
 
-def test_resolve_internal_job_from_room(client):
+def test_resolve_internal_job_from_room(client, test_user_id):
     """@internal jobs are accessible from any room."""
     # Register an @internal job
     resp = client.put(
@@ -227,13 +230,14 @@ def test_resolve_internal_job_from_room(client):
     assert resp.status_code in (200, 201)
 
     # Should be accessible when listing jobs for any room
-    resp = client.get("/v1/joblib/rooms/test-room/jobs")
+    addr = make_room_address(test_user_id, "test-room")
+    resp = client.get(f"/v1/joblib/rooms/{addr}/jobs")
     assert resp.status_code == 200
     names = [j["full_name"] for j in resp.json()["items"]]
     assert "@internal:modifiers:Rotate" in names
 
 
-def test_submit_task_for_internal_job_from_room(seeded_client):
+def test_submit_task_for_internal_job_from_room(seeded_client, test_user_id):
     """@internal jobs can be submitted from any room via _resolve_job."""
     from unittest.mock import AsyncMock, MagicMock
 
@@ -256,8 +260,9 @@ def test_submit_task_for_internal_job_from_room(seeded_client):
     seeded_client.app.state.internal_registry = registry
 
     # Submit a task referencing the @internal job from a regular room
+    addr = make_room_address(test_user_id, "test-room")
     resp = seeded_client.post(
-        "/v1/joblib/rooms/test-room/tasks/@internal:modifiers:InternalRotate",
+        f"/v1/joblib/rooms/{addr}/tasks/@internal:modifiers:InternalRotate",
         json={"payload": {}},
     )
     assert resp.status_code == 202
