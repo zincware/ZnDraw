@@ -422,16 +422,16 @@ export const deleteBookmark = async (
 // ==================== Room API ====================
 
 export interface CreateRoomRequest {
-	room_id: string;
+	owner_id: string;
+	name: string;
 	description?: string;
-	copy_from?: string; // Room ID, or @-prefixed preset (@empty, @none)
+	copy_from?: string; // Room id, or @-prefixed preset (@empty, @none)
 	visibility?: Visibility;
-	owner_group_id?: string | null;
 }
 
 export interface CreateRoomResponse {
 	status: string;
-	room_id: string;
+	room_id: string; // composed: {owner_id}/{room_name}
 	frame_count: number;
 	created: boolean;
 }
@@ -445,13 +445,14 @@ export const createRoom = async (
 };
 
 export interface RoomInfo {
-	id: string;
+	room_id: string; // composed: {owner_id}/{room_name}
 	description: string | null;
 	frame_count: number;
 	visibility: Visibility;
-	owner_user_id?: string | null;
-	owner_group_id?: string | null;
-	hidden: boolean;
+	owner_id: string;
+	owner_kind: "user" | "group";
+	owner_label: string;
+	is_default?: boolean;
 }
 
 export const getRoomInfo = async (
@@ -802,12 +803,13 @@ export interface ShareLink {
 }
 
 export interface Room {
-	id: string;
+	room_id: string; // composed: {owner_id}/{room_name}
 	description?: string | null;
 	frame_count: number;
 	visibility: Visibility;
-	owner_user_id?: string | null;
-	owner_group_id?: string | null;
+	owner_id: string;
+	owner_kind: "user" | "group";
+	owner_label: string;
 	is_default: boolean;
 	metadata?: Record<string, string>;
 }
@@ -818,8 +820,7 @@ export interface RoomUpdateRequest {
 	description?: string | null;
 	frame_count?: number;
 	visibility?: Visibility;
-	owner_user_id?: string | null;
-	owner_group_id?: string | null;
+	new_owner_id?: string | null;
 }
 
 export interface DefaultRoomResponse {

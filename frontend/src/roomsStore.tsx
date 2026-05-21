@@ -61,13 +61,23 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
 		set((state) => {
 			const existingRoom = state.roomsMap.get(roomId);
 			if (!existingRoom) {
-				// Room doesn't exist yet, create it with updates
+				// Need the owner identity to materialize a room from a broadcast.
+				if (
+					updates.owner_id === undefined ||
+					updates.owner_kind === undefined ||
+					updates.owner_label === undefined
+				) {
+					return state;
+				}
 				const newRoom: Room = {
 					room_id: roomId,
 					frame_count: 0,
 					visibility: "public",
 					is_default: false,
 					...updates,
+					owner_id: updates.owner_id,
+					owner_kind: updates.owner_kind,
+					owner_label: updates.owner_label,
 				};
 				const newRoomsMap = new Map(state.roomsMap);
 				newRoomsMap.set(roomId, newRoom);
