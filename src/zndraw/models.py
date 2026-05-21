@@ -6,9 +6,12 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     ForeignKey,
+    Index,
     String,
     TypeDecorator,
     UniqueConstraint,
+    column,
+    func,
 )
 from sqlalchemy.types import DateTime
 from sqlmodel import Field, SQLModel
@@ -49,9 +52,16 @@ class Room(SQLModel, table=True):
             "(visibility = 'PUBLIC')",
             name="room_visibility_matches_owner",
         ),
+        Index(
+            "ux_room_owner_name",
+            func.coalesce(column("owner_user_id"), column("owner_group_id")),
+            "room_name",
+            unique=True,
+        ),
     )
 
     id: str = Field(default_factory=lambda: str(uuid_mod.uuid4()), primary_key=True)
+    room_name: str = Field(regex=r"^[a-zA-Z0-9\-_]+$")
     description: str | None = None
     created_by_id: UUID | None = Field(default=None, index=True)
     created_at: datetime = Field(
@@ -65,6 +75,11 @@ class Room(SQLModel, table=True):
     step: int = Field(default=0)
     frame_selection: str | None = Field(default=None)
     default_camera: str | None = Field(default=None)
+
+    @property
+    def public_address(self) -> str:
+        owner = self.owner_user_id or self.owner_group_id
+        return f"{owner}/{self.room_name}"
 
 
 class Group(SQLModel, table=True):
