@@ -64,7 +64,7 @@ async def test_idempotent_reuse_in_own_namespace(
 async def test_cross_namespace_post_returns_403(
     http_client_auth: AsyncClient,
 ) -> None:
-    _user_id, token = await _register_and_login(
+    _, token = await _register_and_login(
         http_client_auth, "ns-cross@example.com"
     )
     foreign_owner = str(uuid4())
@@ -82,7 +82,7 @@ async def test_cross_namespace_post_byte_identical_regardless_of_state(
 ) -> None:
     """403 body is byte-identical regardless of whether the foreign namespace
     has a matching room or not, closing the existence-leak side channel."""
-    caller_id, caller_token = await _register_and_login(
+    _, caller_token = await _register_and_login(
         http_client_auth, "ns-byte-caller@example.com"
     )
     headers = {"Authorization": f"Bearer {caller_token}"}
@@ -120,10 +120,10 @@ async def test_cross_namespace_post_byte_identical_regardless_of_state(
 async def test_group_post_requires_membership(
     http_client_auth: AsyncClient,
 ) -> None:
-    owner_id, owner_token = await _register_and_login(
+    _, owner_token = await _register_and_login(
         http_client_auth, "ns-grp-owner@example.com"
     )
-    caller_id, caller_token = await _register_and_login(
+    _, caller_token = await _register_and_login(
         http_client_auth, "ns-grp-caller@example.com"
     )
 
