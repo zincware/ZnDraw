@@ -7,6 +7,7 @@ import time
 from collections.abc import AsyncIterator, Callable, Generator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from uuid import UUID
 
 import httpx
 import pytest
@@ -49,6 +50,11 @@ def get_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
+
+
+def make_room_address(owner_id: UUID, name: str) -> str:
+    """Return a composed room address — convenience for tests."""
+    return f"{owner_id}/{name}"
 
 
 # =============================================================================
