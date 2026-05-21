@@ -73,3 +73,14 @@ export async function createAuthContext(
 		viewport: { width: 1280, height: 720 },
 	});
 }
+
+/**
+ * Create a test room via the CLI and return the composed room_id.
+ *
+ * Returns the two-segment room address "{owner_uuid}/{room_name}".
+ */
+export function createTestRoom(name: string): string {
+	const raw = CLI(`rooms create --name ${name}`);
+	const { room_id } = JSON.parse(raw) as { room_id: string };
+	return room_id;
+}

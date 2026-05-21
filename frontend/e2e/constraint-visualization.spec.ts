@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { BASE_URL, CLI, PY, waitForScene } from "./helpers";
+import { BASE_URL, PY, waitForScene, createTestRoom } from "./helpers";
 
-const ROOM = "test-constraints";
+let ROOM: string;
 
 /**
  * Open the geometry panel by clicking the sidebar "Manage geometries" button.
@@ -16,7 +16,7 @@ async function openGeometryPanel(page: import("@playwright/test").Page) {
 }
 
 function setupConstraintRoom() {
-	CLI(`rooms create --room ${ROOM}`);
+	ROOM = createTestRoom("test-constraints");
 	PY(`
 from zndraw import ZnDraw
 from molify import smiles2conformers
