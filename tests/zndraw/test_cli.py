@@ -1,6 +1,7 @@
 """Tests for ZnDraw CLI."""
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from uuid import UUID
 
 import httpx
@@ -12,6 +13,7 @@ from typer.testing import CliRunner
 from zndraw import __version__
 
 from zndraw.cli import (
+    _acquire_token,
     _resolve_owner_id,
     _validate_room_arg,
     app,
@@ -324,8 +326,12 @@ def capture_settings(monkeypatch, tmp_path):
         lambda _url, timeout=30.0: True,  # noqa: ARG005  # why: skips server polling in unit test
     )
     monkeypatch.setattr(
-        "zndraw.cli._acquire_admin_jwt", lambda _url: None
+        "zndraw.cli._acquire_token", lambda _url: "test-token"
     )  # why: unit test of Settings propagation, not auth flow
+    monkeypatch.setattr(
+        "zndraw.cli._resolve_owner_id",
+        lambda _url, _tok: UUID("12345678-1234-5678-1234-567812345678"),
+    )  # why: avoid live HTTP from Settings-propagation tests
     return captured
 
 
@@ -424,3 +430,90 @@ def test_validate_room_arg_rejects_bad_name_chars():
     with pytest.raises(typer.BadParameter) as exc:
         _validate_room_arg(f"{owner}/bad name", owner)
     assert "invalid characters" in str(exc.value)
+
+
+# ── 9. _acquire_token chain ─────────────────────────────────────────
+
+
+def test_acquire_token_uses_stored_token(monkeypatch):
+    monkeypatch.setattr(
+        "zndraw.cli.ClientSettings", lambda **_: SimpleNamespace(token="stored")
+    )
+    monkeypatch.setattr(
+        "zndraw.cli.resolve_or_refresh_token",
+        lambda url, tok: f"resolved:{tok}",
+    )
+
+    def _fail(*_a, **_kw):
+        pytest.fail("should not be called when a stored token is present")
+
+    monkeypatch.setattr("zndraw.cli.guest_login", _fail)
+    monkeypatch.setattr("zndraw.cli.login_with_credentials", _fail)
+
+    assert _acquire_token("http://x") == "resolved:stored"
+
+
+def test_acquire_token_dev_mode_uses_guest_login(monkeypatch):
+    monkeypatch.setattr(
+        "zndraw.cli.ClientSettings", lambda **_: SimpleNamespace(token=None)
+    )
+    monkeypatch.setattr(
+        "zndraw.cli.AuthSettings",
+        lambda: SimpleNamespace(
+            is_dev_mode=True,
+            default_admin_email=None,
+            default_admin_password=None,
+        ),
+    )
+    monkeypatch.setattr("zndraw.cli.guest_login", lambda _url: "guest-tok")
+
+    def _fail(*_a, **_kw):
+        pytest.fail("login_with_credentials must not be called in dev mode")
+
+    monkeypatch.setattr("zndraw.cli.login_with_credentials", _fail)
+
+    assert _acquire_token("http://x") == "guest-tok"
+
+
+def test_acquire_token_admin_creds(monkeypatch):
+    monkeypatch.setattr(
+        "zndraw.cli.ClientSettings", lambda **_: SimpleNamespace(token=None)
+    )
+    monkeypatch.setattr(
+        "zndraw.cli.AuthSettings",
+        lambda: SimpleNamespace(
+            is_dev_mode=False,
+            default_admin_email="admin@example.com",
+            default_admin_password="pw",
+        ),
+    )
+
+    monkeypatch.setattr(
+        "zndraw.cli.login_with_credentials",
+        lambda url, user, pw: f"admin:{user}:{pw}",
+    )
+
+    def _fail(_url):
+        pytest.fail("guest_login must not be called when admin creds exist")
+
+    monkeypatch.setattr("zndraw.cli.guest_login", _fail)
+
+    assert _acquire_token("http://x") == "admin:admin@example.com:pw"
+
+
+def test_acquire_token_falls_back_to_guest(monkeypatch):
+    """No stored token, not dev mode, missing admin password → guest_login."""
+    monkeypatch.setattr(
+        "zndraw.cli.ClientSettings", lambda **_: SimpleNamespace(token=None)
+    )
+    monkeypatch.setattr(
+        "zndraw.cli.AuthSettings",
+        lambda: SimpleNamespace(
+            is_dev_mode=False,
+            default_admin_email="admin@example.com",
+            default_admin_password=None,
+        ),
+    )
+    monkeypatch.setattr("zndraw.cli.guest_login", lambda _url: "guest-fallback")
+
+    assert _acquire_token("http://x") == "guest-fallback"

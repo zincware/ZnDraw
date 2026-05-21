@@ -28,10 +28,13 @@ import typer
 import uvicorn
 
 from zndraw import __version__
+from zndraw.auth_utils import guest_login, login_with_credentials, resolve_or_refresh_token
 from zndraw.client import ZnDraw
+from zndraw.client.settings import ClientSettings
 from zndraw.server_manager import shutdown_server, wait_for_server_ready
 from zndraw.settings_sources import _is_url_healthy
 from zndraw.state_file import ServerEntry, StateFile
+from zndraw_auth.settings import AuthSettings
 
 log = logging.getLogger(__name__)
 
@@ -328,34 +331,22 @@ def _validate_room_arg(value: str, owner_id: UUID) -> None:
         )
 
 
-def _acquire_admin_jwt(server_url: str) -> str | None:
-    """Acquire an admin JWT from the server and return it.
-
-    In dev mode (no DEFAULT_ADMIN configured), creates a guest user that
-    is automatically promoted to superuser.  In production mode, logs in
-    as the configured admin.
-
-    Returns None on failure (non-fatal — client falls back to guest_login).
-    """
-    from zndraw.auth_utils import guest_login, login_with_credentials
-    from zndraw_auth.settings import AuthSettings
+def _acquire_token(server_url: str) -> str:
+    """Acquire a JWT for outgoing CLI calls (stored → dev → admin → guest fallback)."""
+    settings = ClientSettings(url=server_url)
+    if settings.token is not None:
+        return resolve_or_refresh_token(server_url, settings.token)
 
     auth = AuthSettings()
-    try:
-        if auth.is_dev_mode:
-            return guest_login(server_url)
-        assert auth.default_admin_email is not None  # guaranteed by is_dev_mode=False
-        assert auth.default_admin_password is not None
+    if auth.is_dev_mode:
+        return guest_login(server_url)
+    if auth.default_admin_email is not None and auth.default_admin_password is not None:
         return login_with_credentials(
             server_url,
             auth.default_admin_email,
             auth.default_admin_password,
         )
-    except Exception:  # noqa: BLE001
-        log.debug(
-            "Failed to acquire admin JWT — clients will use guest_login", exc_info=True
-        )
-        return None
+    return guest_login(server_url)
 
 
 def _store_jwt_in_state(server_url: str, jwt: str) -> None:
@@ -707,9 +698,8 @@ def main(
 
     # Acquire an admin JWT and store it so ZnDraw clients (including
     # upload_files below) authenticate via StateFileSource automatically.
-    jwt = _acquire_admin_jwt(url)
-    if jwt is not None:
-        _store_jwt_in_state(server_url, jwt)
+    jwt = _acquire_token(url)
+    _store_jwt_in_state(server_url, jwt)
 
     if has_files or browser:
         open_browser_to(
