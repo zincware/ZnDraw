@@ -2,6 +2,7 @@
 """Tests for JobManager auto-serve: claim loop, lifecycle wrapping, wait()."""
 
 import threading
+import uuid
 from typing import Any, ClassVar
 from unittest.mock import MagicMock
 
@@ -13,6 +14,11 @@ from zndraw_joblib.client import (
 )
 from zndraw_joblib.events import ProviderRequest, TaskAvailable
 from zndraw_joblib.schemas import TaskResponse
+
+
+def make_room_address(owner_id: uuid.UUID, name: str) -> str:
+    """Compose a `<owner_uuid>/<name>` room address for tests."""
+    return f"{owner_id}/{name}"
 
 
 class _Ext(Extension):
@@ -79,9 +85,10 @@ def test_threads_start_on_register_provider(mock_client_api, fs_provider, client
     manager.disconnect()
 
 
-def test_no_claim_loop_without_execute(mock_client_api, client):
+def test_no_claim_loop_without_execute(mock_client_api, client, test_user_id):
     """Without execute callback, no claim loop runs (manual mode)."""
     manager = JobManager(mock_client_api(client))
+    room_address = make_room_address(test_user_id, "room_1")
 
     @manager.register
     class Job(_Ext):
@@ -92,12 +99,12 @@ def test_no_claim_loop_without_execute(mock_client_api, client):
 
     # Submit a task
     client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Job",
+        f"/v1/joblib/rooms/{room_address}/tasks/@global:modifiers:Job",
         json={"payload": {}},
     )
 
     # Long-poll for 1s — if a claim loop existed, it would have claimed by now
-    resp = client.get("/v1/joblib/rooms/room_1/tasks")
+    resp = client.get(f"/v1/joblib/rooms/{room_address}/tasks")
     task_id = resp.json()["items"][0]["id"]
     resp = client.get(
         f"/v1/joblib/tasks/{task_id}",
@@ -117,7 +124,7 @@ def test_no_claim_loop_without_execute(mock_client_api, client):
 # ---------------------------------------------------------------------------
 
 
-def test_auto_claim_executes_task(mock_client_api, threadsafe_client):
+def test_auto_claim_executes_task(mock_client_api, threadsafe_client, room_1_address):
     """Background loop claims task and calls execute callback."""
     executed = threading.Event()
     received: list[ClaimedTask] = []
@@ -137,7 +144,7 @@ def test_auto_claim_executes_task(mock_client_api, threadsafe_client):
 
     # Submit a task
     threadsafe_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:AutoJob",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:AutoJob",
         json={"payload": {"value": 42}},
     )
 
@@ -147,7 +154,7 @@ def test_auto_claim_executes_task(mock_client_api, threadsafe_client):
     # Verify callback received the right data
     assert len(received) == 1
     assert received[0].extension.value == 42
-    assert received[0].room_id == "room_1"
+    assert received[0].room_id == room_1_address
 
     # disconnect() joins threads, ensuring complete() finishes before we check DB
     task_id = received[0].task_id
@@ -159,7 +166,7 @@ def test_auto_claim_executes_task(mock_client_api, threadsafe_client):
     assert task.status.value == "completed"
 
 
-def test_auto_execute_failure_marks_task_failed(mock_client_api, threadsafe_client):
+def test_auto_execute_failure_marks_task_failed(mock_client_api, threadsafe_client, room_1_address):
     """If execute callback raises, task is marked FAILED with error."""
     executed = threading.Event()
     received: list[ClaimedTask] = []
@@ -178,7 +185,7 @@ def test_auto_execute_failure_marks_task_failed(mock_client_api, threadsafe_clie
         category: ClassVar[Category] = Category.MODIFIER
 
     threadsafe_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:FailJob",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:FailJob",
         json={"payload": {}},
     )
 
@@ -261,7 +268,7 @@ def test_context_manager_stops_threads(mock_client_api, client):
 
 
 def test_e2e_job_and_provider_lifecycle(
-    mock_client_api, fs_provider, threadsafe_client
+    mock_client_api, fs_provider, threadsafe_client, room_1_address
 ):
     """Full e2e: register job + provider, submit task → auto-executed,
     read provider → dispatched and cached."""
@@ -294,7 +301,7 @@ def test_e2e_job_and_provider_lifecycle(
 
     # 3. Submit a task — auto-claimed and executed by background thread
     threadsafe_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:Rotate",
         json={"payload": {"angle": 90.0}},
     )
     assert executed.wait(timeout=5.0), "Task not auto-executed"
