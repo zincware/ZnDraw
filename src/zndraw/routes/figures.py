@@ -1,6 +1,5 @@
 """Figures REST API endpoints for room Plotly figures."""
 
-from uuid import UUID
 
 from fastapi import APIRouter, status
 from sqlmodel import select
@@ -40,8 +39,6 @@ router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/figures", tags=["fig
 async def list_figures(
     session: SessionDep,
     access: AccessReadDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
 ) -> CollectionResponse[str]:
     """List all figure keys in a room."""
     room_id = access.room.id
@@ -59,8 +56,6 @@ async def list_figures(
 async def get_figure(
     session: SessionDep,
     access: AccessReadDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     key: str,
 ) -> FigureResponse:
     """Get a single figure by key."""
@@ -80,8 +75,6 @@ async def create_figure(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     key: str,
     request: FigureCreateRequest,
 ) -> FigureCreateResponse:
@@ -118,8 +111,6 @@ async def delete_figure(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     key: str,
 ) -> StatusResponse:
     """Delete a figure."""

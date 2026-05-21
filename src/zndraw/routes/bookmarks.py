@@ -1,6 +1,5 @@
 """Bookmarks REST API endpoints for room frame bookmarks."""
 
-from uuid import UUID
 
 from fastapi import APIRouter
 from sqlmodel import select
@@ -38,8 +37,6 @@ router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/bookmarks", tags=["b
 async def list_bookmarks(
     session: SessionDep,
     access: AccessReadDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
 ) -> BookmarksResponse:
     """Get all bookmarks for a room."""
     room_id = access.room.id
@@ -58,8 +55,6 @@ async def list_bookmarks(
 async def get_bookmark(
     session: SessionDep,
     access: AccessReadDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     index: int,
 ) -> BookmarkResponse:
     """Get a single bookmark by frame index."""
@@ -78,8 +73,6 @@ async def set_bookmark(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     index: int,
     request: BookmarkCreateRequest,
 ) -> BookmarkResponse:
@@ -112,8 +105,6 @@ async def delete_bookmark(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     index: int,
 ) -> StatusResponse:
     """Delete a bookmark."""

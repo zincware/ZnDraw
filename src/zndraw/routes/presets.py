@@ -4,7 +4,6 @@ import fnmatch
 import json
 from datetime import UTC, datetime
 from functools import lru_cache
-from uuid import UUID
 
 from fastapi import APIRouter
 from sqlmodel import select
@@ -89,8 +88,6 @@ def _row_to_preset(row: RoomPreset) -> Preset:
 async def list_presets(
     session: SessionDep,
     access: AccessReadDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
 ) -> PresetsListResponse:
     """List all presets for a room.
 
@@ -116,8 +113,6 @@ async def list_presets(
 async def get_preset(
     session: SessionDep,
     access: AccessReadDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     name: str,
 ) -> Preset:
     """Get a single preset by name.
@@ -148,8 +143,6 @@ async def get_preset(
 async def create_preset(
     session: SessionDep,
     _room: WritableRoomDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     request: Preset,
 ) -> Preset:
     """Create a new preset."""
@@ -185,8 +178,6 @@ async def create_preset(
 async def upsert_preset(
     session: SessionDep,
     _room: WritableRoomDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     name: str,
     request: Preset,
 ) -> Preset:
@@ -227,8 +218,6 @@ async def upsert_preset(
 async def delete_preset(
     session: SessionDep,
     _room: WritableRoomDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     name: str,
 ) -> StatusResponse:
     """Delete a preset."""
@@ -251,8 +240,6 @@ async def apply_preset(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     name: str,
 ) -> PresetApplyResult:
     """Apply a preset to all matching geometries in the room.

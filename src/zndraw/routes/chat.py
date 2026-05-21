@@ -2,7 +2,6 @@
 
 from datetime import UTC, datetime
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import APIRouter, Query, status
 from sqlalchemy import func
@@ -62,8 +61,6 @@ def _message_to_response(msg: Message, email: str | None = None) -> MessageRespo
 async def list_messages(
     session: SessionDep,
     access: AccessReadDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     limit: Annotated[int, Query(ge=1, le=100)] = 30,
     before: Annotated[int | None, Query(description="Unix ms cursor")] = None,
 ) -> MessagesResponse:
@@ -128,8 +125,6 @@ async def create_message(
     sio: SioDep,
     current_user: CurrentUserDep,
     access: AccessEditDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     request: MessageCreate,
 ) -> MessageResponse:
     """Create a new chat message."""
@@ -172,8 +167,6 @@ async def edit_message(
     sio: SioDep,
     current_user: CurrentUserDep,
     access: AccessReadDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     message_id: int,
     request: MessageEditRequest,
 ) -> MessageResponse:

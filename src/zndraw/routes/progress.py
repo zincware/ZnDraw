@@ -4,7 +4,6 @@ Ephemeral progress trackers stored in Redis (hash), broadcast via Socket.IO.
 """
 
 import json
-from uuid import UUID
 
 from fastapi import APIRouter, Response, status
 
@@ -38,8 +37,6 @@ async def create_progress(
     sio: SioDep,
     redis: RedisDep,
     access: AccessEditDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     request: ProgressCreate,
 ) -> ProgressResponse:
     """Create a new progress tracker in the room."""
@@ -74,8 +71,6 @@ async def update_progress(
     sio: SioDep,
     redis: RedisDep,
     access: AccessEditDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     progress_id: str,
     request: ProgressPatch,
 ) -> ProgressResponse:
@@ -120,8 +115,6 @@ async def delete_progress(
     sio: SioDep,
     redis: RedisDep,
     access: AccessEditDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     progress_id: str,
 ) -> Response:
     """Complete and remove a progress tracker."""

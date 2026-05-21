@@ -4,7 +4,6 @@ import base64
 import json
 from pathlib import Path
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import APIRouter, Form, Query, Response, UploadFile, status
 from sqlalchemy import func
@@ -102,8 +101,6 @@ async def upload_screenshot(
     current_user: CurrentUserDep,
     media_path: MediaPathDep,
     access: AccessEditDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     file: UploadFile,
     fmt: Annotated[str, Form(alias="format")] = "png",
     width: Annotated[int | None, Form()] = None,
@@ -157,8 +154,6 @@ async def request_capture(
     sio: SioDep,
     redis: RedisDep,
     access: AccessEditDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     request: ScreenshotCaptureCreate,
 ) -> Response:
     """Request a screenshot capture from a frontend session."""
@@ -198,7 +193,7 @@ async def request_capture(
     await session.commit()
     await session.refresh(row)
 
-    upload_url = f"/v1/rooms/{owner_id}/{room_name}/screenshots/{row.id}"
+    upload_url = f"/v1/rooms/{access.room.public_address}/screenshots/{row.id}"
 
     await sio.emit(
         ScreenshotRequest(
@@ -229,8 +224,6 @@ async def request_capture(
 async def list_screenshots(
     session: SessionDep,
     access: AccessReadDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> OffsetPage[ScreenshotListItem]:
@@ -284,8 +277,6 @@ async def get_screenshot(
     session: SessionDep,
     access: AccessReadDep,
     media_path: MediaPathDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     screenshot_id: int,
 ) -> ScreenshotResponse:
     """Get a single screenshot by ID."""
@@ -324,8 +315,6 @@ async def complete_screenshot(
     session: SessionDep,
     access: AccessEditDep,
     media_path: MediaPathDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     screenshot_id: int,
     file: UploadFile,
     fmt: Annotated[str, Form(alias="format")] = "png",
@@ -380,8 +369,6 @@ async def delete_screenshot(
     session: SessionDep,
     access: AccessEditDep,
     media_path: MediaPathDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     screenshot_id: int,
 ) -> StatusResponse:
     """Delete a screenshot and its file."""
