@@ -14,6 +14,8 @@ export interface HandlerContext {
 	// Identity / routing
 	ownerId: string | undefined;
 	roomName: string | undefined;
+	/** Composed room address: `${ownerId}/${roomName}`, or undefined when no room is active. */
+	roomId: string | undefined;
 	appStoreRoomId: string | null;
 	isCancelled: () => boolean;
 

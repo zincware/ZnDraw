@@ -73,6 +73,7 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		const ctx: HandlerContext = {
 			ownerId,
 			roomName,
+			roomId: roomId ?? undefined,
 			appStoreRoomId,
 			isCancelled: () => cancelled,
 			queryClient,
