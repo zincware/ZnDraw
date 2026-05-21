@@ -283,6 +283,7 @@ async def build_room_update(
         owner_label = resolved[1]
     return RoomUpdate(
         room_id=room.public_address,
+        id=room.id,
         description=room.description,
         frame_count=frame_count,
         visibility=room.visibility,
@@ -505,6 +506,7 @@ async def list_rooms(
         room_responses.append(
             RoomResponse(
                 room_id=room.public_address,
+                id=room.id,
                 description=room.description,
                 frame_count=frame_count,
                 visibility=room.visibility,
@@ -537,6 +539,7 @@ async def get_room(
     kind, label = resolved
     return RoomResponse(
         room_id=room.public_address,
+        id=room.id,
         description=room.description,
         frame_count=frame_count,
         visibility=room.visibility,
