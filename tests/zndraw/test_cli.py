@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from zndraw import __version__
 from zndraw.cli import (
+    _resolve_owner_id,
     app,
     get_room_names,
     open_browser_to,
@@ -366,8 +367,6 @@ def _mock_httpx_with(monkeypatch, handler):
 
 
 def test_resolve_owner_id_returns_uuid(monkeypatch):
-    from zndraw.cli import _resolve_owner_id
-
     captured: dict[str, str] = {}
 
     def handler(request):
@@ -386,8 +385,6 @@ def test_resolve_owner_id_returns_uuid(monkeypatch):
 
 
 def test_resolve_owner_id_raises_on_http_error(monkeypatch):
-    from zndraw.cli import _resolve_owner_id
-
     _mock_httpx_with(monkeypatch, lambda _req: Response(403))
     with pytest.raises(httpx.HTTPStatusError):
         _resolve_owner_id("http://test", "tok")
