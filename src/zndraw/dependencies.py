@@ -14,8 +14,9 @@ from uuid import UUID
 from fastapi import Depends, Header, Path, Request
 from fastapi_users.authentication import JWTStrategy
 from redis.asyncio import Redis as AsyncRedis
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from zndraw_socketio import AsyncServerWrapper
 
 from zndraw.access import (
@@ -49,6 +50,7 @@ from zndraw_auth import (
 from zndraw_auth.db import get_session_maker
 from zndraw_auth.settings import AuthSettings
 from zndraw_joblib.dependencies import ResultBackend, validate_room_id
+from zndraw_joblib.exceptions import ProblemError
 from zndraw_joblib.settings import JobLibSettings
 
 # Re-export auth dependencies for convenience
@@ -84,8 +86,6 @@ async def get_local_token_or_admin(
         )
         try:
             from fastapi_users.jwt import decode_jwt
-
-            from zndraw_joblib.exceptions import ProblemError
 
             data = decode_jwt(
                 token,
@@ -217,12 +217,13 @@ async def fetch_group_role(
 ) -> GroupRole | None:
     """Return the user's role in the given group, or None if not a member."""
     result = await session.exec(
-        select(GroupMembership.role).where(
+        select(GroupMembership).where(
             GroupMembership.user_id == user_id,
             GroupMembership.group_id == group_id,
         )
     )
-    return result.first()
+    membership = result.first()
+    return membership.role if membership is not None else None
 
 
 class OwnerKind(StrEnum):
