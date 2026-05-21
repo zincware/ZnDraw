@@ -130,7 +130,7 @@ export function LoadFileDialog({
 						description: newRoomDescription.trim(),
 					}
 				: targetType === "existing"
-					? { type: "existing", room_id: selectedRoom!.id }
+					? { type: "existing", room_id: selectedRoom!.room_id }
 					: { type: "current" };
 
 		const params: LoadFileParams = {
@@ -279,12 +279,12 @@ export function LoadFileDialog({
 						value={selectedRoom}
 						onChange={(_, value) => setSelectedRoom(value)}
 						getOptionLabel={(room) =>
-							room.description ? `${room.description} (${room.id})` : room.id
+							room.description ? `${room.description} (${room.room_id})` : room.room_id
 						}
 						renderInput={(params) => (
 							<TextField {...params} label="Select room" />
 						)}
-						isOptionEqualToValue={(option, value) => option.id === value.id}
+						isOptionEqualToValue={(option, value) => option.room_id === value.room_id}
 						sx={{ mt: 1 }}
 					/>
 				)}

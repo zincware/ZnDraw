@@ -164,7 +164,6 @@ export default function RoomManagementMenu() {
 			showSnackbar(`Visibility updated to ${v}`, "success");
 		} catch {
 			showSnackbar("Failed to update visibility", "error");
-			// revert
 			if (currentRoomFromStore?.visibility) {
 				setVisibility(currentRoomFromStore.visibility);
 			}
@@ -173,10 +172,7 @@ export default function RoomManagementMenu() {
 
 	const canManage =
 		isAdmin ||
-		(userId !== null &&
-			currentRoomFromStore?.owner_user_id !== undefined &&
-			currentRoomFromStore?.owner_user_id !== null &&
-			currentRoomFromStore.owner_user_id === userId);
+		(userId !== null && ownerId === userId);
 
 	const handleToggleDefault = async () => {
 		if (!roomId) return;
@@ -191,7 +187,7 @@ export default function RoomManagementMenu() {
 				isDefault ? "Template cleared" : "Set as template",
 				"success",
 			);
-		} catch (err) {
+		} catch {
 			showSnackbar("Failed to update template", "error");
 			// Revert the optimistic update on error
 			useRoomsStore.getState().updateRoom(roomId, { is_default: isDefault });
@@ -205,8 +201,8 @@ export default function RoomManagementMenu() {
 	};
 
 	const handleGoToFilesystem = () => {
-		if (!roomId) return;
-		navigate(`/rooms/${roomId}/files`);
+		if (!ownerId || !roomName) return;
+		navigate(`/rooms/${ownerId}/${roomName}/files`);
 		handleCloseMenu();
 	};
 
@@ -426,7 +422,7 @@ export default function RoomManagementMenu() {
 				open={duplicateOpen}
 				sourceRoomId={roomId || ""}
 				sourceDescription={roomDetail?.description || roomId || "room"}
-				existingRoomIds={rooms.map((r) => r.id)}
+				existingRoomIds={rooms.map((r) => r.room_id)}
 				onClose={() => setDuplicateOpen(false)}
 			/>
 

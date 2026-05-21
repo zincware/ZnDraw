@@ -33,10 +33,10 @@ export function RoomRowMenu({ room }: Props) {
 	const onSetTemplate = async () => {
 		setAnchor(null);
 		try {
-			await setDefaultRoom(room.is_default ? null : room.id);
+			await setDefaultRoom(room.is_default ? null : room.room_id);
 			useRoomsStore
 				.getState()
-				.updateRoom(room.id, { is_default: !room.is_default });
+				.updateRoom(room.room_id, { is_default: !room.is_default });
 			showSnackbar(
 				room.is_default ? "Template cleared" : "Set as template",
 				"success",
@@ -54,14 +54,14 @@ export function RoomRowMenu({ room }: Props) {
 	const onCopyLink = async () => {
 		setAnchor(null);
 		await navigator.clipboard.writeText(
-			`${window.location.origin}/rooms/${room.id}`,
+			`${window.location.origin}/rooms/${room.room_id}`,
 		);
 		showSnackbar("Link copied", "success");
 	};
 
 	const onDownload = () => {
 		setAnchor(null);
-		downloadFrames({ roomId: room.id });
+		downloadFrames({ roomId: room.room_id });
 		showSnackbar("Downloading all frames", "success");
 	};
 
@@ -69,7 +69,7 @@ export function RoomRowMenu({ room }: Props) {
 		<>
 			<IconButton
 				size="small"
-				data-testid={`room-row-menu-${room.id}`}
+				data-testid={`room-row-menu-${room.room_id}`}
 				onClick={(e) => setAnchor(e.currentTarget)}
 				onMouseDown={(e) => e.stopPropagation()}
 				aria-label="Room actions"
@@ -116,9 +116,9 @@ export function RoomRowMenu({ room }: Props) {
 			</Menu>
 			<DuplicateRoomDialog
 				open={duplicateOpen}
-				sourceRoomId={room.id}
-				sourceDescription={room.description ?? room.id}
-				existingRoomIds={rooms.map((r) => r.id)}
+				sourceRoomId={room.room_id}
+				sourceDescription={room.description ?? room.room_id}
+				existingRoomIds={rooms.map((r) => r.room_id)}
 				onClose={() => setDuplicateOpen(false)}
 			/>
 		</>

@@ -86,15 +86,15 @@ export function RoomsPanel() {
 		if (!q) return rooms;
 		return rooms.filter(
 			(r) =>
-				r.id.toLowerCase().includes(q) ||
+				r.room_id.toLowerCase().includes(q) ||
 				r.description?.toLowerCase().includes(q),
 		);
 	}, [rooms, query]);
 
-	const switchToRoom = async (id: string) => {
-		if (id === currentRoomId) return;
+	const switchToRoom = async (roomAddress: string) => {
+		if (roomAddress === currentRoomId) return;
 		await leaveRoom({ skipConfirm: true });
-		navigate(`/rooms/${id}`);
+		navigate(`/rooms/${roomAddress}`);
 	};
 
 	return (
@@ -167,10 +167,10 @@ export function RoomsPanel() {
 			<List dense sx={{ flexGrow: 1, minHeight: 0, overflow: "auto", pt: 0 }}>
 				{filtered.map((r) => (
 					<RoomsListRow
-						key={r.id}
+						key={r.room_id}
 						room={r}
-						selected={r.id === currentRoomId}
-						onSelect={() => switchToRoom(r.id)}
+						selected={r.room_id === currentRoomId}
+						onSelect={() => switchToRoom(r.room_id)}
 					/>
 				))}
 			</List>
@@ -209,7 +209,7 @@ interface RoomsListRowProps {
 function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
 	const showSnackbar = useAppStore((s) => s.showSnackbar);
 
-	const primary = room.description?.trim() || room.id;
+	const primary = room.description?.trim() || room.room_id;
 	const secondary = `${room.frame_count} frame${
 		room.frame_count === 1 ? "" : "s"
 	}`;
@@ -217,10 +217,10 @@ function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
 	const onToggleTemplate = async (e: React.MouseEvent) => {
 		e.stopPropagation();
 		try {
-			await setDefaultRoom(room.is_default ? null : room.id);
+			await setDefaultRoom(room.is_default ? null : room.room_id);
 			useRoomsStore
 				.getState()
-				.updateRoom(room.id, { is_default: !room.is_default });
+				.updateRoom(room.room_id, { is_default: !room.is_default });
 			showSnackbar(
 				room.is_default ? "Template cleared" : "Set as template",
 				"success",
@@ -232,7 +232,7 @@ function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
 
 	return (
 		<ListItemButton
-			data-testid={`rooms-row-${room.id}`}
+			data-testid={`rooms-row-${room.room_id}`}
 			selected={selected}
 			onClick={onSelect}
 			sx={{
@@ -247,7 +247,7 @@ function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
 			<Tooltip title={room.is_default ? "Template room" : "Set as template"}>
 				<IconButton
 					size="small"
-					data-testid={`rooms-row-template-${room.id}`}
+					data-testid={`rooms-row-template-${room.room_id}`}
 					onClick={onToggleTemplate}
 				>
 					{room.is_default ? (
