@@ -239,6 +239,13 @@ def test_browser_before_upload_new_server(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "zndraw.cli.upload_file", lambda *_a, **_kw: call_order.append("upload")
     )  # why: tracks call order (browser-before-upload orchestration test)
+    monkeypatch.setattr(
+        "zndraw.cli._acquire_token", lambda _url: "tok"
+    )  # why: avoid real /v1/auth/* HTTP from the new-server post-startup hook
+    monkeypatch.setattr(
+        "zndraw.cli._resolve_owner_id",
+        lambda _url, _tok: UUID("12345678-1234-5678-1234-567812345678"),
+    )  # why: same reason — Task 4 will need this too
 
     result = runner.invoke(app, [str(dummy)])
     assert result.exit_code == 0
