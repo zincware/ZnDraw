@@ -4,9 +4,9 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from conftest import make_room_address
 from fastapi.testclient import TestClient
 
-from conftest import make_room_address
 from zndraw_joblib.events import JobsInvalidate, TaskAvailable, TaskStatusEvent
 
 

@@ -3,8 +3,9 @@
 
 import uuid
 
-from zndraw_joblib.schemas import TaskClaimResponse
 from conftest import make_room_address
+
+from zndraw_joblib.schemas import TaskClaimResponse
 
 
 def test_two_workers_same_user_can_claim_tasks(client, room_1_address):

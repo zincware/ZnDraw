@@ -28,7 +28,11 @@ import typer
 import uvicorn
 
 from zndraw import __version__
-from zndraw.auth_utils import guest_login, login_with_credentials, resolve_or_refresh_token
+from zndraw.auth_utils import (
+    guest_login,
+    login_with_credentials,
+    resolve_or_refresh_token,
+)
 from zndraw.client import ZnDraw
 from zndraw.client.settings import ClientSettings
 from zndraw.server_manager import shutdown_server, wait_for_server_ready
@@ -321,8 +325,7 @@ def _validate_room_arg(value: str, owner_id: UUID) -> None:
         UUID(owner_part)
     except ValueError as exc:
         raise typer.BadParameter(
-            f"--room owner '{owner_part}' is not a valid UUID. "
-            f"Your UUID is {owner_id}."
+            f"--room owner '{owner_part}' is not a valid UUID. Your UUID is {owner_id}."
         ) from exc
     if not re.fullmatch(r"[a-zA-Z0-9\-_]+", name_part):
         raise typer.BadParameter(
@@ -697,9 +700,7 @@ def main(
         room_names = [f"{owner_id}/{n}" for n in simple_names]
 
     first_room = (
-        room_names[0]
-        if room_names
-        else f"{owner_id}/workspace-{uuid.uuid4().hex[:8]}"
+        room_names[0] if room_names else f"{owner_id}/workspace-{uuid.uuid4().hex[:8]}"
     )
 
     if verbose:

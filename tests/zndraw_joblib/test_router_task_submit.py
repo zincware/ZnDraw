@@ -3,11 +3,11 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
+from conftest import make_room_address
+
 from zndraw_joblib.exceptions import ProblemDetail
 from zndraw_joblib.registry import InternalRegistry
 from zndraw_joblib.schemas import TaskResponse
-
-from conftest import make_room_address
 
 
 def test_submit_task(seeded_client, test_user_id):

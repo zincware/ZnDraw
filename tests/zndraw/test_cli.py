@@ -11,7 +11,6 @@ from httpx import MockTransport, Response
 from typer.testing import CliRunner
 
 from zndraw import __version__
-
 from zndraw.cli import (
     _acquire_token,
     _resolve_owner_id,
@@ -409,9 +408,7 @@ def test_resolve_owner_id_returns_uuid(monkeypatch):
     def handler(request):
         captured["url"] = str(request.url)
         captured["auth"] = request.headers.get("Authorization", "")
-        return Response(
-            200, json={"id": "12345678-1234-5678-1234-567812345678"}
-        )
+        return Response(200, json={"id": "12345678-1234-5678-1234-567812345678"})
 
     _mock_httpx_with(monkeypatch, handler)
 
@@ -556,9 +553,7 @@ FIXED_OWNER = UUID("12345678-1234-5678-1234-567812345678")
 def _stub_token_chain(monkeypatch):
     """Stub server discovery + auth helpers used by main()."""
     monkeypatch.setattr("zndraw.cli._acquire_token", lambda _url: "tok")
-    monkeypatch.setattr(
-        "zndraw.cli._resolve_owner_id", lambda _url, _tok: FIXED_OWNER
-    )
+    monkeypatch.setattr("zndraw.cli._resolve_owner_id", lambda _url, _tok: FIXED_OWNER)
 
 
 def test_main_composes_room_from_path(monkeypatch, tmp_path):

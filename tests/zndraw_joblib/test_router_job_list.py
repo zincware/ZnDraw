@@ -2,8 +2,8 @@
 """Tests for job listing and details endpoints using shared fixtures."""
 
 import pytest
-
 from conftest import make_room_address
+
 from zndraw_joblib.exceptions import ProblemDetail
 from zndraw_joblib.schemas import JobResponse, JobSummary, PaginatedResponse
 

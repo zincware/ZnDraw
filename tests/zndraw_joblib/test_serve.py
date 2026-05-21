@@ -166,7 +166,9 @@ def test_auto_claim_executes_task(mock_client_api, threadsafe_client, room_1_add
     assert task.status.value == "completed"
 
 
-def test_auto_execute_failure_marks_task_failed(mock_client_api, threadsafe_client, room_1_address):
+def test_auto_execute_failure_marks_task_failed(
+    mock_client_api, threadsafe_client, room_1_address
+):
     """If execute callback raises, task is marked FAILED with error."""
     executed = threading.Event()
     received: list[ClaimedTask] = []

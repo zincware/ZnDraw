@@ -17,9 +17,9 @@ from unittest.mock import MagicMock
 
 import httpx
 import pytest
+from conftest import make_room_address
 from sqlalchemy import text
 
-from conftest import make_room_address
 from zndraw_joblib.client import (
     Category,
     ClaimedTask,

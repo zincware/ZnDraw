@@ -5,8 +5,8 @@ from typing import ClassVar
 from unittest.mock import MagicMock
 
 import pytest
-
 from conftest import make_room_address
+
 from zndraw_joblib.client import (
     Category,
     Extension,
@@ -526,7 +526,9 @@ def _register_claim(api, seeded_client, room_1_address):
     return manager, claimed
 
 
-def test_job_manager_start_transitions_to_running(api, client, seeded_client, room_1_address):
+def test_job_manager_start_transitions_to_running(
+    api, client, seeded_client, room_1_address
+):
     """manager.start(task) should transition task from CLAIMED to RUNNING."""
     manager, claimed = _register_claim(api, seeded_client, room_1_address)
 
@@ -538,7 +540,9 @@ def test_job_manager_start_transitions_to_running(api, client, seeded_client, ro
     assert task.started_at is not None
 
 
-def test_job_manager_complete_transitions_to_completed(api, client, seeded_client, room_1_address):
+def test_job_manager_complete_transitions_to_completed(
+    api, client, seeded_client, room_1_address
+):
     """manager.complete(task) should transition task from RUNNING to COMPLETED."""
     manager, claimed = _register_claim(api, seeded_client, room_1_address)
 
@@ -551,7 +555,9 @@ def test_job_manager_complete_transitions_to_completed(api, client, seeded_clien
     assert task.completed_at is not None
 
 
-def test_job_manager_fail_transitions_to_failed_with_error(api, client, seeded_client, room_1_address):
+def test_job_manager_fail_transitions_to_failed_with_error(
+    api, client, seeded_client, room_1_address
+):
     """manager.fail(task, error) should transition to FAILED and store error."""
     manager, claimed = _register_claim(api, seeded_client, room_1_address)
 

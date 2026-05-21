@@ -5,6 +5,8 @@ import asyncio
 import json
 import uuid
 
+from conftest import make_room_address
+
 from zndraw_auth import User
 from zndraw_joblib.dependencies import request_hash
 from zndraw_joblib.models import ProviderRecord
@@ -12,8 +14,6 @@ from zndraw_joblib.schemas import (
     PaginatedResponse,
     ProviderResponse,
 )
-
-from conftest import make_room_address
 
 
 def _register_provider(client, room_id="@global", **overrides):
@@ -888,7 +888,9 @@ def test_legitimate_json_with_error_type_keys_is_not_mis_flagged(
     )
     assert upload_resp.status_code == 204
 
-    resp = alice.get(f"/v1/joblib/rooms/{addr_42}/providers/{provider_full_name}?path=/")
+    resp = alice.get(
+        f"/v1/joblib/rooms/{addr_42}/providers/{provider_full_name}?path=/"
+    )
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"type": "object", "error": None, "ok": True}
 

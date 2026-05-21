@@ -4,8 +4,8 @@
 from uuid import uuid4
 
 import pytest
-
 from conftest import make_room_address
+
 from zndraw_joblib.exceptions import ProblemDetail
 from zndraw_joblib.schemas import PaginatedResponse, TaskClaimResponse, TaskResponse
 
@@ -318,7 +318,9 @@ def test_list_tasks_for_room_with_status_filter(seeded_client, room_1_address):
     )
 
     # Filter for pending only
-    response = seeded_client.get(f"/v1/joblib/rooms/{room_1_address}/tasks?status=pending")
+    response = seeded_client.get(
+        f"/v1/joblib/rooms/{room_1_address}/tasks?status=pending"
+    )
     assert response.status_code == 200
     page = PaginatedResponse[TaskResponse].model_validate(response.json())
     assert len(page.items) == 1
@@ -636,7 +638,9 @@ def test_orphan_job_soft_deleted_on_task_completion(client_factory):
     assert del_resp.status_code == 204
 
     # Job should still be visible (pending task prevents soft-delete)
-    job_resp = client.get(f"/v1/joblib/rooms/{room_x}/jobs/{room_x}:modifiers:OrphanTest")
+    job_resp = client.get(
+        f"/v1/joblib/rooms/{room_x}/jobs/{room_x}:modifiers:OrphanTest"
+    )
     assert job_resp.status_code == 200
 
     # 4. Cancel the task (terminal state triggers orphan check in update_task_status)

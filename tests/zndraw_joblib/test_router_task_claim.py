@@ -2,6 +2,7 @@
 """Tests for task claim endpoint using shared fixtures."""
 
 from conftest import make_room_address
+
 from zndraw_joblib.schemas import TaskClaimResponse
 
 
