@@ -1,15 +1,10 @@
-"""Room REST API endpoints - simplified for frontend compatibility.
-
-Handles room creation, listing, and basic metadata operations.
-Uses string UUIDs for room IDs to match frontend expectations.
-"""
+"""Room REST API endpoints."""
 
 import json
-import re
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Response, status
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
@@ -23,10 +18,13 @@ from zndraw.dependencies import (
     CurrentUserDep,
     FrameStorageDep,
     MyGroupIdsDep,
+    OwnerKind,
     RedisDep,
     SessionDep,
     SioDep,
+    _load_room_by_address,
     fetch_group_role,
+    resolve_owner,
     room_channel,
 )
 from zndraw.exceptions import (
@@ -275,13 +273,22 @@ async def build_room_update(
     """Build a full RoomUpdate snapshot from DB + storage."""
     default_room_id = await _get_default_room_id(session)
     frame_count = await storage.get_length(room.id)
+    owner_id = room.owner_user_id or room.owner_group_id
+    assert owner_id is not None, "Room must have exactly one owner"
+    resolved = await resolve_owner(session, owner_id)
+    owner_kind: str = "user"
+    owner_label: str = ""
+    if resolved is not None:
+        owner_kind = resolved[0].value
+        owner_label = resolved[1]
     return RoomUpdate(
-        id=room.id,
+        room_id=room.public_address,
         description=room.description,
         frame_count=frame_count,
         visibility=room.visibility,
-        owner_user_id=room.owner_user_id,
-        owner_group_id=room.owner_group_id,
+        owner_id=owner_id,
+        owner_kind=owner_kind,  # type: ignore[arg-type]
+        owner_label=owner_label,
         is_default=(room.id == default_room_id),
     )
 
@@ -330,7 +337,8 @@ async def broadcast_room_update(
     "",
     status_code=status.HTTP_201_CREATED,
     responses=problem_responses(
-        NotAuthenticated, RoomReadOnly, InvalidPayload, TransferTargetInvalid
+        NotAuthenticated, Forbidden, InvalidPayload, RoomReadOnly,
+        TransferTargetInvalid, UnprocessableContent,
     ),
 )
 async def create_room(
@@ -340,71 +348,73 @@ async def create_room(
     settings: SettingsDep,
     current_user: CurrentUserDep,
     request: RoomCreate,
+    response: Response,
 ) -> RoomCreateResponse:
-    """Create a new room.
+    """Create or idempotently reuse a room in ``owner_id``'s namespace."""
+    name = request.name
+    target_visibility = request.visibility or settings.default_room_visibility
 
-    Visibility defaults to ``Settings.default_room_visibility``. Ownership
-    defaults to ``owner_user_id = current_user.id`` unless
-    ``owner_group_id`` is supplied (in which case the caller must be a
-    group member and visibility must not be PRIVATE).
-    """
-    room_id = request.room_id
+    # Step 2: permission gate. Resolve target namespace BEFORE existence check.
+    owner_user_id: UUID | None = None
+    owner_group_id: UUID | None = None
 
-    # Validate room ID format: alphanumeric, hyphens, and underscores only
-    if not re.match(r"^[a-zA-Z0-9\-_]+$", room_id):
-        raise InvalidPayload.exception(
-            "Room ID must contain only alphanumeric characters, "
-            "hyphens, and underscores"
-        )
+    if request.owner_id == current_user.id or current_user.is_superuser:
+        resolved = await resolve_owner(session, request.owner_id)
+        if resolved is None:
+            raise Forbidden.exception("Not permitted to create in this namespace")
+        kind, _ = resolved
+        if kind == OwnerKind.USER:
+            owner_user_id = request.owner_id
+            if target_visibility == Visibility.GROUP:
+                raise InvalidPayload.exception(
+                    "GROUP visibility requires a group owner"
+                )
+        else:
+            owner_group_id = request.owner_id
+            if target_visibility == Visibility.PRIVATE:
+                raise InvalidPayload.exception(
+                    "PRIVATE visibility requires a user owner"
+                )
+    else:
+        resolved = await resolve_owner(session, request.owner_id)
+        if resolved is None:
+            raise Forbidden.exception("Not permitted to create in this namespace")
+        kind, _ = resolved
+        if kind != OwnerKind.GROUP:
+            raise Forbidden.exception("Not permitted to create in this namespace")
+        role = await fetch_group_role(session, current_user.id, request.owner_id)
+        if role is None:
+            raise Forbidden.exception("Not permitted to create in this namespace")
+        owner_group_id = request.owner_id
+        if target_visibility == Visibility.PRIVATE:
+            raise InvalidPayload.exception(
+                "PRIVATE visibility requires a user owner"
+            )
 
-    # Check if room already exists
-    existing = await session.get(Room, room_id)
+    # Step 4: insert-or-fetch via the unique index.
+    existing = await _load_room_by_address(session, request.owner_id, name)
     if existing is not None:
-        frame_count = await storage.get_length(room_id)
+        frame_count = await storage.get_length(existing.id)
+        response.status_code = status.HTTP_200_OK
         return RoomCreateResponse(
-            status="ok",
-            room_id=room_id,
+            room_id=existing.public_address,
             frame_count=frame_count,
             created=False,
         )
 
-    visibility = request.visibility or settings.default_room_visibility
-
-    owner_user_id: UUID | None = None
-    owner_group_id: UUID | None = request.owner_group_id
-    if owner_group_id is not None:
-        if visibility == Visibility.PRIVATE:
-            raise InvalidPayload.exception(
-                "PRIVATE visibility requires a user owner, not a group"
-            )
-        if not current_user.is_superuser:
-            role = await fetch_group_role(session, current_user.id, owner_group_id)
-            if role is None:
-                raise TransferTargetInvalid.exception(
-                    "You are not a member of the target group"
-                )
-    else:
-        if visibility == Visibility.GROUP:
-            raise InvalidPayload.exception(
-                "GROUP visibility requires an owner_group_id"
-            )
-        owner_user_id = current_user.id
-
-    # Resolve copyFrom: @-prefixed presets, room IDs, or server default
+    # Resolve copy_from: @-prefixed presets, room IDs, or server default.
     copy_from = request.copy_from
     if copy_from is None:
-        # No explicit copyFrom — check server default
         default_room_id = await _get_default_room_id(session)
         copy_from = default_room_id if default_room_id else "@empty"
 
-    # Reject unknown @-prefixed presets
     presets = {"@empty", "@none"}
     if copy_from.startswith("@") and copy_from not in presets:
         raise UnprocessableContent.exception(
-            f"Unknown preset '{copy_from}'. Valid presets: {', '.join(sorted(presets))}"
+            f"Unknown preset '{copy_from}'. "
+            f"Valid presets: {', '.join(sorted(presets))}"
         )
 
-    # Try to resolve source room for room-id copyFrom
     source_room: Room | None = None
     if not copy_from.startswith("@"):
         source_room = await session.get(Room, copy_from)
@@ -414,46 +424,43 @@ async def create_room(
             )
 
     room = Room(
-        id=room_id,
+        room_name=name,
         description=request.description,
         created_by_id=current_user.id,
         owner_user_id=owner_user_id,
         owner_group_id=owner_group_id,
-        visibility=visibility,
+        visibility=target_visibility,
         step=source_room.step if source_room else 0,
     )
     session.add(room)
+    await session.flush()  # populate room.id
 
     frame_count = 0
     if copy_from == "@none":
-        pass  # zero frames
+        pass
     elif copy_from == "@empty":
-        await storage[room_id].extend([{}])
+        await storage[room.id].extend([{}])
         frame_count = 1
     elif source_room is not None:
-        # Deep copy from existing room: frames + all state
-        source_frames_or_none = await storage[copy_from][0:].to_list()
+        source_frames_or_none = await storage[source_room.id][0:].to_list()
         source_frames = [f for f in source_frames_or_none if f is not None]
         if source_frames:
-            await storage[room_id].extend(source_frames)
+            await storage[room.id].extend(source_frames)
             frame_count = len(source_frames)
-        await _copy_room_state(session, copy_from, room_id)
+        await _copy_room_state(session, source_room.id, room.id)
     else:
-        # copyFrom refers to a non-existent room — fall back to empty
-        await storage[room_id].extend([{}])
+        await storage[room.id].extend([{}])
         frame_count = 1
 
-    # Only create default geometries when NOT copying from an existing room
     if source_room is None:
-        _initialize_default_geometries(session, room_id)
+        _initialize_default_geometries(session, room.id)
 
     await session.commit()
 
     await broadcast_room_update(sio, session, storage, room)
 
     return RoomCreateResponse(
-        status="ok",
-        room_id=room_id,
+        room_id=room.public_address,
         frame_count=frame_count,
         created=True,
     )
