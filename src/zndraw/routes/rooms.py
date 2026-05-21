@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query, Response, status
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw.access import Visibility
@@ -474,19 +474,15 @@ async def list_rooms(
     my_group_ids: MyGroupIdsDep,
     search: Annotated[str | None, Query(description="Search pattern")] = None,
 ) -> CollectionResponse[RoomResponse]:
-    """List rooms visible to the caller.
-
-    Union of: public rooms, rooms the caller owns, and rooms owned by
-    any group the caller is a member of.
-    """
+    """List rooms visible to the caller."""
     default_room_id = await _get_default_room_id(session)
 
-    conditions = [
-        Room.visibility == Visibility.PUBLIC,
-        Room.owner_user_id == current_user.id,
+    conditions: list[Any] = [
+        col(Room.visibility) == Visibility.PUBLIC,
+        col(Room.owner_user_id) == current_user.id,
     ]
     if my_group_ids:
-        conditions.append(Room.owner_group_id.in_(my_group_ids))
+        conditions.append(col(Room.owner_group_id).in_(my_group_ids))
 
     stmt = select(Room).where(or_(*conditions))
     result = await session.exec(stmt)
@@ -496,19 +492,25 @@ async def list_rooms(
     for room in rooms:
         if search:
             sl = search.lower()
-            if sl not in room.id.lower() and (
+            if sl not in room.room_name.lower() and (
                 room.description is None or sl not in room.description.lower()
             ):
                 continue
         frame_count = await storage.get_length(room.id)
+        owner_id = room.owner_user_id or room.owner_group_id
+        assert owner_id is not None
+        resolved = await resolve_owner(session, owner_id)
+        assert resolved is not None
+        kind, label = resolved
         room_responses.append(
             RoomResponse(
-                id=room.id,
+                room_id=room.public_address,
                 description=room.description,
                 frame_count=frame_count,
                 visibility=room.visibility,
-                owner_user_id=room.owner_user_id,
-                owner_group_id=room.owner_group_id,
+                owner_id=owner_id,
+                owner_kind=kind.value,
+                owner_label=label,
                 is_default=(room.id == default_room_id),
             )
         )
@@ -516,52 +518,52 @@ async def list_rooms(
 
 
 @router.get(
-    "/{room_id}",
-    # ShareLinkInvalid is documentation-only: raised by ShareTokenDep when a
-    # token header is supplied but invalid; absence silently reduces scope.
+    "/{owner_id}/{room_name}",
     responses=problem_responses(RoomNotFound, ShareLinkInvalid),
 )
 async def get_room(
     session: SessionDep,
     storage: FrameStorageDep,
     access: AccessReadDep,
-    room_id: str,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
 ) -> RoomResponse:
     """Get details of a specific room (read-gated)."""
     room = access.room
-    frame_count = await storage.get_length(room_id)
+    frame_count = await storage.get_length(room.id)
     default_room_id = await _get_default_room_id(session)
-
+    own_id = room.owner_user_id or room.owner_group_id
+    assert own_id is not None
+    resolved = await resolve_owner(session, own_id)
+    assert resolved is not None
+    kind, label = resolved
     return RoomResponse(
-        id=room.id,
+        room_id=room.public_address,
         description=room.description,
         frame_count=frame_count,
         visibility=room.visibility,
-        owner_user_id=room.owner_user_id,
-        owner_group_id=room.owner_group_id,
+        owner_id=own_id,
+        owner_kind=kind.value,
+        owner_label=label,
         is_default=(room.id == default_room_id),
     )
 
 
 @router.get(
-    "/{room_id}/presence",
+    "/{owner_id}/{room_name}/presence",
     responses=problem_responses(RoomNotFound),
 )
 async def get_room_presence(
     redis: RedisDep,
-    _access: AccessReadDep,
-    room_id: str,
+    access: AccessReadDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
 ) -> PresenceResponse:
-    """Get presence (online users) for a room.
-
-    Derives presence from the camera hash — each frontend session with an
-    active camera is considered present. Pyclients do not have cameras and
-    are not included.
-    """
+    """Get presence (online users) for a room."""
     from uuid import UUID as _UUID
 
     cameras_raw: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
-        RedisKey.room_cameras(room_id)
+        RedisKey.room_cameras(access.room.id)
     )
     sessions_list: list[PresenceSessionResponse] = []
     for raw_value in cameras_raw.values():
@@ -581,20 +583,18 @@ async def get_room_presence(
 
 
 @router.get(
-    "/{room_id}/sessions",
+    "/{owner_id}/{room_name}/sessions",
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def list_sessions(
     redis: RedisDep,
-    _access: AccessReadDep,
-    room_id: str,
+    access: AccessReadDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     email: Annotated[str | None, Query(description="Filter by user email")] = None,
 ) -> SessionsListResponse:
-    """List all active frontend sessions in this room.
-
-    Returns every frontend session (identified by having an entry in the
-    active-cameras hash). Optional ``email`` query param filters by user.
-    """
+    """List all active frontend sessions in this room."""
+    room_id = access.room.id
     all_active: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
         RedisKey.active_cameras(room_id)
     )
@@ -621,7 +621,7 @@ async def list_sessions(
 
 
 @router.patch(
-    "/{room_id}",
+    "/{owner_id}/{room_name}",
     responses=problem_responses(
         RoomNotFound, Forbidden, TransferTargetInvalid, InvalidPayload
     ),
@@ -633,7 +633,8 @@ async def update_room(
     access: AccessManageDep,
     current_user: CurrentUserDep,
     updates: RoomPatchRequest,
-    room_id: str,  # noqa: ARG001
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
 ) -> RoomPatchResponse:
     """Update room metadata, ownership, or visibility (manage-gated).
 
