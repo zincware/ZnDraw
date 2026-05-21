@@ -27,7 +27,12 @@ async def test_broadcast_public_room_targets_feed(
 ) -> None:
     """Public rooms broadcast to the shared rooms:feed channel only."""
     owner_id = uuid4()
-    room = Room(id="pub", visibility=Visibility.PUBLIC, owner_user_id=owner_id)
+    room = Room(
+        room_name="pub",
+        visibility=Visibility.PUBLIC,
+        owner_user_id=owner_id,
+        created_by_id=owner_id,
+    )
     session.add(room)
     await session.commit()
 
@@ -47,7 +52,12 @@ async def test_broadcast_private_room_targets_owner(
     owner_id = uuid4()
     non_owner = uuid4()  # noqa: F841 — intentionally unreferenced
 
-    room = Room(id="priv", visibility=Visibility.PRIVATE, owner_user_id=owner_id)
+    room = Room(
+        room_name="priv",
+        visibility=Visibility.PRIVATE,
+        owner_user_id=owner_id,
+        created_by_id=owner_id,
+    )
     session.add(room)
     await session.commit()
 
@@ -75,7 +85,12 @@ async def test_broadcast_group_room_targets_each_member(
     session.add(group)
     session.add(GroupMembership(group_id=group_id, user_id=member_a))
     session.add(GroupMembership(group_id=group_id, user_id=member_b))
-    room = Room(id="grp", visibility=Visibility.GROUP, owner_group_id=group_id)
+    room = Room(
+        room_name="grp",
+        visibility=Visibility.GROUP,
+        owner_group_id=group_id,
+        created_by_id=creator_id,
+    )
     session.add(room)
     await session.commit()
 
