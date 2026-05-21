@@ -21,14 +21,16 @@ from zndraw.schemas import ProgressResponse, RoomResponse
 class RoomJoin(BaseModel):
     """Join a room for real-time updates."""
 
-    room_id: str
+    owner_id: UUID
+    room_name: str
     client_type: Literal["frontend", "pyclient"] = "frontend"
 
 
 class RoomLeave(BaseModel):
     """Leave current room."""
 
-    room_id: str
+    owner_id: UUID
+    room_name: str
 
 
 class UserGet(BaseModel):
@@ -38,13 +40,15 @@ class UserGet(BaseModel):
 class TypingStart(BaseModel):
     """User started typing."""
 
-    room_id: str
+    owner_id: UUID
+    room_name: str
 
 
 class TypingStop(BaseModel):
     """User stopped typing."""
 
-    room_id: str
+    owner_id: UUID
+    room_name: str
 
 
 # =============================================================================
@@ -55,11 +59,10 @@ class TypingStop(BaseModel):
 class RoomJoinResponse(BaseModel):
     """Response for room join."""
 
-    room_id: str
+    room_id: str  # composed: {owner_id}/{room_name}
     session_id: str
     step: int
     frame_count: int
-    locked: bool
     camera_key: str | None = None
     default_camera: str | None = None
     progress_trackers: dict[str, ProgressResponse] = {}
@@ -254,3 +257,11 @@ class ProgressComplete(BaseModel):
     """Broadcast when a progress tracker finishes."""
 
     progress_id: str
+
+
+class RoomRenamed(BaseModel):
+    """Broadcast on a successful room transfer; the composed address changed."""
+
+    old_address: str
+    new_address: str
+    room_id: str  # surrogate UUID (channel key)
