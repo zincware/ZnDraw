@@ -17,7 +17,7 @@ from zndraw.exceptions import (
     UserNotFound,
 )
 from zndraw.geometries.camera import Camera
-from zndraw.models import Room, RoomGeometry
+from zndraw.models import RoomGeometry
 from zndraw.redis import RedisKey
 from zndraw.schemas import ProgressResponse
 from zndraw.socket_events import (
