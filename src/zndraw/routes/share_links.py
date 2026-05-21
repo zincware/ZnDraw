@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, status
-from sqlmodel import select
+from sqlmodel import col, select
 
 from zndraw.dependencies import (
     AccessManageDep,
@@ -67,7 +67,7 @@ async def list_share_links(
     result = await session.exec(
         select(RoomShareLink).where(
             RoomShareLink.room_id == room_id,
-            RoomShareLink.revoked_at.is_(None),
+            col(RoomShareLink.revoked_at).is_(None),
         )
     )
     return CollectionResponse(
