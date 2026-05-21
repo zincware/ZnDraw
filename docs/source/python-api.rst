@@ -19,12 +19,13 @@ Then connect from Python:
 
     from zndraw import ZnDraw
 
-    vis = ZnDraw(url="http://localhost:1234", room="my-room")
+    vis = ZnDraw(url="http://localhost:1234", room="123e4567-e89b-12d3-a456-426614174000/my-room")
 
 .. note::
 
-    Each visualisation is associated with a room name (visible in the URL).
-    Use this room name to interact via Python API or share with others.
+    Each visualisation is associated with a room address of the form
+    ``<owner_uuid>/<name>`` (visible in the URL). Use this address to interact
+    via Python API or share with others. Single-segment names are no longer supported.
 
 Click the connection info button in the UI to see how to connect from Python:
 
@@ -46,7 +47,7 @@ ZnDraw supports optional user authentication:
 
     vis = ZnDraw(
         url="http://localhost:1234",
-        room="my-room",
+        room="123e4567-e89b-12d3-a456-426614174000/my-room",
         user="my-username",
         password="my-password"
     )
@@ -1033,11 +1034,16 @@ non-admin users receive a ``PermissionError`` (HTTP 403).
     vis.register_job(ScaleAtoms, room=GLOBAL_ROOM)  # visible in all rooms
     vis.wait()
 
+.. note::
+
+    The ``@global`` and ``@internal`` sigils are still supported for system-scoped jobs.
+    They are not composed addresses — they are reserved system rooms.
+
 **Explicit room:**
 
 .. code:: python
 
-    vis.register_job(ScaleAtoms, room="my-room-id")
+    vis.register_job(ScaleAtoms, room="123e4567-e89b-12d3-a456-426614174000/my-room")
 
 
 Passing Runtime State (``run_kwargs``)

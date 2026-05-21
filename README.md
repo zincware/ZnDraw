@@ -57,8 +57,10 @@ ZnDraw supports multiple clients connecting to the same visualization. Each visu
 ```python
 from zndraw import ZnDraw
 
-vis = ZnDraw(url="http://localhost:1234", room="my-room")
+vis = ZnDraw(url="http://localhost:1234", room="123e4567-e89b-12d3-a456-426614174000/my-room")
 ```
+
+> `room=` accepts the composed form `<owner_uuid>/<name>` returned by the server. Single-segment names are no longer supported.
 
 ### Authentication
 
@@ -67,7 +69,7 @@ For protected deployments, provide credentials:
 ```python
 vis = ZnDraw(
     url="http://localhost:1234",
-    room="my-room",
+    room="123e4567-e89b-12d3-a456-426614174000/my-room",
     user="username",
     password="password"
 )
