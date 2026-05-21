@@ -138,6 +138,7 @@ async def test_delete_group_with_rooms_blocked(
     session.add(
         Room(
             id="g-room",
+            room_name="g-room",
             owner_group_id=UUID(gid),
             visibility=Visibility.GROUP,
         )

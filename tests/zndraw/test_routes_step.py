@@ -35,7 +35,7 @@ async def test_get_step_returns_zero_initially(
     )
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/step",
+        f"/v1/rooms/{room.public_address}/step",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -64,7 +64,7 @@ async def test_get_step_returns_current_step(
     )
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/step",
+        f"/v1/rooms/{room.public_address}/step",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -96,7 +96,7 @@ async def test_set_step_updates_and_returns(
     )
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/step",
+        f"/v1/rooms/{room.public_address}/step",
         json={"step": 1},
         headers=auth_header(token),
     )
@@ -133,7 +133,7 @@ async def test_set_step_out_of_bounds_returns_422(
 
     # Request step=100 — should return 422
     response = await client.put(
-        f"/v1/rooms/{room.id}/step",
+        f"/v1/rooms/{room.public_address}/step",
         json={"step": 100},
         headers=auth_header(token),
     )
@@ -154,7 +154,7 @@ async def test_set_step_empty_room_rejects_nonzero(
 
     # Room has no frames — step=5 should be rejected
     response = await client.put(
-        f"/v1/rooms/{room.id}/step",
+        f"/v1/rooms/{room.public_address}/step",
         json={"step": 5},
         headers=auth_header(token),
     )
@@ -176,7 +176,7 @@ async def test_set_step_negative_returns_422(
     await frame_storage[room.id].extend([make_raw_frame({"a": 1})])
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/step",
+        f"/v1/rooms/{room.public_address}/step",
         json={"step": -1},
         headers=auth_header(token),
     )
@@ -199,7 +199,7 @@ async def test_get_step_requires_auth(
     user, _ = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    response = await client.get(f"/v1/rooms/{room.id}/step")
+    response = await client.get(f"/v1/rooms/{room.public_address}/step")
     assert response.status_code == 401
 
 
@@ -212,7 +212,7 @@ async def test_set_step_requires_auth(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/step",
+        f"/v1/rooms/{room.public_address}/step",
         json={"step": 1},
     )
     assert response.status_code == 401
@@ -231,7 +231,7 @@ async def test_get_step_returns_404_for_nonexistent_room(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/99999/step",
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/step",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -246,7 +246,7 @@ async def test_set_step_returns_404_for_nonexistent_room(
     _, token = await create_test_user_in_db(session)
 
     response = await client.put(
-        "/v1/rooms/99999/step",
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/step",
         json={"step": 1},
         headers=auth_header(token),
     )

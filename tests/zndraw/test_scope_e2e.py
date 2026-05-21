@@ -11,22 +11,7 @@ from httpx import AsyncClient
 async def _register_and_login(
     client: AsyncClient, email: str, password: str = "test12345"
 ) -> str:
-    """Register a user and return a JWT access token.
-
-    Parameters
-    ----------
-    client
-        Async HTTP client pointing at the test server.
-    email
-        Email address to register.
-    password
-        Password to use for registration and login.
-
-    Returns
-    -------
-    str
-        JWT access token for the registered user.
-    """
+    """Register a user and return a JWT access token."""
     await client.post("/v1/auth/register", json={"email": email, "password": password})
     r = await client.post(
         "/v1/auth/jwt/login",
@@ -37,31 +22,21 @@ async def _register_and_login(
     return r.json()["access_token"]
 
 
+async def _get_user_id(client: AsyncClient, token: str) -> str:
+    r = await client.get("/v1/auth/users/me", headers={"Authorization": f"Bearer {token}"})
+    r.raise_for_status()
+    return r.json()["id"]
+
+
 @pytest.mark.asyncio
 async def test_full_group_workflow(server_auth: str) -> None:
-    """Exercise the full group/room/share-link permission workflow.
-
-    Steps
-    -----
-    1. Admin registers, creates a group, adds a member (role=MEMBER).
-    2. Admin creates a group-owned room (visibility=group).
-    3. Member can read the group room.
-    4. Member cannot PATCH (manage-gated) → 403.
-    5. Outsider cannot see the group room → 404.
-    6. Share link (view) lets outsider read the room.
-    7. Admin PATCHes visibility to public.
-    8. Outsider now sees it without the token.
-    9. Admin revokes the share link → 204.
-
-    Parameters
-    ----------
-    server_auth
-        Base URL of the running auth-enabled uvicorn server.
-    """
+    """Exercise the full group/room/share-link permission workflow."""
     async with AsyncClient(base_url=server_auth) as client:
         admin = await _register_and_login(client, "e2e-admin@test.com")
         member = await _register_and_login(client, "e2e-mem@test.com")
         outsider = await _register_and_login(client, "e2e-out@test.com")
+        admin_id = await _get_user_id(client, admin)
+        member_id = await _get_user_id(client, member)
 
         # Create group + add member (role=MEMBER to enable edit, not manage)
         gid = (
@@ -71,35 +46,31 @@ async def test_full_group_workflow(server_auth: str) -> None:
                 headers={"Authorization": f"Bearer {admin}"},
             )
         ).json()["id"]
-        me = (
-            await client.get(
-                "/v1/auth/users/me", headers={"Authorization": f"Bearer {member}"}
-            )
-        ).json()
         add_r = await client.post(
             f"/v1/groups/{gid}/members",
-            json={"user_id": me["id"], "role": "member"},
+            json={"user_id": member_id, "role": "member"},
             headers={"Authorization": f"Bearer {admin}"},
         )
         assert add_r.status_code == 201
 
-        # Group-owned room
+        # Group-owned room (owner_id = group id, visibility = group)
         create_r = await client.post(
             "/v1/rooms",
-            json={"room_id": "e2e-grp", "visibility": "group", "owner_group_id": gid},
+            json={"owner_id": gid, "name": "e2e-grp", "visibility": "group"},
             headers={"Authorization": f"Bearer {admin}"},
         )
         assert create_r.status_code == 201
+        room_id = create_r.json()["room_id"]
 
         # Member can read the room
         r = await client.get(
-            "/v1/rooms/e2e-grp", headers={"Authorization": f"Bearer {member}"}
+            f"/v1/rooms/{room_id}", headers={"Authorization": f"Bearer {member}"}
         )
         assert r.status_code == 200
 
         # Member cannot PATCH (manage-gated) — expect 403
         r = await client.patch(
-            "/v1/rooms/e2e-grp",
+            f"/v1/rooms/{room_id}",
             json={"description": "from member"},
             headers={"Authorization": f"Bearer {member}"},
         )
@@ -107,7 +78,7 @@ async def test_full_group_workflow(server_auth: str) -> None:
 
         # Outsider cannot see the room (404 — existence hidden)
         r = await client.get(
-            "/v1/rooms/e2e-grp",
+            f"/v1/rooms/{room_id}",
             headers={"Authorization": f"Bearer {outsider}"},
         )
         assert r.status_code == 404
@@ -115,13 +86,13 @@ async def test_full_group_workflow(server_auth: str) -> None:
         # Share link (view) lets outsider read
         link = (
             await client.post(
-                "/v1/rooms/e2e-grp/share-links",
+                f"/v1/rooms/{room_id}/share-links",
                 json={"access": "view"},
                 headers={"Authorization": f"Bearer {admin}"},
             )
         ).json()
         r = await client.get(
-            "/v1/rooms/e2e-grp",
+            f"/v1/rooms/{room_id}",
             headers={
                 "Authorization": f"Bearer {outsider}",
                 "X-Room-Share-Token": link["token"],
@@ -131,7 +102,7 @@ async def test_full_group_workflow(server_auth: str) -> None:
 
         # Admin can PATCH visibility (manage role)
         r = await client.patch(
-            "/v1/rooms/e2e-grp",
+            f"/v1/rooms/{room_id}",
             json={"visibility": "public"},
             headers={"Authorization": f"Bearer {admin}"},
         )
@@ -139,7 +110,7 @@ async def test_full_group_workflow(server_auth: str) -> None:
 
         # Outsider now sees it without the token
         r = await client.get(
-            "/v1/rooms/e2e-grp",
+            f"/v1/rooms/{room_id}",
             headers={"Authorization": f"Bearer {outsider}"},
         )
         assert r.status_code == 200
@@ -147,7 +118,7 @@ async def test_full_group_workflow(server_auth: str) -> None:
 
         # Admin revokes the link
         r = await client.delete(
-            f"/v1/rooms/e2e-grp/share-links/{link['id']}",
+            f"/v1/rooms/{room_id}/share-links/{link['id']}",
             headers={"Authorization": f"Bearer {admin}"},
         )
         assert r.status_code == 204

@@ -113,7 +113,7 @@ def test_e2e_dev_mode_zndraw_client_connects(server, tmp_path, monkeypatch):
         lambda: StateFile(directory=tmp_path),
     )  # why: redirects StateFile to tmp_path; real server via server_factory
 
-    client = ZnDraw(url=server, room="test-e2e-dev")
+    client = ZnDraw(url=server)
     try:
         # If auth failed, this would raise PermissionError (the original bug)
         assert len(client) == 0
@@ -152,7 +152,7 @@ def test_e2e_production_mode_zndraw_client_connects(server_auth, tmp_path, monke
         lambda: StateFile(directory=tmp_path),
     )  # why: redirects StateFile to tmp_path; real server via server_factory
 
-    client = ZnDraw(url=server_auth, room="test-e2e-prod")
+    client = ZnDraw(url=server_auth)
     try:
         assert len(client) == 0
     finally:

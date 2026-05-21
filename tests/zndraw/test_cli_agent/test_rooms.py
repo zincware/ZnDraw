@@ -27,7 +27,7 @@ def test_rooms_list(
     """rooms list should include the test room."""
     data = invoke_cli(cli_runner, server_url, auth_token, ["rooms", "list"])
     resp = CollectionResponse[RoomResponse].model_validate(data)
-    room_ids = [r.id for r in resp.items]
+    room_ids = [r.room_id for r in resp.items]
     assert test_room in room_ids
 
 
@@ -39,7 +39,7 @@ def test_rooms_info(
         cli_runner, server_url, auth_token, ["rooms", "info", "--room", test_room]
     )
     resp = RoomResponse.model_validate(data)
-    assert resp.id == test_room
+    assert resp.room_id == test_room
     assert resp.frame_count >= 0
 
 

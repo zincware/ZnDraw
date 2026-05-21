@@ -298,7 +298,9 @@ def test_lock_update_full() -> None:
 def test_room_update_snapshot() -> None:
     """RoomUpdate is a full room snapshot with all required fields."""
     uid = uuid4()
+    surrogate_id = str(uuid4())
     event = RoomUpdate(
+        id=surrogate_id,
         room_id=f"{uid}/main",
         owner_id=uid,
         owner_kind="user",

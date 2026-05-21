@@ -26,7 +26,7 @@ async def test_get_edit_lock_returns_unlocked_when_no_lock(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/edit-lock", headers=auth_header(token)
+        f"/v1/rooms/{room.public_address}/edit-lock", headers=auth_header(token)
     )
     assert response.status_code == 200
     data = response.json()
@@ -56,7 +56,7 @@ async def test_get_edit_lock_returns_locked_when_lock_exists(
     await redis_client.set(RedisKey.edit_lock(room.id), lock_data, ex=10)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/edit-lock", headers=auth_header(token)
+        f"/v1/rooms/{room.public_address}/edit-lock", headers=auth_header(token)
     )
     assert response.status_code == 200
     data = response.json()
@@ -76,7 +76,7 @@ async def test_get_edit_lock_returns_404_for_nonexistent_room(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/nonexistent/edit-lock", headers=auth_header(token)
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/edit-lock", headers=auth_header(token)
     )
     assert response.status_code == 404
 
@@ -95,7 +95,7 @@ async def test_acquire_edit_lock(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "editing geometries"},
         headers=auth_header(token),
     )
@@ -125,7 +125,7 @@ async def test_acquire_edit_lock_stores_session_id(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "editing"},
         headers={**auth_header(token), "X-Session-ID": "my-sid-123"},
     )
@@ -150,7 +150,7 @@ async def test_acquire_edit_lock_broadcasts_lock_update(
     room = await create_test_room(session, user)
 
     await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "drawing"},
         headers=auth_header(token),
     )
@@ -175,7 +175,7 @@ async def test_refresh_edit_lock_with_token(
 
     # Acquire
     resp1 = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "first"},
         headers=auth_header(token),
     )
@@ -184,7 +184,7 @@ async def test_refresh_edit_lock_with_token(
 
     # Refresh with Lock-Token
     resp2 = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "updated"},
         headers={**auth_header(token), "Lock-Token": lock_token},
     )
@@ -205,7 +205,7 @@ async def test_refresh_with_expired_lock_returns_409(
 
     # Acquire
     resp = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "editing"},
         headers=auth_header(token),
     )
@@ -216,7 +216,7 @@ async def test_refresh_with_expired_lock_returns_409(
 
     # Try to refresh → 409
     resp2 = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "editing"},
         headers={**auth_header(token), "Lock-Token": lock_token},
     )
@@ -233,7 +233,7 @@ async def test_acquire_without_token_when_lock_exists_returns_423(
 
     # Acquire
     resp1 = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "first"},
         headers=auth_header(token),
     )
@@ -241,7 +241,7 @@ async def test_acquire_without_token_when_lock_exists_returns_423(
 
     # Same user, no Lock-Token → 423 (lock already exists)
     resp2 = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "second attempt"},
         headers=auth_header(token),
     )
@@ -259,7 +259,7 @@ async def test_acquire_edit_lock_conflict_with_other_user(
 
     # User1 acquires lock
     resp1 = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "user1 editing"},
         headers=auth_header(token1),
     )
@@ -267,7 +267,7 @@ async def test_acquire_edit_lock_conflict_with_other_user(
 
     # User2 tries to acquire → 423
     resp2 = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "user2 editing"},
         headers=auth_header(token2),
     )
@@ -286,7 +286,7 @@ async def test_lock_auto_expires_after_ttl(
 
     # User1 acquires
     resp = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "no refresh"},
         headers=auth_header(token1),
     )
@@ -297,13 +297,13 @@ async def test_lock_auto_expires_after_ttl(
 
     # Lock should be gone
     status = await client.get(
-        f"/v1/rooms/{room.id}/edit-lock", headers=auth_header(token1)
+        f"/v1/rooms/{room.public_address}/edit-lock", headers=auth_header(token1)
     )
     assert status.json()["locked"] is False
 
     # User2 can now acquire
     resp2 = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "after expiry"},
         headers=auth_header(token2),
     )
@@ -326,7 +326,7 @@ async def test_release_edit_lock_with_token(
 
     # Acquire
     resp = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "temp"},
         headers=auth_header(token),
     )
@@ -334,7 +334,7 @@ async def test_release_edit_lock_with_token(
 
     # Release with Lock-Token
     response = await client.delete(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         headers={**auth_header(token), "Lock-Token": lock_token},
     )
     assert response.status_code == 200
@@ -357,7 +357,7 @@ async def test_release_edit_lock_broadcasts_lock_update(
 
     # Acquire then release
     resp = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={},
         headers=auth_header(token),
     )
@@ -365,7 +365,7 @@ async def test_release_edit_lock_broadcasts_lock_update(
     mock_sio.emitted.clear()
 
     await client.delete(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         headers={**auth_header(token), "Lock-Token": lock_token},
     )
 
@@ -384,7 +384,7 @@ async def test_release_edit_lock_idempotent_when_no_lock(
     room = await create_test_room(session, user)
 
     response = await client.delete(
-        f"/v1/rooms/{room.id}/edit-lock", headers=auth_header(token)
+        f"/v1/rooms/{room.public_address}/edit-lock", headers=auth_header(token)
     )
     assert response.status_code == 200
     StatusResponse.model_validate(response.json())
@@ -400,14 +400,14 @@ async def test_release_edit_lock_wrong_token_returns_403(
 
     # Acquire
     await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={},
         headers=auth_header(token),
     )
 
     # Release with wrong Lock-Token
     response = await client.delete(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         headers={**auth_header(token), "Lock-Token": "wrong-token"},
     )
     assert response.status_code == 403
@@ -424,14 +424,14 @@ async def test_release_edit_lock_forbidden_for_non_holder(
 
     # User1 acquires
     await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={},
         headers=auth_header(token1),
     )
 
     # User2 tries to release → 403
     response = await client.delete(
-        f"/v1/rooms/{room.id}/edit-lock", headers=auth_header(token2)
+        f"/v1/rooms/{room.public_address}/edit-lock", headers=auth_header(token2)
     )
     assert response.status_code == 403
 
@@ -449,14 +449,14 @@ async def test_admin_can_release_any_lock(
 
     # User acquires
     await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={},
         headers=auth_header(token),
     )
 
     # Admin releases (no Lock-Token needed for admin)
     response = await client.delete(
-        f"/v1/rooms/{room.id}/edit-lock", headers=auth_header(admin_token)
+        f"/v1/rooms/{room.public_address}/edit-lock", headers=auth_header(admin_token)
     )
     assert response.status_code == 200
     StatusResponse.model_validate(response.json())
@@ -478,14 +478,14 @@ async def test_writable_room_blocks_non_holder(
 
     # User1 acquires lock
     await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "editing"},
         headers=auth_header(token1),
     )
 
     # User2 tries mutation → 423
     response = await client.put(
-        f"/v1/rooms/{room.id}/bookmarks/0",
+        f"/v1/rooms/{room.public_address}/bookmarks/0",
         json={"label": "blocked"},
         headers=auth_header(token2),
     )
@@ -503,7 +503,7 @@ async def test_writable_room_allows_lock_holder_with_token(
 
     # Acquire lock
     resp = await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "editing"},
         headers=auth_header(token),
     )
@@ -511,7 +511,7 @@ async def test_writable_room_allows_lock_holder_with_token(
 
     # Holder can mutate with Lock-Token
     response = await client.put(
-        f"/v1/rooms/{room.id}/bookmarks/0",
+        f"/v1/rooms/{room.public_address}/bookmarks/0",
         json={"label": "allowed"},
         headers={**auth_header(token), "Lock-Token": lock_token},
     )
@@ -528,14 +528,14 @@ async def test_writable_room_blocks_wrong_lock_token(
 
     # Acquire lock
     await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "editing"},
         headers=auth_header(token),
     )
 
     # Wrong Lock-Token → 423
     response = await client.put(
-        f"/v1/rooms/{room.id}/bookmarks/0",
+        f"/v1/rooms/{room.public_address}/bookmarks/0",
         json={"label": "blocked"},
         headers={**auth_header(token), "Lock-Token": "wrong-token"},
     )
@@ -553,14 +553,14 @@ async def test_writable_room_allows_get_when_locked(
 
     # User1 acquires lock
     await client.put(
-        f"/v1/rooms/{room.id}/edit-lock",
+        f"/v1/rooms/{room.public_address}/edit-lock",
         json={"msg": "editing"},
         headers=auth_header(token1),
     )
 
     # User2 can still read bookmarks
     response = await client.get(
-        f"/v1/rooms/{room.id}/bookmarks",
+        f"/v1/rooms/{room.public_address}/bookmarks",
         headers=auth_header(token2),
     )
     assert response.status_code == 200

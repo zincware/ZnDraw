@@ -4,8 +4,6 @@ Tests use the real server (server_auth fixture) with admin/guest role separation
 and the Pydantic model API: vis.geometries["key"] = Sphere(owner=...).
 """
 
-import uuid
-
 import jwt
 import pytest
 
@@ -68,8 +66,8 @@ def test_owner_releases_geometry(server_auth: str) -> None:
 
 def test_non_owner_cannot_edit_owned_geometry(server_auth: str) -> None:
     """Non-owner gets PermissionError when editing an owned geometry."""
-    room_id = uuid.uuid4().hex
-    vis_a = ZnDraw(url=server_auth, room=room_id)
+    vis_a = ZnDraw(url=server_auth)
+    room_id = vis_a.room
     vis_b = ZnDraw(url=server_auth, room=room_id)
     user_a_id = _get_user_id(vis_a)
 
@@ -84,8 +82,8 @@ def test_non_owner_cannot_edit_owned_geometry(server_auth: str) -> None:
 
 def test_non_owner_cannot_delete_owned_geometry(server_auth: str) -> None:
     """Non-owner gets PermissionError when deleting an owned geometry."""
-    room_id = uuid.uuid4().hex
-    vis_a = ZnDraw(url=server_auth, room=room_id)
+    vis_a = ZnDraw(url=server_auth)
+    room_id = vis_a.room
     vis_b = ZnDraw(url=server_auth, room=room_id)
     user_a_id = _get_user_id(vis_a)
 
@@ -118,8 +116,8 @@ def test_selection_on_owned_geometry_owner_succeeds(server_auth: str) -> None:
 
 def test_selection_on_owned_geometry_non_owner_blocked(server_auth: str) -> None:
     """Non-owner gets PermissionError when updating selection on owned geometry."""
-    room_id = uuid.uuid4().hex
-    vis_a = ZnDraw(url=server_auth, room=room_id)
+    vis_a = ZnDraw(url=server_auth)
+    room_id = vis_a.room
     vis_b = ZnDraw(url=server_auth, room=room_id)
     user_a_id = _get_user_id(vis_a)
 

@@ -23,8 +23,9 @@ async def test_public_room_broadcasts_to_rooms_feed(
 ) -> None:
     sio = MockSioServer()
     room = Room(
-        id="pub-fan",
+        room_name="pub-fan",
         owner_user_id=uuid4(),
+        created_by_id=uuid4(),
         visibility=Visibility.PUBLIC,
     )
     session.add(room)
@@ -43,8 +44,9 @@ async def test_private_room_emits_only_to_owner(
     sio = MockSioServer()
     owner_id = uuid4()
     room = Room(
-        id="prv-fan",
+        room_name="prv-fan",
         owner_user_id=owner_id,
+        created_by_id=owner_id,
         visibility=Visibility.PRIVATE,
     )
     session.add(room)
@@ -79,8 +81,9 @@ async def test_group_room_emits_to_each_member(
     await session.commit()
 
     room = Room(
-        id="grp-fan",
+        room_name="grp-fan",
         owner_group_id=group.id,
+        created_by_id=admin_id,
         visibility=Visibility.GROUP,
     )
     session.add(room)
