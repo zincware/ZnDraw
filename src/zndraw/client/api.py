@@ -134,17 +134,12 @@ class APIManager:
         description: str | None = None,
         copy_from: str | None = None,
     ) -> dict[str, Any]:
-        """Create a new room.
-
-        Parameters
-        ----------
-        description : str, optional
-            Room description.
-        copy_from : str, optional
-            Room ID to copy frames from, or an @-prefixed preset
-            (``@empty`` for one empty frame, ``@none`` for zero frames).
-        """
-        payload: dict[str, Any] = {"room_id": self.room_id}
+        """Create a room from ``self.room_id`` (composed address)."""
+        owner_part, _, name_part = self.room_id.partition("/")
+        payload: dict[str, Any] = {
+            "owner_id": owner_part,
+            "name": name_part,
+        }
         if description is not None:
             payload["description"] = description
         if copy_from is not None:
