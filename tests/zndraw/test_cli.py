@@ -9,8 +9,11 @@ from httpx import MockTransport, Response
 from typer.testing import CliRunner
 
 from zndraw import __version__
+import typer
+
 from zndraw.cli import (
     _resolve_owner_id,
+    _validate_room_arg,
     app,
     get_room_names,
     open_browser_to,
@@ -388,3 +391,36 @@ def test_resolve_owner_id_raises_on_http_error(monkeypatch):
     _mock_httpx_with(monkeypatch, lambda _req: Response(403))
     with pytest.raises(httpx.HTTPStatusError):
         _resolve_owner_id("http://test", "tok")
+
+
+# ── 8. _validate_room_arg ───────────────────────────────────────────
+
+
+def test_validate_room_arg_accepts_composed():
+    owner = UUID("12345678-1234-5678-1234-567812345678")
+    # composed-form: <uuid>/<name>; should not raise
+    _validate_room_arg(f"{owner}/proj", owner)
+
+
+def test_validate_room_arg_rejects_bare():
+    owner = UUID("12345678-1234-5678-1234-567812345678")
+    with pytest.raises(typer.BadParameter) as exc:
+        _validate_room_arg("foo", owner)
+    msg = str(exc.value)
+    assert "must be '<owner_uuid>/<name>'" in msg
+    assert "foo" in msg
+    assert str(owner) in msg  # surfaces caller's UUID for copy-paste
+
+
+def test_validate_room_arg_rejects_bad_uuid():
+    owner = UUID("12345678-1234-5678-1234-567812345678")
+    with pytest.raises(typer.BadParameter) as exc:
+        _validate_room_arg("not-a-uuid/foo", owner)
+    assert "not a valid UUID" in str(exc.value)
+
+
+def test_validate_room_arg_rejects_bad_name_chars():
+    owner = UUID("12345678-1234-5678-1234-567812345678")
+    with pytest.raises(typer.BadParameter) as exc:
+        _validate_room_arg(f"{owner}/bad name", owner)
+    assert "invalid characters" in str(exc.value)

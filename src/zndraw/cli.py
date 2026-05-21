@@ -306,6 +306,28 @@ def _resolve_owner_id(server_url: str, token: str) -> UUID:
         return UUID(resp.json()["id"])
 
 
+def _validate_room_arg(value: str, owner_id: UUID) -> None:
+    """Validate that a user-supplied --room is in composed form."""
+    if "/" not in value:
+        raise typer.BadParameter(
+            f"--room must be '<owner_uuid>/<name>'. Got '{value}'.\n"
+            f"Your UUID is {owner_id}. Try: --room {owner_id}/{value}"
+        )
+    owner_part, _, name_part = value.partition("/")
+    try:
+        UUID(owner_part)
+    except ValueError as exc:
+        raise typer.BadParameter(
+            f"--room owner '{owner_part}' is not a valid UUID. "
+            f"Your UUID is {owner_id}."
+        ) from exc
+    if not re.fullmatch(r"[a-zA-Z0-9\-_]+", name_part):
+        raise typer.BadParameter(
+            f"--room name '{name_part}' contains invalid characters. "
+            f"Allowed: letters, digits, '-', '_'."
+        )
+
+
 def _acquire_admin_jwt(server_url: str) -> str | None:
     """Acquire an admin JWT from the server and return it.
 
