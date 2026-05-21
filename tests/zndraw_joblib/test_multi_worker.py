@@ -4,9 +4,10 @@
 import uuid
 
 from zndraw_joblib.schemas import TaskClaimResponse
+from conftest import make_room_address
 
 
-def test_two_workers_same_user_can_claim_tasks(client):
+def test_two_workers_same_user_can_claim_tasks(client, room_1_address):
     """
     Core bug reproduction: A user with two workers registered for the same job
     should be able to claim tasks without MultipleResultsFound error.
@@ -35,7 +36,7 @@ def test_two_workers_same_user_can_claim_tasks(client):
 
     # Submit a task
     resp = client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:SharedJob",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:SharedJob",
         json={"payload": {"data": "test"}},
     )
     assert resp.status_code == 202
@@ -51,11 +52,11 @@ def test_two_workers_same_user_can_claim_tasks(client):
     assert str(data.task.worker_id) == worker1_id
 
 
-def test_claim_requires_worker_id(seeded_client):
+def test_claim_requires_worker_id(seeded_client, room_1_address):
     """Claim endpoint should return 422 if worker_id is missing."""
     # Submit a task first
     seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
 
@@ -64,11 +65,11 @@ def test_claim_requires_worker_id(seeded_client):
     assert response.status_code == 422  # Validation error
 
 
-def test_claim_with_unknown_worker_id_returns_404(seeded_client):
+def test_claim_with_unknown_worker_id_returns_404(seeded_client, room_1_address):
     """Claim with unknown worker_id should return 404."""
     # Submit a task first
     seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
 
@@ -95,8 +96,9 @@ def test_claim_with_other_users_worker_returns_403(client_factory):
         "/v1/joblib/rooms/@global/jobs",
         json={"category": "modifiers", "name": "PrivateJob", "worker_id": worker1_id},
     )
+    room_1 = make_room_address(client1.user_id, "room_1")
     client1.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:PrivateJob",
+        f"/v1/joblib/rooms/{room_1}/tasks/@global:modifiers:PrivateJob",
         json={"payload": {}},
     )
 
@@ -112,7 +114,7 @@ def test_claim_with_other_users_worker_returns_403(client_factory):
     assert response.status_code == 403
 
 
-def test_multiple_workers_claim_different_tasks(client):
+def test_multiple_workers_claim_different_tasks(client, room_1_address):
     """Two workers registered for same job can each claim different tasks."""
     # Create first worker and register job
     resp1 = client.post("/v1/joblib/workers")
@@ -135,7 +137,7 @@ def test_multiple_workers_claim_different_tasks(client):
     # Submit two tasks
     for i in range(2):
         client.post(
-            "/v1/joblib/rooms/room_1/tasks/@global:modifiers:ParallelJob",
+            f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:ParallelJob",
             json={"payload": {"index": i}},
         )
 
@@ -160,7 +162,7 @@ def test_multiple_workers_claim_different_tasks(client):
     assert data2.task.payload["index"] == 1
 
 
-def test_two_workers_can_complete_tasks(client):
+def test_two_workers_can_complete_tasks(client, room_1_address):
     """
     Bug reproduction: Two workers complete tasks for the same job.
     The orphan cleanup code should not fail with MultipleResultsFound.
@@ -195,7 +197,7 @@ def test_two_workers_can_complete_tasks(client):
     task_ids = []
     for i in range(2):
         resp = client.post(
-            "/v1/joblib/rooms/room_1/tasks/@global:modifiers:CompletionJob",
+            f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:CompletionJob",
             json={"payload": {"index": i}},
         )
         task_ids.append(resp.json()["id"])
@@ -249,7 +251,7 @@ def test_two_workers_can_complete_tasks(client):
     assert complete_resp2.status_code == 200, f"Failed: {complete_resp2.json()}"
 
 
-def test_worker_can_only_claim_registered_jobs(client):
+def test_worker_can_only_claim_registered_jobs(client, room_1_address):
     """Worker can only claim tasks for jobs they are registered for."""
     # Create two workers
     resp1 = client.post("/v1/joblib/workers")
@@ -272,7 +274,7 @@ def test_worker_can_only_claim_registered_jobs(client):
 
     # Submit task for job A
     client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:JobA",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:JobA",
         json={"payload": {}},
     )
 
