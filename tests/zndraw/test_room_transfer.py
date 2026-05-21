@@ -103,7 +103,6 @@ async def test_transfer_happy_path(
         headers=headers,
     )
     assert r.status_code == 201, r.text
-    original_surrogate = r.json()["room_id"].split("/")[1] if "/" not in r.json()["room_id"].replace(caller_id + "/", "", 1) else None
 
     # Transfer to the group, changing visibility to group
     resp = await http_client_auth.patch(
