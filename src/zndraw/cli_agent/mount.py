@@ -46,7 +46,7 @@ def mount_cmd(
     json_print(
         {
             "room_id": vis.room,
-            "url": f"{conn.base_url}/room/{vis.room}",
+            "url": f"{conn.base_url}/rooms/{vis.room}",
             "frame_count": len(db),
         }
     )

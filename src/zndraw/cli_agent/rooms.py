@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 import webbrowser
 from typing import Annotated
+from uuid import UUID
 
 import typer
 
@@ -14,12 +15,15 @@ from zndraw.schemas import (
 )
 
 from .connection import (
+    EXIT_CLIENT_ERROR,
+    EXIT_CONNECTION_ERROR,
     PasswordOpt,
     RoomOpt,
     TokenOpt,
     UrlOpt,
     UserOpt,
     cli_error_handler,
+    die,
     get_connection,
     get_zndraw,
     resolve_room,
@@ -56,19 +60,24 @@ def create_room(
     token: TokenOpt = None,
     user: UserOpt = None,
     password: PasswordOpt = None,
-    room: RoomOpt = None,
+    name: Annotated[
+        str | None, typer.Option("--name", help="Room name (within your namespace)")
+    ] = None,
     copy_from: Annotated[
-        str | None, typer.Option("--copy-from", help="Copy from existing room ID")
+        str | None, typer.Option("--copy-from", help="Copy from existing room")
     ] = None,
 ) -> None:
-    """Create a new room."""
+    """Create a new room in the caller's user namespace."""
     with cli_error_handler():
         conn = get_connection(url, token, user, password)
+        me = conn.get("/v1/auth/users/me").json()
         request = RoomCreate(
-            room_id=room if room is not None else str(uuid.uuid4()),
-            copy_from=copy_from,
+            owner_id=UUID(me["id"]),
+            name=name if name is not None else str(uuid.uuid4()),
         )
-        response = conn.post("/v1/rooms", json=request.model_dump())
+        if copy_from is not None:
+            request = request.model_copy(update={"copy_from": copy_from})
+        response = conn.post("/v1/rooms", json=request.model_dump(mode="json"))
         json_print(RoomCreateResponse.model_validate(response.json()))
 
 
@@ -98,9 +107,14 @@ def open_room(
     with cli_error_handler():
         from zndraw.client.settings import ClientSettings
 
-        from .connection import EXIT_CLIENT_ERROR, EXIT_CONNECTION_ERROR, die
-
         room = resolve_room(room)
+        if "/" not in room:
+            die(
+                "Invalid room",
+                "Room must be in '<owner_uuid>/<name>' form.",
+                400,
+                EXIT_CLIENT_ERROR,
+            )
         overrides = {"url": url} if url is not None else {}
         try:
             settings = ClientSettings(**overrides)
