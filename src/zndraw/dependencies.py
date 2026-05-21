@@ -6,6 +6,7 @@ Authentication uses zndraw-auth package.
 
 import json
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path as FilePath
 from typing import Annotated, NamedTuple
 from uuid import UUID
@@ -34,7 +35,7 @@ from zndraw.exceptions import (
 )
 from zndraw.geometries import geometries as geometry_models
 from zndraw.geometries.camera import Camera
-from zndraw.models import GroupMembership, Room, RoomGeometry, RoomShareLink
+from zndraw.models import Group, GroupMembership, Room, RoomGeometry, RoomShareLink
 from zndraw.redis import RedisKey
 from zndraw.storage import FrameStorage
 from zndraw_auth import (
@@ -214,17 +215,7 @@ async def fetch_my_group_ids(session: AsyncSession, user_id: UUID) -> list[UUID]
 async def fetch_group_role(
     session: AsyncSession, user_id: UUID, group_id: UUID
 ) -> GroupRole | None:
-    """Return the user's role in the given group, or None if not a member.
-
-    Parameters
-    ----------
-    session
-        Async database session.
-    user_id
-        The user to check.
-    group_id
-        The group to check membership in.
-    """
+    """Return the user's role in the given group, or None if not a member."""
     result = await session.exec(
         select(GroupMembership.role).where(
             GroupMembership.user_id == user_id,
@@ -232,6 +223,24 @@ async def fetch_group_role(
         )
     )
     return result.first()
+
+
+class OwnerKind(StrEnum):
+    USER = "user"
+    GROUP = "group"
+
+
+async def resolve_owner(
+    session: AsyncSession, owner_id: UUID
+) -> tuple[OwnerKind, str] | None:
+    """Look up ``owner_id`` as a user (returns email) or group (returns name)."""
+    user = await session.get(User, owner_id)
+    if user is not None:
+        return OwnerKind.USER, user.email
+    group = await session.get(Group, owner_id)
+    if group is not None:
+        return OwnerKind.GROUP, group.name
+    return None
 
 
 async def get_my_group_ids(
