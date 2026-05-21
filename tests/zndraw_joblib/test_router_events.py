@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
+from conftest import make_room_address
 from zndraw_joblib.events import JobsInvalidate, TaskAvailable, TaskStatusEvent
 
 
@@ -43,8 +44,9 @@ def test_register_job_emits_jobs_invalidate(client_with_tsio, mock_tsio):
     assert invalidate_calls[0].kwargs["room"] == "room:@global"
 
 
-def test_submit_task_emits_task_available(client_with_tsio, mock_tsio):
+def test_submit_task_emits_task_available(client_with_tsio, mock_tsio, test_user_id):
     """POST submit should emit TaskAvailable and TaskStatusEvent."""
+    addr = make_room_address(test_user_id, "test-room")
     client_with_tsio.put(
         "/v1/joblib/rooms/@global/jobs",
         json={"category": "modifiers", "name": "Rotate", "schema": {}},
@@ -52,7 +54,7 @@ def test_submit_task_emits_task_available(client_with_tsio, mock_tsio):
     mock_tsio.emit.reset_mock()
 
     resp = client_with_tsio.post(
-        "/v1/joblib/rooms/test-room/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
     assert resp.status_code == 202
@@ -64,13 +66,16 @@ def test_submit_task_emits_task_available(client_with_tsio, mock_tsio):
     assert len(available_calls) == 1
     assert available_calls[0].kwargs["room"] == "jobs:@global:modifiers:Rotate"
     assert len(status_calls) == 1
-    assert status_calls[0].kwargs["room"] == "room:test-room"
+    assert status_calls[0].kwargs["room"] == f"room:{addr}"
 
 
-def test_submit_internal_task_no_task_available(client_with_tsio, mock_tsio):
+def test_submit_internal_task_no_task_available(
+    client_with_tsio, mock_tsio, test_user_id
+):
     """@internal task submission should NOT emit TaskAvailable."""
     from zndraw_joblib.registry import InternalRegistry
 
+    addr = make_room_address(test_user_id, "test-room")
     client_with_tsio.put(
         "/v1/joblib/rooms/@internal/jobs",
         json={"category": "modifiers", "name": "InternalOp", "schema": {}},
@@ -83,7 +88,7 @@ def test_submit_internal_task_no_task_available(client_with_tsio, mock_tsio):
     mock_tsio.emit.reset_mock()
 
     resp = client_with_tsio.post(
-        "/v1/joblib/rooms/test-room/tasks/@internal:modifiers:InternalOp",
+        f"/v1/joblib/rooms/{addr}/tasks/@internal:modifiers:InternalOp",
         json={"payload": {}},
     )
     assert resp.status_code == 202
@@ -94,11 +99,12 @@ def test_submit_internal_task_no_task_available(client_with_tsio, mock_tsio):
 
 
 def test_submit_internal_task_emits_task_status_to_submitting_room(
-    client_with_tsio, mock_tsio
+    client_with_tsio, mock_tsio, test_user_id
 ):
     """@internal task submission should emit TaskStatusEvent to the submitting room."""
     from zndraw_joblib.registry import InternalRegistry
 
+    addr = make_room_address(test_user_id, "test-room")
     client_with_tsio.put(
         "/v1/joblib/rooms/@internal/jobs",
         json={"category": "modifiers", "name": "InternalOp", "schema": {}},
@@ -111,7 +117,7 @@ def test_submit_internal_task_emits_task_status_to_submitting_room(
     mock_tsio.emit.reset_mock()
 
     resp = client_with_tsio.post(
-        "/v1/joblib/rooms/test-room/tasks/@internal:modifiers:InternalOp",
+        f"/v1/joblib/rooms/{addr}/tasks/@internal:modifiers:InternalOp",
         json={"payload": {}},
     )
     assert resp.status_code == 202
@@ -120,11 +126,12 @@ def test_submit_internal_task_emits_task_status_to_submitting_room(
     status_calls = [c for c in calls if isinstance(c[0][0], TaskStatusEvent)]
     assert len(status_calls) == 1
     assert status_calls[0].args[0].status == "claimed"
-    assert status_calls[0].kwargs["room"] == "room:test-room"
+    assert status_calls[0].kwargs["room"] == f"room:{addr}"
 
 
-def test_claim_task_emits_task_status(client_with_tsio, mock_tsio):
+def test_claim_task_emits_task_status(client_with_tsio, mock_tsio, test_user_id):
     """POST /tasks/claim should emit TaskStatusEvent with status=claimed."""
+    addr = make_room_address(test_user_id, "test-room")
     resp = client_with_tsio.put(
         "/v1/joblib/rooms/@global/jobs",
         json={"category": "modifiers", "name": "Rotate", "schema": {}},
@@ -132,7 +139,7 @@ def test_claim_task_emits_task_status(client_with_tsio, mock_tsio):
     worker_id = resp.json()["worker_id"]
 
     client_with_tsio.post(
-        "/v1/joblib/rooms/test-room/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
     mock_tsio.emit.reset_mock()
@@ -148,11 +155,12 @@ def test_claim_task_emits_task_status(client_with_tsio, mock_tsio):
     status_calls = [c for c in calls if isinstance(c[0][0], TaskStatusEvent)]
     assert len(status_calls) == 1
     assert status_calls[0].args[0].status == "claimed"
-    assert status_calls[0].kwargs["room"] == "room:test-room"
+    assert status_calls[0].kwargs["room"] == f"room:{addr}"
 
 
-def test_update_task_emits_task_status(client_with_tsio, mock_tsio):
+def test_update_task_emits_task_status(client_with_tsio, mock_tsio, test_user_id):
     """PATCH /tasks/{id} should emit TaskStatusEvent."""
+    addr = make_room_address(test_user_id, "test-room")
     resp = client_with_tsio.put(
         "/v1/joblib/rooms/@global/jobs",
         json={"category": "modifiers", "name": "Rotate", "schema": {}},
@@ -160,7 +168,7 @@ def test_update_task_emits_task_status(client_with_tsio, mock_tsio):
     worker_id = resp.json()["worker_id"]
 
     resp = client_with_tsio.post(
-        "/v1/joblib/rooms/test-room/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
     task_id = resp.json()["id"]
@@ -183,8 +191,9 @@ def test_update_task_emits_task_status(client_with_tsio, mock_tsio):
     assert status_calls[0].args[0].status == "running"
 
 
-def test_delete_worker_emits_events(client_with_tsio, mock_tsio):
+def test_delete_worker_emits_events(client_with_tsio, mock_tsio, test_user_id):
     """DELETE /workers/{id} should emit JobsInvalidate + TaskStatusEvent."""
+    addr = make_room_address(test_user_id, "test-room")
     resp = client_with_tsio.put(
         "/v1/joblib/rooms/@global/jobs",
         json={"category": "modifiers", "name": "Rotate", "schema": {}},
@@ -192,7 +201,7 @@ def test_delete_worker_emits_events(client_with_tsio, mock_tsio):
     worker_id = resp.json()["worker_id"]
 
     client_with_tsio.post(
-        "/v1/joblib/rooms/test-room/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
     client_with_tsio.post(
@@ -249,8 +258,11 @@ def test_delete_worker_emits_jobs_invalidate_when_job_has_other_workers(
     assert invalidate_calls[0].kwargs["room"] == "room:@global"
 
 
-def test_cancel_last_pending_task_emits_orphan_invalidate(client_with_tsio, mock_tsio):
+def test_cancel_last_pending_task_emits_orphan_invalidate(
+    client_with_tsio, mock_tsio, test_user_id
+):
     """Cancelling the last pending task on a workerless job emits JobsInvalidate."""
+    addr = make_room_address(test_user_id, "test-room")
     # Register a @global job (creates a worker)
     resp = client_with_tsio.put(
         "/v1/joblib/rooms/@global/jobs",
@@ -260,11 +272,11 @@ def test_cancel_last_pending_task_emits_orphan_invalidate(client_with_tsio, mock
 
     # Submit 2 pending tasks
     task1 = client_with_tsio.post(
-        "/v1/joblib/rooms/test-room/tasks/@global:modifiers:Orphan",
+        f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:Orphan",
         json={"payload": {}},
     )
     task2 = client_with_tsio.post(
-        "/v1/joblib/rooms/test-room/tasks/@global:modifiers:Orphan",
+        f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:Orphan",
         json={"payload": {}},
     )
     task1_id = task1.json()["id"]
