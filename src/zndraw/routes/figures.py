@@ -1,5 +1,7 @@
 """Figures REST API endpoints for room Plotly figures."""
 
+from uuid import UUID
+
 from fastapi import APIRouter, status
 from sqlmodel import select
 
@@ -28,7 +30,7 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import FigureInvalidate
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/figures", tags=["figures"])
+router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/figures", tags=["figures"])
 
 
 @router.get(
@@ -37,10 +39,12 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/figures", tags=["figures"])
 )
 async def list_figures(
     session: SessionDep,
-    _access: AccessReadDep,
-    room_id: str,
+    access: AccessReadDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
 ) -> CollectionResponse[str]:
     """List all figure keys in a room."""
+    room_id = access.room.id
     result = await session.exec(
         select(RoomFigure.key).where(RoomFigure.room_id == room_id)
     )
@@ -54,11 +58,13 @@ async def list_figures(
 )
 async def get_figure(
     session: SessionDep,
-    _access: AccessReadDep,
-    room_id: str,
+    access: AccessReadDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     key: str,
 ) -> FigureResponse:
     """Get a single figure by key."""
+    room_id = access.room.id
     row = await session.get(RoomFigure, (room_id, key))
     if row is None:
         raise FigureNotFound.exception(f"Figure '{key}' not found")
@@ -74,11 +80,13 @@ async def create_figure(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    room_id: str,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     key: str,
     request: FigureCreateRequest,
 ) -> FigureCreateResponse:
     """Create or update a figure."""
+    room_id = _room.id
 
     row = await session.get(RoomFigure, (room_id, key))
     created = row is None
@@ -110,10 +118,12 @@ async def delete_figure(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    room_id: str,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     key: str,
 ) -> StatusResponse:
     """Delete a figure."""
+    room_id = _room.id
 
     row = await session.get(RoomFigure, (room_id, key))
     if row is None:

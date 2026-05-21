@@ -1,5 +1,7 @@
 """Bookmarks REST API endpoints for room frame bookmarks."""
 
+from uuid import UUID
+
 from fastapi import APIRouter
 from sqlmodel import select
 
@@ -26,7 +28,7 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import BookmarksInvalidate
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/bookmarks", tags=["bookmarks"])
+router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/bookmarks", tags=["bookmarks"])
 
 
 @router.get(
@@ -35,10 +37,12 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/bookmarks", tags=["bookmarks"])
 )
 async def list_bookmarks(
     session: SessionDep,
-    _access: AccessReadDep,
-    room_id: str,
+    access: AccessReadDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
 ) -> BookmarksResponse:
     """Get all bookmarks for a room."""
+    room_id = access.room.id
     result = await session.exec(
         select(RoomBookmark).where(RoomBookmark.room_id == room_id)
     )
@@ -53,11 +57,13 @@ async def list_bookmarks(
 )
 async def get_bookmark(
     session: SessionDep,
-    _access: AccessReadDep,
-    room_id: str,
+    access: AccessReadDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     index: int,
 ) -> BookmarkResponse:
     """Get a single bookmark by frame index."""
+    room_id = access.room.id
     row = await session.get(RoomBookmark, (room_id, index))
     if row is None:
         raise BookmarkNotFound.exception(f"Bookmark '{index}' not found")
@@ -72,11 +78,13 @@ async def set_bookmark(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    room_id: str,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     index: int,
     request: BookmarkCreateRequest,
 ) -> BookmarkResponse:
     """Create or update a bookmark."""
+    room_id = _room.id
 
     row = await session.get(RoomBookmark, (room_id, index))
     if row is None:
@@ -104,10 +112,12 @@ async def delete_bookmark(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    room_id: str,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     index: int,
 ) -> StatusResponse:
     """Delete a bookmark."""
+    room_id = _room.id
 
     row = await session.get(RoomBookmark, (room_id, index))
     if row is None:

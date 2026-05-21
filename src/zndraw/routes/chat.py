@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Query, status
 from sqlalchemy import func
@@ -33,7 +34,7 @@ from zndraw.schemas import (
 from zndraw.socket_events import MessageEdited, MessageNew
 from zndraw_auth import User
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/chat/messages", tags=["chat"])
+router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/chat/messages", tags=["chat"])
 
 
 def _datetime_to_unix_ms(dt: datetime) -> int:
@@ -60,12 +61,14 @@ def _message_to_response(msg: Message, email: str | None = None) -> MessageRespo
 )
 async def list_messages(
     session: SessionDep,
-    _access: AccessReadDep,
-    room_id: str,
+    access: AccessReadDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     limit: Annotated[int, Query(ge=1, le=100)] = 30,
     before: Annotated[int | None, Query(description="Unix ms cursor")] = None,
 ) -> MessagesResponse:
     """List messages with cursor pagination (newest first)."""
+    room_id = access.room.id
 
     stmt = select(Message).where(Message.room_id == room_id)
 
@@ -124,11 +127,13 @@ async def create_message(
     session: SessionDep,
     sio: SioDep,
     current_user: CurrentUserDep,
-    _access: AccessEditDep,
-    room_id: str,
+    access: AccessEditDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     request: MessageCreate,
 ) -> MessageResponse:
     """Create a new chat message."""
+    room_id = access.room.id
 
     msg = Message(
         room_id=room_id,
@@ -166,12 +171,14 @@ async def edit_message(
     session: SessionDep,
     sio: SioDep,
     current_user: CurrentUserDep,
-    _access: AccessReadDep,
-    room_id: str,
+    access: AccessReadDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     message_id: int,
     request: MessageEditRequest,
 ) -> MessageResponse:
     """Edit an existing chat message. Only the author can edit."""
+    room_id = access.room.id
 
     msg = await session.get(Message, message_id)
     if msg is None or msg.room_id != room_id:

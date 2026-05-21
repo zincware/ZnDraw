@@ -4,6 +4,7 @@ import base64
 import json
 from pathlib import Path
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Form, Query, Response, UploadFile, status
 from sqlalchemy import func
@@ -40,7 +41,7 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import ScreenshotRequest
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/screenshots", tags=["screenshots"])
+router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/screenshots", tags=["screenshots"])
 
 _ALLOWED_FORMATS = {"png", "jpeg", "webp"}
 _MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -100,14 +101,16 @@ async def upload_screenshot(
     session: SessionDep,
     current_user: CurrentUserDep,
     media_path: MediaPathDep,
-    _access: AccessEditDep,
-    room_id: str,
+    access: AccessEditDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     file: UploadFile,
     fmt: Annotated[str, Form(alias="format")] = "png",
     width: Annotated[int | None, Form()] = None,
     height: Annotated[int | None, Form()] = None,
 ) -> ScreenshotResponse:
     """Upload a screenshot file directly."""
+    room_id = access.room.id
 
     file_bytes = _validate_upload(fmt, await file.read())
 
@@ -153,11 +156,13 @@ async def request_capture(
     current_user: CurrentUserDep,
     sio: SioDep,
     redis: RedisDep,
-    _access: AccessEditDep,
-    room_id: str,
+    access: AccessEditDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     request: ScreenshotCaptureCreate,
 ) -> Response:
     """Request a screenshot capture from a frontend session."""
+    room_id = access.room.id
 
     # Verify session_id is a live frontend session
     active_cam = await redis.hexists(  # type: ignore[misc]
@@ -193,7 +198,7 @@ async def request_capture(
     await session.commit()
     await session.refresh(row)
 
-    upload_url = f"/v1/rooms/{room_id}/screenshots/{row.id}"
+    upload_url = f"/v1/rooms/{owner_id}/{room_name}/screenshots/{row.id}"
 
     await sio.emit(
         ScreenshotRequest(
@@ -223,12 +228,14 @@ async def request_capture(
 )
 async def list_screenshots(
     session: SessionDep,
-    _access: AccessReadDep,
-    room_id: str,
+    access: AccessReadDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> OffsetPage[ScreenshotListItem]:
     """List completed screenshots with offset/limit pagination."""
+    room_id = access.room.id
 
     stmt = (
         select(Screenshot)
@@ -275,12 +282,14 @@ async def list_screenshots(
 )
 async def get_screenshot(
     session: SessionDep,
-    _access: AccessReadDep,
+    access: AccessReadDep,
     media_path: MediaPathDep,
-    room_id: str,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     screenshot_id: int,
 ) -> ScreenshotResponse:
     """Get a single screenshot by ID."""
+    room_id = access.room.id
 
     row = await session.get(Screenshot, screenshot_id)
     if row is None or row.room_id != room_id:
@@ -313,9 +322,10 @@ async def get_screenshot(
 )
 async def complete_screenshot(
     session: SessionDep,
-    _access: AccessEditDep,
+    access: AccessEditDep,
     media_path: MediaPathDep,
-    room_id: str,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     screenshot_id: int,
     file: UploadFile,
     fmt: Annotated[str, Form(alias="format")] = "png",
@@ -323,6 +333,7 @@ async def complete_screenshot(
     height: Annotated[int | None, Form()] = None,
 ) -> ScreenshotResponse:
     """Complete a pending screenshot by uploading the captured image."""
+    room_id = access.room.id
 
     row = await session.get(Screenshot, screenshot_id)
     if row is None or row.room_id != room_id:
@@ -367,12 +378,14 @@ async def complete_screenshot(
 )
 async def delete_screenshot(
     session: SessionDep,
-    _access: AccessEditDep,
+    access: AccessEditDep,
     media_path: MediaPathDep,
-    room_id: str,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     screenshot_id: int,
 ) -> StatusResponse:
     """Delete a screenshot and its file."""
+    room_id = access.room.id
 
     row = await session.get(Screenshot, screenshot_id)
     if row is None or row.room_id != room_id:

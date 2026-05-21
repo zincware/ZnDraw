@@ -4,6 +4,7 @@ Ephemeral progress trackers stored in Redis (hash), broadcast via Socket.IO.
 """
 
 import json
+from uuid import UUID
 
 from fastapi import APIRouter, Response, status
 
@@ -23,7 +24,7 @@ from zndraw.redis import RedisKey
 from zndraw.schemas import ProgressCreate, ProgressPatch, ProgressResponse
 from zndraw.socket_events import ProgressComplete, ProgressStart, ProgressUpdate
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/progress", tags=["progress"])
+router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/progress", tags=["progress"])
 
 PROGRESS_TTL = 3600  # 1 hour — auto-cleanup for orphaned trackers
 
@@ -36,11 +37,13 @@ PROGRESS_TTL = 3600  # 1 hour — auto-cleanup for orphaned trackers
 async def create_progress(
     sio: SioDep,
     redis: RedisDep,
-    _access: AccessEditDep,
-    room_id: str,
+    access: AccessEditDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     request: ProgressCreate,
 ) -> ProgressResponse:
     """Create a new progress tracker in the room."""
+    room_id = access.room.id
 
     tracker = ProgressResponse(
         progress_id=request.progress_id,
@@ -70,12 +73,14 @@ async def create_progress(
 async def update_progress(
     sio: SioDep,
     redis: RedisDep,
-    _access: AccessEditDep,
-    room_id: str,
+    access: AccessEditDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     progress_id: str,
     request: ProgressPatch,
 ) -> ProgressResponse:
     """Update an existing progress tracker."""
+    room_id = access.room.id
 
     key = RedisKey.room_progress(room_id)
     raw = await redis.hget(key, progress_id)  # type: ignore[misc]
@@ -114,11 +119,13 @@ async def update_progress(
 async def delete_progress(
     sio: SioDep,
     redis: RedisDep,
-    _access: AccessEditDep,
-    room_id: str,
+    access: AccessEditDep,
+    owner_id: UUID,  # noqa: ARG001
+    room_name: str,  # noqa: ARG001
     progress_id: str,
 ) -> Response:
     """Complete and remove a progress tracker."""
+    room_id = access.room.id
 
     deleted = await redis.hdel(RedisKey.room_progress(room_id), progress_id)  # type: ignore[misc]
     if not deleted:
