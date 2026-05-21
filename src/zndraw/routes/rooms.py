@@ -71,7 +71,7 @@ from zndraw.schemas import (
     SessionItem,
     SessionsListResponse,
 )
-from zndraw.socket_events import FramesInvalidate, RoomUpdate
+from zndraw.socket_events import FramesInvalidate, RoomRenamed, RoomUpdate
 from zndraw.storage import FrameStorage
 from zndraw.transformations import InArrayTransform
 
@@ -636,40 +636,50 @@ async def update_room(
     owner_id: UUID,  # noqa: ARG001
     room_name: str,  # noqa: ARG001
 ) -> RoomPatchResponse:
-    """Update room metadata, ownership, or visibility (manage-gated).
-
-    A transfer is expressed as a PATCH that sets exactly one of
-    ``owner_user_id`` or ``owner_group_id`` (the other is wiped to
-    preserve the XOR invariant). Transferring into a group requires
-    the caller to be a member of that group.
-    """
+    """Update room metadata, ownership, or visibility (manage-gated)."""
     room = access.room
     changed = False
+    old_address = room.public_address
 
     if updates.description is not None:
         room.description = updates.description
         changed = True
 
-    if updates.owner_user_id is not None and updates.owner_group_id is not None:
-        raise InvalidPayload.exception(
-            "Set exactly one of owner_user_id or owner_group_id, not both"
-        )
+    if updates.new_owner_id is not None:
+        resolved = await resolve_owner(session, updates.new_owner_id)
+        if resolved is None:
+            raise TransferTargetInvalid.exception("Unknown transfer target")
+        kind, _ = resolved
 
-    if updates.owner_user_id is not None:
-        room.owner_user_id = updates.owner_user_id
-        room.owner_group_id = None
-        changed = True
-    elif updates.owner_group_id is not None:
-        if not current_user.is_superuser:
+        new_user_id: UUID | None = None
+        new_group_id: UUID | None = None
+
+        if kind == OwnerKind.USER:
+            if not current_user.is_superuser:
+                raise TransferTargetInvalid.exception(
+                    "Only superusers may transfer to a user"
+                )
+            new_user_id = updates.new_owner_id
+        else:
             role = await fetch_group_role(
-                session, current_user.id, updates.owner_group_id
+                session, current_user.id, updates.new_owner_id
             )
-            if role is None:
+            if role is None and not current_user.is_superuser:
                 raise TransferTargetInvalid.exception(
                     "You are not a member of the target group"
                 )
-        room.owner_group_id = updates.owner_group_id
-        room.owner_user_id = None
+            new_group_id = updates.new_owner_id
+
+        existing = await _load_room_by_address(
+            session, updates.new_owner_id, room.room_name
+        )
+        if existing is not None and existing.id != room.id:
+            raise TransferTargetInvalid.exception(
+                "A room with that name already exists in the target namespace"
+            )
+
+        room.owner_user_id = new_user_id
+        room.owner_group_id = new_group_id
         changed = True
 
     if updates.visibility is not None:
@@ -696,7 +706,17 @@ async def update_room(
             "Room update violates visibility/owner invariants"
         ) from exc
 
+    if updates.new_owner_id is not None:
+        await sio.emit(
+            RoomRenamed(
+                old_address=old_address,
+                new_address=room.public_address,
+                room_id=room.id,
+            ),
+            room=room_channel(room.id),
+        )
+
     if changed:
         await broadcast_room_update(sio, session, storage, room)
 
-    return RoomPatchResponse()
+    return RoomPatchResponse(room_id=room.public_address)

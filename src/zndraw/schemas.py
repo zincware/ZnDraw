@@ -92,9 +92,10 @@ class RoomPatchRequest(BaseModel):
 
 
 class RoomPatchResponse(BaseModel):
-    """Response body for PATCH /rooms/{room_id}."""
+    """Response body for PATCH /v1/rooms/{owner_id}/{room_name}."""
 
     status: Literal["ok"] = "ok"
+    room_id: str  # composed: {owner_id}/{room_name}
 
 
 class MessageCreate(BaseModel):
