@@ -25,8 +25,8 @@ export interface RoomJoinResponse {
 	session_id: string;
 	step: number;
 	frame_count: number;
+	room_id: string;
 	camera_key: string | null;
-	locked: boolean;
 	progress_trackers?: Record<string, import("../../store").Progress>;
 }
 
@@ -58,15 +58,13 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 		ctx.setSessionId(sessionId);
 		ctx.setCameraKey(response.camera_key ?? null);
 
-		// Track room visit for localStorage persistence
-		setLastVisitedRoom(ctx.roomId!);
+		// Track room visit for localStorage persistence using composed room_id
+		const composedRoomId = response.room_id ?? `${ctx.ownerId}/${ctx.roomName}`;
+		setLastVisitedRoom(composedRoomId);
 
 		// Set minimal state from socket response
 		ctx.setFrameCount(frameCount);
 		ctx.setCurrentFrame(step);
-
-		// Edit-lock state from join response (always false now that Room.locked is removed)
-		ctx.setSuperuserLock(response.locked ?? false);
 
 		// Set progress trackers from join response
 		if (response.progress_trackers) {
@@ -76,7 +74,7 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 		// === CRITICAL: Fetch render-blocking data via REST ===
 		// Both calls run in parallel - we need both to render the scene
 		try {
-			const geometriesResponse = await listGeometries(ctx.roomId!);
+			const geometriesResponse = await listGeometries(composedRoomId);
 
 			// Set geometries and type metadata (schemas + defaults)
 			const geos = geometriesResponse.items || {};
@@ -119,10 +117,10 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 				frameSelResponse,
 				editLockResponse,
 			] = await Promise.all([
-				listSelectionGroups(ctx.roomId!),
-				getAllBookmarks(ctx.roomId!),
-				getFrameSelection(ctx.roomId!),
-				getEditLockStatus(ctx.roomId!),
+				listSelectionGroups(composedRoomId),
+				getAllBookmarks(composedRoomId),
+				getFrameSelection(composedRoomId),
+				getEditLockStatus(composedRoomId),
 			]);
 
 			// Set selection groups
@@ -195,23 +193,34 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 
 			// Join the specific room if one is set; otherwise connect is
 			// sufficient — rooms:feed is auto-joined server-side.
-			if (ctx.roomId) {
+			if (ctx.ownerId && ctx.roomName) {
+				const ownerId = ctx.ownerId;
+				const roomName = ctx.roomName;
 				socket.emit(
 					"room_join",
-					{ room_id: ctx.roomId, client_type: "frontend" },
+					{ owner_id: ownerId, room_name: roomName, client_type: "frontend" },
 					async (response: RoomJoinResponse | RoomJoinError) => {
-						// Handle 404 - room doesn't exist, create it via REST API
 						if ("status" in response && response.status === 404) {
-							const urlCopyFrom = new URLSearchParams(
-								window.location.search,
-							).get("copy_from");
+							const currentUserId = useAppStore.getState().user?.id;
+							if (currentUserId !== ownerId) {
+								// Cross-namespace probe — never reveals foreign state.
+								ctx.setInitializationError({
+									message: "Room not found or not accessible",
+									details: `HTTP ${response.status}`,
+								});
+								return;
+							}
+
+							const urlCopyFrom = new URLSearchParams(window.location.search).get(
+								"copy_from",
+							);
 							try {
 								await createRoom({
-									room_id: ctx.roomId!,
+									owner_id: ownerId,
+									name: roomName,
 									copy_from: urlCopyFrom ?? undefined,
 								});
 							} catch (error: any) {
-								// 409 Conflict = room created by another client, continue
 								if (error.response?.status !== 409) {
 									console.error("Failed to create room:", error);
 									ctx.setInitializationError({
@@ -224,18 +233,15 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 									return;
 								}
 							}
-							// Retry join after room creation
 							socket.emit(
 								"room_join",
-								{ room_id: ctx.roomId!, client_type: "frontend" },
+								{ owner_id: ownerId, room_name: roomName, client_type: "frontend" },
 								(retryResponse: RoomJoinResponse | RoomJoinError) => {
 									if ("status" in retryResponse) {
-										console.error("Failed to join room:", retryResponse);
 										ctx.setInitializationError({
 											message: "Failed to join room",
 											details:
-												retryResponse.detail ||
-												"Server rejected the connection",
+												retryResponse.detail || "Server rejected the connection",
 										});
 										return;
 									}
@@ -246,7 +252,6 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 						}
 
 						if ("status" in response) {
-							console.error("Failed to join room:", response);
 							ctx.setInitializationError({
 								message: "Failed to join room",
 								details: response.detail || "Server rejected the connection",
