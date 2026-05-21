@@ -84,12 +84,16 @@ async def create_test_user_in_db(
 
 
 async def create_test_room(
-    session: AsyncSession, user: User, description: str = "Test Room"
+    session: AsyncSession,
+    user: User,
+    description: str = "Test Room",
+    room_name: str = "test-room",
 ) -> Room:
     """Create a PUBLIC user-owned room and return it."""
     from zndraw.access import Visibility
 
     room = Room(
+        room_name=room_name,
         description=description,
         created_by_id=user.id,  # type: ignore[arg-type]
         owner_user_id=user.id,  # type: ignore[arg-type]
