@@ -41,7 +41,7 @@ async def test_get_default_camera_none(
     room = await create_test_room(session, user)
 
     resp = await client.get(
-        f"/v1/rooms/{room.id}/default-camera",
+        f"/v1/rooms/{room.public_address}/default-camera",
         headers=auth_header(token),
     )
     assert resp.status_code == 200
@@ -56,7 +56,7 @@ async def test_set_default_camera(session: AsyncSession, client: AsyncClient) ->
     await _create_geometry(session, room.id, "template-cam", "Camera")
 
     resp = await client.put(
-        f"/v1/rooms/{room.id}/default-camera",
+        f"/v1/rooms/{room.public_address}/default-camera",
         json={"default_camera": "template-cam"},
         headers=auth_header(token),
     )
@@ -64,7 +64,7 @@ async def test_set_default_camera(session: AsyncSession, client: AsyncClient) ->
     assert resp.json()["default_camera"] == "template-cam"
 
     resp = await client.get(
-        f"/v1/rooms/{room.id}/default-camera",
+        f"/v1/rooms/{room.public_address}/default-camera",
         headers=auth_header(token),
     )
     assert resp.json()["default_camera"] == "template-cam"
@@ -79,7 +79,7 @@ async def test_set_default_camera_not_found(
     room = await create_test_room(session, user)
 
     resp = await client.put(
-        f"/v1/rooms/{room.id}/default-camera",
+        f"/v1/rooms/{room.public_address}/default-camera",
         json={"default_camera": "nonexistent"},
         headers=auth_header(token),
     )
@@ -96,7 +96,7 @@ async def test_set_default_camera_wrong_type(
     await _create_geometry(session, room.id, "my-sphere", "Sphere")
 
     resp = await client.put(
-        f"/v1/rooms/{room.id}/default-camera",
+        f"/v1/rooms/{room.public_address}/default-camera",
         json={"default_camera": "my-sphere"},
         headers=auth_header(token),
     )
@@ -111,13 +111,13 @@ async def test_unset_default_camera(session: AsyncSession, client: AsyncClient) 
     await _create_geometry(session, room.id, "template-cam", "Camera")
 
     await client.put(
-        f"/v1/rooms/{room.id}/default-camera",
+        f"/v1/rooms/{room.public_address}/default-camera",
         json={"default_camera": "template-cam"},
         headers=auth_header(token),
     )
 
     resp = await client.put(
-        f"/v1/rooms/{room.id}/default-camera",
+        f"/v1/rooms/{room.public_address}/default-camera",
         json={"default_camera": None},
         headers=auth_header(token),
     )
@@ -125,7 +125,7 @@ async def test_unset_default_camera(session: AsyncSession, client: AsyncClient) 
     assert resp.json()["default_camera"] is None
 
     resp = await client.get(
-        f"/v1/rooms/{room.id}/default-camera",
+        f"/v1/rooms/{room.public_address}/default-camera",
         headers=auth_header(token),
     )
     assert resp.json()["default_camera"] is None
@@ -143,21 +143,21 @@ async def test_delete_geometry_clears_default(
 
     # Set as default
     await client.put(
-        f"/v1/rooms/{room.id}/default-camera",
+        f"/v1/rooms/{room.public_address}/default-camera",
         json={"default_camera": "template-cam"},
         headers=headers,
     )
 
     # Delete the geometry
     resp = await client.delete(
-        f"/v1/rooms/{room.id}/geometries/template-cam",
+        f"/v1/rooms/{room.public_address}/geometries/template-cam",
         headers=headers,
     )
     assert resp.status_code == 200
 
     # Default should be cleared
     resp = await client.get(
-        f"/v1/rooms/{room.id}/default-camera",
+        f"/v1/rooms/{room.public_address}/default-camera",
         headers=headers,
     )
     assert resp.json()["default_camera"] is None

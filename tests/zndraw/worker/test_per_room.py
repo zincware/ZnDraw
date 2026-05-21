@@ -134,8 +134,8 @@ def test_full_room_lifecycle(server, Echo, run_worker_loop, wait_for_task):
 
 def test_two_workers_same_room_job(server, Echo, run_worker_loop, wait_for_task):
     """Two workers in the same room claim different tasks via listen() loops."""
-    room_id_shared = uuid.uuid4().hex
-    w1 = ZnDraw(url=server, room=room_id_shared)
+    w1 = ZnDraw(url=server)
+    room_id_shared = w1.room
     w2 = ZnDraw(url=server, room=room_id_shared)
     submitter = ZnDraw(url=server, room=room_id_shared)
     try:
@@ -172,8 +172,8 @@ def test_two_workers_same_room_job(server, Echo, run_worker_loop, wait_for_task)
 
 def test_two_workers_submit_and_complete(server, Echo, run_worker_loop, wait_for_task):
     """Both workers run via listen() loops, sequential tasks verified."""
-    room_id_shared = uuid.uuid4().hex
-    w1 = ZnDraw(url=server, room=room_id_shared)
+    w1 = ZnDraw(url=server)
+    room_id_shared = w1.room
     w2 = ZnDraw(url=server, room=room_id_shared)
     submitter = ZnDraw(url=server, room=room_id_shared)
     try:

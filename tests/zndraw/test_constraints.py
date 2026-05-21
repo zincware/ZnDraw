@@ -250,8 +250,7 @@ def test_client_constraint_roundtrip(server: str):
     """Constraints survive the full client append/retrieve cycle."""
     from zndraw import ZnDraw
 
-    room_id = uuid.uuid4().hex
-    client = ZnDraw(url=server, room=room_id)
+    client = ZnDraw(url=server)
 
     atoms = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
     atoms.set_constraint(FixAtoms(indices=[0, 2]))
@@ -270,8 +269,7 @@ def test_client_extend_with_constraints(server: str):
     """Multiple constrained frames survive client extend/retrieve."""
     from zndraw import ZnDraw
 
-    room_id = uuid.uuid4().hex
-    client = ZnDraw(url=server, room=room_id)
+    client = ZnDraw(url=server)
 
     # Frame 0: FixAtoms
     a0 = ase.Atoms("H3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]])
@@ -317,8 +315,7 @@ def test_default_constraint_geometry_created_on_room_creation(server: str):
     from zndraw.geometries import Sphere
     from zndraw.transformations import InArrayTransform
 
-    room_id = uuid.uuid4().hex
-    client = ZnDraw(url=server, room=room_id)
+    client = ZnDraw(url=server)
 
     geo = client.geometries["constraints-fixed-atoms"]
     assert geo is not None
@@ -346,8 +343,7 @@ def test_constraint_geometry_renders_fixed_atoms(server: str):
     from zndraw import ZnDraw
     from zndraw.transformations import InArrayTransform
 
-    room_id = uuid.uuid4().hex
-    client = ZnDraw(url=server, room=room_id)
+    client = ZnDraw(url=server)
 
     atoms = ase.Atoms("H5", positions=[[i, 0, 0] for i in range(5)])
     atoms.set_constraint(FixAtoms(indices=[1, 3]))

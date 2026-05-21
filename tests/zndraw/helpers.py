@@ -113,17 +113,7 @@ def auth_header(token: str) -> dict[str, str]:
 async def _register_and_login(
     client: AsyncClient, email: str, password: str = "test12345"
 ) -> str:
-    """Register a new user and return their JWT access token.
-
-    Parameters
-    ----------
-    client
-        The async HTTP client to use for requests.
-    email
-        Email address for the new user.
-    password
-        Password for the new user.
-    """
+    """Register a new user and return their JWT access token."""
     await client.post("/v1/auth/register", json={"email": email, "password": password})
     r = await client.post(
         "/v1/auth/jwt/login",
@@ -132,6 +122,42 @@ async def _register_and_login(
     )
     r.raise_for_status()
     return r.json()["access_token"]
+
+
+async def get_user_id(client: AsyncClient, token: str) -> str:
+    """Return the UUID string of the authenticated user."""
+    r = await client.get("/v1/auth/users/me", headers={"Authorization": f"Bearer {token}"})
+    r.raise_for_status()
+    return r.json()["id"]
+
+
+async def create_room_via_api(
+    client: AsyncClient,
+    token: str,
+    name: str,
+    owner_id: str | None = None,
+    visibility: str = "public",
+    copy_from: str | None = None,
+    description: str | None = None,
+) -> str:
+    """Create a room via POST /v1/rooms and return its composed room_id.
+
+    If owner_id is omitted, the authenticated user's id is used.
+    """
+    if owner_id is None:
+        owner_id = await get_user_id(client, token)
+    body: dict = {"owner_id": owner_id, "name": name, "visibility": visibility}
+    if copy_from is not None:
+        body["copy_from"] = copy_from
+    if description is not None:
+        body["description"] = description
+    r = await client.post(
+        "/v1/rooms",
+        json=body,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    r.raise_for_status()
+    return r.json()["room_id"]
 
 
 class MockSioServer:
