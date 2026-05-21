@@ -83,13 +83,12 @@ class RoomCreateResponse(BaseModel):
 
 
 class RoomPatchRequest(BaseModel):
-    """Request body for PATCH /v1/rooms/{room_id}."""
+    """Request body for PATCH /v1/rooms/{owner_id}/{room_name}."""
 
     description: str | None = None
     frame_count: int | None = Field(None, ge=0)
     visibility: Visibility | None = None
-    owner_user_id: UUID | None = None
-    owner_group_id: UUID | None = None
+    new_owner_id: UUID | None = None
 
 
 class RoomPatchResponse(BaseModel):
