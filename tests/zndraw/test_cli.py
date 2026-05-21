@@ -1,8 +1,11 @@
 """Tests for ZnDraw CLI."""
 
 from datetime import UTC, datetime
+from uuid import UUID
 
+import httpx
 import pytest
+from httpx import MockTransport, Response
 from typer.testing import CliRunner
 
 from zndraw import __version__
@@ -346,3 +349,45 @@ def test_cli_reads_host_from_env(monkeypatch, capture_settings):
     result = runner.invoke(app, ["--no-browser"])
     assert result.exit_code == 0
     assert any(s.host == "192.168.1.1" for s in capture_settings)
+
+
+# ── 7. _resolve_owner_id ────────────────────────────────────────────
+
+
+def _mock_httpx_with(monkeypatch, handler):
+    """Force every httpx.Client built inside cli.py to use a MockTransport."""
+    real_client = httpx.Client
+
+    def fake_client(*args, **kwargs):
+        kwargs["transport"] = MockTransport(handler)
+        return real_client(*args, **kwargs)
+
+    monkeypatch.setattr("zndraw.cli.httpx.Client", fake_client)
+
+
+def test_resolve_owner_id_returns_uuid(monkeypatch):
+    from zndraw.cli import _resolve_owner_id
+
+    captured: dict[str, str] = {}
+
+    def handler(request):
+        captured["url"] = str(request.url)
+        captured["auth"] = request.headers.get("Authorization", "")
+        return Response(
+            200, json={"id": "12345678-1234-5678-1234-567812345678"}
+        )
+
+    _mock_httpx_with(monkeypatch, handler)
+
+    result = _resolve_owner_id("http://test", "tok")
+    assert result == UUID("12345678-1234-5678-1234-567812345678")
+    assert captured["url"].endswith("/v1/auth/users/me")
+    assert captured["auth"] == "Bearer tok"
+
+
+def test_resolve_owner_id_raises_on_http_error(monkeypatch):
+    from zndraw.cli import _resolve_owner_id
+
+    _mock_httpx_with(monkeypatch, lambda _req: Response(403))
+    with pytest.raises(httpx.HTTPStatusError):
+        _resolve_owner_id("http://test", "tok")

@@ -21,7 +21,9 @@ import webbrowser
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
+from uuid import UUID
 
+import httpx
 import typer
 import uvicorn
 
@@ -291,6 +293,17 @@ def handle_shutdown(port: int | None) -> None:
 
     typer.echo("Failed to shut down server")
     raise typer.Exit(1)
+
+
+def _resolve_owner_id(server_url: str, token: str) -> UUID:
+    """Fetch the authenticated user's UUID from /v1/auth/users/me."""
+    with httpx.Client(base_url=server_url, timeout=30.0) as client:
+        resp = client.get(
+            "/v1/auth/users/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        resp.raise_for_status()
+        return UUID(resp.json()["id"])
 
 
 def _acquire_admin_jwt(server_url: str) -> str | None:
