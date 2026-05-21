@@ -14,6 +14,7 @@ import logging
 import socket
 import threading
 import uuid
+from uuid import UUID
 from collections.abc import AsyncIterator
 
 import redis.asyncio as redis_client
@@ -410,20 +411,40 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         # zndraw-joblib: frame room cleanup callback
         # Deletes Redis provider frame count keys and emits FramesInvalidate
-        # when frame providers are removed (DELETE worker or sweeper).
+        # when frame providers are removed (DELETE worker or sweeper). The
+        # incoming room_ids are composed addresses ({owner_uuid}/{name});
+        # storage keys and SIO channels use the surrogate Room.id, so we
+        # resolve composed → surrogate in one batched lookup, release the
+        # session, then perform the Redis + SIO work without holding the
+        # SQLite serialization lock.
+        from zndraw.dependencies import _load_room_by_address
+
         async def frame_room_cleanup(room_ids: set[str]) -> None:
-            for rid in room_ids:
+            surrogates: list[str] = []
+            async with app.state.session_maker() as session:
+                for rid in room_ids:
+                    if "/" not in rid:
+                        continue
+                    owner_part, _, name_part = rid.partition("/")
+                    try:
+                        owner_uuid = UUID(owner_part)
+                    except ValueError:
+                        continue
+                    room = await _load_room_by_address(session, owner_uuid, name_part)
+                    if room is not None:
+                        surrogates.append(room.id)
+            for surrogate in surrogates:
                 await app.state.redis.delete(  # type: ignore[misc]
-                    RedisKey.provider_frame_count(rid)
+                    RedisKey.provider_frame_count(surrogate)
                 )
                 await tsio.emit(
                     FramesInvalidate(
-                        room_id=rid,
+                        room_id=surrogate,
                         action="clear",
                         count=0,
                         reason="provider_disconnected",
                     ),
-                    room=f"room:{rid}",
+                    room=f"room:{surrogate}",
                 )
 
         app.dependency_overrides[get_frame_room_cleanup] = lambda: frame_room_cleanup

@@ -475,15 +475,25 @@ async def get_writable_room_id(
     request: Request,
     session: SessionDep,
     current_user: CurrentUserDep,
-    share: ShareTokenDep,
     redis: RedisDep,
     room_id: str = Path(),
+    x_room_share_token: str | None = Header(default=None, alias="X-Room-Share-Token"),
 ) -> str:
-    """Verify room is writable and return its id. Virtual rooms skip checks."""
+    """Verify a composed-form room is writable and return the composed id.
+
+    Sigils (@global, @internal) short-circuit. Otherwise the composed
+    ``{owner_uuid}/{name}`` is resolved via the unique index for the
+    auth/lock checks; joblib stores rows keyed by the composed string so
+    its existing opaque-key semantics hold.
+    """
     validate_room_id(room_id)
     if room_id in ("@global", "@internal"):
         return room_id
-    room = await verify_room(session, room_id)
+    owner_part, _, name_part = room_id.partition("/")
+    room = await _load_room_by_address(session, UUID(owner_part), name_part)
+    if room is None:
+        raise RoomNotFound.exception(f"Room {room_id} not found")
+    share = await resolve_share_token(session, x_room_share_token, room.id)
     group_role: GroupRole | None = None
     if room.owner_group_id is not None:
         group_role = await fetch_group_role(

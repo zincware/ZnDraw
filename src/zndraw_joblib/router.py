@@ -966,7 +966,13 @@ async def delete_worker(
     await session.commit()
     await emit(tsio, emissions)
     if frame_rooms:
-        await frame_cleanup(frame_rooms)
+        # Schedule on the running loop so the cleanup hook runs AFTER the
+        # SessionDep's outer ``async with`` releases the SQLite lock — the
+        # hook may need a fresh session and would otherwise re-enter the
+        # serialization lock and deadlock.
+        import asyncio
+
+        asyncio.get_running_loop().create_task(frame_cleanup(frame_rooms))
 
 
 # ---------------------------------------------------------------------------

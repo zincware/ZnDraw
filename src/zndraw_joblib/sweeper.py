@@ -295,15 +295,20 @@ async def run_sweeper(
     while True:
         await asyncio.sleep(interval)
         try:
+            collected_emissions: set[Emission] = set()
+            collected_frame_rooms: set[str] = set()
             async for session in get_session():
                 count, emissions, frame_rooms = await cleanup_stale_workers(
                     session, timeout
                 )
                 if count > 0:
                     logger.info("Cleaned up %s stale worker(s)", count)
-                await emit(tsio, emissions)
-                if frame_rooms and on_frame_rooms is not None:
-                    await on_frame_rooms(frame_rooms)
+                collected_emissions.update(emissions)
+                collected_frame_rooms.update(frame_rooms)
+            # Session released — emit and call cleanup hook without holding the lock.
+            await emit(tsio, collected_emissions)
+            if collected_frame_rooms and on_frame_rooms is not None:
+                await on_frame_rooms(collected_frame_rooms)
 
             async for session in get_session():
                 count, emissions = await cleanup_stuck_internal_tasks(
