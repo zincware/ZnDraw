@@ -43,24 +43,37 @@ async def _get_user_token(
     return login_response.json()["access_token"]
 
 
+async def _get_user_id(http_client: AsyncClient, token: str) -> str:
+    """Return the authenticated user's UUID string."""
+    response = await http_client.get(
+        "/v1/auth/users/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200, f"me failed: {response.text}"
+    return response.json()["id"]
+
+
 async def _create_room(http_client: AsyncClient, token: str) -> str:
-    """Create a room and return its ID."""
-    room_id = str(uuid.uuid4())
+    """Create a room and return its composed public address ({owner_id}/{name})."""
+    owner_id = await _get_user_id(http_client, token)
+    room_name = str(uuid.uuid4()).replace("-", "")[:20]
     response = await http_client.post(
         "/v1/rooms",
-        json={"room_id": room_id},
+        json={"owner_id": owner_id, "name": room_name},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 201
-    RoomCreateResponse.model_validate(response.json())
-    return room_id
+    body = RoomCreateResponse.model_validate(response.json())
+    return body.room_id
 
 
 @pytest.mark.asyncio
 async def test_socketio_join_room(server: str, http_client: AsyncClient) -> None:
     """Test joining a Socket.IO room."""
     token = await _get_user_token(http_client, "roomuser@example.com")
-    room_id = await _create_room(http_client, token)
+    owner_id = await _get_user_id(http_client, token)
+    room_address = await _create_room(http_client, token)
+    _, room_name = room_address.split("/", 1)
 
     sio_client = socketio.AsyncClient()
     await sio_client.connect(server, auth={"token": token})
@@ -68,9 +81,10 @@ async def test_socketio_join_room(server: str, http_client: AsyncClient) -> None
 
     tsio_client = wrap(sio_client)
     result = await tsio_client.call(
-        RoomJoin(room_id=room_id), response_model=RoomJoinResponse
+        RoomJoin(owner_id=uuid.UUID(owner_id), room_name=room_name),
+        response_model=RoomJoinResponse,
     )
-    assert result.room_id == room_id
+    assert result.room_id == room_address
 
     await sio_client.disconnect()
 
@@ -86,7 +100,11 @@ async def test_socketio_join_nonexistent_room(
     await sio_client.connect(server, auth={"token": token})
 
     raw_result = await sio_client.call(
-        "room_join", {"room_id": "nonexistent-room-99999"}
+        "room_join",
+        {
+            "owner_id": "00000000-0000-0000-0000-000000000000",
+            "room_name": "nonexistent-room-99999",
+        },
     )
     assert isinstance(raw_result, dict)
     assert raw_result["type"] == RoomNotFound.type_uri()
@@ -98,17 +116,23 @@ async def test_socketio_join_nonexistent_room(
 async def test_socketio_leave_room(server: str, http_client: AsyncClient) -> None:
     """Test leaving a Socket.IO room."""
     token = await _get_user_token(http_client, "leaveuser@example.com")
-    room_id = await _create_room(http_client, token)
+    owner_id = await _get_user_id(http_client, token)
+    room_address = await _create_room(http_client, token)
+    _, room_name = room_address.split("/", 1)
 
     sio_client = socketio.AsyncClient()
     await sio_client.connect(server, auth={"token": token})
     tsio_client = wrap(sio_client)
-    await tsio_client.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_client.call(
+        RoomJoin(owner_id=uuid.UUID(owner_id), room_name=room_name),
+        response_model=RoomJoinResponse,
+    )
 
     result = await tsio_client.call(
-        RoomLeave(room_id=room_id), response_model=RoomLeaveResponse
+        RoomLeave(owner_id=uuid.UUID(owner_id), room_name=room_name),
+        response_model=RoomLeaveResponse,
     )
-    assert result.room_id == room_id
+    assert result.room_id == room_address
 
     await sio_client.disconnect()
 
@@ -119,11 +143,15 @@ async def test_socketio_leave_room_not_in_room(
 ) -> None:
     """Test leaving a room when not in it returns error."""
     token = await _get_user_token(http_client, "notinroom@example.com")
+    owner_id = await _get_user_id(http_client, token)
 
     sio_client = socketio.AsyncClient()
     await sio_client.connect(server, auth={"token": token})
 
-    raw_result = await sio_client.call("room_leave", {"room_id": "room-1"})
+    raw_result = await sio_client.call(
+        "room_leave",
+        {"owner_id": owner_id, "room_name": "room-1"},
+    )
     assert isinstance(raw_result, dict)
     assert raw_result["type"] == NotInRoom.type_uri()
 
@@ -140,25 +168,32 @@ async def test_socketio_leave_room_after_switch_is_idempotent(
     backend has already switched to a new room via room_join.
     """
     token = await _get_user_token(http_client, "roomswitch@example.com")
-    room1_id = await _create_room(http_client, token)
-    room2_id = await _create_room(http_client, token)
+    owner_id = await _get_user_id(http_client, token)
+    room1_address = await _create_room(http_client, token)
+    room2_address = await _create_room(http_client, token)
+    _, room1_name = room1_address.split("/", 1)
+    _, room2_name = room2_address.split("/", 1)
 
     sio_client = socketio.AsyncClient()
     await sio_client.connect(server, auth={"token": token})
     tsio_client = wrap(sio_client)
+    oid = uuid.UUID(owner_id)
 
     # Join room1
-    await tsio_client.call(RoomJoin(room_id=room1_id), response_model=RoomJoinResponse)
+    await tsio_client.call(
+        RoomJoin(owner_id=oid, room_name=room1_name), response_model=RoomJoinResponse
+    )
 
     # Switch to room2 (backend automatically leaves room1)
-    await tsio_client.call(RoomJoin(room_id=room2_id), response_model=RoomJoinResponse)
+    await tsio_client.call(
+        RoomJoin(owner_id=oid, room_name=room2_name), response_model=RoomJoinResponse
+    )
 
     # Try to leave room1 again (simulates frontend cleanup race)
-    # Should succeed idempotently since we're already in room2
     result = await tsio_client.call(
-        RoomLeave(room_id=room1_id), response_model=RoomLeaveResponse
+        RoomLeave(owner_id=oid, room_name=room1_name), response_model=RoomLeaveResponse
     )
-    assert result.room_id == room1_id
+    assert result.room_id == room1_address
 
     await sio_client.disconnect()
 
@@ -167,20 +202,25 @@ async def test_socketio_leave_room_after_switch_is_idempotent(
 async def test_socketio_typing_events(server: str, http_client: AsyncClient) -> None:
     """Test typing start/stop events."""
     token = await _get_user_token(http_client, "typinguser@example.com")
-    room_id = await _create_room(http_client, token)
+    owner_id = await _get_user_id(http_client, token)
+    room_address = await _create_room(http_client, token)
+    _, room_name = room_address.split("/", 1)
+    oid = uuid.UUID(owner_id)
 
     sio_client = socketio.AsyncClient()
     await sio_client.connect(server, auth={"token": token})
     tsio_client = wrap(sio_client)
-    await tsio_client.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_client.call(
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
 
     result = await tsio_client.call(
-        TypingStart(room_id=room_id), response_model=TypingResponse
+        TypingStart(owner_id=oid, room_name=room_name), response_model=TypingResponse
     )
     assert result.status == "ok"
 
     result = await tsio_client.call(
-        TypingStop(room_id=room_id), response_model=TypingResponse
+        TypingStop(owner_id=oid, room_name=room_name), response_model=TypingResponse
     )
     assert result.status == "ok"
 
@@ -195,7 +235,10 @@ async def test_socketio_session_joined_broadcast(
     token1 = await _get_user_token(http_client, "first@example.com")
     token2 = await _get_user_token(http_client, "second@example.com")
 
-    room_id = await _create_room(http_client, token1)
+    owner_id = await _get_user_id(http_client, token1)
+    room_address = await _create_room(http_client, token1)
+    _, room_name = room_address.split("/", 1)
+    oid = uuid.UUID(owner_id)
 
     # User1 connects and joins Socket.IO room
     sio_client1 = socketio.AsyncClient()
@@ -207,7 +250,9 @@ async def test_socketio_session_joined_broadcast(
 
     await sio_client1.connect(server, auth={"token": token1})
     tsio_client1 = wrap(sio_client1)
-    await tsio_client1.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_client1.call(
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
 
     # User2 connects and joins Socket.IO room
     sio_client2 = socketio.AsyncClient()
@@ -217,12 +262,14 @@ async def test_socketio_session_joined_broadcast(
     # Get user2's user_id via UserGet
     user2_info = await tsio_client2.call(UserGet(), response_model=UserGetResponse)
 
-    await tsio_client2.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_client2.call(
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
 
     await asyncio.sleep(0.5)
 
     assert len(received_events) == 1
-    assert received_events[0].room_id == room_id
+    assert received_events[0].room_id == room_address
     assert received_events[0].user_id == user2_info.id
     assert received_events[0].sid  # sid should be present
 
@@ -234,16 +281,21 @@ async def test_socketio_session_joined_broadcast(
 async def test_socketio_presence(server: str, http_client: AsyncClient) -> None:
     """Test presence endpoint reflects online users."""
     token = await _get_user_token(http_client, "presenceuser@example.com")
-    room_id = await _create_room(http_client, token)
+    owner_id = await _get_user_id(http_client, token)
+    room_address = await _create_room(http_client, token)
+    _, room_name = room_address.split("/", 1)
+    oid = uuid.UUID(owner_id)
 
     sio_client = socketio.AsyncClient()
     await sio_client.connect(server, auth={"token": token})
     tsio_client = wrap(sio_client)
-    await tsio_client.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_client.call(
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
 
     # Check presence via REST
     presence_response = await http_client.get(
-        f"/v1/rooms/{room_id}/presence",
+        f"/v1/rooms/{room_address}/presence",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert presence_response.status_code == 200
@@ -264,7 +316,10 @@ async def test_socketio_session_left_broadcast(
     token1 = await _get_user_token(http_client, "stayer@example.com")
     token2 = await _get_user_token(http_client, "leaver2@example.com")
 
-    room_id = await _create_room(http_client, token1)
+    owner_id = await _get_user_id(http_client, token1)
+    room_address = await _create_room(http_client, token1)
+    _, room_name = room_address.split("/", 1)
+    oid = uuid.UUID(owner_id)
 
     # User1 connects and joins Socket.IO room
     sio_client1 = socketio.AsyncClient()
@@ -276,7 +331,9 @@ async def test_socketio_session_left_broadcast(
 
     await sio_client1.connect(server, auth={"token": token1})
     tsio_client1 = wrap(sio_client1)
-    await tsio_client1.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_client1.call(
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
 
     # User2 connects, joins, then leaves Socket.IO room
     sio_client2 = socketio.AsyncClient()
@@ -285,15 +342,17 @@ async def test_socketio_session_left_broadcast(
 
     user2_info = await tsio_client2.call(UserGet(), response_model=UserGetResponse)
 
-    await tsio_client2.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
     await tsio_client2.call(
-        RoomLeave(room_id=room_id), response_model=RoomLeaveResponse
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
+    await tsio_client2.call(
+        RoomLeave(owner_id=oid, room_name=room_name), response_model=RoomLeaveResponse
     )
 
     await asyncio.sleep(0.5)
 
     assert len(received_events) == 1
-    assert received_events[0].room_id == room_id
+    assert received_events[0].room_id == room_address
     assert received_events[0].user_id == user2_info.id
     assert received_events[0].sid  # sid should be present
 
@@ -309,7 +368,10 @@ async def test_socketio_session_left_on_disconnect(
     token1 = await _get_user_token(http_client, "observer@example.com")
     token2 = await _get_user_token(http_client, "disconnector@example.com")
 
-    room_id = await _create_room(http_client, token1)
+    owner_id = await _get_user_id(http_client, token1)
+    room_address = await _create_room(http_client, token1)
+    _, room_name = room_address.split("/", 1)
+    oid = uuid.UUID(owner_id)
 
     # User1 connects and joins Socket.IO room
     sio_client1 = socketio.AsyncClient()
@@ -321,7 +383,9 @@ async def test_socketio_session_left_on_disconnect(
 
     await sio_client1.connect(server, auth={"token": token1})
     tsio_client1 = wrap(sio_client1)
-    await tsio_client1.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_client1.call(
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
 
     # User2 connects, joins, then disconnects (abruptly)
     sio_client2 = socketio.AsyncClient()
@@ -330,13 +394,15 @@ async def test_socketio_session_left_on_disconnect(
 
     user2_info = await tsio_client2.call(UserGet(), response_model=UserGetResponse)
 
-    await tsio_client2.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_client2.call(
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
     await sio_client2.disconnect()
 
     await asyncio.sleep(0.5)
 
     assert len(received_events) == 1
-    assert received_events[0].room_id == room_id
+    assert received_events[0].room_id == room_address
     assert received_events[0].user_id == user2_info.id
     assert received_events[0].sid  # sid should be present
 
@@ -354,7 +420,10 @@ async def test_same_user_two_sessions_same_room(
 ) -> None:
     """User in same room from two sessions - both tracked independently."""
     token = await _get_user_token(http_client, "multitab@example.com")
-    room_id = await _create_room(http_client, token)
+    owner_id = await _get_user_id(http_client, token)
+    room_address = await _create_room(http_client, token)
+    _, room_name = room_address.split("/", 1)
+    oid = uuid.UUID(owner_id)
 
     # Connect session 1 (first tab)
     sio_client1 = socketio.AsyncClient()
@@ -374,13 +443,17 @@ async def test_same_user_two_sessions_same_room(
 
     user_info = await tsio_client1.call(UserGet(), response_model=UserGetResponse)
 
-    await tsio_client1.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_client1.call(
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
 
     # Connect session 2 (second tab, same user)
     sio_client2 = socketio.AsyncClient()
     await sio_client2.connect(server, auth={"token": token})
     tsio_client2 = wrap(sio_client2)
-    await tsio_client2.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_client2.call(
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
 
     await asyncio.sleep(0.3)
 
@@ -391,7 +464,7 @@ async def test_same_user_two_sessions_same_room(
 
     # Check presence - should show 2 sessions (same user, different SIDs)
     presence_response = await http_client.get(
-        f"/v1/rooms/{room_id}/presence",
+        f"/v1/rooms/{room_address}/presence",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert presence_response.status_code == 200
@@ -411,7 +484,7 @@ async def test_same_user_two_sessions_same_room(
 
     # Presence should show 1 session (session 1 is active)
     presence_response = await http_client.get(
-        f"/v1/rooms/{room_id}/presence",
+        f"/v1/rooms/{room_address}/presence",
         headers={"Authorization": f"Bearer {token}"},
     )
     presence = PresenceResponse.model_validate(presence_response.json())
@@ -423,7 +496,7 @@ async def test_same_user_two_sessions_same_room(
     await asyncio.sleep(0.3)
 
     presence_response = await http_client.get(
-        f"/v1/rooms/{room_id}/presence",
+        f"/v1/rooms/{room_address}/presence",
         headers={"Authorization": f"Bearer {token}"},
     )
     presence = PresenceResponse.model_validate(presence_response.json())
@@ -436,9 +509,13 @@ async def test_same_user_two_sessions_different_rooms(
 ) -> None:
     """User in different rooms from two sessions."""
     token = await _get_user_token(http_client, "multiroom@example.com")
+    owner_id = await _get_user_id(http_client, token)
+    oid = uuid.UUID(owner_id)
 
-    room_a_id = await _create_room(http_client, token)
-    room_b_id = await _create_room(http_client, token)
+    room_a_address = await _create_room(http_client, token)
+    room_b_address = await _create_room(http_client, token)
+    _, room_a_name = room_a_address.split("/", 1)
+    _, room_b_name = room_b_address.split("/", 1)
 
     # Session 1 joins Room A
     sio_client1 = socketio.AsyncClient()
@@ -448,7 +525,7 @@ async def test_same_user_two_sessions_different_rooms(
     user_info = await tsio_client1.call(UserGet(), response_model=UserGetResponse)
 
     await tsio_client1.call(
-        RoomJoin(room_id=room_a_id), response_model=RoomJoinResponse
+        RoomJoin(owner_id=oid, room_name=room_a_name), response_model=RoomJoinResponse
     )
 
     # Session 2 joins Room B
@@ -456,14 +533,14 @@ async def test_same_user_two_sessions_different_rooms(
     await sio_client2.connect(server, auth={"token": token})
     tsio_client2 = wrap(sio_client2)
     await tsio_client2.call(
-        RoomJoin(room_id=room_b_id), response_model=RoomJoinResponse
+        RoomJoin(owner_id=oid, room_name=room_b_name), response_model=RoomJoinResponse
     )
 
     await asyncio.sleep(0.3)
 
     # Check presence in Room A - should show 1 session
     presence_a = await http_client.get(
-        f"/v1/rooms/{room_a_id}/presence",
+        f"/v1/rooms/{room_a_address}/presence",
         headers={"Authorization": f"Bearer {token}"},
     )
     presence_a_data = PresenceResponse.model_validate(presence_a.json())
@@ -472,7 +549,7 @@ async def test_same_user_two_sessions_different_rooms(
 
     # Check presence in Room B - should show 1 session
     presence_b = await http_client.get(
-        f"/v1/rooms/{room_b_id}/presence",
+        f"/v1/rooms/{room_b_address}/presence",
         headers={"Authorization": f"Bearer {token}"},
     )
     presence_b_data = PresenceResponse.model_validate(presence_b.json())
@@ -485,7 +562,7 @@ async def test_same_user_two_sessions_different_rooms(
 
     # Room A should be empty now
     presence_a = await http_client.get(
-        f"/v1/rooms/{room_a_id}/presence",
+        f"/v1/rooms/{room_a_address}/presence",
         headers={"Authorization": f"Bearer {token}"},
     )
     presence_a_data = PresenceResponse.model_validate(presence_a.json())
@@ -493,7 +570,7 @@ async def test_same_user_two_sessions_different_rooms(
 
     # Room B should still show session
     presence_b = await http_client.get(
-        f"/v1/rooms/{room_b_id}/presence",
+        f"/v1/rooms/{room_b_address}/presence",
         headers={"Authorization": f"Bearer {token}"},
     )
     presence_b_data = PresenceResponse.model_validate(presence_b.json())
@@ -511,7 +588,10 @@ async def test_session_broadcast_includes_sid(
     token1 = await _get_user_token(http_client, "listener@example.com")
     token2 = await _get_user_token(http_client, "joiner@example.com")
 
-    room_id = await _create_room(http_client, token1)
+    owner_id = await _get_user_id(http_client, token1)
+    room_address = await _create_room(http_client, token1)
+    _, room_name = room_address.split("/", 1)
+    oid = uuid.UUID(owner_id)
 
     # User1 connects and joins Socket.IO room
     sio_client1 = socketio.AsyncClient()
@@ -523,7 +603,9 @@ async def test_session_broadcast_includes_sid(
 
     await sio_client1.connect(server, auth={"token": token1})
     tsio_client1 = wrap(sio_client1)
-    await tsio_client1.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_client1.call(
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
 
     # User2 connects and joins Socket.IO room
     sio_client2 = socketio.AsyncClient()
@@ -532,14 +614,16 @@ async def test_session_broadcast_includes_sid(
 
     user2_info = await tsio_client2.call(UserGet(), response_model=UserGetResponse)
 
-    await tsio_client2.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_client2.call(
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
 
     await asyncio.sleep(0.3)
 
     # Verify broadcast includes all expected fields
     assert len(received_events) == 1
     event = received_events[0]
-    assert event.room_id == room_id
+    assert event.room_id == room_address
     assert event.user_id == user2_info.id
     assert event.email == "joiner@example.com"
     assert event.sid is not None
@@ -560,14 +644,17 @@ async def test_frontend_join_creates_session_camera(
 ) -> None:
     """Frontend clients get a session camera on join."""
     token = await _get_user_token(http_client, "cam-frontend@example.com")
-    room_id = await _create_room(http_client, token)
+    owner_id = await _get_user_id(http_client, token)
+    room_address = await _create_room(http_client, token)
+    _, room_name = room_address.split("/", 1)
+    oid = uuid.UUID(owner_id)
 
     sio_client = socketio.AsyncClient()
     await sio_client.connect(server, auth={"token": token})
     tsio_client = wrap(sio_client)
 
     result = await tsio_client.call(
-        RoomJoin(room_id=room_id, client_type="frontend"),
+        RoomJoin(owner_id=oid, room_name=room_name, client_type="frontend"),
         response_model=RoomJoinResponse,
     )
     assert result.camera_key is not None
@@ -575,7 +662,7 @@ async def test_frontend_join_creates_session_camera(
 
     # Verify camera geometry exists via REST
     response = await http_client.get(
-        f"/v1/rooms/{room_id}/geometries/{result.camera_key}",
+        f"/v1/rooms/{room_address}/geometries/{result.camera_key}",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
@@ -589,14 +676,17 @@ async def test_pyclient_join_does_not_create_session_camera(
 ) -> None:
     """Python clients must not get a session camera on join."""
     token = await _get_user_token(http_client, "cam-pyclient@example.com")
-    room_id = await _create_room(http_client, token)
+    owner_id = await _get_user_id(http_client, token)
+    room_address = await _create_room(http_client, token)
+    _, room_name = room_address.split("/", 1)
+    oid = uuid.UUID(owner_id)
 
     sio_client = socketio.AsyncClient()
     await sio_client.connect(server, auth={"token": token})
     tsio_client = wrap(sio_client)
 
     result = await tsio_client.call(
-        RoomJoin(room_id=room_id, client_type="pyclient"),
+        RoomJoin(owner_id=oid, room_name=room_name, client_type="pyclient"),
         response_model=RoomJoinResponse,
     )
     assert result.camera_key is None
@@ -616,21 +706,24 @@ async def test_rest_rejects_updating_other_users_session_camera(
     """REST PUT to another user's session camera returns 403."""
     token_a = await _get_user_token(http_client_auth, "cam-rest-owner@example.com")
     token_b = await _get_user_token(http_client_auth, "cam-rest-intruder@example.com")
-    room_id = await _create_room(http_client_auth, token_a)
+    owner_id = await _get_user_id(http_client_auth, token_a)
+    room_address = await _create_room(http_client_auth, token_a)
+    _, room_name = room_address.split("/", 1)
+    oid = uuid.UUID(owner_id)
 
     # User A joins as frontend (creates session camera)
     sio_a = socketio.AsyncClient()
     await sio_a.connect(server_auth, auth={"token": token_a})
     tsio_a = wrap(sio_a)
     result_a = await tsio_a.call(
-        RoomJoin(room_id=room_id, client_type="frontend"),
+        RoomJoin(owner_id=oid, room_name=room_name, client_type="frontend"),
         response_model=RoomJoinResponse,
     )
     assert result_a.camera_key is not None
 
     # User B tries to update User A's camera via REST → 403
     response = await http_client_auth.put(
-        f"/v1/rooms/{room_id}/geometries/{result_a.camera_key}",
+        f"/v1/rooms/{room_address}/geometries/{result_a.camera_key}",
         json={
             "type": "Camera",
             "data": {"position": [99.0, 99.0, 99.0]},
@@ -668,13 +761,13 @@ async def test_rooms_feed_auto_join(server: str, http_client: AsyncClient) -> No
     await sio_b.connect(server, auth={"token": token_b})
 
     # Client A creates a public room via REST.
-    new_room_id = await _create_room(http_client, token_a)
+    new_room_address = await _create_room(http_client, token_a)
 
     # Give the event loop a beat to deliver the broadcast.
     await asyncio.sleep(0.5)
 
-    assert any(e.id == new_room_id for e in received), (
-        f"Client B received no room_update for {new_room_id}; got {received}"
+    assert any(e.room_id == new_room_address for e in received), (
+        f"Client B received no room_update for {new_room_address}; got {received}"
     )
 
     await sio_b.disconnect()
@@ -696,7 +789,10 @@ async def test_same_room_frame_append_updates_sidebar(
     token_a = await _get_user_token(http_client, "same-room-a@example.com")
     token_b = await _get_user_token(http_client, "same-room-b@example.com")
 
-    room_id = await _create_room(http_client, token_a)
+    owner_id = await _get_user_id(http_client, token_a)
+    room_address = await _create_room(http_client, token_a)
+    _, room_name = room_address.split("/", 1)
+    oid = uuid.UUID(owner_id)
 
     # Both clients join the same room.
     sio_a = socketio.AsyncClient()
@@ -713,17 +809,18 @@ async def test_same_room_frame_append_updates_sidebar(
 
     tsio_a = wrap(sio_a)
     tsio_b = wrap(sio_b)
-    await tsio_a.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
-    await tsio_b.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_a.call(
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
+    await tsio_b.call(
+        RoomJoin(owner_id=oid, room_name=room_name), response_model=RoomJoinResponse
+    )
 
     # Drain any room_update emissions that predate the frame append.
     await asyncio.sleep(0.3)
     received_b.clear()
 
-    # Client A appends frames via REST. The endpoint validates required
-    # rendering keys (arrays.colors, arrays.radii), so we build proper
-    # frames via the serialization helper — the same path test_routes_frames
-    # uses. See src/zndraw/routes/frames.py:64 for the validation.
+    # Client A appends frames via REST.
     import ase  # local import keeps top-of-file imports untouched
 
     from zndraw.client import atoms_to_json_dict
@@ -732,7 +829,7 @@ async def test_same_room_frame_append_updates_sidebar(
     frame = atoms_to_json_dict(atoms)
 
     append_response = await http_client.post(
-        f"/v1/rooms/{room_id}/frames",
+        f"/v1/rooms/{room_address}/frames",
         json={"frames": [frame, frame, frame]},
         headers={"Authorization": f"Bearer {token_a}"},
     )
@@ -743,7 +840,7 @@ async def test_same_room_frame_append_updates_sidebar(
     # Client B must see a room_update with the new total.
     assert received_b, "Client B received no room_update"
     latest = received_b[-1]
-    assert latest.id == room_id
+    assert latest.room_id == room_address
     assert latest.frame_count >= 3
 
     await sio_a.disconnect()

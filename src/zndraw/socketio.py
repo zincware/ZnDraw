@@ -107,6 +107,7 @@ async def on_connect(
         {
             "user_id": user_id,
             "current_room_id": None,
+            "current_room_address": None,
             "share_token": share_token,
         },
     )
@@ -128,13 +129,18 @@ async def on_disconnect(
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
     current_room_id: str | None = sio_session.get("current_room_id")
+    current_room_address: str | None = sio_session.get("current_room_address")
 
     if current_room_id is not None:
         # Delete session camera from room hash
         await _cleanup_session(redis, sid, sio_session, current_room_id)
 
         await tsio.emit(
-            SessionLeft(room_id=current_room_id, user_id=user_id, sid=sid),
+            SessionLeft(
+                room_id=current_room_address or current_room_id,
+                user_id=user_id,
+                sid=sid,
+            ),
             room=room_channel(current_room_id),
         )
 
@@ -215,18 +221,24 @@ async def room_join(
 
     # Leave previous room if any.
     old_room_id: str | None = sio_session.get("current_room_id")
+    old_room_address: str | None = sio_session.get("current_room_address")
     if old_room_id is not None:
         await tsio.leave_room(sid, room_channel(old_room_id))
         if not old_room_id.startswith("@"):
             await _cleanup_session(redis, sid, sio_session, old_room_id)
         await tsio.emit(
-            SessionLeft(room_id=old_room_id, user_id=user_id, sid=sid),
+            SessionLeft(
+                room_id=old_room_address or old_room_id,
+                user_id=user_id,
+                sid=sid,
+            ),
             room=room_channel(old_room_id),
         )
 
     # Join new room.
     await tsio.enter_room(sid, room_channel(room.id))
     sio_session["current_room_id"] = room.id
+    sio_session["current_room_address"] = room.public_address
     sio_session["client_type"] = data.client_type
     await tsio.save_session(sid, sio_session)
 
@@ -235,7 +247,7 @@ async def room_join(
         await tsio.enter_room(sid, room_channel("@global"))
 
     await tsio.emit(
-        SessionJoined(room_id=room.id, user_id=user_id, sid=sid, email=email),
+        SessionJoined(room_id=room.public_address, user_id=user_id, sid=sid, email=email),
         room=room_channel(room.id),
         skip_sid=sid,
     )
@@ -329,7 +341,7 @@ async def room_leave(
     await tsio.save_session(sid, sio_session)
 
     await tsio.emit(
-        SessionLeft(room_id=room.id, user_id=user_id, sid=sid),
+        SessionLeft(room_id=room.public_address, user_id=user_id, sid=sid),
         room=room_channel(room.id),
     )
     return RoomLeaveResponse(room_id=room.public_address)
