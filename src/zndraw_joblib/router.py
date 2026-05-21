@@ -270,7 +270,7 @@ async def create_worker(
 
 
 @router.put(
-    "/rooms/{room_id}/jobs",
+    "/rooms/{room_id:path}/jobs",
     response_model=JobResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -389,7 +389,7 @@ async def register_job(
     )
 
 
-@router.get("/rooms/{room_id}/jobs", response_model=PaginatedResponse[JobSummary])
+@router.get("/rooms/{room_id:path}/jobs", response_model=PaginatedResponse[JobSummary])
 async def list_jobs(
     room_id: str,
     session: SessionDep,
@@ -428,7 +428,7 @@ async def list_jobs(
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
 
-@router.get("/rooms/{room_id}/workers", response_model=PaginatedResponse[WorkerSummary])
+@router.get("/rooms/{room_id:path}/workers", response_model=PaginatedResponse[WorkerSummary])
 async def list_workers_for_room(
     room_id: str,
     session: SessionDep,
@@ -481,7 +481,7 @@ async def list_workers_for_room(
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
 
-@router.get("/rooms/{room_id}/tasks", response_model=PaginatedResponse[TaskResponse])
+@router.get("/rooms/{room_id:path}/tasks", response_model=PaginatedResponse[TaskResponse])
 async def list_tasks_for_room(
     room_id: str,
     session: SessionDep,
@@ -519,7 +519,7 @@ async def list_tasks_for_room(
 
 
 @router.get(
-    "/rooms/{room_id}/jobs/{job_name:path}/tasks",
+    "/rooms/{room_id:path}/jobs/{job_name:path}/tasks",
     response_model=PaginatedResponse[TaskResponse],
 )
 async def list_tasks_for_job(
@@ -558,7 +558,7 @@ async def list_tasks_for_job(
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
 
-@router.get("/rooms/{room_id}/jobs/{job_name:path}", response_model=JobResponse)
+@router.get("/rooms/{room_id:path}/jobs/{job_name:path}", response_model=JobResponse)
 async def get_job(
     room_id: str,
     job_name: str,
@@ -587,7 +587,7 @@ async def get_job(
 
 
 @router.post(
-    "/rooms/{room_id}/tasks/{job_name:path}",
+    "/rooms/{room_id:path}/tasks/{job_name:path}",
     response_model=TaskResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
@@ -1046,7 +1046,7 @@ async def _resolve_provider(
 
 
 @router.put(
-    "/rooms/{room_id}/providers",
+    "/rooms/{room_id:path}/providers",
     response_model=ProviderResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -1139,7 +1139,7 @@ async def register_provider(
 
 
 @router.get(
-    "/rooms/{room_id}/providers",
+    "/rooms/{room_id:path}/providers",
     response_model=PaginatedResponse[ProviderResponse],
 )
 async def list_providers(
@@ -1181,7 +1181,7 @@ async def list_providers(
 
 
 @router.get(
-    "/rooms/{room_id}/providers/{provider_name:path}/info",
+    "/rooms/{room_id:path}/providers/{provider_name:path}/info",
     response_model=ProviderResponse,
 )
 async def get_provider_info(
@@ -1199,7 +1199,7 @@ async def get_provider_info(
     return ProviderResponse.from_record(provider)
 
 
-@router.get("/rooms/{room_id}/providers/{provider_name:path}")
+@router.get("/rooms/{room_id:path}/providers/{provider_name:path}")
 async def read_provider(
     room_id: str,
     provider_name: str,
