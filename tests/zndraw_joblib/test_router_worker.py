@@ -4,6 +4,7 @@
 import time
 from uuid import UUID
 
+from conftest import make_room_address
 from zndraw_joblib.exceptions import ProblemDetail
 from zndraw_joblib.schemas import (
     JobResponse,
@@ -74,13 +75,14 @@ def test_worker_delete_removes_orphan_job(seeded_client):
     assert response.status_code == 404
 
 
-def test_worker_delete_keeps_job_with_pending_task(seeded_client):
+def test_worker_delete_keeps_job_with_pending_task(seeded_client, test_user_id):
     """Job should remain if there are non-terminal tasks, even without workers."""
     worker_id = seeded_client.seeded_worker_id
+    room_1 = make_room_address(test_user_id, "room_1")
 
     # Submit a task (creates a pending task)
     seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
 
@@ -96,12 +98,13 @@ def test_worker_delete_keeps_job_with_pending_task(seeded_client):
     assert data.workers == []
 
 
-def test_worker_delete_removes_job_after_task_completes(seeded_client):
+def test_worker_delete_removes_job_after_task_completes(seeded_client, test_user_id):
     """Job should be removed when sole worker deleted and all tasks are terminal."""
     worker_id = seeded_client.seeded_worker_id
+    room_1 = make_room_address(test_user_id, "room_1")
 
     seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
     claim_resp = seeded_client.post(
@@ -173,13 +176,14 @@ def test_workers_list_changes_with_workers(client_factory):
     assert data.workers[0] == worker3_id
 
 
-def test_worker_delete_fails_running_tasks(seeded_client):
+def test_worker_delete_fails_running_tasks(seeded_client, test_user_id):
     """Deleting worker should mark their running/claimed tasks as failed."""
     worker_id = seeded_client.seeded_worker_id
+    room_1 = make_room_address(test_user_id, "room_1")
 
     # Submit a task
     seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
 
@@ -205,13 +209,14 @@ def test_worker_delete_fails_running_tasks(seeded_client):
     assert resp.status_code == 404
 
 
-def test_worker_delete_soft_deletes_job_but_keeps_task(seeded_client):
+def test_worker_delete_soft_deletes_job_but_keeps_task(seeded_client, test_user_id):
     """Job should be soft-deleted but task remains accessible."""
     worker_id = seeded_client.seeded_worker_id
+    room_1 = make_room_address(test_user_id, "room_1")
 
     # Submit and complete a task
     seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1}/tasks/@global:modifiers:Rotate",
         json={"payload": {"test": "data"}},
     )
     claim_resp = seeded_client.post(
@@ -276,9 +281,10 @@ def test_list_workers_returns_all(client_factory):
     assert len(page.items) == 3
 
 
-def test_list_workers_for_room_empty(client):
+def test_list_workers_for_room_empty(client, test_user_id):
     """List workers for room returns empty list when no workers."""
-    response = client.get("/v1/joblib/rooms/my-room/workers")
+    my_room = make_room_address(test_user_id, "my-room")
+    response = client.get(f"/v1/joblib/rooms/{my_room}/workers")
     assert response.status_code == 200
     page = PaginatedResponse[WorkerSummary].model_validate(response.json())
     assert page.items == []
@@ -291,9 +297,13 @@ def test_list_workers_for_room_filters_by_room(client_factory):
     client_b = client_factory("worker-b")
     client_c = client_factory("worker-c")
 
+    room1_a = make_room_address(client_a.user_id, "room1")
+    room2_b = make_room_address(client_b.user_id, "room2")
+    room1_c = make_room_address(client_c.user_id, "room1")
+
     # Worker A serves room1 and @global
     client_a.put(
-        "/v1/joblib/rooms/room1/jobs",
+        f"/v1/joblib/rooms/{room1_a}/jobs",
         json={"category": "modifiers", "name": "job1", "schema": {}},
     )
     resp = client_a.put(
@@ -304,24 +314,25 @@ def test_list_workers_for_room_filters_by_room(client_factory):
 
     # Worker B serves room2
     client_b.put(
-        "/v1/joblib/rooms/room2/jobs",
+        f"/v1/joblib/rooms/{room2_b}/jobs",
         json={"category": "modifiers", "name": "job2", "schema": {}},
     )
 
     # Worker C serves room1
     resp = client_c.put(
-        "/v1/joblib/rooms/room1/jobs",
+        f"/v1/joblib/rooms/{room1_c}/jobs",
         json={"category": "selections", "name": "job3", "schema": {}},
     )
     _ = resp.json()["worker_id"]  # Validate response has worker_id
 
-    # List workers for room1 - should include workers from A and C
-    response = client_a.get("/v1/joblib/rooms/room1/workers")
+    # List workers for room1 - should include workers from A's room1 and @global
+    response = client_a.get(f"/v1/joblib/rooms/{room1_a}/workers")
     assert response.status_code == 200
     page = PaginatedResponse[WorkerSummary].model_validate(response.json())
 
-    # Workers from room1 jobs (worker_a1, worker_c1) and @global jobs (worker_a2)
-    assert len(page.items) == 3
+    # Workers from client_a's room1 job (worker_a1) and @global job (worker_a2)
+    # (client_c's room1 is a different namespace, so their worker is excluded)
+    assert len(page.items) == 2
 
 
 def test_list_workers_for_global_room(client_factory):
@@ -335,8 +346,9 @@ def test_list_workers_for_global_room(client_factory):
     )
     worker_a_id = resp.json()["worker_id"]
 
+    room1_b = make_room_address(client_b.user_id, "room1")
     client_b.put(
-        "/v1/joblib/rooms/room1/jobs",
+        f"/v1/joblib/rooms/{room1_b}/jobs",
         json={"category": "modifiers", "name": "job1", "schema": {}},
     )
 
