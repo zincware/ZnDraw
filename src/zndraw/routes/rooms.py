@@ -525,8 +525,6 @@ async def get_room(
     session: SessionDep,
     storage: FrameStorageDep,
     access: AccessReadDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
 ) -> RoomResponse:
     """Get details of a specific room (read-gated)."""
     room = access.room
@@ -556,8 +554,6 @@ async def get_room(
 async def get_room_presence(
     redis: RedisDep,
     access: AccessReadDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
 ) -> PresenceResponse:
     """Get presence (online users) for a room."""
     from uuid import UUID as _UUID
@@ -589,8 +585,6 @@ async def get_room_presence(
 async def list_sessions(
     redis: RedisDep,
     access: AccessReadDep,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
     email: Annotated[str | None, Query(description="Filter by user email")] = None,
 ) -> SessionsListResponse:
     """List all active frontend sessions in this room."""
@@ -633,8 +627,6 @@ async def update_room(
     access: AccessManageDep,
     current_user: CurrentUserDep,
     updates: RoomPatchRequest,
-    owner_id: UUID,  # noqa: ARG001
-    room_name: str,  # noqa: ARG001
 ) -> RoomPatchResponse:
     """Update room metadata, ownership, or visibility (manage-gated)."""
     room = access.room
