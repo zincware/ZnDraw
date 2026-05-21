@@ -31,7 +31,9 @@ class UTCDateTime(TypeDecorator):
     cache_ok = True
 
     def process_result_value(
-        self, value: datetime | None, _dialect: object
+        self,
+        value: datetime | None,
+        dialect: object,  # noqa: ARG002
     ) -> datetime | None:
         if value is not None and value.tzinfo is None:
             return value.replace(tzinfo=UTC)
@@ -65,7 +67,7 @@ class Room(SQLModel, table=True):
     description: str | None = None
     created_by_id: UUID | None = Field(default=None, index=True)
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime
     )
     owner_user_id: UUID | None = Field(default=None, foreign_key="user.id", index=True)
     owner_group_id: UUID | None = Field(
@@ -87,7 +89,7 @@ class Group(SQLModel, table=True):
     name: str = Field(unique=True, index=True)
     description: str | None = None
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime
     )
     created_by_id: UUID = Field(foreign_key="user.id", index=True)
 
@@ -100,7 +102,7 @@ class GroupMembership(SQLModel, table=True):
     user_id: UUID = Field(foreign_key="user.id", index=True)
     role: GroupRole = Field(default=GroupRole.VIEWER)
     joined_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime
     )
 
 
@@ -111,10 +113,10 @@ class RoomShareLink(SQLModel, table=True):
     access: ShareAccess = Field(default=ShareAccess.VIEW)
     created_by_id: UUID = Field(foreign_key="user.id")
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime
     )
-    expires_at: datetime | None = Field(default=None, sa_type=UTCDateTime())
-    revoked_at: datetime | None = Field(default=None, sa_type=UTCDateTime())
+    expires_at: datetime | None = Field(default=None, sa_type=UTCDateTime)
+    revoked_at: datetime | None = Field(default=None, sa_type=UTCDateTime)
 
 
 class Message(SQLModel, table=True):
@@ -123,9 +125,9 @@ class Message(SQLModel, table=True):
     user_id: UUID = Field(index=True)
     content: str
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime
     )
-    updated_at: datetime | None = Field(default=None, sa_type=UTCDateTime())
+    updated_at: datetime | None = Field(default=None, sa_type=UTCDateTime)
 
 
 class RoomGeometry(SQLModel, table=True):
@@ -177,7 +179,7 @@ class Screenshot(SQLModel, table=True):
     status: str = Field(default="completed")
     created_by_id: UUID = Field(index=True)
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime
     )
 
 
@@ -193,10 +195,10 @@ class RoomPreset(SQLModel, table=True):
     description: str = ""
     rules: str  # JSON-serialized list[PresetRule]
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime
     )
 
 
