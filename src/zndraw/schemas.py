@@ -50,22 +50,23 @@ if TYPE_CHECKING:
 class RoomCreate(BaseModel):
     """Request body for POST /v1/rooms."""
 
-    room_id: str  # UUID-ish string
+    owner_id: UUID
+    name: str = Field(pattern=r"^[a-zA-Z0-9\-_]+$", min_length=1, max_length=128)
     description: str | None = None
-    copy_from: str | None = None  # Room ID or @-prefixed preset (@empty, @none)
-    visibility: Visibility | None = None  # None → Settings.default_room_visibility
-    owner_group_id: UUID | None = None  # None → user-owned by creator
+    copy_from: str | None = None
+    visibility: Visibility | None = None
 
 
 class RoomResponse(BaseModel):
     """Response body for room details — matches frontend Room interface."""
 
-    id: str
+    room_id: str  # composed: {owner_id}/{room_name}
     description: str | None = None
     frame_count: int = 0
     visibility: Visibility = Visibility.PUBLIC
-    owner_user_id: UUID | None = None
-    owner_group_id: UUID | None = None
+    owner_id: UUID
+    owner_kind: Literal["user", "group"]
+    owner_label: str
     is_default: bool = False
     metadata: dict[str, str] | None = None
 
@@ -76,7 +77,7 @@ class RoomCreateResponse(BaseModel):
     """Response for room creation."""
 
     status: Literal["ok"] = "ok"
-    room_id: str
+    room_id: str  # composed: {owner_id}/{room_name}
     frame_count: int
     created: bool
 
