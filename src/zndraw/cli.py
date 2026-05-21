@@ -367,8 +367,8 @@ def get_room_names(
     if room:
         return [sanitize_room_name(room)] * len(paths)
     if append:
-        return [path_to_room(p, unique=False) for p in paths]
-    return [path_to_room(p, unique=True) for p in paths]
+        return [path_to_room(Path(p).name, unique=False) for p in paths]
+    return [path_to_room(Path(p).name, unique=True) for p in paths]
 
 
 def resolve_server(
@@ -667,17 +667,44 @@ def main(
         typer.echo("Note: Browser will not be opened in detached mode")
         browser = False
 
+    # ── Resolve server ───────────────────────────────────────────────
+    url, server, server_url = resolve_server(connect, port, host, detached, verbose)
+
+    # If we started a new server, wait until it's healthy before any HTTP.
+    thread: threading.Thread | None = None
+    if server is not None:
+        thread = threading.Thread(target=server.run, daemon=True)
+        thread.start()
+        if not wait_for_server_ready(url, timeout=30.0):
+            typer.echo("Error: Server failed to start within timeout", err=True)
+            raise typer.Exit(1)
+        typer.echo(f"Server started at {url}")
+
+    # ── Auth + identity ──────────────────────────────────────────────
+    token = _acquire_token(url)
+    _store_jwt_in_state(server_url, token)
+    owner_id = _resolve_owner_id(url, token)
+
+    if room is not None:
+        _validate_room_arg(room, owner_id)
+
     # ── Compute rooms ────────────────────────────────────────────────
-    room_names = get_room_names(path or [], room, append)
-    first_room = room_names[0] if room_names else f"workspace-{uuid.uuid4().hex[:8]}"
     has_files = bool(path)
+    if room is not None:
+        room_names = [room] * len(path or [])
+    else:
+        simple_names = get_room_names(path or [], room, append)
+        room_names = [f"{owner_id}/{n}" for n in simple_names]
+
+    first_room = (
+        room_names[0]
+        if room_names
+        else f"{owner_id}/workspace-{uuid.uuid4().hex[:8]}"
+    )
 
     if verbose:
         msg = f"Rooms: {room_names}" if has_files else "No files loaded on startup."
         typer.echo(msg)
-
-    # ── Resolve server ───────────────────────────────────────────────
-    url, server, server_url = resolve_server(connect, port, host, detached, verbose)
 
     if server is None:
         # Remote or existing server — open browser, upload, done
@@ -687,20 +714,7 @@ def main(
             typer.echo(f"\nServer is running at {url}")
         return
 
-    # ── New server ───────────────────────────────────────────────────
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-
-    if not wait_for_server_ready(url, timeout=30.0):
-        typer.echo("Error: Server failed to start within timeout", err=True)
-        raise typer.Exit(1)
-    typer.echo(f"Server started at {url}")
-
-    # Acquire an admin JWT and store it so ZnDraw clients (including
-    # upload_files below) authenticate via StateFileSource automatically.
-    jwt = _acquire_token(url)
-    _store_jwt_in_state(server_url, jwt)
-
+    # ── New server: serve loop ──────────────────────────────────────
     if has_files or browser:
         open_browser_to(
             url, first_room, browser, copy_from="@none" if has_files else None
@@ -708,6 +722,7 @@ def main(
         upload_files(path or [], url, room_names, start, stop, step)
 
     try:
+        assert thread is not None  # always set for new-server branch
         thread.join()
     except KeyboardInterrupt:
         typer.echo("\nShutting down...")

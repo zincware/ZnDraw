@@ -160,13 +160,20 @@ def test_file_not_found():
 
 
 def _empty_state(monkeypatch, tmp_path):
-    """Point StateFile at an empty tmp dir and disable health checks."""
+    """Point StateFile at an empty tmp dir, disable health checks, stub auth."""
     monkeypatch.setattr(
         "zndraw.cli.StateFile", lambda: StateFile(directory=tmp_path)
     )  # why: isolates state to tmp_path for filesystem isolation
     monkeypatch.setattr(
         "zndraw.cli._is_url_healthy", lambda _url: False
     )  # why: simulates no existing server for StateFile logic
+    monkeypatch.setattr(
+        "zndraw.cli._acquire_token", lambda _url: "tok"
+    )  # why: avoid real HTTP auth calls in unit tests
+    monkeypatch.setattr(
+        "zndraw.cli._resolve_owner_id",
+        lambda _url, _tok: UUID("12345678-1234-5678-1234-567812345678"),
+    )  # why: avoid real HTTP auth calls in unit tests
 
 
 def test_status_no_server(monkeypatch, tmp_path):
@@ -277,6 +284,13 @@ def test_browser_before_upload_existing_server(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "zndraw.cli.upload_file", lambda *_a, **_kw: call_order.append("upload")
     )  # why: tracks call order (browser-before-upload orchestration test)
+    monkeypatch.setattr(
+        "zndraw.cli._acquire_token", lambda _url: "tok"
+    )  # why: avoid real HTTP auth calls in unit tests
+    monkeypatch.setattr(
+        "zndraw.cli._resolve_owner_id",
+        lambda _url, _tok: UUID("12345678-1234-5678-1234-567812345678"),
+    )  # why: avoid real HTTP auth calls in unit tests
 
     result = runner.invoke(app, [str(dummy)])
     assert result.exit_code == 0
@@ -295,6 +309,13 @@ def test_browser_before_upload_remote(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "zndraw.cli.upload_file", lambda *_a, **_kw: call_order.append("upload")
     )  # why: tracks call order (browser-before-upload orchestration test)
+    monkeypatch.setattr(
+        "zndraw.cli._acquire_token", lambda _url: "tok"
+    )  # why: avoid real HTTP auth calls in unit tests
+    monkeypatch.setattr(
+        "zndraw.cli._resolve_owner_id",
+        lambda _url, _tok: UUID("12345678-1234-5678-1234-567812345678"),
+    )  # why: avoid real HTTP auth calls in unit tests
 
     result = runner.invoke(app, ["--connect", "http://example.com", str(dummy)])
     assert result.exit_code == 0
@@ -524,3 +545,100 @@ def test_acquire_token_falls_back_to_guest(monkeypatch):
     monkeypatch.setattr("zndraw.cli.guest_login", lambda _url: "guest-fallback")
 
     assert _acquire_token("http://x") == "guest-fallback"
+
+
+# ── 10. main() composes rooms via owner_id ──────────────────────────
+
+
+FIXED_OWNER = UUID("12345678-1234-5678-1234-567812345678")
+
+
+def _stub_token_chain(monkeypatch):
+    """Stub server discovery + auth helpers used by main()."""
+    monkeypatch.setattr("zndraw.cli._acquire_token", lambda _url: "tok")
+    monkeypatch.setattr(
+        "zndraw.cli._resolve_owner_id", lambda _url, _tok: FIXED_OWNER
+    )
+
+
+def test_main_composes_room_from_path(monkeypatch, tmp_path):
+    """Without --room, paths produce '<owner>/<sanitized_path>_<rand>' names."""
+    dummy = tmp_path / "trj.xyz"
+    dummy.write_text("dummy")
+
+    _empty_state(monkeypatch, tmp_path)
+    monkeypatch.setattr("zndraw.cli.wait_for_server_ready", lambda *_a, **_kw: True)
+    monkeypatch.setattr("uvicorn.Server.run", lambda _self: None)
+    _stub_token_chain(monkeypatch)
+
+    uploads: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(
+        "zndraw.cli.upload_file",
+        lambda path, url, room_id, *_a, **_kw: uploads.append((path, url, room_id)),
+    )
+    monkeypatch.setattr("zndraw.cli.webbrowser.open", lambda _url: None)
+
+    result = runner.invoke(app, [str(dummy)])
+    assert result.exit_code == 0, result.output
+    assert len(uploads) == 1
+    _, _, room_id = uploads[0]
+    assert room_id.startswith(f"{FIXED_OWNER}/trj_xyz_")
+
+
+def test_main_uses_explicit_composed_room_without_reprefixing(monkeypatch, tmp_path):
+    """--room <other_uuid>/proj must NOT be re-prefixed with the caller's UUID."""
+    dummy = tmp_path / "trj.xyz"
+    dummy.write_text("dummy")
+
+    _empty_state(monkeypatch, tmp_path)
+    monkeypatch.setattr("zndraw.cli.wait_for_server_ready", lambda *_a, **_kw: True)
+    monkeypatch.setattr("uvicorn.Server.run", lambda _self: None)
+    _stub_token_chain(monkeypatch)
+
+    uploads: list[str] = []
+    monkeypatch.setattr(
+        "zndraw.cli.upload_file",
+        lambda path, url, room_id, *_a, **_kw: uploads.append(room_id),
+    )
+    monkeypatch.setattr("zndraw.cli.webbrowser.open", lambda _url: None)
+
+    explicit = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/proj"
+    result = runner.invoke(app, ["--room", explicit, str(dummy)])
+    assert result.exit_code == 0, result.output
+    assert uploads == [explicit]
+
+
+def test_main_errors_on_bare_room(monkeypatch, tmp_path):
+    """zndraw --room foo <file> → typer.BadParameter; message shows caller UUID."""
+    dummy = tmp_path / "trj.xyz"
+    dummy.write_text("dummy")
+
+    _empty_state(monkeypatch, tmp_path)
+    monkeypatch.setattr("zndraw.cli.wait_for_server_ready", lambda *_a, **_kw: True)
+    monkeypatch.setattr("uvicorn.Server.run", lambda _self: None)
+    _stub_token_chain(monkeypatch)
+    monkeypatch.setattr("zndraw.cli.upload_file", lambda *_a, **_kw: None)
+    monkeypatch.setattr("zndraw.cli.webbrowser.open", lambda _url: None)
+
+    result = runner.invoke(app, ["--room", "foo", str(dummy)])
+    assert result.exit_code != 0
+    assert "must be '<owner_uuid>/<name>'" in result.output
+    assert str(FIXED_OWNER) in result.output
+
+
+def test_main_synthesizes_workspace_when_no_paths_no_room(monkeypatch, tmp_path):
+    """zndraw (no args, --no-browser) → server starts; no upload."""
+    _empty_state(monkeypatch, tmp_path)
+    monkeypatch.setattr("zndraw.cli.wait_for_server_ready", lambda *_a, **_kw: True)
+    monkeypatch.setattr("uvicorn.Server.run", lambda _self: None)
+    _stub_token_chain(monkeypatch)
+    upload_calls: list[object] = []
+    monkeypatch.setattr(
+        "zndraw.cli.upload_file",
+        lambda *_a, **_kw: upload_calls.append(_a),
+    )
+    monkeypatch.setattr("zndraw.cli.webbrowser.open", lambda _url: None)
+
+    result = runner.invoke(app, ["--no-browser"])
+    assert result.exit_code == 0, result.output
+    assert upload_calls == []
