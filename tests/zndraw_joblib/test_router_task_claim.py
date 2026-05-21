@@ -1,6 +1,7 @@
 # tests/test_router_task_claim.py
 """Tests for task claim endpoint using shared fixtures."""
 
+from conftest import make_room_address
 from zndraw_joblib.schemas import TaskClaimResponse
 
 
@@ -15,15 +16,15 @@ def test_claim_task_returns_null_when_empty(seeded_client):
     assert data.task is None
 
 
-def test_claim_task_returns_oldest_first(seeded_client):
+def test_claim_task_returns_oldest_first(seeded_client, room_1_address):
     worker_id = seeded_client.seeded_worker_id
     # Submit two tasks
     seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:Rotate",
         json={"payload": {"order": 1}},
     )
     seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:Rotate",
         json={"payload": {"order": 2}},
     )
 
@@ -39,10 +40,10 @@ def test_claim_task_returns_oldest_first(seeded_client):
     assert data.task.status.value == "claimed"
 
 
-def test_claim_task_marks_as_claimed(seeded_client):
+def test_claim_task_marks_as_claimed(seeded_client, room_1_address):
     worker_id = seeded_client.seeded_worker_id
     seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
 
@@ -59,6 +60,9 @@ def test_claim_task_only_registered_jobs(client_factory):
     """Worker can only claim tasks for jobs they are registered for."""
     client1 = client_factory("worker_1")
     client2 = client_factory("worker_2")
+
+    # Compose room addresses for each client
+    room_1_address_client1 = make_room_address(client1.user_id, "room_1")
 
     # Worker 1 creates worker and registers job
     resp1 = client1.post("/v1/joblib/workers")
@@ -79,7 +83,7 @@ def test_claim_task_only_registered_jobs(client_factory):
 
     # Submit task
     client1.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1_address_client1}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
 
