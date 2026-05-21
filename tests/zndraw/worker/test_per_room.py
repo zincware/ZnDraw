@@ -82,17 +82,19 @@ def test_global_job_visible_from_any_room(server, Echo, get_job_list):
 def test_submit_to_room_job_auto_completes(server, Echo, wait_for_task):
     """Submitting to a room-scoped job auto-completes via claim loop."""
     worker = ZnDraw(url=server)
+    assert worker.room is not None
+    room = worker.room
     try:
         worker.append(ase.Atoms("H"))
-        worker.jobs.register(Echo, room=worker.room)
+        worker.jobs.register(Echo, room=room)
         task_id = worker.jobs.submit(
             Echo(value="room_test"),
-            room=worker.room,
-            job_room=worker.room,
+            room=room,
+            job_room=room,
         )
         result = wait_for_task(worker, task_id)
         assert result.status == "completed"
-        assert result.room_id == worker.room
+        assert result.room_id == room
         assert worker.bookmarks[0] == "room_test"
     finally:
         worker.jobs.disconnect()
@@ -102,17 +104,21 @@ def test_submit_to_room_job_auto_completes(server, Echo, wait_for_task):
 def test_full_room_lifecycle(server, Echo, run_worker_loop, wait_for_task):
     """Register in room -> submit -> worker loop -> verify bookmark."""
     worker = ZnDraw(url=server)
-    submitter = ZnDraw(url=server, room=worker.room)
+    assert worker.room is not None
+    worker_room = worker.room
+    submitter = ZnDraw(url=server, room=worker_room)
+    assert submitter.room is not None
+    submitter_room = submitter.room
     try:
-        worker.jobs.register(Echo, room=worker.room)
+        worker.jobs.register(Echo, room=worker_room)
         submitter.append(ase.Atoms("H"))
 
         thread, stop = run_worker_loop(worker)
 
         task_id = submitter.jobs.submit(
             Echo(value="room_proof"),
-            room=submitter.room,
-            job_room=worker.room,
+            room=submitter_room,
+            job_room=worker_room,
         )
         result = wait_for_task(submitter, task_id)
         assert result.status == "completed", f"Task failed: {result.error}"

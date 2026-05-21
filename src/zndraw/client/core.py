@@ -125,7 +125,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     """
 
     url: str | None = None
-    room: str | None = None
+    room: str = ""  # composed "<owner_uuid>/<name>" form; empty triggers auto-room
     user: str | None = None
     password: SecretStr | str | None = None
     token: str | None = None
@@ -176,7 +176,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             k: v
             for k, v in {
                 "url": self.url,
-                "room": self.room,
+                "room": self.room or None,
                 "user": self.user,
                 "password": self.password,
                 "token": self.token,
