@@ -5,11 +5,11 @@ from uuid import UUID
 
 import httpx
 import pytest
+import typer
 from httpx import MockTransport, Response
 from typer.testing import CliRunner
 
 from zndraw import __version__
-import typer
 
 from zndraw.cli import (
     _resolve_owner_id,
