@@ -47,17 +47,21 @@ export function RoomsPanel() {
 
 	const handleFiles = useCallback(
 		async (files: File[]) => {
-			const newRoomId = crypto.randomUUID();
+			const currentUser = useAppStore.getState().user;
+			if (!currentUser) {
+				showSnackbar("Not authenticated", "error");
+				return;
+			}
 			try {
-				await createRoom({ room_id: newRoomId });
+				const result = await createRoom({ owner_id: currentUser.id, name: "untitled-1" });
 				// Cascade-close the current room before navigating so plot tabs
 				// and viewer state from the prior room don't leak into the new one.
 				await leaveRoom({ skipConfirm: true });
 				for (const file of files) {
-					await uploadTrajectory(newRoomId, file);
+					await uploadTrajectory(result.room_id, file);
 				}
 				showSnackbar(`Room created with ${files.length} file(s)`, "success");
-				navigate(`/rooms/${newRoomId}`);
+				navigate(`/rooms/${result.room_id}`);
 			} catch (error) {
 				showSnackbar(extractDetail(error, "Upload failed"), "error");
 			}

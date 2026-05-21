@@ -52,7 +52,7 @@ async function determineTemplate(): Promise<string | null> {
 
 	// Auto-template: single room with data
 	if (rooms.length === 1 && rooms[0].frame_count > 0) {
-		return rooms[0].id;
+		return rooms[0].room_id;
 	}
 
 	// Explicit template
@@ -90,7 +90,7 @@ export default function TemplateSelectionPage() {
 		const determineStartupNavigation = async () => {
 			try {
 				// Ensure a token exists before making any API calls
-				await acquireToken();
+				const { user } = await acquireToken();
 
 				// Step 1: Check localStorage for last visited room
 				const lastRoomId = getLastVisitedRoom();
@@ -110,20 +110,25 @@ export default function TemplateSelectionPage() {
 
 				// Step 2: Create new room (from template or empty)
 				const templateRoomId = await determineTemplate();
-				const newRoomId = crypto.randomUUID();
 
 				if (templateRoomId) {
 					console.log(
 						"[Startup] Creating room from template:",
 						templateRoomId,
-						"->",
-						newRoomId,
 					);
-					await createRoom({ room_id: newRoomId, copy_from: templateRoomId });
-					navigate(`/rooms/${newRoomId}`);
+					const result = await createRoom({
+						owner_id: user.id,
+						name: "untitled-1",
+						copy_from: templateRoomId,
+					});
+					navigate(`/rooms/${result.room_id}`);
 				} else {
-					console.log("[Startup] Creating default room:", newRoomId);
-					navigate(`/rooms/${newRoomId}`);
+					console.log("[Startup] Creating default room for user:", user.id);
+					const result = await createRoom({
+						owner_id: user.id,
+						name: "untitled-1",
+					});
+					navigate(`/rooms/${result.room_id}`);
 				}
 			} catch (err) {
 				setError(err instanceof Error ? err.message : "Unknown error");
