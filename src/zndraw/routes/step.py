@@ -20,7 +20,7 @@ from zndraw.exceptions import (
 from zndraw.schemas import StepResponse, StepUpdateRequest, StepUpdateResponse
 from zndraw.socket_events import FrameUpdate
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/step", tags=["step"])
+router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/step", tags=["step"])
 
 
 @router.get(
@@ -31,7 +31,6 @@ async def get_step(
     session: SessionDep,
     storage: FrameStorageDep,
     access: AccessReadDep,
-    room_id: str,
 ) -> StepResponse:
     """Get current step (frame index) for a room.
 
@@ -40,7 +39,7 @@ async def get_step(
     """
     room = access.room
     step = room.step
-    total = await storage.get_length(room_id)
+    total = await storage.get_length(room.id)
 
     # Clamp step to valid range (frames may have been deleted)
     if total > 0 and step >= total:
@@ -62,14 +61,13 @@ async def set_step(
     storage: FrameStorageDep,
     sio: SioDep,
     room: WritableRoomDep,
-    room_id: str,
     request: StepUpdateRequest,
 ) -> StepUpdateResponse:
     """Set current step (frame index) for a room.
 
     Broadcasts frame:update to the room.
     """
-    total = await storage.get_length(room_id)
+    total = await storage.get_length(room.id)
 
     if request.step >= total:
         raise StepOutOfBounds.exception(
@@ -83,8 +81,8 @@ async def set_step(
 
     # Broadcast frame update
     await sio.emit(
-        FrameUpdate(room_id=room_id, frame=request.step),
-        room=room_channel(room_id),
+        FrameUpdate(room_id=room.id, frame=request.step),
+        room=room_channel(room.id),
     )
 
     return StepUpdateResponse(success=True, step=request.step)

@@ -32,7 +32,7 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import LockUpdate
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/edit-lock", tags=["edit-lock"])
+router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/edit-lock", tags=["edit-lock"])
 
 
 async def _read_lock(redis: RedisDep, room_id: str) -> EditLockResponse:
@@ -59,11 +59,10 @@ async def _read_lock(redis: RedisDep, room_id: str) -> EditLockResponse:
 )
 async def get_edit_lock(
     redis: RedisDep,
-    _access: AccessReadDep,
-    room_id: str,
+    access: AccessReadDep,
 ) -> EditLockResponse:
     """Get current edit lock status for a room."""
-    return await _read_lock(redis, room_id)
+    return await _read_lock(redis, access.room.id)
 
 
 @router.put(
@@ -77,8 +76,7 @@ async def acquire_edit_lock(
     sio: SioDep,
     settings: SettingsDep,
     current_user: CurrentUserDep,
-    _access: AccessEditDep,
-    room_id: str,
+    access: AccessEditDep,
     request: EditLockRequest,
     lock_token: Annotated[str | None, Header(alias="Lock-Token")] = None,
     x_session_id: Annotated[str | None, Header(alias="X-Session-ID")] = None,
@@ -90,7 +88,7 @@ async def acquire_edit_lock(
     - Returns 409 if Lock-Token is provided but the lock has expired.
     - Returns 423 if another session holds the lock.
     """
-
+    room_id = access.room.id
     user_id = str(current_user.id)
     key = RedisKey.edit_lock(room_id)
     raw = await redis.get(key)
@@ -164,12 +162,11 @@ async def release_edit_lock(
     redis: RedisDep,
     sio: SioDep,
     current_user: CurrentUserDep,
-    _access: AccessEditDep,
-    room_id: str,
+    access: AccessEditDep,
     lock_token: Annotated[str | None, Header(alias="Lock-Token")] = None,
 ) -> StatusResponse:
     """Release the room edit lock."""
-
+    room_id = access.room.id
     key = RedisKey.edit_lock(room_id)
     raw = await redis.get(key)
 

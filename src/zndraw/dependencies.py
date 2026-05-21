@@ -135,18 +135,6 @@ def get_frame_storage(request: Request) -> FrameStorage:
 FrameStorageDep = Annotated[FrameStorage, Depends(get_frame_storage)]
 
 
-async def require_writable_room(
-    storage: FrameStorageDep,
-    room_id: str = Path(),
-) -> None:
-    """Raise RoomReadOnly if the room has a provider mount."""
-    if await storage.has_mount(room_id):
-        raise RoomReadOnly.exception("Room is provider-backed (read-only)")
-
-
-RequireWritableDep = Annotated[None, Depends(require_writable_room)]
-
-
 def get_tsio(request: Request) -> AsyncServerWrapper:
     """Get the zndraw-socketio typed wrapper from app.state."""
     return request.app.state.tsio
@@ -611,6 +599,18 @@ async def get_manageable_room(
 AccessReadDep = Annotated[AccessContext, Depends(get_readable_room)]
 AccessEditDep = Annotated[AccessContext, Depends(get_editable_room)]
 AccessManageDep = Annotated[AccessContext, Depends(get_manageable_room)]
+
+
+async def require_writable_room(
+    storage: FrameStorageDep,
+    access: AccessEditDep,
+) -> None:
+    """Raise RoomReadOnly if the room has a provider mount."""
+    if await storage.has_mount(access.room.id):
+        raise RoomReadOnly.exception("Room is provider-backed (read-only)")
+
+
+RequireWritableDep = Annotated[None, Depends(require_writable_room)]
 
 
 async def get_writable_room(

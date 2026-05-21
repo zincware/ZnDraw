@@ -25,7 +25,7 @@ from zndraw.schemas import (
     ShareLinkResponse,
 )
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/share-links", tags=["share-links"])
+router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/share-links", tags=["share-links"])
 
 
 @router.post(
@@ -35,31 +35,12 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/share-links", tags=["share-links"
 )
 async def create_share_link(
     session: SessionDep,
-    access: AccessManageDep,  # noqa: ARG001
+    access: AccessManageDep,
     current_user: CurrentUserDep,
-    room_id: str,
     payload: ShareLinkCreate,
 ) -> ShareLinkResponse:
-    """Create a new share link for a room. Requires manage capability.
-
-    Parameters
-    ----------
-    session
-        Async database session.
-    access
-        Access context verifying manage capability (side effect only).
-    current_user
-        Authenticated user creating the share link.
-    room_id
-        Path parameter identifying the room.
-    payload
-        Share link creation payload with access level and optional expiry.
-
-    Returns
-    -------
-    ShareLinkResponse
-        The created share link.
-    """
+    """Create a new share link for a room. Requires manage capability."""
+    room_id = access.room.id
     link = RoomShareLink(
         room_id=room_id,
         token=secrets.token_urlsafe(32),
@@ -79,25 +60,10 @@ async def create_share_link(
 )
 async def list_share_links(
     session: SessionDep,
-    access: AccessManageDep,  # noqa: ARG001
-    room_id: str,
+    access: AccessManageDep,
 ) -> CollectionResponse[ShareLinkResponse]:
-    """List all non-revoked share links for a room. Requires manage capability.
-
-    Parameters
-    ----------
-    session
-        Async database session.
-    access
-        Access context verifying manage capability (side effect only).
-    room_id
-        Path parameter identifying the room.
-
-    Returns
-    -------
-    CollectionResponse[ShareLinkResponse]
-        Collection of active share links.
-    """
+    """List all non-revoked share links for a room. Requires manage capability."""
+    room_id = access.room.id
     result = await session.exec(
         select(RoomShareLink).where(
             RoomShareLink.room_id == room_id,
@@ -116,23 +82,11 @@ async def list_share_links(
 )
 async def revoke_share_link(
     session: SessionDep,
-    access: AccessManageDep,  # noqa: ARG001
-    room_id: str,
+    access: AccessManageDep,
     link_id: UUID,
 ) -> None:
-    """Revoke a share link (sets revoked_at, keeps the row for audit).
-
-    Parameters
-    ----------
-    session
-        Async database session.
-    access
-        Access context verifying manage capability (side effect only).
-    room_id
-        Path parameter identifying the room.
-    link_id
-        UUID of the share link to revoke.
-    """
+    """Revoke a share link (sets revoked_at, keeps the row for audit)."""
+    room_id = access.room.id
     link = await session.get(RoomShareLink, link_id)
     if link is None or link.room_id != room_id or link.revoked_at is not None:
         raise ShareLinkNotFound.exception("Share link not found or already revoked")
