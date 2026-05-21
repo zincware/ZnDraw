@@ -21,7 +21,9 @@ async def alice(session: AsyncSession) -> User:
     return user
 
 
-async def test_room_public_address_user_owned(session: AsyncSession, alice: User) -> None:
+async def test_room_public_address_user_owned(
+    session: AsyncSession, alice: User
+) -> None:
     room = Room(
         room_name="my-experiment",
         owner_user_id=alice.id,
@@ -35,7 +37,9 @@ async def test_room_public_address_user_owned(session: AsyncSession, alice: User
     assert room.public_address == f"{alice.id}/my-experiment"
 
 
-async def test_room_public_address_group_owned(session: AsyncSession, alice: User) -> None:
+async def test_room_public_address_group_owned(
+    session: AsyncSession, alice: User
+) -> None:
     group = Group(name="g1", created_by_id=alice.id)
     session.add(group)
     await session.commit()
@@ -77,9 +81,7 @@ async def test_unique_per_owner(session: AsyncSession, alice: User) -> None:
         await session.commit()
 
 
-async def test_same_name_different_owners(
-    session: AsyncSession, alice: User
-) -> None:
+async def test_same_name_different_owners(session: AsyncSession, alice: User) -> None:
     bob = User(email="bob@example.com", hashed_password="x")
     session.add(bob)
     await session.commit()

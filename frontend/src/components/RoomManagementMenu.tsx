@@ -48,8 +48,12 @@ import VisibilitySelector from "./VisibilitySelector";
  * - Go to room list
  */
 export default function RoomManagementMenu() {
-	const { ownerId, roomName } = useParams<{ ownerId: string; roomName: string }>();
-	const roomId = ownerId && roomName ? composeRoomAddress(ownerId, roomName) : undefined;
+	const { ownerId, roomName } = useParams<{
+		ownerId: string;
+		roomName: string;
+	}>();
+	const roomId =
+		ownerId && roomName ? composeRoomAddress(ownerId, roomName) : undefined;
 	const navigate = useNavigate();
 	// Use individual selectors to prevent unnecessary re-renders
 	const userName = useAppStore((state) => state.user?.email ?? null);
@@ -170,9 +174,7 @@ export default function RoomManagementMenu() {
 		}
 	};
 
-	const canManage =
-		isAdmin ||
-		(userId !== null && ownerId === userId);
+	const canManage = isAdmin || (userId !== null && ownerId === userId);
 
 	const handleToggleDefault = async () => {
 		if (!roomId) return;

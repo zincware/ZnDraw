@@ -23,7 +23,9 @@ async def _register_and_login(client: AsyncClient, email: str) -> tuple[str, str
 async def test_list_returns_composed_room_id(
     http_client_auth: AsyncClient,
 ) -> None:
-    user_id, token = await _register_and_login(http_client_auth, "list-user@example.com")
+    user_id, token = await _register_and_login(
+        http_client_auth, "list-user@example.com"
+    )
     headers = {"Authorization": f"Bearer {token}"}
     create = await http_client_auth.post(
         "/v1/rooms",
@@ -54,9 +56,7 @@ async def test_get_room_returns_composed_address(
     )
     assert create.status_code == 201
 
-    resp = await http_client_auth.get(
-        f"/v1/rooms/{user_id}/getme", headers=headers
-    )
+    resp = await http_client_auth.get(f"/v1/rooms/{user_id}/getme", headers=headers)
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["room_id"] == f"{user_id}/getme"

@@ -20,7 +20,9 @@ async def _register_and_login(client: AsyncClient, email: str) -> str:
 
 
 async def _get_user_id(client: AsyncClient, token: str) -> str:
-    r = await client.get("/v1/auth/users/me", headers={"Authorization": f"Bearer {token}"})
+    r = await client.get(
+        "/v1/auth/users/me", headers={"Authorization": f"Bearer {token}"}
+    )
     r.raise_for_status()
     return r.json()["id"]
 
@@ -43,7 +45,9 @@ async def _create_room(
 async def test_socketio_join_public_room(server: str, http_client: AsyncClient) -> None:
     """Any authenticated user can join a public room via socket.io."""
     token = await _register_and_login(http_client, "sio-pub@test.com")
-    room_address = await _create_room(http_client, token, "sio-pub-1", visibility="public")
+    room_address = await _create_room(
+        http_client, token, "sio-pub-1", visibility="public"
+    )
     owner_id, room_name = room_address.split("/", 1)
 
     sio = socketio_lib.AsyncClient()
@@ -63,7 +67,9 @@ async def test_socketio_join_private_denied_to_stranger(
 ) -> None:
     """Verify that joining a private room as the owner works."""
     owner = await _register_and_login(http_client, "sio-prv-own@test.com")
-    room_address = await _create_room(http_client, owner, "sio-prv-1", visibility="private")
+    room_address = await _create_room(
+        http_client, owner, "sio-prv-1", visibility="private"
+    )
     owner_id, room_name = room_address.split("/", 1)
 
     sio = socketio_lib.AsyncClient()
@@ -84,7 +90,9 @@ async def test_socketio_join_with_share_token(
     """A user can join a private room via share token on the auth payload."""
     owner = await _register_and_login(http_client, "sio-share-own@test.com")
     guest = await _register_and_login(http_client, "sio-share-gst@test.com")
-    room_address = await _create_room(http_client, owner, "sio-share-1", visibility="private")
+    room_address = await _create_room(
+        http_client, owner, "sio-share-1", visibility="private"
+    )
     owner_id, room_name = room_address.split("/", 1)
 
     link = (

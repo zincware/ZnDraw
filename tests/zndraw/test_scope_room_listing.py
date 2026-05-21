@@ -1,7 +1,12 @@
 """Scope-filtered room listing tests."""
 
 import pytest
-from helpers import _register_and_login, create_room_via_api, create_test_user_in_db, get_user_id
+from helpers import (
+    _register_and_login,
+    create_room_via_api,
+    create_test_user_in_db,
+    get_user_id,
+)
 from httpx import AsyncClient
 
 
@@ -55,7 +60,9 @@ async def test_list_rooms_requires_auth(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_create_private_room_sets_owner(client: AsyncClient) -> None:
     token = await _register_and_login(client, "priv-own@test.com")
-    room_id = await create_room_via_api(client, token, "priv-own-1", visibility="private")
+    room_id = await create_room_via_api(
+        client, token, "priv-own-1", visibility="private"
+    )
     r = await client.get(
         f"/v1/rooms/{room_id}",
         headers={"Authorization": f"Bearer {token}"},
@@ -94,7 +101,9 @@ async def test_create_group_room_requires_membership(
 @pytest.mark.asyncio
 async def test_patch_room_visibility(client: AsyncClient) -> None:
     token = await _register_and_login(client, "patch-vis@test.com")
-    room_id = await create_room_via_api(client, token, "patch-vis-r", visibility="public")
+    room_id = await create_room_via_api(
+        client, token, "patch-vis-r", visibility="public"
+    )
     r = await client.patch(
         f"/v1/rooms/{room_id}",
         json={"visibility": "private"},

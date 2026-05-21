@@ -224,7 +224,9 @@ async def list_frames(
             raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
         room_id = room.id
         share = await resolve_share_token(session, x_room_share_token, room_id)
-        ctx = await _load_access_context(session, owner_id, room_name, current_user, share)
+        ctx = await _load_access_context(
+            session, owner_id, room_name, current_user, share
+        )
         if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
             raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
         total = await storage.get_length(room_id)
@@ -258,7 +260,9 @@ async def list_frames(
 
         has_missing = any(f is None for f in frames_or_none)
         provider = (
-            await _find_frames_provider(session, room.public_address) if has_missing else None
+            await _find_frames_provider(session, room.public_address)
+            if has_missing
+            else None
         )
     # Session closed, lock released ^
 
@@ -342,7 +346,9 @@ async def get_frame(
             raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
         room_id = room.id
         share = await resolve_share_token(session, x_room_share_token, room_id)
-        ctx = await _load_access_context(session, owner_id, room_name, current_user, share)
+        ctx = await _load_access_context(
+            session, owner_id, room_name, current_user, share
+        )
         if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
             raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
         total = await storage.get_length(room_id)
@@ -444,7 +450,9 @@ async def get_frame_metadata(
             raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
         room_id = room.id
         share = await resolve_share_token(session, x_room_share_token, room_id)
-        ctx = await _load_access_context(session, owner_id, room_name, current_user, share)
+        ctx = await _load_access_context(
+            session, owner_id, room_name, current_user, share
+        )
         if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
             raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
         total = await storage.get_length(room_id)
@@ -457,7 +465,9 @@ async def get_frame_metadata(
         except IndexError:
             frame = None
         provider = (
-            await _find_frames_provider(session, room.public_address) if frame is None else None
+            await _find_frames_provider(session, room.public_address)
+            if frame is None
+            else None
         )
     # Session closed, lock released ^
 

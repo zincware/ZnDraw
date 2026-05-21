@@ -268,7 +268,8 @@ async def test_list_frames_notify_wakes_concurrent_dispatch(
     upload_task = asyncio.create_task(_simulate_provider_upload())
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames?indices=0,1,2", headers=auth_header(token)
+        f"/v1/rooms/{room.public_address}/frames?indices=0,1,2",
+        headers=auth_header(token),
     )
 
     await upload_task

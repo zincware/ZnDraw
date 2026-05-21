@@ -243,7 +243,11 @@ def test_copy_from_mounted_room_raises(server: str) -> None:
         response = httpx.post(
             f"{server}/v1/rooms",
             headers={"Authorization": f"Bearer {vis.api.token}"},
-            json={"owner_id": owner_id, "name": f"copy-{room_name[:20]}", "copy_from": vis.room},
+            json={
+                "owner_id": owner_id,
+                "name": f"copy-{room_name[:20]}",
+                "copy_from": vis.room,
+            },
         )
         assert response.status_code == 409
         body = response.json()

@@ -32,7 +32,9 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import LockUpdate
 
-router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/edit-lock", tags=["edit-lock"])
+router = APIRouter(
+    prefix="/v1/rooms/{owner_id}/{room_name}/edit-lock", tags=["edit-lock"]
+)
 
 
 async def _read_lock(redis: RedisDep, room_id: str) -> EditLockResponse:

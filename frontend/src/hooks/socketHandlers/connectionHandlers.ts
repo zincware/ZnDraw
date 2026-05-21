@@ -211,9 +211,9 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 								return;
 							}
 
-							const urlCopyFrom = new URLSearchParams(window.location.search).get(
-								"copy_from",
-							);
+							const urlCopyFrom = new URLSearchParams(
+								window.location.search,
+							).get("copy_from");
 							try {
 								await createRoom({
 									owner_id: ownerId,
@@ -235,13 +235,18 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 							}
 							socket.emit(
 								"room_join",
-								{ owner_id: ownerId, room_name: roomName, client_type: "frontend" },
+								{
+									owner_id: ownerId,
+									room_name: roomName,
+									client_type: "frontend",
+								},
 								(retryResponse: RoomJoinResponse | RoomJoinError) => {
 									if ("status" in retryResponse) {
 										ctx.setInitializationError({
 											message: "Failed to join room",
 											details:
-												retryResponse.detail || "Server rejected the connection",
+												retryResponse.detail ||
+												"Server rejected the connection",
 										});
 										return;
 									}

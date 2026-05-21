@@ -44,9 +44,10 @@ export interface ProgressCompleteEvent {
 
 export function createRoomHandlers(ctx: HandlerContext) {
 	function onRoomUpdate(data: RoomUpdateEvent) {
-		const composedRoomId = ctx.ownerId && ctx.roomName
-			? `${ctx.ownerId}/${ctx.roomName}`
-			: undefined;
+		const composedRoomId =
+			ctx.ownerId && ctx.roomName
+				? `${ctx.ownerId}/${ctx.roomName}`
+				: undefined;
 		console.debug("[RoomUpdate] received:", {
 			data,
 			currentRoomId: composedRoomId,

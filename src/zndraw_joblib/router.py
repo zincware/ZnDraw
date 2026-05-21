@@ -428,7 +428,9 @@ async def list_jobs(
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
 
-@router.get("/rooms/{room_id:path}/workers", response_model=PaginatedResponse[WorkerSummary])
+@router.get(
+    "/rooms/{room_id:path}/workers", response_model=PaginatedResponse[WorkerSummary]
+)
 async def list_workers_for_room(
     room_id: str,
     session: SessionDep,
@@ -481,7 +483,9 @@ async def list_workers_for_room(
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
 
-@router.get("/rooms/{room_id:path}/tasks", response_model=PaginatedResponse[TaskResponse])
+@router.get(
+    "/rooms/{room_id:path}/tasks", response_model=PaginatedResponse[TaskResponse]
+)
 async def list_tasks_for_room(
     room_id: str,
     session: SessionDep,

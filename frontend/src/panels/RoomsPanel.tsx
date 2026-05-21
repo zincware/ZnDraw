@@ -53,7 +53,10 @@ export function RoomsPanel() {
 				return;
 			}
 			try {
-				const result = await createRoom({ owner_id: currentUser.id, name: "untitled-1" });
+				const result = await createRoom({
+					owner_id: currentUser.id,
+					name: "untitled-1",
+				});
 				// Cascade-close the current room before navigating so plot tabs
 				// and viewer state from the prior room don't leak into the new one.
 				await leaveRoom({ skipConfirm: true });

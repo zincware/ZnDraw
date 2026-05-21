@@ -18,7 +18,9 @@ interface RoomsState {
 
 // Helper to convert Map to sorted array
 function mapToSortedArray(map: Map<string, Room>): Room[] {
-	return Array.from(map.values()).sort((a, b) => a.room_id.localeCompare(b.room_id));
+	return Array.from(map.values()).sort((a, b) =>
+		a.room_id.localeCompare(b.room_id),
+	);
 }
 
 export const useRoomsStore = create<RoomsState>((set, get) => ({

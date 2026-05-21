@@ -14,8 +14,8 @@ import logging
 import socket
 import threading
 import uuid
-from uuid import UUID
 from collections.abc import AsyncIterator
+from uuid import UUID
 
 import redis.asyncio as redis_client
 import socketio as socketio_lib

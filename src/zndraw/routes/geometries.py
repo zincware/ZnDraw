@@ -84,7 +84,9 @@ async def _get_session_cameras_for_room(
     return cameras
 
 
-router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/geometries", tags=["geometries"])
+router = APIRouter(
+    prefix="/v1/rooms/{owner_id}/{room_name}/geometries", tags=["geometries"]
+)
 
 
 @router.get(
@@ -365,7 +367,9 @@ async def delete_geometry(
 # Default Camera
 # =============================================================================
 
-default_camera_router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}", tags=["geometries"])
+default_camera_router = APIRouter(
+    prefix="/v1/rooms/{owner_id}/{room_name}", tags=["geometries"]
+)
 
 
 @default_camera_router.get(

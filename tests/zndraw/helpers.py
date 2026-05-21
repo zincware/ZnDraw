@@ -126,7 +126,9 @@ async def _register_and_login(
 
 async def get_user_id(client: AsyncClient, token: str) -> str:
     """Return the UUID string of the authenticated user."""
-    r = await client.get("/v1/auth/users/me", headers={"Authorization": f"Bearer {token}"})
+    r = await client.get(
+        "/v1/auth/users/me", headers={"Authorization": f"Bearer {token}"}
+    )
     r.raise_for_status()
     return r.json()["id"]
 

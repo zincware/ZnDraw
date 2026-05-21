@@ -182,8 +182,12 @@ const ChatPanel = () => {
 	// Use individual selectors to prevent unnecessary re-renders
 	const userName = useAppStore((state) => state.user?.email ?? null);
 	const typingUsers = useAppStore((state) => state.typingUsers);
-	const { ownerId, roomName } = useParams<{ ownerId: string; roomName: string }>();
-	const roomId = ownerId && roomName ? composeRoomAddress(ownerId, roomName) : undefined;
+	const { ownerId, roomName } = useParams<{
+		ownerId: string;
+		roomName: string;
+	}>();
+	const roomId =
+		ownerId && roomName ? composeRoomAddress(ownerId, roomName) : undefined;
 	const [messageInput, setMessageInput] = useState("");
 	const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
 	const [editContent, setEditContent] = useState("");

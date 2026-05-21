@@ -1,7 +1,11 @@
 """Share-link REST + permission-compose tests."""
 
 import pytest
-from helpers import _register_and_login, create_room_via_api, create_test_user_in_db, get_user_id
+from helpers import (
+    _register_and_login,
+    create_room_via_api,
+    create_test_user_in_db,
+)
 from httpx import AsyncClient
 
 
@@ -11,7 +15,9 @@ async def test_create_and_use_view_link(client: AsyncClient, session) -> None:
     _guest_user, guest = await create_test_user_in_db(
         session, email="sl1-gst@test.com", is_superuser=False
     )
-    room_id = await create_room_via_api(client, owner, "sl-room-1", visibility="private")
+    room_id = await create_room_via_api(
+        client, owner, "sl-room-1", visibility="private"
+    )
     # 404 without share token
     r = await client.get(
         f"/v1/rooms/{room_id}", headers={"Authorization": f"Bearer {guest}"}
@@ -62,7 +68,9 @@ async def test_revoke_link(client: AsyncClient, session) -> None:
     _guest_user, guest = await create_test_user_in_db(
         session, email="sl2-gst@test.com", is_superuser=False
     )
-    room_id = await create_room_via_api(client, owner, "sl-room-2", visibility="private")
+    room_id = await create_room_via_api(
+        client, owner, "sl-room-2", visibility="private"
+    )
     link = (
         await client.post(
             f"/v1/rooms/{room_id}/share-links",
@@ -93,8 +101,12 @@ async def test_wrong_room_token_rejected(client: AsyncClient, session) -> None:
     _guest_user, guest = await create_test_user_in_db(
         session, email="sl4-gst@test.com", is_superuser=False
     )
-    room_id_a = await create_room_via_api(client, owner, "sl-room-4a", visibility="private")
-    room_id_b = await create_room_via_api(client, owner, "sl-room-4b", visibility="private")
+    room_id_a = await create_room_via_api(
+        client, owner, "sl-room-4a", visibility="private"
+    )
+    room_id_b = await create_room_via_api(
+        client, owner, "sl-room-4b", visibility="private"
+    )
     link = (
         await client.post(
             f"/v1/rooms/{room_id_a}/share-links",
@@ -119,7 +131,9 @@ async def test_revoke_nonexistent_returns_404(
     from uuid import uuid4
 
     owner = await _register_and_login(client, "sl-rn-own@test.com")
-    room_id = await create_room_via_api(client, owner, "sl-rn-room", visibility="public")
+    room_id = await create_room_via_api(
+        client, owner, "sl-rn-room", visibility="public"
+    )
     r = await client.delete(
         f"/v1/rooms/{room_id}/share-links/{uuid4()}",
         headers={"Authorization": f"Bearer {owner}"},

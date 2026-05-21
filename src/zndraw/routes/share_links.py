@@ -25,7 +25,9 @@ from zndraw.schemas import (
     ShareLinkResponse,
 )
 
-router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/share-links", tags=["share-links"])
+router = APIRouter(
+    prefix="/v1/rooms/{owner_id}/{room_name}/share-links", tags=["share-links"]
+)
 
 
 @router.post(

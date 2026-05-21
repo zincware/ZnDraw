@@ -10,14 +10,9 @@ from pydantic import BaseModel
 
 import zndraw
 from zndraw.config import SettingsDep
-from uuid import UUID
-
-from fastapi import Path as FastAPIPath
-
 from zndraw.dependencies import (
     AccessReadDep,
     ActiveSessionCamDep,
-    CurrentUserDep,
     RedisDep,
     SessionDep,
     SioDep,

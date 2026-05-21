@@ -338,8 +338,12 @@ async def broadcast_room_update(
     "",
     status_code=status.HTTP_201_CREATED,
     responses=problem_responses(
-        NotAuthenticated, Forbidden, InvalidPayload, RoomReadOnly,
-        TransferTargetInvalid, UnprocessableContent,
+        NotAuthenticated,
+        Forbidden,
+        InvalidPayload,
+        RoomReadOnly,
+        TransferTargetInvalid,
+        UnprocessableContent,
     ),
 )
 async def create_room(
@@ -388,9 +392,7 @@ async def create_room(
             raise Forbidden.exception("Not permitted to create in this namespace")
         owner_group_id = request.owner_id
         if target_visibility == Visibility.PRIVATE:
-            raise InvalidPayload.exception(
-                "PRIVATE visibility requires a user owner"
-            )
+            raise InvalidPayload.exception("PRIVATE visibility requires a user owner")
 
     # Step 4: insert-or-fetch via the unique index.
     existing = await _load_room_by_address(session, request.owner_id, name)
@@ -412,15 +414,16 @@ async def create_room(
     presets = {"@empty", "@none"}
     if copy_from.startswith("@") and copy_from not in presets:
         raise UnprocessableContent.exception(
-            f"Unknown preset '{copy_from}'. "
-            f"Valid presets: {', '.join(sorted(presets))}"
+            f"Unknown preset '{copy_from}'. Valid presets: {', '.join(sorted(presets))}"
         )
 
     source_room: Room | None = None
     if not copy_from.startswith("@"):
         if "/" in copy_from:
             owner_str, _, name_part = copy_from.partition("/")
-            source_room = await _load_room_by_address(session, UUID(owner_str), name_part)
+            source_room = await _load_room_by_address(
+                session, UUID(owner_str), name_part
+            )
         else:
             source_room = await session.get(Room, copy_from)
         if source_room is not None and await storage.has_mount(source_room.id):

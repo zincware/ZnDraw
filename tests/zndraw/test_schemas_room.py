@@ -22,7 +22,5 @@ def test_room_create_rejects_bad_name() -> None:
 
 def test_room_create_response_carries_composed_address() -> None:
     owner = uuid4()
-    resp = RoomCreateResponse(
-        room_id=f"{owner}/my-room", frame_count=0, created=True
-    )
+    resp = RoomCreateResponse(room_id=f"{owner}/my-room", frame_count=0, created=True)
     assert resp.room_id == f"{owner}/my-room"

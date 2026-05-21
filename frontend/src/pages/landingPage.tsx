@@ -62,8 +62,12 @@ import { parseShareFromLocation } from "../utils/shareToken";
 import { downloadScreenshot } from "../utils/screenshot";
 
 export default function MainPage() {
-	const { ownerId, roomName } = useParams<{ ownerId: string; roomName: string }>();
-	const roomAddress = ownerId && roomName ? composeRoomAddress(ownerId, roomName) : undefined;
+	const { ownerId, roomName } = useParams<{
+		ownerId: string;
+		roomName: string;
+	}>();
+	const roomAddress =
+		ownerId && roomName ? composeRoomAddress(ownerId, roomName) : undefined;
 	const setRoomId = useAppStore((state) => state.setRoomId);
 
 	// Set roomId in store for child components that read from it.

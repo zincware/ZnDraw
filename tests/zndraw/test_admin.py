@@ -168,7 +168,9 @@ async def _get_token(http_client: AsyncClient) -> str:
 
 
 async def _get_owner_id(http_client: AsyncClient, token: str) -> str:
-    r = await http_client.get("/v1/auth/users/me", headers={"Authorization": f"Bearer {token}"})
+    r = await http_client.get(
+        "/v1/auth/users/me", headers={"Authorization": f"Bearer {token}"}
+    )
     r.raise_for_status()
     return r.json()["id"]
 

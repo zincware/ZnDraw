@@ -279,12 +279,16 @@ export function LoadFileDialog({
 						value={selectedRoom}
 						onChange={(_, value) => setSelectedRoom(value)}
 						getOptionLabel={(room) =>
-							room.description ? `${room.description} (${room.room_id})` : room.room_id
+							room.description
+								? `${room.description} (${room.room_id})`
+								: room.room_id
 						}
 						renderInput={(params) => (
 							<TextField {...params} label="Select room" />
 						)}
-						isOptionEqualToValue={(option, value) => option.room_id === value.room_id}
+						isOptionEqualToValue={(option, value) =>
+							option.room_id === value.room_id
+						}
 						sx={{ mt: 1 }}
 					/>
 				)}

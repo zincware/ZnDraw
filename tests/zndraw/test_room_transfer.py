@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 
 ADMIN_EMAIL = "admin@local.test"
-ADMIN_PASSWORD = "adminpassword"  # noqa: S105
+ADMIN_PASSWORD = "adminpassword"
 
 
 async def _register_and_login(
@@ -36,7 +36,9 @@ async def _login_admin(client: AsyncClient) -> tuple[str, str]:
     )
     assert login.status_code == 200, login.text
     token = login.json()["access_token"]
-    me = await client.get("/v1/auth/users/me", headers={"Authorization": f"Bearer {token}"})
+    me = await client.get(
+        "/v1/auth/users/me", headers={"Authorization": f"Bearer {token}"}
+    )
     assert me.status_code == 200, me.text
     return me.json()["id"], token
 
@@ -115,13 +117,9 @@ async def test_transfer_happy_path(
     assert body["room_id"] == f"{group_id}/t"
 
     # New composed address is reachable
-    r = await http_client_auth.get(
-        f"/v1/rooms/{group_id}/t", headers=headers
-    )
+    r = await http_client_auth.get(f"/v1/rooms/{group_id}/t", headers=headers)
     assert r.status_code == 200
 
     # Old composed address is NOT reachable
-    r = await http_client_auth.get(
-        f"/v1/rooms/{caller_id}/t", headers=headers
-    )
+    r = await http_client_auth.get(f"/v1/rooms/{caller_id}/t", headers=headers)
     assert r.status_code == 404

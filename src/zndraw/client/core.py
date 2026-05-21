@@ -223,13 +223,9 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         try:
             uuid.UUID(owner_part)
         except ValueError as exc:
-            raise ValueError(
-                f"Owner '{owner_part}' is not a valid UUID."
-            ) from exc
+            raise ValueError(f"Owner '{owner_part}' is not a valid UUID.") from exc
         if not re.fullmatch(r"[a-zA-Z0-9\-_]+", name_part):
-            raise ValueError(
-                f"Room name '{name_part}' contains invalid characters."
-            )
+            raise ValueError(f"Room name '{name_part}' contains invalid characters.")
         self.room = raw_room
 
         # Create API manager

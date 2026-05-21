@@ -16,6 +16,7 @@ from asebytes import decode, encode
 from fastapi import APIRouter, Depends, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+
 from zndraw.connectivity import add_connectivity
 from zndraw.dependencies import (
     AccessReadDep,
@@ -49,7 +50,9 @@ from zndraw.routes.rooms import broadcast_room_update
 from zndraw.schemas import FrameBulkResponse
 from zndraw.socket_events import FramesInvalidate
 
-router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/trajectory", tags=["trajectory"])
+router = APIRouter(
+    prefix="/v1/rooms/{owner_id}/{room_name}/trajectory", tags=["trajectory"]
+)
 
 _UPLOAD_BATCH_SIZE = 500
 _CONNECTIVITY_ATOM_LIMIT = 100

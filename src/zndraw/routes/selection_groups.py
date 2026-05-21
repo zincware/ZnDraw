@@ -28,7 +28,8 @@ from zndraw.schemas import (
 from zndraw.socket_events import SelectionGroupsInvalidate
 
 router = APIRouter(
-    prefix="/v1/rooms/{owner_id}/{room_name}/selection-groups", tags=["selection-groups"]
+    prefix="/v1/rooms/{owner_id}/{room_name}/selection-groups",
+    tags=["selection-groups"],
 )
 
 

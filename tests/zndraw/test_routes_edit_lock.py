@@ -76,7 +76,8 @@ async def test_get_edit_lock_returns_404_for_nonexistent_room(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/edit-lock", headers=auth_header(token)
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/edit-lock",
+        headers=auth_header(token),
     )
     assert response.status_code == 404
 

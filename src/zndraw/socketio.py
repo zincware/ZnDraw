@@ -247,7 +247,9 @@ async def room_join(
         await tsio.enter_room(sid, room_channel("@global"))
 
     await tsio.emit(
-        SessionJoined(room_id=room.public_address, user_id=user_id, sid=sid, email=email),
+        SessionJoined(
+            room_id=room.public_address, user_id=user_id, sid=sid, email=email
+        ),
         room=room_channel(room.id),
         skip_sid=sid,
     )

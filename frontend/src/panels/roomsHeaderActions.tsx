@@ -16,9 +16,15 @@ export function RoomsHeaderActions() {
 	// New room: no copy_from → server default template if set, else @empty.
 	const onNewRoom = async () => {
 		const currentUser = useAppStore.getState().user;
-		if (!currentUser) { showSnackbar("Not authenticated", "error"); return; }
+		if (!currentUser) {
+			showSnackbar("Not authenticated", "error");
+			return;
+		}
 		try {
-			const result = await createRoom({ owner_id: currentUser.id, name: "untitled-1" });
+			const result = await createRoom({
+				owner_id: currentUser.id,
+				name: "untitled-1",
+			});
 			navigate(`/rooms/${result.room_id}`);
 		} catch (err) {
 			showSnackbar(extractDetail(err, "Failed to create room"), "error");
@@ -28,9 +34,16 @@ export function RoomsHeaderActions() {
 	// New empty room: copy_from=@none → zero frames, no default geometries.
 	const onNewEmpty = async () => {
 		const currentUser = useAppStore.getState().user;
-		if (!currentUser) { showSnackbar("Not authenticated", "error"); return; }
+		if (!currentUser) {
+			showSnackbar("Not authenticated", "error");
+			return;
+		}
 		try {
-			const result = await createRoom({ owner_id: currentUser.id, name: "untitled-1", copy_from: "@none" });
+			const result = await createRoom({
+				owner_id: currentUser.id,
+				name: "untitled-1",
+				copy_from: "@none",
+			});
 			navigate(`/rooms/${result.room_id}`);
 		} catch (err) {
 			showSnackbar(extractDetail(err, "Failed to create room"), "error");
@@ -43,9 +56,15 @@ export function RoomsHeaderActions() {
 		const files = e.target.files;
 		if (!files || files.length === 0) return;
 		const currentUser = useAppStore.getState().user;
-		if (!currentUser) { showSnackbar("Not authenticated", "error"); return; }
+		if (!currentUser) {
+			showSnackbar("Not authenticated", "error");
+			return;
+		}
 		try {
-			const result = await createRoom({ owner_id: currentUser.id, name: "untitled-1" });
+			const result = await createRoom({
+				owner_id: currentUser.id,
+				name: "untitled-1",
+			});
 			for (const f of Array.from(files)) {
 				await uploadTrajectory(result.room_id, f);
 			}

@@ -1,6 +1,5 @@
 """Figures REST API endpoints for room Plotly figures."""
 
-
 from fastapi import APIRouter, status
 from sqlmodel import select
 

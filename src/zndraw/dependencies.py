@@ -469,8 +469,6 @@ async def check_geometry_write_access(
     return WritableGeometryInfo(room=room, current_owner=current_owner)
 
 
-
-
 async def get_writable_room_id(
     request: Request,
     session: SessionDep,
@@ -545,9 +543,7 @@ async def _load_access_context(
     """Load room from DB and resolve group role for the current user."""
     room = await _load_room_by_address(session, owner_id, room_name)
     if room is None:
-        raise RoomNotFound.exception(
-            f"Room {owner_id}/{room_name} not found"
-        )
+        raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
     group_role: GroupRole | None = None
     if room.owner_group_id is not None:
         group_role = await fetch_group_role(
@@ -584,13 +580,9 @@ async def get_readable_room(
     room_name: str = Path(),
 ) -> AccessContext:
     """Load room + auth context; raise 404 if caller cannot read."""
-    ctx = await _load_access_context(
-        session, owner_id, room_name, current_user, share
-    )
+    ctx = await _load_access_context(session, owner_id, room_name, current_user, share)
     if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
-        raise RoomNotFound.exception(
-            f"Room {owner_id}/{room_name} not found"
-        )
+        raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
     return ctx
 
 
@@ -630,7 +622,11 @@ async def get_writable_geometry(
     await _check_edit_lock(redis, access.room.id, lock_token)
     current_owner = await get_owner_from_geometry(redis, session, access.room.id, key)
     user_id_str = str(current_user.id)
-    if not current_user.is_superuser and current_owner is not None and current_owner != user_id_str:
+    if (
+        not current_user.is_superuser
+        and current_owner is not None
+        and current_owner != user_id_str
+    ):
         raise Forbidden.exception("Not the geometry owner")
     return WritableGeometryInfo(room=access.room, current_owner=current_owner)
 

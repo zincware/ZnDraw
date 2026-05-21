@@ -58,9 +58,7 @@ def validate_room_id(room_id: str) -> None:
             detail=f"Owner '{owner_part}' is not a valid UUID"
         ) from exc
     if not name_part or "/" in name_part:
-        raise InvalidRoomId.exception(
-            detail=f"Room name '{name_part}' is invalid"
-        )
+        raise InvalidRoomId.exception(detail=f"Room name '{name_part}' is invalid")
 
 
 async def verify_writable_room(room_id: str = Path()) -> str:

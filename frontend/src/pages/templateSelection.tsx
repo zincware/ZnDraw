@@ -112,10 +112,7 @@ export default function TemplateSelectionPage() {
 				const templateRoomId = await determineTemplate();
 
 				if (templateRoomId) {
-					console.log(
-						"[Startup] Creating room from template:",
-						templateRoomId,
-					);
+					console.log("[Startup] Creating room from template:", templateRoomId);
 					const result = await createRoom({
 						owner_id: user.id,
 						name: "untitled-1",

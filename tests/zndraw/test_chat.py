@@ -175,7 +175,8 @@ async def test_list_messages_pagination(
 
     # Fetch first page (limit=2)
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/chat/messages?limit=2", headers=auth_header(token)
+        f"/v1/rooms/{room.public_address}/chat/messages?limit=2",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     page1 = response.json()
@@ -296,7 +297,8 @@ async def test_list_messages_room_not_found(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/chat/messages", headers=auth_header(token)
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/chat/messages",
+        headers=auth_header(token),
     )
     assert response.status_code == 404
     assert "room-not-found" in response.json()["type"]

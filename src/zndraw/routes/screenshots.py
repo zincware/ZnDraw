@@ -40,7 +40,9 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import ScreenshotRequest
 
-router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/screenshots", tags=["screenshots"])
+router = APIRouter(
+    prefix="/v1/rooms/{owner_id}/{room_name}/screenshots", tags=["screenshots"]
+)
 
 _ALLOWED_FORMATS = {"png", "jpeg", "webp"}
 _MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB

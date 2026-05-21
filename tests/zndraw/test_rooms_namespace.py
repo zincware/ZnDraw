@@ -47,9 +47,7 @@ async def test_create_in_own_namespace(http_client_auth: AsyncClient) -> None:
 async def test_idempotent_reuse_in_own_namespace(
     http_client_auth: AsyncClient,
 ) -> None:
-    user_id, token = await _register_and_login(
-        http_client_auth, "ns-dup@example.com"
-    )
+    user_id, token = await _register_and_login(http_client_auth, "ns-dup@example.com")
     payload = {"owner_id": user_id, "name": "dup"}
     headers = {"Authorization": f"Bearer {token}"}
     first = await http_client_auth.post("/v1/rooms", json=payload, headers=headers)
@@ -64,9 +62,7 @@ async def test_idempotent_reuse_in_own_namespace(
 async def test_cross_namespace_post_returns_403(
     http_client_auth: AsyncClient,
 ) -> None:
-    _, token = await _register_and_login(
-        http_client_auth, "ns-cross@example.com"
-    )
+    _, token = await _register_and_login(http_client_auth, "ns-cross@example.com")
     foreign_owner = str(uuid4())
     resp = await http_client_auth.post(
         "/v1/rooms",

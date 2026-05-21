@@ -19,8 +19,12 @@ interface ConnectionDialogProps {
 }
 
 const ConnectionDialog = ({ open, onClose }: ConnectionDialogProps) => {
-	const { ownerId, roomName } = useParams<{ ownerId: string; roomName: string }>();
-	const roomId = ownerId && roomName ? composeRoomAddress(ownerId, roomName) : undefined;
+	const { ownerId, roomName } = useParams<{
+		ownerId: string;
+		roomName: string;
+	}>();
+	const roomId =
+		ownerId && roomName ? composeRoomAddress(ownerId, roomName) : undefined;
 	const userName = useAppStore((state) => state.user?.email ?? null);
 	const sessionId = useAppStore((state) => state.sessionId);
 	const { mode } = useColorScheme();

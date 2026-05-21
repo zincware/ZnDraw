@@ -73,6 +73,7 @@ async def _resolve_room_by_id_or_address(
     if len(parts) == 2:
         try:
             from uuid import UUID as _UUID
+
             owner_uuid = _UUID(parts[0])
         except ValueError:
             return None

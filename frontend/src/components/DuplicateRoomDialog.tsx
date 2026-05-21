@@ -49,7 +49,9 @@ export default function DuplicateRoomDialog({
 
 		const name = newRoomName.trim() || "untitled-1";
 		if (!/^[a-zA-Z0-9\-_]+$/.test(name)) {
-			setError("Name may only contain letters, numbers, hyphens and underscores");
+			setError(
+				"Name may only contain letters, numbers, hyphens and underscores",
+			);
 			return;
 		}
 
@@ -97,7 +99,10 @@ export default function DuplicateRoomDialog({
 						setNewRoomName(e.target.value);
 						setError(null);
 					}}
-					helperText={error || 'Leave empty to use "untitled-1". Letters, numbers, hyphens, underscores only.'}
+					helperText={
+						error ||
+						'Leave empty to use "untitled-1". Letters, numbers, hyphens, underscores only.'
+					}
 					error={!!error}
 					sx={{ mb: 2 }}
 				/>

@@ -4,8 +4,6 @@ Per-room jobs are registered with room=vis.room and are only visible
 to clients in that room. Cross-room isolation is a key property.
 """
 
-import uuid
-
 import ase
 
 from zndraw import ZnDraw

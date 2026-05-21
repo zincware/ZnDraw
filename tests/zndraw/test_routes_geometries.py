@@ -602,7 +602,9 @@ async def test_delete_geometry_requires_auth(
     user, _ = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    response = await client.delete(f"/v1/rooms/{room.public_address}/geometries/somekey")
+    response = await client.delete(
+        f"/v1/rooms/{room.public_address}/geometries/somekey"
+    )
     assert response.status_code == 401
 
 
@@ -630,11 +632,31 @@ async def test_update_selection_requires_auth(
 @pytest.mark.parametrize(
     ("method", "path", "body"),
     [
-        ("GET", "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries", None),
-        ("GET", "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries/somekey", None),
-        ("PUT", "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries/test", {"type": "Sphere", "data": {}}),
-        ("DELETE", "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries/somekey", None),
-        ("PUT", "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries/particles/selection", {"indices": [0]}),
+        (
+            "GET",
+            "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries",
+            None,
+        ),
+        (
+            "GET",
+            "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries/somekey",
+            None,
+        ),
+        (
+            "PUT",
+            "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries/test",
+            {"type": "Sphere", "data": {}},
+        ),
+        (
+            "DELETE",
+            "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries/somekey",
+            None,
+        ),
+        (
+            "PUT",
+            "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries/particles/selection",
+            {"indices": [0]},
+        ),
     ],
     ids=["list", "get", "upsert", "delete", "update_selection"],
 )

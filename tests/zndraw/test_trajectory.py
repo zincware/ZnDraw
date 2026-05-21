@@ -699,8 +699,12 @@ async def test_download_token_wrong_room(
 ) -> None:
     """Token for room A cannot download from room B."""
     user, token = await create_test_user_in_db(session)
-    room_a = await create_test_room(session, user, description="Room A", room_name="room-a")
-    room_b = await create_test_room(session, user, description="Room B", room_name="room-b")
+    room_a = await create_test_room(
+        session, user, description="Room A", room_name="room-a"
+    )
+    room_b = await create_test_room(
+        session, user, description="Room B", room_name="room-b"
+    )
     await _add_atoms_to_storage(frame_storage, room_a.id, [_make_atoms()])
     await _add_atoms_to_storage(frame_storage, room_b.id, [_make_atoms()])
 
@@ -824,7 +828,6 @@ async def test_download_atom_selection_out_of_range(
 
 def test_download_token_full_roundtrip(server: str) -> None:
     """Upload frames via ZnDraw client, get a download token, download, verify."""
-    import uuid
 
     import httpx
 
