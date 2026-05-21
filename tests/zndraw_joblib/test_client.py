@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from conftest import make_room_address
 from zndraw_joblib.client import (
     Category,
     Extension,
@@ -77,22 +78,24 @@ def test_job_manager_register_category(api, client, category, expected_value):
     assert full_name in job_names
 
 
-def test_job_manager_register_with_room(api, client):
+def test_job_manager_register_with_room(api, client, test_user_id):
     """JobManager.register(room=...) should create room-specific job."""
     manager = JobManager(api)
 
-    @manager.register(room="my_room")
+    addr = make_room_address(test_user_id, "my_room")
+
+    @manager.register(room=addr)
     class PrivateJob(ConcreteExtension):
         category: ClassVar[Category] = Category.MODIFIER
         data: str = ""
 
-    assert "my_room:modifiers:PrivateJob" in manager
+    assert f"{addr}:modifiers:PrivateJob" in manager
 
-    response = client.get("/v1/joblib/rooms/my_room/jobs")
+    response = client.get(f"/v1/joblib/rooms/{addr}/jobs")
     assert response.status_code == 200
     page = PaginatedResponse[JobSummary].model_validate(response.json())
     job_names = [j.full_name for j in page.items]
-    assert "my_room:modifiers:PrivateJob" in job_names
+    assert f"{addr}:modifiers:PrivateJob" in job_names
 
 
 def test_job_manager_getitem_returns_class(api, client):
@@ -162,7 +165,7 @@ def test_job_manager_schema_sent_to_server(api, client):
     assert "axis" in job.schema_["properties"]
 
 
-def test_job_manager_listen_yields_extension_instance(api, client):
+def test_job_manager_listen_yields_extension_instance(api, client, room_1_address):
     """JobManager.listen() should yield Extension instances with payload data."""
     manager = JobManager(api)
 
@@ -173,7 +176,7 @@ def test_job_manager_listen_yields_extension_instance(api, client):
 
     # Submit a task
     submit_resp = client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:Rotate",
         json={"payload": {"angle": 45.0}},
     )
     assert submit_resp.status_code == 202
@@ -184,7 +187,7 @@ def test_job_manager_listen_yields_extension_instance(api, client):
         assert isinstance(claimed.extension, Rotate)
         assert claimed.extension.angle == 45.0
         assert claimed.task_id is not None
-        assert claimed.room_id == "room_1"
+        assert claimed.room_id == room_1_address
         break  # Only get one task
 
 
@@ -201,7 +204,7 @@ def test_job_manager_listen_returns_none_when_empty(api, client):
     assert claimed is None
 
 
-def test_job_manager_claim_until_empty(api, client):
+def test_job_manager_claim_until_empty(api, seeded_client, room_1_address):
     """Calling claim repeatedly should return None when no more tasks."""
     manager = JobManager(api)
 
@@ -212,8 +215,8 @@ def test_job_manager_claim_until_empty(api, client):
 
     # Submit 3 tasks
     for i in range(3):
-        resp = client.post(
-            "/v1/joblib/rooms/room_1/tasks/@global:modifiers:BatchJob",
+        resp = seeded_client.post(
+            f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:BatchJob",
             json={"payload": {"index": i}},
         )
         assert resp.status_code == 202
@@ -253,7 +256,7 @@ def test_job_manager_heartbeat(api, client):
     assert response.status_code == 200
 
 
-def test_job_manager_complete_workflow(api, client):
+def test_job_manager_complete_workflow(api, client, seeded_client, room_1_address):
     """Test complete workflow: register, submit, claim, complete, verify empty."""
     manager = JobManager(api)
 
@@ -265,8 +268,8 @@ def test_job_manager_complete_workflow(api, client):
 
     # 1. Submit two tasks
     for i in range(2):
-        resp = client.post(
-            "/v1/joblib/rooms/room_1/tasks/@global:modifiers:ProcessData",
+        resp = seeded_client.post(
+            f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:ProcessData",
             json={
                 "payload": {"input_file": f"in{i}.txt", "output_file": f"out{i}.txt"}
             },
@@ -304,7 +307,7 @@ def test_job_manager_complete_workflow(api, client):
     assert completed.completed_at is not None
 
 
-def test_job_manager_claimed_task_has_metadata(api, client):
+def test_job_manager_claimed_task_has_metadata(api, client, test_user_id):
     """ClaimedTask should include task_id, room_id, job_name, and extension."""
     manager = JobManager(api)
 
@@ -313,21 +316,22 @@ def test_job_manager_claimed_task_has_metadata(api, client):
         category: ClassVar[Category] = Category.MODIFIER
         value: int = 42
 
+    addr = make_room_address(test_user_id, "test_room")
     client.post(
-        "/v1/joblib/rooms/test_room/tasks/@global:modifiers:MetadataJob",
+        f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:MetadataJob",
         json={"payload": {"value": 99}},
     )
 
     claimed = manager.claim()
     assert claimed is not None
     assert claimed.task_id is not None
-    assert claimed.room_id == "test_room"
+    assert claimed.room_id == addr
     assert claimed.job_name == "@global:modifiers:MetadataJob"
     assert isinstance(claimed.extension, MetadataJob)
     assert claimed.extension.value == 99
 
 
-def test_job_manager_submit(api, client):
+def test_job_manager_submit(api, client, test_user_id):
     """JobManager.submit() should create a task via the server."""
     manager = JobManager(api)
 
@@ -337,7 +341,8 @@ def test_job_manager_submit(api, client):
         value: int = 0
 
     # Submit a task
-    task_id = manager.submit(SubmitJob(value=42), room="submit_room")
+    addr = make_room_address(test_user_id, "submit_room")
+    task_id = manager.submit(SubmitJob(value=42), room=addr)
     assert task_id is not None
 
     # Verify the task exists on the server
@@ -345,7 +350,7 @@ def test_job_manager_submit(api, client):
     assert task_resp.status_code == 200
     task = TaskResponse.model_validate(task_resp.json())
     assert task.payload == {"value": 42}
-    assert task.room_id == "submit_room"
+    assert task.room_id == addr
     assert task.job_name == "@global:modifiers:SubmitJob"
 
 
@@ -416,18 +421,20 @@ def test_job_manager_register_no_tsio_no_emit(api, client):
     assert "@global:modifiers:NoTsioJob" in manager
 
 
-def test_job_manager_register_room_emits_correct_job_name(api, client):
+def test_job_manager_register_room_emits_correct_job_name(api, client, test_user_id):
     """register(room=...) should emit JoinJobRoom with room-scoped job name."""
     mock_tsio = MagicMock()
     manager = JobManager(api, tsio=mock_tsio)
 
-    @manager.register(room="my_room")
+    addr = make_room_address(test_user_id, "my_room")
+
+    @manager.register(room=addr)
     class PrivateJob(ConcreteExtension):
         category: ClassVar[Category] = Category.MODIFIER
 
     event = mock_tsio.emit.call_args[0][0]
     assert isinstance(event, JoinJobRoom)
-    assert event.job_name == "my_room:modifiers:PrivateJob"
+    assert event.job_name == f"{addr}:modifiers:PrivateJob"
     assert event.worker_id == str(manager.worker_id)
 
 
@@ -501,7 +508,7 @@ def test_job_manager_disconnect_no_worker_id():
     assert manager.worker_id is None
 
 
-def _register_claim(api, client):
+def _register_claim(api, seeded_client, room_1_address):
     """Helper: register a job, submit a task, claim it. Returns (manager, claimed)."""
     manager = JobManager(api)
 
@@ -510,8 +517,8 @@ def _register_claim(api, client):
         category: ClassVar[Category] = Category.MODIFIER
         value: int = 0
 
-    client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:TaskJob",
+    seeded_client.post(
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:TaskJob",
         json={"payload": {"value": 7}},
     )
     claimed = manager.claim()
@@ -519,9 +526,9 @@ def _register_claim(api, client):
     return manager, claimed
 
 
-def test_job_manager_start_transitions_to_running(api, client):
+def test_job_manager_start_transitions_to_running(api, client, seeded_client, room_1_address):
     """manager.start(task) should transition task from CLAIMED to RUNNING."""
-    manager, claimed = _register_claim(api, client)
+    manager, claimed = _register_claim(api, seeded_client, room_1_address)
 
     manager.start(claimed)
 
@@ -531,9 +538,9 @@ def test_job_manager_start_transitions_to_running(api, client):
     assert task.started_at is not None
 
 
-def test_job_manager_complete_transitions_to_completed(api, client):
+def test_job_manager_complete_transitions_to_completed(api, client, seeded_client, room_1_address):
     """manager.complete(task) should transition task from RUNNING to COMPLETED."""
-    manager, claimed = _register_claim(api, client)
+    manager, claimed = _register_claim(api, seeded_client, room_1_address)
 
     manager.start(claimed)
     manager.complete(claimed)
@@ -544,9 +551,9 @@ def test_job_manager_complete_transitions_to_completed(api, client):
     assert task.completed_at is not None
 
 
-def test_job_manager_fail_transitions_to_failed_with_error(api, client):
+def test_job_manager_fail_transitions_to_failed_with_error(api, client, seeded_client, room_1_address):
     """manager.fail(task, error) should transition to FAILED and store error."""
-    manager, claimed = _register_claim(api, client)
+    manager, claimed = _register_claim(api, seeded_client, room_1_address)
 
     manager.start(claimed)
     manager.fail(claimed, "something broke")
@@ -558,9 +565,9 @@ def test_job_manager_fail_transitions_to_failed_with_error(api, client):
     assert task.completed_at is not None
 
 
-def test_job_manager_fail_by_id(api, client):
+def test_job_manager_fail_by_id(api, client, seeded_client, room_1_address):
     """manager.fail_by_id(task_id, error) should fail a task without a ClaimedTask."""
-    manager, claimed = _register_claim(api, client)
+    manager, claimed = _register_claim(api, seeded_client, room_1_address)
 
     manager.start(claimed)
     manager.fail_by_id(claimed.task_id, "payload error")
@@ -572,9 +579,9 @@ def test_job_manager_fail_by_id(api, client):
     assert task.completed_at is not None
 
 
-def test_job_manager_cancel_from_claimed(api, client):
+def test_job_manager_cancel_from_claimed(api, client, seeded_client, room_1_address):
     """manager.cancel(task) should transition from CLAIMED to CANCELLED."""
-    manager, claimed = _register_claim(api, client)
+    manager, claimed = _register_claim(api, seeded_client, room_1_address)
 
     manager.cancel(claimed)
 
@@ -583,9 +590,9 @@ def test_job_manager_cancel_from_claimed(api, client):
     assert task.status.value == "cancelled"
 
 
-def test_job_manager_cancel_from_running(api, client):
+def test_job_manager_cancel_from_running(api, client, seeded_client, room_1_address):
     """manager.cancel(task) should transition from RUNNING to CANCELLED."""
-    manager, claimed = _register_claim(api, client)
+    manager, claimed = _register_claim(api, seeded_client, room_1_address)
 
     manager.start(claimed)
     manager.cancel(claimed)
