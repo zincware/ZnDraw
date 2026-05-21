@@ -47,6 +47,21 @@ def test_user(test_user_id):
     return user
 
 
+def make_room_address(owner_id: uuid.UUID, name: str) -> str:
+    """Compose a `<owner_uuid>/<name>` room address for tests."""
+    return f"{owner_id}/{name}"
+
+
+@pytest.fixture
+def room_1_address(test_user_id):
+    return make_room_address(test_user_id, "room_1")
+
+
+@pytest.fixture
+def room_2_address(test_user_id):
+    return make_room_address(test_user_id, "room_2")
+
+
 @pytest.fixture
 async def async_engine():
     """Create an async in-memory SQLite database engine."""

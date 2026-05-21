@@ -85,3 +85,18 @@ def test_internal_registry_exports():
     assert InternalExecutor is not None
     assert InternalRegistry is not None
     assert InternalJobNotConfigured is not None
+
+
+def test_make_room_address_composes(test_user_id):
+    from conftest import make_room_address
+
+    addr = make_room_address(test_user_id, "room_1")
+    assert addr == f"{test_user_id}/room_1"
+
+
+def test_room_1_address_fixture(room_1_address, test_user_id):
+    assert room_1_address == f"{test_user_id}/room_1"
+
+
+def test_room_2_address_fixture(room_2_address, test_user_id):
+    assert room_2_address == f"{test_user_id}/room_2"
