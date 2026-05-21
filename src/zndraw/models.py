@@ -1,9 +1,7 @@
 import uuid as uuid_mod
 from datetime import UTC, datetime
-from typing import Annotated
 from uuid import UUID
 
-from pydantic import StringConstraints
 from sqlalchemy import (
     CheckConstraint,
     Column,
@@ -63,7 +61,7 @@ class Room(SQLModel, table=True):
     )
 
     id: str = Field(default_factory=lambda: str(uuid_mod.uuid4()), primary_key=True)
-    room_name: Annotated[str, StringConstraints(pattern=r"^[a-zA-Z0-9\-_]+$")] = Field()
+    room_name: str
     description: str | None = None
     created_by_id: UUID | None = Field(default=None, index=True)
     created_at: datetime = Field(
