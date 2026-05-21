@@ -484,22 +484,23 @@ async def list_workers_for_room(
 
 
 @router.get(
-    "/rooms/{room_id:path}/tasks", response_model=PaginatedResponse[TaskResponse]
+    "/rooms/{room_id:path}/jobs/{job_name:path}/tasks",
+    response_model=PaginatedResponse[TaskResponse],
 )
-async def list_tasks_for_room(
+async def list_tasks_for_job(
     room_id: str,
+    job_name: str,
     session: SessionDep,
     task_status: Annotated[TaskStatus | None, Query(alias="status")] = None,
     limit: Annotated[int, Query(ge=0, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
-    """List tasks for a room, optionally filtered by status.
-
-    Includes queue position for pending tasks.
-    """
+    """List tasks for a specific job. Includes queue position for pending tasks."""
     validate_room_id(room_id)
 
-    base_query = select(Task).where(Task.room_id == room_id)
+    job = await _resolve_job(session, job_name)
+
+    base_query = select(Task).where(Task.job_id == job.id, Task.room_id == room_id)
     if task_status:
         base_query = base_query.where(Task.status == task_status)
 
@@ -523,23 +524,22 @@ async def list_tasks_for_room(
 
 
 @router.get(
-    "/rooms/{room_id:path}/jobs/{job_name:path}/tasks",
-    response_model=PaginatedResponse[TaskResponse],
+    "/rooms/{room_id:path}/tasks", response_model=PaginatedResponse[TaskResponse]
 )
-async def list_tasks_for_job(
+async def list_tasks_for_room(
     room_id: str,
-    job_name: str,
     session: SessionDep,
     task_status: Annotated[TaskStatus | None, Query(alias="status")] = None,
     limit: Annotated[int, Query(ge=0, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
-    """List tasks for a specific job. Includes queue position for pending tasks."""
+    """List tasks for a room, optionally filtered by status.
+
+    Includes queue position for pending tasks.
+    """
     validate_room_id(room_id)
 
-    job = await _resolve_job(session, job_name)
-
-    base_query = select(Task).where(Task.job_id == job.id, Task.room_id == room_id)
+    base_query = select(Task).where(Task.room_id == room_id)
     if task_status:
         base_query = base_query.where(Task.status == task_status)
 
