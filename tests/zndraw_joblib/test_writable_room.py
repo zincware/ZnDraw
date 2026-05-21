@@ -102,7 +102,7 @@ def test_default_rejects_invalid_room_id_on_register(client):
     )
     assert resp.status_code == 400
     error = ProblemDetail.model_validate(resp.json())
-    assert "invalid characters" in error.detail.lower()
+    assert "must be in the composed form" in error.detail.lower()
 
 
 def test_default_rejects_invalid_room_id_on_submit(seeded_client):
