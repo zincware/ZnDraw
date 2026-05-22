@@ -38,7 +38,7 @@ def make_raw_frame(data: dict) -> RawFrame:
 
 def create_test_user_model(
     email: str = "testuser@local.test",
-    password: str = "testpassword",  # noqa: S107
+    password: str = "testpassword",
     is_superuser: bool = False,
 ) -> User:
     """Create a User model instance with hashed password for tests."""

@@ -21,7 +21,7 @@ from zndraw.state_file import ServerEntry, StateFile
 
 def _local_entry(
     *,
-    local_token: str = "raw-local-admin-token",  # noqa: S107
+    local_token: str = "raw-local-admin-token",
     access_token: str | None = None,
 ) -> ServerEntry:
     """Create a local server entry for testing."""

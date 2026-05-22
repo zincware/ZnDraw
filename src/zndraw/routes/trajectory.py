@@ -32,10 +32,6 @@ from zndraw.dependencies import (
     resolve_share_token,
     room_channel,
 )
-from zndraw_auth import User as _User, current_optional_user
-
-# Anonymous-by-token path for `zndraw-cli download`; keep optional auth here only.
-_OptionalUserTokenDep = Annotated[_User | None, Depends(current_optional_user)]
 from zndraw.enrichment import add_colors, add_radii
 from zndraw.exceptions import (
     InvalidPayload,
@@ -49,6 +45,10 @@ from zndraw.redis import RedisKey
 from zndraw.routes.rooms import broadcast_room_update
 from zndraw.schemas import FrameBulkResponse
 from zndraw.socket_events import FramesInvalidate
+from zndraw_auth import User as _User, current_optional_user
+
+# Anonymous-by-token path for `zndraw-cli download`; keep optional auth here only.
+_OptionalUserTokenDep = Annotated[_User | None, Depends(current_optional_user)]
 
 router = APIRouter(
     prefix="/v1/rooms/{owner_id}/{room_name}/trajectory", tags=["trajectory"]
@@ -250,7 +250,10 @@ async def create_download_token(
     await redis.set(RedisKey.download_token(token_value), room_id, ex=ttl)
 
     base_url = str(request.base_url).rstrip("/")
-    url = f"{base_url}/v1/rooms/{access.room.public_address}/trajectory?token={token_value}"
+    url = (
+        f"{base_url}/v1/rooms/{access.room.public_address}"
+        f"/trajectory?token={token_value}"
+    )
 
     return DownloadTokenResponse(token=token_value, url=url, expires_in=ttl)
 

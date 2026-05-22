@@ -51,7 +51,6 @@ from zndraw_auth import (
 from zndraw_auth.db import get_session_maker
 from zndraw_auth.settings import AuthSettings
 from zndraw_joblib.dependencies import ResultBackend, validate_room_id
-from zndraw_joblib.exceptions import ProblemError
 from zndraw_joblib.settings import JobLibSettings
 
 # Re-export auth dependencies for convenience
@@ -85,9 +84,11 @@ async def get_local_token_or_admin(
             secret=auth_settings.secret_key.get_secret_value(),
             lifetime_seconds=auth_settings.token_lifetime_seconds,
         )
-        try:
-            from fastapi_users.jwt import decode_jwt
+        from fastapi_users.jwt import decode_jwt
+        from jwt import InvalidTokenError
 
+        user: User | None = None
+        try:
             data = decode_jwt(
                 token,
                 secret=strategy.decode_key,
@@ -97,14 +98,13 @@ async def get_local_token_or_admin(
             user_id_raw = data.get("sub")
             if user_id_raw:
                 user = await session.get(User, UUID(user_id_raw))
-                if user is not None and user.is_active:
-                    if not user.is_superuser:
-                        raise Forbidden.exception("Not a superuser")
-                    return user
-        except ProblemError:
-            raise
-        except Exception:  # InvalidTokenError, ValueError from bad UUID, etc.
-            pass
+        except (InvalidTokenError, ValueError):
+            user = None
+
+        if user is not None and user.is_active:
+            if not user.is_superuser:
+                raise Forbidden.exception("Not a superuser")
+            return user
 
     raise NotAuthenticated.exception("Not authenticated")
 
@@ -177,8 +177,8 @@ async def verify_room(session: AsyncSession, room_id: str) -> Room:
         owner_str, _, name_part = room_id.partition("/")
         try:
             owner_uuid = UUID(owner_str)
-        except ValueError:
-            raise RoomNotFound.exception(f"Room with id {room_id} not found")
+        except ValueError as exc:
+            raise RoomNotFound.exception(f"Room with id {room_id} not found") from exc
         room = await _load_room_by_address(session, owner_uuid, name_part)
     else:
         room = await session.get(Room, room_id)

@@ -25,7 +25,7 @@ def state_file(tmp_path):
 def _local_entry(
     pid: int = _DEAD_PID,
     last_used: datetime | None = None,
-    local_token: str = "local-tok",  # noqa: S107
+    local_token: str = "local-tok",
 ) -> ServerEntry:
     return ServerEntry(
         added_at=datetime(2026, 3, 25, 10, 0, tzinfo=UTC),

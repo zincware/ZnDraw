@@ -4,7 +4,6 @@ Tests for classmethods (list_rooms, login),
 instance properties (locked, chat, screenshots, extensions, tasks).
 """
 
-import uuid
 import warnings
 
 import pytest
@@ -36,13 +35,11 @@ def test_list_rooms_contains_created_room(server: str):
 
 def test_list_rooms_search_filters(server: str):
     """list_rooms with search only returns matching rooms."""
-    room_suffix = f"searchable-{uuid.uuid4().hex[:8]}"
     # Create via auto-generate, then rename/note the composed address
     vis = ZnDraw(url=server)
     room_id = vis.room
     vis.disconnect()
 
-    rooms = ZnDraw.list_rooms(url=server, search=room_suffix)
     # Search by suffix may return zero results since the room_name is UUID-based;
     # verify the auto-created room appears in an unrestricted list instead.
     all_rooms = ZnDraw.list_rooms(url=server)

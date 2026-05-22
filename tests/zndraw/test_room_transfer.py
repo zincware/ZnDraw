@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
-from httpx import AsyncClient
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
 
 ADMIN_EMAIL = "admin@local.test"
 ADMIN_PASSWORD = "adminpassword"
@@ -12,7 +16,7 @@ ADMIN_PASSWORD = "adminpassword"
 async def _register_and_login(
     client: AsyncClient,
     email: str,
-    password: str = "test12345",  # noqa: S107
+    password: str = "test12345",
 ) -> tuple[str, str]:
     """Register a user and return (user_id, token)."""
     reg = await client.post(
@@ -47,7 +51,7 @@ async def _login_admin(client: AsyncClient) -> tuple[str, str]:
 async def test_transfer_collision_returns_409(
     http_client_auth: AsyncClient,
 ) -> None:
-    """Superuser tries to transfer a room to a user that already has a room with that name -> 409."""
+    """Transfer to a user who already has a room with that name returns 409."""
     admin_id, admin_token = await _login_admin(http_client_auth)
     dst_id, dst_token = await _register_and_login(
         http_client_auth, "tx-dst-409@example.com"
@@ -85,7 +89,7 @@ async def test_transfer_collision_returns_409(
 async def test_transfer_happy_path(
     http_client_auth: AsyncClient,
 ) -> None:
-    """Transfer to a group the caller manages; surrogate UUID unchanged; new composed address returned."""
+    """Transfer to managed group keeps surrogate UUID; new composed address returned."""
     caller_id, caller_token = await _register_and_login(
         http_client_auth, "tx-happy@example.com"
     )

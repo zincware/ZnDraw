@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Annotated
-from uuid import UUID
+from typing import TYPE_CHECKING, Annotated
 
 import msgpack
 import msgpack_numpy
 import numpy as np
 from fastapi import APIRouter, Header, Query, Response
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 from zndraw.access import can_read
 from zndraw.dependencies import (

@@ -350,7 +350,7 @@ def capture_settings(monkeypatch, tmp_path):
     )  # why: simulates no existing server for StateFile logic
     monkeypatch.setattr(
         "zndraw.cli.wait_for_server_ready",
-        lambda _url, timeout=30.0: True,  # noqa: ARG005  # why: skips server polling in unit test
+        lambda _url, timeout=30.0: True,  # why: skips server polling in unit test
     )
     monkeypatch.setattr(
         "zndraw.cli._acquire_token", lambda _url: "test-token"
@@ -615,7 +615,7 @@ def test_main_errors_on_bare_room(monkeypatch, tmp_path):
     monkeypatch.setattr("zndraw.cli.upload_file", lambda *_a, **_kw: None)
     monkeypatch.setattr("zndraw.cli.webbrowser.open", lambda _url: None)
 
-    result = runner.invoke(app, ["--room", "foo", str(dummy)])
+    result = runner.invoke(app, ["--room", "foo", str(dummy)], env={"NO_COLOR": "1"})
     assert result.exit_code != 0
     assert "must be '<owner_uuid>/<name>'" in result.output
     assert str(FIXED_OWNER) in result.output

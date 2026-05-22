@@ -527,7 +527,7 @@ async def list_rooms(
 
 
 @router.get(
-    "/{owner_id}/{room_name}",
+    "/{owner_id}/{room_name}",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(RoomNotFound, ShareLinkInvalid),
 )
 async def get_room(
@@ -558,7 +558,7 @@ async def get_room(
 
 
 @router.get(
-    "/{owner_id}/{room_name}/presence",
+    "/{owner_id}/{room_name}/presence",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(RoomNotFound),
 )
 async def get_room_presence(
@@ -589,7 +589,7 @@ async def get_room_presence(
 
 
 @router.get(
-    "/{owner_id}/{room_name}/sessions",
+    "/{owner_id}/{room_name}/sessions",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def list_sessions(
@@ -625,7 +625,7 @@ async def list_sessions(
 
 
 @router.patch(
-    "/{owner_id}/{room_name}",
+    "/{owner_id}/{room_name}",  # noqa: FAST003 — params consumed by AccessManageDep
     responses=problem_responses(
         RoomNotFound, Forbidden, TransferTargetInvalid, InvalidPayload
     ),

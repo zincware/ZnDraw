@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 import httpx
 import pytest
 
@@ -32,10 +34,8 @@ def test_client_accepts_composed(server: str) -> None:
     room_address = f"{user_id}/my-room"
     vis = ZnDraw(url=server, room=room_address)
     assert vis.room == room_address
-    try:
+    with contextlib.suppress(Exception):
         vis.disconnect()
-    except Exception:
-        pass
 
 
 def test_client_rejects_bad_owner_uuid(server: str) -> None:

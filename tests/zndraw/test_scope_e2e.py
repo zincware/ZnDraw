@@ -37,7 +37,6 @@ async def test_full_group_workflow(server_auth: str) -> None:
         admin = await _register_and_login(client, "e2e-admin@test.com")
         member = await _register_and_login(client, "e2e-mem@test.com")
         outsider = await _register_and_login(client, "e2e-out@test.com")
-        admin_id = await _get_user_id(client, admin)
         member_id = await _get_user_id(client, member)
 
         # Create group + add member (role=MEMBER to enable edit, not manage)

@@ -98,7 +98,7 @@ async def get_global_settings(
 
 
 @router.get(
-    "/rooms/{owner_id}/{room_name}/frame-selection",
+    "/rooms/{owner_id}/{room_name}/frame-selection",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def get_frame_selection(
@@ -112,7 +112,7 @@ async def get_frame_selection(
 
 
 @router.put(
-    "/rooms/{owner_id}/{room_name}/frame-selection",
+    "/rooms/{owner_id}/{room_name}/frame-selection",  # noqa: FAST003 — params consumed by WritableRoomDep
     responses=problem_responses(
         NotAuthenticated, RoomNotFound, RoomLocked, InvalidPayload
     ),
@@ -142,7 +142,7 @@ async def update_frame_selection(
 
 
 @router.get(
-    "/rooms/{owner_id}/{room_name}/sessions/{session_id}/active-camera",
+    "/rooms/{owner_id}/{room_name}/sessions/{session_id}/active-camera",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(NotAuthenticated, SessionNotFound),
 )
 async def get_active_camera(
@@ -156,7 +156,7 @@ async def get_active_camera(
 
 
 @router.put(
-    "/rooms/{owner_id}/{room_name}/sessions/{session_id}/active-camera",
+    "/rooms/{owner_id}/{room_name}/sessions/{session_id}/active-camera",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(NotAuthenticated, SessionNotFound, GeometryNotFound),
 )
 async def set_active_camera(

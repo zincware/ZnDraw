@@ -48,7 +48,10 @@ def validate_room_id(room_id: str) -> None:
         return
     if "/" not in room_id:
         raise InvalidRoomId.exception(
-            detail=f"Room ID '{room_id}' must be in the composed form '<owner_uuid>/<room_name>'"
+            detail=(
+                f"Room ID '{room_id}' must be in the composed form "
+                "'<owner_uuid>/<room_name>'"
+            )
         )
     owner_part, _, name_part = room_id.partition("/")
     try:

@@ -217,7 +217,8 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             raw_room = f"{_user_id}/{uuid.uuid4()}"
         if "/" not in raw_room:
             raise ValueError(
-                f"Room must be in composed form '<owner_uuid>/<name>'; got '{raw_room}'."
+                "Room must be in composed form '<owner_uuid>/<name>'; "
+                f"got '{raw_room}'."
             )
         owner_part, _, name_part = raw_room.partition("/")
         try:

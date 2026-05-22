@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
 
 
 async def _register_and_login(
     client: AsyncClient,
     email: str,
-    password: str = "test12345",  # noqa: S107
+    password: str = "test12345",
 ) -> tuple[str, str]:
     """Register a user and return (user_id, token)."""
     reg = await client.post(

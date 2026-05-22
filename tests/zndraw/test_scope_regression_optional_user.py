@@ -22,7 +22,7 @@ ENDPOINTS = [
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("method,path", ENDPOINTS)
+@pytest.mark.parametrize(("method", "path"), ENDPOINTS)
 async def test_endpoint_requires_auth(
     client: AsyncClient, method: str, path: str
 ) -> None:

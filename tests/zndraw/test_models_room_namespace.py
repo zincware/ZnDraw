@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.exc import IntegrityError
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw.access import Visibility
 from zndraw.models import Group, Room
 from zndraw_auth import User
+
+if TYPE_CHECKING:
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 @pytest_asyncio.fixture

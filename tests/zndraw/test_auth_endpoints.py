@@ -185,7 +185,7 @@ async def test_superuser_can_set_is_verified(client: AsyncClient, session) -> No
     """Superusers can verify other users via PATCH."""
     from helpers import create_test_user_in_db
 
-    admin_user, admin_token = await create_test_user_in_db(
+    _admin_user, admin_token = await create_test_user_in_db(
         session, email="admin-verify@test.com", is_superuser=True
     )
     # Helper creates users with is_verified=True; flip to False to test the

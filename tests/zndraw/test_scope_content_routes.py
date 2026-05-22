@@ -14,7 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 async def test_stranger_cannot_read_frames_from_private_room(
     client: AsyncClient, session: AsyncSession
 ) -> None:
-    """A stranger must receive 404 (not 200 or 403) for all content GETs on a private room."""
+    """Stranger gets 404 (not 200/403) for all content GETs on a private room."""
     owner = await _register_and_login(client, "cg-own@test.com")
     _s, stranger = await create_test_user_in_db(
         session, email="cg-str@test.com", is_superuser=False

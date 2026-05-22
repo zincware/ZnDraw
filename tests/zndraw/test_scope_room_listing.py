@@ -15,7 +15,6 @@ async def test_list_rooms_union(client: AsyncClient) -> None:
     token_a = await _register_and_login(client, "list-a@test.com")
     token_b = await _register_and_login(client, "list-b@test.com")
     owner_id_a = await get_user_id(client, token_a)
-    owner_id_b = await get_user_id(client, token_b)
 
     # User A creates: public + private rooms
     pub_id = await create_room_via_api(client, token_a, "r-pub", visibility="public")
@@ -77,7 +76,7 @@ async def test_create_private_room_sets_owner(client: AsyncClient) -> None:
 async def test_create_group_room_requires_membership(
     client: AsyncClient, session
 ) -> None:
-    """Non-superuser outsider cannot create a group-room in a group they don't belong to."""
+    """Non-superuser outsider cannot create a group-room in a group they don't join."""
     _outsider_user, outsider = await create_test_user_in_db(
         session, email="goro-out@test.com", is_superuser=False
     )

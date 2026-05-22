@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest_asyncio
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw.dependencies import OwnerKind, resolve_owner
 from zndraw.models import Group
 from zndraw_auth import User
+
+if TYPE_CHECKING:
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 @pytest_asyncio.fixture

@@ -78,9 +78,7 @@ def can_read(
         return True
     if room.owner_group_id is not None and group_role is not None:
         return True
-    if share is not None:
-        return True
-    return False
+    return share is not None
 
 
 def can_edit(
@@ -114,9 +112,7 @@ def can_edit(
         return True
     if room.owner_user_id is not None and room.visibility == Visibility.PUBLIC:
         return True  # chaotic-edit default for user-owned public rooms
-    if share is not None and share.access == ShareAccess.EDIT:
-        return True
-    return False
+    return share is not None and share.access == ShareAccess.EDIT
 
 
 def can_manage(
@@ -142,6 +138,4 @@ def can_manage(
         return True
     if room.owner_user_id is not None and room.owner_user_id == user.id:
         return True
-    if room.owner_group_id is not None and group_role == GroupRole.ADMIN:
-        return True
-    return False
+    return room.owner_group_id is not None and group_role == GroupRole.ADMIN
