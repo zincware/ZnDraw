@@ -181,7 +181,7 @@ class MockSioServer:
         data: Any = None,
         *,
         room: str | None = None,
-        _skip_sid: str | None = None,
+        skip_sid: str | None = None,
         to: str | None = None,
         **_kwargs: Any,
     ) -> None:
@@ -194,7 +194,15 @@ class MockSioServer:
             data = event_or_model.model_dump()
         else:
             event = event_or_model
-        self.emitted.append({"event": event, "data": data, "room": room, "to": to})
+        self.emitted.append(
+            {
+                "event": event,
+                "data": data,
+                "room": room,
+                "to": to,
+                "skip_sid": skip_sid,
+            }
+        )
 
     async def enter_room(self, sid: str, room: str) -> None:
         if room not in self.rooms:
