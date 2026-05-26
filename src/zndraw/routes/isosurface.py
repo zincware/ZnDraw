@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from typing import Annotated
-from uuid import UUID  # noqa: TC003  # runtime: FastAPI builds TypeAdapter for owner_id path param
+from uuid import (
+    UUID,  # noqa: TC003  # runtime: FastAPI builds TypeAdapter for owner_id path param
+)
 
 import msgpack
 import msgpack_numpy
