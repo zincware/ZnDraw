@@ -417,10 +417,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # resolve composed → surrogate in one batched lookup, release the
         # session, then perform the Redis + SIO work without holding the
         # SQLite serialization lock.
+        from zndraw.broadcast import broadcast_to_room
         from zndraw.dependencies import _load_room_by_address
+        from zndraw.models import Room
 
         async def frame_room_cleanup(room_ids: set[str]) -> None:
-            surrogates: list[str] = []
+            rooms: list[Room] = []
             async with app.state.session_maker() as session:
                 for rid in room_ids:
                     if "/" not in rid:
@@ -432,19 +434,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                         continue
                     room = await _load_room_by_address(session, owner_uuid, name_part)
                     if room is not None:
-                        surrogates.append(room.id)
-            for surrogate in surrogates:
+                        rooms.append(room)
+            for room in rooms:
                 await app.state.redis.delete(  # type: ignore[misc]
-                    RedisKey.provider_frame_count(surrogate)
+                    RedisKey.provider_frame_count(room.id)
                 )
-                await tsio.emit(
-                    FramesInvalidate(
-                        room_id=surrogate,
+                await broadcast_to_room(
+                    tsio,
+                    FramesInvalidate.for_room(
+                        room,
                         action="clear",
                         count=0,
                         reason="provider_disconnected",
                     ),
-                    room=f"room:{surrogate}",
+                    room,
                 )
 
         app.dependency_overrides[get_frame_room_cleanup] = lambda: frame_room_cleanup

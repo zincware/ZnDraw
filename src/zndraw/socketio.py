@@ -9,7 +9,7 @@ from fastapi_users.jwt import decode_jwt
 from jwt import InvalidTokenError
 from zndraw_socketio import EventContext, wrap
 
-from zndraw.broadcast import room_channel
+from zndraw.broadcast import broadcast_to_room, room_channel
 from zndraw.dependencies import FrameStorageDep, RedisDep
 from zndraw.exceptions import (
     NotInRoom,
@@ -18,7 +18,7 @@ from zndraw.exceptions import (
     UserNotFound,
 )
 from zndraw.geometries.camera import Camera
-from zndraw.models import RoomGeometry
+from zndraw.models import Room, RoomGeometry
 from zndraw.redis import RedisKey
 from zndraw.schemas import ProgressResponse
 from zndraw.socket_events import (
@@ -45,7 +45,11 @@ tsio = wrap(socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*"))
 
 
 async def _cleanup_session(
-    redis: RedisDep, sid: str, sio_session: dict, room_id: str
+    redis: RedisDep,
+    session: SessionDep,
+    sid: str,
+    sio_session: dict,
+    room_id: str,
 ) -> None:
     """Remove this SID's camera from the room and broadcast deletion."""
     # Remove active camera tracking
@@ -57,9 +61,13 @@ async def _cleanup_session(
     hash_key = RedisKey.room_cameras(room_id)
     deleted = await redis.hdel(hash_key, camera_key)  # type: ignore[misc]
     if deleted:
-        await tsio.emit(
-            GeometryInvalidate(room_id=room_id, operation="delete", key=camera_key),
-            room=room_channel(room_id),
+        room = await session.get(Room, room_id)
+        if room is None:
+            return
+        await broadcast_to_room(
+            tsio,
+            GeometryInvalidate.for_room(room, operation="delete", key=camera_key),
+            room,
         )
 
 
@@ -125,25 +133,24 @@ async def on_disconnect(
     sid: str,
     _reason: str,
     redis: RedisDep,
+    session: SessionDep,
 ) -> None:
     """Handle disconnect - clean up camera and locks."""
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
     current_room_id: str | None = sio_session.get("current_room_id")
-    current_room_address: str | None = sio_session.get("current_room_address")
 
     if current_room_id is not None:
         # Delete session camera from room hash
-        await _cleanup_session(redis, sid, sio_session, current_room_id)
+        await _cleanup_session(redis, session, sid, sio_session, current_room_id)
 
-        await tsio.emit(
-            SessionLeft(
-                room_id=current_room_address or current_room_id,
-                user_id=user_id,
-                sid=sid,
-            ),
-            room=room_channel(current_room_id),
-        )
+        room = await session.get(Room, current_room_id)
+        if room is not None:
+            await broadcast_to_room(
+                tsio,
+                SessionLeft.for_room(room, user_id=user_id, sid=sid),
+                room,
+            )
 
         # Release edit lock if this disconnecting session holds it
         lock_key = RedisKey.edit_lock(current_room_id)
@@ -152,15 +159,17 @@ async def on_disconnect(
             holder = json.loads(raw_lock)
             if holder.get("sid") == sid:
                 await redis.delete(lock_key)
-                await tsio.emit(
-                    LockUpdate(
-                        room_id=current_room_id,
-                        action="released",
-                        user_id=str(user_id),
-                        sid=sid,
-                    ),
-                    room=room_channel(current_room_id),
-                )
+                if room is not None:
+                    await broadcast_to_room(
+                        tsio,
+                        LockUpdate.for_room(
+                            room,
+                            action="released",
+                            user_id=str(user_id),
+                            sid=sid,
+                        ),
+                        room,
+                    )
 
 
 # =============================================================================
@@ -222,19 +231,17 @@ async def room_join(
 
     # Leave previous room if any.
     old_room_id: str | None = sio_session.get("current_room_id")
-    old_room_address: str | None = sio_session.get("current_room_address")
     if old_room_id is not None:
         await tsio.leave_room(sid, room_channel(old_room_id))
         if not old_room_id.startswith("@"):
-            await _cleanup_session(redis, sid, sio_session, old_room_id)
-        await tsio.emit(
-            SessionLeft(
-                room_id=old_room_address or old_room_id,
-                user_id=user_id,
-                sid=sid,
-            ),
-            room=room_channel(old_room_id),
-        )
+            await _cleanup_session(redis, session, sid, sio_session, old_room_id)
+        old_room = await session.get(Room, old_room_id)
+        if old_room is not None:
+            await broadcast_to_room(
+                tsio,
+                SessionLeft.for_room(old_room, user_id=user_id, sid=sid),
+                old_room,
+            )
 
     # Join new room.
     await tsio.enter_room(sid, room_channel(room.id))
@@ -247,11 +254,10 @@ async def room_join(
         await tsio.enter_room(sid, "frontend")
         await tsio.enter_room(sid, room_channel("@global"))
 
-    await tsio.emit(
-        SessionJoined(
-            room_id=room.public_address, user_id=user_id, sid=sid, email=email
-        ),
-        room=room_channel(room.id),
+    await broadcast_to_room(
+        tsio,
+        SessionJoined.for_room(room, user_id=user_id, sid=sid, email=email),
+        room,
         skip_sid=sid,
     )
 
@@ -295,9 +301,10 @@ async def room_join(
 
         await redis.hset(RedisKey.active_cameras(room.id), sid, camera_key)  # type: ignore[misc]
 
-        await tsio.emit(
-            GeometryInvalidate(room_id=room.id, operation="set", key=camera_key),
-            room=room_channel(room.id),
+        await broadcast_to_room(
+            tsio,
+            GeometryInvalidate.for_room(room, operation="set", key=camera_key),
+            room,
         )
 
     frame_count = await storage.get_length(room.id)
@@ -338,14 +345,15 @@ async def room_leave(
         return RoomLeaveResponse(room_id=f"{data.owner_id}/{data.room_name}")
 
     await tsio.leave_room(sid, room_channel(room.id))
-    await _cleanup_session(redis, sid, sio_session, room.id)
+    await _cleanup_session(redis, session, sid, sio_session, room.id)
 
     sio_session["current_room_id"] = None
     await tsio.save_session(sid, sio_session)
 
-    await tsio.emit(
-        SessionLeft(room_id=room.public_address, user_id=user_id, sid=sid),
-        room=room_channel(room.id),
+    await broadcast_to_room(
+        tsio,
+        SessionLeft.for_room(room, user_id=user_id, sid=sid),
+        room,
     )
     return RoomLeaveResponse(room_id=room.public_address)
 
@@ -372,9 +380,10 @@ async def _handle_typing(
     user = await session.get(User, user_id)
     email = user.email if user else None
 
-    await tsio.emit(
-        Typing(room_id=room.id, user_id=user_id, email=email, is_typing=is_typing),
-        room=room_channel(room.id),
+    await broadcast_to_room(
+        tsio,
+        Typing.for_room(room, user_id=user_id, email=email, is_typing=is_typing),
+        room,
         skip_sid=sid,
     )
     return TypingResponse()

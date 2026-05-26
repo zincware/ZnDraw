@@ -269,7 +269,7 @@ async def test_socketio_session_joined_broadcast(
     await asyncio.sleep(0.5)
 
     assert len(received_events) == 1
-    assert received_events[0].room_id == room_address
+    assert received_events[0].room_address == room_address
     assert received_events[0].user_id == user2_info.id
     assert received_events[0].sid  # sid should be present
 
@@ -352,7 +352,7 @@ async def test_socketio_session_left_broadcast(
     await asyncio.sleep(0.5)
 
     assert len(received_events) == 1
-    assert received_events[0].room_id == room_address
+    assert received_events[0].room_address == room_address
     assert received_events[0].user_id == user2_info.id
     assert received_events[0].sid  # sid should be present
 
@@ -402,7 +402,7 @@ async def test_socketio_session_left_on_disconnect(
     await asyncio.sleep(0.5)
 
     assert len(received_events) == 1
-    assert received_events[0].room_id == room_address
+    assert received_events[0].room_address == room_address
     assert received_events[0].user_id == user2_info.id
     assert received_events[0].sid  # sid should be present
 
@@ -623,7 +623,7 @@ async def test_session_broadcast_includes_sid(
     # Verify broadcast includes all expected fields
     assert len(received_events) == 1
     event = received_events[0]
-    assert event.room_id == room_address
+    assert event.room_address == room_address
     assert event.user_id == user2_info.id
     assert event.email == "joiner@example.com"
     assert event.sid is not None

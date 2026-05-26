@@ -11,8 +11,8 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw.access import Visibility
+from zndraw.broadcast import broadcast_to_room
 from zndraw.config import SettingsDep
-from zndraw.broadcast import room_channel
 from zndraw.dependencies import (
     AccessManageDep,
     AccessReadDep,
@@ -694,9 +694,10 @@ async def update_room(
             await storage.set_frame_count(room.id, count)
         else:
             await storage.clear_frame_count(room.id)
-        await sio.emit(
-            FramesInvalidate(room_id=room.id, action="clear", count=count),
-            room=room_channel(room.id),
+        await broadcast_to_room(
+            sio,
+            FramesInvalidate.for_room(room, action="clear", count=count),
+            room,
         )
         changed = True
 
@@ -709,13 +710,10 @@ async def update_room(
         ) from exc
 
     if updates.new_owner_id is not None:
-        await sio.emit(
-            RoomRenamed(
-                old_address=old_address,
-                new_address=room.public_address,
-                room_id=room.id,
-            ),
-            room=room_channel(room.id),
+        await broadcast_to_room(
+            sio,
+            RoomRenamed.for_room(room, old_address=old_address),
+            room,
         )
 
     if changed:
