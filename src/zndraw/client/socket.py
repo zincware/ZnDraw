@@ -145,7 +145,7 @@ class SocketManager:
         from zndraw.socket_events import FramesInvalidate
 
         event = FramesInvalidate.model_validate(data)
-        if event.room_id != self.zndraw.room:
+        if event.room_address != self.zndraw.room:
             return
         if event.count is not None:
             self.zndraw.cached_length = event.count
