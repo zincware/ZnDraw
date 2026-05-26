@@ -54,9 +54,17 @@ def test_task_status_event_frozen():
 def test_emission_dedup_jobs_invalidate():
     """Duplicate JobsInvalidate for same room should dedup in a set."""
     emissions = {
-        Emission(JobsInvalidate(room_id=_ROOM_UUID, room_address=_ROOM_ADDRESS), "room:@global"),
-        Emission(JobsInvalidate(room_id=_ROOM_UUID, room_address=_ROOM_ADDRESS), "room:@global"),
-        Emission(JobsInvalidate(room_id=UUID(int=0), room_address="@global"), "room:test"),
+        Emission(
+            JobsInvalidate(room_id=_ROOM_UUID, room_address=_ROOM_ADDRESS),
+            "room:@global",
+        ),
+        Emission(
+            JobsInvalidate(room_id=_ROOM_UUID, room_address=_ROOM_ADDRESS),
+            "room:@global",
+        ),
+        Emission(
+            JobsInvalidate(room_id=UUID(int=0), room_address="@global"), "room:test"
+        ),
     }
     assert len(emissions) == 2
 

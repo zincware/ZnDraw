@@ -17,8 +17,8 @@ from fastapi import APIRouter, Depends, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from zndraw.connectivity import add_connectivity
 from zndraw.broadcast import broadcast_to_room
+from zndraw.connectivity import add_connectivity
 from zndraw.dependencies import (
     AccessReadDep,
     CurrentUserDep,

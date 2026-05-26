@@ -7,8 +7,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header
 
-from zndraw.config import SettingsDep
 from zndraw.broadcast import broadcast_to_room
+from zndraw.config import SettingsDep
 from zndraw.dependencies import (
     AccessEditDep,
     AccessReadDep,

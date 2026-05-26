@@ -9,8 +9,8 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 import zndraw
-from zndraw.config import SettingsDep
 from zndraw.broadcast import room_channel
+from zndraw.config import SettingsDep
 from zndraw.dependencies import (
     AccessReadDep,
     ActiveSessionCamDep,

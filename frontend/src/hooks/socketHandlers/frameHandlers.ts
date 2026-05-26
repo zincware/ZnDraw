@@ -33,7 +33,13 @@ export function createFrameHandlers(ctx: HandlerContext) {
 	}
 
 	function onFramesInvalidate(data: FramesInvalidateEvent) {
-		const { room_address: eventRoomAddress, action, indices, count, reason } = data;
+		const {
+			room_address: eventRoomAddress,
+			action,
+			indices,
+			count,
+			reason,
+		} = data;
 
 		// Update frameCount if provided (new total frame count)
 		if (count != null) {
