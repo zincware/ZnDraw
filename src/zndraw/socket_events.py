@@ -11,12 +11,20 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from zndraw.schemas import ProgressResponse, RoomResponse
 
 if TYPE_CHECKING:
     from zndraw.models import Room
+
+
+_NIL_ROOM_UUID = UUID(int=0)
+
+
+def _is_composed_address(address: str) -> bool:
+    """Composed addresses look like ``<uuid>/<name>``; sigils start with ``@``."""
+    return "/" in address and not address.startswith("@")
 
 
 class RoomScopedEvent(BaseModel):
@@ -32,6 +40,15 @@ class RoomScopedEvent(BaseModel):
             room_address=room.public_address,
             **kwargs,
         )
+
+    @model_validator(mode="after")
+    def _validate_room_id_address_consistency(self) -> Self:
+        if self.room_id == _NIL_ROOM_UUID and _is_composed_address(self.room_address):
+            raise ValueError(
+                f"room_id must not be NIL when room_address looks composed: "
+                f"room_id={self.room_id}, room_address={self.room_address!r}"
+            )
+        return self
 
 
 # =============================================================================

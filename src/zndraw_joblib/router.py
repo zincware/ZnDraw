@@ -44,10 +44,11 @@ from zndraw_joblib.events import (
     ProviderResultReady,
     ProvidersInvalidate,
     TaskAvailable,
+    build_room_scoped_emission,
     build_task_status_emission,
     emit,
-    event_room_uuid,
 )
+from zndraw_joblib.room_lookup import room_address_for
 from zndraw_joblib.exceptions import (
     Forbidden,
     InternalJobNotConfigured,
@@ -105,56 +106,6 @@ InternalProviderRegistryDep = Annotated[
     InternalProviderRegistry | None, Depends(get_internal_provider_registry)
 ]
 TsioDep = Annotated[AsyncServerWrapper | None, Depends(get_tsio)]
-
-
-async def _fetch_room(session: AsyncSession, room_id: str):
-    """Return the Room for a surrogate room_id, or None for sigils/unknown.
-
-    ``room_id`` may be a surrogate UUID string OR a composed ``<owner>/<name>``
-    string (the latter occurs when the joblib override is absent in tests).
-    Falls back to a composed-address lookup when the primary-key lookup misses.
-    """
-    if room_id in ("@global", "@internal"):
-        return None
-    from zndraw.models import Room
-
-    try:
-        room = await session.get(Room, room_id)
-        if room is not None:
-            return room
-        # Composed-address fallback: owner_uuid/room_name
-        if "/" in room_id:
-            owner_part, _, name_part = room_id.partition("/")
-            try:
-                owner_uuid = UUID(owner_part)
-            except ValueError:
-                return None
-            from sqlmodel import col, or_, select as sql_select
-
-            result = await session.exec(
-                sql_select(Room).where(
-                    or_(
-                        Room.owner_user_id == owner_uuid,
-                        Room.owner_group_id == owner_uuid,
-                    ),
-                    col(Room.room_name) == name_part,
-                )
-            )
-            return result.one_or_none()
-        return None  # noqa: TRY300
-    except (OperationalError, ProgrammingError):
-        # Joblib-only test environments don't always have the Room table.
-        return None
-
-
-async def _room_address_for(session: AsyncSession, room_id: str) -> str:
-    """Return ``room.public_address`` for a surrogate room_id, or the sigil itself."""
-    if room_id in ("@global", "@internal"):
-        return room_id
-    room = await _fetch_room(session, room_id)
-    if room is None:
-        return room_id
-    return room.public_address
 
 
 # Valid status transitions
@@ -280,7 +231,7 @@ async def _task_status_emission(session: AsyncSession, task: Task) -> Emission:
     """Build a TaskStatusEvent emission from a task."""
     result = await session.exec(select(Job).where(Job.id == task.job_id))
     job = result.one_or_none()
-    room_address = await _room_address_for(session, task.room_id)
+    room_address = await room_address_for(session, task.room_id)
     return build_task_status_emission(
         task,
         job_full_name=job.full_name if job else "",
@@ -418,17 +369,8 @@ async def register_job(
         session.add(link)
 
     await session.commit()
-    _room = await _fetch_room(session, room_id)
-    if _room is not None:
-        _jobs_event = JobsInvalidate.for_room(_room)
-        _emit_channel = f"room:{_room.id}"
-    else:
-        _jobs_event = JobsInvalidate(
-            room_id=event_room_uuid(room_id),
-            room_address=room_id,
-        )
-        _emit_channel = f"room:{room_id}"
-    await emit(tsio, {Emission(_jobs_event, _emit_channel)})
+    emission = await build_room_scoped_emission(session, JobsInvalidate, room_id)
+    await emit(tsio, {emission})
     await session.refresh(job)
 
     # Get worker IDs for this job
@@ -1202,19 +1144,10 @@ async def register_provider(
 
     await session.commit()
     await session.refresh(provider)
-    room_address = await _room_address_for(session, provider.room_id)
-    await emit(
-        tsio,
-        {
-            Emission(
-                ProvidersInvalidate(
-                    room_id=event_room_uuid(provider.room_id),
-                    room_address=room_address,
-                ),
-                f"room:{provider.room_id}",
-            )
-        },
+    emission = await build_room_scoped_emission(
+        session, ProvidersInvalidate, provider.room_id
     )
+    await emit(tsio, {emission})
 
     return ProviderResponse.from_record(provider)
 
@@ -1429,19 +1362,10 @@ async def delete_provider(
     room_id = provider.room_id
     await session.delete(provider)
     await session.commit()
-    room_address = await _room_address_for(session, room_id)
-    await emit(
-        tsio,
-        {
-            Emission(
-                ProvidersInvalidate(
-                    room_id=event_room_uuid(room_id),
-                    room_address=room_address,
-                ),
-                f"room:{room_id}",
-            )
-        },
+    emission = await build_room_scoped_emission(
+        session, ProvidersInvalidate, room_id
     )
+    await emit(tsio, {emission})
 
 
 @router.post(
@@ -1503,18 +1427,11 @@ async def upload_provider_result(
 
     # Notify frontend (Socket.IO — UI refresh)
     async with session_maker() as session_addr:
-        room_address = await _room_address_for(session_addr, provider.room_id)
-    await emit(
-        tsio,
-        {
-            Emission(
-                ProviderResultReady(
-                    room_id=event_room_uuid(provider.room_id),
-                    room_address=room_address,
-                    provider_name=provider.full_name,
-                    request_hash=x_request_hash,
-                ),
-                f"room:{provider.room_id}",
-            )
-        },
-    )
+        emission = await build_room_scoped_emission(
+            session_addr,
+            ProviderResultReady,
+            provider.room_id,
+            provider_name=provider.full_name,
+            request_hash=x_request_hash,
+        )
+    await emit(tsio, {emission})

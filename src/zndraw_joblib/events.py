@@ -8,6 +8,7 @@ of emissions via the Emission NamedTuple.
 from __future__ import annotations
 
 import json
+import uuid as _uuid
 from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Any, NamedTuple
 from uuid import UUID
@@ -17,21 +18,34 @@ from pydantic import BaseModel, ConfigDict
 from zndraw.socket_events import RoomScopedEvent
 
 if TYPE_CHECKING:
+    from sqlmodel.ext.asyncio.session import AsyncSession
     from zndraw_socketio import AsyncServerWrapper
 
 from zndraw_joblib.models import Task, TaskStatus  # noqa: TC001
 
 NIL_ROOM_UUID = UUID(int=0)
 
+# Stable namespace for deriving a placeholder room UUID from a composed
+# address when no persisted Room is available (joblib-only test envs).
+_ROOM_ADDRESS_NS = UUID("c4a4f5fd-8b8a-5e7a-9c8e-1f4a2b3c4d5e")
+
 
 def event_room_uuid(room_id: str) -> UUID:
-    """Map a joblib room_id (surrogate UUID or sigil) to a UUID for the wire payload."""
+    """Map a joblib room_id (surrogate UUID, sigil, or composed address) to a UUID.
+
+    For composed ``<owner>/<name>`` addresses with no persisted Room
+    (joblib-only test envs), derives a stable uuid5 from the address so
+    the ``RoomScopedEvent`` validator accepts the payload.
+    """
     if room_id in ("@global", "@internal"):
         return NIL_ROOM_UUID
     try:
         return UUID(room_id)
     except ValueError:
-        return NIL_ROOM_UUID
+        pass
+    if "/" in room_id:
+        return _uuid.uuid5(_ROOM_ADDRESS_NS, room_id)
+    return NIL_ROOM_UUID
 
 
 class FrozenEvent(BaseModel):
@@ -192,6 +206,38 @@ def build_task_status_emission(
             error=task.error,
         ),
         f"room:{task.room_id}",
+    )
+
+
+async def build_room_scoped_emission(
+    session: AsyncSession,
+    event_cls: type[RoomScopedEvent],
+    room_id: str,
+    **fields: Any,
+) -> Emission:
+    """Construct an Emission for a joblib room-scoped event.
+
+    Handles the sigil/real-room/unknown split centrally:
+      * for persisted rooms, defers to ``event_cls.for_room(room, **fields)``;
+      * for sigils (``@global``/``@internal``), uses ``NIL_ROOM_UUID`` —
+        the ``RoomScopedEvent`` validator allows this because sigil
+        addresses do not look composed;
+      * for a bare UUID with no persisted row (e.g. soft-deleted room),
+        uses the UUID directly as ``room_id``;
+      * for a composed ``<owner>/<name>`` address with no persisted row
+        (joblib-only test environments), derives a stable
+        uuid5 from the address so the validator passes.
+
+    The channel is always ``f"room:{room_id}"``.
+    """
+    from zndraw_joblib.room_lookup import fetch_room
+
+    room = await fetch_room(session, room_id)
+    if room is not None:
+        return Emission(event_cls.for_room(room, **fields), f"room:{room.id}")
+    return Emission(
+        event_cls(room_id=event_room_uuid(room_id), room_address=room_id, **fields),
+        f"room:{room_id}",
     )
 
 
