@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func as sa_func
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -20,6 +21,7 @@ from zndraw_joblib.events import (
     ProvidersInvalidate,
     build_task_status_emission,
     emit,
+    event_room_uuid,
 )
 from zndraw_joblib.models import (
     Job,
@@ -34,28 +36,15 @@ from zndraw_joblib.settings import JobLibSettings
 logger = logging.getLogger(__name__)
 
 
-from uuid import UUID as _UUID
-
-_NIL_ROOM_UUID = _UUID(int=0)
-
-
-def _event_room_uuid(room_id: str) -> _UUID:
-    if room_id in ("@global", "@internal"):
-        return _NIL_ROOM_UUID
-    try:
-        return _UUID(room_id)
-    except ValueError:
-        return _NIL_ROOM_UUID
-
-
 async def _room_address_for(session: AsyncSession, room_id: str) -> str:
     if room_id in ("@global", "@internal"):
         return room_id
-    try:
-        from zndraw.models import Room
+    from zndraw.models import Room
 
+    try:
         room = await session.get(Room, room_id)
-    except Exception:
+    except (OperationalError, ProgrammingError):
+        # Joblib-only test environments don't always have the Room table.
         return room_id
     if room is None:
         return room_id
@@ -108,7 +97,7 @@ async def _soft_delete_orphan_job(
     emissions.add(
         Emission(
             JobsInvalidate(
-                room_id=_event_room_uuid(job.room_id),
+                room_id=event_room_uuid(job.room_id),
                 room_address=room_address,
             ),
             f"room:{job.room_id}",
@@ -179,7 +168,7 @@ async def cleanup_worker(
         emissions.add(
             Emission(
                 JobsInvalidate(
-                    room_id=_event_room_uuid(room_id),
+                    room_id=event_room_uuid(room_id),
                     room_address=room_address,
                 ),
                 f"room:{room_id}",
@@ -203,7 +192,7 @@ async def cleanup_worker(
         emissions.add(
             Emission(
                 ProvidersInvalidate(
-                    room_id=_event_room_uuid(room_id),
+                    room_id=event_room_uuid(room_id),
                     room_address=room_address,
                 ),
                 f"room:{room_id}",

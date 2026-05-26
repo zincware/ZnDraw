@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
@@ -19,6 +20,18 @@ if TYPE_CHECKING:
     from zndraw_socketio import AsyncServerWrapper
 
 from zndraw_joblib.models import Task, TaskStatus
+
+NIL_ROOM_UUID = UUID(int=0)
+
+
+def event_room_uuid(room_id: str) -> UUID:
+    """Map a joblib room_id (surrogate UUID or sigil) to a UUID for the wire payload."""
+    if room_id in ("@global", "@internal"):
+        return NIL_ROOM_UUID
+    try:
+        return UUID(room_id)
+    except ValueError:
+        return NIL_ROOM_UUID
 
 
 class FrozenEvent(BaseModel):
@@ -164,18 +177,9 @@ def build_task_status_emission(
     queue_position: int | None = None,
 ) -> Emission:
     """Build a TaskStatusEvent emission from task data."""
-    from uuid import UUID as _UUID
-
-    if task.room_id in ("@global", "@internal"):
-        room_uuid = _UUID(int=0)
-    else:
-        try:
-            room_uuid = _UUID(task.room_id)
-        except ValueError:
-            room_uuid = _UUID(int=0)
     return Emission(
         TaskStatusEvent(
-            room_id=room_uuid,
+            room_id=event_room_uuid(task.room_id),
             room_address=room_address,
             id=str(task.id),
             name=job_full_name,

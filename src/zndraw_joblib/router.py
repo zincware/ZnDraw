@@ -10,7 +10,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
 from sqlalchemy import and_, func, update
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -46,6 +46,7 @@ from zndraw_joblib.events import (
     TaskAvailable,
     build_task_status_emission,
     emit,
+    event_room_uuid,
 )
 from zndraw_joblib.exceptions import (
     Forbidden,
@@ -106,30 +107,16 @@ InternalProviderRegistryDep = Annotated[
 TsioDep = Annotated[AsyncServerWrapper | None, Depends(get_tsio)]
 
 
-from uuid import UUID as _UUID
-
-_NIL_ROOM_UUID = _UUID(int=0)
-
-
-def _event_room_uuid(room_id: str) -> _UUID:
-    """Return a UUID for the wire room_id field. Sigils map to the NIL UUID."""
-    if room_id in ("@global", "@internal"):
-        return _NIL_ROOM_UUID
-    try:
-        return _UUID(room_id)
-    except ValueError:
-        return _NIL_ROOM_UUID
-
-
 async def _room_address_for(session: AsyncSession, room_id: str) -> str:
     """Return ``room.public_address`` for a surrogate room_id, or the sigil itself."""
     if room_id in ("@global", "@internal"):
         return room_id
-    try:
-        from zndraw.models import Room
+    from zndraw.models import Room
 
+    try:
         room = await session.get(Room, room_id)
-    except Exception:
+    except (OperationalError, ProgrammingError):
+        # Joblib-only test environments don't always have the Room table.
         return room_id
     if room is None:
         return room_id
@@ -403,7 +390,7 @@ async def register_job(
         {
             Emission(
                 JobsInvalidate(
-                    room_id=_event_room_uuid(room_id),
+                    room_id=event_room_uuid(room_id),
                     room_address=room_address,
                 ),
                 f"room:{room_id}",
@@ -1016,8 +1003,6 @@ async def delete_worker(
         # SessionDep's outer ``async with`` releases the SQLite lock — the
         # hook may need a fresh session and would otherwise re-enter the
         # serialization lock and deadlock.
-        import asyncio
-
         asyncio.get_running_loop().create_task(frame_cleanup(frame_rooms))
 
 
@@ -1191,7 +1176,7 @@ async def register_provider(
         {
             Emission(
                 ProvidersInvalidate(
-                    room_id=_event_room_uuid(provider.room_id),
+                    room_id=event_room_uuid(provider.room_id),
                     room_address=room_address,
                 ),
                 f"room:{provider.room_id}",
@@ -1418,7 +1403,7 @@ async def delete_provider(
         {
             Emission(
                 ProvidersInvalidate(
-                    room_id=_event_room_uuid(room_id),
+                    room_id=event_room_uuid(room_id),
                     room_address=room_address,
                 ),
                 f"room:{room_id}",
@@ -1492,7 +1477,7 @@ async def upload_provider_result(
         {
             Emission(
                 ProviderResultReady(
-                    room_id=_event_room_uuid(provider.room_id),
+                    room_id=event_room_uuid(provider.room_id),
                     room_address=room_address,
                     provider_name=provider.full_name,
                     request_hash=x_request_hash,
