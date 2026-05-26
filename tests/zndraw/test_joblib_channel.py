@@ -16,7 +16,6 @@ from helpers import (
 )
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from zndraw_joblib.settings import JobLibSettings
 
 
 @pytest.mark.asyncio
@@ -25,11 +24,6 @@ async def test_register_job_emits_to_surrogate_channel(
     session: AsyncSession,
     mock_sio: MockSioServer,
 ) -> None:
-    from zndraw.app import app
-
-    app.state.joblib_settings = JobLibSettings()
-    app.state.tsio = mock_sio
-
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
@@ -42,16 +36,25 @@ async def test_register_job_emits_to_surrogate_channel(
         },
         headers=auth_header(token),
     )
-    assert response.status_code in (200, 201), response.text
+    assert response.status_code == 201, response.text
 
     invalidate_emits = [
         e for e in mock_sio.emitted if e["event"] == "jobs_invalidate"
     ]
-    assert invalidate_emits, "register_job did not emit jobs_invalidate"
-    captured = invalidate_emits[-1]
+    assert len(invalidate_emits) == 1, (
+        f"expected 1 jobs_invalidate, got {len(invalidate_emits)}"
+    )
+    captured = invalidate_emits[0]
     assert captured["room"] == f"room:{room.id}", (
         f"expected channel room:{room.id}, got {captured['room']}"
     )
     # MockSioServer captures via model_dump(); UUID fields surface as UUID instances.
-    assert str(captured["data"]["room_id"]) == room.id
-    assert captured["data"]["room_address"] == room.public_address
+    data = captured["data"]
+    assert "room_id" in data, (
+        f"JobsInvalidate payload missing room_id; got keys: {list(data)}"
+    )
+    assert "room_address" in data, (
+        f"JobsInvalidate payload missing room_address; got keys: {list(data)}"
+    )
+    assert str(data["room_id"]) == room.id
+    assert data["room_address"] == room.public_address
