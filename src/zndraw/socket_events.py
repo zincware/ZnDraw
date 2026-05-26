@@ -5,13 +5,34 @@ Event names are derived from class names in snake_case:
 - SessionJoined -> "session_joined"
 """
 
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel
 
 from zndraw.schemas import ProgressResponse, RoomResponse
+
+if TYPE_CHECKING:
+    from zndraw.models import Room
+
+
+class RoomScopedEvent(BaseModel):
+    """Mixin: room-scoped events carry both ids and use ``.for_room`` as constructor."""
+
+    room_id: UUID
+    room_address: str
+
+    @classmethod
+    def for_room(cls, room: "Room", /, **kwargs: Any) -> Self:
+        return cls(
+            room_id=UUID(room.id),
+            room_address=room.public_address,
+            **kwargs,
+        )
+
 
 # =============================================================================
 # Request Models (client -> server)
@@ -93,34 +114,30 @@ class TypingResponse(BaseModel):
 # =============================================================================
 
 
-class SessionJoined(BaseModel):
+class SessionJoined(RoomScopedEvent):
     """Broadcast when a session joins a room."""
 
-    room_id: str
     user_id: UUID
     sid: str
     email: str | None = None
 
 
-class SessionLeft(BaseModel):
+class SessionLeft(RoomScopedEvent):
     """Broadcast when a session leaves a room."""
 
-    room_id: str
     user_id: UUID
     sid: str
 
 
-class FrameUpdate(BaseModel):
+class FrameUpdate(RoomScopedEvent):
     """Broadcast when current frame changes."""
 
-    room_id: str
     frame: int
 
 
-class FramesInvalidate(BaseModel):
+class FramesInvalidate(RoomScopedEvent):
     """Broadcast when frames need refresh."""
 
-    room_id: str
     action: Literal["add", "delete", "modify", "clear"]
     indices: list[int] | None = None
     count: int | None = None
@@ -133,10 +150,9 @@ class FrameSelectionUpdate(BaseModel):
     indices: list[int]
 
 
-class GeometryInvalidate(BaseModel):
+class GeometryInvalidate(RoomScopedEvent):
     """Broadcast when geometries changed."""
 
-    room_id: str
     operation: Literal["set", "delete"]
     key: str
 
@@ -147,45 +163,37 @@ class ActiveCameraUpdate(BaseModel):
     active_camera: str
 
 
-class DefaultCameraInvalidate(BaseModel):
+class DefaultCameraInvalidate(RoomScopedEvent):
     """Broadcast when the default camera changes."""
 
-    room_id: str
     default_camera: str | None = None
 
 
-class SelectionInvalidate(BaseModel):
+class SelectionInvalidate(RoomScopedEvent):
     """Broadcast when selections changed."""
 
-    room_id: str
 
-
-class SelectionGroupsInvalidate(BaseModel):
+class SelectionGroupsInvalidate(RoomScopedEvent):
     """Broadcast when selection groups changed."""
 
-    room_id: str
 
-
-class BookmarksInvalidate(BaseModel):
+class BookmarksInvalidate(RoomScopedEvent):
     """Broadcast when bookmarks changed."""
 
-    room_id: str
     index: int
     operation: Literal["set", "delete"]
 
 
-class FigureInvalidate(BaseModel):
+class FigureInvalidate(RoomScopedEvent):
     """Broadcast when a figure changed."""
 
-    room_id: str
     key: str
     operation: Literal["set", "delete"]
 
 
-class LockUpdate(BaseModel):
+class LockUpdate(RoomScopedEvent):
     """Broadcast when a room's edit lock changes."""
 
-    room_id: str
     action: Literal["acquired", "refreshed", "released"]
     user_id: str | None = None
     sid: str | None = None
@@ -197,11 +205,10 @@ class RoomUpdate(RoomResponse):
     """Full room snapshot broadcast on any room state change."""
 
 
-class MessageNew(BaseModel):
+class MessageNew(RoomScopedEvent):
     """Broadcast new message in room."""
 
     id: int
-    room_id: str
     user_id: UUID
     content: str
     created_at: datetime
@@ -209,11 +216,10 @@ class MessageNew(BaseModel):
     email: str | None = None
 
 
-class MessageEdited(BaseModel):
+class MessageEdited(RoomScopedEvent):
     """Broadcast message was edited."""
 
     id: int
-    room_id: str
     content: str
     updated_at: datetime
 
@@ -225,16 +231,15 @@ class ScreenshotRequest(BaseModel):
     upload_url: str
 
 
-class Typing(BaseModel):
+class Typing(RoomScopedEvent):
     """Broadcast typing indicator."""
 
-    room_id: str
     user_id: UUID
     email: str | None = None
     is_typing: bool
 
 
-class ProgressStart(BaseModel):
+class ProgressStart(RoomScopedEvent):
     """Broadcast when a new progress tracker is created."""
 
     progress_id: str
@@ -242,7 +247,7 @@ class ProgressStart(BaseModel):
     unit: str = "it"
 
 
-class ProgressUpdate(BaseModel):
+class ProgressUpdate(RoomScopedEvent):
     """Broadcast when a progress tracker is updated."""
 
     progress_id: str
@@ -253,15 +258,17 @@ class ProgressUpdate(BaseModel):
     unit: str | None = None
 
 
-class ProgressComplete(BaseModel):
+class ProgressComplete(RoomScopedEvent):
     """Broadcast when a progress tracker finishes."""
 
     progress_id: str
 
 
-class RoomRenamed(BaseModel):
-    """Broadcast on a successful room transfer; the composed address changed."""
+class RoomRenamed(RoomScopedEvent):
+    """Broadcast on a successful room transfer; the composed address changed.
+
+    ``room_address`` carries the NEW composed address (current state);
+    ``old_address`` is the value clients used before the transfer.
+    """
 
     old_address: str
-    new_address: str
-    room_id: str  # surrogate UUID (channel key)

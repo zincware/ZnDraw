@@ -158,6 +158,6 @@ class SocketManager:
 
         event = RoomRenamed.model_validate(data)
         if self.zndraw.room == event.old_address:
-            self.zndraw.room = event.new_address
-            self.zndraw.api.room_id = event.new_address
-            log.debug("Room renamed: %s -> %s", event.old_address, event.new_address)
+            self.zndraw.room = event.room_address
+            self.zndraw.api.room_id = event.room_address
+            log.debug("Room renamed: %s -> %s", event.old_address, event.room_address)
