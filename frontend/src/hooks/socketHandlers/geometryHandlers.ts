@@ -12,6 +12,8 @@ import { createInvalidateHandler } from "./utils";
 // --- Typed event interfaces ---
 
 export interface GeometryInvalidateEvent {
+	room_id?: string;
+	room_address?: string;
 	operation?: "set" | "delete";
 	key?: string;
 }
@@ -31,6 +33,7 @@ export interface ActiveCameraUpdateEvent {
 export function createGeometryHandlers(ctx: HandlerContext) {
 	async function onGeometriesInvalidate(data: GeometryInvalidateEvent) {
 		if (!ctx.roomId) return;
+		if (data.room_address && data.room_address !== ctx.roomId) return;
 
 		try {
 			const operation = data?.operation || "set"; // default to 'set' for backward compatibility
