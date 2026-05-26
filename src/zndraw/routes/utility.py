@@ -9,7 +9,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 import zndraw
-from zndraw.broadcast import room_channel
+from zndraw.broadcast import broadcast_to_room
 from zndraw.config import SettingsDep
 from zndraw.dependencies import (
     AccessReadDep,
@@ -133,9 +133,10 @@ async def update_frame_selection(
     room.frame_selection = json.dumps(body.indices) if body.indices else None
     await session.commit()
 
-    await sio.emit(
-        FrameSelectionUpdate(indices=body.indices),
-        room=room_channel(room.id),
+    await broadcast_to_room(
+        sio,
+        FrameSelectionUpdate.for_room(room, indices=body.indices),
+        room,
     )
 
     return FrameSelectionUpdateResponse()

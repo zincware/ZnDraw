@@ -144,7 +144,7 @@ class FramesInvalidate(RoomScopedEvent):
     reason: str | None = None
 
 
-class FrameSelectionUpdate(BaseModel):
+class FrameSelectionUpdate(RoomScopedEvent):
     """Broadcast when frame selection changes."""
 
     indices: list[int]

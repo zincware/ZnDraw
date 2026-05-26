@@ -17,6 +17,8 @@ export interface FramesInvalidateEvent {
 }
 
 export interface FrameSelectionUpdateEvent {
+	room_id: string;
+	room_address: string;
 	indices: number[] | null;
 }
 
