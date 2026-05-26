@@ -615,7 +615,11 @@ def test_main_errors_on_bare_room(monkeypatch, tmp_path):
     monkeypatch.setattr("zndraw.cli.upload_file", lambda *_a, **_kw: None)
     monkeypatch.setattr("zndraw.cli.webbrowser.open", lambda _url: None)
 
-    result = runner.invoke(app, ["--room", "foo", str(dummy)], env={"NO_COLOR": "1"})
+    result = runner.invoke(
+        app,
+        ["--room", "foo", str(dummy)],
+        env={"NO_COLOR": "1", "COLUMNS": "200", "TERM": "dumb"},
+    )
     assert result.exit_code != 0
     assert "must be '<owner_uuid>/<name>'" in result.output
     assert str(FIXED_OWNER) in result.output
