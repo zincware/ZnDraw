@@ -2,6 +2,15 @@
 
 Fails fast at collect time if any subclass forgets to declare both
 ``room_id: UUID`` and ``room_address: str``.
+
+LIMITATION: discovery uses ``RoomScopedEvent.__subclasses__()``, which
+only enumerates classes that have been imported. The audit imports
+``zndraw.socket_events`` and ``zndraw_joblib.events`` directly so every
+first-party event type is registered before the test runs. If a third-
+party plugin defines a ``RoomScopedEvent`` subclass in a module that
+the audit does not import, that subclass slips through. Plugin authors
+should either expose the module via an entry-point that the audit can
+load explicitly or add their own equivalent test.
 """
 
 from __future__ import annotations
