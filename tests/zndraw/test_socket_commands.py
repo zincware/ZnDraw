@@ -1,10 +1,13 @@
 """Tests for Socket.IO event Pydantic models."""
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from pydantic import ValidationError
+
+ROOM_UUID = UUID("00000000-0000-0000-0000-000000000001")
+ROOM_ADDRESS = "11111111-1111-1111-1111-111111111111/test"
 
 from zndraw.socket_events import (
     BookmarksInvalidate,
@@ -150,16 +153,17 @@ def test_user_get_response_deserializes_uuid_string() -> None:
 
 def test_frame_update_data() -> None:
     """FrameUpdate serializes room_id and frame."""
-    broadcast = FrameUpdate(room_id="test-room-uuid", frame=5)
+    broadcast = FrameUpdate(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, frame=5)
     data = broadcast.model_dump(mode="json")
-    assert data["room_id"] == "test-room-uuid"
+    assert data["room_id"] == str(ROOM_UUID)
     assert data["frame"] == 5
 
 
 def test_frames_invalidate_add_action() -> None:
     """FramesInvalidate serializes add action with count."""
     broadcast = FramesInvalidate(
-        room_id="test-room-uuid",
+        room_id=ROOM_UUID,
+        room_address=ROOM_ADDRESS,
         action="add",
         count=10,
     )
@@ -172,7 +176,8 @@ def test_frames_invalidate_add_action() -> None:
 def test_frames_invalidate_delete_action() -> None:
     """FramesInvalidate serializes delete action with indices."""
     broadcast = FramesInvalidate(
-        room_id="test-room-uuid",
+        room_id=ROOM_UUID,
+        room_address=ROOM_ADDRESS,
         action="delete",
         indices=[1, 2, 3],
     )
@@ -184,7 +189,8 @@ def test_frames_invalidate_delete_action() -> None:
 def test_frames_invalidate_clear_action() -> None:
     """FramesInvalidate serializes clear action."""
     broadcast = FramesInvalidate(
-        room_id="test-room-uuid",
+        room_id=ROOM_UUID,
+        room_address=ROOM_ADDRESS,
         action="clear",
         count=0,
     )
@@ -196,7 +202,7 @@ def test_frames_invalidate_clear_action() -> None:
 def test_frames_invalidate_invalid_action() -> None:
     """FramesInvalidate rejects invalid action literals."""
     with pytest.raises(ValidationError):
-        FramesInvalidate(room_id="r", action="invalid")  # type: ignore[arg-type]
+        FramesInvalidate(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, action="invalid")  # type: ignore[arg-type]
 
 
 # =============================================================================
@@ -208,10 +214,10 @@ def test_session_joined_fields() -> None:
     """SessionJoined carries user identity fields."""
     uid = uuid4()
     event = SessionJoined(
-        room_id="room-1", user_id=uid, sid="socket-123", email="user@x.com"
+        room_id=ROOM_UUID, room_address=ROOM_ADDRESS, user_id=uid, sid="socket-123", email="user@x.com"
     )
     data = event.model_dump(mode="json")
-    assert data["room_id"] == "room-1"
+    assert data["room_id"] == str(ROOM_UUID)
     assert data["user_id"] == str(uid)
     assert data["sid"] == "socket-123"
     assert data["email"] == "user@x.com"
@@ -220,16 +226,16 @@ def test_session_joined_fields() -> None:
 def test_session_joined_email_optional() -> None:
     """SessionJoined defaults email to None."""
     uid = uuid4()
-    event = SessionJoined(room_id="room-1", user_id=uid, sid="s1")
+    event = SessionJoined(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, user_id=uid, sid="s1")
     assert event.email is None
 
 
 def test_session_left_fields() -> None:
     """SessionLeft carries minimal identity fields."""
     uid = uuid4()
-    event = SessionLeft(room_id="room-1", user_id=uid, sid="s1")
+    event = SessionLeft(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, user_id=uid, sid="s1")
     data = event.model_dump(mode="json")
-    assert data["room_id"] == "room-1"
+    assert data["room_id"] == str(ROOM_UUID)
     assert data["user_id"] == str(uid)
     assert data["sid"] == "s1"
 
@@ -246,13 +252,13 @@ def test_session_left_fields() -> None:
 )
 def test_room_only_invalidation(model_cls: type) -> None:
     """Invalidation models with only room_id."""
-    event = model_cls(room_id="room-1")
-    assert event.model_dump(mode="json") == {"room_id": "room-1"}
+    event = model_cls(room_id=ROOM_UUID, room_address=ROOM_ADDRESS)
+    assert event.model_dump(mode="json") == {"room_id": str(ROOM_UUID), "room_address": ROOM_ADDRESS}
 
 
 def test_geometry_invalidate_fields() -> None:
     """GeometryInvalidate carries operation and key."""
-    event = GeometryInvalidate(room_id="r", operation="set", key="mol1")
+    event = GeometryInvalidate(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, operation="set", key="mol1")
     data = event.model_dump(mode="json")
     assert data["operation"] == "set"
     assert data["key"] == "mol1"
@@ -260,7 +266,7 @@ def test_geometry_invalidate_fields() -> None:
 
 def test_bookmarks_invalidate_fields() -> None:
     """BookmarksInvalidate carries index and operation."""
-    event = BookmarksInvalidate(room_id="r", index=5, operation="delete")
+    event = BookmarksInvalidate(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, index=5, operation="delete")
     data = event.model_dump(mode="json")
     assert data["index"] == 5
     assert data["operation"] == "delete"
@@ -268,7 +274,7 @@ def test_bookmarks_invalidate_fields() -> None:
 
 def test_figure_invalidate_fields() -> None:
     """FigureInvalidate carries key and operation."""
-    event = FigureInvalidate(room_id="r", key="fig-1", operation="set")
+    event = FigureInvalidate(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, key="fig-1", operation="set")
     data = event.model_dump(mode="json")
     assert data["key"] == "fig-1"
     assert data["operation"] == "set"
@@ -276,7 +282,7 @@ def test_figure_invalidate_fields() -> None:
 
 def test_lock_update_defaults() -> None:
     """LockUpdate optional fields default to None."""
-    event = LockUpdate(room_id="r", action="acquired")
+    event = LockUpdate(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, action="acquired")
     assert event.user_id is None
     assert event.msg is None
 
@@ -284,7 +290,8 @@ def test_lock_update_defaults() -> None:
 def test_lock_update_full() -> None:
     """LockUpdate serializes all fields."""
     event = LockUpdate(
-        room_id="r",
+        room_id=ROOM_UUID,
+        room_address=ROOM_ADDRESS,
         action="released",
         user_id="user-123",
         msg="editing geometries",
@@ -326,7 +333,7 @@ def test_message_new_fields() -> None:
     uid = uuid4()
     now = datetime.now(tz=UTC)
     event = MessageNew(
-        id=1, room_id="r", user_id=uid, content="hello", created_at=now, email="a@b.c"
+        id=1, room_id=ROOM_UUID, room_address=ROOM_ADDRESS, user_id=uid, content="hello", created_at=now, email="a@b.c"
     )
     data = event.model_dump(mode="json")
     assert data["id"] == 1
@@ -339,7 +346,7 @@ def test_message_new_fields() -> None:
 def test_message_edited_fields() -> None:
     """MessageEdited carries id, room_id, content, updated_at."""
     now = datetime.now(tz=UTC)
-    event = MessageEdited(id=1, room_id="r", content="edited", updated_at=now)
+    event = MessageEdited(id=1, room_id=ROOM_UUID, room_address=ROOM_ADDRESS, content="edited", updated_at=now)
     data = event.model_dump(mode="json")
     assert data["id"] == 1
     assert data["content"] == "edited"
@@ -348,7 +355,7 @@ def test_message_edited_fields() -> None:
 def test_typing_broadcast_fields() -> None:
     """Typing broadcast carries user identity and typing state."""
     uid = uuid4()
-    event = Typing(room_id="r", user_id=uid, is_typing=True, email="a@b.c")
+    event = Typing(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, user_id=uid, is_typing=True, email="a@b.c")
     data = event.model_dump(mode="json")
     assert data["is_typing"] is True
     assert data["email"] == "a@b.c"
@@ -362,12 +369,13 @@ def test_typing_broadcast_fields() -> None:
 @pytest.mark.parametrize(
     ("model_cls", "kwargs"),
     [
-        (FrameUpdate, {"room_id": "r", "frame": 42}),
-        (FramesInvalidate, {"room_id": "r", "action": "modify", "indices": [0, 1]}),
+        (FrameUpdate, {"room_id": ROOM_UUID, "room_address": ROOM_ADDRESS, "frame": 42}),
+        (FramesInvalidate, {"room_id": ROOM_UUID, "room_address": ROOM_ADDRESS, "action": "modify", "indices": [0, 1]}),
         (
             SessionJoined,
             {
-                "room_id": "r",
+                "room_id": ROOM_UUID,
+                "room_address": ROOM_ADDRESS,
                 "user_id": "00000000-0000-0000-0000-000000000001",
                 "sid": "s",
             },
@@ -375,12 +383,13 @@ def test_typing_broadcast_fields() -> None:
         (
             SessionLeft,
             {
-                "room_id": "r",
+                "room_id": ROOM_UUID,
+                "room_address": ROOM_ADDRESS,
                 "user_id": "00000000-0000-0000-0000-000000000001",
                 "sid": "s",
             },
         ),
-        (GeometryInvalidate, {"room_id": "r", "operation": "delete", "key": "k"}),
+        (GeometryInvalidate, {"room_id": ROOM_UUID, "room_address": ROOM_ADDRESS, "operation": "delete", "key": "k"}),
     ],
     ids=[
         "FrameUpdate",
