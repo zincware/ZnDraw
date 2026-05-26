@@ -9,7 +9,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func as sa_func
-from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -31,24 +30,10 @@ from zndraw_joblib.models import (
     Worker,
     WorkerJobLink,
 )
+from zndraw_joblib.room_lookup import room_address_for
 from zndraw_joblib.settings import JobLibSettings
 
 logger = logging.getLogger(__name__)
-
-
-async def _room_address_for(session: AsyncSession, room_id: str) -> str:
-    if room_id in ("@global", "@internal"):
-        return room_id
-    from zndraw.models import Room
-
-    try:
-        room = await session.get(Room, room_id)
-    except (OperationalError, ProgrammingError):
-        # Joblib-only test environments don't always have the Room table.
-        return room_id
-    if room is None:
-        return room_id
-    return room.public_address
 
 
 async def _soft_delete_orphan_job(
@@ -93,7 +78,7 @@ async def _soft_delete_orphan_job(
     # Soft-delete the orphaned job (no workers, no pending tasks)
     job.deleted = True
     session.add(job)
-    room_address = await _room_address_for(session, job.room_id)
+    room_address = await room_address_for(session, job.room_id)
     emissions.add(
         Emission(
             JobsInvalidate(
@@ -142,7 +127,7 @@ async def cleanup_worker(
             build_task_status_emission(
                 task,
                 task.job.full_name if task.job else "",
-                room_address=await _room_address_for(session, task.room_id),
+                room_address=await room_address_for(session, task.room_id),
             )
         )
 
@@ -164,7 +149,7 @@ async def cleanup_worker(
 
     # Emit JobsInvalidate for all affected rooms (worker count changed)
     for room_id in set(job_rooms.values()):
-        room_address = await _room_address_for(session, room_id)
+        room_address = await room_address_for(session, room_id)
         emissions.add(
             Emission(
                 JobsInvalidate(
@@ -188,7 +173,7 @@ async def cleanup_worker(
         provider_rooms.add(provider.room_id)
         await session.delete(provider)
     for room_id in provider_rooms:
-        room_address = await _room_address_for(session, room_id)
+        room_address = await room_address_for(session, room_id)
         emissions.add(
             Emission(
                 ProvidersInvalidate(
@@ -301,7 +286,7 @@ async def cleanup_stuck_internal_tasks(
             build_task_status_emission(
                 task,
                 task.job.full_name if task.job else "",
-                room_address=await _room_address_for(session, task.room_id),
+                room_address=await room_address_for(session, task.room_id),
             )
         )
         count += 1
