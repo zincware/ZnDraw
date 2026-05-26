@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from zndraw.broadcast import room_channel
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
     AccessReadDep,
     FrameStorageDep,
@@ -80,9 +80,10 @@ async def set_step(
     await session.commit()
 
     # Broadcast frame update
-    await sio.emit(
-        FrameUpdate(room_id=room.id, frame=request.step),
-        room=room_channel(room.id),
+    await broadcast_to_room(
+        sio,
+        FrameUpdate.for_room(room, frame=request.step),
+        room,
     )
 
     return StepUpdateResponse(success=True, step=request.step)

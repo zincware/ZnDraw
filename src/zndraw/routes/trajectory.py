@@ -18,7 +18,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from zndraw.connectivity import add_connectivity
-from zndraw.broadcast import room_channel
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
     AccessReadDep,
     CurrentUserDep,
@@ -343,9 +343,10 @@ async def upload_trajectory(
         new_total = await storage[room_id].extend(frames)
 
     # Broadcast invalidation
-    await sio.emit(
-        FramesInvalidate(room_id=room_id, action="add", count=new_total),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FramesInvalidate.for_room(room, action="add", count=new_total),
+        room,
     )
     await broadcast_room_update(sio, session, storage, room)
 

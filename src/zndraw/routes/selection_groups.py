@@ -4,7 +4,7 @@ import json
 
 from fastapi import APIRouter
 
-from zndraw.broadcast import room_channel
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
     AccessReadDep,
     SessionDep,
@@ -99,8 +99,10 @@ async def update_selection_group(
         row.selections = json.dumps(request.selections)
     await session.commit()
 
-    await sio.emit(
-        SelectionGroupsInvalidate(room_id=room_id), room=room_channel(room_id)
+    await broadcast_to_room(
+        sio,
+        SelectionGroupsInvalidate.for_room(room),
+        room,
     )
     return StatusResponse()
 
@@ -127,8 +129,10 @@ async def delete_selection_group(
     await session.delete(row)
     await session.commit()
 
-    await sio.emit(
-        SelectionGroupsInvalidate(room_id=room_id), room=room_channel(room_id)
+    await broadcast_to_room(
+        sio,
+        SelectionGroupsInvalidate.for_room(room),
+        room,
     )
 
     return StatusResponse()

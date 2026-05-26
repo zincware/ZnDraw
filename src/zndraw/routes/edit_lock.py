@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Header
 
 from zndraw.config import SettingsDep
-from zndraw.broadcast import room_channel
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
     AccessEditDep,
     AccessReadDep,
@@ -133,16 +133,17 @@ async def acquire_edit_lock(
         raise RoomLocked.exception("Room is being edited by another session")
 
     ttl = await redis.ttl(key)
-    await sio.emit(
-        LockUpdate(
-            room_id=room_id,
+    await broadcast_to_room(
+        sio,
+        LockUpdate.for_room(
+            access.room,
             action="acquired",
             user_id=user_id,
             sid=x_session_id,
             msg=request.msg,
             ttl=max(ttl, 0),
         ),
-        room=room_channel(room_id),
+        access.room,
     )
 
     return EditLockResponse(
@@ -186,14 +187,15 @@ async def release_edit_lock(
 
     await redis.delete(key)
 
-    await sio.emit(
-        LockUpdate(
-            room_id=room_id,
+    await broadcast_to_room(
+        sio,
+        LockUpdate.for_room(
+            access.room,
             action="released",
             user_id=holder["user_id"],
             sid=holder.get("sid"),
         ),
-        room=room_channel(room_id),
+        access.room,
     )
 
     return StatusResponse()

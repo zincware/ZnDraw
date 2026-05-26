@@ -8,7 +8,7 @@ from functools import lru_cache
 from fastapi import APIRouter
 from sqlmodel import select
 
-from zndraw.broadcast import room_channel
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
     AccessReadDep,
     SessionDep,
@@ -265,9 +265,10 @@ async def apply_preset(
         new_keys = [g.key for g in (await session.exec(new_stmt)).all()]
         all_keys = sorted(set(existing_keys) | set(new_keys))
         for key in all_keys:
-            await sio.emit(
-                GeometryInvalidate(room_id=room_id, operation="set", key=key),
-                room=room_channel(room_id),
+            await broadcast_to_room(
+                sio,
+                GeometryInvalidate.for_room(_room, operation="set", key=key),
+                _room,
             )
         return PresetApplyResult(geometries_updated=all_keys)
 
@@ -311,9 +312,10 @@ async def apply_preset(
     await session.commit()
 
     for key in updated_keys:
-        await sio.emit(
-            GeometryInvalidate(room_id=room_id, operation="set", key=key),
-            room=room_channel(room_id),
+        await broadcast_to_room(
+            sio,
+            GeometryInvalidate.for_room(_room, operation="set", key=key),
+            _room,
         )
 
     return PresetApplyResult(geometries_updated=updated_keys)

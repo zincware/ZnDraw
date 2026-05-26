@@ -266,7 +266,8 @@ async def test_upsert_geometry_broadcasts_set_operation(
     model = GeometryInvalidate.model_validate(emitted["data"])
     assert model.operation == "set"
     assert model.key == "testkey"
-    assert model.room_id == room.id
+    assert str(model.room_id) == room.id
+    assert model.room_address == room.public_address
 
 
 @pytest.mark.asyncio
@@ -362,7 +363,8 @@ async def test_delete_geometry_broadcasts_delete_operation(
     model = GeometryInvalidate.model_validate(emitted["data"])
     assert model.operation == "delete"
     assert model.key == "deletekey"
-    assert model.room_id == room.id
+    assert str(model.room_id) == room.id
+    assert model.room_address == room.public_address
 
 
 @pytest.mark.asyncio

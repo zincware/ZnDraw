@@ -8,7 +8,7 @@ from fastapi import APIRouter
 from pydantic import ValidationError
 from sqlmodel import select
 
-from zndraw.broadcast import room_channel
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
     AccessEditDep,
     AccessReadDep,
@@ -190,7 +190,11 @@ async def update_geometry_selection(
     row.selection = json.dumps(request.indices)
     await session.commit()
 
-    await sio.emit(SelectionInvalidate(room_id=room_id), room=room_channel(room_id))
+    await broadcast_to_room(
+        sio,
+        SelectionInvalidate.for_room(geo.room),
+        geo.room,
+    )
     return StatusResponse()
 
 
@@ -253,9 +257,10 @@ async def upsert_geometry(
             row.config = config_json
         await session.commit()
 
-    await sio.emit(
-        GeometryInvalidate(room_id=room_id, operation="set", key=key),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        GeometryInvalidate.for_room(geo_info.room, operation="set", key=key),
+        geo_info.room,
     )
 
     return StatusResponse()
@@ -307,9 +312,10 @@ async def patch_geometry(
             row.config = json.dumps(merged)
         await session.commit()
 
-    await sio.emit(
-        GeometryInvalidate(room_id=room_id, operation="set", key=key),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        GeometryInvalidate.for_room(geo_info.room, operation="set", key=key),
+        geo_info.room,
     )
 
     return StatusResponse()
@@ -350,14 +356,16 @@ async def delete_geometry(
         room.default_camera = None
         session.add(room)
         await session.commit()
-        await sio.emit(
-            DefaultCameraInvalidate(room_id=room_id, default_camera=None),
-            room=room_channel(room_id),
+        await broadcast_to_room(
+            sio,
+            DefaultCameraInvalidate.for_room(room, default_camera=None),
+            room,
         )
 
-    await sio.emit(
-        GeometryInvalidate(room_id=room_id, operation="delete", key=key),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        GeometryInvalidate.for_room(room, operation="delete", key=key),
+        room,
     )
 
     return StatusResponse()
@@ -414,9 +422,10 @@ async def set_default_camera(
     session.add(room)
     await session.commit()
 
-    await sio.emit(
-        DefaultCameraInvalidate(room_id=room_id, default_camera=room.default_camera),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        DefaultCameraInvalidate.for_room(room, default_camera=room.default_camera),
+        room,
     )
 
     return DefaultCameraResponse(default_camera=room.default_camera)
