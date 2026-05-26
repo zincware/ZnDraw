@@ -43,11 +43,15 @@ from zndraw.client.serialization import (
 )
 from zndraw.client.socket import SocketManager
 from zndraw.geometries.camera import Camera
-from zndraw_joblib.client import ClaimedTask, Extension as JoblibExtension, JobManager
 
 if TYPE_CHECKING:
     from zndraw.extensions.abc import Extension
     from zndraw.providers.frame_source import FrameSource
+    from zndraw_joblib.client import (
+        ClaimedTask,
+        Extension as JoblibExtension,
+        JobManager,
+    )
 
 log = logging.getLogger(__name__)
 
@@ -247,6 +251,8 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         self.socket = SocketManager(zndraw=self)
 
         # Create job manager (zero-cost until first register())
+        from zndraw_joblib.client import JobManager
+
         self._jobs = JobManager(
             api=self.api,
             tsio=self.socket.tsio,

@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 from pydantic import BaseModel, ConfigDict
 
+from zndraw.socket_events import RoomScopedEvent
+
 if TYPE_CHECKING:
     from zndraw_socketio import AsyncServerWrapper
 
@@ -28,8 +30,10 @@ class FrozenEvent(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-class JobsInvalidate(FrozenEvent):
+class JobsInvalidate(RoomScopedEvent):
     """Frontend should refetch the job list."""
+
+    model_config = ConfigDict(frozen=True)
 
 
 class TaskAvailable(FrozenEvent):
@@ -40,12 +44,13 @@ class TaskAvailable(FrozenEvent):
     task_id: str
 
 
-class TaskStatusEvent(FrozenEvent):
+class TaskStatusEvent(RoomScopedEvent):
     """A task's status changed."""
+
+    model_config = ConfigDict(frozen=True)
 
     id: str
     name: str
-    room_id: str
     status: TaskStatus
     created_at: datetime
     started_at: datetime | None = None
@@ -78,8 +83,10 @@ class LeaveJobRoom(FrozenEvent):
     worker_id: str
 
 
-class ProvidersInvalidate(FrozenEvent):
+class ProvidersInvalidate(RoomScopedEvent):
     """Frontend should refetch the provider list."""
+
+    model_config = ConfigDict(frozen=True)
 
 
 class ProviderRequest(FrozenEvent):
@@ -110,8 +117,10 @@ class ProviderRequest(FrozenEvent):
         )
 
 
-class ProviderResultReady(FrozenEvent):
+class ProviderResultReady(RoomScopedEvent):
     """Server notifies frontend that a provider result is cached."""
+
+    model_config = ConfigDict(frozen=True)
 
     provider_name: str  # full_name: room_id:category:name
     request_hash: str
@@ -144,21 +153,32 @@ class LeaveProviderRoom(FrozenEvent):
 class Emission(NamedTuple):
     """Hashable (event, room) pair for set-based deduplication."""
 
-    event: FrozenEvent
+    event: BaseModel
     room: str
 
 
 def build_task_status_emission(
     task: Task,
     job_full_name: str,
+    room_address: str,
     queue_position: int | None = None,
 ) -> Emission:
     """Build a TaskStatusEvent emission from task data."""
+    from uuid import UUID as _UUID
+
+    if task.room_id in ("@global", "@internal"):
+        room_uuid = _UUID(int=0)
+    else:
+        try:
+            room_uuid = _UUID(task.room_id)
+        except ValueError:
+            room_uuid = _UUID(int=0)
     return Emission(
         TaskStatusEvent(
+            room_id=room_uuid,
+            room_address=room_address,
             id=str(task.id),
             name=job_full_name,
-            room_id=task.room_id,
             status=task.status,
             created_at=task.created_at,
             started_at=task.started_at,

@@ -34,6 +34,34 @@ from zndraw_joblib.settings import JobLibSettings
 logger = logging.getLogger(__name__)
 
 
+from uuid import UUID as _UUID
+
+_NIL_ROOM_UUID = _UUID(int=0)
+
+
+def _event_room_uuid(room_id: str) -> _UUID:
+    if room_id in ("@global", "@internal"):
+        return _NIL_ROOM_UUID
+    try:
+        return _UUID(room_id)
+    except ValueError:
+        return _NIL_ROOM_UUID
+
+
+async def _room_address_for(session: AsyncSession, room_id: str) -> str:
+    if room_id in ("@global", "@internal"):
+        return room_id
+    try:
+        from zndraw.models import Room
+
+        room = await session.get(Room, room_id)
+    except Exception:
+        return room_id
+    if room is None:
+        return room_id
+    return room.public_address
+
+
 async def _soft_delete_orphan_job(
     session: AsyncSession, job_id: uuid.UUID
 ) -> set[Emission]:
@@ -76,7 +104,16 @@ async def _soft_delete_orphan_job(
     # Soft-delete the orphaned job (no workers, no pending tasks)
     job.deleted = True
     session.add(job)
-    emissions.add(Emission(JobsInvalidate(), f"room:{job.room_id}"))
+    room_address = await _room_address_for(session, job.room_id)
+    emissions.add(
+        Emission(
+            JobsInvalidate(
+                room_id=_event_room_uuid(job.room_id),
+                room_address=room_address,
+            ),
+            f"room:{job.room_id}",
+        )
+    )
     return emissions
 
 
@@ -113,7 +150,11 @@ async def cleanup_worker(
         task.error = "Worker disconnected"
         session.add(task)
         emissions.add(
-            build_task_status_emission(task, task.job.full_name if task.job else "")
+            build_task_status_emission(
+                task,
+                task.job.full_name if task.job else "",
+                room_address=await _room_address_for(session, task.room_id),
+            )
         )
 
     # Get links this worker has (need both job_ids and the link objects)
@@ -134,7 +175,16 @@ async def cleanup_worker(
 
     # Emit JobsInvalidate for all affected rooms (worker count changed)
     for room_id in set(job_rooms.values()):
-        emissions.add(Emission(JobsInvalidate(), f"room:{room_id}"))
+        room_address = await _room_address_for(session, room_id)
+        emissions.add(
+            Emission(
+                JobsInvalidate(
+                    room_id=_event_room_uuid(room_id),
+                    room_address=room_address,
+                ),
+                f"room:{room_id}",
+            )
+        )
 
     # Delete providers owned by this worker
     result = await session.exec(
@@ -149,7 +199,16 @@ async def cleanup_worker(
         provider_rooms.add(provider.room_id)
         await session.delete(provider)
     for room_id in provider_rooms:
-        emissions.add(Emission(ProvidersInvalidate(), f"room:{room_id}"))
+        room_address = await _room_address_for(session, room_id)
+        emissions.add(
+            Emission(
+                ProvidersInvalidate(
+                    room_id=_event_room_uuid(room_id),
+                    room_address=room_address,
+                ),
+                f"room:{room_id}",
+            )
+        )
 
     # Delete all links
     for link in links:
@@ -250,7 +309,11 @@ async def cleanup_stuck_internal_tasks(
         task.error = "Internal worker timeout"
         session.add(task)
         emissions.add(
-            build_task_status_emission(task, task.job.full_name if task.job else "")
+            build_task_status_emission(
+                task,
+                task.job.full_name if task.job else "",
+                room_address=await _room_address_for(session, task.room_id),
+            )
         )
         count += 1
 

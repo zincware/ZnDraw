@@ -105,6 +105,37 @@ InternalProviderRegistryDep = Annotated[
 ]
 TsioDep = Annotated[AsyncServerWrapper | None, Depends(get_tsio)]
 
+
+from uuid import UUID as _UUID
+
+_NIL_ROOM_UUID = _UUID(int=0)
+
+
+def _event_room_uuid(room_id: str) -> _UUID:
+    """Return a UUID for the wire room_id field. Sigils map to the NIL UUID."""
+    if room_id in ("@global", "@internal"):
+        return _NIL_ROOM_UUID
+    try:
+        return _UUID(room_id)
+    except ValueError:
+        return _NIL_ROOM_UUID
+
+
+async def _room_address_for(session: AsyncSession, room_id: str) -> str:
+    """Return ``room.public_address`` for a surrogate room_id, or the sigil itself."""
+    if room_id in ("@global", "@internal"):
+        return room_id
+    try:
+        from zndraw.models import Room
+
+        room = await session.get(Room, room_id)
+    except Exception:
+        return room_id
+    if room is None:
+        return room_id
+    return room.public_address
+
+
 # Valid status transitions
 VALID_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {
     TaskStatus.PENDING: {TaskStatus.CLAIMED, TaskStatus.CANCELLED},
@@ -225,15 +256,14 @@ async def _bulk_task_responses(
 
 
 async def _task_status_emission(session: AsyncSession, task: Task) -> Emission:
-    """Build a TaskStatusEvent emission from a task.
-
-    Queries job name and queue position.
-    """
+    """Build a TaskStatusEvent emission from a task."""
     result = await session.exec(select(Job).where(Job.id == task.job_id))
     job = result.one_or_none()
+    room_address = await _room_address_for(session, task.room_id)
     return build_task_status_emission(
         task,
         job_full_name=job.full_name if job else "",
+        room_address=room_address,
         queue_position=await _queue_position(session, task),
     )
 
@@ -367,7 +397,19 @@ async def register_job(
         session.add(link)
 
     await session.commit()
-    await emit(tsio, {Emission(JobsInvalidate(), f"room:{room_id}")})
+    room_address = await _room_address_for(session, room_id)
+    await emit(
+        tsio,
+        {
+            Emission(
+                JobsInvalidate(
+                    room_id=_event_room_uuid(room_id),
+                    room_address=room_address,
+                ),
+                f"room:{room_id}",
+            )
+        },
+    )
     await session.refresh(job)
 
     # Get worker IDs for this job
@@ -1143,7 +1185,19 @@ async def register_provider(
 
     await session.commit()
     await session.refresh(provider)
-    await emit(tsio, {Emission(ProvidersInvalidate(), f"room:{provider.room_id}")})
+    room_address = await _room_address_for(session, provider.room_id)
+    await emit(
+        tsio,
+        {
+            Emission(
+                ProvidersInvalidate(
+                    room_id=_event_room_uuid(provider.room_id),
+                    room_address=room_address,
+                ),
+                f"room:{provider.room_id}",
+            )
+        },
+    )
 
     return ProviderResponse.from_record(provider)
 
@@ -1358,7 +1412,19 @@ async def delete_provider(
     room_id = provider.room_id
     await session.delete(provider)
     await session.commit()
-    await emit(tsio, {Emission(ProvidersInvalidate(), f"room:{room_id}")})
+    room_address = await _room_address_for(session, room_id)
+    await emit(
+        tsio,
+        {
+            Emission(
+                ProvidersInvalidate(
+                    room_id=_event_room_uuid(room_id),
+                    room_address=room_address,
+                ),
+                f"room:{room_id}",
+            )
+        },
+    )
 
 
 @router.post(
@@ -1419,11 +1485,15 @@ async def upload_provider_result(
     await result_backend.notify_key(cache_key)
 
     # Notify frontend (Socket.IO — UI refresh)
+    async with session_maker() as session_addr:
+        room_address = await _room_address_for(session_addr, provider.room_id)
     await emit(
         tsio,
         {
             Emission(
                 ProviderResultReady(
+                    room_id=_event_room_uuid(provider.room_id),
+                    room_address=room_address,
                     provider_name=provider.full_name,
                     request_hash=x_request_hash,
                 ),

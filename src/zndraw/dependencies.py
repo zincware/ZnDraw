@@ -27,6 +27,7 @@ from zndraw.access import (
     can_manage,
     can_read,
 )
+from zndraw.broadcast import room_channel  # re-export for legacy importers (Task 6 removes)
 from zndraw.exceptions import (
     Forbidden,
     NotAuthenticated,
@@ -185,11 +186,6 @@ async def verify_room(session: AsyncSession, room_id: str) -> Room:
     if room is None:
         raise RoomNotFound.exception(f"Room with id {room_id} not found")
     return room
-
-
-def room_channel(room_id: str) -> str:
-    """Get Socket.IO room channel name."""
-    return f"room:{room_id}"
 
 
 # =============================================================================
@@ -477,13 +473,7 @@ async def get_writable_room_id(
     room_id: str = Path(),
     x_room_share_token: str | None = Header(default=None, alias="X-Room-Share-Token"),
 ) -> str:
-    """Verify a composed-form room is writable and return the composed id.
-
-    Sigils (@global, @internal) short-circuit. Otherwise the composed
-    ``{owner_uuid}/{name}`` is resolved via the unique index for the
-    auth/lock checks; joblib stores rows keyed by the composed string so
-    its existing opaque-key semantics hold.
-    """
+    """Verify a room is writable and return the surrogate UUID string."""
     validate_room_id(room_id)
     if room_id in ("@global", "@internal"):
         return room_id
@@ -501,7 +491,7 @@ async def get_writable_room_id(
         raise Forbidden.exception("You may not edit this room")
     lock_token = request.headers.get("Lock-Token")
     await _check_edit_lock(redis, room.id, lock_token)
-    return room_id
+    return room.id
 
 
 # =============================================================================
