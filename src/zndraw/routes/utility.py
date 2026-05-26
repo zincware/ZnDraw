@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 import zndraw
 from zndraw.config import SettingsDep
+from zndraw.broadcast import room_channel
 from zndraw.dependencies import (
     AccessReadDep,
     ActiveSessionCamDep,
@@ -18,7 +19,6 @@ from zndraw.dependencies import (
     SioDep,
     VerifiedSessionDep,
     WritableRoomDep,
-    room_channel,
 )
 from zndraw.exceptions import (
     GeometryNotFound,

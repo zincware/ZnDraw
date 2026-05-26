@@ -7,11 +7,11 @@ import json
 
 from fastapi import APIRouter, Response, status
 
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
     AccessEditDep,
     RedisDep,
     SioDep,
-    room_channel,
 )
 from zndraw.exceptions import (
     NotAuthenticated,
@@ -53,13 +53,15 @@ async def create_progress(
     await redis.hset(key, request.progress_id, tracker.model_dump_json())  # type: ignore[misc]
     await redis.expire(key, PROGRESS_TTL)  # type: ignore[misc]
 
-    await sio.emit(
-        ProgressStart(
+    await broadcast_to_room(
+        sio,
+        ProgressStart.for_room(
+            access.room,
             progress_id=request.progress_id,
             description=request.description,
             unit=request.unit,
         ),
-        room=room_channel(room_id),
+        access.room,
     )
 
     return tracker
@@ -93,8 +95,10 @@ async def update_progress(
     await redis.hset(key, progress_id, json.dumps(current))  # type: ignore[misc]
     await redis.expire(key, PROGRESS_TTL)  # type: ignore[misc]
 
-    await sio.emit(
-        ProgressUpdate(
+    await broadcast_to_room(
+        sio,
+        ProgressUpdate.for_room(
+            access.room,
             progress_id=progress_id,
             description=request.description,
             n=request.n,
@@ -102,7 +106,7 @@ async def update_progress(
             elapsed=request.elapsed,
             unit=request.unit,
         ),
-        room=room_channel(room_id),
+        access.room,
     )
 
     return ProgressResponse(**current)
@@ -126,9 +130,10 @@ async def delete_progress(
     if not deleted:
         raise ProgressNotFound.exception(f"Progress tracker {progress_id} not found")
 
-    await sio.emit(
-        ProgressComplete(progress_id=progress_id),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        ProgressComplete.for_room(access.room, progress_id=progress_id),
+        access.room,
     )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -7,13 +7,13 @@ from fastapi import APIRouter, Query, status
 from sqlalchemy import func
 from sqlmodel import col, select
 
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
     AccessEditDep,
     AccessReadDep,
     CurrentUserDep,
     SessionDep,
     SioDep,
-    room_channel,
 )
 from zndraw.exceptions import (
     MessageNotFound,
@@ -143,16 +143,17 @@ async def create_message(
 
     email = current_user.email
 
-    await sio.emit(
-        MessageNew(
+    await broadcast_to_room(
+        sio,
+        MessageNew.for_room(
+            access.room,
             id=msg.id,  # type: ignore[arg-type]
-            room_id=room_id,
             user_id=current_user.id,  # type: ignore[arg-type]
             content=msg.content,
             created_at=msg.created_at,
             email=email,
         ),
-        room=room_channel(room_id),
+        access.room,
     )
 
     return _message_to_response(msg, email)
@@ -187,14 +188,15 @@ async def edit_message(
     await session.commit()
     await session.refresh(msg)
 
-    await sio.emit(
-        MessageEdited(
+    await broadcast_to_room(
+        sio,
+        MessageEdited.for_room(
+            access.room,
             id=msg.id,  # type: ignore[arg-type]
-            room_id=room_id,
             content=msg.content,
             updated_at=msg.updated_at,
         ),
-        room=room_channel(room_id),
+        access.room,
     )
 
     return _message_to_response(msg, current_user.email)

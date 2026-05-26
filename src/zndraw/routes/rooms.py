@@ -12,6 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw.access import Visibility
 from zndraw.config import SettingsDep
+from zndraw.broadcast import room_channel
 from zndraw.dependencies import (
     AccessManageDep,
     AccessReadDep,
@@ -25,7 +26,6 @@ from zndraw.dependencies import (
     _load_room_by_address,
     fetch_group_role,
     resolve_owner,
-    room_channel,
 )
 from zndraw.exceptions import (
     Forbidden,

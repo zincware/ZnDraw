@@ -20,6 +20,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from zndraw_socketio import AsyncServerWrapper
 
 from zndraw.access import can_read
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
     CurrentUserFactoryDep,
     FrameStorageDep,
@@ -33,7 +34,6 @@ from zndraw.dependencies import (
     _load_access_context,
     _load_room_by_address,
     resolve_share_token,
-    room_channel,
 )
 from zndraw.exceptions import (
     FrameNotFound,
@@ -520,9 +520,10 @@ async def append_frames(
     new_total = await storage[room_id].extend(raw_frames)
 
     # Broadcast invalidation to room with new total frame count
-    await sio.emit(
-        FramesInvalidate(room_id=room_id, action="add", count=new_total),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FramesInvalidate.for_room(room, action="add", count=new_total),
+        room,
     )
     await broadcast_room_update(sio, session, storage, room)
 
@@ -561,9 +562,10 @@ async def update_frame(
     _validate_frame_keys(raw_frame)
     await storage[room_id][index].set(raw_frame)
 
-    await sio.emit(
-        FramesInvalidate(room_id=room_id, action="modify", indices=[index]),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FramesInvalidate.for_room(room, action="modify", indices=[index]),
+        room,
     )
 
     return FrameResponse(index=index, data=request.data)
@@ -610,9 +612,10 @@ async def merge_frame(
 
     await storage[room_id][index].update(partial)
 
-    await sio.emit(
-        FramesInvalidate(room_id=room_id, action="modify", indices=[index]),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FramesInvalidate.for_room(room, action="modify", indices=[index]),
+        room,
     )
 
     updated_keys = [k.decode() for k in partial]
@@ -650,11 +653,12 @@ async def delete_frame(
     new_total = await storage.get_length(room_id)
 
     # Broadcast invalidation to room with new frame count
-    await sio.emit(
-        FramesInvalidate(
-            room_id=room_id, action="delete", indices=[index], count=new_total
+    await broadcast_to_room(
+        sio,
+        FramesInvalidate.for_room(
+            room, action="delete", indices=[index], count=new_total
         ),
-        room=room_channel(room_id),
+        room,
     )
     await broadcast_room_update(sio, session, storage, room)
 

@@ -8,6 +8,7 @@ from fastapi import APIRouter
 from pydantic import ValidationError
 from sqlmodel import select
 
+from zndraw.broadcast import room_channel
 from zndraw.dependencies import (
     AccessEditDep,
     AccessReadDep,
@@ -16,7 +17,6 @@ from zndraw.dependencies import (
     SessionDep,
     SioDep,
     WritableGeometryDep,
-    room_channel,
 )
 from zndraw.exceptions import (
     Forbidden,

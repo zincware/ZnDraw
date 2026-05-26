@@ -3,12 +3,12 @@
 from fastapi import APIRouter
 from sqlmodel import select
 
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
     AccessReadDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
-    room_channel,
 )
 from zndraw.exceptions import (
     BookmarkNotFound,
@@ -88,9 +88,10 @@ async def set_bookmark(
         row.label = request.label
     await session.commit()
 
-    await sio.emit(
-        BookmarksInvalidate(room_id=room_id, index=index, operation="set"),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        BookmarksInvalidate.for_room(_room, index=index, operation="set"),
+        _room,
     )
 
     return BookmarkResponse(index=index, label=request.label)
@@ -117,9 +118,10 @@ async def delete_bookmark(
     await session.delete(row)
     await session.commit()
 
-    await sio.emit(
-        BookmarksInvalidate(room_id=room_id, index=index, operation="delete"),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        BookmarksInvalidate.for_room(_room, index=index, operation="delete"),
+        _room,
     )
 
     return StatusResponse()

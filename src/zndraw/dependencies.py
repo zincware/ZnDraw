@@ -27,7 +27,6 @@ from zndraw.access import (
     can_manage,
     can_read,
 )
-from zndraw.broadcast import room_channel  # re-export for legacy importers (Task 6 removes)
 from zndraw.exceptions import (
     Forbidden,
     NotAuthenticated,

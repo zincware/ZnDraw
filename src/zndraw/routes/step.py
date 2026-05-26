@@ -2,13 +2,13 @@
 
 from fastapi import APIRouter
 
+from zndraw.broadcast import room_channel
 from zndraw.dependencies import (
     AccessReadDep,
     FrameStorageDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
-    room_channel,
 )
 from zndraw.exceptions import (
     NotAuthenticated,

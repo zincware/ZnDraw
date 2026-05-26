@@ -9,7 +9,8 @@ from fastapi_users.jwt import decode_jwt
 from jwt import InvalidTokenError
 from zndraw_socketio import EventContext, wrap
 
-from zndraw.dependencies import FrameStorageDep, RedisDep, room_channel
+from zndraw.broadcast import room_channel
+from zndraw.dependencies import FrameStorageDep, RedisDep
 from zndraw.exceptions import (
     NotInRoom,
     ProblemError,

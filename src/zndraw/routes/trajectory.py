@@ -18,6 +18,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from zndraw.connectivity import add_connectivity
+from zndraw.broadcast import room_channel
 from zndraw.dependencies import (
     AccessReadDep,
     CurrentUserDep,
@@ -30,7 +31,6 @@ from zndraw.dependencies import (
     _load_room_by_address,
     fetch_group_role,
     resolve_share_token,
-    room_channel,
 )
 from zndraw.enrichment import add_colors, add_radii
 from zndraw.exceptions import (

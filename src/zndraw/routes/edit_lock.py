@@ -8,13 +8,13 @@ from typing import Annotated
 from fastapi import APIRouter, Header
 
 from zndraw.config import SettingsDep
+from zndraw.broadcast import room_channel
 from zndraw.dependencies import (
     AccessEditDep,
     AccessReadDep,
     CurrentUserDep,
     RedisDep,
     SioDep,
-    room_channel,
 )
 from zndraw.exceptions import (
     Forbidden,

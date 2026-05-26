@@ -3,12 +3,12 @@
 from fastapi import APIRouter, status
 from sqlmodel import select
 
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
     AccessReadDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
-    room_channel,
 )
 from zndraw.exceptions import (
     FigureNotFound,
@@ -92,9 +92,10 @@ async def create_figure(
         row.data = request.figure.data
     await session.commit()
 
-    await sio.emit(
-        FigureInvalidate(room_id=room_id, key=key, operation="set"),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FigureInvalidate.for_room(_room, key=key, operation="set"),
+        _room,
     )
 
     return FigureCreateResponse(key=key, created=created)
@@ -121,9 +122,10 @@ async def delete_figure(
     await session.delete(row)
     await session.commit()
 
-    await sio.emit(
-        FigureInvalidate(room_id=room_id, key=key, operation="delete"),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FigureInvalidate.for_room(_room, key=key, operation="delete"),
+        _room,
     )
 
     return StatusResponse()

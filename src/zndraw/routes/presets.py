@@ -8,12 +8,12 @@ from functools import lru_cache
 from fastapi import APIRouter
 from sqlmodel import select
 
+from zndraw.broadcast import room_channel
 from zndraw.dependencies import (
     AccessReadDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
-    room_channel,
 )
 from zndraw.exceptions import (
     InvalidPresetRule,
