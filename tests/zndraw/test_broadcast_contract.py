@@ -117,6 +117,39 @@ async def test_every_route_action_emits_consistent_room_scoped_events(
     )
     assert r.status_code in (200, 201), r.text
 
+    # step family — FrameUpdate (needs at least one frame so step=0 is valid)
+    r = await client.put(f"{base}/step", json={"step": 0}, headers=headers)
+    assert r.status_code == 200, r.text
+
+    # geometry family — GeometryInvalidate
+    r = await client.put(
+        f"{base}/geometries/g1",
+        json={"type": "Sphere", "data": {}},
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+
+    # selection-groups family — SelectionGroupsInvalidate
+    r = await client.put(
+        f"{base}/selection-groups/sg1",
+        json={"selections": {}},
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+
+    # frame-selection family — FrameSelectionUpdate (Task 2 finding #1)
+    r = await client.put(
+        f"{base}/frame-selection",
+        json={"indices": [0]},
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+
+    # edit-lock family — LockUpdate. Locks the room, so this runs LAST after
+    # all other writes.
+    r = await client.put(f"{base}/edit-lock", json={"msg": "testing"}, headers=headers)
+    assert r.status_code == 200, r.text
+
     rs_event_names = _room_scoped_event_names()
     captured = [e for e in mock_sio.emitted if e["event"] in rs_event_names]
     assert captured, "no RoomScopedEvent emissions observed across the matrix"
