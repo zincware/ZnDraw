@@ -226,7 +226,10 @@ max-args = 10  # Allow up to 10 args for FastAPI endpoints
 testpaths = ["tests/zndraw", "tests/zndraw_auth", "tests/zndraw_joblib"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-markers = ["integration: marks tests as integration tests (require running server)"]
+markers = [
+    "integration: marks tests as integration tests (require running server)",
+    "protected: marks tests that must not be modified",
+]
 filterwarnings = [
     'error:[\s\S]*You probably want to use .session\.exec:DeprecationWarning',
     'ignore::DeprecationWarning:fastapi_users_db_sqlalchemy',

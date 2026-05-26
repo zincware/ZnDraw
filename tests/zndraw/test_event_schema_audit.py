@@ -6,6 +6,9 @@ Fails fast at collect time if any subclass forgets to declare both
 
 from __future__ import annotations
 
+import enum
+import typing
+from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
@@ -26,6 +29,31 @@ def _all_subclasses(cls: type) -> set[type]:
         out.add(sub)
         stack.extend(sub.__subclasses__())
     return out
+
+
+def _sample_value(annotation: object) -> object:
+    """Best-effort default for required non-id fields used only by the audit test."""
+    if annotation is int:
+        return 0
+    if annotation is str:
+        return "x"
+    if annotation is bool:
+        return False
+    if annotation is float:
+        return 0.0
+    if annotation is UUID:
+        return UUID("22222222-2222-2222-2222-222222222222")
+    if annotation is datetime:
+        return datetime.now(UTC)
+    origin = typing.get_origin(annotation)
+    if origin is typing.Literal:
+        return typing.get_args(annotation)[0]
+    if origin is list:
+        return []
+    if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
+        return next(iter(annotation))
+    # Fallback — most enums/literals/optionals validate from a short string.
+    return "x"
 
 
 @pytest.mark.protected
@@ -64,24 +92,3 @@ def test_for_room_round_trip_uses_room_attributes() -> None:
         event = cls.for_room(_RoomStub(), **extra)
         assert str(event.room_id) == _RoomStub.id
         assert event.room_address == _RoomStub.public_address
-
-
-def _sample_value(annotation: object) -> object:
-    """Best-effort default for required non-id fields used only by the audit test."""
-    from datetime import UTC, datetime
-    from uuid import UUID as _UUID
-
-    if annotation is int:
-        return 0
-    if annotation is str:
-        return "x"
-    if annotation is bool:
-        return False
-    if annotation is float:
-        return 0.0
-    if annotation is _UUID:
-        return _UUID("22222222-2222-2222-2222-222222222222")
-    if annotation is datetime:
-        return datetime.now(UTC)
-    # Fallback — most enums/literals/optionals validate from a short string.
-    return "x"
