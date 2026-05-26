@@ -9,6 +9,7 @@ export interface FrameUpdateEvent {
 
 export interface FramesInvalidateEvent {
 	room_id: string;
+	room_address: string;
 	action: "add" | "delete" | "modify" | "clear";
 	indices?: number[];
 	count?: number | null;
@@ -32,7 +33,7 @@ export function createFrameHandlers(ctx: HandlerContext) {
 	}
 
 	function onFramesInvalidate(data: FramesInvalidateEvent) {
-		const { room_id: eventRoomId, action, indices, count, reason } = data;
+		const { room_address: eventRoomAddress, action, indices, count, reason } = data;
 
 		// Update frameCount if provided (new total frame count)
 		if (count != null) {
@@ -54,7 +55,7 @@ export function createFrameHandlers(ctx: HandlerContext) {
 				// Only invalidate frame and metadata queries for this room
 				if (
 					(type !== "frame" && type !== "metadata") ||
-					qRoomId !== eventRoomId
+					qRoomId !== eventRoomAddress
 				)
 					return false;
 

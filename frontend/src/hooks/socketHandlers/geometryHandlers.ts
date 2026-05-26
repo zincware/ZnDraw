@@ -18,6 +18,7 @@ export interface GeometryInvalidateEvent {
 
 export interface DefaultCameraInvalidateEvent {
 	room_id: string;
+	room_address: string;
 	default_camera: string | null;
 }
 
@@ -163,7 +164,7 @@ export function createGeometryHandlers(ctx: HandlerContext) {
 	);
 
 	function onDefaultCameraInvalidate(data: DefaultCameraInvalidateEvent) {
-		ctx.queryClient.setQueryData(["defaultCamera", data.room_id], {
+		ctx.queryClient.setQueryData(["defaultCamera", data.room_address], {
 			default_camera: data.default_camera,
 		});
 	}
