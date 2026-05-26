@@ -8,7 +8,7 @@ of emissions via the Emission NamedTuple.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Any, NamedTuple
 from uuid import UUID
 
@@ -19,7 +19,7 @@ from zndraw.socket_events import RoomScopedEvent
 if TYPE_CHECKING:
     from zndraw_socketio import AsyncServerWrapper
 
-from zndraw_joblib.models import Task, TaskStatus
+from zndraw_joblib.models import Task, TaskStatus  # noqa: TC001
 
 NIL_ROOM_UUID = UUID(int=0)
 

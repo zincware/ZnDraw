@@ -141,7 +141,7 @@ async def _fetch_room(session: AsyncSession, room_id: str):
                 )
             )
             return result.one_or_none()
-        return None
+        return None  # noqa: TRY300
     except (OperationalError, ProgrammingError):
         # Joblib-only test environments don't always have the Room table.
         return None

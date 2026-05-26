@@ -9,7 +9,7 @@ Sigil channels (``@global``, ``@internal``) are whitelisted: this test only
 drives real-room actions, so no sigil channel should appear.
 """
 
-from __future__ import annotations
+from uuid import UUID
 
 import ase
 import pytest
@@ -21,11 +21,9 @@ from helpers import (
 )
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import UUID
 
 import zndraw.socket_events  # noqa: F401 — registers all subclasses
 import zndraw_joblib.events  # noqa: F401 — registers joblib subclasses
-
 from zndraw.client import atoms_to_json_dict
 from zndraw.socket_events import RoomScopedEvent
 
@@ -33,7 +31,9 @@ from zndraw.socket_events import RoomScopedEvent
 def _make_json_frame(formula: str = "H2") -> dict:
     atoms = ase.Atoms(
         formula,
-        positions=[[i, 0, 0] for i in range(ase.Atoms(formula).get_global_number_of_atoms())],
+        positions=[
+            [i, 0, 0] for i in range(ase.Atoms(formula).get_global_number_of_atoms())
+        ],
     )
     return atoms_to_json_dict(atoms)
 
@@ -80,9 +80,7 @@ async def test_every_route_action_emits_consistent_room_scoped_events(
     assert r.status_code == 201, r.text
 
     # bookmarks family
-    r = await client.put(
-        f"{base}/bookmarks/0", json={"label": "x"}, headers=headers
-    )
+    r = await client.put(f"{base}/bookmarks/0", json={"label": "x"}, headers=headers)
     assert r.status_code == 200, r.text
 
     # figures family — data must be a JSON string per FigureData schema

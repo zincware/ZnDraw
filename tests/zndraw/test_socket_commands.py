@@ -6,9 +6,6 @@ from uuid import UUID, uuid4
 import pytest
 from pydantic import ValidationError
 
-ROOM_UUID = UUID("00000000-0000-0000-0000-000000000001")
-ROOM_ADDRESS = "11111111-1111-1111-1111-111111111111/test"
-
 from zndraw.socket_events import (
     BookmarksInvalidate,
     FigureInvalidate,
@@ -34,6 +31,9 @@ from zndraw.socket_events import (
     UserGet,
     UserGetResponse,
 )
+
+ROOM_UUID = UUID("00000000-0000-0000-0000-000000000001")
+ROOM_ADDRESS = "11111111-1111-1111-1111-111111111111/test"
 
 # =============================================================================
 # socket_events: Request models
@@ -214,7 +214,11 @@ def test_session_joined_fields() -> None:
     """SessionJoined carries user identity fields."""
     uid = uuid4()
     event = SessionJoined(
-        room_id=ROOM_UUID, room_address=ROOM_ADDRESS, user_id=uid, sid="socket-123", email="user@x.com"
+        room_id=ROOM_UUID,
+        room_address=ROOM_ADDRESS,
+        user_id=uid,
+        sid="socket-123",
+        email="user@x.com",
     )
     data = event.model_dump(mode="json")
     assert data["room_id"] == str(ROOM_UUID)
@@ -226,14 +230,18 @@ def test_session_joined_fields() -> None:
 def test_session_joined_email_optional() -> None:
     """SessionJoined defaults email to None."""
     uid = uuid4()
-    event = SessionJoined(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, user_id=uid, sid="s1")
+    event = SessionJoined(
+        room_id=ROOM_UUID, room_address=ROOM_ADDRESS, user_id=uid, sid="s1"
+    )
     assert event.email is None
 
 
 def test_session_left_fields() -> None:
     """SessionLeft carries minimal identity fields."""
     uid = uuid4()
-    event = SessionLeft(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, user_id=uid, sid="s1")
+    event = SessionLeft(
+        room_id=ROOM_UUID, room_address=ROOM_ADDRESS, user_id=uid, sid="s1"
+    )
     data = event.model_dump(mode="json")
     assert data["room_id"] == str(ROOM_UUID)
     assert data["user_id"] == str(uid)
@@ -253,12 +261,17 @@ def test_session_left_fields() -> None:
 def test_room_only_invalidation(model_cls: type) -> None:
     """Invalidation models with only room_id."""
     event = model_cls(room_id=ROOM_UUID, room_address=ROOM_ADDRESS)
-    assert event.model_dump(mode="json") == {"room_id": str(ROOM_UUID), "room_address": ROOM_ADDRESS}
+    assert event.model_dump(mode="json") == {
+        "room_id": str(ROOM_UUID),
+        "room_address": ROOM_ADDRESS,
+    }
 
 
 def test_geometry_invalidate_fields() -> None:
     """GeometryInvalidate carries operation and key."""
-    event = GeometryInvalidate(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, operation="set", key="mol1")
+    event = GeometryInvalidate(
+        room_id=ROOM_UUID, room_address=ROOM_ADDRESS, operation="set", key="mol1"
+    )
     data = event.model_dump(mode="json")
     assert data["operation"] == "set"
     assert data["key"] == "mol1"
@@ -266,7 +279,9 @@ def test_geometry_invalidate_fields() -> None:
 
 def test_bookmarks_invalidate_fields() -> None:
     """BookmarksInvalidate carries index and operation."""
-    event = BookmarksInvalidate(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, index=5, operation="delete")
+    event = BookmarksInvalidate(
+        room_id=ROOM_UUID, room_address=ROOM_ADDRESS, index=5, operation="delete"
+    )
     data = event.model_dump(mode="json")
     assert data["index"] == 5
     assert data["operation"] == "delete"
@@ -274,7 +289,9 @@ def test_bookmarks_invalidate_fields() -> None:
 
 def test_figure_invalidate_fields() -> None:
     """FigureInvalidate carries key and operation."""
-    event = FigureInvalidate(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, key="fig-1", operation="set")
+    event = FigureInvalidate(
+        room_id=ROOM_UUID, room_address=ROOM_ADDRESS, key="fig-1", operation="set"
+    )
     data = event.model_dump(mode="json")
     assert data["key"] == "fig-1"
     assert data["operation"] == "set"
@@ -333,7 +350,13 @@ def test_message_new_fields() -> None:
     uid = uuid4()
     now = datetime.now(tz=UTC)
     event = MessageNew(
-        id=1, room_id=ROOM_UUID, room_address=ROOM_ADDRESS, user_id=uid, content="hello", created_at=now, email="a@b.c"
+        id=1,
+        room_id=ROOM_UUID,
+        room_address=ROOM_ADDRESS,
+        user_id=uid,
+        content="hello",
+        created_at=now,
+        email="a@b.c",
     )
     data = event.model_dump(mode="json")
     assert data["id"] == 1
@@ -346,7 +369,13 @@ def test_message_new_fields() -> None:
 def test_message_edited_fields() -> None:
     """MessageEdited carries id, room_id, content, updated_at."""
     now = datetime.now(tz=UTC)
-    event = MessageEdited(id=1, room_id=ROOM_UUID, room_address=ROOM_ADDRESS, content="edited", updated_at=now)
+    event = MessageEdited(
+        id=1,
+        room_id=ROOM_UUID,
+        room_address=ROOM_ADDRESS,
+        content="edited",
+        updated_at=now,
+    )
     data = event.model_dump(mode="json")
     assert data["id"] == 1
     assert data["content"] == "edited"
@@ -355,7 +384,13 @@ def test_message_edited_fields() -> None:
 def test_typing_broadcast_fields() -> None:
     """Typing broadcast carries user identity and typing state."""
     uid = uuid4()
-    event = Typing(room_id=ROOM_UUID, room_address=ROOM_ADDRESS, user_id=uid, is_typing=True, email="a@b.c")
+    event = Typing(
+        room_id=ROOM_UUID,
+        room_address=ROOM_ADDRESS,
+        user_id=uid,
+        is_typing=True,
+        email="a@b.c",
+    )
     data = event.model_dump(mode="json")
     assert data["is_typing"] is True
     assert data["email"] == "a@b.c"
@@ -369,8 +404,19 @@ def test_typing_broadcast_fields() -> None:
 @pytest.mark.parametrize(
     ("model_cls", "kwargs"),
     [
-        (FrameUpdate, {"room_id": ROOM_UUID, "room_address": ROOM_ADDRESS, "frame": 42}),
-        (FramesInvalidate, {"room_id": ROOM_UUID, "room_address": ROOM_ADDRESS, "action": "modify", "indices": [0, 1]}),
+        (
+            FrameUpdate,
+            {"room_id": ROOM_UUID, "room_address": ROOM_ADDRESS, "frame": 42},
+        ),
+        (
+            FramesInvalidate,
+            {
+                "room_id": ROOM_UUID,
+                "room_address": ROOM_ADDRESS,
+                "action": "modify",
+                "indices": [0, 1],
+            },
+        ),
         (
             SessionJoined,
             {
@@ -389,7 +435,15 @@ def test_typing_broadcast_fields() -> None:
                 "sid": "s",
             },
         ),
-        (GeometryInvalidate, {"room_id": ROOM_UUID, "room_address": ROOM_ADDRESS, "operation": "delete", "key": "k"}),
+        (
+            GeometryInvalidate,
+            {
+                "room_id": ROOM_UUID,
+                "room_address": ROOM_ADDRESS,
+                "operation": "delete",
+                "key": "k",
+            },
+        ),
     ],
     ids=[
         "FrameUpdate",

@@ -6,8 +6,6 @@ the predicate never matched. This test pins ``room_address`` to the composed
 form.
 """
 
-from __future__ import annotations
-
 import ase
 import pytest
 from helpers import (
@@ -25,7 +23,9 @@ from zndraw.client import atoms_to_json_dict
 def _make_json_frame(formula: str = "H2") -> dict:
     atoms = ase.Atoms(
         formula,
-        positions=[[i, 0, 0] for i in range(ase.Atoms(formula).get_global_number_of_atoms())],
+        positions=[
+            [i, 0, 0] for i in range(ase.Atoms(formula).get_global_number_of_atoms())
+        ],
     )
     return atoms_to_json_dict(atoms)
 

@@ -5,8 +5,6 @@ Before the wire-convention refactor, ``register_job`` emitted to
 ``room:<surrogate>``. This test pins the surrogate channel.
 """
 
-from __future__ import annotations
-
 import pytest
 from helpers import (
     MockSioServer,
@@ -38,9 +36,7 @@ async def test_register_job_emits_to_surrogate_channel(
     )
     assert response.status_code == 201, response.text
 
-    invalidate_emits = [
-        e for e in mock_sio.emitted if e["event"] == "jobs_invalidate"
-    ]
+    invalidate_emits = [e for e in mock_sio.emitted if e["event"] == "jobs_invalidate"]
     assert len(invalidate_emits) == 1, (
         f"expected 1 jobs_invalidate, got {len(invalidate_emits)}"
     )

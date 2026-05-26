@@ -1,15 +1,11 @@
 """Room-scoped broadcast helpers."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
 from uuid import UUID
 
-from zndraw.socket_events import RoomScopedEvent
+from zndraw_socketio import AsyncServerWrapper
 
-if TYPE_CHECKING:
-    from zndraw.models import Room
-    from zndraw_socketio import AsyncServerWrapper
+from zndraw.models import Room
+from zndraw.socket_events import RoomScopedEvent
 
 
 def room_channel(room_id: str | UUID) -> str:
@@ -17,9 +13,9 @@ def room_channel(room_id: str | UUID) -> str:
 
 
 async def broadcast_to_room(
-    sio: "AsyncServerWrapper",
+    sio: AsyncServerWrapper,
     event: RoomScopedEvent,
-    room: "Room",
+    room: Room,
     *,
     also_notify_user: UUID | str | None = None,
     skip_sid: str | None = None,

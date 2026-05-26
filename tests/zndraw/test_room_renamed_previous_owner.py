@@ -9,8 +9,6 @@ to G's namespace. Expectations:
   - The in-room channel room:<surrogate> receives RoomRenamed
 """
 
-from __future__ import annotations
-
 import pytest
 from helpers import (
     MockSioServer,

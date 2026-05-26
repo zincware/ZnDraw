@@ -419,7 +419,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # SQLite serialization lock.
         from zndraw.broadcast import broadcast_to_room
         from zndraw.dependencies import _load_room_by_address
-        from zndraw.models import Room
+        from zndraw.models import Room  # noqa: TC001
 
         async def frame_room_cleanup(room_ids: set[str]) -> None:
             rooms: list[Room] = []
