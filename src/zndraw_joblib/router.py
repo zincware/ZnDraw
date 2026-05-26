@@ -107,17 +107,51 @@ InternalProviderRegistryDep = Annotated[
 TsioDep = Annotated[AsyncServerWrapper | None, Depends(get_tsio)]
 
 
-async def _room_address_for(session: AsyncSession, room_id: str) -> str:
-    """Return ``room.public_address`` for a surrogate room_id, or the sigil itself."""
+async def _fetch_room(session: AsyncSession, room_id: str):
+    """Return the Room for a surrogate room_id, or None for sigils/unknown.
+
+    ``room_id`` may be a surrogate UUID string OR a composed ``<owner>/<name>``
+    string (the latter occurs when the joblib override is absent in tests).
+    Falls back to a composed-address lookup when the primary-key lookup misses.
+    """
     if room_id in ("@global", "@internal"):
-        return room_id
+        return None
     from zndraw.models import Room
 
     try:
         room = await session.get(Room, room_id)
+        if room is not None:
+            return room
+        # Composed-address fallback: owner_uuid/room_name
+        if "/" in room_id:
+            owner_part, _, name_part = room_id.partition("/")
+            try:
+                owner_uuid = UUID(owner_part)
+            except ValueError:
+                return None
+            from sqlmodel import col, or_, select as sql_select
+
+            result = await session.exec(
+                sql_select(Room).where(
+                    or_(
+                        Room.owner_user_id == owner_uuid,
+                        Room.owner_group_id == owner_uuid,
+                    ),
+                    col(Room.room_name) == name_part,
+                )
+            )
+            return result.one_or_none()
+        return None
     except (OperationalError, ProgrammingError):
         # Joblib-only test environments don't always have the Room table.
+        return None
+
+
+async def _room_address_for(session: AsyncSession, room_id: str) -> str:
+    """Return ``room.public_address`` for a surrogate room_id, or the sigil itself."""
+    if room_id in ("@global", "@internal"):
         return room_id
+    room = await _fetch_room(session, room_id)
     if room is None:
         return room_id
     return room.public_address
@@ -384,19 +418,17 @@ async def register_job(
         session.add(link)
 
     await session.commit()
-    room_address = await _room_address_for(session, room_id)
-    await emit(
-        tsio,
-        {
-            Emission(
-                JobsInvalidate(
-                    room_id=event_room_uuid(room_id),
-                    room_address=room_address,
-                ),
-                f"room:{room_id}",
-            )
-        },
-    )
+    _room = await _fetch_room(session, room_id)
+    if _room is not None:
+        _jobs_event = JobsInvalidate.for_room(_room)
+        _emit_channel = f"room:{_room.id}"
+    else:
+        _jobs_event = JobsInvalidate(
+            room_id=event_room_uuid(room_id),
+            room_address=room_id,
+        )
+        _emit_channel = f"room:{room_id}"
+    await emit(tsio, {Emission(_jobs_event, _emit_channel)})
     await session.refresh(job)
 
     # Get worker IDs for this job
