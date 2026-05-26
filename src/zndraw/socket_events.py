@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 class RoomScopedEvent(BaseModel):
-    """Mixin: room-scoped events carry both ids and use ``.for_room`` as constructor."""
+    """Base class for room-scoped broadcast events."""
 
     room_id: UUID
     room_address: str
@@ -265,10 +265,6 @@ class ProgressComplete(RoomScopedEvent):
 
 
 class RoomRenamed(RoomScopedEvent):
-    """Broadcast on a successful room transfer; the composed address changed.
-
-    ``room_address`` carries the NEW composed address (current state);
-    ``old_address`` is the value clients used before the transfer.
-    """
+    """Broadcast when a room is transferred to a new owner."""
 
     old_address: str
