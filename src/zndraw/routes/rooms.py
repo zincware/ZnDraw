@@ -643,6 +643,7 @@ async def update_room(
     changed = False
     old_address = room.public_address
     previous_owner_user_id: UUID | None = room.owner_user_id
+    previous_owner_group_id: UUID | None = room.owner_group_id
 
     if updates.description is not None:
         room.description = updates.description
@@ -711,11 +712,24 @@ async def update_room(
         ) from exc
 
     if updates.new_owner_id is not None:
+        prev_user_ids: list[UUID] = []
+        if previous_owner_group_id is not None:
+            from zndraw.models import GroupMembership
+
+            result = await session.exec(
+                select(GroupMembership.user_id).where(
+                    GroupMembership.group_id == previous_owner_group_id
+                )
+            )
+            prev_user_ids = list(result.all())
+        elif previous_owner_user_id is not None:
+            prev_user_ids = [previous_owner_user_id]
+
         await broadcast_to_room(
             sio,
             RoomRenamed.for_room(room, old_address=old_address),
             room,
-            also_notify_user=previous_owner_user_id,
+            also_notify_user_ids=prev_user_ids,
         )
 
     if changed:
