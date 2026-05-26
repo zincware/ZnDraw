@@ -642,6 +642,7 @@ async def update_room(
     room = access.room
     changed = False
     old_address = room.public_address
+    previous_owner_user_id: UUID | None = room.owner_user_id
 
     if updates.description is not None:
         room.description = updates.description
@@ -714,6 +715,7 @@ async def update_room(
             sio,
             RoomRenamed.for_room(room, old_address=old_address),
             room,
+            also_notify_user=previous_owner_user_id,
         )
 
     if changed:
