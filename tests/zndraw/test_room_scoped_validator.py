@@ -1,4 +1,4 @@
-"""Regression: RoomScopedEvent rejects NIL room_id paired with a composed address (review #2)."""
+"""Regression: validator rejects NIL room_id + composed room_address (review #2)."""
 
 from uuid import UUID
 
@@ -20,7 +20,7 @@ def test_nil_room_id_with_composed_address_rejected() -> None:
 
 
 def test_nil_room_id_with_sigil_address_allowed() -> None:
-    """Sigil addresses (``@global``/``@internal``) intentionally pair with NIL room_id."""
+    """Sigil addresses (``@global``/``@internal``) may pair with NIL room_id."""
     event = FramesInvalidate(
         room_id=UUID(int=0),
         room_address="@global",

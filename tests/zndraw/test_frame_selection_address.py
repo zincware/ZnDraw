@@ -1,4 +1,9 @@
-"""Regression: FrameSelectionUpdate carries room_address and routes via broadcast_to_room (review #1)."""
+"""Regression: FrameSelectionUpdate carries room_address (review #1).
+
+The event must route through ``broadcast_to_room`` and surface both
+``room_id`` and ``room_address`` so consumers can match incoming
+events to the current room.
+"""
 
 import pytest
 from helpers import (

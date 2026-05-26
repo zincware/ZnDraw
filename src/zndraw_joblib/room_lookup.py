@@ -44,8 +44,7 @@ async def fetch_room(session: AsyncSession, room_id: str) -> Room | None:
                 owner_uuid = UUID(owner_part)
             except ValueError:
                 return None
-            from sqlmodel import col, or_
-            from sqlmodel import select as sql_select
+            from sqlmodel import col, or_, select as sql_select
 
             result = await session.exec(
                 sql_select(Room).where(

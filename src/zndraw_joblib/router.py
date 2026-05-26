@@ -10,7 +10,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
 from sqlalchemy import and_, func, update
-from sqlalchemy.exc import OperationalError, ProgrammingError
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -48,7 +48,6 @@ from zndraw_joblib.events import (
     build_task_status_emission,
     emit,
 )
-from zndraw_joblib.room_lookup import room_address_for
 from zndraw_joblib.exceptions import (
     Forbidden,
     InternalJobNotConfigured,
@@ -73,6 +72,7 @@ from zndraw_joblib.models import (
     WorkerJobLink,
 )
 from zndraw_joblib.registry import InternalProviderRegistry, InternalRegistry
+from zndraw_joblib.room_lookup import room_address_for
 from zndraw_joblib.schemas import (
     JobRegisterRequest,
     JobResponse,
@@ -1362,9 +1362,7 @@ async def delete_provider(
     room_id = provider.room_id
     await session.delete(provider)
     await session.commit()
-    emission = await build_room_scoped_emission(
-        session, ProvidersInvalidate, room_id
-    )
+    emission = await build_room_scoped_emission(session, ProvidersInvalidate, room_id)
     await emit(tsio, {emission})
 
 
