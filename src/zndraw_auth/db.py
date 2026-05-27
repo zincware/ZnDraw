@@ -54,6 +54,16 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
             sa.Boolean, default=False, server_default=sa.false(), nullable=False
         )
 
+    if TYPE_CHECKING:  # pragma: no cover
+        display_name: str
+    else:
+        display_name: Mapped[str] = mapped_column(
+            sa.String(64),
+            unique=True,
+            index=True,
+            nullable=False,
+        )
+
 
 class CLILoginChallenge(SQLModel, table=True):
     """Challenge for device-code style CLI login flow.
@@ -179,12 +189,16 @@ async def ensure_default_admin(
         hashed = password_helper.hash(
             settings.default_admin_password.get_secret_value()
         )
+        from zndraw_auth.display_names import generate_unique_display_name
+
+        display_name = await generate_unique_display_name(session)
         admin = User(
             email=settings.default_admin_email,
             hashed_password=hashed,
             is_active=True,
             is_superuser=True,
             is_verified=True,
+            display_name=display_name,
         )
         session.add(admin)
         await session.commit()

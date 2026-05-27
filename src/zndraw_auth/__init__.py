@@ -38,6 +38,12 @@ from zndraw_auth.db import (
     get_session_maker,
     get_user_db,
 )
+from zndraw_auth.display_names import (
+    DISPLAY_NAME_PATTERN,
+    RESERVED_DISPLAY_NAMES,
+    generate_unique_display_name,
+    validate_display_name,
+)
 from zndraw_auth.schemas import (
     CLILoginCreateResponse,
     CLILoginStatusResponse,
@@ -60,6 +66,8 @@ from zndraw_auth.users import (
 )
 
 __all__ = [
+    "DISPLAY_NAME_PATTERN",
+    "RESERVED_DISPLAY_NAMES",
     "AuthSettings",
     "AuthSettingsDep",
     "Base",
@@ -84,10 +92,12 @@ __all__ = [
     "current_user_scoped_session",
     "ensure_default_admin",
     "fastapi_users",
+    "generate_unique_display_name",
     "get_auth_settings",
     "get_engine",
     "get_session",
     "get_session_maker",
     "get_user_db",
     "get_user_manager",
+    "validate_display_name",
 ]

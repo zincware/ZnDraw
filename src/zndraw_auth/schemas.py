@@ -16,12 +16,14 @@ class UserRead(schemas.BaseUser[uuid.UUID]):
 
     email: str  # type: ignore[assignment]
     is_guest: bool = False
+    display_name: str
 
 
 class UserCreate(schemas.BaseUserCreate):
     """Schema for creating a new user."""
 
     is_guest: bool = False
+    display_name: str | None = None  # server fills when omitted
 
 
 class UserUpdate(schemas.BaseUserUpdate):
