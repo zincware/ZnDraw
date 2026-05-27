@@ -50,6 +50,34 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     verification_token_secret: str
     is_dev_mode: bool = False
 
+    async def create(
+        self,
+        user_create,  # type: ignore[no-untyped-def]
+        safe: bool = False,
+        request=None,
+    ):
+        from sqlalchemy.exc import IntegrityError
+
+        from zndraw.exceptions import UsernameExists
+        from zndraw_auth.display_names import (
+            generate_unique_display_name,
+            validate_display_name,
+        )
+
+        if user_create.display_name is None:
+            user_create.display_name = await generate_unique_display_name(
+                self.user_db.session  # type: ignore[attr-defined]
+            )
+        else:
+            validate_display_name(user_create.display_name)
+
+        try:
+            return await super().create(user_create, safe=safe, request=request)
+        except IntegrityError as exc:
+            raise UsernameExists.exception(
+                f"Display name '{user_create.display_name}' is already taken"
+            ) from exc
+
     async def on_after_register(
         self, user: User, _request: Request | None = None
     ) -> None:
