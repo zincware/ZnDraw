@@ -12,6 +12,7 @@ import pytest
 from httpx import AsyncClient
 
 from zndraw.client import atoms_to_json_dict
+from zndraw_auth.display_names import DISPLAY_NAME_PATTERN
 
 
 def _make_atoms(x: float, formula: str = "H") -> ase.Atoms:
@@ -58,11 +59,10 @@ async def test_guest_auth_returns_token(http_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_guest_session_includes_display_name(client: AsyncClient) -> None:
-    resp = await client.post("/v1/auth/guest")
+async def test_guest_session_includes_display_name(http_client: AsyncClient) -> None:
+    resp = await http_client.post("/v1/auth/guest")
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    from zndraw_auth.display_names import DISPLAY_NAME_PATTERN
     assert DISPLAY_NAME_PATTERN.fullmatch(body["display_name"])
     assert body["email"].endswith("@guest.user")
     assert body["token_type"] == "bearer"
