@@ -24,6 +24,7 @@ from zndraw.dependencies import (
     SessionDep,
     SioDep,
     _load_room_by_address,
+    _load_room_by_segment,
     fetch_group_role,
     get_owner_uuid_from_segment,
     resolve_owner,
@@ -448,9 +449,7 @@ async def create_room(
     if not copy_from.startswith("@"):
         if "/" in copy_from:
             owner_str, _, name_part = copy_from.partition("/")
-            source_room = await _load_room_by_address(
-                session, UUID(owner_str), name_part
-            )
+            source_room = await _load_room_by_segment(session, owner_str, name_part)
         else:
             source_room = await session.get(Room, copy_from)
         if source_room is not None and await storage.has_mount(source_room.id):
