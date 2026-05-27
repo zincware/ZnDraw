@@ -831,6 +831,7 @@ export interface EditLockResponse {
 	locked: boolean;
 	lock_token?: string | null;
 	user_id?: string | null;
+	display_name?: string | null;
 	sid?: string | null;
 	msg?: string | null;
 	acquired_at?: number | null;

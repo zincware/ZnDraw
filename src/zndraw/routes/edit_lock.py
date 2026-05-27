@@ -48,6 +48,7 @@ async def _read_lock(redis: RedisDep, room_id: str) -> EditLockResponse:
         locked=True,
         lock_token=data["lock_token"],
         user_id=data["user_id"],
+        display_name=data.get("display_name"),
         sid=data.get("sid"),
         msg=data.get("msg"),
         acquired_at=data["acquired_at"],
@@ -93,6 +94,7 @@ async def acquire_edit_lock(
     """
     room_id = access.room.id
     user_id = str(current_user.id)
+    display_name = current_user.display_name
     key = RedisKey.edit_lock(room_id)
     raw = await redis.get(key)
 
@@ -105,6 +107,10 @@ async def acquire_edit_lock(
             raise RoomLocked.exception("Room is being edited by another session")
         if request.msg is not None:
             holder["msg"] = request.msg
+        # Backfill display_name into legacy holders persisted before this field
+        # existed (no migration; old TTLs expire naturally).
+        if "display_name" not in holder:
+            holder["display_name"] = display_name
         # Refresh: persist any updated fields, reset TTL
         await redis.set(key, json.dumps(holder), ex=settings.edit_lock_ttl)
         ttl = await redis.ttl(key)
@@ -112,6 +118,7 @@ async def acquire_edit_lock(
             locked=True,
             lock_token=holder["lock_token"],
             user_id=holder["user_id"],
+            display_name=holder.get("display_name"),
             sid=holder.get("sid"),
             msg=holder.get("msg"),
             acquired_at=holder["acquired_at"],
@@ -125,6 +132,7 @@ async def acquire_edit_lock(
         {
             "lock_token": new_token,
             "user_id": user_id,
+            "display_name": display_name,
             "sid": x_session_id,
             "msg": request.msg,
             "acquired_at": acquired_at,
@@ -144,6 +152,7 @@ async def acquire_edit_lock(
             room_address=room_address,
             action="acquired",
             user_id=user_id,
+            display_name=display_name,
             sid=x_session_id,
             msg=request.msg,
             ttl=max(ttl, 0),
@@ -155,6 +164,7 @@ async def acquire_edit_lock(
         locked=True,
         lock_token=new_token,
         user_id=user_id,
+        display_name=display_name,
         sid=x_session_id,
         msg=request.msg,
         acquired_at=acquired_at,
@@ -201,6 +211,7 @@ async def release_edit_lock(
             room_address=room_address,
             action="released",
             user_id=holder["user_id"],
+            display_name=holder.get("display_name"),
             sid=holder.get("sid"),
         ),
         access.room,

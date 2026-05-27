@@ -43,7 +43,9 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 	const geometriesData = useAppStore((state) => state.geometries);
 	const userLock = useAppStore((state) => state.userLock);
 	const isSuperuser = useAppStore((state) => state.user?.is_superuser ?? false);
-	const currentUserEmail = useAppStore((state) => state.user?.email ?? null);
+	const currentUserDisplayName = useAppStore(
+		(state) => state.user?.display_name ?? null,
+	);
 	const activeCurveForDrawing = useAppStore(
 		(state) => state.activeCurveForDrawing,
 	);
@@ -71,7 +73,7 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 		// Owned by another user — always blocked
 		if (owner && owner !== userId) return false;
 		// Edit lock by someone else — always blocked
-		if (userLock && userLock !== currentUserEmail) return false;
+		if (userLock && userLock !== currentUserDisplayName) return false;
 		return true;
 	};
 
@@ -133,7 +135,7 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 		const geom = geometriesData[key];
 		const owner = geom?.data?.owner as string | null | undefined;
 		if (owner && owner !== userId) return "Owned by another user";
-		if (userLock && userLock !== currentUserEmail)
+		if (userLock && userLock !== currentUserDisplayName)
 			return "Room is being edited";
 		return null;
 	};

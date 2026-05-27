@@ -139,13 +139,13 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 					// We hold this lock (page reload case)
 					useAppStore.setState({
 						lockToken: editLockResponse.lock_token ?? null,
-						userLock: editLockResponse.user_id ?? null,
+						userLock: editLockResponse.display_name ?? null,
 						userLockMessage: editLockResponse.msg ?? null,
 					});
 					useAppStore.getState().startLockRenewal();
 				} else {
 					ctx.setUserLock(
-						editLockResponse.user_id ?? null,
+						editLockResponse.display_name ?? null,
 						editLockResponse.msg ?? null,
 					);
 					if (editLockResponse.ttl) {

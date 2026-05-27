@@ -107,9 +107,10 @@ export const createLockSlice: StateCreator<AppState, [], [], LockSlice> = (
 		try {
 			const response = await acquireEditLock(roomId, msg);
 			if (!response.locked || !response.lock_token) return false;
-			const currentUserEmail = user?.email ?? null;
+			const currentUserDisplayName =
+				response.display_name ?? user?.display_name ?? null;
 			set({
-				userLock: currentUserEmail,
+				userLock: currentUserDisplayName,
 				userLockMessage: msg,
 				lockToken: response.lock_token,
 			});

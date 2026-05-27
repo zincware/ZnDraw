@@ -18,6 +18,7 @@ export interface RoomDeleteEvent {
 export interface LockUpdateEvent {
 	action: "acquired" | "refreshed" | "released";
 	user_id?: string | null;
+	display_name?: string | null;
 	sid?: string;
 	msg?: string | null;
 	ttl?: number;
@@ -70,13 +71,13 @@ export function createRoomHandlers(ctx: HandlerContext) {
 	}
 
 	function onLockUpdate(data: LockUpdateEvent) {
-		const { action, user_id, sid, msg, ttl } = data;
+		const { action, display_name, sid, msg, ttl } = data;
 		const mySessionId = useAppStore.getState().sessionId;
 
 		if (action === "acquired" || action === "refreshed") {
 			// If this is our own session, lockSlice already set the state
 			if (sid === mySessionId) return;
-			ctx.setUserLock(user_id ?? null, msg ?? null);
+			ctx.setUserLock(display_name ?? null, msg ?? null);
 			// Start TTL countdown to verify expiry
 			if (ttl && action === "acquired") {
 				useAppStore.getState().startLockExpiryTimer(ttl);

@@ -570,6 +570,7 @@ class EditLockResponse(BaseModel):
     locked: bool
     lock_token: str | None = None
     user_id: str | None = None
+    display_name: str | None = None
     sid: str | None = None
     msg: str | None = None
     acquired_at: float | None = None
