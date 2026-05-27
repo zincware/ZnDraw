@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Coolname Display Names — Fix Execution Strategy</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.css"
+    />
+    <style>
+      :root {
+        --bg: #fafaf9;
+        --fg: #1a1a1a;
+        --muted: #6b6b6b;
+        --border: #e2e2e0;
+        --accent: #2954c8;
+        --warn: #b45309;
+        --ok: #117a3d;
+        --code-bg: #f3f3f1;
+        --card-bg: #ffffff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+      .frame {
+        aspect-ratio: 16 / 9;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 28px 40px;
+        display: grid;
+        grid-template-columns: 1.05fr 1fr;
+        grid-template-rows: auto 1fr;
+        gap: 18px 22px;
+      }
+      header {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 10px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .subtitle {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .meta {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      h2 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0 0 8px;
+        color: var(--accent);
+        letter-spacing: 0.01em;
+        text-transform: uppercase;
+      }
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 14px 16px;
+        overflow: auto;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-height: 0;
+      }
+      .mermaid {
+        font-size: 12px;
+      }
+      p {
+        margin: 0 0 8px;
+      }
+      ul,
+      ol {
+        margin: 0 0 8px;
+        padding-left: 20px;
+      }
+      li {
+        margin-bottom: 2px;
+      }
+      code {
+        background: var(--code-bg);
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-size: 12px;
+        font-family: "SF Mono", Menlo, Consolas, monospace;
+      }
+      pre {
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 10px 12px;
+        font-size: 11.5px;
+        overflow-x: auto;
+        margin: 0 0 8px;
+      }
+      pre code {
+        background: transparent;
+        padding: 0;
+      }
+      .tag {
+        display: inline-block;
+        font-size: 10.5px;
+        padding: 1px 7px;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        margin-right: 4px;
+      }
+      .tag.warn {
+        background: var(--warn);
+      }
+      .tag.ok {
+        background: var(--ok);
+      }
+      .tag.muted {
+        background: var(--muted);
+      }
+      table {
+        width: 100%;
+        font-size: 12px;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 5px 8px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 500;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .footer {
+        grid-column: 1 / -1;
+        color: var(--muted);
+        font-size: 11.5px;
+        border-top: 1px solid var(--border);
+        padding-top: 8px;
+        display: flex;
+        justify-content: space-between;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <header>
+        <h1>Coolname Display Names — Fix Execution Strategy</h1>
+        <span class="subtitle"
+          >Strategy spec governing how the 37-task fixes plan is executed</span
+        >
+        <span class="meta"
+          >2026-05-27 · branch: worktree-coolname-display-names · PR #932</span
+        >
+      </header>
+
+      <section class="col">
+        <div class="card">
+          <h2>Phase flow &amp; concurrency</h2>
+          <div class="mermaid">
+            flowchart LR A[Phase A<br/>fixtures<br/>6 tasks parallel] -->
+            B1[Phase B1/B2/B4/B7<br/>4 quick fixes parallel] B1 --> B3[Phase
+            B3<br/>joblib room_id<br/>serial · high risk] B3 --> B5[Phase
+            B5<br/>owner regex<br/>serial] B5 --> B6[Phase B6<br/>client_source
+            mystery<br/>serial] B6 --> CP1{{CHECKPOINT 1<br/>CI green?}} CP1
+            -->|yes, auto-proceed| C[Phase C<br/>lock display_name<br/>serial
+            cross-stack] CP1 -->|no, B-surprise| SURPRISE([pause + report])
+            C --> D[Phase D<br/>16 cleanups<br/>4 parallel waves of 4] D -->
+            E[Phase E<br/>protected test<br/>serial] E --> F[Phase F<br/>sanity
+            + smoke + PR<br/>serial] classDef parallel
+            fill:#e8f0ff,stroke:#2954c8; classDef serial
+            fill:#fff5e6,stroke:#b45309; classDef gate
+            fill:#fafaf9,stroke:#6b6b6b,stroke-dasharray:3 3; class
+            A,B1,D parallel; class B3,B5,B6,C,E,F serial; class CP1,SURPRISE
+            gate;
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Decisions captured</h2>
+          <table>
+            <tr>
+              <th>Dimension</th>
+              <th>Decision</th>
+            </tr>
+            <tr>
+              <td>Sequencing</td>
+              <td>
+                <span class="tag">unblock-first</span>CI green within Phase A +
+                B1/B2/B4/B7 (~14 of 32 failures)
+              </td>
+            </tr>
+            <tr>
+              <td>Concurrency</td>
+              <td>
+                <span class="tag">parallel within phase</span>A: 6-wide
+                fan-out; B1/B2/B4/B7: 4-wide batch; D: 4 waves × 4;
+                B3/B5/B6/C/E/F: serial
+              </td>
+            </tr>
+            <tr>
+              <td>Checkpointing</td>
+              <td>
+                <span class="tag">only on surprises</span>One auto-checkpoint
+                after CI green; otherwise straight-through
+              </td>
+            </tr>
+            <tr>
+              <td>Commit topology</td>
+              <td>
+                <span class="tag muted">1 per task</span>~37 commits;
+                conventional-commit messages reference task ID (e.g.,
+                <code>fix(B1): …</code>)
+              </td>
+            </tr>
+            <tr>
+              <td>PR scope</td>
+              <td>
+                <span class="tag muted">single PR refresh on #932</span>No
+                split; frontend + backend ride together
+              </td>
+            </tr>
+            <tr>
+              <td>Migration policy</td>
+              <td>
+                <span class="tag warn">no migration</span>Inherited from
+                predecessor plan; if a migration becomes unavoidable → SURPRISE
+              </td>
+            </tr>
+            <tr>
+              <td>Protected tests</td>
+              <td>
+                <span class="tag warn">no edits without sign-off</span>Task E1
+                resolution depends on B3 outcome
+              </td>
+            </tr>
+          </table>
+        </div>
+      </section>
+
+      <section class="col">
+        <div class="card">
+          <h2>Surprise protocol</h2>
+          <p>
+            <strong>Pause triggers — I stop and report:</strong>
+          </p>
+          <ol>
+            <li>
+              Architectural rethink needed (B3 signature change &gt; 10 LOC; B6
+              needs new sync primitive).
+            </li>
+            <li>
+              Schema migration becomes unavoidable (D8 grows a
+              <code>Group.slug</code> column).
+            </li>
+            <li>
+              Protected test still red after B3 fix — invariant genuinely
+              shifted, needs sign-off.
+            </li>
+            <li>A test refuses to pass after 2 fix attempts.</li>
+            <li>Any task touches &gt; 5 files outside its declared scope.</li>
+            <li>
+              Destructive action needed (force push, branch delete, rewriting
+              shared history).
+            </li>
+          </ol>
+          <p><strong>No-pause cases (continue):</strong></p>
+          <ul>
+            <li>Tests pass on first try.</li>
+            <li>Subagent reports cleanly.</li>
+            <li>prek auto-fix reformats files.</li>
+            <li>Mechanical fixture fixes land green.</li>
+          </ul>
+          <p><strong>Pause output format (≤ 200 words):</strong></p>
+          <ul>
+            <li>What surprise, what I tried, options I see, explicit ask.</li>
+            <li>
+              Branch state (commits landed, tests green, tests still red).
+            </li>
+            <li>No destructive recovery while waiting — preserve for inspection.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h2>Subagent contract</h2>
+          <p><strong>Every dispatched agent's prompt contains:</strong></p>
+          <ul>
+            <li>
+              Plan ref:
+              <code>docs/superpowers/plans/2026-05-27-coolname-display-names-fixes.md</code>
+              + task ID (e.g., "Task A1") with verbatim file:line targets.
+            </li>
+            <li>
+              Exact CI failure(s) the task resolves, including the error
+              message — verification by error-match.
+            </li>
+            <li>
+              Working dir, branch (already on
+              <code>worktree-coolname-display-names</code>).
+            </li>
+            <li>
+              Reporting: ≤ 150-word summary — paths touched, test commands,
+              pytest output for targeted tests.
+            </li>
+          </ul>
+          <p><strong>Hard constraints baked in:</strong></p>
+          <ul>
+            <li>No file edits outside the declared file list (else SURPRISE).</li>
+            <li>No <code>@pytest.mark.protected</code> edits.</li>
+            <li>
+              No <code>--no-verify</code>, no <code>--amend</code>, no force
+              ops.
+            </li>
+            <li>Targeted pytest only; no full-suite run inside the subagent.</li>
+          </ul>
+          <p><strong>Concurrency safety:</strong></p>
+          <ul>
+            <li>
+              Phase A's 6 tasks touch disjoint test files — safe fan-out.
+            </li>
+            <li>
+              Phase D's waves grouped by shared-file risk; conflicts resolved by
+              rebase, not destructive cleanup.
+            </li>
+            <li>
+              I retain control of all Phase B / C / E / F (shared modules,
+              cross-stack, judgment calls).
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <div class="footer">
+        <span
+          >Predecessor plan ·
+          <code>docs/superpowers/plans/2026-05-27-coolname-display-names-fixes.md</code></span
+        >
+        <span>Spec terminal · invoke <code>writing-plans</code> next</span>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <script>
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "default",
+        themeVariables: {
+          primaryColor: "#e8f0ff",
+          primaryBorderColor: "#2954c8",
+          primaryTextColor: "#1a1a1a",
+          lineColor: "#6b6b6b",
+          fontSize: "12px",
+        },
+        flowchart: { htmlLabels: true, curve: "basis" },
+      });
+    </script>
+  </body>
+</html>
