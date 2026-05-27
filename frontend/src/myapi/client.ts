@@ -422,7 +422,7 @@ export const deleteBookmark = async (
 // ==================== Room API ====================
 
 export interface CreateRoomRequest {
-	owner_id: string;
+	owner: string;
 	name: string;
 	description?: string;
 	copy_from?: string; // Room id, or @-prefixed preset (@empty, @none)
@@ -431,7 +431,7 @@ export interface CreateRoomRequest {
 
 export interface CreateRoomResponse {
 	status: string;
-	room_id: string; // composed: {owner_id}/{room_name}
+	room_id: string; // composed: {owner}/{room_name}
 	frame_count: number;
 	created: boolean;
 }
@@ -445,11 +445,11 @@ export const createRoom = async (
 };
 
 export interface RoomInfo {
-	room_id: string; // composed: {owner_id}/{room_name}
+	room_id: string; // composed: {owner}/{room_name}
 	description: string | null;
 	frame_count: number;
 	visibility: Visibility;
-	owner_id: string;
+	owner: string;
 	owner_kind: "user" | "group";
 	owner_label: string;
 	is_default?: boolean;
@@ -786,7 +786,7 @@ export interface Group {
 
 export interface GroupMember {
 	user_id: string;
-	email: string | null;
+	display_name: string | null;
 	role: GroupRole;
 	joined_at: string;
 }
@@ -803,11 +803,11 @@ export interface ShareLink {
 }
 
 export interface Room {
-	room_id: string; // composed: {owner_id}/{room_name}
+	room_id: string; // composed: {owner}/{room_name}
 	description?: string | null;
 	frame_count: number;
 	visibility: Visibility;
-	owner_id: string;
+	owner: string;
 	owner_kind: "user" | "group";
 	owner_label: string;
 	is_default: boolean;
@@ -820,7 +820,7 @@ export interface RoomUpdateRequest {
 	description?: string | null;
 	frame_count?: number;
 	visibility?: Visibility;
-	new_owner_id?: string | null;
+	new_owner?: string | null;
 }
 
 export interface DefaultRoomResponse {
