@@ -607,9 +607,7 @@ async def get_room_presence(
             PresenceSessionResponse(
                 sid=entry["sid"],
                 user_id=_UUID(camera.owner),
-                # transition guard: read-side accepts either key while
-                # Task 11 still writes "email" on the socket cache.
-                display_name=entry.get("display_name") or entry.get("email"),
+                display_name=entry.get("display_name"),
             )
         )
 
@@ -646,9 +644,7 @@ async def list_sessions(
         if raw is None:
             continue
         entry = json.loads(raw)
-        # transition guard: pivot to display_name while Task 11
-        # still writes "email" on the socket cache.
-        entry_display_name = entry.get("display_name", entry.get("email", ""))
+        entry_display_name = entry.get("display_name", "")
         if display_name is not None and entry_display_name != display_name:
             continue
         items.append(

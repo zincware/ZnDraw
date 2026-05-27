@@ -198,7 +198,9 @@ async def user_get(sid: str, _data: UserGet, session: SessionDep) -> UserGetResp
     if user is None:
         raise UserNotFound.exception("User not found")
 
-    return UserGetResponse(id=user.id, email=user.email, is_superuser=user.is_superuser)
+    return UserGetResponse(
+        id=user.id, display_name=user.display_name, is_superuser=user.is_superuser
+    )
 
 
 @tsio.on(RoomJoin, emits=[SessionLeft, SessionJoined, GeometryInvalidate])
@@ -212,7 +214,7 @@ async def room_join(
     """Join a Socket.IO room for real-time updates."""
     from zndraw.access import can_read
     from zndraw.dependencies import (
-        _load_room_by_address,
+        _load_room_by_segment,
         fetch_group_role,
         resolve_share_token,
     )
@@ -221,9 +223,9 @@ async def room_join(
     user_id: UUID = sio_session["user_id"]
     share_token: str | None = sio_session.get("share_token")
 
-    composed = f"{data.owner_id}/{data.room_name}"
+    composed = f"{data.owner}/{data.room_name}"
 
-    room = await _load_room_by_address(session, data.owner_id, data.room_name)
+    room = await _load_room_by_segment(session, data.owner, data.room_name)
     if room is None:
         raise RoomNotFound.exception(f"Room {composed} not found")
 
@@ -238,7 +240,7 @@ async def room_join(
     if not can_read(user, room, share, group_role=group_role):
         raise RoomNotFound.exception(f"Room {composed} not found")
 
-    email = user.email
+    display_name = user.display_name
 
     # Leave previous room if any.
     old_room_id: str | None = sio_session.get("current_room_id")
@@ -279,7 +281,7 @@ async def room_join(
             room_address=room_address,
             user_id=user_id,
             sid=sid,
-            email=email,
+            display_name=display_name,
         ),
         room,
         skip_sid=sid,
@@ -313,9 +315,9 @@ async def room_join(
                 if updates:
                     camera = camera.model_copy(update=updates)
 
-        camera_key = f"cam:{email}:{sid[:8]}"
+        camera_key = f"cam:{display_name}:{sid[:8]}"
         camera_value = json.dumps(
-            {"sid": sid, "email": email, "data": camera.model_dump()}
+            {"sid": sid, "display_name": display_name, "data": camera.model_dump()}
         )
         hash_key = RedisKey.room_cameras(room.id)
         await redis.hset(hash_key, camera_key, camera_value)  # type: ignore[misc]
@@ -360,7 +362,7 @@ async def room_leave(
     sid: str, data: RoomLeave, redis: RedisDep, session: SessionDep
 ) -> RoomLeaveResponse:
     """Leave a Socket.IO room."""
-    from zndraw.dependencies import _load_room_by_address
+    from zndraw.dependencies import _load_room_by_segment
 
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
@@ -369,9 +371,9 @@ async def room_leave(
     if current_room_id is None:
         raise NotInRoom.exception("Not currently in a room")
 
-    room = await _load_room_by_address(session, data.owner_id, data.room_name)
+    room = await _load_room_by_segment(session, data.owner, data.room_name)
     if room is None or current_room_id != room.id:
-        return RoomLeaveResponse(room_id=f"{data.owner_id}/{data.room_name}")
+        return RoomLeaveResponse(room_id=f"{data.owner}/{data.room_name}")
 
     await tsio.leave_room(sid, room_channel(room.id))
     await _cleanup_session(redis, session, sid, sio_session, room.id)
@@ -392,25 +394,25 @@ async def room_leave(
 
 async def _handle_typing(
     sid: str,
-    owner_id: UUID,
+    owner: str,
     room_name: str,
     session: SessionDep,
     *,
     is_typing: bool,
 ) -> TypingResponse:
     """Broadcast typing status change to room."""
-    from zndraw.dependencies import _load_room_by_address
+    from zndraw.dependencies import _load_room_by_segment
 
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
     current_room_id: str | None = sio_session.get("current_room_id")
 
-    room = await _load_room_by_address(session, owner_id, room_name)
+    room = await _load_room_by_segment(session, owner, room_name)
     if room is None or current_room_id != room.id:
         raise NotInRoom.exception("Not in this room")
 
     user = await session.get(User, user_id)
-    email = user.email if user else None
+    display_name = user.display_name if user else None
 
     room_address = await build_public_address(session, room)
     await broadcast_to_room(
@@ -419,7 +421,7 @@ async def _handle_typing(
             room,
             room_address=room_address,
             user_id=user_id,
-            email=email,
+            display_name=display_name,
             is_typing=is_typing,
         ),
         room,
@@ -433,7 +435,7 @@ async def typing_start(
     sid: str, data: TypingStart, session: SessionDep
 ) -> TypingResponse:
     return await _handle_typing(
-        sid, data.owner_id, data.room_name, session, is_typing=True
+        sid, data.owner, data.room_name, session, is_typing=True
     )
 
 
@@ -442,5 +444,5 @@ async def typing_stop(
     sid: str, data: TypingStop, session: SessionDep
 ) -> TypingResponse:
     return await _handle_typing(
-        sid, data.owner_id, data.room_name, session, is_typing=False
+        sid, data.owner, data.room_name, session, is_typing=False
     )

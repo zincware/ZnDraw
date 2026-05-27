@@ -156,7 +156,7 @@ async def create_message(
             user_id=current_user.id,  # type: ignore[arg-type]
             content=msg.content,
             created_at=msg.created_at,
-            email=display_name,
+            display_name=display_name,
         ),
         access.room,
     )
