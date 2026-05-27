@@ -226,7 +226,7 @@ async def test_available_display_name_never_collides_with_existing(
     client: AsyncClient, session: AsyncSession
 ) -> None:
     # Register one user, then ask for a suggestion — must differ.
-    await client.post(
+    reg = await client.post(
         "/v1/auth/register",
         json={
             "email": "eve@example.com",
@@ -234,5 +234,6 @@ async def test_available_display_name_never_collides_with_existing(
             "display_name": "eve-the-curious",
         },
     )
+    assert reg.status_code == 201, reg.text
     resp = await client.get("/v1/users/available-display-name")
     assert resp.json()["display_name"] != "eve-the-curious"
