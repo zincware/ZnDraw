@@ -2,7 +2,6 @@
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from uuid import UUID
 
 import httpx
 import pytest
@@ -13,7 +12,7 @@ from typer.testing import CliRunner
 from zndraw import __version__
 from zndraw.cli import (
     _acquire_token,
-    _resolve_owner_id,
+    _resolve_owner_name,
     _validate_room_arg,
     app,
     get_room_names,
@@ -170,8 +169,8 @@ def _empty_state(monkeypatch, tmp_path):
         "zndraw.cli._acquire_token", lambda _url: "tok"
     )  # why: avoid real HTTP auth calls in unit tests
     monkeypatch.setattr(
-        "zndraw.cli._resolve_owner_id",
-        lambda _url, _tok: UUID("12345678-1234-5678-1234-567812345678"),
+        "zndraw.cli._resolve_owner_name",
+        lambda _url, _tok: "happy-blue-rabbit",
     )  # why: avoid real HTTP auth calls in unit tests
 
 
@@ -249,8 +248,8 @@ def test_browser_before_upload_new_server(monkeypatch, tmp_path):
         "zndraw.cli._acquire_token", lambda _url: "tok"
     )  # why: avoid real /v1/auth/* HTTP from the new-server post-startup hook
     monkeypatch.setattr(
-        "zndraw.cli._resolve_owner_id",
-        lambda _url, _tok: UUID("12345678-1234-5678-1234-567812345678"),
+        "zndraw.cli._resolve_owner_name",
+        lambda _url, _tok: "happy-blue-rabbit",
     )  # why: same reason — Task 4 will need this too
 
     result = runner.invoke(app, [str(dummy)])
@@ -287,8 +286,8 @@ def test_browser_before_upload_existing_server(monkeypatch, tmp_path):
         "zndraw.cli._acquire_token", lambda _url: "tok"
     )  # why: avoid real HTTP auth calls in unit tests
     monkeypatch.setattr(
-        "zndraw.cli._resolve_owner_id",
-        lambda _url, _tok: UUID("12345678-1234-5678-1234-567812345678"),
+        "zndraw.cli._resolve_owner_name",
+        lambda _url, _tok: "happy-blue-rabbit",
     )  # why: avoid real HTTP auth calls in unit tests
 
     result = runner.invoke(app, [str(dummy)])
@@ -312,8 +311,8 @@ def test_browser_before_upload_remote(monkeypatch, tmp_path):
         "zndraw.cli._acquire_token", lambda _url: "tok"
     )  # why: avoid real HTTP auth calls in unit tests
     monkeypatch.setattr(
-        "zndraw.cli._resolve_owner_id",
-        lambda _url, _tok: UUID("12345678-1234-5678-1234-567812345678"),
+        "zndraw.cli._resolve_owner_name",
+        lambda _url, _tok: "happy-blue-rabbit",
     )  # why: avoid real HTTP auth calls in unit tests
 
     result = runner.invoke(app, ["--connect", "http://example.com", str(dummy)])
@@ -356,8 +355,8 @@ def capture_settings(monkeypatch, tmp_path):
         "zndraw.cli._acquire_token", lambda _url: "test-token"
     )  # why: unit test of Settings propagation, not auth flow
     monkeypatch.setattr(
-        "zndraw.cli._resolve_owner_id",
-        lambda _url, _tok: UUID("12345678-1234-5678-1234-567812345678"),
+        "zndraw.cli._resolve_owner_name",
+        lambda _url, _tok: "happy-blue-rabbit",
     )  # why: avoid live HTTP from Settings-propagation tests
     return captured
 
@@ -388,7 +387,7 @@ def test_cli_reads_host_from_env(monkeypatch, capture_settings):
     assert any(s.host == "192.168.1.1" for s in capture_settings)
 
 
-# ── 7. _resolve_owner_id ────────────────────────────────────────────
+# ── 7. _resolve_owner_name ──────────────────────────────────────────
 
 
 def _mock_httpx_with(monkeypatch, handler):
@@ -402,58 +401,53 @@ def _mock_httpx_with(monkeypatch, handler):
     monkeypatch.setattr("zndraw.cli.httpx.Client", fake_client)
 
 
-def test_resolve_owner_id_returns_uuid(monkeypatch):
+def test_resolve_owner_name_returns_display_name(monkeypatch):
     captured: dict[str, str] = {}
 
     def handler(request):
         captured["url"] = str(request.url)
         captured["auth"] = request.headers.get("Authorization", "")
-        return Response(200, json={"id": "12345678-1234-5678-1234-567812345678"})
+        return Response(200, json={"display_name": "happy-blue-rabbit"})
 
     _mock_httpx_with(monkeypatch, handler)
 
-    result = _resolve_owner_id("http://test", "tok")
-    assert result == UUID("12345678-1234-5678-1234-567812345678")
+    result = _resolve_owner_name("http://test", "tok")
+    assert result == "happy-blue-rabbit"
     assert captured["url"].endswith("/v1/auth/users/me")
     assert captured["auth"] == "Bearer tok"
 
 
-def test_resolve_owner_id_raises_on_http_error(monkeypatch):
+def test_resolve_owner_name_raises_on_http_error(monkeypatch):
     _mock_httpx_with(monkeypatch, lambda _req: Response(403))
     with pytest.raises(httpx.HTTPStatusError):
-        _resolve_owner_id("http://test", "tok")
+        _resolve_owner_name("http://test", "tok")
 
 
 # ── 8. _validate_room_arg ───────────────────────────────────────────
 
 
-def test_validate_room_arg_accepts_composed():
-    owner = UUID("12345678-1234-5678-1234-567812345678")
-    # composed-form: <uuid>/<name>; should not raise
-    _validate_room_arg(f"{owner}/proj", owner)
+def test_validate_room_arg_accepts_display_name() -> None:
+    _validate_room_arg("happy-blue-rabbit/my-room", owner_name="happy-blue-rabbit")
 
 
-def test_validate_room_arg_rejects_bare():
-    owner = UUID("12345678-1234-5678-1234-567812345678")
+def test_validate_room_arg_rejects_uuid_owner() -> None:
+    with pytest.raises(typer.BadParameter):
+        _validate_room_arg(
+            "00000000-0000-0000-0000-000000000000/x",
+            owner_name="happy-blue-rabbit",
+        )
+
+
+def test_validate_room_arg_rejects_unprefixed() -> None:
+    with pytest.raises(typer.BadParameter):
+        _validate_room_arg("just-a-name", owner_name="happy-blue-rabbit")
+
+
+def test_validate_room_arg_rejects_bad_name_chars() -> None:
     with pytest.raises(typer.BadParameter) as exc:
-        _validate_room_arg("foo", owner)
-    msg = str(exc.value)
-    assert "must be '<owner_uuid>/<name>'" in msg
-    assert "foo" in msg
-    assert str(owner) in msg  # surfaces caller's UUID for copy-paste
-
-
-def test_validate_room_arg_rejects_bad_uuid():
-    owner = UUID("12345678-1234-5678-1234-567812345678")
-    with pytest.raises(typer.BadParameter) as exc:
-        _validate_room_arg("not-a-uuid/foo", owner)
-    assert "not a valid UUID" in str(exc.value)
-
-
-def test_validate_room_arg_rejects_bad_name_chars():
-    owner = UUID("12345678-1234-5678-1234-567812345678")
-    with pytest.raises(typer.BadParameter) as exc:
-        _validate_room_arg(f"{owner}/bad name", owner)
+        _validate_room_arg(
+            "happy-blue-rabbit/bad name", owner_name="happy-blue-rabbit"
+        )
     assert "invalid characters" in str(exc.value)
 
 
@@ -544,16 +538,18 @@ def test_acquire_token_falls_back_to_guest(monkeypatch):
     assert _acquire_token("http://x") == "guest-fallback"
 
 
-# ── 10. main() composes rooms via owner_id ──────────────────────────
+# ── 10. main() composes rooms via display_name ──────────────────────
 
 
-FIXED_OWNER = UUID("12345678-1234-5678-1234-567812345678")
+FIXED_OWNER = "happy-blue-rabbit"
 
 
 def _stub_token_chain(monkeypatch):
     """Stub server discovery + auth helpers used by main()."""
     monkeypatch.setattr("zndraw.cli._acquire_token", lambda _url: "tok")
-    monkeypatch.setattr("zndraw.cli._resolve_owner_id", lambda _url, _tok: FIXED_OWNER)
+    monkeypatch.setattr(
+        "zndraw.cli._resolve_owner_name", lambda _url, _tok: FIXED_OWNER
+    )
 
 
 def test_main_composes_room_from_path(monkeypatch, tmp_path):
@@ -581,7 +577,7 @@ def test_main_composes_room_from_path(monkeypatch, tmp_path):
 
 
 def test_main_uses_explicit_composed_room_without_reprefixing(monkeypatch, tmp_path):
-    """--room <other_uuid>/proj must NOT be re-prefixed with the caller's UUID."""
+    """--room <other-display-name>/proj must NOT be re-prefixed with caller's name."""
     dummy = tmp_path / "trj.xyz"
     dummy.write_text("dummy")
 
@@ -597,14 +593,14 @@ def test_main_uses_explicit_composed_room_without_reprefixing(monkeypatch, tmp_p
     )
     monkeypatch.setattr("zndraw.cli.webbrowser.open", lambda _url: None)
 
-    explicit = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/proj"
+    explicit = "other-user-name/proj"
     result = runner.invoke(app, ["--room", explicit, str(dummy)])
     assert result.exit_code == 0, result.output
     assert uploads == [explicit]
 
 
 def test_main_errors_on_bare_room(monkeypatch, tmp_path):
-    """zndraw --room foo <file> → typer.BadParameter; message shows caller UUID."""
+    """zndraw --room foo <file> → typer.BadParameter; message shows display name."""
     dummy = tmp_path / "trj.xyz"
     dummy.write_text("dummy")
 
@@ -621,8 +617,8 @@ def test_main_errors_on_bare_room(monkeypatch, tmp_path):
         env={"NO_COLOR": "1", "COLUMNS": "200", "TERM": "dumb"},
     )
     assert result.exit_code != 0
-    assert "must be '<owner_uuid>/<name>'" in result.output
-    assert str(FIXED_OWNER) in result.output
+    assert "must be '<display-name>/<name>'" in result.output
+    assert FIXED_OWNER in result.output
 
 
 def test_main_synthesizes_workspace_when_no_paths_no_room(monkeypatch, tmp_path):

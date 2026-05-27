@@ -137,7 +137,7 @@ class APIManager:
         """Create a room from ``self.room_id`` (composed address)."""
         owner_part, _, name_part = self.room_id.partition("/")
         payload: dict[str, Any] = {
-            "owner_id": owner_part,
+            "owner": owner_part,
             "name": name_part,
         }
         if description is not None:

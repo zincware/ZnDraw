@@ -21,7 +21,6 @@ import webbrowser
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
-from uuid import UUID
 
 import httpx
 import typer
@@ -302,31 +301,33 @@ def handle_shutdown(port: int | None) -> None:
     raise typer.Exit(1)
 
 
-def _resolve_owner_id(server_url: str, token: str) -> UUID:
-    """Fetch the authenticated user's UUID from /v1/auth/users/me."""
+_DISPLAY_NAME_RE = re.compile(r"^[a-z][a-z0-9-]{2,63}$")
+
+
+def _resolve_owner_name(server_url: str, token: str) -> str:
+    """Fetch the authenticated user's display_name from /v1/auth/users/me."""
     with httpx.Client(base_url=server_url, timeout=30.0) as client:
         resp = client.get(
             "/v1/auth/users/me",
             headers={"Authorization": f"Bearer {token}"},
         )
         resp.raise_for_status()
-        return UUID(resp.json()["id"])
+        return resp.json()["display_name"]
 
 
-def _validate_room_arg(value: str, owner_id: UUID) -> None:
-    """Validate that a user-supplied --room is in composed form."""
+def _validate_room_arg(value: str, owner_name: str) -> None:
+    """Validate that a user-supplied --room is in '<display_name>/<name>' form."""
     if "/" not in value:
         raise typer.BadParameter(
-            f"--room must be '<owner_uuid>/<name>'. Got '{value}'.\n"
-            f"Your UUID is {owner_id}. Try: --room {owner_id}/{value}"
+            f"--room must be '<display-name>/<name>'. Got '{value}'.\n"
+            f"Your display name is {owner_name}. Try: --room {owner_name}/{value}"
         )
     owner_part, _, name_part = value.partition("/")
-    try:
-        UUID(owner_part)
-    except ValueError as exc:
+    if not _DISPLAY_NAME_RE.fullmatch(owner_part):
         raise typer.BadParameter(
-            f"--room owner '{owner_part}' is not a valid UUID. Your UUID is {owner_id}."
-        ) from exc
+            f"--room owner '{owner_part}' is not a valid display name. "
+            f"Your display name is {owner_name}."
+        )
     if not re.fullmatch(r"[a-zA-Z0-9\-_]+", name_part):
         raise typer.BadParameter(
             f"--room name '{name_part}' contains invalid characters. "
@@ -686,10 +687,10 @@ def main(
     # ── Auth + identity ──────────────────────────────────────────────
     token = _acquire_token(url)
     _store_jwt_in_state(server_url, token)
-    owner_id = _resolve_owner_id(url, token)
+    owner_name = _resolve_owner_name(url, token)
 
     if room is not None:
-        _validate_room_arg(room, owner_id)
+        _validate_room_arg(room, owner_name)
 
     # ── Compute rooms ────────────────────────────────────────────────
     has_files = bool(path)
@@ -697,10 +698,12 @@ def main(
         room_names = [room] * len(path or [])
     else:
         simple_names = get_room_names(path or [], room, append)
-        room_names = [f"{owner_id}/{n}" for n in simple_names]
+        room_names = [f"{owner_name}/{n}" for n in simple_names]
 
     first_room = (
-        room_names[0] if room_names else f"{owner_id}/workspace-{uuid.uuid4().hex[:8]}"
+        room_names[0]
+        if room_names
+        else f"{owner_name}/workspace-{uuid.uuid4().hex[:8]}"
     )
 
     if verbose:
