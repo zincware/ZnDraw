@@ -129,6 +129,7 @@ async def ensure_internal_worker(
             is_active=True,
             is_superuser=True,
             is_verified=True,
+            display_name="internal-worker",
         )
         session.add(worker)
         await session.commit()
@@ -138,6 +139,8 @@ async def ensure_internal_worker(
         existing.is_active = True
         existing.is_superuser = True
         existing.is_verified = True
+        if not existing.display_name:
+            existing.display_name = "internal-worker"
         await session.commit()
         log.debug("Updated internal worker user: %s", email)
 

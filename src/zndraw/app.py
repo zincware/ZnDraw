@@ -36,6 +36,7 @@ from zndraw.routes.share_links import router as share_links_router
 from zndraw.routes.step import router as step_router
 from zndraw.routes.tools import router as tools_router
 from zndraw.routes.trajectory import router as trajectory_router
+from zndraw.routes.users import router as users_router
 from zndraw.routes.utility import router as utility_router
 from zndraw.socketio import tsio
 from zndraw_joblib import (
@@ -115,6 +116,7 @@ app.include_router(step_router)
 app.include_router(tools_router)
 app.include_router(trajectory_router)
 app.include_router(utility_router)
+app.include_router(users_router)
 app.include_router(joblib_router)
 
 # Serve built frontend assets and SPA catch-all.

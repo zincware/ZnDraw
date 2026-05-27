@@ -2,6 +2,7 @@
 
 import pytest
 from httpx import AsyncClient
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw_auth import User
 
@@ -202,3 +203,36 @@ async def test_superuser_can_set_is_verified(client: AsyncClient, session) -> No
     )
     assert r.status_code == 200
     assert r.json()["is_verified"] is False
+
+
+# =============================================================================
+# Display Name Suggestion Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_available_display_name_returns_valid_slug(
+    client: AsyncClient,
+) -> None:
+    resp = await client.get("/v1/users/available-display-name")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    from zndraw_auth.display_names import DISPLAY_NAME_PATTERN
+    assert DISPLAY_NAME_PATTERN.fullmatch(body["display_name"])
+
+
+@pytest.mark.asyncio
+async def test_available_display_name_never_collides_with_existing(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    # Register one user, then ask for a suggestion — must differ.
+    await client.post(
+        "/v1/auth/register",
+        json={
+            "email": "eve@example.com",
+            "password": "very-strong-passw0rd",
+            "display_name": "eve-the-curious",
+        },
+    )
+    resp = await client.get("/v1/users/available-display-name")
+    assert resp.json()["display_name"] != "eve-the-curious"
