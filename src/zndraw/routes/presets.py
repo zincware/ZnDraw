@@ -8,13 +8,12 @@ from functools import lru_cache
 from fastapi import APIRouter
 from sqlmodel import select
 
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
-    CurrentUserDep,
+    AccessReadDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
-    room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     InvalidPresetRule,
@@ -38,7 +37,7 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import GeometryInvalidate
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/presets", tags=["presets"])
+router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/presets", tags=["presets"])
 
 
 @lru_cache(maxsize=1)
@@ -88,15 +87,14 @@ def _row_to_preset(row: RoomPreset) -> Preset:
 )
 async def list_presets(
     session: SessionDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
 ) -> PresetsListResponse:
     """List all presets for a room.
 
     Merges bundled presets with room-level DB presets.
     DB presets override bundled ones with the same name.
     """
-    await verify_room(session, room_id)
+    room_id = access.room.id
     result = await session.exec(select(RoomPreset).where(RoomPreset.room_id == room_id))
     rows = result.all()
 
@@ -114,15 +112,14 @@ async def list_presets(
 )
 async def get_preset(
     session: SessionDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
     name: str,
 ) -> Preset:
     """Get a single preset by name.
 
     DB preset takes priority; falls back to bundled preset.
     """
-    await verify_room(session, room_id)
+    room_id = access.room.id
     row = await session.get(RoomPreset, (room_id, name))
     if row is not None:
         return _row_to_preset(row)
@@ -146,10 +143,10 @@ async def get_preset(
 async def create_preset(
     session: SessionDep,
     _room: WritableRoomDep,
-    room_id: str,
     request: Preset,
 ) -> Preset:
     """Create a new preset."""
+    room_id = _room.id
     _validate_rules(request.rules)
 
     existing = await session.get(RoomPreset, (room_id, request.name))
@@ -181,11 +178,11 @@ async def create_preset(
 async def upsert_preset(
     session: SessionDep,
     _room: WritableRoomDep,
-    room_id: str,
     name: str,
     request: Preset,
 ) -> Preset:
     """Create or update a preset (idempotent)."""
+    room_id = _room.id
     _validate_rules(request.rules)
 
     row = await session.get(RoomPreset, (room_id, name))
@@ -221,10 +218,10 @@ async def upsert_preset(
 async def delete_preset(
     session: SessionDep,
     _room: WritableRoomDep,
-    room_id: str,
     name: str,
 ) -> StatusResponse:
     """Delete a preset."""
+    room_id = _room.id
     row = await session.get(RoomPreset, (room_id, name))
     if row is None:
         raise PresetNotFound.exception(f"Preset '{name}' not found")
@@ -243,7 +240,6 @@ async def apply_preset(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    room_id: str,
     name: str,
 ) -> PresetApplyResult:
     """Apply a preset to all matching geometries in the room.
@@ -251,6 +247,8 @@ async def apply_preset(
     Resolves from DB first, then bundled presets.
     The special ``@default`` name resets all geometries to factory defaults.
     """
+    room_id = _room.id
+
     if name == "@default":
         from zndraw.routes.rooms import _initialize_default_geometries
 
@@ -267,9 +265,10 @@ async def apply_preset(
         new_keys = [g.key for g in (await session.exec(new_stmt)).all()]
         all_keys = sorted(set(existing_keys) | set(new_keys))
         for key in all_keys:
-            await sio.emit(
-                GeometryInvalidate(room_id=room_id, operation="set", key=key),
-                room=room_channel(room_id),
+            await broadcast_to_room(
+                sio,
+                GeometryInvalidate.for_room(_room, operation="set", key=key),
+                _room,
             )
         return PresetApplyResult(geometries_updated=all_keys)
 
@@ -313,9 +312,10 @@ async def apply_preset(
     await session.commit()
 
     for key in updated_keys:
-        await sio.emit(
-            GeometryInvalidate(room_id=room_id, operation="set", key=key),
-            room=room_channel(room_id),
+        await broadcast_to_room(
+            sio,
+            GeometryInvalidate.for_room(_room, operation="set", key=key),
+            _room,
         )
 
     return PresetApplyResult(geometries_updated=updated_keys)

@@ -2,6 +2,7 @@
 """Tests for Socket.IO event models and Emission dedup."""
 
 from datetime import UTC, datetime
+from uuid import UUID
 
 import pytest
 from pydantic import ValidationError
@@ -15,11 +16,14 @@ from zndraw_joblib.events import (
     TaskStatusEvent,
 )
 
+_ROOM_UUID = UUID("11111111-1111-1111-1111-111111111111")
+_ROOM_ADDRESS = "22222222-2222-2222-2222-222222222222/demo"
+
 
 def test_jobs_invalidate_frozen():
     """Frozen model is hashable and equal to itself."""
-    a = JobsInvalidate()
-    b = JobsInvalidate()
+    a = JobsInvalidate(room_id=_ROOM_UUID, room_address=_ROOM_ADDRESS)
+    b = JobsInvalidate(room_id=_ROOM_UUID, room_address=_ROOM_ADDRESS)
     assert a == b
     assert hash(a) == hash(b)
 
@@ -39,7 +43,8 @@ def test_task_status_event_frozen():
     ev = TaskStatusEvent(
         id="abc",
         name="@global:modifiers:Rotate",
-        room_id="room1",
+        room_id=_ROOM_UUID,
+        room_address=_ROOM_ADDRESS,
         status="pending",
         created_at=now,
     )
@@ -49,9 +54,17 @@ def test_task_status_event_frozen():
 def test_emission_dedup_jobs_invalidate():
     """Duplicate JobsInvalidate for same room should dedup in a set."""
     emissions = {
-        Emission(JobsInvalidate(), "room:@global"),
-        Emission(JobsInvalidate(), "room:@global"),
-        Emission(JobsInvalidate(), "room:test"),
+        Emission(
+            JobsInvalidate(room_id=_ROOM_UUID, room_address=_ROOM_ADDRESS),
+            "room:@global",
+        ),
+        Emission(
+            JobsInvalidate(room_id=_ROOM_UUID, room_address=_ROOM_ADDRESS),
+            "room:@global",
+        ),
+        Emission(
+            JobsInvalidate(room_id=UUID(int=0), room_address="@global"), "room:test"
+        ),
     }
     assert len(emissions) == 2
 
@@ -80,13 +93,23 @@ def test_emission_dedup_task_status():
     emissions = {
         Emission(
             TaskStatusEvent(
-                id="a", name="j", room_id="r", status="failed", created_at=now
+                id="a",
+                name="j",
+                room_id=_ROOM_UUID,
+                room_address=_ROOM_ADDRESS,
+                status="failed",
+                created_at=now,
             ),
             "room:r",
         ),
         Emission(
             TaskStatusEvent(
-                id="b", name="j", room_id="r", status="failed", created_at=now
+                id="b",
+                name="j",
+                room_id=_ROOM_UUID,
+                room_address=_ROOM_ADDRESS,
+                status="failed",
+                created_at=now,
             ),
             "room:r",
         ),

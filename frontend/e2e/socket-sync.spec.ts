@@ -1,13 +1,20 @@
 import { test, expect } from "@playwright/test";
-import { BASE_URL, CLI, PY, waitForScene, createAuthContext } from "./helpers";
+import {
+	BASE_URL,
+	CLI,
+	PY,
+	waitForScene,
+	createAuthContext,
+	createTestRoom,
+} from "./helpers";
 
-const ROOM = "test-socket-sync";
+let ROOM: string;
 
 test.describe("Socket Sync — Multi-Tab", () => {
 	test.describe.configure({ mode: "serial" });
 
 	test.beforeAll(() => {
-		CLI(`rooms create --room ${ROOM}`);
+		ROOM = createTestRoom("test-socket-sync");
 		PY(`
 from zndraw import ZnDraw
 import ase
@@ -40,7 +47,7 @@ vis.step = 0
 			});
 
 			// Set step to 10 via CLI
-			CLI(`step set ${ROOM} 10`);
+			CLI(`step set 10 --room ${ROOM}`);
 
 			// Both tabs should reflect the change
 			await expect(pageA.getByText("11 / 20")).toBeVisible({
@@ -106,7 +113,7 @@ vis.log("${uniqueMsg}")
 			await waitForScene(pageA);
 			await waitForScene(pageB);
 
-			const beforeJson = JSON.parse(CLI(`frames count ${ROOM}`));
+			const beforeJson = JSON.parse(CLI(`frames count --room ${ROOM}`));
 			const beforeCount = beforeJson.total_frames;
 
 			// Append 3 frames via Python
@@ -163,7 +170,7 @@ for i in range(3):
 			).toBeVisible({ timeout: 10000 });
 
 			// Set selection via CLI
-			CLI(`selection set ${ROOM} 0 1 2`);
+			CLI(`selection set 0 1 2 --room ${ROOM}`);
 
 			// Take screenshots for manual inspection of selection state
 			await pageA.waitForTimeout(2000);
@@ -177,7 +184,7 @@ for i in range(3):
 			});
 
 			// Verify selection via CLI to confirm it was set
-			const selJson = CLI(`selection get ${ROOM}`);
+			const selJson = CLI(`selection get --room ${ROOM}`);
 			expect(selJson).toContain("0");
 			expect(selJson).toContain("1");
 			expect(selJson).toContain("2");

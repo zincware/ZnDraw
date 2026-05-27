@@ -128,14 +128,21 @@ export function FilesystemPanel() {
 		let targetRoomId: string;
 		try {
 			if (room_target.type === "new") {
-				targetRoomId = room_target.room_id;
-				await createRoom({
-					room_id: targetRoomId,
+				const currentUser = useAppStore.getState().user;
+				if (!currentUser) {
+					showSnackbar("Not authenticated", "error");
+					setIsLoadingFile(false);
+					return;
+				}
+				const result = await createRoom({
+					owner_id: currentUser.id,
+					name: room_target.room_id,
 					copy_from: "@none",
 					...(room_target.description && {
 						description: room_target.description,
 					}),
 				});
+				targetRoomId = result.room_id;
 			} else if (room_target.type === "existing") {
 				targetRoomId = room_target.room_id;
 			} else {

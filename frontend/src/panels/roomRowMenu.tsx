@@ -2,8 +2,6 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DownloadIcon from "@mui/icons-material/Download";
 import DuplicateIcon from "@mui/icons-material/FileCopy";
-import LockIcon from "@mui/icons-material/Lock";
-import LockOpenIcon from "@mui/icons-material/LockOpen";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
@@ -17,12 +15,7 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import DuplicateRoomDialog from "../components/DuplicateRoomDialog";
-import {
-	downloadFrames,
-	type Room,
-	setDefaultRoom,
-	updateRoom,
-} from "../myapi/client";
+import { downloadFrames, type Room, setDefaultRoom } from "../myapi/client";
 import { useRoomsStore } from "../roomsStore";
 import { useAppStore } from "../store";
 
@@ -40,26 +33,16 @@ export function RoomRowMenu({ room }: Props) {
 	const onSetTemplate = async () => {
 		setAnchor(null);
 		try {
-			await setDefaultRoom(room.is_default ? null : room.id);
+			await setDefaultRoom(room.is_default ? null : room.room_id);
 			useRoomsStore
 				.getState()
-				.updateRoom(room.id, { is_default: !room.is_default });
+				.updateRoom(room.room_id, { is_default: !room.is_default });
 			showSnackbar(
 				room.is_default ? "Template cleared" : "Set as template",
 				"success",
 			);
 		} catch {
 			showSnackbar("Failed to update template", "error");
-		}
-	};
-
-	const onToggleLock = async () => {
-		setAnchor(null);
-		try {
-			await updateRoom(room.id, { locked: !room.locked });
-			showSnackbar(room.locked ? "Room unlocked" : "Room locked", "success");
-		} catch {
-			showSnackbar("Failed to update lock", "error");
 		}
 	};
 
@@ -71,14 +54,14 @@ export function RoomRowMenu({ room }: Props) {
 	const onCopyLink = async () => {
 		setAnchor(null);
 		await navigator.clipboard.writeText(
-			`${window.location.origin}/rooms/${room.id}`,
+			`${window.location.origin}/rooms/${room.room_id}`,
 		);
 		showSnackbar("Link copied", "success");
 	};
 
 	const onDownload = () => {
 		setAnchor(null);
-		downloadFrames({ roomId: room.id });
+		downloadFrames({ roomId: room.room_id });
 		showSnackbar("Downloading all frames", "success");
 	};
 
@@ -86,7 +69,7 @@ export function RoomRowMenu({ room }: Props) {
 		<>
 			<IconButton
 				size="small"
-				data-testid={`room-row-menu-${room.id}`}
+				data-testid={`room-row-menu-${room.room_id}`}
 				onClick={(e) => setAnchor(e.currentTarget)}
 				onMouseDown={(e) => e.stopPropagation()}
 				aria-label="Room actions"
@@ -107,12 +90,6 @@ export function RoomRowMenu({ room }: Props) {
 						<DuplicateIcon />
 					</ListItemIcon>
 					<ListItemText>Duplicate room</ListItemText>
-				</MenuItem>
-				<MenuItem onClick={onToggleLock}>
-					<ListItemIcon>
-						{room.locked ? <LockOpenIcon /> : <LockIcon />}
-					</ListItemIcon>
-					<ListItemText>{room.locked ? "Unlock" : "Lock"}</ListItemText>
 				</MenuItem>
 				<MenuItem onClick={onCopyLink}>
 					<ListItemIcon>
@@ -139,9 +116,9 @@ export function RoomRowMenu({ room }: Props) {
 			</Menu>
 			<DuplicateRoomDialog
 				open={duplicateOpen}
-				sourceRoomId={room.id}
-				sourceDescription={room.description ?? room.id}
-				existingRoomIds={rooms.map((r) => r.id)}
+				sourceRoomId={room.room_id}
+				sourceDescription={room.description ?? room.room_id}
+				existingRoomIds={rooms.map((r) => r.room_id)}
 				onClose={() => setDuplicateOpen(false)}
 			/>
 		</>

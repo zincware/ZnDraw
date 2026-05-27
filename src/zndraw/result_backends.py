@@ -170,7 +170,8 @@ class StorageResultBackend:
         await io.clear()
         # Wrap in msgpack so the blob↔object adapter round-trip works
         packed = msgpack.packb(data)
-        assert packed is not None
+        if packed is None:
+            raise RuntimeError("msgpack.packb returned None")
         await io.extend([{b"_": packed}])
 
     async def get(self, key: str) -> bytes | None:

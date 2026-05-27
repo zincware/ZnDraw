@@ -41,7 +41,6 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 	const roomId = useAppStore((state) => state.roomId);
 	const userId = useAppStore((state) => state.user?.id ?? null);
 	const geometriesData = useAppStore((state) => state.geometries);
-	const superuserLock = useAppStore((state) => state.superuserLock);
 	const userLock = useAppStore((state) => state.userLock);
 	const isSuperuser = useAppStore((state) => state.user?.is_superuser ?? false);
 	const currentUserEmail = useAppStore((state) => state.user?.email ?? null);
@@ -73,8 +72,6 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 		if (owner && owner !== userId) return false;
 		// Edit lock by someone else — always blocked
 		if (userLock && userLock !== currentUserEmail) return false;
-		// Superuser lock — owners can still edit their own
-		if (superuserLock && owner !== userId) return false;
 		return true;
 	};
 
@@ -138,7 +135,6 @@ const GeometryGrid = ({ geometries }: GeometryGridProps) => {
 		if (owner && owner !== userId) return "Owned by another user";
 		if (userLock && userLock !== currentUserEmail)
 			return "Room is being edited";
-		if (superuserLock && owner !== userId) return "Room is locked";
 		return null;
 	};
 

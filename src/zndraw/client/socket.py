@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 import socketio
 from zndraw_socketio import SyncClientWrapper, wrap
@@ -38,11 +39,12 @@ class SocketManager:
 
     def _register_handlers(self) -> None:
         """Register Socket.IO event handlers using typed models."""
-        from zndraw.socket_events import FramesInvalidate
+        from zndraw.socket_events import FramesInvalidate, RoomRenamed
 
         self.tsio.on("connect", self._on_connect)
         self.tsio.on("disconnect", self._on_disconnect)
         self.tsio.on(FramesInvalidate, self._on_frames_invalidate)
+        self.tsio.on(RoomRenamed, self._on_room_renamed)
 
     @property
     def connected(self) -> bool:
@@ -69,14 +71,17 @@ class SocketManager:
         )
 
         try:
-            # Join room and get session info
-            join_request = RoomJoin(room_id=self.zndraw.room, client_type="pyclient")
+            owner_part, _, room_name = self.zndraw.room.partition("/")
+            join_request = RoomJoin(
+                owner_id=UUID(owner_part),
+                room_name=room_name,
+                client_type="pyclient",
+            )
             raw_response = self.tsio.call(join_request)
             response: dict[str, Any] = raw_response if raw_response else {}
 
             if "type" in response and response.get("status") == 404:
                 self.zndraw.api.create_room(copy_from=self.zndraw.copy_from)
-                # Retry join
                 raw_response = self.tsio.call(join_request)
                 response = raw_response if raw_response else {}
 
@@ -140,9 +145,19 @@ class SocketManager:
         from zndraw.socket_events import FramesInvalidate
 
         event = FramesInvalidate.model_validate(data)
-        if event.room_id != self.zndraw.room:
+        if event.room_address != self.zndraw.room:
             return
         if event.count is not None:
             self.zndraw.cached_length = event.count
         else:
             self.zndraw.cached_length = None
+
+    def _on_room_renamed(self, data: Any) -> None:
+        """Update self.zndraw.room when our room is transferred to a new namespace."""
+        from zndraw.socket_events import RoomRenamed
+
+        event = RoomRenamed.model_validate(data)
+        if self.zndraw.room == event.old_address:
+            self.zndraw.room = event.room_address
+            self.zndraw.api.room_id = event.room_address
+            log.debug("Room renamed: %s -> %s", event.old_address, event.room_address)

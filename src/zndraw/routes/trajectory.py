@@ -7,27 +7,30 @@ for browser/wget downloads without Authorization headers.
 
 import io
 import re
-import uuid
+import uuid as _uuid_mod
 from typing import Annotated
+from uuid import UUID
 
 import ase.io
 from asebytes import decode, encode
-from fastapi import APIRouter, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from zndraw.broadcast import broadcast_to_room
 from zndraw.connectivity import add_connectivity
 from zndraw.dependencies import (
+    AccessReadDep,
     CurrentUserDep,
     FrameStorageDep,
-    OptionalUserDep,
     RedisDep,
     RequireWritableDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
-    room_channel,
-    verify_room,
+    _load_room_by_address,
+    fetch_group_role,
+    resolve_share_token,
 )
 from zndraw.enrichment import add_colors, add_radii
 from zndraw.exceptions import (
@@ -42,8 +45,14 @@ from zndraw.redis import RedisKey
 from zndraw.routes.rooms import broadcast_room_update
 from zndraw.schemas import FrameBulkResponse
 from zndraw.socket_events import FramesInvalidate
+from zndraw_auth import User as _User, current_optional_user
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/trajectory", tags=["trajectory"])
+# Anonymous-by-token path for `zndraw-cli download`; keep optional auth here only.
+_OptionalUserTokenDep = Annotated[_User | None, Depends(current_optional_user)]
+
+router = APIRouter(
+    prefix="/v1/rooms/{owner_id}/{room_name}/trajectory", tags=["trajectory"]
+)
 
 _UPLOAD_BATCH_SIZE = 500
 _CONNECTIVITY_ATOM_LIMIT = 100
@@ -87,11 +96,13 @@ class DownloadTokenResponse(BaseModel):
     responses=problem_responses(NotAuthenticated, RoomNotFound, InvalidPayload),
 )
 async def download_trajectory(
+    request: Request,
     session: SessionDep,
     storage: FrameStorageDep,
     redis: RedisDep,
-    user: OptionalUserDep,
-    room_id: str,
+    user: _OptionalUserTokenDep,
+    owner_id: UUID,
+    room_name: str,
     format: Annotated[str, Query(description="Output format")] = "extxyz",  # noqa: A002
     indices: Annotated[
         str | None, Query(description="Comma-separated frame indices")
@@ -111,14 +122,30 @@ async def download_trajectory(
     Authenticate via JWT header or a temporary download token.
     Supported formats: extxyz, xyz, cif, pdb.
     """
+    room = await _load_room_by_address(session, owner_id, room_name)
+    if room is None:
+        raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+    room_id = room.id
+
     if user is None:
         if token is None:
             raise NotAuthenticated.exception()
         stored_room = await redis.getdel(RedisKey.download_token(token))
         if stored_room is None or stored_room != room_id:
             raise NotAuthenticated.exception()
+        # Token path: someone with read access minted the token; skip further check.
+    else:
+        # Authenticated path: enforce can_read explicitly (no AccessReadDep
+        # because this handler uses _OptionalUserTokenDep, not CurrentUserDep).
+        from zndraw.access import can_read
 
-    await verify_room(session, room_id)
+        x_room_share_token = request.headers.get("X-Room-Share-Token")
+        share = await resolve_share_token(session, x_room_share_token, room_id)
+        group_role = None
+        if room.owner_group_id is not None:
+            group_role = await fetch_group_role(session, user.id, room.owner_group_id)
+        if not can_read(user, room, share, group_role=group_role):
+            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
 
     if format not in _FORMAT_INFO:
         raise InvalidPayload.exception(
@@ -207,10 +234,8 @@ async def download_trajectory(
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def create_download_token(
-    session: SessionDep,
     redis: RedisDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
     request: Request,
     body: DownloadTokenRequest | None = None,
 ) -> DownloadTokenResponse:
@@ -219,14 +244,16 @@ async def create_download_token(
     The token can be used as a query parameter on the GET endpoint,
     enabling downloads via browser navigation or wget without auth headers.
     """
-    await verify_room(session, room_id)
-
+    room_id = access.room.id
     ttl = body.ttl if body else _DEFAULT_TOKEN_TTL
-    token_value = uuid.uuid4().hex
+    token_value = _uuid_mod.uuid4().hex
     await redis.set(RedisKey.download_token(token_value), room_id, ex=ttl)
 
     base_url = str(request.base_url).rstrip("/")
-    url = f"{base_url}/v1/rooms/{room_id}/trajectory?token={token_value}"
+    url = (
+        f"{base_url}/v1/rooms/{access.room.public_address}"
+        f"/trajectory?token={token_value}"
+    )
 
     return DownloadTokenResponse(token=token_value, url=url, expires_in=ttl)
 
@@ -244,7 +271,6 @@ async def upload_trajectory(
     sio: SioDep,
     room: WritableRoomDep,
     _: RequireWritableDep,
-    room_id: str,
     _current_user: CurrentUserDep,
     file: UploadFile,
     format: Annotated[  # noqa: A002
@@ -257,6 +283,7 @@ async def upload_trajectory(
     Accepts multipart/form-data with a trajectory file.
     Parses the file using ASE and appends frames to storage.
     """
+    room_id = room.id
     content = await file.read(_MAX_UPLOAD_SIZE + 1)
 
     if len(content) > _MAX_UPLOAD_SIZE:
@@ -316,9 +343,10 @@ async def upload_trajectory(
         new_total = await storage[room_id].extend(frames)
 
     # Broadcast invalidation
-    await sio.emit(
-        FramesInvalidate(room_id=room_id, action="add", count=new_total),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FramesInvalidate.for_room(room, action="add", count=new_total),
+        room,
     )
     await broadcast_room_update(sio, session, storage, room)
 

@@ -21,15 +21,24 @@ import webbrowser
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
+from uuid import UUID
 
+import httpx
 import typer
 import uvicorn
 
 from zndraw import __version__
+from zndraw.auth_utils import (
+    guest_login,
+    login_with_credentials,
+    resolve_or_refresh_token,
+)
 from zndraw.client import ZnDraw
+from zndraw.client.settings import ClientSettings
 from zndraw.server_manager import shutdown_server, wait_for_server_ready
 from zndraw.settings_sources import _is_url_healthy
 from zndraw.state_file import ServerEntry, StateFile
+from zndraw_auth.settings import AuthSettings
 
 log = logging.getLogger(__name__)
 
@@ -293,34 +302,54 @@ def handle_shutdown(port: int | None) -> None:
     raise typer.Exit(1)
 
 
-def _acquire_admin_jwt(server_url: str) -> str | None:
-    """Acquire an admin JWT from the server and return it.
+def _resolve_owner_id(server_url: str, token: str) -> UUID:
+    """Fetch the authenticated user's UUID from /v1/auth/users/me."""
+    with httpx.Client(base_url=server_url, timeout=30.0) as client:
+        resp = client.get(
+            "/v1/auth/users/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        resp.raise_for_status()
+        return UUID(resp.json()["id"])
 
-    In dev mode (no DEFAULT_ADMIN configured), creates a guest user that
-    is automatically promoted to superuser.  In production mode, logs in
-    as the configured admin.
 
-    Returns None on failure (non-fatal — client falls back to guest_login).
-    """
-    from zndraw.auth_utils import guest_login, login_with_credentials
-    from zndraw_auth.settings import AuthSettings
+def _validate_room_arg(value: str, owner_id: UUID) -> None:
+    """Validate that a user-supplied --room is in composed form."""
+    if "/" not in value:
+        raise typer.BadParameter(
+            f"--room must be '<owner_uuid>/<name>'. Got '{value}'.\n"
+            f"Your UUID is {owner_id}. Try: --room {owner_id}/{value}"
+        )
+    owner_part, _, name_part = value.partition("/")
+    try:
+        UUID(owner_part)
+    except ValueError as exc:
+        raise typer.BadParameter(
+            f"--room owner '{owner_part}' is not a valid UUID. Your UUID is {owner_id}."
+        ) from exc
+    if not re.fullmatch(r"[a-zA-Z0-9\-_]+", name_part):
+        raise typer.BadParameter(
+            f"--room name '{name_part}' contains invalid characters. "
+            f"Allowed: letters, digits, '-', '_'."
+        )
+
+
+def _acquire_token(server_url: str) -> str:
+    """Acquire a JWT for outgoing CLI calls (stored → dev → admin → guest fallback)."""
+    settings = ClientSettings(url=server_url)
+    if settings.token is not None:
+        return resolve_or_refresh_token(server_url, settings.token)
 
     auth = AuthSettings()
-    try:
-        if auth.is_dev_mode:
-            return guest_login(server_url)
-        assert auth.default_admin_email is not None  # guaranteed by is_dev_mode=False
-        assert auth.default_admin_password is not None
+    if auth.is_dev_mode:
+        return guest_login(server_url)
+    if auth.default_admin_email is not None and auth.default_admin_password is not None:
         return login_with_credentials(
             server_url,
             auth.default_admin_email,
             auth.default_admin_password,
         )
-    except Exception:  # noqa: BLE001
-        log.debug(
-            "Failed to acquire admin JWT — clients will use guest_login", exc_info=True
-        )
-        return None
+    return guest_login(server_url)
 
 
 def _store_jwt_in_state(server_url: str, jwt: str) -> None:
@@ -341,8 +370,8 @@ def get_room_names(
     if room:
         return [sanitize_room_name(room)] * len(paths)
     if append:
-        return [path_to_room(p, unique=False) for p in paths]
-    return [path_to_room(p, unique=True) for p in paths]
+        return [path_to_room(Path(p).name, unique=False) for p in paths]
+    return [path_to_room(Path(p).name, unique=True) for p in paths]
 
 
 def resolve_server(
@@ -641,17 +670,42 @@ def main(
         typer.echo("Note: Browser will not be opened in detached mode")
         browser = False
 
+    # ── Resolve server ───────────────────────────────────────────────
+    url, server, server_url = resolve_server(connect, port, host, detached, verbose)
+
+    # If we started a new server, wait until it's healthy before any HTTP.
+    thread: threading.Thread | None = None
+    if server is not None:
+        thread = threading.Thread(target=server.run, daemon=True)
+        thread.start()
+        if not wait_for_server_ready(url, timeout=30.0):
+            typer.echo("Error: Server failed to start within timeout", err=True)
+            raise typer.Exit(1)
+        typer.echo(f"Server started at {url}")
+
+    # ── Auth + identity ──────────────────────────────────────────────
+    token = _acquire_token(url)
+    _store_jwt_in_state(server_url, token)
+    owner_id = _resolve_owner_id(url, token)
+
+    if room is not None:
+        _validate_room_arg(room, owner_id)
+
     # ── Compute rooms ────────────────────────────────────────────────
-    room_names = get_room_names(path or [], room, append)
-    first_room = room_names[0] if room_names else f"workspace-{uuid.uuid4().hex[:8]}"
     has_files = bool(path)
+    if room is not None:
+        room_names = [room] * len(path or [])
+    else:
+        simple_names = get_room_names(path or [], room, append)
+        room_names = [f"{owner_id}/{n}" for n in simple_names]
+
+    first_room = (
+        room_names[0] if room_names else f"{owner_id}/workspace-{uuid.uuid4().hex[:8]}"
+    )
 
     if verbose:
         msg = f"Rooms: {room_names}" if has_files else "No files loaded on startup."
         typer.echo(msg)
-
-    # ── Resolve server ───────────────────────────────────────────────
-    url, server, server_url = resolve_server(connect, port, host, detached, verbose)
 
     if server is None:
         # Remote or existing server — open browser, upload, done
@@ -661,21 +715,7 @@ def main(
             typer.echo(f"\nServer is running at {url}")
         return
 
-    # ── New server ───────────────────────────────────────────────────
-    thread = threading.Thread(target=server.run, daemon=True)
-    thread.start()
-
-    if not wait_for_server_ready(url, timeout=30.0):
-        typer.echo("Error: Server failed to start within timeout", err=True)
-        raise typer.Exit(1)
-    typer.echo(f"Server started at {url}")
-
-    # Acquire an admin JWT and store it so ZnDraw clients (including
-    # upload_files below) authenticate via StateFileSource automatically.
-    jwt = _acquire_admin_jwt(url)
-    if jwt is not None:
-        _store_jwt_in_state(server_url, jwt)
-
+    # ── New server: serve loop ──────────────────────────────────────
     if has_files or browser:
         open_browser_to(
             url, first_room, browser, copy_from="@none" if has_files else None
@@ -683,6 +723,7 @@ def main(
         upload_files(path or [], url, room_names, start, stop, step)
 
     try:
+        assert thread is not None  # always set for new-server branch
         thread.join()
     except KeyboardInterrupt:
         typer.echo("\nShutting down...")

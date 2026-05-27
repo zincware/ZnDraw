@@ -4,12 +4,13 @@
 import asyncio
 
 import pytest
+from conftest import make_room_address
 
 from zndraw_joblib.schemas import PaginatedResponse, TaskResponse
 
 
 @pytest.mark.asyncio
-async def test_concurrent_task_submissions(async_client):
+async def test_concurrent_task_submissions(async_client, test_user_id):
     """Submit 100 tasks concurrently."""
     # First create a worker and register a job
     worker_resp = await async_client.post("/v1/joblib/workers")
@@ -22,9 +23,11 @@ async def test_concurrent_task_submissions(async_client):
     )
     assert job_resp.status_code == 201
 
+    addr = make_room_address(test_user_id, "stress_room")
+
     async def submit_task(i: int):
         return await async_client.post(
-            "/v1/joblib/rooms/stress_room/tasks/@global:modifiers:StressJob",
+            f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:StressJob",
             json={"payload": {"index": i}},
         )
 
@@ -33,7 +36,7 @@ async def test_concurrent_task_submissions(async_client):
     assert all(r.status_code == 202 for r in responses)
 
     # Verify all tasks exist
-    list_resp = await async_client.get("/v1/joblib/rooms/stress_room/tasks?limit=200")
+    list_resp = await async_client.get(f"/v1/joblib/rooms/{addr}/tasks?limit=200")
     assert list_resp.status_code == 200
     page = PaginatedResponse[TaskResponse].model_validate(list_resp.json())
     assert page.total == 100
@@ -41,7 +44,7 @@ async def test_concurrent_task_submissions(async_client):
 
 
 @pytest.mark.asyncio
-async def test_concurrent_claims_multiple_workers(async_client):
+async def test_concurrent_claims_multiple_workers(async_client, test_user_id):
     """10 workers claim concurrently from 50 tasks."""
     # Create 10 workers
     worker_ids = []
@@ -61,10 +64,12 @@ async def test_concurrent_claims_multiple_workers(async_client):
             },
         )
 
+    addr = make_room_address(test_user_id, "concurrent_room")
+
     # Submit 50 tasks
     for i in range(50):
         resp = await async_client.post(
-            "/v1/joblib/rooms/concurrent_room/tasks/@global:modifiers:ConcurrentJob",
+            f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:ConcurrentJob",
             json={"payload": {"index": i}},
         )
         assert resp.status_code == 202
@@ -99,7 +104,7 @@ async def test_concurrent_claims_multiple_workers(async_client):
 
 
 @pytest.mark.asyncio
-async def test_no_double_claim_under_contention(async_client):
+async def test_no_double_claim_under_contention(async_client, test_user_id):
     """Multiple workers trying to claim same task simultaneously — only 1 succeeds."""
     # Create 10 workers
     worker_ids = []
@@ -117,9 +122,11 @@ async def test_no_double_claim_under_contention(async_client):
             },
         )
 
+    addr = make_room_address(test_user_id, "single_room")
+
     # Submit only 1 task
     await async_client.post(
-        "/v1/joblib/rooms/single_room/tasks/@global:modifiers:SingleJob",
+        f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:SingleJob",
         json={"payload": {"data": "unique"}},
     )
 
@@ -139,7 +146,7 @@ async def test_no_double_claim_under_contention(async_client):
 
 
 @pytest.mark.asyncio
-async def test_large_queue_concurrent_submit_and_claim(async_client):
+async def test_large_queue_concurrent_submit_and_claim(async_client, test_user_id):
     """Submit and claim happening concurrently."""
     # Create workers first
     worker_ids = []
@@ -157,6 +164,8 @@ async def test_large_queue_concurrent_submit_and_claim(async_client):
             },
         )
 
+    addr = make_room_address(test_user_id, "mixed_room")
+
     # Track submissions and claims
     submitted = []
     claimed = []
@@ -165,7 +174,7 @@ async def test_large_queue_concurrent_submit_and_claim(async_client):
         """Submit a batch of tasks."""
         for i in range(count):
             resp = await async_client.post(
-                "/v1/joblib/rooms/mixed_room/tasks/@global:modifiers:MixedJob",
+                f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:MixedJob",
                 json={"payload": {"batch": start, "index": i}},
             )
             if resp.status_code == 202:
@@ -205,7 +214,7 @@ async def test_large_queue_concurrent_submit_and_claim(async_client):
 
 
 @pytest.mark.asyncio
-async def test_rapid_fire_claims_same_worker(async_client):
+async def test_rapid_fire_claims_same_worker(async_client, test_user_id):
     """Single worker makes rapid claim requests."""
     # Create worker and register job
     worker_resp = await async_client.post("/v1/joblib/workers")
@@ -216,10 +225,12 @@ async def test_rapid_fire_claims_same_worker(async_client):
         json={"category": "modifiers", "name": "RapidJob", "worker_id": worker_id},
     )
 
+    addr = make_room_address(test_user_id, "rapid_room")
+
     # Submit 20 tasks
     for i in range(20):
         await async_client.post(
-            "/v1/joblib/rooms/rapid_room/tasks/@global:modifiers:RapidJob",
+            f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:RapidJob",
             json={"payload": {"index": i}},
         )
 

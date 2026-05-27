@@ -126,6 +126,8 @@ def test_modifier_delete_e2e(server):
         task.wait(timeout=30)
         assert task.status == "completed"
 
+        # Force re-query from server (socket cache may be stale after task)
+        vis.cached_length = None
         # Delete appends a new frame with selected atoms removed
         assert len(vis) >= 2
         new_frame = vis[-1]

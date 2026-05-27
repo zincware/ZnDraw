@@ -20,6 +20,7 @@ from zndraw_joblib.events import (
     ProvidersInvalidate,
     build_task_status_emission,
     emit,
+    event_room_uuid,
 )
 from zndraw_joblib.models import (
     Job,
@@ -29,6 +30,7 @@ from zndraw_joblib.models import (
     Worker,
     WorkerJobLink,
 )
+from zndraw_joblib.room_lookup import room_address_for
 from zndraw_joblib.settings import JobLibSettings
 
 logger = logging.getLogger(__name__)
@@ -76,7 +78,16 @@ async def _soft_delete_orphan_job(
     # Soft-delete the orphaned job (no workers, no pending tasks)
     job.deleted = True
     session.add(job)
-    emissions.add(Emission(JobsInvalidate(), f"room:{job.room_id}"))
+    room_address = await room_address_for(session, job.room_id)
+    emissions.add(
+        Emission(
+            JobsInvalidate(
+                room_id=event_room_uuid(job.room_id),
+                room_address=room_address,
+            ),
+            f"room:{job.room_id}",
+        )
+    )
     return emissions
 
 
@@ -113,7 +124,11 @@ async def cleanup_worker(
         task.error = "Worker disconnected"
         session.add(task)
         emissions.add(
-            build_task_status_emission(task, task.job.full_name if task.job else "")
+            build_task_status_emission(
+                task,
+                task.job.full_name if task.job else "",
+                room_address=await room_address_for(session, task.room_id),
+            )
         )
 
     # Get links this worker has (need both job_ids and the link objects)
@@ -134,7 +149,16 @@ async def cleanup_worker(
 
     # Emit JobsInvalidate for all affected rooms (worker count changed)
     for room_id in set(job_rooms.values()):
-        emissions.add(Emission(JobsInvalidate(), f"room:{room_id}"))
+        room_address = await room_address_for(session, room_id)
+        emissions.add(
+            Emission(
+                JobsInvalidate(
+                    room_id=event_room_uuid(room_id),
+                    room_address=room_address,
+                ),
+                f"room:{room_id}",
+            )
+        )
 
     # Delete providers owned by this worker
     result = await session.exec(
@@ -149,7 +173,16 @@ async def cleanup_worker(
         provider_rooms.add(provider.room_id)
         await session.delete(provider)
     for room_id in provider_rooms:
-        emissions.add(Emission(ProvidersInvalidate(), f"room:{room_id}"))
+        room_address = await room_address_for(session, room_id)
+        emissions.add(
+            Emission(
+                ProvidersInvalidate(
+                    room_id=event_room_uuid(room_id),
+                    room_address=room_address,
+                ),
+                f"room:{room_id}",
+            )
+        )
 
     # Delete all links
     for link in links:
@@ -250,7 +283,11 @@ async def cleanup_stuck_internal_tasks(
         task.error = "Internal worker timeout"
         session.add(task)
         emissions.add(
-            build_task_status_emission(task, task.job.full_name if task.job else "")
+            build_task_status_emission(
+                task,
+                task.job.full_name if task.job else "",
+                room_address=await room_address_for(session, task.room_id),
+            )
         )
         count += 1
 
@@ -295,15 +332,20 @@ async def run_sweeper(
     while True:
         await asyncio.sleep(interval)
         try:
+            collected_emissions: set[Emission] = set()
+            collected_frame_rooms: set[str] = set()
             async for session in get_session():
                 count, emissions, frame_rooms = await cleanup_stale_workers(
                     session, timeout
                 )
                 if count > 0:
                     logger.info("Cleaned up %s stale worker(s)", count)
-                await emit(tsio, emissions)
-                if frame_rooms and on_frame_rooms is not None:
-                    await on_frame_rooms(frame_rooms)
+                collected_emissions.update(emissions)
+                collected_frame_rooms.update(frame_rooms)
+            # Session released — emit and call cleanup hook without holding the lock.
+            await emit(tsio, collected_emissions)
+            if collected_frame_rooms and on_frame_rooms is not None:
+                await on_frame_rooms(collected_frame_rooms)
 
             async for session in get_session():
                 count, emissions = await cleanup_stuck_internal_tasks(

@@ -2,9 +2,9 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DownloadIcon from "@mui/icons-material/Download";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import LockIcon from "@mui/icons-material/Lock";
-import LockOpenIcon from "@mui/icons-material/LockOpen";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PowerSettingsNewIcon from "@mui/icons-material/PowerSettingsNew";
+import ShareIcon from "@mui/icons-material/Share";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import Button from "@mui/material/Button";
@@ -22,8 +22,10 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { composeRoomAddress } from "../utils/roomAddress";
 import {
 	type RoomDetail,
+	type Visibility,
 	downloadFrames,
 	getRoom,
 	listProviders,
@@ -35,6 +37,8 @@ import { useRoomsStore } from "../roomsStore";
 import { socket } from "../socket";
 import { useAppStore } from "../store";
 import DuplicateRoomDialog from "./DuplicateRoomDialog";
+import ShareDialog from "./ShareDialog";
+import VisibilitySelector from "./VisibilitySelector";
 
 /**
  * RoomManagementMenu provides room management actions in the AppBar:
@@ -44,10 +48,16 @@ import DuplicateRoomDialog from "./DuplicateRoomDialog";
  * - Go to room list
  */
 export default function RoomManagementMenu() {
-	const { roomId } = useParams<{ roomId: string }>();
+	const { ownerId, roomName } = useParams<{
+		ownerId: string;
+		roomName: string;
+	}>();
+	const roomId =
+		ownerId && roomName ? composeRoomAddress(ownerId, roomName) : undefined;
 	const navigate = useNavigate();
 	// Use individual selectors to prevent unnecessary re-renders
 	const userName = useAppStore((state) => state.user?.email ?? null);
+	const userId = useAppStore((state) => state.user?.id ?? null);
 	const isAdmin = useAppStore((state) => state.user?.is_superuser ?? false);
 	const currentFrame = useAppStore((state) => state.currentFrame);
 	const showSnackbar = useAppStore((state) => state.showSnackbar);
@@ -59,6 +69,8 @@ export default function RoomManagementMenu() {
 	const [filesystemAvailable, setFilesystemAvailable] = useState(false);
 	const [duplicateOpen, setDuplicateOpen] = useState(false);
 	const [shutdownDialog, setShutdownDialog] = useState(false);
+	const [shareOpen, setShareOpen] = useState(false);
+	const [visibility, setVisibility] = useState<Visibility>("public");
 
 	// Subscribe to rooms from Zustand store (triggers re-render on changes)
 	const rooms = useRoomsStore((state) => state.roomsArray);
@@ -79,6 +91,13 @@ export default function RoomManagementMenu() {
 			setRoomDetail(currentRoomFromStore);
 		}
 	}, [currentRoomFromStore]);
+
+	// Sync visibility from store
+	useEffect(() => {
+		if (currentRoomFromStore?.visibility) {
+			setVisibility(currentRoomFromStore.visibility);
+		}
+	}, [currentRoomFromStore?.visibility]);
 
 	// Derive isDefault from room data (either from store or local state)
 	const isDefault =
@@ -111,10 +130,7 @@ export default function RoomManagementMenu() {
 
 	const menuOpen = Boolean(anchorEl);
 
-	// Determine if any lock is active
-	const isRoomLocked = useAppStore((state) => state.superuserLock);
 	const isEditLocked = userLock !== null;
-	const isAnyLockActive = isRoomLocked || isEditLocked;
 
 	const handleOpenMenu = async (event: React.MouseEvent<HTMLElement>) => {
 		setAnchorEl(event.currentTarget);
@@ -134,48 +150,31 @@ export default function RoomManagementMenu() {
 		setAnchorEl(null);
 	};
 
-	const handleLockIconClick = async () => {
-		if (isEditLocked && !isRoomLocked) {
-			// Edit lock active but no superuser lock — just show info
+	const handleLockIconClick = () => {
+		if (isEditLocked) {
 			showSnackbar(
 				`Locked by ${userLock || "another user"}: ${userLockMessage || "in use"}`,
 				"info",
 			);
-			return;
 		}
-		// Toggle superuser lock
-		await handleToggleLock();
 	};
 
-	const handleToggleLock = async () => {
+	const handleVisibility = async (v: Visibility) => {
 		if (!roomId) return;
-
-		// Fetch latest room detail if not available
-		let currentRoomDetail = roomDetail;
-		if (!currentRoomDetail) {
-			try {
-				currentRoomDetail = await getRoom(roomId);
-				setRoomDetail(currentRoomDetail);
-			} catch (err) {
-				showSnackbar("Failed to fetch room details", "error");
-				return;
+		setVisibility(v);
+		try {
+			await updateRoom(roomId, { visibility: v });
+			useRoomsStore.getState().updateRoom(roomId, { visibility: v });
+			showSnackbar(`Visibility updated to ${v}`, "success");
+		} catch {
+			showSnackbar("Failed to update visibility", "error");
+			if (currentRoomFromStore?.visibility) {
+				setVisibility(currentRoomFromStore.visibility);
 			}
 		}
-
-		try {
-			await updateRoom(roomId, { locked: !currentRoomDetail.locked });
-			setRoomDetail({
-				...currentRoomDetail,
-				locked: !currentRoomDetail.locked,
-			});
-			showSnackbar(
-				currentRoomDetail.locked ? "Room unlocked" : "Room locked",
-				"success",
-			);
-		} catch (err) {
-			showSnackbar("Failed to update lock status", "error");
-		}
 	};
+
+	const canManage = isAdmin || (userId !== null && ownerId === userId);
 
 	const handleToggleDefault = async () => {
 		if (!roomId) return;
@@ -190,7 +189,7 @@ export default function RoomManagementMenu() {
 				isDefault ? "Template cleared" : "Set as template",
 				"success",
 			);
-		} catch (err) {
+		} catch {
 			showSnackbar("Failed to update template", "error");
 			// Revert the optimistic update on error
 			useRoomsStore.getState().updateRoom(roomId, { is_default: isDefault });
@@ -204,8 +203,8 @@ export default function RoomManagementMenu() {
 	};
 
 	const handleGoToFilesystem = () => {
-		if (!roomId) return;
-		navigate(`/rooms/${roomId}/files`);
+		if (!ownerId || !roomName) return;
+		navigate(`/rooms/${ownerId}/${roomName}/files`);
 		handleCloseMenu();
 	};
 
@@ -257,19 +256,8 @@ export default function RoomManagementMenu() {
 		return null;
 	}
 
-	// Build tooltip text for lock icon
+	// Build tooltip text for edit-lock icon
 	const getLockTooltip = () => {
-		if (isAdmin) {
-			if (isRoomLocked) return "Click to unlock room";
-			if (isEditLocked) {
-				const user = userLock || "Someone";
-				const action = userLockMessage || "using this room";
-				return `${user}: ${action} - cannot unlock`;
-			}
-			return "Click to lock room";
-		}
-		// Non-admin tooltips (read-only)
-		if (isRoomLocked) return "Room is locked by an administrator";
 		if (isEditLocked) {
 			const user = userLock || "Someone";
 			const action = userLockMessage || "using this room";
@@ -280,36 +268,17 @@ export default function RoomManagementMenu() {
 
 	return (
 		<>
-			{/* Lock icon — admins: clickable toggle, non-admins: read-only indicator when locked */}
-			{isAdmin ? (
+			{/* Edit-lock indicator — shown when another user holds the edit lock */}
+			{isEditLocked && (
 				<Tooltip title={getLockTooltip()} arrow>
 					<IconButton
 						size="small"
 						onClick={handleLockIconClick}
-						sx={{
-							color: isAnyLockActive
-								? isRoomLocked
-									? "error.main"
-									: "warning.main"
-								: "action.disabled",
-							mr: 0.5,
-						}}
+						sx={{ color: "warning.main", mr: 0.5 }}
 					>
-						{isAnyLockActive ? <LockIcon /> : <LockOpenIcon />}
+						<LockIcon />
 					</IconButton>
 				</Tooltip>
-			) : (
-				isAnyLockActive && (
-					<Tooltip title={getLockTooltip()} arrow>
-						<LockIcon
-							fontSize="small"
-							sx={{
-								color: isRoomLocked ? "error.main" : "warning.main",
-								mr: 0.5,
-							}}
-						/>
-					</Tooltip>
-				)
 			)}
 
 			{/* Template room indicator - always visible */}
@@ -348,6 +317,17 @@ export default function RoomManagementMenu() {
 					horizontal: "right",
 				}}
 			>
+				<MenuItem disableRipple sx={{ display: "block", px: 2, py: 1 }}>
+					<Typography variant="caption" sx={{ mb: 0.5, display: "block" }}>
+						Visibility
+					</Typography>
+					<VisibilitySelector
+						value={visibility}
+						onChange={handleVisibility}
+						disabled={!canManage}
+					/>
+				</MenuItem>
+
 				{isAdmin && (
 					<MenuItem onClick={handleToggleDefault}>
 						<ListItemIcon>
@@ -356,6 +336,20 @@ export default function RoomManagementMenu() {
 						<ListItemText>
 							{isDefault ? "Remove as Template" : "Set as Template"}
 						</ListItemText>
+					</MenuItem>
+				)}
+
+				{canManage && (
+					<MenuItem
+						onClick={() => {
+							setShareOpen(true);
+							handleCloseMenu();
+						}}
+					>
+						<ListItemIcon>
+							<ShareIcon fontSize="small" />
+						</ListItemIcon>
+						<ListItemText>Share…</ListItemText>
 					</MenuItem>
 				)}
 
@@ -430,9 +424,18 @@ export default function RoomManagementMenu() {
 				open={duplicateOpen}
 				sourceRoomId={roomId || ""}
 				sourceDescription={roomDetail?.description || roomId || "room"}
-				existingRoomIds={rooms.map((r) => r.id)}
+				existingRoomIds={rooms.map((r) => r.room_id)}
 				onClose={() => setDuplicateOpen(false)}
 			/>
+
+			{/* Share Dialog */}
+			{roomId && (
+				<ShareDialog
+					roomId={roomId}
+					open={shareOpen}
+					onClose={() => setShareOpen(false)}
+				/>
+			)}
 		</>
 	);
 }

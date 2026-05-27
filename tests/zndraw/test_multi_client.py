@@ -4,8 +4,6 @@ Two clients connected to the same room should see each other's changes
 via REST API (no Socket.IO event propagation tested here — just data consistency).
 """
 
-import uuid
-
 import ase
 import numpy as np
 
@@ -21,8 +19,8 @@ def _make_atoms(x: float) -> ase.Atoms:
 
 def test_two_clients_see_appends(server: str):
     """Client B sees frames appended by Client A."""
-    room_id = uuid.uuid4().hex
-    a = ZnDraw(url=server, room=room_id)
+    a = ZnDraw(url=server)
+    room_id = a.room
     b = ZnDraw(url=server, room=room_id)
 
     a.append(_make_atoms(1.0))
@@ -38,8 +36,8 @@ def test_two_clients_see_appends(server: str):
 
 def test_two_clients_see_extend(server: str):
     """Client B sees frames extended by Client A."""
-    room_id = uuid.uuid4().hex
-    a = ZnDraw(url=server, room=room_id)
+    a = ZnDraw(url=server)
+    room_id = a.room
     b = ZnDraw(url=server, room=room_id)
 
     frames = [_make_atoms(float(i)) for i in range(5)]
@@ -55,8 +53,8 @@ def test_two_clients_see_extend(server: str):
 
 def test_two_clients_see_setitem(server: str):
     """Client B sees frame updates by Client A."""
-    room_id = uuid.uuid4().hex
-    a = ZnDraw(url=server, room=room_id)
+    a = ZnDraw(url=server)
+    room_id = a.room
     b = ZnDraw(url=server, room=room_id)
 
     a.extend([_make_atoms(0.0), _make_atoms(1.0)])
@@ -72,8 +70,8 @@ def test_two_clients_see_setitem(server: str):
 
 def test_two_clients_see_delete(server: str):
     """Client B sees frame deletion by Client A."""
-    room_id = uuid.uuid4().hex
-    a = ZnDraw(url=server, room=room_id)
+    a = ZnDraw(url=server)
+    room_id = a.room
     b = ZnDraw(url=server, room=room_id)
 
     a.extend([_make_atoms(float(i)) for i in range(5)])
@@ -89,8 +87,8 @@ def test_two_clients_see_delete(server: str):
 
 def test_step_sync(server: str):
     """Step set by Client A is visible to Client B."""
-    room_id = uuid.uuid4().hex
-    a = ZnDraw(url=server, room=room_id)
+    a = ZnDraw(url=server)
+    room_id = a.room
     b = ZnDraw(url=server, room=room_id)
 
     a.extend([_make_atoms(float(i)) for i in range(5)])
@@ -104,8 +102,8 @@ def test_step_sync(server: str):
 
 def test_bookmark_sync(server: str):
     """Bookmarks set by Client A are visible to Client B."""
-    room_id = uuid.uuid4().hex
-    a = ZnDraw(url=server, room=room_id)
+    a = ZnDraw(url=server)
+    room_id = a.room
     b = ZnDraw(url=server, room=room_id)
 
     a.append(_make_atoms(0.0))
@@ -121,8 +119,8 @@ def test_geometry_sync(server: str):
     """Geometries set by Client A are visible to Client B."""
     from zndraw.geometries import Sphere
 
-    room_id = uuid.uuid4().hex
-    a = ZnDraw(url=server, room=room_id)
+    a = ZnDraw(url=server)
+    room_id = a.room
     b = ZnDraw(url=server, room=room_id)
 
     a.geometries["sphere1"] = Sphere(radius=[2.0])

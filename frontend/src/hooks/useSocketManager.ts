@@ -14,7 +14,7 @@ import {
 } from "./socketHandlers";
 
 interface SocketManagerOptions {
-	roomId?: string; // Room ID when on /rooms/:roomId page
+	roomId?: string; // Composed room address when on /rooms/:ownerId/:roomName page
 }
 
 export const useSocketManager = (options: SocketManagerOptions = {}) => {
@@ -43,7 +43,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 	);
 	const setServerVersion = useAppStore((state) => state.setServerVersion);
 	const setGlobalSettings = useAppStore((state) => state.setGlobalSettings);
-	const setSuperuserLock = useAppStore((state) => state.setSuperuserLock);
 	const setUserLock = useAppStore((state) => state.setUserLock);
 	const setProgressTrackers = useAppStore((state) => state.setProgressTrackers);
 	const addProgressTracker = useAppStore((state) => state.addProgressTracker);
@@ -58,6 +57,11 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 	// Use provided roomId from options, fallback to appStore roomId
 	const roomId = options.roomId || appStoreRoomId;
 
+	// Split the composed room address into ownerId and roomName
+	const [ownerId, roomName] = roomId
+		? roomId.split("/")
+		: [undefined, undefined];
+
 	useEffect(() => {
 		// Capture current room context for cleanup comparison
 		const effectRoomId = roomId;
@@ -67,6 +71,8 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 
 		// Build flat dependency context for all handler factories
 		const ctx: HandlerContext = {
+			ownerId,
+			roomName,
 			roomId: roomId ?? undefined,
 			appStoreRoomId,
 			isCancelled: () => cancelled,
@@ -90,7 +96,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 			updateGeometry,
 			removeGeometry,
 			setActiveCurveForDrawing,
-			setSuperuserLock,
 			setUserLock,
 			setProgressTrackers,
 			addProgressTracker,
@@ -224,7 +229,6 @@ export const useSocketManager = (options: SocketManagerOptions = {}) => {
 		setActiveCurveForDrawing,
 		setServerVersion,
 		setGlobalSettings,
-		setSuperuserLock,
 		setUserLock,
 		setProgressTrackers,
 		addProgressTracker,

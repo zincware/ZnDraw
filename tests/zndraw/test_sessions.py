@@ -1,7 +1,6 @@
 """Integration tests for vis.sessions (room-scoped session visibility)."""
 
 import json
-import uuid
 
 import pytest
 from fastapi_users.jwt import decode_jwt
@@ -57,14 +56,14 @@ def _seed_frontend_session(
 
 def test_sessions_returns_sessions_type(server: str):
     """vis.sessions returns a Sessions instance."""
-    vis = ZnDraw(url=server, room=uuid.uuid4().hex)
+    vis = ZnDraw(url=server)
     assert isinstance(vis.sessions, Sessions)
     vis.disconnect()
 
 
 def test_sessions_empty_without_frontend(server: str):
     """Python client (pyclient) sees no sessions — only frontend counts."""
-    vis = ZnDraw(url=server, room=uuid.uuid4().hex)
+    vis = ZnDraw(url=server)
     assert len(vis.sessions) == 0
     assert list(vis.sessions) == []
     vis.disconnect()
@@ -72,21 +71,21 @@ def test_sessions_empty_without_frontend(server: str):
 
 def test_sessions_repr_empty(server: str):
     """repr shows empty list when no sessions."""
-    vis = ZnDraw(url=server, room=uuid.uuid4().hex)
+    vis = ZnDraw(url=server)
     assert repr(vis.sessions) == "Sessions([])"
     vis.disconnect()
 
 
 def test_sessions_str_empty(server: str):
     """str shows count when no sessions."""
-    vis = ZnDraw(url=server, room=uuid.uuid4().hex)
+    vis = ZnDraw(url=server)
     assert str(vis.sessions) == "Sessions(n=0)"
     vis.disconnect()
 
 
 def test_sessions_getitem_missing_raises_key_error(server: str):
     """Accessing non-existent session raises KeyError."""
-    vis = ZnDraw(url=server, room=uuid.uuid4().hex)
+    vis = ZnDraw(url=server)
     with pytest.raises(KeyError):
         vis.sessions["nonexistent-sid"]
     vis.disconnect()
@@ -94,15 +93,15 @@ def test_sessions_getitem_missing_raises_key_error(server: str):
 
 def test_sessions_contains_false_for_missing(server: str):
     """Membership test returns False for non-existent session."""
-    vis = ZnDraw(url=server, room=uuid.uuid4().hex)
+    vis = ZnDraw(url=server)
     assert "nonexistent-sid" not in vis.sessions
     vis.disconnect()
 
 
 def test_session_repr_and_str(server: str):
     """Session has clean repr/str from dataclass (uses seeded session)."""
-    room_id = uuid.uuid4().hex
-    vis = ZnDraw(url=server, room=room_id)
+    vis = ZnDraw(url=server)
+    room_id = vis.api.get_room_info()["id"]  # surrogate UUID for Redis keys
     user_id = _get_user_id(vis)
 
     r = Redis.from_url("redis://localhost", decode_responses=True)
@@ -120,7 +119,7 @@ def test_session_repr_and_str(server: str):
 
 def test_sessions_is_frozen(server: str):
     """Sessions dataclass is frozen — cannot set attributes."""
-    vis = ZnDraw(url=server, room=uuid.uuid4().hex)
+    vis = ZnDraw(url=server)
     sessions = vis.sessions
     with pytest.raises(AttributeError):
         sessions._api = None  # type: ignore[misc]
@@ -134,8 +133,8 @@ def test_sessions_is_frozen(server: str):
 
 def test_sessions_lists_seeded_frontend(server: str):
     """Seeded frontend session appears in vis.sessions."""
-    room_id = uuid.uuid4().hex
-    vis = ZnDraw(url=server, room=room_id)
+    vis = ZnDraw(url=server)
+    room_id = vis.api.get_room_info()["id"]  # surrogate UUID for Redis keys
     user_id = _get_user_id(vis)
 
     r = Redis.from_url("redis://localhost", decode_responses=True)
@@ -153,8 +152,8 @@ def test_sessions_lists_seeded_frontend(server: str):
 
 def test_session_active_camera_roundtrip(server: str):
     """Get/set active_camera through Session proxy."""
-    room_id = uuid.uuid4().hex
-    vis = ZnDraw(url=server, room=room_id)
+    vis = ZnDraw(url=server)
+    room_id = vis.api.get_room_info()["id"]  # surrogate UUID for Redis keys
     user_id = _get_user_id(vis)
 
     r = Redis.from_url("redis://localhost", decode_responses=True)
@@ -188,8 +187,8 @@ def test_session_active_camera_roundtrip(server: str):
 
 def test_session_camera_roundtrip(server: str):
     """Get/set camera through Session proxy (resolves via active_camera)."""
-    room_id = uuid.uuid4().hex
-    vis = ZnDraw(url=server, room=room_id)
+    vis = ZnDraw(url=server)
+    room_id = vis.api.get_room_info()["id"]  # surrogate UUID for Redis keys
     user_id = _get_user_id(vis)
 
     r = Redis.from_url("redis://localhost", decode_responses=True)
@@ -223,8 +222,9 @@ def test_session_camera_roundtrip(server: str):
 
 def test_cross_user_sees_other_users_sessions(server: str):
     """User2 can see user1's frontend session in the listing."""
-    room_id = uuid.uuid4().hex
-    vis1 = ZnDraw(url=server, room=room_id)
+    vis1 = ZnDraw(url=server)
+    room_id = vis1.api.get_room_info()["id"]  # surrogate UUID for Redis keys
+    composed_room = vis1.room
     user1_id = _get_user_id(vis1)
 
     r = Redis.from_url("redis://localhost", decode_responses=True)
@@ -234,7 +234,7 @@ def test_cross_user_sees_other_users_sessions(server: str):
         r, room_id, user1_id, fake_sid, camera_key, email="user1@local.test"
     )
 
-    vis2 = ZnDraw(url=server, room=room_id)
+    vis2 = ZnDraw(url=server, room=composed_room)
 
     # User2 can see user1's session
     assert fake_sid in vis2.sessions
@@ -254,8 +254,9 @@ def test_cross_user_sees_other_users_sessions(server: str):
 
 def test_cross_user_can_read_active_camera(server: str):
     """User2 can read user1's session active camera (shared state)."""
-    room_id = uuid.uuid4().hex
-    vis1 = ZnDraw(url=server, room=room_id)
+    vis1 = ZnDraw(url=server)
+    room_id = vis1.api.get_room_info()["id"]  # surrogate UUID for Redis keys
+    composed_room = vis1.room
     user1_id = _get_user_id(vis1)
 
     r = Redis.from_url("redis://localhost", decode_responses=True)
@@ -263,7 +264,7 @@ def test_cross_user_can_read_active_camera(server: str):
     camera_key = f"cam:user1@local.test:{fake_sid[:8]}"
     _seed_frontend_session(r, room_id, user1_id, fake_sid, camera_key)
 
-    vis2 = ZnDraw(url=server, room=room_id)
+    vis2 = ZnDraw(url=server, room=composed_room)
     active = vis2.api.get_active_camera(fake_sid)
     assert active == camera_key
 
@@ -274,8 +275,9 @@ def test_cross_user_can_read_active_camera(server: str):
 
 def test_cross_user_cannot_set_active_camera(server: str):
     """User2 cannot set active camera on user1's session."""
-    room_id = uuid.uuid4().hex
-    vis1 = ZnDraw(url=server, room=room_id)
+    vis1 = ZnDraw(url=server)
+    room_id = vis1.api.get_room_info()["id"]  # surrogate UUID for Redis keys
+    composed_room = vis1.room
     user1_id = _get_user_id(vis1)
 
     r = Redis.from_url("redis://localhost", decode_responses=True)
@@ -283,7 +285,7 @@ def test_cross_user_cannot_set_active_camera(server: str):
     camera_key = f"cam:user1@local.test:{fake_sid[:8]}"
     _seed_frontend_session(r, room_id, user1_id, fake_sid, camera_key)
 
-    vis2 = ZnDraw(url=server, room=room_id)
+    vis2 = ZnDraw(url=server, room=composed_room)
 
     # Can see the session and read it
     session = vis2.sessions[fake_sid]

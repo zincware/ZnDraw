@@ -15,10 +15,13 @@ class UserRead(schemas.BaseUser[uuid.UUID]):
     """
 
     email: str  # type: ignore[assignment]
+    is_guest: bool = False
 
 
 class UserCreate(schemas.BaseUserCreate):
     """Schema for creating a new user."""
+
+    is_guest: bool = False
 
 
 class UserUpdate(schemas.BaseUserUpdate):

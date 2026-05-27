@@ -4,8 +4,9 @@ import logging
 import uuid
 from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
+import sqlalchemy as sa
 from fastapi import Depends, Request
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
 from fastapi_users.password import PasswordHelper
@@ -14,7 +15,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.pool import NullPool, StaticPool
 from sqlmodel import Field, SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -40,7 +41,18 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     - is_active: bool (default True)
     - is_superuser: bool (default False)
     - is_verified: bool (default False)
+
+    Additional fields:
+    - is_guest: bool (default False) — transient anonymous-access user
+      created by POST /v1/auth/guest.
     """
+
+    if TYPE_CHECKING:  # pragma: no cover
+        is_guest: bool
+    else:
+        is_guest: Mapped[bool] = mapped_column(
+            sa.Boolean, default=False, server_default=sa.false(), nullable=False
+        )
 
 
 class CLILoginChallenge(SQLModel, table=True):

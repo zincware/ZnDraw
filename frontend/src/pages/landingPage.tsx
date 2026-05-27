@@ -28,6 +28,7 @@ import Typography from "@mui/material/Typography";
 import { useQueryClient } from "@tanstack/react-query";
 import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
+import { composeRoomAddress } from "../utils/roomAddress";
 import AdminPanel from "../components/AdminPanel";
 import ConnectionDialog from "../components/ConnectionDialog";
 import LoginDialog from "../components/LoginDialog";
@@ -57,18 +58,28 @@ import { useDockviewApi } from "../stores/dockviewApiStore";
 import { connectWithAuth } from "../socket";
 import { useAppStore } from "../store";
 import { logout as authLogout } from "../utils/auth";
+import { parseShareFromLocation } from "../utils/shareToken";
 import { downloadScreenshot } from "../utils/screenshot";
 
 export default function MainPage() {
-	const { roomId } = useParams<{ roomId: string }>();
+	const { ownerId, roomName } = useParams<{
+		ownerId: string;
+		roomName: string;
+	}>();
+	const roomAddress =
+		ownerId && roomName ? composeRoomAddress(ownerId, roomName) : undefined;
 	const setRoomId = useAppStore((state) => state.setRoomId);
 
-	// Set roomId in store for child components that read from it
+	// Set roomId in store for child components that read from it.
+	// Also extract ?share= token so it is available before any fetches fire.
 	useEffect(() => {
-		if (roomId) setRoomId(roomId);
-	}, [roomId, setRoomId]);
+		if (roomAddress) {
+			parseShareFromLocation(roomAddress);
+			setRoomId(roomAddress);
+		}
+	}, [roomAddress, setRoomId]);
 
-	useSocketManager({ roomId });
+	useSocketManager({ roomId: roomAddress });
 	useKeyboardShortcuts();
 
 	// Single source of truth for panel-drag lifecycle. Uses window-level
@@ -129,14 +140,14 @@ export default function MainPage() {
 	// Drag and drop file upload
 	const handleFiles = useCallback(
 		async (files: File[]) => {
-			if (!roomId) {
+			if (!roomAddress) {
 				showSnackbar("Cannot upload: no room selected", "warning");
 				return;
 			}
 			for (const file of files) {
 				try {
-					await uploadTrajectory(roomId, file);
-					queryClient.invalidateQueries({ queryKey: ["frame", roomId] });
+					await uploadTrajectory(roomAddress, file);
+					queryClient.invalidateQueries({ queryKey: ["frame", roomAddress] });
 					showSnackbar(`Uploaded: ${file.name}`, "success");
 				} catch (error: any) {
 					const detail =
@@ -145,7 +156,7 @@ export default function MainPage() {
 				}
 			}
 		},
-		[roomId, queryClient, showSnackbar],
+		[roomAddress, queryClient, showSnackbar],
 	);
 
 	// Tutorial dialog state
@@ -221,13 +232,13 @@ export default function MainPage() {
 		}
 	};
 
-	// Re-add the viewer panel on roomId change if it has been closed.
+	// Re-add the viewer panel on roomAddress change if it has been closed.
 	useEffect(() => {
 		const api = useDockviewApi.getState().api;
 		if (!api) return;
-		if (!roomId) return;
+		if (!roomAddress) return;
 		ensureViewerPanel(api);
-	}, [roomId]);
+	}, [roomAddress]);
 
 	// Auto-open a sidebar panel from `?panel=` query param (for redirect targets
 	// like /rooms/:id/files → /rooms/:id?panel=filesystem).

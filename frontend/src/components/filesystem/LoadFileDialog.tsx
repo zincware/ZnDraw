@@ -67,7 +67,7 @@ export function LoadFileDialog({
 		if (open) {
 			setSliceParams({ start: "", stop: "", step: "" });
 			setTargetType("current");
-			setNewRoomId(crypto.randomUUID());
+			setNewRoomId("untitled-1");
 			setNewRoomDescription("");
 			setSelectedRoom(null);
 		}
@@ -130,7 +130,7 @@ export function LoadFileDialog({
 						description: newRoomDescription.trim(),
 					}
 				: targetType === "existing"
-					? { type: "existing", room_id: selectedRoom!.id }
+					? { type: "existing", room_id: selectedRoom!.room_id }
 					: { type: "current" };
 
 		const params: LoadFileParams = {
@@ -261,7 +261,7 @@ export function LoadFileDialog({
 							label="Room ID"
 							value={newRoomId}
 							onChange={(e) => setNewRoomId(e.target.value)}
-							helperText="Auto-generated UUID — replace with a custom ID if desired"
+							helperText="Room name — letters, numbers, hyphens, underscores only"
 						/>
 						<TextField
 							size="small"
@@ -279,12 +279,16 @@ export function LoadFileDialog({
 						value={selectedRoom}
 						onChange={(_, value) => setSelectedRoom(value)}
 						getOptionLabel={(room) =>
-							room.description ? `${room.description} (${room.id})` : room.id
+							room.description
+								? `${room.description} (${room.room_id})`
+								: room.room_id
 						}
 						renderInput={(params) => (
 							<TextField {...params} label="Select room" />
 						)}
-						isOptionEqualToValue={(option, value) => option.id === value.id}
+						isOptionEqualToValue={(option, value) =>
+							option.room_id === value.room_id
+						}
 						sx={{ mt: 1 }}
 					/>
 				)}

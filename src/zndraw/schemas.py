@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from zndraw.models import MemberRole
+from zndraw.access import GroupRole, ShareAccess, Visibility
 
 
 def deep_merge(base: dict, override: dict) -> dict:
@@ -48,20 +48,26 @@ if TYPE_CHECKING:
 
 
 class RoomCreate(BaseModel):
-    """Request body for creating a new room."""
+    """Request body for POST /v1/rooms."""
 
-    room_id: str  # UUID string
+    owner_id: UUID
+    name: str = Field(pattern=r"^[a-zA-Z0-9\-_]+$", min_length=1, max_length=128)
     description: str | None = None
-    copy_from: str | None = None  # Room ID, or @-prefixed preset (@empty, @none)
+    copy_from: str | None = None
+    visibility: Visibility | None = None
 
 
 class RoomResponse(BaseModel):
-    """Response body for room details - matches frontend Room interface."""
+    """Response body for room details — matches frontend Room interface."""
 
-    id: str
+    room_id: str  # composed: {owner_id}/{room_name}
+    id: str  # surrogate UUID (internal, read-only)
     description: str | None = None
     frame_count: int = 0
-    locked: bool = False
+    visibility: Visibility = Visibility.PUBLIC
+    owner_id: UUID
+    owner_kind: Literal["user", "group"]
+    owner_label: str
     is_default: bool = False
     metadata: dict[str, str] | None = None
 
@@ -72,34 +78,25 @@ class RoomCreateResponse(BaseModel):
     """Response for room creation."""
 
     status: Literal["ok"] = "ok"
-    room_id: str
+    room_id: str  # composed: {owner_id}/{room_name}
     frame_count: int
     created: bool
 
 
 class RoomPatchRequest(BaseModel):
-    """Request body for PATCH /rooms/{room_id}."""
+    """Request body for PATCH /v1/rooms/{owner_id}/{room_name}."""
 
     description: str | None = None
-    locked: bool | None = None
     frame_count: int | None = Field(None, ge=0)
+    visibility: Visibility | None = None
+    new_owner_id: UUID | None = None
 
 
 class RoomPatchResponse(BaseModel):
-    """Response body for PATCH /rooms/{room_id}."""
+    """Response body for PATCH /v1/rooms/{owner_id}/{room_name}."""
 
     status: Literal["ok"] = "ok"
-
-
-class RoomMemberResponse(BaseModel):
-    """Response body for room member details."""
-
-    user_id: UUID
-    email: str | None
-    role: MemberRole
-    joined_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
+    room_id: str  # composed: {owner_id}/{room_name}
 
 
 class MessageCreate(BaseModel):
@@ -174,6 +171,91 @@ class SessionsListResponse(BaseModel):
     """Response for listing active frontend sessions in a room."""
 
     items: list[SessionItem]
+
+
+# =============================================================================
+# Group Schemas
+# =============================================================================
+
+
+class GroupCreate(BaseModel):
+    """Request body for POST /v1/groups."""
+
+    name: str = Field(min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_\-]+$")
+    description: str | None = None
+
+
+class GroupResponse(BaseModel):
+    """Response body for group details."""
+
+    id: UUID
+    name: str
+    description: str | None
+    created_at: datetime
+    created_by_id: UUID
+    my_role: GroupRole | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GroupPatchRequest(BaseModel):
+    """Request body for PATCH /v1/groups/{id}."""
+
+    name: str | None = Field(
+        default=None, min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_\-]+$"
+    )
+    description: str | None = None
+
+
+class GroupMemberResponse(BaseModel):
+    """Response body for a group member."""
+
+    user_id: UUID
+    email: str | None
+    role: GroupRole
+    joined_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GroupMemberCreateRequest(BaseModel):
+    """Request body for POST /v1/groups/{id}/members."""
+
+    user_id: UUID
+    role: GroupRole = GroupRole.VIEWER
+
+
+class GroupMemberPatchRequest(BaseModel):
+    """Request body for PATCH /v1/groups/{id}/members/{user_id}."""
+
+    role: GroupRole
+
+
+# =============================================================================
+# Share Link Schemas
+# =============================================================================
+
+
+class ShareLinkCreate(BaseModel):
+    """Request body for POST /v1/rooms/{id}/share-links."""
+
+    access: ShareAccess = ShareAccess.VIEW
+    expires_at: datetime | None = None
+
+
+class ShareLinkResponse(BaseModel):
+    """Response body for a share link."""
+
+    id: UUID
+    room_id: str
+    token: str
+    access: ShareAccess
+    created_by_id: UUID
+    created_at: datetime
+    expires_at: datetime | None
+    revoked_at: datetime | None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # =============================================================================

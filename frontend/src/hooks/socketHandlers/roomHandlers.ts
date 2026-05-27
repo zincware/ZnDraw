@@ -6,9 +6,8 @@ import type { HandlerContext } from "./types";
 // --- Typed event interfaces ---
 
 export interface RoomUpdateEvent {
-	id: string;
+	room_id: string;
 	frame_count?: number | null;
-	locked?: boolean | null;
 	[key: string]: unknown;
 }
 
@@ -45,26 +44,24 @@ export interface ProgressCompleteEvent {
 
 export function createRoomHandlers(ctx: HandlerContext) {
 	function onRoomUpdate(data: RoomUpdateEvent) {
+		const composedRoomId =
+			ctx.ownerId && ctx.roomName
+				? `${ctx.ownerId}/${ctx.roomName}`
+				: undefined;
 		console.debug("[RoomUpdate] received:", {
 			data,
-			currentRoomId: ctx.roomId,
+			currentRoomId: composedRoomId,
 		});
 
 		// Update in-room state if this event is for the current room
-		if (data.id === ctx.roomId) {
+		if (data.room_id === composedRoomId) {
 			if (data.frame_count != null) {
 				ctx.setFrameCount(data.frame_count);
-			}
-			if (data.locked != null) {
-				console.debug("[RoomUpdate] lock change:", data.locked);
-				ctx.setSuperuserLock(data.locked);
 			}
 		}
 
 		// Upsert into rooms store (full snapshot -- always safe to overwrite)
-		// Server sends complete Room objects; the event type is permissive for
-		// partial reads above, so cast to Room for the store API.
-		useRoomsStore.getState().setRoom(data.id, data as Room);
+		useRoomsStore.getState().setRoom(data.room_id, data as unknown as Room);
 	}
 
 	function onRoomDelete(data: RoomDeleteEvent) {

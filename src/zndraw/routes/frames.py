@@ -11,13 +11,16 @@ Frame data format: list[dict[bytes, bytes]] where:
 
 import asyncio
 from typing import Annotated
+from uuid import UUID
 
 import msgpack
-from fastapi import APIRouter, Query, Request, Response, status
+from fastapi import APIRouter, Header, Query, Request, Response, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from zndraw_socketio import AsyncServerWrapper
 
+from zndraw.access import can_read
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
     CurrentUserFactoryDep,
     FrameStorageDep,
@@ -28,8 +31,9 @@ from zndraw.dependencies import (
     SessionMakerDep,
     SioDep,
     WritableRoomDep,
-    room_channel,
-    verify_room,
+    _load_access_context,
+    _load_room_by_address,
+    resolve_share_token,
 )
 from zndraw.exceptions import (
     FrameNotFound,
@@ -59,7 +63,7 @@ from zndraw_joblib.events import Emission, ProviderRequest, emit as joblib_emit
 from zndraw_joblib.exceptions import ProviderTimeout
 from zndraw_joblib.models import ProviderRecord
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/frames", tags=["frames"])
+router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/frames", tags=["frames"])
 
 _REQUIRED_FRAME_KEYS = frozenset({b"arrays.colors", b"arrays.radii"})
 
@@ -181,11 +185,12 @@ def _filter_frames_by_keys(
 async def list_frames(
     session_maker: SessionMakerDep,
     storage: FrameStorageDep,
-    _current_user: CurrentUserFactoryDep,
+    current_user: CurrentUserFactoryDep,
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
-    room_id: str,
+    owner_id: UUID,
+    room_name: str,
     start: Annotated[int, Query(ge=0, description="Start index (inclusive)")] = 0,
     stop: Annotated[
         int | None, Query(ge=0, description="Stop index (exclusive)")
@@ -195,6 +200,9 @@ async def list_frames(
     ] = None,
     keys: Annotated[
         str | None, Query(description="Comma-separated frame keys to include")
+    ] = None,
+    x_room_share_token: Annotated[
+        str | None, Header(alias="X-Room-Share-Token")
     ] = None,
 ) -> Response:
     """List frames with optional range or specific indices.
@@ -211,7 +219,16 @@ async def list_frames(
     - Use keys to filter which keys are included in each frame
     """
     async with session_maker() as session:
-        await verify_room(session, room_id)
+        room = await _load_room_by_address(session, owner_id, room_name)
+        if room is None:
+            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+        room_id = room.id
+        share = await resolve_share_token(session, x_room_share_token, room_id)
+        ctx = await _load_access_context(
+            session, owner_id, room_name, current_user, share
+        )
+        if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
+            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
         total = await storage.get_length(room_id)
 
         requested_indices: list[int]
@@ -243,7 +260,9 @@ async def list_frames(
 
         has_missing = any(f is None for f in frames_or_none)
         provider = (
-            await _find_frames_provider(session, room_id) if has_missing else None
+            await _find_frames_provider(session, room.public_address)
+            if has_missing
+            else None
         )
     # Session closed, lock released ^
 
@@ -299,14 +318,18 @@ async def list_frames(
 async def get_frame(
     session_maker: SessionMakerDep,
     storage: FrameStorageDep,
-    _current_user: CurrentUserFactoryDep,
+    current_user: CurrentUserFactoryDep,
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
-    room_id: str,
+    owner_id: UUID,
+    room_name: str,
     index: int,
     keys: Annotated[
         str | None, Query(description="Comma-separated frame keys to include")
+    ] = None,
+    x_room_share_token: Annotated[
+        str | None, Header(alias="X-Room-Share-Token")
     ] = None,
 ) -> Response:
     """Get a single frame by index.
@@ -318,7 +341,16 @@ async def get_frame(
     request and returns 504 with Retry-After if the result is not yet cached.
     """
     async with session_maker() as session:
-        await verify_room(session, room_id)
+        room = await _load_room_by_address(session, owner_id, room_name)
+        if room is None:
+            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+        room_id = room.id
+        share = await resolve_share_token(session, x_room_share_token, room_id)
+        ctx = await _load_access_context(
+            session, owner_id, room_name, current_user, share
+        )
+        if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
+            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
         total = await storage.get_length(room_id)
         if index < 0 or index >= total:
             _raise_frame_not_found(index, total)
@@ -329,7 +361,7 @@ async def get_frame(
         except IndexError:
             frame = None
         if frame is None:
-            provider = await _find_frames_provider(session, room_id)
+            provider = await _find_frames_provider(session, room.public_address)
         else:
             provider = None
     # Session closed, lock released ^
@@ -393,12 +425,16 @@ def _extract_property_meta(value_bytes: bytes) -> PropertyMeta:
 async def get_frame_metadata(
     session_maker: SessionMakerDep,
     storage: FrameStorageDep,
-    _current_user: CurrentUserFactoryDep,
+    current_user: CurrentUserFactoryDep,
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
-    room_id: str,
+    owner_id: UUID,
+    room_name: str,
     index: int,
+    x_room_share_token: Annotated[
+        str | None, Header(alias="X-Room-Share-Token")
+    ] = None,
 ) -> FrameMetadataResponse:
     """Get metadata (keys with dtype/shape) for a specific frame.
 
@@ -409,7 +445,16 @@ async def get_frame_metadata(
     request and returns 504 with Retry-After if the result is not yet cached.
     """
     async with session_maker() as session:
-        await verify_room(session, room_id)
+        room = await _load_room_by_address(session, owner_id, room_name)
+        if room is None:
+            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+        room_id = room.id
+        share = await resolve_share_token(session, x_room_share_token, room_id)
+        ctx = await _load_access_context(
+            session, owner_id, room_name, current_user, share
+        )
+        if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
+            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
         total = await storage.get_length(room_id)
         if index < 0 or index >= total:
             _raise_frame_not_found(index, total)
@@ -420,7 +465,9 @@ async def get_frame_metadata(
         except IndexError:
             frame = None
         provider = (
-            await _find_frames_provider(session, room_id) if frame is None else None
+            await _find_frames_provider(session, room.public_address)
+            if frame is None
+            else None
         )
     # Session closed, lock released ^
 
@@ -457,7 +504,6 @@ async def append_frames(
     sio: SioDep,
     room: WritableRoomDep,
     _: RequireWritableDep,
-    room_id: str,
     request: FrameCreateRequest,
 ) -> FrameBulkResponse:
     """Append frames to the room's frame storage.
@@ -465,7 +511,7 @@ async def append_frames(
     Returns the updated frame count and range of appended frames.
     Broadcasts FramesInvalidateBroadcast(action="add") to the room.
     """
-
+    room_id = room.id
     raw_frames = [to_raw_frame(f) for f in request.frames]
     for frame in raw_frames:
         _validate_frame_keys(frame)
@@ -474,9 +520,10 @@ async def append_frames(
     new_total = await storage[room_id].extend(raw_frames)
 
     # Broadcast invalidation to room with new total frame count
-    await sio.emit(
-        FramesInvalidate(room_id=room_id, action="add", count=new_total),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FramesInvalidate.for_room(room, action="add", count=new_total),
+        room,
     )
     await broadcast_room_update(sio, session, storage, room)
 
@@ -497,9 +544,8 @@ async def append_frames(
 async def update_frame(
     storage: FrameStorageDep,
     sio: SioDep,
-    _room: WritableRoomDep,
+    room: WritableRoomDep,
     _writable: RequireWritableDep,
-    room_id: str,
     index: int,
     request: FrameUpdateRequest,
 ) -> FrameResponse:
@@ -507,7 +553,7 @@ async def update_frame(
 
     Broadcasts FramesInvalidate(action="modify") to the room.
     """
-
+    room_id = room.id
     total = await storage.get_length(room_id)
     if index < 0 or index >= total:
         _raise_frame_not_found(index, total)
@@ -516,9 +562,10 @@ async def update_frame(
     _validate_frame_keys(raw_frame)
     await storage[room_id][index].set(raw_frame)
 
-    await sio.emit(
-        FramesInvalidate(room_id=room_id, action="modify", indices=[index]),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FramesInvalidate.for_room(room, action="modify", indices=[index]),
+        room,
     )
 
     return FrameResponse(index=index, data=request.data)
@@ -533,9 +580,8 @@ async def update_frame(
 async def merge_frame(
     storage: FrameStorageDep,
     sio: SioDep,
-    _room: WritableRoomDep,
+    room: WritableRoomDep,
     _writable: RequireWritableDep,
-    room_id: str,
     index: int,
     request: Request,
 ) -> FrameMergeResponse:
@@ -544,6 +590,7 @@ async def merge_frame(
     Accepts a msgpack-encoded body with only the keys to update.
     Existing keys not present in the body are preserved.
     """
+    room_id = room.id
     total = await storage.get_length(room_id)
     if index < 0 or index >= total:
         _raise_frame_not_found(index, total)
@@ -565,9 +612,10 @@ async def merge_frame(
 
     await storage[room_id][index].update(partial)
 
-    await sio.emit(
-        FramesInvalidate(room_id=room_id, action="modify", indices=[index]),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FramesInvalidate.for_room(room, action="modify", indices=[index]),
+        room,
     )
 
     updated_keys = [k.decode() for k in partial]
@@ -587,7 +635,6 @@ async def delete_frame(
     sio: SioDep,
     room: WritableRoomDep,
     _: RequireWritableDep,
-    room_id: str,
     index: int,
 ) -> StatusResponse:
     """Delete a single frame at the specified index.
@@ -595,7 +642,7 @@ async def delete_frame(
     Frames after the deleted index are shifted to fill the gap.
     Broadcasts FramesInvalidateBroadcast(action="delete") to the room.
     """
-
+    room_id = room.id
     total = await storage.get_length(room_id)
     if index < 0 or index >= total:
         _raise_frame_not_found(index, total)
@@ -606,11 +653,12 @@ async def delete_frame(
     new_total = await storage.get_length(room_id)
 
     # Broadcast invalidation to room with new frame count
-    await sio.emit(
-        FramesInvalidate(
-            room_id=room_id, action="delete", indices=[index], count=new_total
+    await broadcast_to_room(
+        sio,
+        FramesInvalidate.for_room(
+            room, action="delete", indices=[index], count=new_total
         ),
-        room=room_channel(room_id),
+        room,
     )
     await broadcast_room_update(sio, session, storage, room)
 

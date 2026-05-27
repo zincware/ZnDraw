@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Spec — Room-ID wire convention (Family 1)</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<script defer src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.css" />
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+<style>
+  :root {
+    --bg: #faf8f3;
+    --panel: #ffffff;
+    --panel-2: #fbf9f3;
+    --border: #d9d3c4;
+    --border-soft: #e8e3d4;
+    --text: #1f1d18;
+    --muted: #6b6258;
+    --accent: #2664c8;
+    --accent-soft: #e6efff;
+    --green: #1f7a3a;
+    --green-bg: #e6f3ea;
+    --red: #c1543a;
+    --red-bg: #fbe9e3;
+    --yellow: #9a7a1a;
+    --yellow-bg: #f6eed0;
+    --purple: #6b4ea0;
+    --purple-bg: #ece5f4;
+    --max-w: 1840px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+  header.page {
+    padding: 1.6rem 2.4rem 1.4rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #fdfbf4 0%, var(--bg) 100%);
+  }
+  header.page .inner { max-width: var(--max-w); margin: 0 auto; }
+  header.page h1 {
+    margin: 0 0 .3rem;
+    font-size: 1.55rem;
+    font-weight: 600;
+    letter-spacing: -.015em;
+  }
+  header.page .meta {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--muted);
+    font-size: .9rem;
+  }
+  header.page .meta .branch { color: var(--accent); }
+  header.page .subtitle {
+    color: var(--muted);
+    margin-top: .55rem;
+    max-width: 1200px;
+    font-size: .98rem;
+  }
+  main {
+    max-width: var(--max-w);
+    margin: 0 auto;
+    padding: 1.5rem 2.4rem 4rem;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+  @media (max-width: 1200px) {
+    main { grid-template-columns: 1fr; }
+    nav.toc { position: relative !important; top: auto !important; }
+  }
+  nav.toc {
+    position: sticky;
+    top: 1rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .9rem 1.1rem;
+    font-size: .88rem;
+    box-shadow: 0 1px 0 rgba(0,0,0,.02);
+  }
+  nav.toc h3 {
+    margin: 0 0 .5rem;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  nav.toc ol {
+    margin: 0;
+    padding-left: 1.15rem;
+    color: var(--text);
+  }
+  nav.toc ol li { margin: .25rem 0; }
+  nav.toc a { color: var(--text); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent); }
+  section.spec { min-width: 0; }
+  section.spec section { margin: 0 0 2rem; scroll-margin-top: 1rem; }
+  h2 {
+    font-size: 1.2rem;
+    margin: 0 0 .7rem;
+    padding-bottom: .35rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-weight: 600;
+    letter-spacing: -.005em;
+  }
+  h3 {
+    font-size: 1rem;
+    margin: 1.2rem 0 .4rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  p { margin: .5rem 0; }
+  ul, ol { margin: .5rem 0; padding-left: 1.3rem; }
+  ul li, ol li { margin: .15rem 0; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: #f3eee2;
+    border-radius: 4px;
+    padding: .08rem .35rem;
+    font-size: .85em;
+    color: #6b4f1c;
+  }
+  pre[class*="language-"] {
+    background: #fbf8ee;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .9rem 1rem;
+    font-size: .85rem;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+  code[class*="language-"] {
+    background: transparent;
+    color: var(--text);
+    padding: 0;
+  }
+  .mermaid {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.1rem;
+    text-align: center;
+    overflow-x: auto;
+    box-shadow: 0 1px 0 rgba(0,0,0,.02);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: .9rem;
+    box-shadow: 0 1px 0 rgba(0,0,0,.02);
+    margin: .7rem 0;
+  }
+  th, td {
+    text-align: left;
+    padding: .55rem .9rem;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: top;
+  }
+  th {
+    background: #f1ece1;
+    color: var(--muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: .7rem;
+    letter-spacing: .04em;
+  }
+  tr:last-child td { border-bottom: none; }
+  .pill {
+    display: inline-block;
+    padding: .08rem .55rem;
+    border-radius: 999px;
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid #cbdcf6;
+  }
+  .pill.new   { background: var(--green-bg); color: var(--green); border-color: #c1d8c6; }
+  .pill.mod   { background: var(--accent-soft); color: var(--accent); border-color: #cbdcf6; }
+  .pill.del   { background: var(--red-bg); color: var(--red); border-color: #efc8b9; }
+  .pill.test  { background: var(--purple-bg); color: var(--purple); border-color: #cabbe0; }
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-soft);
+    padding: .8rem 1rem;
+    border-radius: 4px;
+    margin: .7rem 0;
+  }
+  .callout.warn { border-left-color: var(--yellow); background: var(--yellow-bg); }
+  .callout.warn strong { color: var(--yellow); }
+  .invariant-list {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.3rem;
+    counter-reset: inv;
+    list-style: none;
+    margin: .5rem 0;
+  }
+  .invariant-list li {
+    counter-increment: inv;
+    margin: .55rem 0;
+    padding-left: 1.8rem;
+    position: relative;
+  }
+  .invariant-list li::before {
+    content: "INV-" counter(inv);
+    position: absolute;
+    left: 0;
+    top: .12rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .7rem;
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+  ol.tdd {
+    counter-reset: tdd;
+    list-style: none;
+    padding-left: 0;
+  }
+  ol.tdd li {
+    counter-increment: tdd;
+    margin: .45rem 0;
+    padding-left: 2.2rem;
+    position: relative;
+  }
+  ol.tdd li::before {
+    content: counter(tdd);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1.6rem;
+    height: 1.6rem;
+    line-height: 1.6rem;
+    text-align: center;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 999px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: 600;
+    font-size: .8rem;
+  }
+  .step-red::before { background: var(--red-bg) !important; color: var(--red) !important; }
+  .step-green::before { background: var(--green-bg) !important; color: var(--green) !important; }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <div class="inner">
+    <h1>Room-ID wire convention &nbsp;<span class="pill">Family 1</span></h1>
+    <div class="meta">
+      Spec · <span class="branch">feat/room-group-scope-refactor</span> · fixes findings <code>#1</code>, <code>#2</code>, <code>#3</code>, <code>#14</code>
+    </div>
+    <div class="subtitle">
+      Adopt the GitHub/GitLab pattern: stable surrogate UUID on channels &amp; cache keys, composed
+      <code>&lt;owner&gt;/&lt;name&gt;</code> for display. Every room-scoped event payload carries both ids.
+      Joblib persistence (<code>Job.room_id</code>, <code>ProviderRecord.room_id</code>) switches to the surrogate.
+    </div>
+  </div>
+</header>
+
+<main>
+
+<nav class="toc">
+  <h3>Sections</h3>
+  <ol>
+    <li><a href="#context">Context</a></li>
+    <li><a href="#decision">Decision</a></li>
+    <li><a href="#invariants">Invariants</a></li>
+    <li><a href="#non-goals">Non-goals</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#components">Components</a></li>
+    <li><a href="#failure-modes">Failure modes</a></li>
+    <li><a href="#testing">Testing strategy</a></li>
+    <li><a href="#tdd-order">TDD order</a></li>
+    <li><a href="#rollout">Rollout</a></li>
+  </ol>
+</nav>
+
+<section class="spec">
+
+<section id="context">
+  <h2>1 · Context</h2>
+  <p>
+    A max-effort code review of <code>feat/room-group-scope-refactor</code> surfaced four findings that share a single
+    root cause: the server has not decided what <code>room_id</code> means on the wire.
+  </p>
+  <table>
+    <thead><tr><th>#</th><th>File</th><th>Symptom</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="pill">1</span></td>
+        <td><code>src/zndraw_joblib/router.py:370</code> + 7 sibling sites</td>
+        <td>Emits to <code>room:&lt;composed&gt;</code>; subscribers joined <code>room:&lt;surrogate&gt;</code>. Tools panel, providers list, task-progress UI stay stale.</td>
+      </tr>
+      <tr>
+        <td><span class="pill">2</span></td>
+        <td><code>src/zndraw/routes/frames.py:524</code></td>
+        <td><code>FramesInvalidate.room_id = room.id</code> (surrogate); frontend keys cache by composed address; predicate never matches.</td>
+      </tr>
+      <tr>
+        <td><span class="pill">3</span></td>
+        <td><code>src/zndraw/client/socket.py:148</code></td>
+        <td><code>event.room_id != self.zndraw.room</code> compares surrogate to composed; pyclient <code>cached_length</code> never refreshes.</td>
+      </tr>
+      <tr>
+        <td><span class="pill">14</span></td>
+        <td><code>src/zndraw/routes/rooms.py:711</code></td>
+        <td>RoomRenamed emitted only to <code>room_channel(room.id)</code>; previous owner's rooms list never reconciles.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    The existing code is split: <code>SessionJoined</code>, <code>SessionLeft</code>, and <code>RoomJoinResponse</code> use
+    <code>room.public_address</code>; <code>Typing</code>, <code>FramesInvalidate</code>, <code>FrameUpdate</code>, and joblib
+    events use <code>room.id</code>. There is no single convention that the four findings violate — only an absence of one.
+  </p>
+</section>
+
+<section id="decision">
+  <h2>2 · Decision</h2>
+  <p>Adopt the GitHub/GitLab/Slack pattern.</p>
+  <ul>
+    <li><strong>Channels are surrogate UUIDs.</strong> Socket.IO room names are always
+      <code>f"room:{room.id}"</code>. Channels survive renames and ownership transfers without resubscription.</li>
+    <li><strong>Payloads carry both ids.</strong> Every room-scoped event has
+      <code>room_id: UUID</code> (stable identity, cache key, channel key) and
+      <code>room_address: str</code> (composed <code>&lt;owner&gt;/&lt;name&gt;</code>, display, URL).</li>
+    <li><strong>Joblib persistence uses the surrogate.</strong> <code>Job.room_id</code> and
+      <code>ProviderRecord.room_id</code> store the surrogate UUID going forward, not the composed string.
+      Ownership transfer no longer strands rows.</li>
+  </ul>
+</section>
+
+<section id="invariants">
+  <h2>3 · Invariants</h2>
+  <ol class="invariant-list">
+    <li>Every Pydantic event model representing a room-scoped event inherits from <code>RoomScopedEvent</code> and declares both <code>room_id: UUID</code> and <code>room_address: str</code> as required fields.</li>
+    <li>Every emit of a <code>RoomScopedEvent</code> instance goes through <code>broadcast_to_room</code>. Sigil-scoped and user-scoped emits do not inherit the mixin and continue to call <code>sio.emit</code> directly.</li>
+    <li>The Socket.IO channel name for a real (non-sigil) room is exactly <code>f"room:{room.id}"</code>.</li>
+    <li><code>RoomScopedEvent.for_room(room, **kw)</code> is the only blessed constructor; manual construction with one of the two ids missing fails Pydantic validation at the call site.</li>
+    <li>Joblib <code>Job.room_id</code> and <code>ProviderRecord.room_id</code> values are either <code>str(UUID)</code> (surrogate) or a sigil (<code>@global</code>, <code>@internal</code>). <code>get_writable_room_id</code> returns the surrogate UUID string for real rooms.</li>
+    <li>Ownership transfers emit <code>RoomRenamed</code> to <code>room_channel(room.id)</code> AND to <code>user:&lt;previous_owner_user_id&gt;</code>. The previous owner's rooms list reconciles without polling.</li>
+  </ol>
+</section>
+
+<section id="non-goals">
+  <h2>4 · Non-goals</h2>
+  <ul>
+    <li>Backwards compatibility. The PR already requires fresh database recreation; this spec does not provide migration code for existing composed-form <code>Job.room_id</code> rows.</li>
+    <li>Family 2 (share-token plumbing — findings #4, #5, #6) and Family 3 (authorization &amp; validation — findings #7–#13, #15). Each has its own spec.</li>
+    <li>Frontend test scaffolding. The repo has no vitest layer; adding one is tracked as a follow-up.</li>
+    <li>Changing URL paths or the composed-address public API.</li>
+  </ul>
+</section>
+
+<section id="architecture">
+  <h2>5 · Architecture</h2>
+
+  <div class="mermaid">
+flowchart LR
+    subgraph backend [backend]
+        EVT["socket_events.py<br/><b>RoomScopedEvent</b><br/>room_id: UUID<br/>room_address: str<br/>for_room(room, **kw)"]
+        BC["broadcast.py<br/><b>broadcast_to_room</b><br/>room_channel(uuid)"]
+        EMIT["~25 emit sites<br/>routes/*.py<br/>socketio.py<br/>zndraw_joblib/*.py"]
+        EVT --> EMIT
+        EMIT --> BC
+    end
+    BC -->|"room:&lt;UUID&gt;"| CH[(Socket.IO channel)]
+    CH --> FE["frontend handlers<br/>compare<br/>event.room_address"]
+    CH --> PYC["pyclient handler<br/>compare<br/>event.room_address"]
+    classDef backend fill:#fbf8ee,stroke:#a8a08c,color:#1f1d18
+    class EVT,BC,EMIT backend
+  </div>
+
+  <h3>End-to-end emit flow (<code>FramesInvalidate</code>)</h3>
+
+<pre><code class="language-python">
+# 1. ROUTE HANDLER — src/zndraw/routes/frames.py
+await broadcast_to_room(
+    sio,
+    FramesInvalidate.for_room(room, action="add", count=new_total),
+    room,
+)
+
+# 2. EVENT MODEL — src/zndraw/socket_events.py
+# for_room() populates both ids from the Room instance:
+#   FramesInvalidate(
+#       room_id=room.id,                  # UUID
+#       room_address=room.public_address, # "&lt;owner&gt;/&lt;name&gt;"
+#       action="add", count=42,
+#   )
+
+# 3. HELPER — src/zndraw/broadcast.py
+async def broadcast_to_room(sio, event, room, *, also_notify_user=None):
+    await sio.emit(event, room=room_channel(room.id))
+    if also_notify_user is not None:
+        await sio.emit(event, room=f"user:{also_notify_user}")</code></pre>
+
+<pre><code class="language-typescript">
+// 4. FRONTEND — frontend/src/hooks/socketHandlers/frameHandlers.ts
+//    one-line swap: compare against room_address, not the old field
+return ((type !== "frame" && type !== "metadata")
+        || qRoomId !== event.room_address);</code></pre>
+
+  <h3>Ownership transfer (RoomRenamed) flow</h3>
+  <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as update_room
+    participant H as broadcast_to_room
+    participant CR as room:&lt;UUID&gt;
+    participant CA as user:&lt;previous_owner&gt;
+    participant CG as user:&lt;new_owner_or_group_member&gt;
+
+    Note over U: snapshot previous_owner = room.owner_user_id<br/>before mutating
+    U->>U: mutate + session.commit()
+    U->>H: broadcast_to_room(RoomRenamed.for_room(room, old, new),<br/>room, also_notify_user=previous_owner)
+    H->>CR: emit RoomRenamed
+    H->>CA: emit RoomRenamed (previous owner reconciles)
+    U->>U: broadcast_room_update(room) → fans out to new owner's audience
+    U->>CG: emit RoomUpdate
+  </div>
+
+  <h3>Sigil channels (<code>@global</code>, <code>@internal</code>)</h3>
+  <p>
+    Sigil rooms have no <code>Room</code> row and no <code>public_address</code>. Their events do not inherit
+    <code>RoomScopedEvent</code>. Emit sites continue to call <code>sio.emit(event, room=f"room:{sigil}")</code> directly.
+    The contract test whitelists sigil channels.
+  </p>
+</section>
+
+<section id="components">
+  <h2>6 · Components</h2>
+
+  <h3>New <span class="pill new">new</span></h3>
+  <table>
+    <thead><tr><th>Path</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>src/zndraw/broadcast.py</code></td><td>Hosts <code>room_channel</code> (moved from <code>dependencies.py</code>) and the new <code>broadcast_to_room</code> helper. ~30 lines.</td></tr>
+      <tr><td><code>tests/zndraw/test_event_schema_audit.py</code></td><td>Layer 1 static test (RoomScopedEvent subclass schema audit).</td></tr>
+      <tr><td><code>tests/zndraw/test_broadcast_contract.py</code></td><td>Layer 2 runtime contract sweep across every emit family.</td></tr>
+      <tr><td><code>tests/zndraw/test_frames_invalidate_address.py</code></td><td>Regression for finding #2.</td></tr>
+      <tr><td><code>tests/zndraw/test_joblib_channel.py</code></td><td>Regression for finding #1.</td></tr>
+      <tr><td><code>tests/zndraw/test_room_renamed_previous_owner.py</code></td><td>Regression for finding #14.</td></tr>
+      <tr><td><code>tests/zndraw/test_pyclient_frames_invalidate.py</code></td><td>Regression for finding #3.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Modified <span class="pill mod">modified</span></h3>
+  <table>
+    <thead><tr><th>Path</th><th>Change</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>src/zndraw/socket_events.py</code></td>
+        <td>Add <code>RoomScopedEvent</code> mixin. <code>FramesInvalidate</code>, <code>FrameUpdate</code>, <code>Typing</code>, <code>SessionJoined/Left</code>, <code>BookmarksInvalidate</code>, <code>FiguresInvalidate</code>, <code>GeometriesInvalidate</code>, <code>DefaultCameraInvalidate</code>, <code>SelectionsInvalidate</code>, <code>SelectionGroupsInvalidate</code>, <code>ProgressStarted/Update/Complete</code>, <code>MessageNew/Edited</code>, <code>RoomRenamed</code>, <code>JobsInvalidate</code>, <code>ProvidersInvalidate</code>, <code>TaskStatusEvent</code>, <code>ProviderResultReady</code> inherit it.</td>
+      </tr>
+      <tr>
+        <td><code>src/zndraw/dependencies.py</code></td>
+        <td><code>get_writable_room_id</code> returns <code>str(room.id)</code> (surrogate) instead of the composed string. Remove <code>room_channel</code> (moved to <code>broadcast.py</code>); update imports.</td>
+      </tr>
+      <tr>
+        <td><code>src/zndraw/socketio.py</code></td>
+        <td>Refactor <code>SessionJoined</code>, <code>SessionLeft</code>, <code>Typing</code>, <code>RoomJoinResponse</code>, <code>RoomLeaveResponse</code> to use <code>.for_room(room, ...)</code>. Emit sites use <code>broadcast_to_room</code>.</td>
+      </tr>
+      <tr>
+        <td><code>src/zndraw/routes/{frames, geometries, figures, bookmarks, chat, progress, screenshots, selection_groups, presets, step, trajectory, isosurface, rooms}.py</code></td>
+        <td>Mechanical: <code>Event(room_id=..., ...)</code> → <code>Event.for_room(room, ...)</code>; <code>sio.emit(event, room=room_channel(...))</code> → <code>broadcast_to_room(sio, event, room)</code>.</td>
+      </tr>
+      <tr>
+        <td><code>src/zndraw_joblib/router.py</code>, <code>sweeper.py</code>, <code>events.py</code></td>
+        <td>Emit channel uses <code>room_channel(room_id)</code> where <code>room_id</code> is the surrogate UUID returned by <code>get_writable_room_id</code>. Event payloads gain <code>room_address</code>.</td>
+      </tr>
+      <tr>
+        <td><code>src/zndraw/client/socket.py:148</code></td>
+        <td>One-line swap: <code>event.room_address != self.zndraw.room</code>.</td>
+      </tr>
+      <tr>
+        <td><code>frontend/src/hooks/socketHandlers/frameHandlers.ts:57</code></td>
+        <td>One-line swap: compare against <code>event.room_address</code>. Audit other handlers in <code>socketHandlers/</code> for the same pattern during implementation.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Unchanged</h3>
+  <p>DB schema, room URL form, React Query key shape, frontend routing, composed-address public API, sigil channel emits.</p>
+</section>
+
+<section id="failure-modes">
+  <h2>7 · Failure modes &amp; how they are caught</h2>
+  <table>
+    <thead><tr><th>Misuse</th><th>Caught by</th></tr></thead>
+    <tbody>
+      <tr><td>New event class missing the mixin</td><td>pyright on <code>broadcast_to_room(event: RoomScopedEvent, ...)</code></td></tr>
+      <tr><td>Event constructed without one of the two ids</td><td>Pydantic <code>ValidationError</code> at construction</td></tr>
+      <tr><td>Direct <code>sio.emit</code> to a wrongly shaped channel</td><td>Contract test sweep: <code>channel == f"room:{event.room_id}"</code></td></tr>
+      <tr><td>New event class drops <code>room_address</code></td><td>Layer 1 schema audit fails at collect time</td></tr>
+      <tr><td><code>Room</code> instance missing owner / room_name</td><td>DB CHECK constraints (<code>room_owner_exactly_one</code>, <code>room_visibility_matches_owner</code>)</td></tr>
+      <tr><td>Sigil channel typed as room-scoped</td><td>Contract test whitelist + Layer 1: sigil events do not inherit <code>RoomScopedEvent</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="testing">
+  <h2>8 · Testing strategy</h2>
+  <p>Three layers, six new test files.</p>
+
+  <h3>Layer 1 — static schema audit <span class="pill test">~30 lines</span></h3>
+  <p>
+    <code>tests/zndraw/test_event_schema_audit.py</code>. Walks <code>RoomScopedEvent.__subclasses__()</code> and asserts each
+    subclass declares both fields with the right types. Runs in milliseconds. Marked <code>@pytest.mark.protected</code>.
+  </p>
+
+<pre><code class="language-python">def test_all_room_scoped_events_have_both_ids() -> None:
+    for cls in _all_subclasses(RoomScopedEvent):
+        fields = cls.model_fields
+        assert "room_id" in fields, f"{cls.__name__} missing room_id"
+        assert "room_address" in fields, f"{cls.__name__} missing room_address"
+        assert fields["room_id"].annotation is UUID</code></pre>
+
+  <h3>Layer 2 — runtime contract test <span class="pill test">~250 lines</span></h3>
+  <p>
+    <code>tests/zndraw/test_broadcast_contract.py</code>. Uses <code>server_factory</code>; a fixture monkey-patches
+    <code>sio.emit</code> to capture every <code>(event, channel)</code> tuple. A parametrized matrix drives the server
+    through one representative action per event family (frame append, geometry put, bookmark post, chat send, typing,
+    session join, room update, room rename, joblib job register, joblib provider register, joblib task status change,
+    joblib provider result upload). For each captured event the test asserts:
+  </p>
+  <ul>
+    <li><code>event.room_id == room.id</code> (UUID)</li>
+    <li><code>event.room_address == room.public_address</code> (composed)</li>
+    <li><code>channel == f"room:{room.id}"</code></li>
+  </ul>
+  <p>Plus a final sweep assertion iterating every captured tuple and asserting the channel format invariant for every captured <code>RoomScopedEvent</code>. Marked <code>@pytest.mark.protected</code>.</p>
+
+  <h3>Layer 3 — per-finding regression tests <span class="pill test">TDD anchors</span></h3>
+  <table>
+    <thead><tr><th>Finding</th><th>Test file</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill">#2</span></td><td><code>test_frames_invalidate_address.py</code></td><td>Append a frame; assert captured <code>FramesInvalidate.room_address</code> equals <code>"&lt;owner_uuid&gt;/&lt;name&gt;"</code>.</td></tr>
+      <tr><td><span class="pill">#1</span></td><td><code>test_joblib_channel.py</code></td><td>Register a job via <code>PUT /v1/joblib/rooms/&lt;o&gt;/&lt;n&gt;/jobs</code>; assert captured emit channel is <code>f"room:{room.id}"</code>, not <code>f"room:{o}/{n}"</code>.</td></tr>
+      <tr><td><span class="pill">#14</span></td><td><code>test_room_renamed_previous_owner.py</code></td><td>Owner Alice on <code>user:&lt;alice&gt;</code>; group G with member Bob on <code>user:&lt;bob&gt;</code>; in-room socket on <code>room:&lt;surrogate&gt;</code>. PATCH transfers foo to G. Assert: alice received RoomRenamed; bob received RoomUpdate; in-room socket received RoomRenamed.</td></tr>
+      <tr><td><span class="pill">#3</span></td><td><code>test_pyclient_frames_invalidate.py</code></td><td>Stand up real server via <code>server_factory</code>; spawn a <code>ZnDraw</code> client; a second client appends a frame; assert the first client's <code>cached_length</code> updates within a short timeout.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <strong>Frontend caveat.</strong> Finding #2's frontend half (<code>frameHandlers.ts:57</code>) is a one-line swap. The repo has no
+    vitest harness; the regression net is the Layer 3 backend test (guarantees the payload arrives with the right shape) plus a
+    playwright pass during implementation: open two browser tabs into the same room, append a frame in tab A, confirm tab B's frame
+    count refreshes without reload. Tracked as a follow-up to add a vitest layer.
+  </div>
+</section>
+
+<section id="tdd-order">
+  <h2>9 · TDD implementation order</h2>
+  <ol class="tdd">
+    <li class="step-red">Write Layer 1 audit test → <strong>red</strong> (mixin doesn't exist).</li>
+    <li class="step-green">Create <code>RoomScopedEvent</code> mixin + retrofit existing event models → <strong>green</strong>.</li>
+    <li class="step-red">Write <code>test_joblib_channel.py</code> (#1) → <strong>red</strong>.</li>
+    <li class="step-green">Create <code>broadcast.py</code> helper, change <code>get_writable_room_id</code> to return surrogate, refactor joblib emit sites → <strong>green</strong>.</li>
+    <li class="step-red">Write <code>test_frames_invalidate_address.py</code> (#2) → <strong>red</strong>.</li>
+    <li class="step-green">Refactor <code>routes/frames.py</code> and siblings to <code>.for_room()</code> + <code>broadcast_to_room</code> → <strong>green</strong>.</li>
+    <li class="step-red">Write <code>test_pyclient_frames_invalidate.py</code> (#3) → <strong>red</strong>.</li>
+    <li class="step-green">One-line swap in <code>client/socket.py</code> → <strong>green</strong>.</li>
+    <li class="step-red">Write <code>test_room_renamed_previous_owner.py</code> (#14) → <strong>red</strong>.</li>
+    <li class="step-green">Refactor <code>update_room</code> to pass <code>also_notify_user=previous_owner</code> → <strong>green</strong>.</li>
+    <li class="step-green">Write Layer 2 contract test last → expected <strong>green</strong> on first run; if a missed emit site surfaces, refactor and rerun.</li>
+  </ol>
+</section>
+
+<section id="rollout">
+  <h2>10 · Rollout</h2>
+  <p>
+    Single PR onto <code>feat/room-group-scope-refactor</code>. No feature flag — the wire is consistent before merge or it isn't.
+    Reviewer focus: the emit-site refactor diff (~30 files, mechanical) and the four regression tests.
+  </p>
+  <p style="color: var(--muted);">Estimated diff size: ~600 net lines (most of it tests and the mechanical emit-site swap).</p>
+</section>
+
+</section> <!-- /.spec -->
+
+</main>
+
+<script>
+  function initMermaid() {
+    if (typeof mermaid === 'undefined') {
+      requestAnimationFrame(initMermaid);
+      return;
+    }
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        background: '#ffffff',
+        primaryColor: '#fbf8ee',
+        primaryTextColor: '#1f1d18',
+        primaryBorderColor: '#d9d3c4',
+        secondaryColor: '#f0ebde',
+        tertiaryColor: '#e6efff',
+        lineColor: '#6b6258',
+        textColor: '#1f1d18',
+        mainBkg: '#fbf8ee',
+        nodeBorder: '#a8a08c',
+        clusterBkg: '#faf8f3',
+        clusterBorder: '#d9d3c4',
+        labelTextColor: '#1f1d18',
+        edgeLabelBackground: '#fbf8ee',
+        fontFamily: '-apple-system, "Segoe UI", Helvetica, Arial, sans-serif'
+      },
+      flowchart: { curve: 'basis', htmlLabels: true }
+    });
+    mermaid.run();
+  }
+  initMermaid();
+</script>
+
+</body>
+</html>

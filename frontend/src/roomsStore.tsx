@@ -18,7 +18,9 @@ interface RoomsState {
 
 // Helper to convert Map to sorted array
 function mapToSortedArray(map: Map<string, Room>): Room[] {
-	return Array.from(map.values()).sort((a, b) => a.id.localeCompare(b.id));
+	return Array.from(map.values()).sort((a, b) =>
+		a.room_id.localeCompare(b.room_id),
+	);
 }
 
 export const useRoomsStore = create<RoomsState>((set, get) => ({
@@ -36,7 +38,7 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
 			const roomsList = await listRooms();
 			const roomsMap = new Map<string, Room>();
 			for (const room of roomsList) {
-				roomsMap.set(room.id, room);
+				roomsMap.set(room.room_id, room);
 			}
 			const roomsArray = mapToSortedArray(roomsMap);
 			set({ roomsMap, roomsArray, loading: false });
@@ -61,13 +63,23 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
 		set((state) => {
 			const existingRoom = state.roomsMap.get(roomId);
 			if (!existingRoom) {
-				// Room doesn't exist yet, create it with updates
+				// Need the owner identity to materialize a room from a broadcast.
+				if (
+					updates.owner_id === undefined ||
+					updates.owner_kind === undefined ||
+					updates.owner_label === undefined
+				) {
+					return state;
+				}
 				const newRoom: Room = {
-					id: roomId,
+					room_id: roomId,
 					frame_count: 0,
-					locked: false,
+					visibility: "public",
 					is_default: false,
 					...updates,
+					owner_id: updates.owner_id,
+					owner_kind: updates.owner_kind,
+					owner_label: updates.owner_label,
 				};
 				const newRoomsMap = new Map(state.roomsMap);
 				newRoomsMap.set(roomId, newRoom);

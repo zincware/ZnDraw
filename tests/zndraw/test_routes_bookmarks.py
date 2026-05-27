@@ -38,7 +38,7 @@ async def test_list_bookmarks_returns_empty_initially(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/bookmarks",
+        f"/v1/rooms/{room.public_address}/bookmarks",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -59,7 +59,7 @@ async def test_list_bookmarks_returns_all_bookmarks(
     await _add_bookmark(session, room.id, 10, "End")
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/bookmarks",
+        f"/v1/rooms/{room.public_address}/bookmarks",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -86,7 +86,7 @@ async def test_get_bookmark_returns_label(
     await _add_bookmark(session, room.id, 5, "Important Frame")
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/bookmarks/5",
+        f"/v1/rooms/{room.public_address}/bookmarks/5",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -105,7 +105,7 @@ async def test_get_bookmark_returns_404_for_nonexistent(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/bookmarks/999",
+        f"/v1/rooms/{room.public_address}/bookmarks/999",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -127,7 +127,7 @@ async def test_set_bookmark_creates_bookmark(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/bookmarks/3",
+        f"/v1/rooms/{room.public_address}/bookmarks/3",
         json={"label": "New Bookmark"},
         headers=auth_header(token),
     )
@@ -153,7 +153,7 @@ async def test_set_bookmark_broadcasts(
     room = await create_test_room(session, user)
 
     await client.put(
-        f"/v1/rooms/{room.id}/bookmarks/3",
+        f"/v1/rooms/{room.public_address}/bookmarks/3",
         json={"label": "Test"},
         headers=auth_header(token),
     )
@@ -173,7 +173,7 @@ async def test_set_bookmark_rejects_empty_label(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/bookmarks/3",
+        f"/v1/rooms/{room.public_address}/bookmarks/3",
         json={"label": ""},
         headers=auth_header(token),
     )
@@ -197,7 +197,7 @@ async def test_delete_bookmark_removes_bookmark(
     await _add_bookmark(session, room.id, 5, "To Delete")
 
     response = await client.delete(
-        f"/v1/rooms/{room.id}/bookmarks/5",
+        f"/v1/rooms/{room.public_address}/bookmarks/5",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -218,7 +218,7 @@ async def test_delete_nonexistent_bookmark_returns_404(
     room = await create_test_room(session, user)
 
     response = await client.delete(
-        f"/v1/rooms/{room.id}/bookmarks/999",
+        f"/v1/rooms/{room.public_address}/bookmarks/999",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -238,7 +238,7 @@ async def test_delete_bookmark_broadcasts(
     await _add_bookmark(session, room.id, 5, "Test")
 
     await client.delete(
-        f"/v1/rooms/{room.id}/bookmarks/5",
+        f"/v1/rooms/{room.public_address}/bookmarks/5",
         headers=auth_header(token),
     )
 
@@ -259,7 +259,7 @@ async def test_list_bookmarks_requires_auth(
     user, _ = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    response = await client.get(f"/v1/rooms/{room.id}/bookmarks")
+    response = await client.get(f"/v1/rooms/{room.public_address}/bookmarks")
     assert response.status_code == 401
 
 
@@ -272,7 +272,7 @@ async def test_set_bookmark_requires_auth(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/bookmarks/3",
+        f"/v1/rooms/{room.public_address}/bookmarks/3",
         json={"label": "Test"},
     )
     assert response.status_code == 401
@@ -291,7 +291,7 @@ async def test_list_bookmarks_returns_404_for_nonexistent_room(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/99999/bookmarks",
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/bookmarks",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -306,7 +306,7 @@ async def test_set_bookmark_returns_404_for_nonexistent_room(
     _, token = await create_test_user_in_db(session)
 
     response = await client.put(
-        "/v1/rooms/99999/bookmarks/3",
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/bookmarks/3",
         json={"label": "Test"},
         headers=auth_header(token),
     )

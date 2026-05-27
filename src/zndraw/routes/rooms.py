@@ -1,35 +1,40 @@
-"""Room REST API endpoints - simplified for frontend compatibility.
-
-Handles room creation, listing, and basic metadata operations.
-Uses string UUIDs for room IDs to match frontend expectations.
-"""
+"""Room REST API endpoints."""
 
 import json
-import re
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
+from uuid import UUID
 
-from fastapi import APIRouter, Query, status
-from sqlmodel import select
+from fastapi import APIRouter, Query, Response, status
+from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from zndraw.access import Visibility
+from zndraw.broadcast import broadcast_to_room
+from zndraw.config import SettingsDep
 from zndraw.dependencies import (
+    AccessManageDep,
+    AccessReadDep,
     CurrentUserDep,
     FrameStorageDep,
-    OptionalUserDep,
+    MyGroupIdsDep,
+    OwnerKind,
     RedisDep,
     SessionDep,
     SioDep,
-    WritableRoomDep,
-    room_channel,
-    verify_room,
+    _load_room_by_address,
+    fetch_group_role,
+    resolve_owner,
 )
 from zndraw.exceptions import (
     Forbidden,
     InvalidPayload,
     NotAuthenticated,
-    RoomLocked,
     RoomNotFound,
     RoomReadOnly,
+    ShareLinkInvalid,
+    TransferTargetInvalid,
     UnprocessableContent,
     problem_responses,
 )
@@ -50,7 +55,6 @@ from zndraw.models import (
     RoomBookmark,
     RoomFigure,
     RoomGeometry,
-    RoomMembership,
     SelectionGroup,
     ServerSettings,
 )
@@ -67,7 +71,7 @@ from zndraw.schemas import (
     SessionItem,
     SessionsListResponse,
 )
-from zndraw.socket_events import FramesInvalidate, RoomUpdate
+from zndraw.socket_events import FramesInvalidate, RoomRenamed, RoomUpdate
 from zndraw.storage import FrameStorage
 from zndraw.transformations import InArrayTransform
 
@@ -261,6 +265,29 @@ async def _get_default_room_id(session: AsyncSession) -> str | None:
     return settings.default_room_id if settings else None
 
 
+async def _resolve_room_owner(
+    session: AsyncSession, room: Room
+) -> tuple[UUID, Literal["user", "group"], str]:
+    """Return ``(owner_id, owner_kind, owner_label)`` for ``room``.
+
+    Raises ``RuntimeError`` if the Room CHECK constraint
+    ``(owner_user_id IS NOT NULL) <> (owner_group_id IS NOT NULL)`` is violated.
+    Tolerates a stale FK (owner user/group deleted out from under the room) by
+    returning ``("user", "")`` so listings stay usable.
+    """
+    owner_id = room.owner_user_id or room.owner_group_id
+    if owner_id is None:
+        raise RuntimeError(
+            f"Room {room.id!r} violates owner CHECK constraint: "
+            "owner_user_id and owner_group_id are both NULL"
+        )
+    resolved = await resolve_owner(session, owner_id)
+    if resolved is None:
+        return owner_id, "user", ""
+    kind, label = resolved
+    return owner_id, "group" if kind is OwnerKind.GROUP else "user", label
+
+
 async def build_room_update(
     session: AsyncSession,
     storage: FrameStorage,
@@ -269,11 +296,16 @@ async def build_room_update(
     """Build a full RoomUpdate snapshot from DB + storage."""
     default_room_id = await _get_default_room_id(session)
     frame_count = await storage.get_length(room.id)
+    owner_id, owner_kind, owner_label = await _resolve_room_owner(session, room)
     return RoomUpdate(
+        room_id=room.public_address,
         id=room.id,
         description=room.description,
         frame_count=frame_count,
-        locked=room.locked,
+        visibility=room.visibility,
+        owner_id=owner_id,
+        owner_kind=owner_kind,
+        owner_label=owner_label,
         is_default=(room.id == default_room_id),
     )
 
@@ -295,14 +327,22 @@ async def broadcast_room_update(
     which similarly covers both in-room and out-of-room members.
     """
     event = await build_room_update(session, storage, room)
-    if room.is_public:
+    if room.visibility == Visibility.PUBLIC:
         await sio.emit(event, room="rooms:feed")
         return
-    result = await session.exec(
-        select(RoomMembership.user_id).where(RoomMembership.room_id == room.id)
-    )
-    for uid in result.all():
-        await sio.emit(event, room=f"user:{uid}")
+    if room.owner_group_id is not None:
+        from zndraw.models import GroupMembership
+
+        result = await session.exec(
+            select(GroupMembership.user_id).where(
+                GroupMembership.group_id == room.owner_group_id
+            )
+        )
+        for uid in result.all():
+            await sio.emit(event, room=f"user:{uid}")
+        return
+    if room.owner_user_id is not None:
+        await sio.emit(event, room=f"user:{room.owner_user_id}")
 
 
 # =============================================================================
@@ -313,111 +353,138 @@ async def broadcast_room_update(
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    responses=problem_responses(NotAuthenticated, RoomReadOnly),
+    responses=problem_responses(
+        NotAuthenticated,
+        Forbidden,
+        InvalidPayload,
+        RoomReadOnly,
+        TransferTargetInvalid,
+        UnprocessableContent,
+    ),
 )
 async def create_room(
     session: SessionDep,
     storage: FrameStorageDep,
     sio: SioDep,
+    settings: SettingsDep,
     current_user: CurrentUserDep,
     request: RoomCreate,
+    response: Response,
 ) -> RoomCreateResponse:
-    """Create a new room.
+    """Create or idempotently reuse a room in ``owner_id``'s namespace."""
+    name = request.name
+    target_visibility = request.visibility or settings.default_room_visibility
 
-    The room ID must contain only alphanumeric characters, hyphens, and
-    underscores.  System rooms (prefixed with ``@``) cannot be created via
-    the REST API.
+    # Step 2: permission gate. Resolve target namespace BEFORE existence check.
+    owner_user_id: UUID | None = None
+    owner_group_id: UUID | None = None
 
-    The ``copyFrom`` field controls frame initialization:
+    if request.owner_id == current_user.id or current_user.is_superuser:
+        resolved = await resolve_owner(session, request.owner_id)
+        if resolved is None:
+            raise Forbidden.exception("Not permitted to create in this namespace")
+        kind, _ = resolved
+        if kind == OwnerKind.USER:
+            owner_user_id = request.owner_id
+            if target_visibility == Visibility.GROUP:
+                raise InvalidPayload.exception(
+                    "GROUP visibility requires a group owner"
+                )
+        else:
+            owner_group_id = request.owner_id
+            if target_visibility == Visibility.PRIVATE:
+                raise InvalidPayload.exception(
+                    "PRIVATE visibility requires a user owner"
+                )
+    else:
+        resolved = await resolve_owner(session, request.owner_id)
+        if resolved is None:
+            raise Forbidden.exception("Not permitted to create in this namespace")
+        kind, _ = resolved
+        if kind != OwnerKind.GROUP:
+            raise Forbidden.exception("Not permitted to create in this namespace")
+        role = await fetch_group_role(session, current_user.id, request.owner_id)
+        if role is None:
+            raise Forbidden.exception("Not permitted to create in this namespace")
+        owner_group_id = request.owner_id
+        if target_visibility == Visibility.PRIVATE:
+            raise InvalidPayload.exception("PRIVATE visibility requires a user owner")
 
-    - ``"<room-id>"`` - deep copy from that room (frames, geometries,
-      bookmarks, figures, selection groups, step)
-    - ``"@empty"`` - one empty frame (bypasses server default)
-    - ``"@none"`` - zero frames (bypasses server default)
-    - *omitted* - use server default room, fallback to one empty frame
-    """
-    room_id = request.room_id
-
-    # Validate room ID format: alphanumeric, hyphens, and underscores only
-    if not re.match(r"^[a-zA-Z0-9\-_]+$", room_id):
-        raise InvalidPayload.exception(
-            "Room ID must contain only alphanumeric characters, "
-            "hyphens, and underscores"
-        )
-
-    # Check if room already exists
-    existing = await session.get(Room, room_id)
+    # Step 4: insert-or-fetch via the unique index.
+    existing = await _load_room_by_address(session, request.owner_id, name)
     if existing is not None:
-        frame_count = await storage.get_length(room_id)
+        frame_count = await storage.get_length(existing.id)
+        response.status_code = status.HTTP_200_OK
         return RoomCreateResponse(
-            status="ok",
-            room_id=room_id,
+            room_id=existing.public_address,
             frame_count=frame_count,
             created=False,
         )
 
-    # Resolve copyFrom: @-prefixed presets, room IDs, or server default
+    # Resolve copy_from: @-prefixed presets, room IDs, or server default.
     copy_from = request.copy_from
     if copy_from is None:
-        # No explicit copyFrom — check server default
         default_room_id = await _get_default_room_id(session)
         copy_from = default_room_id if default_room_id else "@empty"
 
-    # Reject unknown @-prefixed presets
     presets = {"@empty", "@none"}
     if copy_from.startswith("@") and copy_from not in presets:
         raise UnprocessableContent.exception(
             f"Unknown preset '{copy_from}'. Valid presets: {', '.join(sorted(presets))}"
         )
 
-    # Try to resolve source room for room-id copyFrom
     source_room: Room | None = None
     if not copy_from.startswith("@"):
-        source_room = await session.get(Room, copy_from)
-        if source_room is not None and await storage.has_mount(copy_from):
+        if "/" in copy_from:
+            owner_str, _, name_part = copy_from.partition("/")
+            source_room = await _load_room_by_address(
+                session, UUID(owner_str), name_part
+            )
+        else:
+            source_room = await session.get(Room, copy_from)
+        if source_room is not None and await storage.has_mount(source_room.id):
             raise RoomReadOnly.exception(
                 "Cannot copy from a room with a mounted source"
             )
 
-    # Create room in database
     room = Room(
-        id=room_id,
+        room_name=name,
         description=request.description,
         created_by_id=current_user.id,
+        owner_user_id=owner_user_id,
+        owner_group_id=owner_group_id,
+        visibility=target_visibility,
         step=source_room.step if source_room else 0,
     )
     session.add(room)
+    await session.flush()  # populate room.id
 
     frame_count = 0
     if copy_from == "@none":
-        pass  # zero frames
+        pass
     elif copy_from == "@empty":
-        await storage[room_id].extend([{}])
+        await storage[room.id].extend([{}])
         frame_count = 1
     elif source_room is not None:
-        # Deep copy from existing room: frames + all state
-        source_frames_or_none = await storage[copy_from][0:].to_list()
+        source_frames_or_none = await storage[source_room.id][0:].to_list()
         source_frames = [f for f in source_frames_or_none if f is not None]
         if source_frames:
-            await storage[room_id].extend(source_frames)
+            await storage[room.id].extend(source_frames)
             frame_count = len(source_frames)
-        await _copy_room_state(session, copy_from, room_id)
+        await _copy_room_state(session, source_room.id, room.id)
     else:
-        # copyFrom refers to a non-existent room — fall back to empty
-        await storage[room_id].extend([{}])
+        await storage[room.id].extend([{}])
         frame_count = 1
 
-    # Only create default geometries when NOT copying from an existing room
     if source_room is None:
-        _initialize_default_geometries(session, room_id)
+        _initialize_default_geometries(session, room.id)
 
     await session.commit()
 
     await broadcast_room_update(sio, session, storage, room)
 
     return RoomCreateResponse(
-        status="ok",
-        room_id=room_id,
+        room_id=room.public_address,
         frame_count=frame_count,
         created=True,
     )
@@ -427,94 +494,90 @@ async def create_room(
 async def list_rooms(
     session: SessionDep,
     storage: FrameStorageDep,
-    _current_user: OptionalUserDep,
+    current_user: CurrentUserDep,
+    my_group_ids: MyGroupIdsDep,
     search: Annotated[str | None, Query(description="Search pattern")] = None,
 ) -> CollectionResponse[RoomResponse]:
-    """List available rooms.
-
-    Returns a flat array of room objects matching frontend expectations.
-    Authentication is optional - unauthenticated users see public rooms only.
-    """
-    # Get the default room ID for isDefault computation
+    """List rooms visible to the caller."""
     default_room_id = await _get_default_room_id(session)
 
-    # Get all rooms (for PoC, show all public rooms)
-    statement = select(Room).where(Room.is_public.is_(True))
-    result = await session.exec(statement)
+    conditions: list[Any] = [
+        col(Room.visibility) == Visibility.PUBLIC,
+        col(Room.owner_user_id) == current_user.id,
+    ]
+    if my_group_ids:
+        conditions.append(col(Room.owner_group_id).in_(my_group_ids))
+
+    stmt = select(Room).where(or_(*conditions))
+    result = await session.exec(stmt)
     rooms = list(result.all())
 
-    # Build response with frame counts
-    room_responses = []
+    room_responses: list[RoomResponse] = []
     for room in rooms:
-        frame_count = await storage.get_length(room.id)
-
-        # Apply search filter if provided
         if search:
-            search_lower = search.lower()
-            if search_lower not in room.id.lower() and (
-                room.description is None or search_lower not in room.description.lower()
+            sl = search.lower()
+            if sl not in room.room_name.lower() and (
+                room.description is None or sl not in room.description.lower()
             ):
                 continue
-
+        frame_count = await storage.get_length(room.id)
+        owner_id, owner_kind, owner_label = await _resolve_room_owner(session, room)
         room_responses.append(
             RoomResponse(
+                room_id=room.public_address,
                 id=room.id,
                 description=room.description,
                 frame_count=frame_count,
-                locked=room.locked,
+                visibility=room.visibility,
+                owner_id=owner_id,
+                owner_kind=owner_kind,
+                owner_label=owner_label,
                 is_default=(room.id == default_room_id),
             )
         )
-
     return CollectionResponse(items=room_responses)
 
 
 @router.get(
-    "/{room_id}",
-    responses=problem_responses(RoomNotFound),
+    "/{owner_id}/{room_name}",  # noqa: FAST003 — params consumed by AccessReadDep
+    responses=problem_responses(RoomNotFound, ShareLinkInvalid),
 )
 async def get_room(
     session: SessionDep,
     storage: FrameStorageDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
 ) -> RoomResponse:
-    """Get details of a specific room."""
-    room = await verify_room(session, room_id)
-    frame_count = await storage.get_length(room_id)
+    """Get details of a specific room (read-gated)."""
+    room = access.room
+    frame_count = await storage.get_length(room.id)
     default_room_id = await _get_default_room_id(session)
-
+    owner_id, owner_kind, owner_label = await _resolve_room_owner(session, room)
     return RoomResponse(
+        room_id=room.public_address,
         id=room.id,
         description=room.description,
         frame_count=frame_count,
-        locked=room.locked,
+        visibility=room.visibility,
+        owner_id=owner_id,
+        owner_kind=owner_kind,
+        owner_label=owner_label,
         is_default=(room.id == default_room_id),
     )
 
 
 @router.get(
-    "/{room_id}/presence",
+    "/{owner_id}/{room_name}/presence",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(RoomNotFound),
 )
 async def get_room_presence(
-    session: SessionDep,
     redis: RedisDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
 ) -> PresenceResponse:
-    """Get presence (online users) for a room.
-
-    Derives presence from the camera hash — each frontend session with an
-    active camera is considered present. Pyclients do not have cameras and
-    are not included.
-    """
+    """Get presence (online users) for a room."""
     from uuid import UUID as _UUID
 
-    await verify_room(session, room_id)
-
     cameras_raw: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
-        RedisKey.room_cameras(room_id)
+        RedisKey.room_cameras(access.room.id)
     )
     sessions_list: list[PresenceSessionResponse] = []
     for raw_value in cameras_raw.values():
@@ -534,23 +597,16 @@ async def get_room_presence(
 
 
 @router.get(
-    "/{room_id}/sessions",
+    "/{owner_id}/{room_name}/sessions",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def list_sessions(
-    session: SessionDep,
     redis: RedisDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
     email: Annotated[str | None, Query(description="Filter by user email")] = None,
 ) -> SessionsListResponse:
-    """List all active frontend sessions in this room.
-
-    Returns every frontend session (identified by having an entry in the
-    active-cameras hash). Optional ``email`` query param filters by user.
-    """
-    await verify_room(session, room_id)
-
+    """List all active frontend sessions in this room."""
+    room_id = access.room.id
     all_active: dict[str, str] = await redis.hgetall(  # type: ignore[misc]
         RedisKey.active_cameras(room_id)
     )
@@ -577,30 +633,69 @@ async def list_sessions(
 
 
 @router.patch(
-    "/{room_id}",
-    responses=problem_responses(RoomNotFound, RoomLocked, Forbidden),
+    "/{owner_id}/{room_name}",  # noqa: FAST003 — params consumed by AccessManageDep
+    responses=problem_responses(
+        RoomNotFound, Forbidden, TransferTargetInvalid, InvalidPayload
+    ),
 )
 async def update_room(
     session: SessionDep,
     storage: FrameStorageDep,
     sio: SioDep,
-    room: WritableRoomDep,
+    access: AccessManageDep,
+    current_user: CurrentUserDep,
     updates: RoomPatchRequest,
-    room_id: str,  # noqa: ARG001
 ) -> RoomPatchResponse:
-    """Update room metadata (description, locked, frame_count).
-
-    Requires writable access (room must not be locked by another user).
-    Setting ``frame_count`` stores an external frame count in Redis
-    (used by provider-backed rooms).  Use 0 to clear the external count.
-    """
+    """Update room metadata, ownership, or visibility (manage-gated)."""
+    room = access.room
     changed = False
+    old_address = room.public_address
+    previous_owner_user_id: UUID | None = room.owner_user_id
+    previous_owner_group_id: UUID | None = room.owner_group_id
+
     if updates.description is not None:
         room.description = updates.description
         changed = True
 
-    if updates.locked is not None:
-        room.locked = updates.locked
+    if updates.new_owner_id is not None:
+        resolved = await resolve_owner(session, updates.new_owner_id)
+        if resolved is None:
+            raise TransferTargetInvalid.exception("Unknown transfer target")
+        kind, _ = resolved
+
+        new_user_id: UUID | None = None
+        new_group_id: UUID | None = None
+
+        if kind == OwnerKind.USER:
+            if not current_user.is_superuser:
+                raise TransferTargetInvalid.exception(
+                    "Only superusers may transfer to a user"
+                )
+            new_user_id = updates.new_owner_id
+        else:
+            role = await fetch_group_role(
+                session, current_user.id, updates.new_owner_id
+            )
+            if role is None and not current_user.is_superuser:
+                raise TransferTargetInvalid.exception(
+                    "You are not a member of the target group"
+                )
+            new_group_id = updates.new_owner_id
+
+        existing = await _load_room_by_address(
+            session, updates.new_owner_id, room.room_name
+        )
+        if existing is not None and existing.id != room.id:
+            raise TransferTargetInvalid.exception(
+                "A room with that name already exists in the target namespace"
+            )
+
+        room.owner_user_id = new_user_id
+        room.owner_group_id = new_group_id
+        changed = True
+
+    if updates.visibility is not None:
+        room.visibility = updates.visibility
         changed = True
 
     if updates.frame_count is not None:
@@ -609,15 +704,43 @@ async def update_room(
             await storage.set_frame_count(room.id, count)
         else:
             await storage.clear_frame_count(room.id)
-        await sio.emit(
-            FramesInvalidate(room_id=room.id, action="clear", count=count),
-            room=room_channel(room.id),
+        await broadcast_to_room(
+            sio,
+            FramesInvalidate.for_room(room, action="clear", count=count),
+            room,
         )
         changed = True
 
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise InvalidPayload.exception(
+            "Room update violates visibility/owner invariants"
+        ) from exc
+
+    if updates.new_owner_id is not None:
+        prev_user_ids: list[UUID] = []
+        if previous_owner_group_id is not None:
+            from zndraw.models import GroupMembership
+
+            result = await session.exec(
+                select(GroupMembership.user_id).where(
+                    GroupMembership.group_id == previous_owner_group_id
+                )
+            )
+            prev_user_ids = list(result.all())
+        elif previous_owner_user_id is not None:
+            prev_user_ids = [previous_owner_user_id]
+
+        await broadcast_to_room(
+            sio,
+            RoomRenamed.for_room(room, old_address=old_address),
+            room,
+            also_notify_user_ids=prev_user_ids,
+        )
 
     if changed:
         await broadcast_room_update(sio, session, storage, room)
 
-    return RoomPatchResponse()
+    return RoomPatchResponse(room_id=room.public_address)

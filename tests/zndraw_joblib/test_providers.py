@@ -5,6 +5,8 @@ import asyncio
 import json
 import uuid
 
+from conftest import make_room_address
+
 from zndraw_auth import User
 from zndraw_joblib.dependencies import request_hash
 from zndraw_joblib.models import ProviderRecord
@@ -82,10 +84,11 @@ def test_register_provider_different_names(client):
     assert resp1.json()["id"] != resp2.json()["id"]
 
 
-def test_register_provider_different_rooms(client):
+def test_register_provider_different_rooms(client, test_user_id):
+    addr_42 = make_room_address(test_user_id, "room-42")
     resp1 = _register_provider(client, room_id="@global")
     assert resp1.status_code == 201
-    resp2 = _register_provider(client, room_id="room-42")
+    resp2 = _register_provider(client, room_id=addr_42)
     assert resp2.status_code == 201
     assert resp1.json()["id"] != resp2.json()["id"]
 
@@ -110,33 +113,38 @@ def test_list_providers_global(client):
     assert data["items"][0]["category"] == "filesystem"
 
 
-def test_list_providers_room_includes_global(client):
+def test_list_providers_room_includes_global(client, test_user_id):
+    addr = make_room_address(test_user_id, "room-42")
     _register_provider(client, room_id="@global")
-    resp = client.get("/v1/joblib/rooms/room-42/providers")
+    resp = client.get(f"/v1/joblib/rooms/{addr}/providers")
     assert resp.status_code == 200
     data = resp.json()
     assert data["total"] == 1
 
 
-def test_list_providers_room_scoped(client):
-    _register_provider(client, room_id="room-42")
-    resp = client.get("/v1/joblib/rooms/room-42/providers")
+def test_list_providers_room_scoped(client, test_user_id):
+    addr_42 = make_room_address(test_user_id, "room-42")
+    addr_99 = make_room_address(test_user_id, "room-99")
+    _register_provider(client, room_id=addr_42)
+    resp = client.get(f"/v1/joblib/rooms/{addr_42}/providers")
     assert resp.status_code == 200
     assert resp.json()["total"] == 1
 
     # Not visible from other rooms
-    resp2 = client.get("/v1/joblib/rooms/room-99/providers")
+    resp2 = client.get(f"/v1/joblib/rooms/{addr_99}/providers")
     assert resp2.status_code == 200
     assert resp2.json()["total"] == 0
 
 
-def test_list_providers_mixed_scopes(client):
+def test_list_providers_mixed_scopes(client, test_user_id):
+    addr_42 = make_room_address(test_user_id, "room-42")
+    addr_99 = make_room_address(test_user_id, "room-99")
     _register_provider(client, room_id="@global", name="global-fs")
-    _register_provider(client, room_id="room-42", name="room-fs")
-    _register_provider(client, room_id="room-99", name="other-fs")
+    _register_provider(client, room_id=addr_42, name="room-fs")
+    _register_provider(client, room_id=addr_99, name="other-fs")
 
     # room-42 sees global + room-42
-    resp = client.get("/v1/joblib/rooms/room-42/providers")
+    resp = client.get(f"/v1/joblib/rooms/{addr_42}/providers")
     assert resp.json()["total"] == 2
 
     # @global only sees global
@@ -144,7 +152,7 @@ def test_list_providers_mixed_scopes(client):
     assert resp.json()["total"] == 1
 
 
-def test_list_providers_includes_internal(client, async_session_factory):
+def test_list_providers_includes_internal(client, async_session_factory, test_user_id):
     """Internal providers are visible from every room (and from @global)."""
 
     async def seed() -> None:
@@ -174,7 +182,8 @@ def test_list_providers_includes_internal(client, async_session_factory):
     asyncio.run(seed())
 
     # A normal room sees the @internal provider
-    resp = client.get("/v1/joblib/rooms/room-42/providers")
+    addr = make_room_address(test_user_id, "room-42")
+    resp = client.get(f"/v1/joblib/rooms/{addr}/providers")
     assert resp.status_code == 200
     items = resp.json()["items"]
     assert any(p["full_name"] == "@internal:filesystem:FilesystemRead" for p in items)
@@ -187,7 +196,9 @@ def test_list_providers_includes_internal(client, async_session_factory):
     )
 
 
-def test_get_provider_info_internal_visible_from_room(client, async_session_factory):
+def test_get_provider_info_internal_visible_from_room(
+    client, async_session_factory, test_user_id
+):
     """A normal room can fetch info on an @internal provider."""
 
     async def seed() -> None:
@@ -216,8 +227,9 @@ def test_get_provider_info_internal_visible_from_room(client, async_session_fact
 
     asyncio.run(seed())
 
+    addr = make_room_address(test_user_id, "room-42")
     resp = client.get(
-        "/v1/joblib/rooms/room-42/providers/@internal:filesystem:FilesystemRead/info"
+        f"/v1/joblib/rooms/{addr}/providers/@internal:filesystem:FilesystemRead/info"
     )
     assert resp.status_code == 200
     assert resp.json()["schema"] == {"path": {"type": "string"}}
@@ -245,16 +257,18 @@ def test_get_provider_info_not_found(client):
     assert resp.status_code == 404
 
 
-def test_get_provider_info_room_visibility(client):
-    _register_provider(client, room_id="room-42")
+def test_get_provider_info_room_visibility(client, test_user_id):
+    addr_42 = make_room_address(test_user_id, "room-42")
+    addr_99 = make_room_address(test_user_id, "room-99")
+    _register_provider(client, room_id=addr_42)
     # Visible from room-42
     resp = client.get(
-        "/v1/joblib/rooms/room-42/providers/room-42:filesystem:local/info"
+        f"/v1/joblib/rooms/{addr_42}/providers/{addr_42}:filesystem:local/info"
     )
     assert resp.status_code == 200
     # NOT visible from room-99
     resp = client.get(
-        "/v1/joblib/rooms/room-99/providers/room-42:filesystem:local/info"
+        f"/v1/joblib/rooms/{addr_99}/providers/{addr_42}:filesystem:local/info"
     )
     assert resp.status_code == 404
 
@@ -513,10 +527,11 @@ def test_delete_provider_forbidden_other_user(client_factory):
     """A non-superuser cannot delete another user's provider."""
     alice = client_factory("alice", is_superuser=False)
     bob = client_factory("bob", is_superuser=False)
+    addr_42 = make_room_address(alice.user_id, "room-42")
 
     # Non-superusers can't register @global providers, so use a room.
     resp = alice.put(
-        "/v1/joblib/rooms/room-42/providers",
+        f"/v1/joblib/rooms/{addr_42}/providers",
         json={"category": "filesystem", "name": "local", "schema": {}},
     )
     assert resp.status_code == 201
@@ -531,9 +546,10 @@ def test_upload_result_forbidden_other_user(client_factory):
     """A non-superuser cannot upload results for another user's provider."""
     alice = client_factory("alice", is_superuser=False)
     bob = client_factory("bob", is_superuser=False)
+    addr_42 = make_room_address(alice.user_id, "room-42")
 
     resp = alice.put(
-        "/v1/joblib/rooms/room-42/providers",
+        f"/v1/joblib/rooms/{addr_42}/providers",
         json={"category": "filesystem", "name": "local", "schema": {}},
     )
     assert resp.status_code == 201
@@ -551,17 +567,18 @@ def test_register_provider_forbidden_other_user(client_factory):
     """User B cannot overwrite user A's provider registration."""
     alice = client_factory("alice", is_superuser=False)
     bob = client_factory("bob", is_superuser=False)
+    addr_42 = make_room_address(alice.user_id, "room-42")
 
     # Alice registers a provider in a room
     resp = alice.put(
-        "/v1/joblib/rooms/room-42/providers",
+        f"/v1/joblib/rooms/{addr_42}/providers",
         json={"category": "filesystem", "name": "local", "schema": {}},
     )
     assert resp.status_code == 201
 
     # Bob tries to register the same provider name -> should be rejected
     resp = bob.put(
-        "/v1/joblib/rooms/room-42/providers",
+        f"/v1/joblib/rooms/{addr_42}/providers",
         json={"category": "filesystem", "name": "local", "schema": {}},
     )
     assert resp.status_code == 403
@@ -571,16 +588,17 @@ def test_register_provider_superuser_can_overwrite(client_factory):
     """Superuser can overwrite another user's provider registration."""
     alice = client_factory("alice", is_superuser=False)
     admin = client_factory("admin", is_superuser=True)
+    addr_42 = make_room_address(alice.user_id, "room-42")
 
     resp = alice.put(
-        "/v1/joblib/rooms/room-42/providers",
+        f"/v1/joblib/rooms/{addr_42}/providers",
         json={"category": "filesystem", "name": "local", "schema": {}},
     )
     assert resp.status_code == 201
 
     # Admin can overwrite
     resp = admin.put(
-        "/v1/joblib/rooms/room-42/providers",
+        f"/v1/joblib/rooms/{addr_42}/providers",
         json={"category": "filesystem", "name": "local", "schema": {}},
     )
     assert resp.status_code == 200
@@ -645,7 +663,7 @@ def test_register_provider_category_allowed(app, client):
 
 
 def test_read_internal_provider_dispatches_via_taskiq(
-    client, app, async_session_factory
+    client, app, async_session_factory, test_user_id
 ):
     """An @internal provider dispatches via the registry's taskiq task, not tsio."""
     import asyncio
@@ -691,9 +709,10 @@ def test_read_internal_provider_dispatches_via_taskiq(
     )
     app.state.internal_provider_registry = registry
 
+    addr = make_room_address(test_user_id, "room-42")
     # Immediate timeout so we don't hang — we only care that kiq was called
     resp = client.get(
-        "/v1/joblib/rooms/room-42/providers/@internal:filesystem:FilesystemRead"
+        f"/v1/joblib/rooms/{addr}/providers/@internal:filesystem:FilesystemRead"
         "?path=/data",
         headers={"Prefer": "wait=0"},
     )
@@ -746,15 +765,16 @@ def test_global_scope_cannot_resolve_room_provider(client_factory):
     policy excludes them; resolve must agree)."""
     alice = client_factory("alice-b3", is_superuser=False)
     admin = client_factory("admin-b3", is_superuser=True)
+    addr_42 = make_room_address(alice.user_id, "room-42")
 
     resp = alice.put(
-        "/v1/joblib/rooms/room-42/providers",
+        f"/v1/joblib/rooms/{addr_42}/providers",
         json={"category": "filesystem", "name": "local", "schema": {}},
     )
     assert resp.status_code == 201
 
     # admin, calling with @global scope, must not resolve a room-42 provider.
-    resp = admin.get("/v1/joblib/rooms/@global/providers/room-42:filesystem:local")
+    resp = admin.get(f"/v1/joblib/rooms/@global/providers/{addr_42}:filesystem:local")
     assert resp.status_code == 404, resp.text
 
 
@@ -818,9 +838,10 @@ def test_read_remote_provider_works_with_no_internal_worker_cache(
     alice = unguarded_client_factory(
         "alice-b5", is_superuser=False, internal_worker_user=None
     )
+    addr_42 = make_room_address(alice.user_id, "room-42")
 
     resp = alice.put(
-        "/v1/joblib/rooms/room-42/providers",
+        f"/v1/joblib/rooms/{addr_42}/providers",
         json={"category": "filesystem", "name": "local", "schema": {}},
     )
     assert resp.status_code == 201, resp.text
@@ -831,7 +852,7 @@ def test_read_remote_provider_works_with_no_internal_worker_cache(
     #   409 — no connected worker (NoWorkersAvailable)
     # Unacceptable: 500 (WorkerTokenDep raises RuntimeError before dispatch).
     resp = alice.get(
-        "/v1/joblib/rooms/room-42/providers/room-42:filesystem:local?path=/",
+        f"/v1/joblib/rooms/{addr_42}/providers/{addr_42}:filesystem:local?path=/",
         headers={"Prefer": "wait=0"},
     )
     assert resp.status_code in (504, 409), (
@@ -846,8 +867,9 @@ def test_legitimate_json_with_error_type_keys_is_not_mis_flagged(
     keys (e.g., JSON-Schema) must be returned as-is, not translated to
     an HTTP 400."""
     alice = client_factory("alice-b6a", is_superuser=True)
+    addr_42 = make_room_address(alice.user_id, "room-42")
     resp = alice.put(
-        "/v1/joblib/rooms/room-42/providers",
+        f"/v1/joblib/rooms/{addr_42}/providers",
         json={"category": "filesystem", "name": "local", "schema": {}},
     )
     assert resp.status_code == 201
@@ -866,7 +888,9 @@ def test_legitimate_json_with_error_type_keys_is_not_mis_flagged(
     )
     assert upload_resp.status_code == 204
 
-    resp = alice.get(f"/v1/joblib/rooms/room-42/providers/{provider_full_name}?path=/")
+    resp = alice.get(
+        f"/v1/joblib/rooms/{addr_42}/providers/{provider_full_name}?path=/"
+    )
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"type": "object", "error": None, "ok": True}
 
@@ -879,8 +903,9 @@ def test_provider_error_path_returns_problem_detail(
     from zndraw_joblib.exceptions import ProviderExecutionFailed
 
     alice = client_factory("alice-b6b", is_superuser=True)
+    addr_42 = make_room_address(alice.user_id, "room-42")
     resp = alice.put(
-        "/v1/joblib/rooms/room-42/providers",
+        f"/v1/joblib/rooms/{addr_42}/providers",
         json={"category": "filesystem", "name": "local", "schema": {}},
     )
     assert resp.status_code == 201
@@ -905,7 +930,7 @@ def test_provider_error_path_returns_problem_detail(
     assert upload_resp.status_code == 204
 
     resp = alice.get(
-        f"/v1/joblib/rooms/room-42/providers/{provider_full_name}?path=/nope"
+        f"/v1/joblib/rooms/{addr_42}/providers/{provider_full_name}?path=/nope"
     )
     assert resp.status_code == 400
     assert resp.headers["content-type"].startswith("application/problem+json")
@@ -922,8 +947,9 @@ def test_error_status_visible_before_payload_via_notify(client_factory):
     from zndraw_joblib.dependencies import get_result_backend
 
     alice = client_factory("alice-b6c", is_superuser=True)
+    addr_42 = make_room_address(alice.user_id, "room-42")
     resp = alice.put(
-        "/v1/joblib/rooms/room-42/providers",
+        f"/v1/joblib/rooms/{addr_42}/providers",
         json={"category": "filesystem", "name": "local", "schema": {}},
     )
     assert resp.status_code == 201
@@ -963,7 +989,7 @@ def test_error_status_visible_before_payload_via_notify(client_factory):
 
     # And read_provider must see the error branch, not success.
     resp = alice.get(
-        f"/v1/joblib/rooms/room-42/providers/{provider_full_name}",
+        f"/v1/joblib/rooms/{addr_42}/providers/{provider_full_name}",
         params=params,
     )
     assert resp.status_code == 400
@@ -1009,15 +1035,16 @@ def test_internal_filesystem_requires_superuser_by_default(
     asyncio.run(seed())
 
     alice = client_factory("alice-b7a", is_superuser=False)
+    addr = make_room_address(alice.user_id, "room-42")
 
     # Read must return 403
     resp = alice.get(
-        "/v1/joblib/rooms/room-42/providers/@internal:filesystem:FilesystemReadB7A?path=/"
+        f"/v1/joblib/rooms/{addr}/providers/@internal:filesystem:FilesystemReadB7A?path=/"
     )
     assert resp.status_code == 403, resp.text
 
     # List must not include the gated provider
-    resp = alice.get("/v1/joblib/rooms/room-42/providers")
+    resp = alice.get(f"/v1/joblib/rooms/{addr}/providers")
     assert resp.status_code == 200
     items = resp.json()["items"]
     assert not any(
@@ -1062,7 +1089,8 @@ def test_internal_filesystem_superuser_bypasses_gate(
     asyncio.run(seed())
 
     admin = client_factory("admin-b7b", is_superuser=True)
-    resp = admin.get("/v1/joblib/rooms/room-42/providers")
+    addr = make_room_address(admin.user_id, "room-42")
+    resp = admin.get(f"/v1/joblib/rooms/{addr}/providers")
     items = resp.json()["items"]
     assert any(
         p["full_name"] == "@internal:filesystem:FilesystemReadB7B" for p in items
@@ -1107,7 +1135,8 @@ def test_internal_filesystem_gate_disabled_by_flag(
 
         asyncio.run(seed())
 
-        resp = alice.get("/v1/joblib/rooms/room-42/providers")
+        addr = make_room_address(alice.user_id, "room-42")
+        resp = alice.get(f"/v1/joblib/rooms/{addr}/providers")
         items = resp.json()["items"]
         assert any(
             p["full_name"] == "@internal:filesystem:FilesystemReadB7C" for p in items
@@ -1125,6 +1154,9 @@ def test_list_providers_pagination_correct_with_gate(
     import asyncio
     import uuid
 
+    alice = client_factory("alice-b7d", is_superuser=False)
+    addr_42 = make_room_address(alice.user_id, "room-42")
+
     async def seed() -> None:
         async with async_session_factory() as session:
             user = User(
@@ -1141,7 +1173,7 @@ def test_list_providers_pagination_correct_with_gate(
             # doesn't leak into non-gated rows.
             session.add(
                 ProviderRecord(
-                    room_id="room-42",
+                    room_id=addr_42,
                     category="filesystem",
                     name="VisibleRoomProvider",
                     schema_={},
@@ -1165,8 +1197,7 @@ def test_list_providers_pagination_correct_with_gate(
 
     asyncio.run(seed())
 
-    alice = client_factory("alice-b7d", is_superuser=False)
-    resp = alice.get("/v1/joblib/rooms/room-42/providers?limit=100")
+    resp = alice.get(f"/v1/joblib/rooms/{addr_42}/providers?limit=100")
     assert resp.status_code == 200
     data = resp.json()
     # None of the 5 gated providers should appear
@@ -1179,4 +1210,4 @@ def test_list_providers_pagination_correct_with_gate(
     # agree by construction.
     assert data["total"] == len(data["items"])
     # The room-42 provider should be visible
-    assert any(n == "room-42:filesystem:VisibleRoomProvider" for n in names)
+    assert any(n == f"{addr_42}:filesystem:VisibleRoomProvider" for n in names)

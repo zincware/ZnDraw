@@ -7,7 +7,6 @@ Verifies that when a room is set as the default template:
 """
 
 import pathlib
-import uuid
 from collections.abc import Callable
 from typing import Any
 
@@ -75,17 +74,16 @@ def test_template_room_isolation(
     server_instance = server_factory(env_overrides)
     server_url = server_instance.url
 
-    template_room_id = uuid.uuid4().hex
     template_frame_count = 5
     append_frame_count = 3
 
-    # Step 1: Admin creates template room with 5 frames
+    # Step 1: Admin creates template room with 5 frames (auto-generates composed room)
     admin = ZnDraw(
         url=server_url,
-        room=template_room_id,
         user="admin@local.test",
         password="adminpassword",
     )
+    template_room_id = admin.room
 
     template_frames = [_make_atoms(float(i), "C") for i in range(template_frame_count)]
     admin.extend(template_frames)

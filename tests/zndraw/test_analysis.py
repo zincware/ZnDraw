@@ -5,8 +5,6 @@ Calls extension.run(vis) directly against a real server to verify
 that analysis extensions create correct Plotly figures.
 """
 
-import uuid
-
 import ase
 import numpy as np
 import plotly.graph_objects as go
@@ -121,7 +119,7 @@ class TestDistance:
 
     def test_distance_creates_figure(self, server: str):
         """Distance.run() creates a Plotly figure named 'Distance' in vis.figures."""
-        with ZnDraw(url=server, room=uuid.uuid4().hex) as vis:
+        with ZnDraw(url=server) as vis:
             vis.extend(_make_trajectory(5))
             vis.selection = [0, 1]
 
@@ -133,7 +131,7 @@ class TestDistance:
 
     def test_distance_figure_has_correct_traces(self, server: str):
         """Distance figure has scatter + line traces for 5 frames."""
-        with ZnDraw(url=server, room=uuid.uuid4().hex) as vis:
+        with ZnDraw(url=server) as vis:
             vis.extend(_make_trajectory(5))
             vis.selection = [0, 1]
 
@@ -146,7 +144,7 @@ class TestDistance:
 
     def test_distance_figure_has_interaction_metadata(self, server: str):
         """Distance figure has interactions schema for frame synchronization."""
-        with ZnDraw(url=server, room=uuid.uuid4().hex) as vis:
+        with ZnDraw(url=server) as vis:
             vis.extend(_make_trajectory(3))
             vis.selection = [0, 1]
 
@@ -161,7 +159,7 @@ class TestDistance:
 
     def test_distance_wrong_selection_count(self, server: str):
         """Distance raises ValueError when selection doesn't have exactly 2 atoms."""
-        with ZnDraw(url=server, room=uuid.uuid4().hex) as vis:
+        with ZnDraw(url=server) as vis:
             vis.extend(_make_trajectory(3))
             vis.selection = [0, 1, 2]  # 3 atoms, need 2
 
@@ -174,7 +172,7 @@ class TestDihedralAngle:
 
     def test_dihedral_creates_figure(self, server: str):
         """DihedralAngle.run() creates a Plotly figure named 'DihedralAngle'."""
-        with ZnDraw(url=server, room=uuid.uuid4().hex) as vis:
+        with ZnDraw(url=server) as vis:
             vis.extend(_make_dihedral_trajectory(5))
             vis.selection = [0, 1, 2, 3]
 
@@ -186,7 +184,7 @@ class TestDihedralAngle:
 
     def test_dihedral_figure_has_interaction_metadata(self, server: str):
         """DihedralAngle figure has interactions schema for frame sync."""
-        with ZnDraw(url=server, room=uuid.uuid4().hex) as vis:
+        with ZnDraw(url=server) as vis:
             vis.extend(_make_dihedral_trajectory(3))
             vis.selection = [0, 1, 2, 3]
 
@@ -199,7 +197,7 @@ class TestDihedralAngle:
 
     def test_dihedral_wrong_selection_count(self, server: str):
         """DihedralAngle raises ValueError with wrong selection."""
-        with ZnDraw(url=server, room=uuid.uuid4().hex) as vis:
+        with ZnDraw(url=server) as vis:
             vis.extend(_make_dihedral_trajectory(3))
             vis.selection = [0, 1]  # 2 atoms, need 4
 
@@ -212,7 +210,7 @@ class TestProperties1D:
 
     def test_properties1d_uses_metadata_keys(self, server: str):
         """Properties1D uses keys from the /metadata endpoint (e.g. 'info.energy')."""
-        with ZnDraw(url=server, room=uuid.uuid4().hex) as vis:
+        with ZnDraw(url=server) as vis:
             vis.extend(_make_trajectory(5))
 
             # Discover keys from metadata endpoint (same as frontend dropdown)
@@ -231,7 +229,7 @@ class TestProperties1D:
 
     def test_properties1d_figure_has_correct_traces(self, server: str):
         """Properties1D figure has scatter + line traces."""
-        with ZnDraw(url=server, room=uuid.uuid4().hex) as vis:
+        with ZnDraw(url=server) as vis:
             vis.extend(_make_trajectory(5))
 
             Properties1D(value="info.energy").run(vis)
@@ -242,7 +240,7 @@ class TestProperties1D:
 
     def test_properties1d_figure_has_interaction_metadata(self, server: str):
         """Properties1D figure has interactions schema for frame sync."""
-        with ZnDraw(url=server, room=uuid.uuid4().hex) as vis:
+        with ZnDraw(url=server) as vis:
             vis.extend(_make_trajectory(3))
 
             Properties1D(value="info.energy").run(vis)
@@ -258,7 +256,7 @@ class TestProperties2D:
 
     def test_properties2d_uses_metadata_keys(self, server: str):
         """Properties2D uses keys from the /metadata endpoint."""
-        with ZnDraw(url=server, room=uuid.uuid4().hex) as vis:
+        with ZnDraw(url=server) as vis:
             vis.extend(_make_trajectory(5))
 
             resp = vis.api.http.get(
@@ -282,7 +280,7 @@ class TestProperties2D:
 
     def test_properties2d_with_step_as_axis(self, server: str):
         """Properties2D supports 'step' as a special axis value for frame indices."""
-        with ZnDraw(url=server, room=uuid.uuid4().hex) as vis:
+        with ZnDraw(url=server) as vis:
             vis.extend(_make_trajectory(5))
 
             Properties2D(
@@ -298,7 +296,7 @@ class TestProperties2D:
 
     def test_properties2d_figure_has_interaction_metadata(self, server: str):
         """Properties2D figure has interactions schema for frame sync."""
-        with ZnDraw(url=server, room=uuid.uuid4().hex) as vis:
+        with ZnDraw(url=server) as vis:
             vis.extend(_make_trajectory(3))
 
             Properties2D(

@@ -7,8 +7,9 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createRoom } from "../myapi/client";
-import { validateRoomId } from "../utils/roomValidation";
+import { type Visibility, createRoom } from "../myapi/client";
+import { useAppStore } from "../store";
+import VisibilitySelector from "./VisibilitySelector";
 
 interface DuplicateRoomDialogProps {
 	open: boolean;
@@ -22,34 +23,45 @@ export default function DuplicateRoomDialog({
 	open,
 	sourceRoomId,
 	sourceDescription,
-	existingRoomIds,
+	existingRoomIds: _existingRoomIds,
 	onClose,
 }: DuplicateRoomDialogProps) {
 	const navigate = useNavigate();
-	const [newRoomId, setNewRoomId] = useState("");
+	const [newRoomName, setNewRoomName] = useState("");
 	const [description, setDescription] = useState("");
 	const [error, setError] = useState<string | null>(null);
+	const [visibility, setVisibility] = useState<Visibility>("public");
 
 	// Reset form when dialog opens
 	const handleEnter = () => {
-		setNewRoomId("");
+		setNewRoomName("");
 		setDescription(`Copy of ${sourceDescription || sourceRoomId}`);
 		setError(null);
+		setVisibility("public");
 	};
 
 	const handleDuplicate = async () => {
-		const validationError = validateRoomId(newRoomId, existingRoomIds);
-		if (validationError) {
-			setError(validationError);
+		const currentUser = useAppStore.getState().user;
+		if (!currentUser) {
+			setError("Not authenticated");
+			return;
+		}
+
+		const name = newRoomName.trim() || "untitled-1";
+		if (!/^[a-zA-Z0-9\-_]+$/.test(name)) {
+			setError(
+				"Name may only contain letters, numbers, hyphens and underscores",
+			);
 			return;
 		}
 
 		try {
-			const roomId = newRoomId || crypto.randomUUID();
 			const result = await createRoom({
-				room_id: roomId,
+				owner_id: currentUser.id,
+				name,
 				copy_from: sourceRoomId,
 				description,
+				visibility,
 			});
 			onClose();
 			navigate(`/rooms/${result.room_id}`);
@@ -78,17 +90,19 @@ export default function DuplicateRoomDialog({
 
 				<TextField
 					margin="dense"
-					label="New Room ID (optional)"
+					label="New Room Name (optional)"
 					type="text"
 					fullWidth
 					variant="outlined"
-					value={newRoomId}
+					value={newRoomName}
 					onChange={(e) => {
-						const id = e.target.value;
-						setNewRoomId(id);
-						setError(validateRoomId(id, existingRoomIds));
+						setNewRoomName(e.target.value);
+						setError(null);
 					}}
-					helperText={error || "Leave empty to auto-generate a unique ID"}
+					helperText={
+						error ||
+						'Leave empty to use "untitled-1". Letters, numbers, hyphens, underscores only.'
+					}
 					error={!!error}
 					sx={{ mb: 2 }}
 				/>
@@ -102,7 +116,10 @@ export default function DuplicateRoomDialog({
 					variant="outlined"
 					value={description}
 					onChange={(e) => setDescription(e.target.value)}
+					sx={{ mb: 2 }}
 				/>
+
+				<VisibilitySelector value={visibility} onChange={setVisibility} />
 			</DialogContent>
 			<DialogActions>
 				<Button onClick={onClose}>Cancel</Button>

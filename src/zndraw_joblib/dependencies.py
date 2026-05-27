@@ -2,6 +2,7 @@
 import hashlib
 import json
 from typing import Annotated, Any, Protocol, runtime_checkable
+from uuid import UUID
 
 from fastapi import Depends, Path, Request
 from fastapi_users.authentication import JWTStrategy
@@ -42,13 +43,25 @@ def get_tsio(request: Request) -> AsyncServerWrapper | None:
 
 
 def validate_room_id(room_id: str) -> None:
-    """Validate room_id doesn't contain @ or : (except @global and @internal)."""
+    """Validate that ``room_id`` is a sigil OR composed ``<owner_uuid>/<room_name>``."""
     if room_id in ("@global", "@internal"):
         return
-    if not room_id or "@" in room_id or ":" in room_id:
+    if "/" not in room_id:
         raise InvalidRoomId.exception(
-            detail=f"Room ID '{room_id}' contains invalid characters (@ or :)"
+            detail=(
+                f"Room ID '{room_id}' must be in the composed form "
+                "'<owner_uuid>/<room_name>'"
+            )
         )
+    owner_part, _, name_part = room_id.partition("/")
+    try:
+        UUID(owner_part)
+    except ValueError as exc:
+        raise InvalidRoomId.exception(
+            detail=f"Owner '{owner_part}' is not a valid UUID"
+        ) from exc
+    if not name_part or "/" in name_part:
+        raise InvalidRoomId.exception(detail=f"Room name '{name_part}' is invalid")
 
 
 async def verify_writable_room(room_id: str = Path()) -> str:

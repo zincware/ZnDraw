@@ -28,11 +28,13 @@ async def create_guest_session(
     user_manager: Annotated[UserManager, Depends(get_user_manager)],
     settings: Annotated[Settings, Depends(get_zndraw_settings)],
 ) -> dict:
-    """Create anonymous guest user and return JWT token."""
+    """Create anonymous guest user (is_guest=True) and return JWT token."""
     email = f"{uuid4().hex[:8]}@guest.user"
     password = settings.guest_password.get_secret_value()
 
-    user = await user_manager.create(UserCreate(email=email, password=password))
+    user = await user_manager.create(
+        UserCreate(email=email, password=password, is_guest=True)
+    )
 
     strategy = JWTStrategy(
         secret=auth_settings.secret_key.get_secret_value(),

@@ -12,6 +12,9 @@ import type { UserInfo } from "../../utils/auth";
  */
 export interface HandlerContext {
 	// Identity / routing
+	ownerId: string | undefined;
+	roomName: string | undefined;
+	/** Composed room address: `${ownerId}/${roomName}`, or undefined when no room is active. */
 	roomId: string | undefined;
 	appStoreRoomId: string | null;
 	isCancelled: () => boolean;
@@ -51,7 +54,6 @@ export interface HandlerContext {
 	setActiveCurveForDrawing: (key: string | null) => void;
 
 	// Lock setters
-	setSuperuserLock: (locked: boolean) => void;
 	setUserLock: (email: string | null, message?: string | null) => void;
 
 	// Progress setters

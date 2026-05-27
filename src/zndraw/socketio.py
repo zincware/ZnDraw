@@ -7,19 +7,18 @@ import socketio
 from fastapi import Depends
 from fastapi_users.jwt import decode_jwt
 from jwt import InvalidTokenError
-from sqlmodel import and_, select
 from zndraw_socketio import EventContext, wrap
 
-from zndraw.dependencies import FrameStorageDep, RedisDep, room_channel
+from zndraw.broadcast import broadcast_to_room, room_channel
+from zndraw.dependencies import FrameStorageDep, RedisDep
 from zndraw.exceptions import (
     NotInRoom,
-    NotRoomMember,
     ProblemError,
     RoomNotFound,
     UserNotFound,
 )
 from zndraw.geometries.camera import Camera
-from zndraw.models import Room, RoomGeometry, RoomMembership
+from zndraw.models import Room, RoomGeometry
 from zndraw.redis import RedisKey
 from zndraw.schemas import ProgressResponse
 from zndraw.socket_events import (
@@ -46,7 +45,11 @@ tsio = wrap(socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*"))
 
 
 async def _cleanup_session(
-    redis: RedisDep, sid: str, sio_session: dict, room_id: str
+    redis: RedisDep,
+    session: SessionDep,
+    sid: str,
+    sio_session: dict,
+    room_id: str,
 ) -> None:
     """Remove this SID's camera from the room and broadcast deletion."""
     # Remove active camera tracking
@@ -58,9 +61,13 @@ async def _cleanup_session(
     hash_key = RedisKey.room_cameras(room_id)
     deleted = await redis.hdel(hash_key, camera_key)  # type: ignore[misc]
     if deleted:
-        await tsio.emit(
-            GeometryInvalidate(room_id=room_id, operation="delete", key=camera_key),
-            room=room_channel(room_id),
+        room = await session.get(Room, room_id)
+        if room is None:
+            return
+        await broadcast_to_room(
+            tsio,
+            GeometryInvalidate.for_room(room, operation="delete", key=camera_key),
+            room,
         )
 
 
@@ -103,7 +110,16 @@ async def on_connect(
         raise ConnectionRefusedError(f"Invalid token: {e}") from None
 
     user_id = UUID(payload["sub"])
-    await tsio.save_session(sid, {"user_id": user_id, "current_room_id": None})
+    share_token = auth.get("share_token") if isinstance(auth, dict) else None
+    await tsio.save_session(
+        sid,
+        {
+            "user_id": user_id,
+            "current_room_id": None,
+            "current_room_address": None,
+            "share_token": share_token,
+        },
+    )
     await tsio.enter_room(sid, f"user:{user_id}")
     await tsio.enter_room(sid, "rooms:feed")
     return True
@@ -117,6 +133,7 @@ async def on_disconnect(
     sid: str,
     _reason: str,
     redis: RedisDep,
+    session: SessionDep,
 ) -> None:
     """Handle disconnect - clean up camera and locks."""
     sio_session = await tsio.get_session(sid)
@@ -125,12 +142,15 @@ async def on_disconnect(
 
     if current_room_id is not None:
         # Delete session camera from room hash
-        await _cleanup_session(redis, sid, sio_session, current_room_id)
+        await _cleanup_session(redis, session, sid, sio_session, current_room_id)
 
-        await tsio.emit(
-            SessionLeft(room_id=current_room_id, user_id=user_id, sid=sid),
-            room=room_channel(current_room_id),
-        )
+        room = await session.get(Room, current_room_id)
+        if room is not None:
+            await broadcast_to_room(
+                tsio,
+                SessionLeft.for_room(room, user_id=user_id, sid=sid),
+                room,
+            )
 
         # Release edit lock if this disconnecting session holds it
         lock_key = RedisKey.edit_lock(current_room_id)
@@ -139,15 +159,17 @@ async def on_disconnect(
             holder = json.loads(raw_lock)
             if holder.get("sid") == sid:
                 await redis.delete(lock_key)
-                await tsio.emit(
-                    LockUpdate(
-                        room_id=current_room_id,
-                        action="released",
-                        user_id=str(user_id),
-                        sid=sid,
-                    ),
-                    room=room_channel(current_room_id),
-                )
+                if room is not None:
+                    await broadcast_to_room(
+                        tsio,
+                        LockUpdate.for_room(
+                            room,
+                            action="released",
+                            user_id=str(user_id),
+                            sid=sid,
+                        ),
+                        room,
+                    )
 
 
 # =============================================================================
@@ -176,59 +198,55 @@ async def room_join(
     storage: FrameStorageDep,
     session: SessionDep,
 ) -> RoomJoinResponse:
-    """Join a Socket.IO room for real-time updates.
+    """Join a Socket.IO room for real-time updates."""
+    from zndraw.access import can_read
+    from zndraw.dependencies import (
+        _load_room_by_address,
+        fetch_group_role,
+        resolve_share_token,
+    )
 
-    Supports special system rooms with '@' prefix that skip database
-    validation and camera creation.
-    """
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
+    share_token: str | None = sio_session.get("share_token")
 
-    # Check if this is a special system room (@ prefix)
-    is_system_room = data.room_id.startswith("@")
+    composed = f"{data.owner_id}/{data.room_name}"
 
-    # Validate and load room from database (skip for system rooms)
-    room_locked = False
-    email = None
-    room: Room | None = None
-    if not is_system_room:
-        room = await session.get(Room, data.room_id)
-        if room is None:
-            raise RoomNotFound.exception(f"Room with id {data.room_id} not found")
-
-        room_locked = room.locked
-
-        result = await session.exec(  # type: ignore[attr-defined]
-            select(RoomMembership).where(
-                and_(
-                    RoomMembership.room_id == data.room_id,
-                    RoomMembership.user_id == user_id,
-                )
-            )
-        )
-        membership = result.first()
-
-        if membership is None and not room.is_public:
-            raise NotRoomMember.exception("Not a member of this private room")
+    room = await _load_room_by_address(session, data.owner_id, data.room_name)
+    if room is None:
+        raise RoomNotFound.exception(f"Room {composed} not found")
 
     user = await session.get(User, user_id)
-    email = user.email if user else None
+    if user is None:
+        raise UserNotFound.exception("User not found")
 
-    # Leave previous room if any
+    share = await resolve_share_token(session, share_token, room.id)
+    group_role = None
+    if room.owner_group_id is not None:
+        group_role = await fetch_group_role(session, user_id, room.owner_group_id)
+    if not can_read(user, room, share, group_role=group_role):
+        raise RoomNotFound.exception(f"Room {composed} not found")
+
+    email = user.email
+
+    # Leave previous room if any.
     old_room_id: str | None = sio_session.get("current_room_id")
     if old_room_id is not None:
         await tsio.leave_room(sid, room_channel(old_room_id))
-        # Clean up camera for non-system rooms
         if not old_room_id.startswith("@"):
-            await _cleanup_session(redis, sid, sio_session, old_room_id)
-        await tsio.emit(
-            SessionLeft(room_id=old_room_id, user_id=user_id, sid=sid),
-            room=room_channel(old_room_id),
-        )
+            await _cleanup_session(redis, session, sid, sio_session, old_room_id)
+        old_room = await session.get(Room, old_room_id)
+        if old_room is not None:
+            await broadcast_to_room(
+                tsio,
+                SessionLeft.for_room(old_room, user_id=user_id, sid=sid),
+                old_room,
+            )
 
-    # Join new room
-    await tsio.enter_room(sid, room_channel(data.room_id))
-    sio_session["current_room_id"] = data.room_id
+    # Join new room.
+    await tsio.enter_room(sid, room_channel(room.id))
+    sio_session["current_room_id"] = room.id
+    sio_session["current_room_address"] = room.public_address
     sio_session["client_type"] = data.client_type
     await tsio.save_session(sid, sio_session)
 
@@ -236,39 +254,21 @@ async def room_join(
         await tsio.enter_room(sid, "frontend")
         await tsio.enter_room(sid, room_channel("@global"))
 
-    # System rooms (@-prefixed) skip camera and return minimal data
-    if is_system_room:
-        return RoomJoinResponse(
-            room_id=data.room_id,
-            session_id=sid,
-            step=0,
-            frame_count=0,
-            locked=False,
-        )
-
-    assert room is not None  # is_system_room is False → room was assigned above
-
-    # Regular rooms: create camera, broadcast join
-    await tsio.emit(
-        SessionJoined(room_id=data.room_id, user_id=user_id, sid=sid, email=email),
-        room=room_channel(data.room_id),
+    await broadcast_to_room(
+        tsio,
+        SessionJoined.for_room(room, user_id=user_id, sid=sid, email=email),
+        room,
         skip_sid=sid,
     )
 
-    # Capture room state before potential commit
     room_step = room.step
 
-    # Create session camera in Redis hash
-    # (frontend only — pyclients don't need a viewport)
     camera_key: str | None = None
     if data.client_type == "frontend":
-        camera_key = f"cam:{email}:{sid[:8]}"
         camera = Camera(owner=str(user_id))
-
-        # Clone default camera properties if set
         if room.default_camera:
             default_row = await session.get(
-                RoomGeometry, (data.room_id, room.default_camera)
+                RoomGeometry, (room.id, room.default_camera)
             )
             if default_row and default_row.type == "Camera":
                 default_data = json.loads(default_row.config)
@@ -289,43 +289,37 @@ async def room_join(
                 if updates:
                     camera = camera.model_copy(update=updates)
 
+        camera_key = f"cam:{email}:{sid[:8]}"
         camera_value = json.dumps(
-            {
-                "sid": sid,
-                "email": email,
-                "data": camera.model_dump(),
-            }
+            {"sid": sid, "email": email, "data": camera.model_dump()}
         )
-        hash_key = RedisKey.room_cameras(data.room_id)
+        hash_key = RedisKey.room_cameras(room.id)
         await redis.hset(hash_key, camera_key, camera_value)  # type: ignore[misc]
 
-        # Store camera_key in session for cleanup on leave/disconnect
         sio_session["camera_key"] = camera_key
         await tsio.save_session(sid, sio_session)
 
-        # Track as active camera for deletion prevention
-        await redis.hset(RedisKey.active_cameras(data.room_id), sid, camera_key)  # type: ignore[misc]
+        await redis.hset(RedisKey.active_cameras(room.id), sid, camera_key)  # type: ignore[misc]
 
-        await tsio.emit(
-            GeometryInvalidate(room_id=data.room_id, operation="set", key=camera_key),
-            room=room_channel(data.room_id),
+        await broadcast_to_room(
+            tsio,
+            GeometryInvalidate.for_room(room, operation="set", key=camera_key),
+            room,
         )
 
-    frame_count = await storage.get_length(data.room_id)
+    frame_count = await storage.get_length(room.id)
 
-    # Load active progress trackers from Redis
-    progress_raw = await redis.hgetall(RedisKey.room_progress(data.room_id))  # type: ignore[misc]
+    progress_raw = await redis.hgetall(RedisKey.room_progress(room.id))  # type: ignore[misc]
     progress_trackers = {
         pid: ProgressResponse(**json.loads(pdata))
         for pid, pdata in progress_raw.items()
     }
 
     return RoomJoinResponse(
-        room_id=data.room_id,
+        room_id=room.public_address,
         session_id=sid,
         step=room_step,
         frame_count=frame_count,
-        locked=room_locked,
         camera_key=camera_key,
         default_camera=room.default_camera,
         progress_trackers=progress_trackers,
@@ -333,57 +327,63 @@ async def room_join(
 
 
 @tsio.on(RoomLeave, emits=[SessionLeft, GeometryInvalidate])
-async def room_leave(sid: str, data: RoomLeave, redis: RedisDep) -> RoomLeaveResponse:
-    """Leave a Socket.IO room.
+async def room_leave(
+    sid: str, data: RoomLeave, redis: RedisDep, session: SessionDep
+) -> RoomLeaveResponse:
+    """Leave a Socket.IO room."""
+    from zndraw.dependencies import _load_room_by_address
 
-    Idempotent: if already in a different room (room switch race), succeeds silently.
-    Raises NotInRoom if not in any room (helps catch bugs).
-    """
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
     current_room_id: str | None = sio_session.get("current_room_id")
 
-    # Not in any room - this is likely a bug
     if current_room_id is None:
         raise NotInRoom.exception("Not currently in a room")
 
-    # Already in a different room - room_join already handled the leave
-    # This happens during room switching when cleanup runs after join
-    if current_room_id != data.room_id:
-        return RoomLeaveResponse(room_id=data.room_id)
+    room = await _load_room_by_address(session, data.owner_id, data.room_name)
+    if room is None or current_room_id != room.id:
+        return RoomLeaveResponse(room_id=f"{data.owner_id}/{data.room_name}")
 
-    await tsio.leave_room(sid, room_channel(data.room_id))
-
-    # Clean up camera
-    await _cleanup_session(redis, sid, sio_session, data.room_id)
+    await tsio.leave_room(sid, room_channel(room.id))
+    await _cleanup_session(redis, session, sid, sio_session, room.id)
 
     sio_session["current_room_id"] = None
     await tsio.save_session(sid, sio_session)
 
-    await tsio.emit(
-        SessionLeft(room_id=data.room_id, user_id=user_id, sid=sid),
-        room=room_channel(data.room_id),
+    await broadcast_to_room(
+        tsio,
+        SessionLeft.for_room(room, user_id=user_id, sid=sid),
+        room,
     )
-    return RoomLeaveResponse(room_id=data.room_id)
+    return RoomLeaveResponse(room_id=room.public_address)
 
 
 async def _handle_typing(
-    sid: str, room_id: str, session: SessionDep, *, is_typing: bool
+    sid: str,
+    owner_id: UUID,
+    room_name: str,
+    session: SessionDep,
+    *,
+    is_typing: bool,
 ) -> TypingResponse:
     """Broadcast typing status change to room."""
+    from zndraw.dependencies import _load_room_by_address
+
     sio_session = await tsio.get_session(sid)
     user_id: UUID = sio_session["user_id"]
     current_room_id: str | None = sio_session.get("current_room_id")
 
-    if current_room_id != room_id:
+    room = await _load_room_by_address(session, owner_id, room_name)
+    if room is None or current_room_id != room.id:
         raise NotInRoom.exception("Not in this room")
 
     user = await session.get(User, user_id)
     email = user.email if user else None
 
-    await tsio.emit(
-        Typing(room_id=room_id, user_id=user_id, email=email, is_typing=is_typing),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        tsio,
+        Typing.for_room(room, user_id=user_id, email=email, is_typing=is_typing),
+        room,
         skip_sid=sid,
     )
     return TypingResponse()
@@ -393,13 +393,15 @@ async def _handle_typing(
 async def typing_start(
     sid: str, data: TypingStart, session: SessionDep
 ) -> TypingResponse:
-    """Broadcast that user started typing."""
-    return await _handle_typing(sid, data.room_id, session, is_typing=True)
+    return await _handle_typing(
+        sid, data.owner_id, data.room_name, session, is_typing=True
+    )
 
 
 @tsio.on(TypingStop, emits=[Typing])
 async def typing_stop(
     sid: str, data: TypingStop, session: SessionDep
 ) -> TypingResponse:
-    """Broadcast that user stopped typing."""
-    return await _handle_typing(sid, data.room_id, session, is_typing=False)
+    return await _handle_typing(
+        sid, data.owner_id, data.room_name, session, is_typing=False
+    )

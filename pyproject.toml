@@ -201,12 +201,15 @@ max-args = 10  # Allow up to 10 args for FastAPI endpoints
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
     "ARG001",  # unused function argument (fixtures)
-    "S106",    # hardcoded password in tests
+    "ARG005",  # unused lambda argument (stub callbacks)
     "S105",    # hardcoded password string in tests
+    "S106",    # hardcoded password in tests
+    "S107",    # hardcoded password default in test helpers
     "PLR2004", # magic values in tests are OK
     "INP001",  # tests don't need __init__.py
     "N803",    # fixture names matching class names (e.g. Echo)
     "SLF001",  # accessing internals for testing
+    "PT018",   # compound asserts are OK in tests
 ]
 "docs/**/*.py" = [
     "INP001",  # docs don't need __init__.py
@@ -223,7 +226,10 @@ max-args = 10  # Allow up to 10 args for FastAPI endpoints
 testpaths = ["tests/zndraw", "tests/zndraw_auth", "tests/zndraw_joblib"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-markers = ["integration: marks tests as integration tests (require running server)"]
+markers = [
+    "integration: marks tests as integration tests (require running server)",
+    "protected: marks tests that must not be modified",
+]
 filterwarnings = [
     'error:[\s\S]*You probably want to use .session\.exec:DeprecationWarning',
     'ignore::DeprecationWarning:fastapi_users_db_sqlalchemy',

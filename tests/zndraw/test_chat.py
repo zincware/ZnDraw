@@ -50,7 +50,7 @@ async def test_create_message(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.id}/chat/messages",
+        f"/v1/rooms/{room.public_address}/chat/messages",
         json={"content": "Hello!"},
         headers=auth_header(token),
     )
@@ -77,7 +77,7 @@ async def test_create_message_empty_content(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.id}/chat/messages",
+        f"/v1/rooms/{room.public_address}/chat/messages",
         json={"content": ""},
         headers=auth_header(token),
     )
@@ -93,7 +93,7 @@ async def test_create_message_requires_auth(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.id}/chat/messages",
+        f"/v1/rooms/{room.public_address}/chat/messages",
         json={"content": "Hello!"},
     )
     assert response.status_code == 401
@@ -111,7 +111,7 @@ async def test_list_messages_empty(client: AsyncClient, session: AsyncSession) -
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/chat/messages", headers=auth_header(token)
+        f"/v1/rooms/{room.public_address}/chat/messages", headers=auth_header(token)
     )
     assert response.status_code == 200
     data = response.json()
@@ -151,7 +151,7 @@ async def test_list_messages_returns_newest_first(
     )
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/chat/messages", headers=auth_header(token)
+        f"/v1/rooms/{room.public_address}/chat/messages", headers=auth_header(token)
     )
     assert response.status_code == 200
     data = response.json()
@@ -175,7 +175,8 @@ async def test_list_messages_pagination(
 
     # Fetch first page (limit=2)
     response = await client.get(
-        f"/v1/rooms/{room.id}/chat/messages?limit=2", headers=auth_header(token)
+        f"/v1/rooms/{room.public_address}/chat/messages?limit=2",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     page1 = response.json()
@@ -186,7 +187,7 @@ async def test_list_messages_pagination(
     # Fetch second page using oldest_timestamp cursor
     cursor = page1["metadata"]["oldest_timestamp"]
     response = await client.get(
-        f"/v1/rooms/{room.id}/chat/messages?limit=2&before={cursor}",
+        f"/v1/rooms/{room.public_address}/chat/messages?limit=2&before={cursor}",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -204,13 +205,13 @@ async def test_list_messages_includes_email(
     room = await create_test_room(session, user)
 
     await client.post(
-        f"/v1/rooms/{room.id}/chat/messages",
+        f"/v1/rooms/{room.public_address}/chat/messages",
         json={"content": "Hi"},
         headers=auth_header(token),
     )
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/chat/messages", headers=auth_header(token)
+        f"/v1/rooms/{room.public_address}/chat/messages", headers=auth_header(token)
     )
     assert response.status_code == 200
     assert response.json()["items"][0]["email"] == "alice@test.com"
@@ -232,7 +233,7 @@ async def test_edit_message(
     msg = await _add_message(session, room.id, user.id, "Original")
 
     response = await client.patch(
-        f"/v1/rooms/{room.id}/chat/messages/{msg.id}",
+        f"/v1/rooms/{room.public_address}/chat/messages/{msg.id}",
         json={"content": "Edited"},
         headers=auth_header(token),
     )
@@ -258,7 +259,7 @@ async def test_edit_message_ownership(
     msg = await _add_message(session, room.id, user1.id, "User1's msg")
 
     response = await client.patch(
-        f"/v1/rooms/{room.id}/chat/messages/{msg.id}",
+        f"/v1/rooms/{room.public_address}/chat/messages/{msg.id}",
         json={"content": "Hacked"},
         headers=auth_header(token2),
     )
@@ -275,7 +276,7 @@ async def test_edit_message_not_found(
     room = await create_test_room(session, user)
 
     response = await client.patch(
-        f"/v1/rooms/{room.id}/chat/messages/99999",
+        f"/v1/rooms/{room.public_address}/chat/messages/99999",
         json={"content": "Edit"},
         headers=auth_header(token),
     )
@@ -296,7 +297,8 @@ async def test_list_messages_room_not_found(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/nonexistent/chat/messages", headers=auth_header(token)
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/chat/messages",
+        headers=auth_header(token),
     )
     assert response.status_code == 404
     assert "room-not-found" in response.json()["type"]

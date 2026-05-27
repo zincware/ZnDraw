@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 import warnings
 from collections.abc import Iterable, MutableSequence
@@ -10,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Annotated, Any, Literal, cast, overload
 
 import ase
+import httpx
 import msgpack
 import typing_extensions
 from pydantic import SecretStr
@@ -41,11 +43,15 @@ from zndraw.client.serialization import (
 )
 from zndraw.client.socket import SocketManager
 from zndraw.geometries.camera import Camera
-from zndraw_joblib.client import ClaimedTask, Extension as JoblibExtension, JobManager
 
 if TYPE_CHECKING:
     from zndraw.extensions.abc import Extension
     from zndraw.providers.frame_source import FrameSource
+    from zndraw_joblib.client import (
+        ClaimedTask,
+        Extension as JoblibExtension,
+        JobManager,
+    )
 
 log = logging.getLogger(__name__)
 
@@ -123,7 +129,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
     """
 
     url: str | None = None
-    room: str | None = None
+    room: str = ""  # composed "<owner_uuid>/<name>" form; empty triggers auto-room
     user: str | None = None
     password: SecretStr | str | None = None
     token: str | None = None
@@ -174,7 +180,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             k: v
             for k, v in {
                 "url": self.url,
-                "room": self.room,
+                "room": self.room or None,
                 "user": self.user,
                 "password": self.password,
                 "token": self.token,
@@ -190,7 +196,6 @@ class ZnDraw(MutableSequence[ase.Atoms]):
                 "add [tool.zndraw] url to pyproject.toml, or start a local server."
             )
         self.url = resolved.url
-        self.room = resolved.room or str(uuid.uuid4())
 
         # Token resolution: settings chain > user/password login > guest
         if resolved.token is not None:
@@ -201,6 +206,32 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             )
         else:
             self.token = guest_login(self.url)
+
+        # Resolve and validate room in composed form: <owner_uuid>/<room_name>
+        raw_room = resolved.room
+        if raw_room is None:
+            # Auto-room: fetch current user and compose <user_uuid>/<uuid4()>
+            with httpx.Client(base_url=self.url, timeout=30.0) as _client:
+                _resp = _client.get(
+                    "/v1/auth/users/me",
+                    headers={"Authorization": f"Bearer {self.token}"},
+                )
+                _resp.raise_for_status()
+                _user_id = _resp.json()["id"]
+            raw_room = f"{_user_id}/{uuid.uuid4()}"
+        if "/" not in raw_room:
+            raise ValueError(
+                "Room must be in composed form '<owner_uuid>/<name>'; "
+                f"got '{raw_room}'."
+            )
+        owner_part, _, name_part = raw_room.partition("/")
+        try:
+            uuid.UUID(owner_part)
+        except ValueError as exc:
+            raise ValueError(f"Owner '{owner_part}' is not a valid UUID.") from exc
+        if not re.fullmatch(r"[a-zA-Z0-9\-_]+", name_part):
+            raise ValueError(f"Room name '{name_part}' contains invalid characters.")
+        self.room = raw_room
 
         # Create API manager
         self.api = APIManager(url=self.url, room_id=self.room, token=self.token)
@@ -220,6 +251,8 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         self.socket = SocketManager(zndraw=self)
 
         # Create job manager (zero-cost until first register())
+        from zndraw_joblib.client import JobManager
+
         self._jobs = JobManager(
             api=self.api,
             tsio=self.socket.tsio,
@@ -513,16 +546,6 @@ class ZnDraw(MutableSequence[ase.Atoms]):
         Call as ``vis.tasks(status='running')`` for filtered views.
         """
         return Tasks(self.api)
-
-    @property
-    def locked(self) -> bool:
-        """Whether the room is locked."""
-        info = self.api.get_room_info()
-        return info.get("locked", False)
-
-    @locked.setter
-    def locked(self, value: bool) -> None:
-        self.api.update_room({"locked": value})
 
     def log(self, message: str) -> None:
         """Send a chat message to the room.

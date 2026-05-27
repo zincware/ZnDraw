@@ -7,12 +7,13 @@ from fastapi import APIRouter, Query, status
 from sqlalchemy import func
 from sqlmodel import col, select
 
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
+    AccessEditDep,
+    AccessReadDep,
     CurrentUserDep,
     SessionDep,
     SioDep,
-    room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     MessageNotFound,
@@ -32,7 +33,9 @@ from zndraw.schemas import (
 from zndraw.socket_events import MessageEdited, MessageNew
 from zndraw_auth import User
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/chat/messages", tags=["chat"])
+router = APIRouter(
+    prefix="/v1/rooms/{owner_id}/{room_name}/chat/messages", tags=["chat"]
+)
 
 
 def _datetime_to_unix_ms(dt: datetime) -> int:
@@ -59,13 +62,12 @@ def _message_to_response(msg: Message, email: str | None = None) -> MessageRespo
 )
 async def list_messages(
     session: SessionDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 30,
     before: Annotated[int | None, Query(description="Unix ms cursor")] = None,
 ) -> MessagesResponse:
     """List messages with cursor pagination (newest first)."""
-    await verify_room(session, room_id)
+    room_id = access.room.id
 
     stmt = select(Message).where(Message.room_id == room_id)
 
@@ -124,11 +126,11 @@ async def create_message(
     session: SessionDep,
     sio: SioDep,
     current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessEditDep,
     request: MessageCreate,
 ) -> MessageResponse:
     """Create a new chat message."""
-    await verify_room(session, room_id)
+    room_id = access.room.id
 
     msg = Message(
         room_id=room_id,
@@ -141,16 +143,17 @@ async def create_message(
 
     email = current_user.email
 
-    await sio.emit(
-        MessageNew(
+    await broadcast_to_room(
+        sio,
+        MessageNew.for_room(
+            access.room,
             id=msg.id,  # type: ignore[arg-type]
-            room_id=room_id,
             user_id=current_user.id,  # type: ignore[arg-type]
             content=msg.content,
             created_at=msg.created_at,
             email=email,
         ),
-        room=room_channel(room_id),
+        access.room,
     )
 
     return _message_to_response(msg, email)
@@ -166,12 +169,12 @@ async def edit_message(
     session: SessionDep,
     sio: SioDep,
     current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
     message_id: int,
     request: MessageEditRequest,
 ) -> MessageResponse:
     """Edit an existing chat message. Only the author can edit."""
-    await verify_room(session, room_id)
+    room_id = access.room.id
 
     msg = await session.get(Message, message_id)
     if msg is None or msg.room_id != room_id:
@@ -185,14 +188,15 @@ async def edit_message(
     await session.commit()
     await session.refresh(msg)
 
-    await sio.emit(
-        MessageEdited(
+    await broadcast_to_room(
+        sio,
+        MessageEdited.for_room(
+            access.room,
             id=msg.id,  # type: ignore[arg-type]
-            room_id=room_id,
             content=msg.content,
             updated_at=msg.updated_at,
         ),
-        room=room_channel(room_id),
+        access.room,
     )
 
     return _message_to_response(msg, current_user.email)

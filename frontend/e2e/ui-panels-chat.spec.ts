@@ -1,13 +1,13 @@
 import { test, expect } from "@playwright/test";
-import { BASE_URL, CLI, PY } from "./helpers";
+import { BASE_URL, PY, createTestRoom } from "./helpers";
 
-const ROOM = "test-ui";
+let ROOM: string;
 
 test.describe("UI Panels & Chat", () => {
 	test.describe.configure({ mode: "serial" });
 
 	test.beforeAll(() => {
-		CLI(`rooms create --room ${ROOM}`);
+		ROOM = createTestRoom("test-ui");
 		PY(`
 from zndraw import ZnDraw
 import ase

@@ -23,6 +23,7 @@ from zndraw.routes.edit_lock import router as edit_lock_router
 from zndraw.routes.figures import router as figures_router
 from zndraw.routes.frames import router as frames_router
 from zndraw.routes.geometries import default_camera_router, router as geometries_router
+from zndraw.routes.groups import router as groups_router
 from zndraw.routes.isosurface import router as isosurface_router
 from zndraw.routes.presets import router as presets_router
 from zndraw.routes.problems import router as problems_router
@@ -31,6 +32,7 @@ from zndraw.routes.rooms import router as rooms_router
 from zndraw.routes.screenshots import router as screenshots_router
 from zndraw.routes.selection_groups import router as selection_groups_router
 from zndraw.routes.server_settings import router as server_settings_router
+from zndraw.routes.share_links import router as share_links_router
 from zndraw.routes.step import router as step_router
 from zndraw.routes.tools import router as tools_router
 from zndraw.routes.trajectory import router as trajectory_router
@@ -92,6 +94,8 @@ async def _unhandled_exception_handler(
 # Include routers
 app.include_router(admin_router)
 app.include_router(auth_router)
+app.include_router(groups_router)
+app.include_router(share_links_router)
 app.include_router(bookmarks_router)
 app.include_router(chat_router)
 app.include_router(figures_router)

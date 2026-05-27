@@ -3,13 +3,12 @@
 from fastapi import APIRouter
 from sqlmodel import select
 
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
-    CurrentUserDep,
+    AccessReadDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
-    room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     BookmarkNotFound,
@@ -27,7 +26,9 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import BookmarksInvalidate
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/bookmarks", tags=["bookmarks"])
+router = APIRouter(
+    prefix="/v1/rooms/{owner_id}/{room_name}/bookmarks", tags=["bookmarks"]
+)
 
 
 @router.get(
@@ -36,11 +37,10 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/bookmarks", tags=["bookmarks"])
 )
 async def list_bookmarks(
     session: SessionDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
 ) -> BookmarksResponse:
     """Get all bookmarks for a room."""
-    await verify_room(session, room_id)
+    room_id = access.room.id
     result = await session.exec(
         select(RoomBookmark).where(RoomBookmark.room_id == room_id)
     )
@@ -55,12 +55,11 @@ async def list_bookmarks(
 )
 async def get_bookmark(
     session: SessionDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
     index: int,
 ) -> BookmarkResponse:
     """Get a single bookmark by frame index."""
-    await verify_room(session, room_id)
+    room_id = access.room.id
     row = await session.get(RoomBookmark, (room_id, index))
     if row is None:
         raise BookmarkNotFound.exception(f"Bookmark '{index}' not found")
@@ -75,11 +74,11 @@ async def set_bookmark(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    room_id: str,
     index: int,
     request: BookmarkCreateRequest,
 ) -> BookmarkResponse:
     """Create or update a bookmark."""
+    room_id = _room.id
 
     row = await session.get(RoomBookmark, (room_id, index))
     if row is None:
@@ -89,9 +88,10 @@ async def set_bookmark(
         row.label = request.label
     await session.commit()
 
-    await sio.emit(
-        BookmarksInvalidate(room_id=room_id, index=index, operation="set"),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        BookmarksInvalidate.for_room(_room, index=index, operation="set"),
+        _room,
     )
 
     return BookmarkResponse(index=index, label=request.label)
@@ -107,10 +107,10 @@ async def delete_bookmark(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    room_id: str,
     index: int,
 ) -> StatusResponse:
     """Delete a bookmark."""
+    room_id = _room.id
 
     row = await session.get(RoomBookmark, (room_id, index))
     if row is None:
@@ -118,9 +118,10 @@ async def delete_bookmark(
     await session.delete(row)
     await session.commit()
 
-    await sio.emit(
-        BookmarksInvalidate(room_id=room_id, index=index, operation="delete"),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        BookmarksInvalidate.for_room(_room, index=index, operation="delete"),
+        _room,
     )
 
     return StatusResponse()

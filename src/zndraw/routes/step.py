@@ -2,14 +2,13 @@
 
 from fastapi import APIRouter
 
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
-    CurrentUserDep,
+    AccessReadDep,
     FrameStorageDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
-    room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     NotAuthenticated,
@@ -21,7 +20,7 @@ from zndraw.exceptions import (
 from zndraw.schemas import StepResponse, StepUpdateRequest, StepUpdateResponse
 from zndraw.socket_events import FrameUpdate
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/step", tags=["step"])
+router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/step", tags=["step"])
 
 
 @router.get(
@@ -31,17 +30,16 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/step", tags=["step"])
 async def get_step(
     session: SessionDep,
     storage: FrameStorageDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
 ) -> StepResponse:
     """Get current step (frame index) for a room.
 
     Returns current step and total frame count. Clamps step to valid range
     if frames were deleted.
     """
-    room = await verify_room(session, room_id)
+    room = access.room
     step = room.step
-    total = await storage.get_length(room_id)
+    total = await storage.get_length(room.id)
 
     # Clamp step to valid range (frames may have been deleted)
     if total > 0 and step >= total:
@@ -63,14 +61,13 @@ async def set_step(
     storage: FrameStorageDep,
     sio: SioDep,
     room: WritableRoomDep,
-    room_id: str,
     request: StepUpdateRequest,
 ) -> StepUpdateResponse:
     """Set current step (frame index) for a room.
 
     Broadcasts frame:update to the room.
     """
-    total = await storage.get_length(room_id)
+    total = await storage.get_length(room.id)
 
     if request.step >= total:
         raise StepOutOfBounds.exception(
@@ -83,9 +80,10 @@ async def set_step(
     await session.commit()
 
     # Broadcast frame update
-    await sio.emit(
-        FrameUpdate(room_id=room_id, frame=request.step),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FrameUpdate.for_room(room, frame=request.step),
+        room,
     )
 
     return StepUpdateResponse(success=True, step=request.step)

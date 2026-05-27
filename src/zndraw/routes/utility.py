@@ -9,17 +9,16 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 import zndraw
+from zndraw.broadcast import broadcast_to_room
 from zndraw.config import SettingsDep
 from zndraw.dependencies import (
+    AccessReadDep,
     ActiveSessionCamDep,
-    CurrentUserDep,
     RedisDep,
     SessionDep,
     SioDep,
     VerifiedSessionDep,
     WritableRoomDep,
-    room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     GeometryNotFound,
@@ -99,22 +98,21 @@ async def get_global_settings(
 
 
 @router.get(
-    "/rooms/{room_id}/frame-selection",
+    "/rooms/{owner_id}/{room_name}/frame-selection",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def get_frame_selection(
-    session: SessionDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
 ) -> FrameSelectionResponse:
     """Get selected frame indices for a room."""
-    room = await verify_room(session, room_id)
-    indices = json.loads(room.frame_selection) if room.frame_selection else None
+    indices = (
+        json.loads(access.room.frame_selection) if access.room.frame_selection else None
+    )
     return FrameSelectionResponse(frame_selection=indices)
 
 
 @router.put(
-    "/rooms/{room_id}/frame-selection",
+    "/rooms/{owner_id}/{room_name}/frame-selection",  # noqa: FAST003 — params consumed by WritableRoomDep
     responses=problem_responses(
         NotAuthenticated, RoomNotFound, RoomLocked, InvalidPayload
     ),
@@ -123,7 +121,6 @@ async def update_frame_selection(
     session: SessionDep,
     sio: SioDep,
     room: WritableRoomDep,
-    room_id: str,
     body: FrameSelectionUpdateRequest,
 ) -> FrameSelectionUpdateResponse:
     """Set selected frame indices for a room.
@@ -136,39 +133,43 @@ async def update_frame_selection(
     room.frame_selection = json.dumps(body.indices) if body.indices else None
     await session.commit()
 
-    await sio.emit(
-        FrameSelectionUpdate(indices=body.indices),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FrameSelectionUpdate.for_room(room, indices=body.indices),
+        room,
     )
 
     return FrameSelectionUpdateResponse()
 
 
 @router.get(
-    "/rooms/{room_id}/sessions/{session_id}/active-camera",
+    "/rooms/{owner_id}/{room_name}/sessions/{session_id}/active-camera",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(NotAuthenticated, SessionNotFound),
 )
 async def get_active_camera(
-    redis: RedisDep, room_id: str, session_id: ActiveSessionCamDep
+    access: AccessReadDep,
+    redis: RedisDep,
+    session_id: ActiveSessionCamDep,
 ) -> ActiveCameraResponse:
     """Get active camera key for a session."""
-    key = await redis.hget(RedisKey.active_cameras(room_id), session_id)  # type: ignore[misc]
+    key = await redis.hget(RedisKey.active_cameras(access.room.id), session_id)  # type: ignore[misc]
     return ActiveCameraResponse(active_camera=key)
 
 
 @router.put(
-    "/rooms/{room_id}/sessions/{session_id}/active-camera",
+    "/rooms/{owner_id}/{room_name}/sessions/{session_id}/active-camera",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(NotAuthenticated, SessionNotFound, GeometryNotFound),
 )
 async def set_active_camera(
+    access: AccessReadDep,
     redis: RedisDep,
     sio: SioDep,
     session: SessionDep,
-    room_id: str,
     session_id: VerifiedSessionDep,
     body: ActiveCameraRequest,
 ) -> ActiveCameraResponse:
     """Set active camera key for a session."""
+    room_id = access.room.id
     # Check ephemeral session cameras (Redis) first, then persistent (SQL)
     in_redis = await redis.hexists(RedisKey.room_cameras(room_id), body.active_camera)  # type: ignore[misc]
     if not in_redis:

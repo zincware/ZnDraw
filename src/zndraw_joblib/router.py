@@ -44,6 +44,7 @@ from zndraw_joblib.events import (
     ProviderResultReady,
     ProvidersInvalidate,
     TaskAvailable,
+    build_room_scoped_emission,
     build_task_status_emission,
     emit,
 )
@@ -71,6 +72,7 @@ from zndraw_joblib.models import (
     WorkerJobLink,
 )
 from zndraw_joblib.registry import InternalProviderRegistry, InternalRegistry
+from zndraw_joblib.room_lookup import room_address_for
 from zndraw_joblib.schemas import (
     JobRegisterRequest,
     JobResponse,
@@ -104,6 +106,7 @@ InternalProviderRegistryDep = Annotated[
     InternalProviderRegistry | None, Depends(get_internal_provider_registry)
 ]
 TsioDep = Annotated[AsyncServerWrapper | None, Depends(get_tsio)]
+
 
 # Valid status transitions
 VALID_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {
@@ -225,15 +228,14 @@ async def _bulk_task_responses(
 
 
 async def _task_status_emission(session: AsyncSession, task: Task) -> Emission:
-    """Build a TaskStatusEvent emission from a task.
-
-    Queries job name and queue position.
-    """
+    """Build a TaskStatusEvent emission from a task."""
     result = await session.exec(select(Job).where(Job.id == task.job_id))
     job = result.one_or_none()
+    room_address = await room_address_for(session, task.room_id)
     return build_task_status_emission(
         task,
         job_full_name=job.full_name if job else "",
+        room_address=room_address,
         queue_position=await _queue_position(session, task),
     )
 
@@ -270,7 +272,7 @@ async def create_worker(
 
 
 @router.put(
-    "/rooms/{room_id}/jobs",
+    "/rooms/{room_id:path}/jobs",
     response_model=JobResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -367,7 +369,8 @@ async def register_job(
         session.add(link)
 
     await session.commit()
-    await emit(tsio, {Emission(JobsInvalidate(), f"room:{room_id}")})
+    emission = await build_room_scoped_emission(session, JobsInvalidate, room_id)
+    await emit(tsio, {emission})
     await session.refresh(job)
 
     # Get worker IDs for this job
@@ -389,7 +392,7 @@ async def register_job(
     )
 
 
-@router.get("/rooms/{room_id}/jobs", response_model=PaginatedResponse[JobSummary])
+@router.get("/rooms/{room_id:path}/jobs", response_model=PaginatedResponse[JobSummary])
 async def list_jobs(
     room_id: str,
     session: SessionDep,
@@ -428,7 +431,9 @@ async def list_jobs(
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
 
-@router.get("/rooms/{room_id}/workers", response_model=PaginatedResponse[WorkerSummary])
+@router.get(
+    "/rooms/{room_id:path}/workers", response_model=PaginatedResponse[WorkerSummary]
+)
 async def list_workers_for_room(
     room_id: str,
     session: SessionDep,
@@ -481,45 +486,8 @@ async def list_workers_for_room(
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
 
-@router.get("/rooms/{room_id}/tasks", response_model=PaginatedResponse[TaskResponse])
-async def list_tasks_for_room(
-    room_id: str,
-    session: SessionDep,
-    task_status: Annotated[TaskStatus | None, Query(alias="status")] = None,
-    limit: Annotated[int, Query(ge=0, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
-):
-    """List tasks for a room, optionally filtered by status.
-
-    Includes queue position for pending tasks.
-    """
-    validate_room_id(room_id)
-
-    base_query = select(Task).where(Task.room_id == room_id)
-    if task_status:
-        base_query = base_query.where(Task.status == task_status)
-
-    # Total count
-    total_result = await session.exec(
-        select(func.count()).select_from(base_query.subquery())
-    )
-    total = total_result.one()
-
-    # Paginated + eager-load job relationship
-    result = await session.exec(
-        base_query.options(selectinload(Task.job))
-        .order_by(Task.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-    )
-    tasks = result.all()
-
-    items = await _bulk_task_responses(session, tasks)
-    return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
-
-
 @router.get(
-    "/rooms/{room_id}/jobs/{job_name:path}/tasks",
+    "/rooms/{room_id:path}/jobs/{job_name:path}/tasks",
     response_model=PaginatedResponse[TaskResponse],
 )
 async def list_tasks_for_job(
@@ -558,7 +526,46 @@ async def list_tasks_for_job(
     return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
 
-@router.get("/rooms/{room_id}/jobs/{job_name:path}", response_model=JobResponse)
+@router.get(
+    "/rooms/{room_id:path}/tasks", response_model=PaginatedResponse[TaskResponse]
+)
+async def list_tasks_for_room(
+    room_id: str,
+    session: SessionDep,
+    task_status: Annotated[TaskStatus | None, Query(alias="status")] = None,
+    limit: Annotated[int, Query(ge=0, le=500)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    """List tasks for a room, optionally filtered by status.
+
+    Includes queue position for pending tasks.
+    """
+    validate_room_id(room_id)
+
+    base_query = select(Task).where(Task.room_id == room_id)
+    if task_status:
+        base_query = base_query.where(Task.status == task_status)
+
+    # Total count
+    total_result = await session.exec(
+        select(func.count()).select_from(base_query.subquery())
+    )
+    total = total_result.one()
+
+    # Paginated + eager-load job relationship
+    result = await session.exec(
+        base_query.options(selectinload(Task.job))
+        .order_by(Task.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    tasks = result.all()
+
+    items = await _bulk_task_responses(session, tasks)
+    return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
+
+
+@router.get("/rooms/{room_id:path}/jobs/{job_name:path}", response_model=JobResponse)
 async def get_job(
     room_id: str,
     job_name: str,
@@ -587,7 +594,7 @@ async def get_job(
 
 
 @router.post(
-    "/rooms/{room_id}/tasks/{job_name:path}",
+    "/rooms/{room_id:path}/tasks/{job_name:path}",
     response_model=TaskResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
@@ -966,7 +973,11 @@ async def delete_worker(
     await session.commit()
     await emit(tsio, emissions)
     if frame_rooms:
-        await frame_cleanup(frame_rooms)
+        # Schedule on the running loop so the cleanup hook runs AFTER the
+        # SessionDep's outer ``async with`` releases the SQLite lock — the
+        # hook may need a fresh session and would otherwise re-enter the
+        # serialization lock and deadlock.
+        asyncio.get_running_loop().create_task(frame_cleanup(frame_rooms))
 
 
 # ---------------------------------------------------------------------------
@@ -1046,7 +1057,7 @@ async def _resolve_provider(
 
 
 @router.put(
-    "/rooms/{room_id}/providers",
+    "/rooms/{room_id:path}/providers",
     response_model=ProviderResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -1133,13 +1144,16 @@ async def register_provider(
 
     await session.commit()
     await session.refresh(provider)
-    await emit(tsio, {Emission(ProvidersInvalidate(), f"room:{provider.room_id}")})
+    emission = await build_room_scoped_emission(
+        session, ProvidersInvalidate, provider.room_id
+    )
+    await emit(tsio, {emission})
 
     return ProviderResponse.from_record(provider)
 
 
 @router.get(
-    "/rooms/{room_id}/providers",
+    "/rooms/{room_id:path}/providers",
     response_model=PaginatedResponse[ProviderResponse],
 )
 async def list_providers(
@@ -1181,7 +1195,7 @@ async def list_providers(
 
 
 @router.get(
-    "/rooms/{room_id}/providers/{provider_name:path}/info",
+    "/rooms/{room_id:path}/providers/{provider_name:path}/info",
     response_model=ProviderResponse,
 )
 async def get_provider_info(
@@ -1199,7 +1213,7 @@ async def get_provider_info(
     return ProviderResponse.from_record(provider)
 
 
-@router.get("/rooms/{room_id}/providers/{provider_name:path}")
+@router.get("/rooms/{room_id:path}/providers/{provider_name:path}")
 async def read_provider(
     room_id: str,
     provider_name: str,
@@ -1348,7 +1362,8 @@ async def delete_provider(
     room_id = provider.room_id
     await session.delete(provider)
     await session.commit()
-    await emit(tsio, {Emission(ProvidersInvalidate(), f"room:{room_id}")})
+    emission = await build_room_scoped_emission(session, ProvidersInvalidate, room_id)
+    await emit(tsio, {emission})
 
 
 @router.post(
@@ -1409,15 +1424,12 @@ async def upload_provider_result(
     await result_backend.notify_key(cache_key)
 
     # Notify frontend (Socket.IO — UI refresh)
-    await emit(
-        tsio,
-        {
-            Emission(
-                ProviderResultReady(
-                    provider_name=provider.full_name,
-                    request_hash=x_request_hash,
-                ),
-                f"room:{provider.room_id}",
-            )
-        },
-    )
+    async with session_maker() as session_addr:
+        emission = await build_room_scoped_emission(
+            session_addr,
+            ProviderResultReady,
+            provider.room_id,
+            provider_name=provider.full_name,
+            request_hash=x_request_hash,
+        )
+    await emit(tsio, {emission})

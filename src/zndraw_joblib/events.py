@@ -8,15 +8,44 @@ of emissions via the Emission NamedTuple.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+import uuid as _uuid
+from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Any, NamedTuple
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from zndraw.socket_events import RoomScopedEvent
+
 if TYPE_CHECKING:
+    from sqlmodel.ext.asyncio.session import AsyncSession
     from zndraw_socketio import AsyncServerWrapper
 
-from zndraw_joblib.models import Task, TaskStatus
+from zndraw_joblib.models import Task, TaskStatus  # noqa: TC001
+
+NIL_ROOM_UUID = UUID(int=0)
+
+# Stable namespace for deriving a placeholder room UUID from a composed
+# address when no persisted Room is available (joblib-only test envs).
+_ROOM_ADDRESS_NS = UUID("c4a4f5fd-8b8a-5e7a-9c8e-1f4a2b3c4d5e")
+
+
+def event_room_uuid(room_id: str) -> UUID:
+    """Map a joblib room_id (surrogate UUID, sigil, or composed address) to a UUID.
+
+    For composed ``<owner>/<name>`` addresses with no persisted Room
+    (joblib-only test envs), derives a stable uuid5 from the address so
+    the ``RoomScopedEvent`` validator accepts the payload.
+    """
+    if room_id in ("@global", "@internal"):
+        return NIL_ROOM_UUID
+    try:
+        return UUID(room_id)
+    except ValueError:
+        pass
+    if "/" in room_id:
+        return _uuid.uuid5(_ROOM_ADDRESS_NS, room_id)
+    return NIL_ROOM_UUID
 
 
 class FrozenEvent(BaseModel):
@@ -28,8 +57,10 @@ class FrozenEvent(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-class JobsInvalidate(FrozenEvent):
+class JobsInvalidate(RoomScopedEvent):
     """Frontend should refetch the job list."""
+
+    model_config = ConfigDict(frozen=True)
 
 
 class TaskAvailable(FrozenEvent):
@@ -40,12 +71,13 @@ class TaskAvailable(FrozenEvent):
     task_id: str
 
 
-class TaskStatusEvent(FrozenEvent):
+class TaskStatusEvent(RoomScopedEvent):
     """A task's status changed."""
+
+    model_config = ConfigDict(frozen=True)
 
     id: str
     name: str
-    room_id: str
     status: TaskStatus
     created_at: datetime
     started_at: datetime | None = None
@@ -78,8 +110,10 @@ class LeaveJobRoom(FrozenEvent):
     worker_id: str
 
 
-class ProvidersInvalidate(FrozenEvent):
+class ProvidersInvalidate(RoomScopedEvent):
     """Frontend should refetch the provider list."""
+
+    model_config = ConfigDict(frozen=True)
 
 
 class ProviderRequest(FrozenEvent):
@@ -110,8 +144,10 @@ class ProviderRequest(FrozenEvent):
         )
 
 
-class ProviderResultReady(FrozenEvent):
+class ProviderResultReady(RoomScopedEvent):
     """Server notifies frontend that a provider result is cached."""
+
+    model_config = ConfigDict(frozen=True)
 
     provider_name: str  # full_name: room_id:category:name
     request_hash: str
@@ -144,21 +180,23 @@ class LeaveProviderRoom(FrozenEvent):
 class Emission(NamedTuple):
     """Hashable (event, room) pair for set-based deduplication."""
 
-    event: FrozenEvent
+    event: BaseModel
     room: str
 
 
 def build_task_status_emission(
     task: Task,
     job_full_name: str,
+    room_address: str,
     queue_position: int | None = None,
 ) -> Emission:
     """Build a TaskStatusEvent emission from task data."""
     return Emission(
         TaskStatusEvent(
+            room_id=event_room_uuid(task.room_id),
+            room_address=room_address,
             id=str(task.id),
             name=job_full_name,
-            room_id=task.room_id,
             status=task.status,
             created_at=task.created_at,
             started_at=task.started_at,
@@ -168,6 +206,38 @@ def build_task_status_emission(
             error=task.error,
         ),
         f"room:{task.room_id}",
+    )
+
+
+async def build_room_scoped_emission(
+    session: AsyncSession,
+    event_cls: type[RoomScopedEvent],
+    room_id: str,
+    **fields: Any,
+) -> Emission:
+    """Construct an Emission for a joblib room-scoped event.
+
+    Handles the sigil/real-room/unknown split centrally:
+      * for persisted rooms, defers to ``event_cls.for_room(room, **fields)``;
+      * for sigils (``@global``/``@internal``), uses ``NIL_ROOM_UUID`` —
+        the ``RoomScopedEvent`` validator allows this because sigil
+        addresses do not look composed;
+      * for a bare UUID with no persisted row (e.g. soft-deleted room),
+        uses the UUID directly as ``room_id``;
+      * for a composed ``<owner>/<name>`` address with no persisted row
+        (joblib-only test environments), derives a stable
+        uuid5 from the address so the validator passes.
+
+    The channel is always ``f"room:{room_id}"``.
+    """
+    from zndraw_joblib.room_lookup import fetch_room
+
+    room = await fetch_room(session, room_id)
+    if room is not None:
+        return Emission(event_cls.for_room(room, **fields), f"room:{room.id}")
+    return Emission(
+        event_cls(room_id=event_room_uuid(room_id), room_address=room_id, **fields),
+        f"room:{room_id}",
     )
 
 

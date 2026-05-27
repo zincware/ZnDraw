@@ -17,6 +17,7 @@ from unittest.mock import MagicMock
 
 import httpx
 import pytest
+from conftest import make_room_address
 from sqlalchemy import text
 
 from zndraw_joblib.client import (
@@ -234,7 +235,7 @@ def test_claim_404_triggers_exit(mock_client_api, threadsafe_client, threadsafe_
 
 
 def test_complete_404_triggers_exit(
-    mock_client_api, threadsafe_client, threadsafe_engine
+    mock_client_api, threadsafe_client, threadsafe_engine, test_user_id
 ):
     """Task completion exits gracefully when worker is deleted mid-task.
 
@@ -265,8 +266,9 @@ def test_complete_404_triggers_exit(
     assert worker_id is not None
 
     # Submit a task
+    room_1 = make_room_address(test_user_id, "room_1")
     threadsafe_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Complete404",
+        f"/v1/joblib/rooms/{room_1}/tasks/@global:modifiers:Complete404",
         json={"payload": {}},
     )
 
@@ -807,7 +809,7 @@ def test_stop_unblocks_wait(mock_client_api, threadsafe_client, threadsafe_engin
 
 
 def test_task_in_progress_then_exit(
-    mock_client_api, threadsafe_client, threadsafe_engine
+    mock_client_api, threadsafe_client, threadsafe_engine, test_user_id
 ):
     """Background task in progress when worker is deleted.
 
@@ -839,8 +841,9 @@ def test_task_in_progress_then_exit(
     assert worker_id is not None
 
     # Submit a task
+    room_1 = make_room_address(test_user_id, "room_1")
     threadsafe_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:SlowJob",
+        f"/v1/joblib/rooms/{room_1}/tasks/@global:modifiers:SlowJob",
         json={"payload": {}},
     )
 
@@ -877,7 +880,7 @@ def test_task_in_progress_then_exit(
 
 
 def test_start_failure_skips_execute(
-    mock_client_api, threadsafe_client, threadsafe_engine
+    mock_client_api, threadsafe_client, threadsafe_engine, test_user_id
 ):
     """Transient start() failure must NOT execute the task.
 
@@ -913,8 +916,9 @@ def test_start_failure_skips_execute(
     manager.start = failing_start  # type: ignore[assignment]
 
     # Submit a task
+    room_1 = make_room_address(test_user_id, "room_1")
     resp = threadsafe_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:StartFailJob",
+        f"/v1/joblib/rooms/{room_1}/tasks/@global:modifiers:StartFailJob",
         json={"payload": {}},
     )
     assert resp.status_code in {201, 202}

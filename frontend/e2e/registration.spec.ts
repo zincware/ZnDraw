@@ -6,11 +6,8 @@ import {
 	waitForScene,
 	spawnPY,
 	waitForBgReady,
+	createTestRoom,
 } from "./helpers";
-
-const ROOM_EXT = "test-registration-ext";
-const ROOM_FS = "test-registration-fs";
-const ROOM_MOUNT = "test-registration-mount";
 
 test.describe("Registration", () => {
 	test.describe.configure({ mode: "serial" });
@@ -18,7 +15,7 @@ test.describe("Registration", () => {
 	test("register_job makes extension appear in modifier panel", async ({
 		page,
 	}) => {
-		CLI(`rooms create --room ${ROOM_EXT}`);
+		const ROOM_EXT = createTestRoom("test-registration-ext");
 		PY(`
 from zndraw import ZnDraw
 import ase
@@ -83,7 +80,7 @@ time.sleep(60)
 	test("register_fs enables file browser with browse and load", async ({
 		page,
 	}) => {
-		CLI(`rooms create --room ${ROOM_FS}`);
+		const ROOM_FS = createTestRoom("test-registration-fs");
 		PY(`
 from zndraw import ZnDraw
 import ase
@@ -187,7 +184,7 @@ time.sleep(120)
 	});
 
 	test("mount serves frames on demand", async ({ page }) => {
-		CLI(`rooms create --room ${ROOM_MOUNT}`);
+		const ROOM_MOUNT = createTestRoom("test-registration-mount");
 
 		// Spawn background process that mounts a frame source
 		const bg = spawnPY(`
@@ -218,7 +215,7 @@ time.sleep(60)
 			});
 
 			// Navigate to frame 25
-			CLI(`step set ${ROOM_MOUNT} 25`);
+			CLI(`step set 25 --room ${ROOM_MOUNT}`);
 			await expect(page.getByText("26 / 50")).toBeVisible({
 				timeout: 10000,
 			});

@@ -38,7 +38,7 @@ async def test_list_figures_returns_empty_initially(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/figures",
+        f"/v1/rooms/{room.public_address}/figures",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -58,7 +58,7 @@ async def test_list_figures_returns_all_keys(
     await _add_figure(session, room.id, "chart2", '{"data": []}')
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/figures",
+        f"/v1/rooms/{room.public_address}/figures",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -83,7 +83,7 @@ async def test_get_figure_returns_data(
     await _add_figure(session, room.id, "my_chart", '{"data": [1, 2, 3], "layout": {}}')
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/figures/my_chart",
+        f"/v1/rooms/{room.public_address}/figures/my_chart",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -103,7 +103,7 @@ async def test_get_figure_returns_404_for_nonexistent(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/figures/nonexistent",
+        f"/v1/rooms/{room.public_address}/figures/nonexistent",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -128,7 +128,7 @@ async def test_create_figure_stores_data(
         type="plotly", data='{"data": [], "layout": {"title": "Test"}}'
     )
     response = await client.post(
-        f"/v1/rooms/{room.id}/figures/new_chart",
+        f"/v1/rooms/{room.public_address}/figures/new_chart",
         json={"figure": figure_data.model_dump()},
         headers=auth_header(token),
     )
@@ -156,7 +156,7 @@ async def test_update_figure_overwrites_data(
 
     new_data = FigureData(type="plotly", data='{"version": 2}')
     response = await client.post(
-        f"/v1/rooms/{room.id}/figures/chart",
+        f"/v1/rooms/{room.public_address}/figures/chart",
         json={"figure": new_data.model_dump()},
         headers=auth_header(token),
     )
@@ -183,14 +183,14 @@ async def test_create_figure_broadcasts(
 
     figure_data = FigureData(type="plotly", data="{}")
     await client.post(
-        f"/v1/rooms/{room.id}/figures/chart",
+        f"/v1/rooms/{room.public_address}/figures/chart",
         json={"figure": figure_data.model_dump()},
         headers=auth_header(token),
     )
 
     assert len(mock_sio.emitted) == 1
     assert mock_sio.emitted[0]["event"] == "figure_invalidate"
-    assert mock_sio.emitted[0]["room"] == f"room:{room.id}"
+    assert mock_sio.emitted[0]["room"] == f"room:{room.id}"  # channel uses surrogate id
 
 
 # =============================================================================
@@ -210,7 +210,7 @@ async def test_delete_figure_removes_data(
     await _add_figure(session, room.id, "to_delete", "{}")
 
     response = await client.delete(
-        f"/v1/rooms/{room.id}/figures/to_delete",
+        f"/v1/rooms/{room.public_address}/figures/to_delete",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -234,7 +234,7 @@ async def test_delete_figure_broadcasts(
     await _add_figure(session, room.id, "chart", "{}")
 
     await client.delete(
-        f"/v1/rooms/{room.id}/figures/chart",
+        f"/v1/rooms/{room.public_address}/figures/chart",
         headers=auth_header(token),
     )
 
@@ -252,7 +252,7 @@ async def test_delete_nonexistent_figure_returns_404(
     room = await create_test_room(session, user)
 
     response = await client.delete(
-        f"/v1/rooms/{room.id}/figures/nonexistent",
+        f"/v1/rooms/{room.public_address}/figures/nonexistent",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -265,16 +265,6 @@ async def test_delete_nonexistent_figure_returns_404(
 
 
 @pytest.mark.asyncio
-async def test_list_figures_public(client: AsyncClient, session: AsyncSession) -> None:
-    """Test GET without auth succeeds (public endpoint)."""
-    user, _ = await create_test_user_in_db(session)
-    room = await create_test_room(session, user)
-
-    response = await client.get(f"/v1/rooms/{room.id}/figures")
-    assert response.status_code == 200
-
-
-@pytest.mark.asyncio
 async def test_create_figure_requires_auth(
     client: AsyncClient, session: AsyncSession
 ) -> None:
@@ -284,7 +274,7 @@ async def test_create_figure_requires_auth(
 
     figure_data = FigureData(type="plotly", data="{}")
     response = await client.post(
-        f"/v1/rooms/{room.id}/figures/chart",
+        f"/v1/rooms/{room.public_address}/figures/chart",
         json={"figure": figure_data.model_dump()},
     )
     assert response.status_code == 401
@@ -298,7 +288,7 @@ async def test_delete_figure_requires_auth(
     user, _ = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    response = await client.delete(f"/v1/rooms/{room.id}/figures/chart")
+    response = await client.delete(f"/v1/rooms/{room.public_address}/figures/chart")
     assert response.status_code == 401
 
 
@@ -315,7 +305,7 @@ async def test_list_figures_returns_404_for_nonexistent_room(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/99999/figures",
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/figures",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -331,7 +321,7 @@ async def test_create_figure_returns_404_for_nonexistent_room(
 
     figure_data = FigureData(type="plotly", data="{}")
     response = await client.post(
-        "/v1/rooms/99999/figures/chart",
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/figures/chart",
         json={"figure": figure_data.model_dump()},
         headers=auth_header(token),
     )
@@ -347,7 +337,7 @@ async def test_delete_figure_returns_404_for_nonexistent_room(
     _, token = await create_test_user_in_db(session)
 
     response = await client.delete(
-        "/v1/rooms/99999/figures/chart",
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/figures/chart",
         headers=auth_header(token),
     )
     assert response.status_code == 404

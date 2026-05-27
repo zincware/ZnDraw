@@ -72,6 +72,21 @@ async def test_guest_sessions_unique_tokens(client: AsyncClient) -> None:
     assert response1.json()["access_token"] != response2.json()["access_token"]
 
 
+@pytest.mark.asyncio
+async def test_guest_user_has_is_guest_true(client: AsyncClient, session) -> None:
+    """POST /v1/auth/guest must mark the created user with is_guest=True."""
+    from sqlmodel import select
+
+    from zndraw_auth import User
+
+    r = await client.post("/v1/auth/guest")
+    assert r.status_code == 200
+    email = r.json()["email"]
+    result = await session.exec(select(User).where(User.email == email))
+    user = result.one()
+    assert user.is_guest is True
+
+
 # =============================================================================
 # Registration Tests
 # =============================================================================
@@ -119,3 +134,71 @@ async def test_register_fails(
         body["password"] = password
     response = await client.post("/v1/auth/register", json=body)
     assert response.status_code == expected_status
+
+
+# =============================================================================
+# is_verified Permission Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_non_superuser_cannot_set_is_verified(
+    client: AsyncClient, session
+) -> None:
+    """Non-superusers must not be able to flip is_verified on themselves.
+
+    fastapi-users' ``safe=True`` default on the users router drops privileged
+    fields from non-superuser updates — this test catches regressions if
+    that behavior changes (e.g., someone re-registers the router with
+    ``safe=False``).
+    """
+    from helpers import create_test_user_in_db
+
+    # Bypass dev-mode auto-promote; helper creates users with is_verified=True
+    user, token = await create_test_user_in_db(
+        session, email="notsu@test.com", is_superuser=False
+    )
+    original_verified = user.is_verified  # True by default in the helper
+
+    # Attempt to flip is_verified to the opposite value
+    flipped = not original_verified
+    r = await client.patch(
+        "/v1/auth/users/me",
+        json={"is_verified": flipped},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    # fastapi-users silently drops unsafe fields for non-superusers, so the
+    # request itself succeeds (200), but is_verified is unchanged.
+    assert r.status_code == 200
+
+    me = (
+        await client.get(
+            "/v1/auth/users/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    ).json()
+    assert me["is_verified"] is original_verified
+
+
+@pytest.mark.asyncio
+async def test_superuser_can_set_is_verified(client: AsyncClient, session) -> None:
+    """Superusers can verify other users via PATCH."""
+    from helpers import create_test_user_in_db
+
+    _admin_user, admin_token = await create_test_user_in_db(
+        session, email="admin-verify@test.com", is_superuser=True
+    )
+    # Helper creates users with is_verified=True; flip to False to test the
+    # superuser's ability to change the field.
+    target_user, _target_token = await create_test_user_in_db(
+        session, email="target-verify@test.com", is_superuser=False
+    )
+    assert target_user.is_verified is True
+
+    r = await client.patch(
+        f"/v1/auth/users/{target_user.id}",
+        json={"is_verified": False},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r.status_code == 200
+    assert r.json()["is_verified"] is False

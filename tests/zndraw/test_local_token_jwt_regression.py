@@ -15,12 +15,13 @@ from datetime import UTC, datetime
 
 import pytest
 
+from zndraw.cli import _acquire_token
 from zndraw.state_file import ServerEntry, StateFile
 
 
 def _local_entry(
     *,
-    local_token: str = "raw-local-admin-token",  # noqa: S107
+    local_token: str = "raw-local-admin-token",
     access_token: str | None = None,
 ) -> ServerEntry:
     """Create a local server entry for testing."""
@@ -81,7 +82,7 @@ def test_resolve_token_returns_access_token_when_present(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# E2E: full CLI path — _acquire_admin_jwt → state.json → ZnDraw client
+# E2E: full CLI path — _acquire_token → state.json → ZnDraw client
 # ---------------------------------------------------------------------------
 
 
@@ -89,15 +90,14 @@ def test_resolve_token_returns_access_token_when_present(tmp_path):
 def test_e2e_dev_mode_zndraw_client_connects(server, tmp_path, monkeypatch):
     """E2E dev mode: CLI acquires JWT → stores in state → client connects.
 
-    Exercises the REAL path: _acquire_admin_jwt() → _store_jwt_in_state()
+    Exercises the REAL path: _acquire_token() → _store_jwt_in_state()
     → StateFileSource resolves access_token → ZnDraw client authenticates.
     """
-    from zndraw.cli import _acquire_admin_jwt
     from zndraw.client import ZnDraw
 
     # Step 1: CLI acquires admin JWT (the actual function the CLI calls)
-    jwt = _acquire_admin_jwt(server)
-    assert jwt is not None, "_acquire_admin_jwt must return a valid JWT"
+    jwt = _acquire_token(server)
+    assert isinstance(jwt, str) and jwt, "_acquire_token must return a non-empty JWT"
 
     # Step 2: Store in state.json (same as CLI does)
     state = StateFile(directory=tmp_path)
@@ -113,7 +113,7 @@ def test_e2e_dev_mode_zndraw_client_connects(server, tmp_path, monkeypatch):
         lambda: StateFile(directory=tmp_path),
     )  # why: redirects StateFile to tmp_path; real server via server_factory
 
-    client = ZnDraw(url=server, room="test-e2e-dev")
+    client = ZnDraw(url=server)
     try:
         # If auth failed, this would raise PermissionError (the original bug)
         assert len(client) == 0
@@ -126,9 +126,8 @@ def test_e2e_production_mode_zndraw_client_connects(server_auth, tmp_path, monke
     """E2E production mode: CLI logs in as admin → stores JWT → client connects.
 
     Uses server_auth fixture which sets DEFAULT_ADMIN_EMAIL/PASSWORD.
-    Exercises the login_with_credentials path of _acquire_admin_jwt().
+    Exercises the login_with_credentials path of _acquire_token().
     """
-    from zndraw.cli import _acquire_admin_jwt
     from zndraw.client import ZnDraw
 
     # Set production mode auth env vars (same as server_auth fixture)
@@ -136,8 +135,8 @@ def test_e2e_production_mode_zndraw_client_connects(server_auth, tmp_path, monke
     monkeypatch.setenv("ZNDRAW_AUTH_DEFAULT_ADMIN_PASSWORD", "adminpassword")
 
     # Step 1: CLI acquires admin JWT via login_with_credentials
-    jwt = _acquire_admin_jwt(server_auth)
-    assert jwt is not None, "_acquire_admin_jwt must return admin JWT"
+    jwt = _acquire_token(server_auth)
+    assert isinstance(jwt, str) and jwt, "_acquire_token must return a non-empty JWT"
 
     # Step 2: Store in state.json
     state = StateFile(directory=tmp_path)
@@ -152,7 +151,7 @@ def test_e2e_production_mode_zndraw_client_connects(server_auth, tmp_path, monke
         lambda: StateFile(directory=tmp_path),
     )  # why: redirects StateFile to tmp_path; real server via server_factory
 
-    client = ZnDraw(url=server_auth, room="test-e2e-prod")
+    client = ZnDraw(url=server_auth)
     try:
         assert len(client) == 0
     finally:

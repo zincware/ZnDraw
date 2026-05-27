@@ -49,7 +49,7 @@ async def test_list_selection_groups_returns_empty(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/selection-groups",
+        f"/v1/rooms/{room.public_address}/selection-groups",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -71,7 +71,7 @@ async def test_list_selection_groups_returns_all(
     await _add_selection_group(session, room.id, "group_b", group_b)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/selection-groups",
+        f"/v1/rooms/{room.public_address}/selection-groups",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -96,7 +96,7 @@ async def test_get_nonexistent_selection_group_returns_404(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/selection-groups/mygroup",
+        f"/v1/rooms/{room.public_address}/selection-groups/mygroup",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -116,7 +116,7 @@ async def test_get_selection_group_returns_stored(
     await _add_selection_group(session, room.id, "mygroup", group_data)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/selection-groups/mygroup",
+        f"/v1/rooms/{room.public_address}/selection-groups/mygroup",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -139,7 +139,7 @@ async def test_update_selection_group_stores_data(
 
     group_data = {"sphere": [0, 1], "cube": [2, 3]}
     response = await client.put(
-        f"/v1/rooms/{room.id}/selection-groups/mygroup",
+        f"/v1/rooms/{room.public_address}/selection-groups/mygroup",
         json={"selections": group_data},
         headers=auth_header(token),
     )
@@ -163,7 +163,7 @@ async def test_update_selection_group_broadcasts(
     room = await create_test_room(session, user)
 
     await client.put(
-        f"/v1/rooms/{room.id}/selection-groups/mygroup",
+        f"/v1/rooms/{room.public_address}/selection-groups/mygroup",
         json={"selections": {"sphere": [0]}},
         headers=auth_header(token),
     )
@@ -187,7 +187,7 @@ async def test_delete_nonexistent_selection_group_returns_404(
     room = await create_test_room(session, user)
 
     response = await client.delete(
-        f"/v1/rooms/{room.id}/selection-groups/nonexistent",
+        f"/v1/rooms/{room.public_address}/selection-groups/nonexistent",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -206,7 +206,7 @@ async def test_delete_selection_group(
     await _add_selection_group(session, room.id, "mygroup", {})
 
     response = await client.delete(
-        f"/v1/rooms/{room.id}/selection-groups/mygroup",
+        f"/v1/rooms/{room.public_address}/selection-groups/mygroup",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -230,7 +230,7 @@ async def test_list_selection_groups_requires_auth(
     user, _ = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    response = await client.get(f"/v1/rooms/{room.id}/selection-groups")
+    response = await client.get(f"/v1/rooms/{room.public_address}/selection-groups")
     assert response.status_code == 401
 
 
@@ -247,7 +247,7 @@ async def test_list_selection_groups_returns_404_for_nonexistent_room(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/99999/selection-groups",
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/selection-groups",
         headers=auth_header(token),
     )
     assert response.status_code == 404

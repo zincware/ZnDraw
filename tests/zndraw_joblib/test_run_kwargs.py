@@ -92,7 +92,7 @@ def test_claimed_task_run_kwargs_defaults_empty():
 # -- claim() populates run_kwargs from registry ----------------------------
 
 
-def test_claim_populates_run_kwargs(api, client):
+def test_claim_populates_run_kwargs(api, client, room_1_address):
     """claim() should attach stored run_kwargs to the ClaimedTask."""
     model = object()
     manager = JobManager(api)
@@ -100,7 +100,7 @@ def test_claim_populates_run_kwargs(api, client):
 
     # Submit a task
     resp = client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Echo",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:Echo",
         json={"payload": {"value": 42}},
     )
     assert resp.status_code == 202
@@ -111,13 +111,13 @@ def test_claim_populates_run_kwargs(api, client):
     assert claimed.extension.value == 42
 
 
-def test_claim_without_run_kwargs_gives_empty(api, client):
+def test_claim_without_run_kwargs_gives_empty(api, client, room_1_address):
     """claim() for a job registered without run_kwargs should give empty dict."""
     manager = JobManager(api)
     manager.register(Echo)
 
     resp = client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Echo",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:Echo",
         json={"payload": {"value": 7}},
     )
     assert resp.status_code == 202

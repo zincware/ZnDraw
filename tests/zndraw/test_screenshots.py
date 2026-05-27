@@ -73,7 +73,7 @@ async def test_upload_screenshot(
 
     data = _png_bytes()
     response = await client.post(
-        f"/v1/rooms/{room.id}/screenshots/upload",
+        f"/v1/rooms/{room.public_address}/screenshots/upload",
         files={"file": ("shot.png", data, "image/png")},
         data={"format": "png"},
         headers=auth_header(token),
@@ -100,7 +100,7 @@ async def test_upload_invalid_format(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.id}/screenshots/upload",
+        f"/v1/rooms/{room.public_address}/screenshots/upload",
         files={"file": ("shot.bmp", b"data", "image/bmp")},
         data={"format": "bmp"},
         headers=auth_header(token),
@@ -117,7 +117,7 @@ async def test_upload_too_large(client: AsyncClient, session: AsyncSession) -> N
 
     big_data = b"\x00" * (10 * 1024 * 1024 + 1)
     response = await client.post(
-        f"/v1/rooms/{room.id}/screenshots/upload",
+        f"/v1/rooms/{room.public_address}/screenshots/upload",
         files={"file": ("shot.png", big_data, "image/png")},
         data={"format": "png"},
         headers=auth_header(token),
@@ -139,14 +139,14 @@ async def test_list_screenshots(client: AsyncClient, session: AsyncSession) -> N
 
     for i in range(3):
         await client.post(
-            f"/v1/rooms/{room.id}/screenshots/upload",
+            f"/v1/rooms/{room.public_address}/screenshots/upload",
             files={"file": (f"shot{i}.png", _png_bytes(50 + i), "image/png")},
             data={"format": "png"},
             headers=auth_header(token),
         )
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/screenshots?limit=2&offset=0",
+        f"/v1/rooms/{room.public_address}/screenshots?limit=2&offset=0",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -158,7 +158,7 @@ async def test_list_screenshots(client: AsyncClient, session: AsyncSession) -> N
 
     # Second page
     response2 = await client.get(
-        f"/v1/rooms/{room.id}/screenshots?limit=2&offset=2",
+        f"/v1/rooms/{room.public_address}/screenshots?limit=2&offset=2",
         headers=auth_header(token),
     )
     assert response2.status_code == 200
@@ -179,7 +179,7 @@ async def test_get_screenshot(client: AsyncClient, session: AsyncSession) -> Non
     data = _png_bytes()
 
     upload = await client.post(
-        f"/v1/rooms/{room.id}/screenshots/upload",
+        f"/v1/rooms/{room.public_address}/screenshots/upload",
         files={"file": ("shot.png", data, "image/png")},
         data={"format": "png"},
         headers=auth_header(token),
@@ -187,7 +187,7 @@ async def test_get_screenshot(client: AsyncClient, session: AsyncSession) -> Non
     screenshot_id = upload.json()["id"]
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/screenshots/{screenshot_id}",
+        f"/v1/rooms/{room.public_address}/screenshots/{screenshot_id}",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -209,7 +209,7 @@ async def test_get_screenshot_not_found(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/screenshots/99999",
+        f"/v1/rooms/{room.public_address}/screenshots/99999",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -232,7 +232,7 @@ async def test_delete_screenshot(
     room = await create_test_room(session, user)
 
     upload = await client.post(
-        f"/v1/rooms/{room.id}/screenshots/upload",
+        f"/v1/rooms/{room.public_address}/screenshots/upload",
         files={"file": ("shot.png", _png_bytes(), "image/png")},
         data={"format": "png"},
         headers=auth_header(token),
@@ -242,7 +242,7 @@ async def test_delete_screenshot(
     assert file_path.exists()
 
     response = await client.delete(
-        f"/v1/rooms/{room.id}/screenshots/{screenshot_id}",
+        f"/v1/rooms/{room.public_address}/screenshots/{screenshot_id}",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -278,7 +278,7 @@ async def test_request_capture(
     )
 
     response = await client.post(
-        f"/v1/rooms/{room.id}/screenshots",
+        f"/v1/rooms/{room.public_address}/screenshots",
         json={"session_id": target_sid},
         headers=auth_header(token),
     )
@@ -320,7 +320,7 @@ async def test_request_capture_rejects_other_users_session(
     )
 
     response = await client.post(
-        f"/v1/rooms/{room.id}/screenshots",
+        f"/v1/rooms/{room.public_address}/screenshots",
         json={"session_id": target_sid},
         headers=auth_header(token_a),
     )
@@ -342,7 +342,7 @@ async def test_request_capture_invalid_session(
 
     # Session not active (Redis has no entry for this sid)
     response = await client.post(
-        f"/v1/rooms/{room.id}/screenshots",
+        f"/v1/rooms/{room.public_address}/screenshots",
         json={"session_id": "nonexistent-sid"},
         headers=auth_header(token),
     )
@@ -378,7 +378,7 @@ async def test_patch_pending_screenshot(
 
     # Create pending screenshot
     capture_resp = await client.post(
-        f"/v1/rooms/{room.id}/screenshots",
+        f"/v1/rooms/{room.public_address}/screenshots",
         json={"session_id": target_sid},
         headers=auth_header(token),
     )
@@ -387,7 +387,7 @@ async def test_patch_pending_screenshot(
     # PATCH to complete
     data = _png_bytes(200)
     response = await client.patch(
-        f"/v1/rooms/{room.id}/screenshots/{screenshot_id}",
+        f"/v1/rooms/{room.public_address}/screenshots/{screenshot_id}",
         files={"file": ("shot.png", data, "image/png")},
         data={"format": "png", "width": "1920", "height": "1080"},
         headers=auth_header(token),
@@ -414,7 +414,7 @@ async def test_patch_completed_screenshot(
 
     # Upload a completed screenshot
     upload = await client.post(
-        f"/v1/rooms/{room.id}/screenshots/upload",
+        f"/v1/rooms/{room.public_address}/screenshots/upload",
         files={"file": ("shot.png", _png_bytes(), "image/png")},
         data={"format": "png"},
         headers=auth_header(token),
@@ -423,7 +423,7 @@ async def test_patch_completed_screenshot(
 
     # Try to PATCH (should fail — already completed)
     response = await client.patch(
-        f"/v1/rooms/{room.id}/screenshots/{screenshot_id}",
+        f"/v1/rooms/{room.public_address}/screenshots/{screenshot_id}",
         files={"file": ("shot2.png", _png_bytes(), "image/png")},
         data={"format": "png"},
         headers=auth_header(token),

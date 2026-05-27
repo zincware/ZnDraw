@@ -4,6 +4,7 @@
 import time
 
 import pytest
+from conftest import make_room_address
 
 from zndraw_joblib.schemas import (
     JobSummary,
@@ -53,21 +54,24 @@ def test_list_jobs_pagination_preserves_order(ordered_job_client):
 
 
 @pytest.fixture
-def ordered_task_client(seeded_client):
+def ordered_task_client(seeded_client, room_1_address):
     """Seeded client with 3 tasks submitted in known order."""
     for i in range(3):
         resp = seeded_client.post(
-            "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+            f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:Rotate",
             json={"payload": {"index": i}},
         )
         assert resp.status_code == 202
         time.sleep(0.01)
+    seeded_client.room_1_address = room_1_address
     return seeded_client
 
 
 def test_list_tasks_for_room_newest_first(ordered_task_client):
     """GET /rooms/{room_id}/tasks returns newest task first."""
-    response = ordered_task_client.get("/v1/joblib/rooms/room_1/tasks")
+    response = ordered_task_client.get(
+        f"/v1/joblib/rooms/{ordered_task_client.room_1_address}/tasks"
+    )
     page = PaginatedResponse[TaskResponse].model_validate(response.json())
     indices = [t.payload["index"] for t in page.items]
     assert indices == [2, 1, 0]
@@ -75,9 +79,13 @@ def test_list_tasks_for_room_newest_first(ordered_task_client):
 
 def test_list_tasks_for_room_pagination_preserves_order(ordered_task_client):
     """Paginating through tasks maintains newest-first order."""
-    resp1 = ordered_task_client.get("/v1/joblib/rooms/room_1/tasks?limit=2&offset=0")
+    resp1 = ordered_task_client.get(
+        f"/v1/joblib/rooms/{ordered_task_client.room_1_address}/tasks?limit=2&offset=0"
+    )
     page1 = PaginatedResponse[TaskResponse].model_validate(resp1.json())
-    resp2 = ordered_task_client.get("/v1/joblib/rooms/room_1/tasks?limit=2&offset=2")
+    resp2 = ordered_task_client.get(
+        f"/v1/joblib/rooms/{ordered_task_client.room_1_address}/tasks?limit=2&offset=2"
+    )
     page2 = PaginatedResponse[TaskResponse].model_validate(resp2.json())
 
     indices = [t.payload["index"] for t in page1.items] + [
@@ -92,7 +100,7 @@ def test_list_tasks_for_room_pagination_preserves_order(ordered_task_client):
 def test_list_tasks_for_job_newest_first(ordered_task_client):
     """GET /rooms/{room_id}/jobs/{job}/tasks returns newest task first."""
     response = ordered_task_client.get(
-        "/v1/joblib/rooms/room_1/jobs/@global:modifiers:Rotate/tasks"
+        f"/v1/joblib/rooms/{ordered_task_client.room_1_address}/jobs/@global:modifiers:Rotate/tasks"
     )
     page = PaginatedResponse[TaskResponse].model_validate(response.json())
     indices = [t.payload["index"] for t in page.items]
@@ -129,17 +137,22 @@ def test_list_workers_newest_first(client_factory):
 def test_list_workers_for_room_newest_first(client_factory):
     """GET /rooms/{room_id}/workers returns newest worker first."""
     worker_ids = []
+    last_c = None
+    room_1 = None
     for name in ["worker-x", "worker-y", "worker-z"]:
         c = client_factory(name)
+        last_c = c
+        if room_1 is None:
+            room_1 = make_room_address(c.user_id, "room_1")
         resp = c.put(
-            "/v1/joblib/rooms/room_1/jobs",
+            f"/v1/joblib/rooms/{room_1}/jobs",
             json={"category": "modifiers", "name": f"job-{name}", "schema": {}},
         )
         assert resp.status_code == 201
         worker_ids.append(resp.json()["worker_id"])
         time.sleep(0.01)
 
-    response = c.get("/v1/joblib/rooms/room_1/workers")
+    response = last_c.get(f"/v1/joblib/rooms/{room_1}/workers")
     page = PaginatedResponse[WorkerSummary].model_validate(response.json())
     returned_ids = [str(w.id) for w in page.items]
     # Newest (worker-z) should be first

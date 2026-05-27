@@ -3,13 +3,12 @@
 from fastapi import APIRouter, status
 from sqlmodel import select
 
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
-    OptionalUserDep,
+    AccessReadDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
-    room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     FigureNotFound,
@@ -29,7 +28,7 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import FigureInvalidate
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/figures", tags=["figures"])
+router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/figures", tags=["figures"])
 
 
 @router.get(
@@ -38,11 +37,10 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/figures", tags=["figures"])
 )
 async def list_figures(
     session: SessionDep,
-    _current_user: OptionalUserDep,
-    room_id: str,
+    access: AccessReadDep,
 ) -> CollectionResponse[str]:
     """List all figure keys in a room."""
-    await verify_room(session, room_id)
+    room_id = access.room.id
     result = await session.exec(
         select(RoomFigure.key).where(RoomFigure.room_id == room_id)
     )
@@ -56,12 +54,11 @@ async def list_figures(
 )
 async def get_figure(
     session: SessionDep,
-    _current_user: OptionalUserDep,
-    room_id: str,
+    access: AccessReadDep,
     key: str,
 ) -> FigureResponse:
     """Get a single figure by key."""
-    await verify_room(session, room_id)
+    room_id = access.room.id
     row = await session.get(RoomFigure, (room_id, key))
     if row is None:
         raise FigureNotFound.exception(f"Figure '{key}' not found")
@@ -77,11 +74,11 @@ async def create_figure(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    room_id: str,
     key: str,
     request: FigureCreateRequest,
 ) -> FigureCreateResponse:
     """Create or update a figure."""
+    room_id = _room.id
 
     row = await session.get(RoomFigure, (room_id, key))
     created = row is None
@@ -95,9 +92,10 @@ async def create_figure(
         row.data = request.figure.data
     await session.commit()
 
-    await sio.emit(
-        FigureInvalidate(room_id=room_id, key=key, operation="set"),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FigureInvalidate.for_room(_room, key=key, operation="set"),
+        _room,
     )
 
     return FigureCreateResponse(key=key, created=created)
@@ -113,10 +111,10 @@ async def delete_figure(
     session: SessionDep,
     sio: SioDep,
     _room: WritableRoomDep,
-    room_id: str,
     key: str,
 ) -> StatusResponse:
     """Delete a figure."""
+    room_id = _room.id
 
     row = await session.get(RoomFigure, (room_id, key))
     if row is None:
@@ -124,9 +122,10 @@ async def delete_figure(
     await session.delete(row)
     await session.commit()
 
-    await sio.emit(
-        FigureInvalidate(room_id=room_id, key=key, operation="delete"),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        FigureInvalidate.for_room(_room, key=key, operation="delete"),
+        _room,
     )
 
     return StatusResponse()

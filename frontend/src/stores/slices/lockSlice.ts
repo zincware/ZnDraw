@@ -7,14 +7,12 @@ import {
 import type { AppState } from "../../store";
 
 export interface LockSlice {
-	superuserLock: boolean;
 	userLock: string | null;
 	userLockMessage: string | null;
 	lockToken: string | null;
 	lockRenewalIntervalId: number | null;
 	lockExpiryTimerId: number | null;
 
-	setSuperuserLock: (locked: boolean) => void;
 	setUserLock: (email: string | null, message?: string | null) => void;
 	startLockRenewal: () => void;
 	stopLockRenewal: () => void;
@@ -29,14 +27,11 @@ export const createLockSlice: StateCreator<AppState, [], [], LockSlice> = (
 	set,
 	get,
 ) => ({
-	superuserLock: false,
 	userLock: null,
 	userLockMessage: null,
 	lockToken: null,
 	lockRenewalIntervalId: null,
 	lockExpiryTimerId: null,
-
-	setSuperuserLock: (locked) => set({ superuserLock: locked }),
 
 	setUserLock: (email, message = null) =>
 		set({ userLock: email, userLockMessage: message ?? null }),

@@ -3,14 +3,17 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
+from conftest import make_room_address
+
 from zndraw_joblib.exceptions import ProblemDetail
 from zndraw_joblib.registry import InternalRegistry
 from zndraw_joblib.schemas import TaskResponse
 
 
-def test_submit_task(seeded_client):
+def test_submit_task(seeded_client, test_user_id):
+    addr = make_room_address(test_user_id, "room_123")
     response = seeded_client.post(
-        "/v1/joblib/rooms/room_123/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:Rotate",
         json={"payload": {"angle": 90}},
     )
     assert response.status_code == 202
@@ -18,12 +21,13 @@ def test_submit_task(seeded_client):
     data = TaskResponse.model_validate(response.json())
     assert data.status.value == "pending"
     assert data.payload == {"angle": 90}
-    assert data.room_id == "room_123"
+    assert data.room_id == str(addr)
 
 
-def test_submit_task_job_not_found(seeded_client):
+def test_submit_task_job_not_found(seeded_client, test_user_id):
+    addr = make_room_address(test_user_id, "room_123")
     response = seeded_client.post(
-        "/v1/joblib/rooms/room_123/tasks/@global:modifiers:NonExistent",
+        f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:NonExistent",
         json={"payload": {}},
     )
     assert response.status_code == 404
@@ -31,8 +35,9 @@ def test_submit_task_job_not_found(seeded_client):
     assert error.status == 404
 
 
-def test_submit_internal_task_dispatches_to_taskiq(app, client):
+def test_submit_internal_task_dispatches_to_taskiq(app, client, test_user_id):
     """Submitting a task for an @internal job dispatches via taskiq."""
+    addr = make_room_address(test_user_id, "test-room")
     # Register an @internal job
     resp = client.put(
         "/v1/joblib/rooms/@internal/jobs",
@@ -51,7 +56,7 @@ def test_submit_internal_task_dispatches_to_taskiq(app, client):
 
     # Submit a task
     resp = client.post(
-        "/v1/joblib/rooms/test-room/tasks/@internal:modifiers:Rotate",
+        f"/v1/joblib/rooms/{addr}/tasks/@internal:modifiers:Rotate",
         json={"payload": {"angle": 90}},
     )
     assert resp.status_code == 202
@@ -59,12 +64,13 @@ def test_submit_internal_task_dispatches_to_taskiq(app, client):
     # Verify taskiq dispatch was called
     mock_task_handle.kiq.assert_called_once()
     call_kwargs = mock_task_handle.kiq.call_args.kwargs
-    assert call_kwargs["room_id"] == "test-room"
+    assert call_kwargs["room_id"] == str(addr)
     assert "task_id" in call_kwargs
 
 
-def test_submit_internal_task_no_registry_returns_503(app, client):
+def test_submit_internal_task_no_registry_returns_503(app, client, test_user_id):
     """Submitting to @internal job without registry returns 503."""
+    addr = make_room_address(test_user_id, "test-room")
     # Register an @internal job
     resp = client.put(
         "/v1/joblib/rooms/@internal/jobs",
@@ -77,26 +83,27 @@ def test_submit_internal_task_no_registry_returns_503(app, client):
         delattr(app.state, "internal_registry")
 
     resp = client.post(
-        "/v1/joblib/rooms/test-room/tasks/@internal:modifiers:Rotate",
+        f"/v1/joblib/rooms/{addr}/tasks/@internal:modifiers:Rotate",
         json={"payload": {}},
     )
     assert resp.status_code == 503
 
 
-def test_submit_external_task_unchanged(seeded_client):
+def test_submit_external_task_unchanged(seeded_client, test_user_id):
     """External task submission still works as before (no taskiq dispatch)."""
+    addr = make_room_address(test_user_id, "test-room")
     resp = seeded_client.post(
-        "/v1/joblib/rooms/test-room/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{addr}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
     assert resp.status_code == 202
     assert resp.json()["status"] == "pending"
 
 
-def test_submit_task_malformed_job_name_no_colons(seeded_client):
+def test_submit_task_malformed_job_name_no_colons(seeded_client, room_1_address):
     """Submitting with a job name that has no colons returns 404."""
     response = seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/noColons",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/noColons",
         json={"payload": {}},
     )
     assert response.status_code == 404
@@ -104,10 +111,10 @@ def test_submit_task_malformed_job_name_no_colons(seeded_client):
     assert "Invalid job name format" in error.detail
 
 
-def test_submit_task_malformed_job_name_one_colon(seeded_client):
+def test_submit_task_malformed_job_name_one_colon(seeded_client, room_1_address):
     """Submitting with a job name that has only one colon returns 404."""
     response = seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/one:part",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/one:part",
         json={"payload": {}},
     )
     assert response.status_code == 404
@@ -115,22 +122,24 @@ def test_submit_task_malformed_job_name_one_colon(seeded_client):
     assert "Invalid job name format" in error.detail
 
 
-def test_submit_task_cross_room_allowed(client):
+def test_submit_task_cross_room_allowed(client, test_user_id):
     """Job registered in room_A can be submitted to target room_B."""
+    addr_a = make_room_address(test_user_id, "room_A")
+    addr_b = make_room_address(test_user_id, "room_B")
     # Register a room-scoped job in room_A
     client.put(
-        "/v1/joblib/rooms/room_A/jobs",
+        f"/v1/joblib/rooms/{addr_a}/jobs",
         json={"category": "modifiers", "name": "Private", "schema": {}},
     )
 
     # Submit a task targeting room_B using room_A's job
     response = client.post(
-        "/v1/joblib/rooms/room_B/tasks/room_A:modifiers:Private",
+        f"/v1/joblib/rooms/{addr_b}/tasks/{addr_a}:modifiers:Private",
         json={"payload": {}},
     )
     assert response.status_code == 202
     data = TaskResponse.model_validate(response.json())
-    assert data.room_id == "room_B"
+    assert data.room_id == str(addr_b)
 
 
 def test_submit_task_invalid_room_id(seeded_client):
@@ -141,13 +150,13 @@ def test_submit_task_invalid_room_id(seeded_client):
     )
     assert response.status_code == 400
     error = ProblemDetail.model_validate(response.json())
-    assert "invalid characters" in error.detail
+    assert "must be in the composed form" in error.detail
 
 
-def test_submit_task_empty_payload(seeded_client):
+def test_submit_task_empty_payload(seeded_client, room_1_address):
     """Submitting with no payload key defaults to empty dict."""
     response = seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:Rotate",
         json={},
     )
     assert response.status_code == 202
@@ -155,13 +164,13 @@ def test_submit_task_empty_payload(seeded_client):
     assert data.payload == {}
 
 
-def test_submit_global_task_no_workers_returns_409(seeded_client):
+def test_submit_global_task_no_workers_returns_409(seeded_client, room_1_address):
     """Submitting to a global job with 0 workers returns 409."""
     worker_id = seeded_client.seeded_worker_id
 
     # Create a pending task so the job survives orphan cleanup
     resp = seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
     assert resp.status_code == 202
@@ -172,7 +181,7 @@ def test_submit_global_task_no_workers_returns_409(seeded_client):
 
     # Now submit again — should be rejected (0 workers)
     resp = seeded_client.post(
-        "/v1/joblib/rooms/room_1/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{room_1_address}/tasks/@global:modifiers:Rotate",
         json={"payload": {}},
     )
     assert resp.status_code == 409

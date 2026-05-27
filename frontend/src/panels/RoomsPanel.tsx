@@ -1,5 +1,3 @@
-import LockIcon from "@mui/icons-material/Lock";
-import LockOpenIcon from "@mui/icons-material/LockOpen";
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
@@ -49,17 +47,24 @@ export function RoomsPanel() {
 
 	const handleFiles = useCallback(
 		async (files: File[]) => {
-			const newRoomId = crypto.randomUUID();
+			const currentUser = useAppStore.getState().user;
+			if (!currentUser) {
+				showSnackbar("Not authenticated", "error");
+				return;
+			}
 			try {
-				await createRoom({ room_id: newRoomId });
+				const result = await createRoom({
+					owner_id: currentUser.id,
+					name: "untitled-1",
+				});
 				// Cascade-close the current room before navigating so plot tabs
 				// and viewer state from the prior room don't leak into the new one.
 				await leaveRoom({ skipConfirm: true });
 				for (const file of files) {
-					await uploadTrajectory(newRoomId, file);
+					await uploadTrajectory(result.room_id, file);
 				}
 				showSnackbar(`Room created with ${files.length} file(s)`, "success");
-				navigate(`/rooms/${newRoomId}`);
+				navigate(`/rooms/${result.room_id}`);
 			} catch (error) {
 				showSnackbar(extractDetail(error, "Upload failed"), "error");
 			}
@@ -84,15 +89,15 @@ export function RoomsPanel() {
 		if (!q) return rooms;
 		return rooms.filter(
 			(r) =>
-				r.id.toLowerCase().includes(q) ||
+				r.room_id.toLowerCase().includes(q) ||
 				r.description?.toLowerCase().includes(q),
 		);
 	}, [rooms, query]);
 
-	const switchToRoom = async (id: string) => {
-		if (id === currentRoomId) return;
+	const switchToRoom = async (roomAddress: string) => {
+		if (roomAddress === currentRoomId) return;
 		await leaveRoom({ skipConfirm: true });
-		navigate(`/rooms/${id}`);
+		navigate(`/rooms/${roomAddress}`);
 	};
 
 	return (
@@ -165,10 +170,10 @@ export function RoomsPanel() {
 			<List dense sx={{ flexGrow: 1, minHeight: 0, overflow: "auto", pt: 0 }}>
 				{filtered.map((r) => (
 					<RoomsListRow
-						key={r.id}
+						key={r.room_id}
 						room={r}
-						selected={r.id === currentRoomId}
-						onSelect={() => switchToRoom(r.id)}
+						selected={r.room_id === currentRoomId}
+						onSelect={() => switchToRoom(r.room_id)}
 					/>
 				))}
 			</List>
@@ -207,7 +212,7 @@ interface RoomsListRowProps {
 function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
 	const showSnackbar = useAppStore((s) => s.showSnackbar);
 
-	const primary = room.description?.trim() || room.id;
+	const primary = room.description?.trim() || room.room_id;
 	const secondary = `${room.frame_count} frame${
 		room.frame_count === 1 ? "" : "s"
 	}`;
@@ -215,10 +220,10 @@ function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
 	const onToggleTemplate = async (e: React.MouseEvent) => {
 		e.stopPropagation();
 		try {
-			await setDefaultRoom(room.is_default ? null : room.id);
+			await setDefaultRoom(room.is_default ? null : room.room_id);
 			useRoomsStore
 				.getState()
-				.updateRoom(room.id, { is_default: !room.is_default });
+				.updateRoom(room.room_id, { is_default: !room.is_default });
 			showSnackbar(
 				room.is_default ? "Template cleared" : "Set as template",
 				"success",
@@ -228,19 +233,9 @@ function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
 		}
 	};
 
-	const onToggleLock = async (e: React.MouseEvent) => {
-		e.stopPropagation();
-		try {
-			await updateRoom(room.id, { locked: !room.locked });
-			showSnackbar(room.locked ? "Room unlocked" : "Room locked", "success");
-		} catch {
-			showSnackbar("Failed to update lock", "error");
-		}
-	};
-
 	return (
 		<ListItemButton
-			data-testid={`rooms-row-${room.id}`}
+			data-testid={`rooms-row-${room.room_id}`}
 			selected={selected}
 			onClick={onSelect}
 			sx={{
@@ -255,7 +250,7 @@ function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
 			<Tooltip title={room.is_default ? "Template room" : "Set as template"}>
 				<IconButton
 					size="small"
-					data-testid={`rooms-row-template-${room.id}`}
+					data-testid={`rooms-row-template-${room.room_id}`}
 					onClick={onToggleTemplate}
 				>
 					{room.is_default ? (
@@ -280,23 +275,6 @@ function RoomsListRow({ room, selected, onSelect }: RoomsListRowProps) {
 					},
 				}}
 			/>
-			<Tooltip
-				title={
-					room.locked ? "Locked (click to unlock)" : "Unlocked (click to lock)"
-				}
-			>
-				<IconButton
-					size="small"
-					data-testid={`rooms-row-lock-${room.id}`}
-					onClick={onToggleLock}
-				>
-					{room.locked ? (
-						<LockIcon fontSize="small" color="error" />
-					) : (
-						<LockOpenIcon fontSize="small" color="success" />
-					)}
-				</IconButton>
-			</Tooltip>
 			<RoomRowMenu room={room} />
 		</ListItemButton>
 	);

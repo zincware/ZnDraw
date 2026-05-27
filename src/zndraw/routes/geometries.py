@@ -8,15 +8,15 @@ from fastapi import APIRouter
 from pydantic import ValidationError
 from sqlmodel import select
 
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
+    AccessEditDep,
+    AccessReadDep,
     CurrentUserDep,
-    OptionalUserDep,
     RedisDep,
     SessionDep,
     SioDep,
     WritableGeometryDep,
-    room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     Forbidden,
@@ -28,7 +28,7 @@ from zndraw.exceptions import (
     problem_responses,
 )
 from zndraw.geometries import geometries as geometry_models
-from zndraw.models import Room, RoomGeometry
+from zndraw.models import RoomGeometry
 from zndraw.redis import RedisKey
 from zndraw.schemas import (
     DefaultCameraRequest,
@@ -84,7 +84,9 @@ async def _get_session_cameras_for_room(
     return cameras
 
 
-router = APIRouter(prefix="/v1/rooms/{room_id}/geometries", tags=["geometries"])
+router = APIRouter(
+    prefix="/v1/rooms/{owner_id}/{room_name}/geometries", tags=["geometries"]
+)
 
 
 @router.get(
@@ -94,15 +96,13 @@ router = APIRouter(prefix="/v1/rooms/{room_id}/geometries", tags=["geometries"])
 async def list_geometries(
     session: SessionDep,
     redis: RedisDep,
-    _current_user: OptionalUserDep,
-    room_id: str,
+    access: AccessReadDep,
 ) -> GeometriesResponse:
     """List all geometries in a room.
 
     Merges SQL geometries with Redis session cameras.
     """
-    await verify_room(session, room_id)
-
+    room_id = access.room.id
     # SQL geometries
     result = await session.exec(
         select(RoomGeometry).where(RoomGeometry.room_id == room_id)
@@ -126,13 +126,11 @@ async def list_geometries(
 )
 async def get_geometry_selection(
     session: SessionDep,
-    _current_user: OptionalUserDep,
-    room_id: str,
+    access: AccessReadDep,
     key: str,
 ) -> GeometrySelectionResponse:
     """Get selection for a specific geometry."""
-    await verify_room(session, room_id)
-    row = await session.get(RoomGeometry, (room_id, key))
+    row = await session.get(RoomGeometry, (access.room.id, key))
     if row is None:
         raise GeometryNotFound.exception(f"Geometry '{key}' not found")
     indices = json.loads(row.selection) if row.selection else []
@@ -146,13 +144,11 @@ async def get_geometry_selection(
 async def get_geometry(
     session: SessionDep,
     redis: RedisDep,
-    _current_user: OptionalUserDep,
-    room_id: str,
+    access: AccessReadDep,
     key: str,
 ) -> GeometryResponse:
     """Get a single geometry by key."""
-    await verify_room(session, room_id)
-
+    room_id = access.room.id
     # Try Redis hash first (session cameras), then SQL
     hash_key = RedisKey.room_cameras(room_id)
     raw = await redis.hget(hash_key, key)  # type: ignore[misc]
@@ -178,8 +174,7 @@ async def get_geometry(
 async def update_geometry_selection(
     session: SessionDep,
     sio: SioDep,
-    _room: WritableGeometryDep,
-    room_id: str,
+    geo: WritableGeometryDep,
     key: str,
     request: SelectionUpdateRequest,
 ) -> StatusResponse:
@@ -187,6 +182,7 @@ async def update_geometry_selection(
 
     Updates only the selection column — no read-modify-write of config.
     """
+    room_id = geo.room.id
     row = await session.get(RoomGeometry, (room_id, key))
     if row is None:
         raise GeometryNotFound.exception(f"Geometry '{key}' not found")
@@ -194,7 +190,11 @@ async def update_geometry_selection(
     row.selection = json.dumps(request.indices)
     await session.commit()
 
-    await sio.emit(SelectionInvalidate(room_id=room_id), room=room_channel(room_id))
+    await broadcast_to_room(
+        sio,
+        SelectionInvalidate.for_room(geo.room),
+        geo.room,
+    )
     return StatusResponse()
 
 
@@ -207,8 +207,7 @@ async def upsert_geometry(
     redis: RedisDep,
     sio: SioDep,
     current_user: CurrentUserDep,
-    _geo_info: WritableGeometryDep,
-    room_id: str,
+    geo_info: WritableGeometryDep,
     key: str,
     request: GeometryCreateRequest,
 ) -> StatusResponse:
@@ -217,6 +216,7 @@ async def upsert_geometry(
     Ownership is enforced via DI (WritableGeometryDep); the new_owner
     payload check prevents non-superusers from claiming for others.
     """
+    room_id = geo_info.room.id
     new_owner = request.data.get("owner")
     if (
         new_owner is not None
@@ -257,9 +257,10 @@ async def upsert_geometry(
             row.config = config_json
         await session.commit()
 
-    await sio.emit(
-        GeometryInvalidate(room_id=room_id, operation="set", key=key),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        GeometryInvalidate.for_room(geo_info.room, operation="set", key=key),
+        geo_info.room,
     )
 
     return StatusResponse()
@@ -276,8 +277,7 @@ async def patch_geometry(
     redis: RedisDep,
     sio: SioDep,
     _current_user: CurrentUserDep,
-    _geo_info: WritableGeometryDep,
-    room_id: str,
+    geo_info: WritableGeometryDep,
     key: str,
     request: GeometryPatchRequest,
 ) -> StatusResponse:
@@ -286,6 +286,7 @@ async def patch_geometry(
     Merges ``request.data`` into the existing config without replacing
     unmentioned fields.  Unlike PUT, does not require ``type``.
     """
+    room_id = geo_info.room.id
     # Try Redis hash first (session cameras), then SQL
     hash_key = RedisKey.room_cameras(room_id)
     raw = await redis.hget(hash_key, key)  # type: ignore[misc]
@@ -311,9 +312,10 @@ async def patch_geometry(
             row.config = json.dumps(merged)
         await session.commit()
 
-    await sio.emit(
-        GeometryInvalidate(room_id=room_id, operation="set", key=key),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        GeometryInvalidate.for_room(geo_info.room, operation="set", key=key),
+        geo_info.room,
     )
 
     return StatusResponse()
@@ -327,11 +329,11 @@ async def delete_geometry(
     session: SessionDep,
     redis: RedisDep,
     sio: SioDep,
-    _room: WritableGeometryDep,
-    room_id: str,
+    geo: WritableGeometryDep,
     key: str,
 ) -> StatusResponse:
     """Delete a geometry."""
+    room_id = geo.room.id
     # Reject deletion if any session is attached to this camera
     all_active: dict = await redis.hgetall(RedisKey.active_cameras(room_id))  # type: ignore[misc]
     for attached_key in all_active.values():
@@ -349,19 +351,21 @@ async def delete_geometry(
             await session.commit()
 
     # Clear default camera if this geometry was the default
-    room = await session.get(Room, room_id)
-    if room is not None and room.default_camera == key:
+    room = geo.room
+    if room.default_camera == key:
         room.default_camera = None
         session.add(room)
         await session.commit()
-        await sio.emit(
-            DefaultCameraInvalidate(room_id=room_id, default_camera=None),
-            room=room_channel(room_id),
+        await broadcast_to_room(
+            sio,
+            DefaultCameraInvalidate.for_room(room, default_camera=None),
+            room,
         )
 
-    await sio.emit(
-        GeometryInvalidate(room_id=room_id, operation="delete", key=key),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        GeometryInvalidate.for_room(room, operation="delete", key=key),
+        room,
     )
 
     return StatusResponse()
@@ -371,7 +375,9 @@ async def delete_geometry(
 # Default Camera
 # =============================================================================
 
-default_camera_router = APIRouter(prefix="/v1/rooms/{room_id}", tags=["geometries"])
+default_camera_router = APIRouter(
+    prefix="/v1/rooms/{owner_id}/{room_name}", tags=["geometries"]
+)
 
 
 @default_camera_router.get(
@@ -379,13 +385,10 @@ default_camera_router = APIRouter(prefix="/v1/rooms/{room_id}", tags=["geometrie
     responses=problem_responses(RoomNotFound),
 )
 async def get_default_camera(
-    session: SessionDep,
-    _user: OptionalUserDep,
-    room_id: str,
+    access: AccessReadDep,
 ) -> DefaultCameraResponse:
     """Get the default camera geometry key for a room."""
-    room = await verify_room(session, room_id)
-    return DefaultCameraResponse(default_camera=room.default_camera)
+    return DefaultCameraResponse(default_camera=access.room.default_camera)
 
 
 @default_camera_router.put(
@@ -397,12 +400,12 @@ async def get_default_camera(
 async def set_default_camera(
     session: SessionDep,
     sio: SioDep,
-    _user: CurrentUserDep,
-    room_id: str,
+    access: AccessEditDep,
     body: DefaultCameraRequest,
 ) -> DefaultCameraResponse:
     """Set or unset the default camera for a room."""
-    room = await verify_room(session, room_id)
+    room = access.room
+    room_id = room.id
 
     if body.default_camera is not None:
         row = await session.get(RoomGeometry, (room_id, body.default_camera))
@@ -419,9 +422,10 @@ async def set_default_camera(
     session.add(room)
     await session.commit()
 
-    await sio.emit(
-        DefaultCameraInvalidate(room_id=room_id, default_camera=room.default_camera),
-        room=room_channel(room_id),
+    await broadcast_to_room(
+        sio,
+        DefaultCameraInvalidate.for_room(room, default_camera=room.default_camera),
+        room,
     )
 
     return DefaultCameraResponse(default_camera=room.default_camera)

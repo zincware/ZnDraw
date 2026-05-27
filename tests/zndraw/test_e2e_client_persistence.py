@@ -3,8 +3,6 @@
 Uses a real uvicorn server via the server_factory fixture.
 """
 
-import uuid
-
 import ase
 import numpy as np
 
@@ -24,10 +22,9 @@ def test_frames_persist_after_disconnect(server: str):
     A second client connecting to the same room should see the frames
     that were written before the first client disconnected.
     """
-    room_id = uuid.uuid4().hex
-
     # First client: write frames then disconnect
-    client_a = ZnDraw(url=server, room=room_id)
+    client_a = ZnDraw(url=server)
+    room_id = client_a.room
     client_a.extend([_make_atoms(float(i)) for i in range(3)])
     client_a.disconnect()
 
@@ -42,9 +39,8 @@ def test_frames_persist_after_disconnect(server: str):
 
 def test_step_persists_after_disconnect(server: str):
     """Step value set by a client survives after it disconnects."""
-    room_id = uuid.uuid4().hex
-
-    client_a = ZnDraw(url=server, room=room_id)
+    client_a = ZnDraw(url=server)
+    room_id = client_a.room
     client_a.extend([_make_atoms(float(i)) for i in range(5)])
     client_a.step = 4
     client_a.disconnect()
@@ -56,10 +52,9 @@ def test_step_persists_after_disconnect(server: str):
 
 def test_multiple_reconnect_cycles(server: str):
     """Data remains consistent across multiple disconnect/reconnect cycles."""
-    room_id = uuid.uuid4().hex
-
     # First write
-    c1 = ZnDraw(url=server, room=room_id)
+    c1 = ZnDraw(url=server)
+    room_id = c1.room
     c1.append(_make_atoms(10.0))
     c1.disconnect()
 
@@ -81,14 +76,9 @@ def test_guest_token_reconnect(server: str):
     """Client reconnects with a fresh guest token and still sees the room data."""
     import httpx
 
-    room_id = uuid.uuid4().hex
-
-    # Write with first guest token
-    token_resp = httpx.post(f"{server}/v1/auth/guest", timeout=10.0)
-    assert token_resp.status_code == 200
-    token_a = token_resp.json()["access_token"]
-
-    c1 = ZnDraw(url=server, room=room_id, token=token_a)
+    # Write with first guest token — use auto-generated composed room
+    c1 = ZnDraw(url=server)
+    room_id = c1.room
     c1.append(_make_atoms(42.0))
     c1.disconnect()
 

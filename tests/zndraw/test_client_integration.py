@@ -65,7 +65,10 @@ class TestConstructorAPI:
 
     def test_room_parameter(self, server: str):
         """The 'room' parameter sets the room ID."""
-        room_id = uuid.uuid4().hex
+        # Auto-generate a valid composed room, then re-connect using its address
+        seed = ZnDraw(url=server)
+        room_id = seed.room
+        seed.disconnect()
         client = ZnDraw(url=server, room=room_id)
         assert client.room == room_id
         client.disconnect()
@@ -161,16 +164,14 @@ class TestClientConnection:
 
     def test_socket_not_connected_after_init(self, server: str):
         """Socket is lazy — not connected after construction."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         assert not client.connected
         client.disconnect()
 
     def test_connect_and_disconnect(self, server: str):
         """Client can explicitly connect and disconnect socket."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         assert not client.connected
         client.connect()
@@ -180,15 +181,12 @@ class TestClientConnection:
 
     def test_context_manager(self, server: str):
         """Context manager does not auto-connect socket."""
-        room_id = uuid.uuid4().hex
-
-        with ZnDraw(url=server, room=room_id) as client:
+        with ZnDraw(url=server) as client:
             assert not client.connected
 
     def test_auto_creates_room(self, server: str):
         """Client creates room automatically if it doesn't exist."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         # Room should exist and be empty
         assert len(client) == 0
@@ -200,16 +198,14 @@ class TestFrameOperations:
 
     def test_len_empty_room(self, server: str):
         """Empty room has 0 frames."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         assert len(client) == 0
         client.disconnect()
 
     def test_append_and_get_frame(self, server: str):
         """Can append and retrieve ase.Atoms frames."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         for i in range(5):
             atoms = make_atoms([[i, 0, 0], [i, 1, 0]])
@@ -226,8 +222,7 @@ class TestFrameOperations:
 
     def test_delete_frame(self, server: str):
         """Can delete frames."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         # Add frames
         for i in range(5):
@@ -248,8 +243,7 @@ class TestFrameOperations:
 
     def test_update_frame(self, server: str):
         """Can update existing frames."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         # Add frames
         for i in range(3):
@@ -269,8 +263,7 @@ class TestFrameOperations:
 
     def test_extend_frames(self, server: str):
         """Can extend with multiple frames at once."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         # Add initial frames
         for i in range(2):
@@ -295,8 +288,7 @@ class TestFrameOperations:
 
     def test_extend_generator(self, server: str):
         """extend() accepts a generator (not just lists)."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         def frame_gen():
             for i in range(5):
@@ -309,8 +301,7 @@ class TestFrameOperations:
 
     def test_extend_empty(self, server: str):
         """extend() with empty iterable is a no-op."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         client.append(make_atoms([[0, 0, 0]]))
         client.extend([])
@@ -324,8 +315,7 @@ class TestFrameSlicing:
 
     def test_get_slice(self, server: str):
         """Can get frames using slice notation."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         # Add frames
         for i in range(10):
@@ -345,8 +335,7 @@ class TestFrameSlicing:
 
     def test_get_slice_with_step(self, server: str):
         """Can get frames with step in slice."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         for i in range(10):
             atoms = make_atoms([[i, 0, 0]])
@@ -362,8 +351,7 @@ class TestFrameSlicing:
 
     def test_negative_index(self, server: str):
         """Negative indices work correctly."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         for i in range(5):
             atoms = make_atoms([[i, 0, 0]])
@@ -381,8 +369,7 @@ class TestGetMethod:
 
     def test_get_single_frame(self, server: str):
         """get() returns single frame as dict."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         atoms = make_water()
         atoms.info["custom_key"] = "custom_value"
@@ -398,8 +385,7 @@ class TestGetMethod:
 
     def test_get_with_key_filter(self, server: str):
         """get() with keys parameter returns only specified keys."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         atoms = make_water()
         client.append(atoms)
@@ -415,8 +401,7 @@ class TestGetMethod:
 
     def test_get_list_indices(self, server: str):
         """get() with list of indices returns multiple frames."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         for i in range(10):
             atoms = make_atoms([[i, 0, 0]])
@@ -431,8 +416,7 @@ class TestGetMethod:
 
     def test_get_slice(self, server: str):
         """get() with slice returns multiple frames."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         for i in range(10):
             atoms = make_atoms([[i, 0, 0]])
@@ -450,8 +434,7 @@ class TestSetFrames:
 
     def test_set_frames_single(self, server: str):
         """set_frames() with single index."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         atoms = make_atoms([[0, 0, 0]])
         atoms.info["value"] = 0
@@ -466,8 +449,7 @@ class TestSetFrames:
 
     def test_set_frames_slice(self, server: str):
         """set_frames() with slice."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         for i in range(5):
             atoms = make_atoms([[i, 0, 0]])
@@ -489,8 +471,7 @@ class TestSetFrames:
 
     def test_set_frames_list_indices(self, server: str):
         """set_frames() with list of indices."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         for i in range(5):
             atoms = make_atoms([[i, 0, 0]])
@@ -518,8 +499,7 @@ class TestMutableSequenceInterface:
 
     def test_sequence_operations(self, server: str):
         """Basic sequence operations work correctly."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         # len() on empty
         assert len(client) == 0
@@ -562,8 +542,7 @@ class TestLocking:
 
     def test_lock_context_manager(self, server: str):
         """Lock can be acquired and released via context manager."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         with client.get_lock(msg="Test lock"):
             # Lock is held
@@ -578,8 +557,7 @@ class TestBookmarks:
 
     def test_set_and_get_bookmark(self, server: str):
         """Can set and get bookmarks."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         # Add a frame first
         client.append(make_water())
@@ -594,8 +572,7 @@ class TestBookmarks:
 
     def test_delete_bookmark(self, server: str):
         """Can delete bookmarks."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         client.append(make_water())
         client.bookmarks[0] = "Test Bookmark"
@@ -610,8 +587,7 @@ class TestBookmarks:
 
     def test_delete_nonexistent_bookmark_raises_key_error(self, server: str):
         """Deleting a non-existent bookmark raises KeyError."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         with pytest.raises(KeyError):
             del client.bookmarks[999]
@@ -626,8 +602,7 @@ class TestGeometries:
         """Can set and get geometries."""
         from zndraw.geometries import Sphere
 
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         client.geometries["my_sphere"] = Sphere(radius=[1.0])
 
@@ -640,8 +615,7 @@ class TestGeometries:
         """Can delete geometries."""
         from zndraw.geometries import Sphere
 
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         client.geometries["temp"] = Sphere()
         del client.geometries["temp"]
@@ -659,8 +633,7 @@ class TestFigures:
         """MutableMapping: set, get, delete, iterate, keys, len with go.Figure."""
         import plotly.graph_objects as go
 
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         fig1 = go.Figure(data=[go.Scatter(x=[1, 2], y=[3, 4])])
         fig2 = go.Figure(data=[go.Bar(x=["a", "b"], y=[10, 20])])
@@ -692,8 +665,8 @@ class TestFigures:
         """Two clients in same room see the same figures via REST."""
         import plotly.graph_objects as go
 
-        room_id = uuid.uuid4().hex
-        client1 = ZnDraw(url=server, room=room_id)
+        client1 = ZnDraw(url=server)
+        room_id = client1.room
         client2 = ZnDraw(url=server, room=room_id)
 
         fig1 = go.Figure(data=[go.Scatter(x=[1], y=[2])])
@@ -723,8 +696,7 @@ class TestFigures:
 
     def test_figures_get_nonexistent_raises_key_error(self, server: str):
         """Getting a non-existent figure raises KeyError."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         with pytest.raises(KeyError):
             _ = client.figures["nonexistent"]
@@ -733,8 +705,7 @@ class TestFigures:
 
     def test_figures_delete_nonexistent_raises_key_error(self, server: str):
         """Deleting a non-existent figure raises KeyError (MutableMapping contract)."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         with pytest.raises(KeyError):
             del client.figures["nonexistent"]
@@ -747,8 +718,7 @@ class TestSelectionGroups:
 
     def test_selection_groups_crud(self, server: str):
         """MutableMapping: set, get, delete, iterate, keys, len."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         client.selection_groups["grp1"] = {"sphere": [1, 2], "cube": [3]}
         client.selection_groups["grp2"] = {"sphere": [4, 5]}
@@ -764,8 +734,7 @@ class TestSelectionGroups:
 
     def test_selection_groups_get_nonexistent_raises_key_error(self, server: str):
         """Getting a non-existent selection group raises KeyError."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         with pytest.raises(KeyError):
             _ = client.selection_groups["nonexistent"]
@@ -774,8 +743,7 @@ class TestSelectionGroups:
 
     def test_selection_groups_delete_nonexistent_raises_key_error(self, server: str):
         """Deleting a non-existent selection group raises KeyError."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         with pytest.raises(KeyError):
             del client.selection_groups["nonexistent"]
@@ -788,8 +756,7 @@ class TestSelections:
 
     def test_set_and_get_selection(self, server: str):
         """Can set and get selections."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         # Add a frame with multiple atoms
         atoms = ase.Atoms(
@@ -813,8 +780,7 @@ class TestFrameSelection:
 
     def test_initially_empty(self, server: str):
         """Frame selection is empty tuple for a new room."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         assert client.frame_selection == ()
 
@@ -822,8 +788,7 @@ class TestFrameSelection:
 
     def test_set_and_get(self, server: str):
         """Can set and get frame selection."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         for i in range(5):
             client.append(make_atoms([[i, 0, 0]]))
@@ -835,8 +800,7 @@ class TestFrameSelection:
 
     def test_clear(self, server: str):
         """Setting to None clears selection."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         client.append(make_atoms([[0, 0, 0]]))
         client.frame_selection = [0]
@@ -853,8 +817,7 @@ class TestStep:
 
     def test_step_property(self, server: str):
         """Can get and set step."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         # Add frames
         for i in range(5):
@@ -873,8 +836,7 @@ class TestStep:
 
     def test_step_out_of_bounds(self, server: str):
         """Setting step out of bounds raises ValueError."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         for i in range(3):
             client.append(make_atoms([[i, 0, 0]]))
@@ -886,8 +848,7 @@ class TestStep:
 
     def test_step_negative(self, server: str):
         """Negative step resolves from the end."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         for i in range(5):
             client.append(make_atoms([[i, 0, 0]]))
@@ -902,8 +863,7 @@ class TestStep:
 
     def test_step_negative_out_of_bounds(self, server: str):
         """Negative step beyond length raises ValueError."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         for i in range(3):
             client.append(make_atoms([[i, 0, 0]]))
@@ -919,8 +879,7 @@ class TestAtomsProperty:
 
     def test_atoms_getter(self, server: str):
         """atoms property returns current frame."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         water = make_water()
         client.append(water)
@@ -934,8 +893,7 @@ class TestAtomsProperty:
 
     def test_atoms_setter(self, server: str):
         """atoms property can set current frame."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         # Add initial frame
         client.append(make_atoms([[0, 0, 0]]))
@@ -956,8 +914,7 @@ class TestTypeErrors:
 
     def test_append_requires_atoms(self, server: str):
         """append() raises TypeError for non-Atoms."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         with pytest.raises(TypeError):
             client.append({"not": "atoms"})  # type: ignore[arg-type]
@@ -966,8 +923,7 @@ class TestTypeErrors:
 
     def test_extend_requires_atoms_list(self, server: str):
         """extend() raises TypeError for non-Atoms."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         with pytest.raises(TypeError):
             client.extend([{"not": "atoms"}])  # type: ignore[arg-type]
@@ -976,8 +932,7 @@ class TestTypeErrors:
 
     def test_setitem_requires_atoms(self, server: str):
         """__setitem__ raises TypeError for non-Atoms."""
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         client.append(make_atoms([[0, 0, 0]]))
 
@@ -994,8 +949,7 @@ class TestJobManager:
         """ZnDraw.jobs returns a JobManager instance."""
         from zndraw_joblib.client import JobManager
 
-        room_id = uuid.uuid4().hex
-        client = ZnDraw(url=server, room=room_id)
+        client = ZnDraw(url=server)
 
         assert isinstance(client.jobs, JobManager)
         client.disconnect()

@@ -40,13 +40,13 @@ def mount_cmd(
     # materialise streaming iterators into a list.
     db = list(source) if isinstance(source, Iterator) else source
 
-    vis = ZnDraw(url=conn.base_url, room=room, token=conn.token)
+    vis = ZnDraw(url=conn.base_url, room=room or "", token=conn.token)
     vis.mount(db)
 
     json_print(
         {
             "room_id": vis.room,
-            "url": f"{conn.base_url}/room/{vis.room}",
+            "url": f"{conn.base_url}/rooms/{vis.room}",
             "frame_count": len(db),
         }
     )

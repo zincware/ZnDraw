@@ -64,7 +64,7 @@ async def test_list_geometries_returns_empty_initially(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/geometries",
+        f"/v1/rooms/{room.public_address}/geometries",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -86,7 +86,7 @@ async def test_list_geometries_returns_all_geometries(
     await _add_geometry(session, room.id, "box1", "Box", {"width": 2.0})
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/geometries",
+        f"/v1/rooms/{room.public_address}/geometries",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -109,7 +109,7 @@ async def test_list_geometries_includes_type_schemas(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/geometries",
+        f"/v1/rooms/{room.public_address}/geometries",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -133,7 +133,7 @@ async def test_list_geometries_includes_owner(
     await _add_geometry(session, room.id, "shared", "Box", {})
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/geometries",
+        f"/v1/rooms/{room.public_address}/geometries",
         headers=auth_header(token),
     )
     result = GeometriesResponse.model_validate(response.json())
@@ -160,7 +160,7 @@ async def test_get_geometry_returns_geometry(
     )
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/geometries/mysphere",
+        f"/v1/rooms/{room.public_address}/geometries/mysphere",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -182,7 +182,7 @@ async def test_get_geometry_returns_404_for_nonexistent(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/geometries/nonexistent",
+        f"/v1/rooms/{room.public_address}/geometries/nonexistent",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -204,7 +204,7 @@ async def test_upsert_geometry_creates_new(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/geometries/mysphere",
+        f"/v1/rooms/{room.public_address}/geometries/mysphere",
         json={"type": "Sphere", "data": {"radius": [2.0]}},
         headers=auth_header(token),
     )
@@ -227,7 +227,7 @@ async def test_upsert_geometry_validates_via_pydantic(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/geometries/particles",
+        f"/v1/rooms/{room.public_address}/geometries/particles",
         json={
             "type": "Sphere",
             "data": {"active": True, "radius": "arrays.radii"},
@@ -255,7 +255,7 @@ async def test_upsert_geometry_broadcasts_set_operation(
     room = await create_test_room(session, user)
 
     await client.put(
-        f"/v1/rooms/{room.id}/geometries/testkey",
+        f"/v1/rooms/{room.public_address}/geometries/testkey",
         json={"type": "Sphere", "data": {}},
         headers=auth_header(token),
     )
@@ -266,7 +266,8 @@ async def test_upsert_geometry_broadcasts_set_operation(
     model = GeometryInvalidate.model_validate(emitted["data"])
     assert model.operation == "set"
     assert model.key == "testkey"
-    assert model.room_id == room.id
+    assert str(model.room_id) == room.id
+    assert model.room_address == room.public_address
 
 
 @pytest.mark.asyncio
@@ -281,7 +282,7 @@ async def test_upsert_geometry_updates_existing(
     await _add_geometry(session, room.id, "sphere", "Sphere", {"radius": [1.0]})
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/geometries/sphere",
+        f"/v1/rooms/{room.public_address}/geometries/sphere",
         json={"type": "Sphere", "data": {"radius": [5.0]}},
         headers=auth_header(token),
     )
@@ -304,7 +305,7 @@ async def test_upsert_geometry_rejects_invalid_data(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/geometries/bad",
+        f"/v1/rooms/{room.public_address}/geometries/bad",
         json={"type": "Sphere", "data": {"resolution": -999}},
         headers=auth_header(token),
     )
@@ -328,7 +329,7 @@ async def test_delete_geometry_returns_204(
     await _add_geometry(session, room.id, "to_delete", "Sphere", {})
 
     response = await client.delete(
-        f"/v1/rooms/{room.id}/geometries/to_delete",
+        f"/v1/rooms/{room.public_address}/geometries/to_delete",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -352,7 +353,7 @@ async def test_delete_geometry_broadcasts_delete_operation(
     await _add_geometry(session, room.id, "deletekey", "Sphere", {})
 
     await client.delete(
-        f"/v1/rooms/{room.id}/geometries/deletekey",
+        f"/v1/rooms/{room.public_address}/geometries/deletekey",
         headers=auth_header(token),
     )
 
@@ -362,7 +363,8 @@ async def test_delete_geometry_broadcasts_delete_operation(
     model = GeometryInvalidate.model_validate(emitted["data"])
     assert model.operation == "delete"
     assert model.key == "deletekey"
-    assert model.room_id == room.id
+    assert str(model.room_id) == room.id
+    assert model.room_address == room.public_address
 
 
 @pytest.mark.asyncio
@@ -375,7 +377,7 @@ async def test_delete_nonexistent_geometry_succeeds(
     room = await create_test_room(session, user)
 
     response = await client.delete(
-        f"/v1/rooms/{room.id}/geometries/nonexistent",
+        f"/v1/rooms/{room.public_address}/geometries/nonexistent",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -399,7 +401,7 @@ async def test_delete_rejects_active_camera(
     await redis_client.hset(f"room:{room.id}:active-cameras", "some-sid", cam_key)
 
     response = await client.delete(
-        f"/v1/rooms/{room.id}/geometries/{cam_key}",
+        f"/v1/rooms/{room.public_address}/geometries/{cam_key}",
         headers=auth_header(token),
     )
     assert response.status_code == 403
@@ -423,7 +425,7 @@ async def test_update_selection_sets_indices(
     await _add_geometry(session, room.id, "particles", "Sphere", {})
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/geometries/particles/selection",
+        f"/v1/rooms/{room.public_address}/geometries/particles/selection",
         json={"indices": [0, 2, 5]},
         headers=auth_header(token),
     )
@@ -450,7 +452,7 @@ async def test_update_selection_broadcasts(
     await _add_geometry(session, room.id, "particles", "Sphere", {})
 
     await client.put(
-        f"/v1/rooms/{room.id}/geometries/particles/selection",
+        f"/v1/rooms/{room.public_address}/geometries/particles/selection",
         json={"indices": [1]},
         headers=auth_header(token),
     )
@@ -472,7 +474,7 @@ async def test_update_selection_returns_404_for_nonexistent(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/geometries/nonexistent/selection",
+        f"/v1/rooms/{room.public_address}/geometries/nonexistent/selection",
         json={"indices": [0]},
         headers=auth_header(token),
     )
@@ -497,7 +499,7 @@ async def test_get_selection_returns_indices(
     await _add_geometry(session, room.id, "sphere", "Sphere", {}, selection=[1, 2, 3])
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/geometries/sphere/selection",
+        f"/v1/rooms/{room.public_address}/geometries/sphere/selection",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -519,7 +521,7 @@ async def test_get_selection_returns_empty_for_no_selection(
     await _add_geometry(session, room.id, "sphere", "Sphere", {})
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/geometries/sphere/selection",
+        f"/v1/rooms/{room.public_address}/geometries/sphere/selection",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -539,7 +541,7 @@ async def test_get_selection_returns_404_for_nonexistent(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/geometries/nonexistent/selection",
+        f"/v1/rooms/{room.public_address}/geometries/nonexistent/selection",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -564,7 +566,7 @@ async def test_list_geometries_includes_selection(
     await _add_geometry(session, room.id, "box", "Box", {})
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/geometries",
+        f"/v1/rooms/{room.public_address}/geometries",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -580,34 +582,6 @@ async def test_list_geometries_includes_selection(
 
 
 @pytest.mark.asyncio
-async def test_list_geometries_public(
-    client: AsyncClient,
-    session: AsyncSession,
-) -> None:
-    """Test GET without auth succeeds (public endpoint)."""
-    user, _ = await create_test_user_in_db(session)
-    room = await create_test_room(session, user)
-
-    response = await client.get(f"/v1/rooms/{room.id}/geometries")
-    assert response.status_code == 200
-
-
-@pytest.mark.asyncio
-async def test_get_geometry_public(
-    client: AsyncClient,
-    session: AsyncSession,
-) -> None:
-    """Test GET single geometry without auth succeeds (public endpoint)."""
-    user, _ = await create_test_user_in_db(session)
-    room = await create_test_room(session, user)
-
-    await _add_geometry(session, room.id, "somekey", "Sphere", {"radius": [1.0]})
-
-    response = await client.get(f"/v1/rooms/{room.id}/geometries/somekey")
-    assert response.status_code == 200
-
-
-@pytest.mark.asyncio
 async def test_upsert_geometry_requires_auth(
     client: AsyncClient, session: AsyncSession
 ) -> None:
@@ -616,7 +590,7 @@ async def test_upsert_geometry_requires_auth(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/geometries/test",
+        f"/v1/rooms/{room.public_address}/geometries/test",
         json={"type": "Sphere", "data": {}},
     )
     assert response.status_code == 401
@@ -630,7 +604,9 @@ async def test_delete_geometry_requires_auth(
     user, _ = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    response = await client.delete(f"/v1/rooms/{room.id}/geometries/somekey")
+    response = await client.delete(
+        f"/v1/rooms/{room.public_address}/geometries/somekey"
+    )
     assert response.status_code == 401
 
 
@@ -643,7 +619,7 @@ async def test_update_selection_requires_auth(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/geometries/particles/selection",
+        f"/v1/rooms/{room.public_address}/geometries/particles/selection",
         json={"indices": [0]},
     )
     assert response.status_code == 401
@@ -658,11 +634,31 @@ async def test_update_selection_requires_auth(
 @pytest.mark.parametrize(
     ("method", "path", "body"),
     [
-        ("GET", "/v1/rooms/99999/geometries", None),
-        ("GET", "/v1/rooms/99999/geometries/somekey", None),
-        ("PUT", "/v1/rooms/99999/geometries/test", {"type": "Sphere", "data": {}}),
-        ("DELETE", "/v1/rooms/99999/geometries/somekey", None),
-        ("PUT", "/v1/rooms/99999/geometries/particles/selection", {"indices": [0]}),
+        (
+            "GET",
+            "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries",
+            None,
+        ),
+        (
+            "GET",
+            "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries/somekey",
+            None,
+        ),
+        (
+            "PUT",
+            "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries/test",
+            {"type": "Sphere", "data": {}},
+        ),
+        (
+            "DELETE",
+            "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries/somekey",
+            None,
+        ),
+        (
+            "PUT",
+            "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/geometries/particles/selection",
+            {"indices": [0]},
+        ),
     ],
     ids=["list", "get", "upsert", "delete", "update_selection"],
 )
@@ -703,7 +699,7 @@ async def test_upsert_rejects_non_owner(
     )
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/geometries/owned_sphere",
+        f"/v1/rooms/{room.public_address}/geometries/owned_sphere",
         json={"type": "Sphere", "data": {"radius": [99.0]}},
         headers=auth_header(other_token),
     )
@@ -729,7 +725,7 @@ async def test_upsert_allows_owner(
     )
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/geometries/owned_sphere",
+        f"/v1/rooms/{room.public_address}/geometries/owned_sphere",
         json={"type": "Sphere", "data": {"radius": [5.0]}},
         headers=auth_header(token),
     )
@@ -749,7 +745,7 @@ async def test_upsert_allows_unowned(
     await _add_geometry(session, room.id, "shared_sphere", "Sphere", {"radius": [1.0]})
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/geometries/shared_sphere",
+        f"/v1/rooms/{room.public_address}/geometries/shared_sphere",
         json={"type": "Sphere", "data": {"radius": [5.0]}},
         headers=auth_header(token_b),
     )
@@ -778,7 +774,7 @@ async def test_delete_rejects_non_owner(
     )
 
     response = await client.delete(
-        f"/v1/rooms/{room.id}/geometries/owned_sphere",
+        f"/v1/rooms/{room.public_address}/geometries/owned_sphere",
         headers=auth_header(other_token),
     )
     assert response.status_code == 403
@@ -806,7 +802,7 @@ async def test_selection_update_rejects_non_owner(
     )
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/geometries/owned_sphere/selection",
+        f"/v1/rooms/{room.public_address}/geometries/owned_sphere/selection",
         json={"indices": [0, 1]},
         headers=auth_header(other_token),
     )

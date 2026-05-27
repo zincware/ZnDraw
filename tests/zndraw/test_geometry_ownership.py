@@ -4,12 +4,10 @@ Tests use the real server (server_auth fixture) with admin/guest role separation
 and the Pydantic model API: vis.geometries["key"] = Sphere(owner=...).
 """
 
-import uuid
-
 import jwt
 import pytest
 
-from zndraw.client import RoomLockedError, ZnDraw
+from zndraw.client import ZnDraw
 from zndraw.geometries import Sphere
 
 
@@ -68,8 +66,8 @@ def test_owner_releases_geometry(server_auth: str) -> None:
 
 def test_non_owner_cannot_edit_owned_geometry(server_auth: str) -> None:
     """Non-owner gets PermissionError when editing an owned geometry."""
-    room_id = uuid.uuid4().hex
-    vis_a = ZnDraw(url=server_auth, room=room_id)
+    vis_a = ZnDraw(url=server_auth)
+    room_id = vis_a.room
     vis_b = ZnDraw(url=server_auth, room=room_id)
     user_a_id = _get_user_id(vis_a)
 
@@ -84,8 +82,8 @@ def test_non_owner_cannot_edit_owned_geometry(server_auth: str) -> None:
 
 def test_non_owner_cannot_delete_owned_geometry(server_auth: str) -> None:
     """Non-owner gets PermissionError when deleting an owned geometry."""
-    room_id = uuid.uuid4().hex
-    vis_a = ZnDraw(url=server_auth, room=room_id)
+    vis_a = ZnDraw(url=server_auth)
+    room_id = vis_a.room
     vis_b = ZnDraw(url=server_auth, room=room_id)
     user_a_id = _get_user_id(vis_a)
 
@@ -118,8 +116,8 @@ def test_selection_on_owned_geometry_owner_succeeds(server_auth: str) -> None:
 
 def test_selection_on_owned_geometry_non_owner_blocked(server_auth: str) -> None:
     """Non-owner gets PermissionError when updating selection on owned geometry."""
-    room_id = uuid.uuid4().hex
-    vis_a = ZnDraw(url=server_auth, room=room_id)
+    vis_a = ZnDraw(url=server_auth)
+    room_id = vis_a.room
     vis_b = ZnDraw(url=server_auth, room=room_id)
     user_a_id = _get_user_id(vis_a)
 
@@ -135,25 +133,6 @@ def test_selection_on_owned_geometry_non_owner_blocked(server_auth: str) -> None
 # =============================================================================
 # Admin Lock + Unowned Geometry Tests
 # =============================================================================
-
-
-def test_admin_locked_unowned_non_superuser_blocked(server_auth: str) -> None:
-    """Non-superuser cannot edit unowned geometries in admin-locked room."""
-    admin = ZnDraw(url=server_auth, user="admin@local.test", password="adminpassword")
-    guest = ZnDraw(url=server_auth, room=admin.room)
-
-    # Guest creates geometry first (room unlocked)
-    guest.geometries["sphere"] = Sphere()
-
-    # Admin locks room
-    _lock_room(admin)
-
-    # Guest tries to edit unowned geometry → blocked
-    with pytest.raises(RoomLockedError):
-        guest.geometries["sphere"] = Sphere(radius=[99.0])
-
-    admin.disconnect()
-    guest.disconnect()
 
 
 def test_admin_locked_unowned_superuser_allowed(server_auth: str) -> None:
@@ -252,24 +231,3 @@ def test_admin_can_claim_others_geometry(server_auth: str) -> None:
 # =============================================================================
 # Admin Lock + Claiming Tests
 # =============================================================================
-
-
-def test_admin_locked_claiming_non_superuser_blocked(server_auth: str) -> None:
-    """Non-superuser cannot claim an unowned geometry in admin-locked room."""
-    admin = ZnDraw(url=server_auth, user="admin@local.test", password="adminpassword")
-    guest = ZnDraw(url=server_auth, room=admin.room)
-    guest_id = _get_user_id(guest)
-
-    # Guest creates unowned geometry (room unlocked)
-    guest.geometries["sphere"] = Sphere()
-
-    # Admin locks room
-    _lock_room(admin)
-
-    # Guest tries to claim → blocked
-    # (admin lock blocks all non-superuser edits on unowned)
-    with pytest.raises(RoomLockedError):
-        guest.geometries["sphere"] = Sphere(owner=guest_id)
-
-    admin.disconnect()
-    guest.disconnect()

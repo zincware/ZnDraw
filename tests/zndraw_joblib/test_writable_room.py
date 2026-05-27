@@ -1,16 +1,23 @@
 # tests/test_writable_room.py
 """Tests for WritableRoomDep — verifies the DI override point and default behavior."""
 
+import uuid
+
+from conftest import make_room_address
 from fastapi import HTTPException, Path
 from starlette.testclient import TestClient
 
 from zndraw_joblib.dependencies import verify_writable_room
 from zndraw_joblib.exceptions import ProblemDetail
 
+_TEST_USER_ID = uuid.UUID("12345678-1234-5678-1234-567812345678")
+LOCKED_ROOM_A = make_room_address(_TEST_USER_ID, "a")
+LOCKED_ROOM_B = make_room_address(_TEST_USER_ID, "b")
+
 
 def _locked_room_override(room_id: str = Path()) -> str:
-    """Dummy DI that rejects room_id 'a' with 423 Locked."""
-    if room_id == "a":
+    """Dummy DI that rejects the composed address for room 'a' with 423 Locked."""
+    if room_id == LOCKED_ROOM_A:
         raise HTTPException(status_code=423, detail="Room is locked")
     return room_id
 
@@ -21,7 +28,7 @@ def test_register_job_blocked_by_writable_room(app):
     locked_client = TestClient(app)
 
     resp = locked_client.put(
-        "/v1/joblib/rooms/a/jobs",
+        f"/v1/joblib/rooms/{LOCKED_ROOM_A}/jobs",
         json={"category": "modifiers", "name": "Rotate", "schema": {}},
     )
     assert resp.status_code == 423
@@ -33,7 +40,7 @@ def test_register_job_allowed_by_writable_room(app):
     allowed_client = TestClient(app)
 
     resp = allowed_client.put(
-        "/v1/joblib/rooms/b/jobs",
+        f"/v1/joblib/rooms/{LOCKED_ROOM_B}/jobs",
         json={"category": "modifiers", "name": "Rotate", "schema": {}},
     )
     assert resp.status_code == 201
@@ -53,7 +60,7 @@ def test_submit_task_blocked_by_writable_room(app, client):
     locked_client = TestClient(app)
 
     resp = locked_client.post(
-        "/v1/joblib/rooms/a/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{LOCKED_ROOM_A}/tasks/@global:modifiers:Rotate",
         json={"payload": {"angle": 90}},
     )
     assert resp.status_code == 423
@@ -71,7 +78,7 @@ def test_submit_task_allowed_by_writable_room(app, client):
     allowed_client = TestClient(app)
 
     resp = allowed_client.post(
-        "/v1/joblib/rooms/b/tasks/@global:modifiers:Rotate",
+        f"/v1/joblib/rooms/{LOCKED_ROOM_B}/tasks/@global:modifiers:Rotate",
         json={"payload": {"angle": 90}},
     )
     assert resp.status_code == 202
@@ -83,11 +90,11 @@ def test_read_endpoints_not_affected_by_writable_room(app):
     locked_client = TestClient(app)
 
     # list_jobs for room "a" should still work (200, not 423)
-    resp = locked_client.get("/v1/joblib/rooms/a/jobs")
+    resp = locked_client.get(f"/v1/joblib/rooms/{LOCKED_ROOM_A}/jobs")
     assert resp.status_code == 200
 
     # list_tasks for room "a" should still work
-    resp = locked_client.get("/v1/joblib/rooms/a/tasks")
+    resp = locked_client.get(f"/v1/joblib/rooms/{LOCKED_ROOM_A}/tasks")
     assert resp.status_code == 200
 
 
@@ -102,7 +109,7 @@ def test_default_rejects_invalid_room_id_on_register(client):
     )
     assert resp.status_code == 400
     error = ProblemDetail.model_validate(resp.json())
-    assert "invalid characters" in error.detail.lower()
+    assert "must be in the composed form" in error.detail.lower()
 
 
 def test_default_rejects_invalid_room_id_on_submit(seeded_client):

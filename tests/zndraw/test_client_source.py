@@ -237,14 +237,17 @@ def test_copy_from_mounted_room_raises(server: str) -> None:
         source = FakeSource([_make_atoms() for _ in range(5)])
         vis.mount(source)
 
-        import uuid
-
         import httpx
 
+        owner_id, _, room_name = vis.room.partition("/")
         response = httpx.post(
             f"{server}/v1/rooms",
             headers={"Authorization": f"Bearer {vis.api.token}"},
-            json={"room_id": str(uuid.uuid4()), "copy_from": vis.room},
+            json={
+                "owner_id": owner_id,
+                "name": f"copy-{room_name[:20]}",
+                "copy_from": vis.room,
+            },
         )
         assert response.status_code == 409
         body = response.json()
@@ -331,8 +334,6 @@ def test_fetched_frame_preserves_existing_radii(server: str) -> None:
 
 def test_copy_from_room_copies_bookmarks(server: str) -> None:
     """Creating a room with copyFrom deep-copies bookmarks."""
-    import uuid
-
     import httpx
 
     vis = ZnDraw(url=server)
@@ -340,13 +341,15 @@ def test_copy_from_room_copies_bookmarks(server: str) -> None:
         vis.append(_make_atoms())
         vis.bookmarks[0] = "start"
 
-        new_room_id = str(uuid.uuid4())
+        owner_id, _, _ = vis.room.partition("/")
+        new_name = f"copy-bm-{owner_id[:8]}"
         response = httpx.post(
             f"{server}/v1/rooms",
             headers={"Authorization": f"Bearer {vis.api.token}"},
-            json={"room_id": new_room_id, "copy_from": vis.room},
+            json={"owner_id": owner_id, "name": new_name, "copy_from": vis.room},
         )
         assert response.status_code == 201
+        new_room_id = response.json()["room_id"]
 
         copy = ZnDraw(url=server, room=new_room_id)
         try:

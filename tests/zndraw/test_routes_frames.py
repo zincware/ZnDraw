@@ -59,7 +59,7 @@ async def test_list_frames_empty_room(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/frames",
+        f"/v1/rooms/{room.public_address}/frames",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -84,7 +84,7 @@ async def test_list_frames_with_data(
         [make_raw_frame({"a": 1}), make_raw_frame({"b": 2}), make_raw_frame({"c": 3})]
     )
     response = await client.get(
-        f"/v1/rooms/{room.id}/frames",
+        f"/v1/rooms/{room.public_address}/frames",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -115,7 +115,7 @@ async def test_list_frames_with_range(
         ]
     )
     response = await client.get(
-        f"/v1/rooms/{room.id}/frames?start=1&stop=3",
+        f"/v1/rooms/{room.public_address}/frames?start=1&stop=3",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -134,7 +134,7 @@ async def test_list_frames_room_not_found(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/99999/frames",
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/frames",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -166,7 +166,7 @@ async def test_list_frames_with_indices(
 
     # Request specific indices
     response = await client.get(
-        f"/v1/rooms/{room.id}/frames?indices=1,3",
+        f"/v1/rooms/{room.public_address}/frames?indices=1,3",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -196,7 +196,7 @@ async def test_list_frames_with_keys_filter(
     )
     # Request only x and z keys
     response = await client.get(
-        f"/v1/rooms/{room.id}/frames?keys=x,z",
+        f"/v1/rooms/{room.public_address}/frames?keys=x,z",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -227,7 +227,7 @@ async def test_list_frames_with_indices_and_keys(
     )
     # Request index 2 with only key 'a'
     response = await client.get(
-        f"/v1/rooms/{room.id}/frames?indices=2&keys=a",
+        f"/v1/rooms/{room.public_address}/frames?indices=2&keys=a",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -257,7 +257,7 @@ async def test_get_frame(
         [make_raw_frame({"a": 1}), make_raw_frame({"b": 2})]
     )
     response = await client.get(
-        f"/v1/rooms/{room.id}/frames/1",
+        f"/v1/rooms/{room.public_address}/frames/1",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -276,7 +276,7 @@ async def test_get_frame_not_found(client: AsyncClient, session: AsyncSession) -
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/frames/99",
+        f"/v1/rooms/{room.public_address}/frames/99",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -293,7 +293,7 @@ async def test_get_frame_room_not_found(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/99999/frames/0",
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/frames/0",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -327,7 +327,7 @@ async def test_get_frame_metadata(
     raw = encode(atoms)
     await frame_storage[room.id].extend([raw])
     response = await client.get(
-        f"/v1/rooms/{room.id}/frames/0/metadata",
+        f"/v1/rooms/{room.public_address}/frames/0/metadata",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -360,7 +360,7 @@ async def test_get_frame_metadata_not_found(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.id}/frames/99/metadata",
+        f"/v1/rooms/{room.public_address}/frames/99/metadata",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -377,7 +377,7 @@ async def test_get_frame_metadata_room_not_found(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/nonexistent-room/frames/0/metadata",
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/frames/0/metadata",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -401,7 +401,7 @@ async def test_append_frames(client: AsyncClient, session: AsyncSession) -> None
     frame_b = _make_json_frame("H2O")
 
     response = await client.post(
-        f"/v1/rooms/{room.id}/frames",
+        f"/v1/rooms/{room.public_address}/frames",
         json={"frames": [frame_a, frame_b]},
         headers=auth_header(token),
     )
@@ -424,7 +424,7 @@ async def test_append_frames_multiple_times(
 
     # First append
     response = await client.post(
-        f"/v1/rooms/{room.id}/frames",
+        f"/v1/rooms/{room.public_address}/frames",
         json={"frames": [_make_json_frame("H2")]},
         headers=auth_header(token),
     )
@@ -436,7 +436,7 @@ async def test_append_frames_multiple_times(
 
     # Second append
     response = await client.post(
-        f"/v1/rooms/{room.id}/frames",
+        f"/v1/rooms/{room.public_address}/frames",
         json={"frames": [_make_json_frame("H2O"), _make_json_frame("CH4")]},
         headers=auth_header(token),
     )
@@ -455,7 +455,7 @@ async def test_append_frames_room_not_found(
     _, token = await create_test_user_in_db(session)
 
     response = await client.post(
-        "/v1/rooms/99999/frames",
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/frames",
         json={"frames": [_make_json_frame("H2")]},
         headers=auth_header(token),
     )
@@ -474,7 +474,7 @@ async def test_append_frames_empty_list_rejected(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.id}/frames",
+        f"/v1/rooms/{room.public_address}/frames",
         json={"frames": []},
         headers=auth_header(token),
     )
@@ -492,7 +492,7 @@ async def test_append_frames_exceeds_max_length(
 
     frame = _make_json_frame("H2")
     response = await client.post(
-        f"/v1/rooms/{room.id}/frames",
+        f"/v1/rooms/{room.public_address}/frames",
         json={"frames": [frame] * 1001},
         headers=auth_header(token),
     )
@@ -521,7 +521,7 @@ async def test_update_frame(
     new_frame = _make_json_frame("He")
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/frames/1",
+        f"/v1/rooms/{room.public_address}/frames/1",
         json={"data": new_frame},
         headers=auth_header(token),
     )
@@ -540,7 +540,7 @@ async def test_update_frame_not_found(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/frames/99",
+        f"/v1/rooms/{room.public_address}/frames/99",
         json={"data": _make_json_frame("H2")},
         headers=auth_header(token),
     )
@@ -569,7 +569,7 @@ async def test_merge_frame(
     # Send PATCH with msgpack body updating key "a" and adding key "c"
     patch_data = msgpack.packb({"a": 99, "c": 3})
     response = await client.patch(
-        f"/v1/rooms/{room.id}/frames/0",
+        f"/v1/rooms/{room.public_address}/frames/0",
         content=patch_data,
         headers={**auth_header(token), "Content-Type": "application/msgpack"},
     )
@@ -599,7 +599,7 @@ async def test_merge_frame_preserves_untouched_keys(
     # Only update "y"
     patch_data = msgpack.packb({"y": 99})
     response = await client.patch(
-        f"/v1/rooms/{room.id}/frames/0",
+        f"/v1/rooms/{room.public_address}/frames/0",
         content=patch_data,
         headers={**auth_header(token), "Content-Type": "application/msgpack"},
     )
@@ -620,7 +620,7 @@ async def test_merge_frame_not_found(
 
     patch_data = msgpack.packb({"a": 1})
     response = await client.patch(
-        f"/v1/rooms/{room.id}/frames/99",
+        f"/v1/rooms/{room.public_address}/frames/99",
         content=patch_data,
         headers={**auth_header(token), "Content-Type": "application/msgpack"},
     )
@@ -639,7 +639,7 @@ async def test_merge_frame_room_not_found(
 
     patch_data = msgpack.packb({"a": 1})
     response = await client.patch(
-        "/v1/rooms/99999/frames/0",
+        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/frames/0",
         content=patch_data,
         headers={**auth_header(token), "Content-Type": "application/msgpack"},
     )
@@ -701,7 +701,7 @@ async def test_merge_frame_preserves_msgpack_str_type(
         use_bin_type=True,
     )
     response = await client.patch(
-        f"/v1/rooms/{room.id}/frames/0",
+        f"/v1/rooms/{room.public_address}/frames/0",
         content=patch_body,
         headers={**auth_header(token), "Content-Type": "application/msgpack"},
     )
@@ -757,7 +757,7 @@ async def test_delete_frame(
         [make_raw_frame({"a": 1}), make_raw_frame({"b": 2}), make_raw_frame({"c": 3})]
     )
     response = await client.delete(
-        f"/v1/rooms/{room.id}/frames/1",
+        f"/v1/rooms/{room.public_address}/frames/1",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -778,7 +778,7 @@ async def test_delete_frame_not_found(
     room = await create_test_room(session, user)
 
     response = await client.delete(
-        f"/v1/rooms/{room.id}/frames/99",
+        f"/v1/rooms/{room.public_address}/frames/99",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -802,12 +802,12 @@ async def test_frames_require_authentication(
 
     # All endpoints should return 401 without auth
     endpoints = [
-        ("GET", f"/v1/rooms/{room.id}/frames"),
-        ("GET", f"/v1/rooms/{room.id}/frames/0"),
-        ("POST", f"/v1/rooms/{room.id}/frames"),
-        ("PUT", f"/v1/rooms/{room.id}/frames/0"),
-        ("PATCH", f"/v1/rooms/{room.id}/frames/0"),
-        ("DELETE", f"/v1/rooms/{room.id}/frames/0"),
+        ("GET", f"/v1/rooms/{room.public_address}/frames"),
+        ("GET", f"/v1/rooms/{room.public_address}/frames/0"),
+        ("POST", f"/v1/rooms/{room.public_address}/frames"),
+        ("PUT", f"/v1/rooms/{room.public_address}/frames/0"),
+        ("PATCH", f"/v1/rooms/{room.public_address}/frames/0"),
+        ("DELETE", f"/v1/rooms/{room.public_address}/frames/0"),
     ]
 
     for method, url in endpoints:
@@ -867,7 +867,7 @@ async def test_append_rejects_frames_without_colors_radii(
     bare_frame = _make_bare_json_frame("H2")
 
     response = await client.post(
-        f"/v1/rooms/{room.id}/frames",
+        f"/v1/rooms/{room.public_address}/frames",
         json={"frames": [bare_frame]},
         headers=auth_header(token),
     )
@@ -893,7 +893,7 @@ async def test_update_rejects_frame_without_colors_radii(
     bare_frame = _make_bare_json_frame("H2")
 
     response = await client.put(
-        f"/v1/rooms/{room.id}/frames/0",
+        f"/v1/rooms/{room.public_address}/frames/0",
         json={"data": bare_frame},
         headers=auth_header(token),
     )
@@ -911,7 +911,7 @@ async def test_append_accepts_enriched_frames(
     enriched_frame = _make_json_frame("H2")
 
     response = await client.post(
-        f"/v1/rooms/{room.id}/frames",
+        f"/v1/rooms/{room.public_address}/frames",
         json={"frames": [enriched_frame]},
         headers=auth_header(token),
     )
@@ -941,7 +941,7 @@ async def test_append_frame_with_nested_info_dict(
 
     # Append
     response = await client.post(
-        f"/v1/rooms/{room.id}/frames",
+        f"/v1/rooms/{room.public_address}/frames",
         json={"frames": [frame]},
         headers=auth_header(token),
     )
@@ -951,7 +951,7 @@ async def test_append_frame_with_nested_info_dict(
 
     # Read back and verify the nested key exists
     response = await client.get(
-        f"/v1/rooms/{room.id}/frames",
+        f"/v1/rooms/{room.public_address}/frames",
         params={"indices": "0"},
         headers=auth_header(token),
     )

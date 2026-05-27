@@ -4,13 +4,12 @@ import json
 
 from fastapi import APIRouter
 
+from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
-    CurrentUserDep,
+    AccessReadDep,
     SessionDep,
     SioDep,
     WritableRoomDep,
-    room_channel,
-    verify_room,
 )
 from zndraw.exceptions import (
     NotAuthenticated,
@@ -29,7 +28,8 @@ from zndraw.schemas import (
 from zndraw.socket_events import SelectionGroupsInvalidate
 
 router = APIRouter(
-    prefix="/v1/rooms/{room_id}/selection-groups", tags=["selection-groups"]
+    prefix="/v1/rooms/{owner_id}/{room_name}/selection-groups",
+    tags=["selection-groups"],
 )
 
 
@@ -39,14 +39,12 @@ router = APIRouter(
 )
 async def list_selection_groups(
     session: SessionDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
 ) -> SelectionGroupsListResponse:
     """List all selection groups for a room."""
-    await verify_room(session, room_id)
-
     from sqlmodel import select
 
+    room_id = access.room.id
     result = await session.exec(
         select(SelectionGroup).where(SelectionGroup.room_id == room_id)
     )
@@ -63,12 +61,11 @@ async def list_selection_groups(
 )
 async def get_selection_group(
     session: SessionDep,
-    _current_user: CurrentUserDep,
-    room_id: str,
+    access: AccessReadDep,
     group_name: str,
 ) -> SelectionGroupResponse:
     """Get a selection group by name."""
-    await verify_room(session, room_id)
+    room_id = access.room.id
     row = await session.get(SelectionGroup, (room_id, group_name))
     if row is None:
         raise SelectionGroupNotFound.exception(
@@ -84,12 +81,12 @@ async def get_selection_group(
 async def update_selection_group(
     session: SessionDep,
     sio: SioDep,
-    _room: WritableRoomDep,
-    room_id: str,
+    room: WritableRoomDep,
     group_name: str,
     request: SelectionGroupUpdateRequest,
 ) -> StatusResponse:
     """Create or update a selection group."""
+    room_id = room.id
     row = await session.get(SelectionGroup, (room_id, group_name))
     if row is None:
         row = SelectionGroup(
@@ -102,8 +99,10 @@ async def update_selection_group(
         row.selections = json.dumps(request.selections)
     await session.commit()
 
-    await sio.emit(
-        SelectionGroupsInvalidate(room_id=room_id), room=room_channel(room_id)
+    await broadcast_to_room(
+        sio,
+        SelectionGroupsInvalidate.for_room(room),
+        room,
     )
     return StatusResponse()
 
@@ -117,11 +116,11 @@ async def update_selection_group(
 async def delete_selection_group(
     session: SessionDep,
     sio: SioDep,
-    _room: WritableRoomDep,
-    room_id: str,
+    room: WritableRoomDep,
     group_name: str,
 ) -> StatusResponse:
     """Delete a selection group."""
+    room_id = room.id
     row = await session.get(SelectionGroup, (room_id, group_name))
     if row is None:
         raise SelectionGroupNotFound.exception(
@@ -130,8 +129,10 @@ async def delete_selection_group(
     await session.delete(row)
     await session.commit()
 
-    await sio.emit(
-        SelectionGroupsInvalidate(room_id=room_id), room=room_channel(room_id)
+    await broadcast_to_room(
+        sio,
+        SelectionGroupsInvalidate.for_room(room),
+        room,
     )
 
     return StatusResponse()
