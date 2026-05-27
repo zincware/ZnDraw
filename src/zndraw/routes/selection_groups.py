@@ -18,7 +18,7 @@ from zndraw.exceptions import (
     SelectionGroupNotFound,
     problem_responses,
 )
-from zndraw.models import SelectionGroup
+from zndraw.models import SelectionGroup, build_public_address
 from zndraw.schemas import (
     SelectionGroupResponse,
     SelectionGroupsListResponse,
@@ -99,9 +99,10 @@ async def update_selection_group(
         row.selections = json.dumps(request.selections)
     await session.commit()
 
+    room_address = await build_public_address(session, room)
     await broadcast_to_room(
         sio,
-        SelectionGroupsInvalidate.for_room(room),
+        SelectionGroupsInvalidate.for_room(room, room_address=room_address),
         room,
     )
     return StatusResponse()
@@ -129,9 +130,10 @@ async def delete_selection_group(
     await session.delete(row)
     await session.commit()
 
+    room_address = await build_public_address(session, room)
     await broadcast_to_room(
         sio,
-        SelectionGroupsInvalidate.for_room(room),
+        SelectionGroupsInvalidate.for_room(room, room_address=room_address),
         room,
     )
 

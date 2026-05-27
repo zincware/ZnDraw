@@ -34,10 +34,12 @@ class RoomScopedEvent(BaseModel):
     room_address: str
 
     @classmethod
-    def for_room(cls, room: Room, /, **kwargs: Any) -> Self:
+    def for_room(
+        cls, room: Room, /, *, room_address: str | None = None, **kwargs: Any
+    ) -> Self:
         return cls(
             room_id=UUID(room.id),
-            room_address=room.public_address,
+            room_address=room_address or room.public_address,
             **kwargs,
         )
 

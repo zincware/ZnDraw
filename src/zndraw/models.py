@@ -94,6 +94,29 @@ class Group(SQLModel, table=True):
     created_by_id: UUID = Field(foreign_key="user.id", index=True)
 
 
+async def build_public_address(session, room: Room) -> str:
+    """Return ``{display_name}/{room_name}`` for the room's owner.
+
+    For users → ``User.display_name``; for groups → ``Group.name``.
+    Falls back to the owner UUID if the row is missing (orphaned FK).
+    """
+    from sqlmodel import select
+
+    from zndraw_auth.db import User
+
+    if room.owner_user_id is not None:
+        label = await session.scalar(
+            select(User.display_name).where(User.id == room.owner_user_id).limit(1)
+        )
+        return f"{label or room.owner_user_id}/{room.room_name}"
+    if room.owner_group_id is not None:
+        label = await session.scalar(
+            select(Group.name).where(Group.id == room.owner_group_id).limit(1)
+        )
+        return f"{label or room.owner_group_id}/{room.room_name}"
+    return room.room_name
+
+
 class GroupMembership(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("group_id", "user_id"),)
 

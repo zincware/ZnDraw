@@ -17,7 +17,7 @@ from zndraw.dependencies import (
     _load_room_by_address,
 )
 from zndraw.exceptions import Forbidden, RoomNotFound, problem_responses
-from zndraw.models import Room, ServerSettings
+from zndraw.models import Room, ServerSettings, build_public_address
 from zndraw.routes.rooms import broadcast_room_update
 from zndraw.schemas import StatusResponse
 
@@ -98,7 +98,10 @@ async def get_default_room(
     if settings.default_room_id is None:
         return DefaultRoomResponse(room_id=None)
     room = await session.get(Room, settings.default_room_id)
-    return DefaultRoomResponse(room_id=room.public_address if room else None)
+    if room is None:
+        return DefaultRoomResponse(room_id=None)
+    public_address = await build_public_address(session, room)
+    return DefaultRoomResponse(room_id=public_address)
 
 
 @router.put(
@@ -135,7 +138,8 @@ async def set_default_room(
 
     await broadcast_room_update(sio, session, storage, room)
 
-    return DefaultRoomResponse(room_id=room.public_address)
+    public_address = await build_public_address(session, room)
+    return DefaultRoomResponse(room_id=public_address)
 
 
 @router.delete(

@@ -11,6 +11,7 @@ from zndraw.broadcast import broadcast_to_room
 from zndraw.dependencies import (
     AccessEditDep,
     RedisDep,
+    SessionDep,
     SioDep,
 )
 from zndraw.exceptions import (
@@ -19,6 +20,7 @@ from zndraw.exceptions import (
     RoomNotFound,
     problem_responses,
 )
+from zndraw.models import build_public_address
 from zndraw.redis import RedisKey
 from zndraw.schemas import ProgressCreate, ProgressPatch, ProgressResponse
 from zndraw.socket_events import ProgressComplete, ProgressStart, ProgressUpdate
@@ -36,6 +38,7 @@ PROGRESS_TTL = 3600  # 1 hour — auto-cleanup for orphaned trackers
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def create_progress(
+    session: SessionDep,
     sio: SioDep,
     redis: RedisDep,
     access: AccessEditDep,
@@ -53,10 +56,12 @@ async def create_progress(
     await redis.hset(key, request.progress_id, tracker.model_dump_json())  # type: ignore[misc]
     await redis.expire(key, PROGRESS_TTL)  # type: ignore[misc]
 
+    room_address = await build_public_address(session, access.room)
     await broadcast_to_room(
         sio,
         ProgressStart.for_room(
             access.room,
+            room_address=room_address,
             progress_id=request.progress_id,
             description=request.description,
             unit=request.unit,
@@ -72,6 +77,7 @@ async def create_progress(
     responses=problem_responses(NotAuthenticated, RoomNotFound, ProgressNotFound),
 )
 async def update_progress(
+    session: SessionDep,
     sio: SioDep,
     redis: RedisDep,
     access: AccessEditDep,
@@ -95,10 +101,12 @@ async def update_progress(
     await redis.hset(key, progress_id, json.dumps(current))  # type: ignore[misc]
     await redis.expire(key, PROGRESS_TTL)  # type: ignore[misc]
 
+    room_address = await build_public_address(session, access.room)
     await broadcast_to_room(
         sio,
         ProgressUpdate.for_room(
             access.room,
+            room_address=room_address,
             progress_id=progress_id,
             description=request.description,
             n=request.n,
@@ -118,6 +126,7 @@ async def update_progress(
     responses=problem_responses(NotAuthenticated, RoomNotFound, ProgressNotFound),
 )
 async def delete_progress(
+    session: SessionDep,
     sio: SioDep,
     redis: RedisDep,
     access: AccessEditDep,
@@ -130,9 +139,12 @@ async def delete_progress(
     if not deleted:
         raise ProgressNotFound.exception(f"Progress tracker {progress_id} not found")
 
+    room_address = await build_public_address(session, access.room)
     await broadcast_to_room(
         sio,
-        ProgressComplete.for_room(access.room, progress_id=progress_id),
+        ProgressComplete.for_room(
+            access.room, room_address=room_address, progress_id=progress_id
+        ),
         access.room,
     )
 

@@ -28,7 +28,7 @@ from zndraw.exceptions import (
     problem_responses,
 )
 from zndraw.geometries import geometries as geometry_models
-from zndraw.models import RoomGeometry
+from zndraw.models import RoomGeometry, build_public_address
 from zndraw.redis import RedisKey
 from zndraw.schemas import (
     DefaultCameraRequest,
@@ -190,9 +190,10 @@ async def update_geometry_selection(
     row.selection = json.dumps(request.indices)
     await session.commit()
 
+    room_address = await build_public_address(session, geo.room)
     await broadcast_to_room(
         sio,
-        SelectionInvalidate.for_room(geo.room),
+        SelectionInvalidate.for_room(geo.room, room_address=room_address),
         geo.room,
     )
     return StatusResponse()
@@ -257,9 +258,12 @@ async def upsert_geometry(
             row.config = config_json
         await session.commit()
 
+    room_address = await build_public_address(session, geo_info.room)
     await broadcast_to_room(
         sio,
-        GeometryInvalidate.for_room(geo_info.room, operation="set", key=key),
+        GeometryInvalidate.for_room(
+            geo_info.room, room_address=room_address, operation="set", key=key
+        ),
         geo_info.room,
     )
 
@@ -312,9 +316,12 @@ async def patch_geometry(
             row.config = json.dumps(merged)
         await session.commit()
 
+    room_address = await build_public_address(session, geo_info.room)
     await broadcast_to_room(
         sio,
-        GeometryInvalidate.for_room(geo_info.room, operation="set", key=key),
+        GeometryInvalidate.for_room(
+            geo_info.room, room_address=room_address, operation="set", key=key
+        ),
         geo_info.room,
     )
 
@@ -352,19 +359,24 @@ async def delete_geometry(
 
     # Clear default camera if this geometry was the default
     room = geo.room
+    room_address = await build_public_address(session, room)
     if room.default_camera == key:
         room.default_camera = None
         session.add(room)
         await session.commit()
         await broadcast_to_room(
             sio,
-            DefaultCameraInvalidate.for_room(room, default_camera=None),
+            DefaultCameraInvalidate.for_room(
+                room, room_address=room_address, default_camera=None
+            ),
             room,
         )
 
     await broadcast_to_room(
         sio,
-        GeometryInvalidate.for_room(room, operation="delete", key=key),
+        GeometryInvalidate.for_room(
+            room, room_address=room_address, operation="delete", key=key
+        ),
         room,
     )
 
@@ -422,9 +434,12 @@ async def set_default_camera(
     session.add(room)
     await session.commit()
 
+    room_address = await build_public_address(session, room)
     await broadcast_to_room(
         sio,
-        DefaultCameraInvalidate.for_room(room, default_camera=room.default_camera),
+        DefaultCameraInvalidate.for_room(
+            room, room_address=room_address, default_camera=room.default_camera
+        ),
         room,
     )
 

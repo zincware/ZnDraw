@@ -25,7 +25,7 @@ from zndraw.exceptions import (
     problem_responses,
 )
 from zndraw.geometries import geometries as geometry_models
-from zndraw.models import RoomGeometry, RoomPreset
+from zndraw.models import RoomGeometry, RoomPreset, build_public_address
 from zndraw.presets import list_bundled_presets
 from zndraw.schemas import (
     Preset,
@@ -264,10 +264,13 @@ async def apply_preset(
         new_stmt = select(RoomGeometry).where(RoomGeometry.room_id == room_id)
         new_keys = [g.key for g in (await session.exec(new_stmt)).all()]
         all_keys = sorted(set(existing_keys) | set(new_keys))
+        room_address = await build_public_address(session, _room)
         for key in all_keys:
             await broadcast_to_room(
                 sio,
-                GeometryInvalidate.for_room(_room, operation="set", key=key),
+                GeometryInvalidate.for_room(
+                    _room, room_address=room_address, operation="set", key=key
+                ),
                 _room,
             )
         return PresetApplyResult(geometries_updated=all_keys)
@@ -311,10 +314,13 @@ async def apply_preset(
 
     await session.commit()
 
+    room_address = await build_public_address(session, _room)
     for key in updated_keys:
         await broadcast_to_room(
             sio,
-            GeometryInvalidate.for_room(_room, operation="set", key=key),
+            GeometryInvalidate.for_room(
+                _room, room_address=room_address, operation="set", key=key
+            ),
             _room,
         )
 

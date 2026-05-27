@@ -17,6 +17,7 @@ from zndraw.exceptions import (
     StepOutOfBounds,
     problem_responses,
 )
+from zndraw.models import build_public_address
 from zndraw.schemas import StepResponse, StepUpdateRequest, StepUpdateResponse
 from zndraw.socket_events import FrameUpdate
 
@@ -80,9 +81,10 @@ async def set_step(
     await session.commit()
 
     # Broadcast frame update
+    room_address = await build_public_address(session, room)
     await broadcast_to_room(
         sio,
-        FrameUpdate.for_room(room, frame=request.step),
+        FrameUpdate.for_room(room, room_address=room_address, frame=request.step),
         room,
     )
 

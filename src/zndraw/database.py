@@ -422,10 +422,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # SQLite serialization lock.
         from zndraw.broadcast import broadcast_to_room
         from zndraw.dependencies import _load_room_by_address
-        from zndraw.models import Room  # noqa: TC001
+        from zndraw.models import Room, build_public_address  # noqa: TC001
 
         async def frame_room_cleanup(room_ids: set[str]) -> None:
-            rooms: list[Room] = []
+            rooms: list[tuple[Room, str]] = []
             async with app.state.session_maker() as session:
                 for rid in room_ids:
                     if "/" not in rid:
@@ -437,8 +437,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                         continue
                     room = await _load_room_by_address(session, owner_uuid, name_part)
                     if room is not None:
-                        rooms.append(room)
-            for room in rooms:
+                        room_address = await build_public_address(session, room)
+                        rooms.append((room, room_address))
+            for room, room_address in rooms:
                 await app.state.redis.delete(  # type: ignore[misc]
                     RedisKey.provider_frame_count(room.id)
                 )
@@ -446,6 +447,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     tsio,
                     FramesInvalidate.for_room(
                         room,
+                        room_address=room_address,
                         action="clear",
                         count=0,
                         reason="provider_disconnected",

@@ -14,6 +14,7 @@ from zndraw.dependencies import (
     AccessReadDep,
     CurrentUserDep,
     RedisDep,
+    SessionDep,
     SioDep,
 )
 from zndraw.exceptions import (
@@ -24,6 +25,7 @@ from zndraw.exceptions import (
     RoomNotFound,
     problem_responses,
 )
+from zndraw.models import build_public_address
 from zndraw.redis import RedisKey
 from zndraw.schemas import (
     EditLockRequest,
@@ -74,6 +76,7 @@ async def get_edit_lock(
     ),
 )
 async def acquire_edit_lock(
+    session: SessionDep,
     redis: RedisDep,
     sio: SioDep,
     settings: SettingsDep,
@@ -133,10 +136,12 @@ async def acquire_edit_lock(
         raise RoomLocked.exception("Room is being edited by another session")
 
     ttl = await redis.ttl(key)
+    room_address = await build_public_address(session, access.room)
     await broadcast_to_room(
         sio,
         LockUpdate.for_room(
             access.room,
+            room_address=room_address,
             action="acquired",
             user_id=user_id,
             sid=x_session_id,
@@ -162,6 +167,7 @@ async def acquire_edit_lock(
     responses=problem_responses(NotAuthenticated, RoomNotFound, Forbidden),
 )
 async def release_edit_lock(
+    session: SessionDep,
     redis: RedisDep,
     sio: SioDep,
     current_user: CurrentUserDep,
@@ -187,10 +193,12 @@ async def release_edit_lock(
 
     await redis.delete(key)
 
+    room_address = await build_public_address(session, access.room)
     await broadcast_to_room(
         sio,
         LockUpdate.for_room(
             access.room,
+            room_address=room_address,
             action="released",
             user_id=holder["user_id"],
             sid=holder.get("sid"),

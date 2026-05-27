@@ -40,6 +40,7 @@ from zndraw.exceptions import (
     RoomReadOnly,
     problem_responses,
 )
+from zndraw.models import build_public_address
 from zndraw.redis import RedisKey
 from zndraw.routes.rooms import broadcast_room_update
 from zndraw.schemas import FrameBulkResponse
@@ -233,6 +234,7 @@ async def download_trajectory(
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def create_download_token(
+    session: SessionDep,
     redis: RedisDep,
     access: AccessReadDep,
     request: Request,
@@ -249,8 +251,9 @@ async def create_download_token(
     await redis.set(RedisKey.download_token(token_value), room_id, ex=ttl)
 
     base_url = str(request.base_url).rstrip("/")
+    room_address = await build_public_address(session, access.room)
     url = (
-        f"{base_url}/v1/rooms/{access.room.public_address}"
+        f"{base_url}/v1/rooms/{room_address}"
         f"/trajectory?token={token_value}"
     )
 
@@ -342,9 +345,12 @@ async def upload_trajectory(
         new_total = await storage[room_id].extend(frames)
 
     # Broadcast invalidation
+    room_address = await build_public_address(session, room)
     await broadcast_to_room(
         sio,
-        FramesInvalidate.for_room(room, action="add", count=new_total),
+        FramesInvalidate.for_room(
+            room, room_address=room_address, action="add", count=new_total
+        ),
         room,
     )
     await broadcast_room_update(sio, session, storage, room)

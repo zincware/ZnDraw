@@ -42,6 +42,7 @@ from zndraw.exceptions import (
     UnprocessableContent,
     problem_responses,
 )
+from zndraw.models import build_public_address
 from zndraw.redis import RedisKey
 from zndraw.responses import MessagePackResponse
 from zndraw.routes.rooms import broadcast_room_update
@@ -519,9 +520,12 @@ async def append_frames(
     new_total = await storage[room_id].extend(raw_frames)
 
     # Broadcast invalidation to room with new total frame count
+    room_address = await build_public_address(session, room)
     await broadcast_to_room(
         sio,
-        FramesInvalidate.for_room(room, action="add", count=new_total),
+        FramesInvalidate.for_room(
+            room, room_address=room_address, action="add", count=new_total
+        ),
         room,
     )
     await broadcast_room_update(sio, session, storage, room)
@@ -541,6 +545,7 @@ async def append_frames(
     ),
 )
 async def update_frame(
+    session: SessionDep,
     storage: FrameStorageDep,
     sio: SioDep,
     room: WritableRoomDep,
@@ -561,9 +566,12 @@ async def update_frame(
     _validate_frame_keys(raw_frame)
     await storage[room_id][index].set(raw_frame)
 
+    room_address = await build_public_address(session, room)
     await broadcast_to_room(
         sio,
-        FramesInvalidate.for_room(room, action="modify", indices=[index]),
+        FramesInvalidate.for_room(
+            room, room_address=room_address, action="modify", indices=[index]
+        ),
         room,
     )
 
@@ -577,6 +585,7 @@ async def update_frame(
     ),
 )
 async def merge_frame(
+    session: SessionDep,
     storage: FrameStorageDep,
     sio: SioDep,
     room: WritableRoomDep,
@@ -611,9 +620,12 @@ async def merge_frame(
 
     await storage[room_id][index].update(partial)
 
+    room_address = await build_public_address(session, room)
     await broadcast_to_room(
         sio,
-        FramesInvalidate.for_room(room, action="modify", indices=[index]),
+        FramesInvalidate.for_room(
+            room, room_address=room_address, action="modify", indices=[index]
+        ),
         room,
     )
 
@@ -652,10 +664,15 @@ async def delete_frame(
     new_total = await storage.get_length(room_id)
 
     # Broadcast invalidation to room with new frame count
+    room_address = await build_public_address(session, room)
     await broadcast_to_room(
         sio,
         FramesInvalidate.for_room(
-            room, action="delete", indices=[index], count=new_total
+            room,
+            room_address=room_address,
+            action="delete",
+            indices=[index],
+            count=new_total,
         ),
         room,
     )

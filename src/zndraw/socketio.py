@@ -18,7 +18,7 @@ from zndraw.exceptions import (
     UserNotFound,
 )
 from zndraw.geometries.camera import Camera
-from zndraw.models import Room, RoomGeometry
+from zndraw.models import Room, RoomGeometry, build_public_address
 from zndraw.redis import RedisKey
 from zndraw.schemas import ProgressResponse
 from zndraw.socket_events import (
@@ -64,9 +64,15 @@ async def _cleanup_session(
         room = await session.get(Room, room_id)
         if room is None:
             return
+        room_address = await build_public_address(session, room)
         await broadcast_to_room(
             tsio,
-            GeometryInvalidate.for_room(room, operation="delete", key=camera_key),
+            GeometryInvalidate.for_room(
+                room,
+                room_address=room_address,
+                operation="delete",
+                key=camera_key,
+            ),
             room,
         )
 
@@ -145,10 +151,14 @@ async def on_disconnect(
         await _cleanup_session(redis, session, sid, sio_session, current_room_id)
 
         room = await session.get(Room, current_room_id)
+        room_address: str | None = None
         if room is not None:
+            room_address = await build_public_address(session, room)
             await broadcast_to_room(
                 tsio,
-                SessionLeft.for_room(room, user_id=user_id, sid=sid),
+                SessionLeft.for_room(
+                    room, room_address=room_address, user_id=user_id, sid=sid
+                ),
                 room,
             )
 
@@ -164,6 +174,7 @@ async def on_disconnect(
                         tsio,
                         LockUpdate.for_room(
                             room,
+                            room_address=room_address,
                             action="released",
                             user_id=str(user_id),
                             sid=sid,
@@ -237,16 +248,23 @@ async def room_join(
             await _cleanup_session(redis, session, sid, sio_session, old_room_id)
         old_room = await session.get(Room, old_room_id)
         if old_room is not None:
+            old_room_address = await build_public_address(session, old_room)
             await broadcast_to_room(
                 tsio,
-                SessionLeft.for_room(old_room, user_id=user_id, sid=sid),
+                SessionLeft.for_room(
+                    old_room,
+                    room_address=old_room_address,
+                    user_id=user_id,
+                    sid=sid,
+                ),
                 old_room,
             )
 
     # Join new room.
+    room_address = await build_public_address(session, room)
     await tsio.enter_room(sid, room_channel(room.id))
     sio_session["current_room_id"] = room.id
-    sio_session["current_room_address"] = room.public_address
+    sio_session["current_room_address"] = room_address
     sio_session["client_type"] = data.client_type
     await tsio.save_session(sid, sio_session)
 
@@ -256,7 +274,13 @@ async def room_join(
 
     await broadcast_to_room(
         tsio,
-        SessionJoined.for_room(room, user_id=user_id, sid=sid, email=email),
+        SessionJoined.for_room(
+            room,
+            room_address=room_address,
+            user_id=user_id,
+            sid=sid,
+            email=email,
+        ),
         room,
         skip_sid=sid,
     )
@@ -303,7 +327,12 @@ async def room_join(
 
         await broadcast_to_room(
             tsio,
-            GeometryInvalidate.for_room(room, operation="set", key=camera_key),
+            GeometryInvalidate.for_room(
+                room,
+                room_address=room_address,
+                operation="set",
+                key=camera_key,
+            ),
             room,
         )
 
@@ -316,7 +345,7 @@ async def room_join(
     }
 
     return RoomJoinResponse(
-        room_id=room.public_address,
+        room_id=room_address,
         session_id=sid,
         step=room_step,
         frame_count=frame_count,
@@ -350,12 +379,15 @@ async def room_leave(
     sio_session["current_room_id"] = None
     await tsio.save_session(sid, sio_session)
 
+    room_address = await build_public_address(session, room)
     await broadcast_to_room(
         tsio,
-        SessionLeft.for_room(room, user_id=user_id, sid=sid),
+        SessionLeft.for_room(
+            room, room_address=room_address, user_id=user_id, sid=sid
+        ),
         room,
     )
-    return RoomLeaveResponse(room_id=room.public_address)
+    return RoomLeaveResponse(room_id=room_address)
 
 
 async def _handle_typing(
@@ -380,9 +412,16 @@ async def _handle_typing(
     user = await session.get(User, user_id)
     email = user.email if user else None
 
+    room_address = await build_public_address(session, room)
     await broadcast_to_room(
         tsio,
-        Typing.for_room(room, user_id=user_id, email=email, is_typing=is_typing),
+        Typing.for_room(
+            room,
+            room_address=room_address,
+            user_id=user_id,
+            email=email,
+            is_typing=is_typing,
+        ),
         room,
         skip_sid=sid,
     )

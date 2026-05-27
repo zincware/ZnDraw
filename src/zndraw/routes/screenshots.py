@@ -29,7 +29,7 @@ from zndraw.exceptions import (
     problem_responses,
 )
 from zndraw.geometries.camera import Camera
-from zndraw.models import Screenshot
+from zndraw.models import Screenshot, build_public_address
 from zndraw.redis import RedisKey
 from zndraw.schemas import (
     OffsetPage,
@@ -195,7 +195,8 @@ async def request_capture(
     await session.commit()
     await session.refresh(row)
 
-    upload_url = f"/v1/rooms/{access.room.public_address}/screenshots/{row.id}"
+    room_address = await build_public_address(session, access.room)
+    upload_url = f"/v1/rooms/{room_address}/screenshots/{row.id}"
 
     await sio.emit(
         ScreenshotRequest(

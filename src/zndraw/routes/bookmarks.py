@@ -17,7 +17,7 @@ from zndraw.exceptions import (
     RoomNotFound,
     problem_responses,
 )
-from zndraw.models import RoomBookmark
+from zndraw.models import RoomBookmark, build_public_address
 from zndraw.schemas import (
     BookmarkCreateRequest,
     BookmarkResponse,
@@ -88,9 +88,12 @@ async def set_bookmark(
         row.label = request.label
     await session.commit()
 
+    room_address = await build_public_address(session, _room)
     await broadcast_to_room(
         sio,
-        BookmarksInvalidate.for_room(_room, index=index, operation="set"),
+        BookmarksInvalidate.for_room(
+            _room, room_address=room_address, index=index, operation="set"
+        ),
         _room,
     )
 
@@ -118,9 +121,12 @@ async def delete_bookmark(
     await session.delete(row)
     await session.commit()
 
+    room_address = await build_public_address(session, _room)
     await broadcast_to_room(
         sio,
-        BookmarksInvalidate.for_room(_room, index=index, operation="delete"),
+        BookmarksInvalidate.for_room(
+            _room, room_address=room_address, index=index, operation="delete"
+        ),
         _room,
     )
 

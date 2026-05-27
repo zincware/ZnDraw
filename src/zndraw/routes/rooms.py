@@ -58,6 +58,7 @@ from zndraw.models import (
     RoomGeometry,
     SelectionGroup,
     ServerSettings,
+    build_public_address,
 )
 from zndraw.redis import RedisKey
 from zndraw.schemas import (
@@ -303,8 +304,9 @@ async def build_room_update(
     owner_label_field, owner_kind, owner_label = await _resolve_room_owner(
         session, room
     )
+    public_address = await build_public_address(session, room)
     return RoomUpdate(
-        room_id=room.public_address,
+        room_id=public_address,
         id=room.id,
         description=room.description,
         frame_count=frame_count,
@@ -423,8 +425,9 @@ async def create_room(
     if existing is not None:
         frame_count = await storage.get_length(existing.id)
         response.status_code = status.HTTP_200_OK
+        existing_address = await build_public_address(session, existing)
         return RoomCreateResponse(
-            room_id=existing.public_address,
+            room_id=existing_address,
             frame_count=frame_count,
             created=False,
         )
@@ -491,8 +494,9 @@ async def create_room(
 
     await broadcast_room_update(sio, session, storage, room)
 
+    public_address = await build_public_address(session, room)
     return RoomCreateResponse(
-        room_id=room.public_address,
+        room_id=public_address,
         frame_count=frame_count,
         created=True,
     )
@@ -532,9 +536,10 @@ async def list_rooms(
         owner_label_field, owner_kind, owner_label = await _resolve_room_owner(
             session, room
         )
+        public_address = await build_public_address(session, room)
         room_responses.append(
             RoomResponse(
-                room_id=room.public_address,
+                room_id=public_address,
                 id=room.id,
                 description=room.description,
                 frame_count=frame_count,
@@ -564,8 +569,9 @@ async def get_room(
     owner_label_field, owner_kind, owner_label = await _resolve_room_owner(
         session, room
     )
+    public_address = await build_public_address(session, room)
     return RoomResponse(
-        room_id=room.public_address,
+        room_id=public_address,
         id=room.id,
         description=room.description,
         frame_count=frame_count,
@@ -671,7 +677,7 @@ async def update_room(
     """Update room metadata, ownership, or visibility (manage-gated)."""
     room = access.room
     changed = False
-    old_address = room.public_address
+    old_address = await build_public_address(session, room)
     previous_owner_user_id: UUID | None = room.owner_user_id
     previous_owner_group_id: UUID | None = room.owner_group_id
 
@@ -727,9 +733,15 @@ async def update_room(
             await storage.set_frame_count(room.id, count)
         else:
             await storage.clear_frame_count(room.id)
+        frames_room_address = await build_public_address(session, room)
         await broadcast_to_room(
             sio,
-            FramesInvalidate.for_room(room, action="clear", count=count),
+            FramesInvalidate.for_room(
+                room,
+                room_address=frames_room_address,
+                action="clear",
+                count=count,
+            ),
             room,
         )
         changed = True
@@ -756,9 +768,12 @@ async def update_room(
         elif previous_owner_user_id is not None:
             prev_user_ids = [previous_owner_user_id]
 
+        new_address = await build_public_address(session, room)
         await broadcast_to_room(
             sio,
-            RoomRenamed.for_room(room, old_address=old_address),
+            RoomRenamed.for_room(
+                room, room_address=new_address, old_address=old_address
+            ),
             room,
             also_notify_user_ids=prev_user_ids,
         )
@@ -766,4 +781,5 @@ async def update_room(
     if changed:
         await broadcast_room_update(sio, session, storage, room)
 
-    return RoomPatchResponse(room_id=room.public_address)
+    final_address = await build_public_address(session, room)
+    return RoomPatchResponse(room_id=final_address)

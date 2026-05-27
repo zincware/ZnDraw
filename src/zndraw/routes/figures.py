@@ -17,7 +17,7 @@ from zndraw.exceptions import (
     RoomNotFound,
     problem_responses,
 )
-from zndraw.models import RoomFigure
+from zndraw.models import RoomFigure, build_public_address
 from zndraw.schemas import (
     CollectionResponse,
     FigureCreateRequest,
@@ -92,9 +92,12 @@ async def create_figure(
         row.data = request.figure.data
     await session.commit()
 
+    room_address = await build_public_address(session, _room)
     await broadcast_to_room(
         sio,
-        FigureInvalidate.for_room(_room, key=key, operation="set"),
+        FigureInvalidate.for_room(
+            _room, room_address=room_address, key=key, operation="set"
+        ),
         _room,
     )
 
@@ -122,9 +125,12 @@ async def delete_figure(
     await session.delete(row)
     await session.commit()
 
+    room_address = await build_public_address(session, _room)
     await broadcast_to_room(
         sio,
-        FigureInvalidate.for_room(_room, key=key, operation="delete"),
+        FigureInvalidate.for_room(
+            _room, room_address=room_address, key=key, operation="delete"
+        ),
         _room,
     )
 

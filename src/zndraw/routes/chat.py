@@ -22,7 +22,7 @@ from zndraw.exceptions import (
     RoomNotFound,
     problem_responses,
 )
-from zndraw.models import Message
+from zndraw.models import Message, build_public_address
 from zndraw.schemas import (
     MessageCreate,
     MessageEditRequest,
@@ -146,10 +146,12 @@ async def create_message(
 
     display_name = current_user.display_name
 
+    room_address = await build_public_address(session, access.room)
     await broadcast_to_room(
         sio,
         MessageNew.for_room(
             access.room,
+            room_address=room_address,
             id=msg.id,  # type: ignore[arg-type]
             user_id=current_user.id,  # type: ignore[arg-type]
             content=msg.content,
@@ -191,10 +193,12 @@ async def edit_message(
     await session.commit()
     await session.refresh(msg)
 
+    room_address = await build_public_address(session, access.room)
     await broadcast_to_room(
         sio,
         MessageEdited.for_room(
             access.room,
+            room_address=room_address,
             id=msg.id,  # type: ignore[arg-type]
             content=msg.content,
             updated_at=msg.updated_at,
