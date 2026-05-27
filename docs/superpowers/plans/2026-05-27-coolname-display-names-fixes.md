@@ -3,6 +3,7 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Predecessor plan:** `docs/superpowers/plans/2026-05-27-coolname-display-names.md`
+**Execution strategy spec:** `docs/superpowers/specs/2026-05-27-coolname-fixes-execution-strategy-design.html`
 **PR:** [zincware/ZnDraw#932](https://github.com/zincware/ZnDraw/pull/932)
 **Branch:** `worktree-coolname-display-names`
 
@@ -68,15 +69,50 @@ Aggregated by file in the task tables below.
 
 ---
 
-## Phase ordering
+## Phase ordering & execution strategy
+
+Authoritative source: `docs/superpowers/specs/2026-05-27-coolname-fixes-execution-strategy-design.html`. Summary below.
+
+**Sequencing:** unblock-first. CI green is the first measurable milestone (~14 of 32 failures fall to mechanical work in Phase A alone). Phases:
 
 1. **Phase A — CI unblock (fixtures + obvious test bugs).** Lowest blast radius, highest test-coverage payoff. Targets 14 of 32 failures.
 2. **Phase B — Production bugs that CI surfaced.** Fixes the remaining 18 CI failures.
 3. **Phase C — EditLock display_name plumbing.** Resolves local-review Critical #2 + Important #4/#7. No CI signal today (no test exercises the broken path), but blocks user-visible features.
 4. **Phase D — CodeRabbit cleanups + local-review minors.** Independent, parallelizable.
-5. **Phase E — Protected-test resolution.** Decide: revert + fix root cause, or document deviation. Reaches user.
+5. **Phase E — Protected-test resolution.** Decide: revert + fix root cause, or document deviation.
 
-Phases A and B are sequential (B depends on green test infrastructure from A). C, D, E can run in parallel after B.
+**Concurrency model:**
+
+| Phase | Mode | Wave assignments |
+|-------|------|------------------|
+| A | **parallel — 6-wide fan-out** | A1, A2, A3, A4, A5, A6 dispatched as 6 concurrent subagents (disjoint test files) |
+| B-quick | **parallel — 4-wide batch** | B1, B2, B4, B7 dispatched as 4 concurrent subagents (independent quick fixes) |
+| B3 | serial | Joblib `room_id` / surrogate channel — architectural, single agent |
+| B5 | serial | Owner regex broadening — depends on B3 understanding of joblib identity |
+| B6 | serial | `test_client_source` residual mystery — investigates against post-B1/B2/B3 baseline |
+| C | serial cross-stack | C1 backend → C2 frontend writers → C3 GeometryGrid; one agent for coherence |
+| D | **parallel — 4 waves × 4** | Wave 1: D1, D2, D9, D10 · Wave 2: D3, D4, D5, D7 · Wave 3: D6, D8, D11, D14 · Wave 4: D12, D13, D15, D16 |
+| E | serial conditional | Re-evaluated after B3 lands |
+| F | serial | F1 → F2 → F3 → F4 |
+
+**Checkpoint policy:** one auto-checkpoint after Phase B (CI green). Otherwise straight-through. Surprises pause execution; see "Surprise protocol" section below.
+
+**Subagent contract:** each dispatched agent gets the plan reference + task ID + verbatim file:line targets + the CI failure error string + hard constraints (no out-of-scope edits, no `@pytest.mark.protected` edits, no `--no-verify`, targeted pytest only, ≤ 150-word report). Full text in the strategy spec.
+
+**Estimated wall-clock:** ~5–8h with this concurrency vs ~13–19h serial.
+
+## Surprise protocol
+
+I pause execution and report to the user on any of these triggers (full text in strategy spec):
+
+1. Architectural rethink needed (B3 signature change > 10 LOC; B6 needs new sync primitive).
+2. Schema migration becomes unavoidable.
+3. Protected test still red after B3 fix — invariant genuinely shifted.
+4. A test refuses to pass after 2 fix attempts.
+5. A task touches > 5 files outside its declared scope.
+6. Destructive action needed (force push, branch delete, rewriting shared history).
+
+Pause output ≤ 200 words: what surprise, what was tried, options seen, explicit ask, branch state. No destructive recovery while waiting.
 
 ---
 
