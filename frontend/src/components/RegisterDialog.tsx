@@ -14,7 +14,7 @@ import {
 	Typography,
 } from "@mui/material";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { connectWithAuth } from "../socket";
 import { useAppStore } from "../store";
 import { registerUser } from "../utils/auth";
@@ -40,6 +40,7 @@ export default function RegisterDialog({ open, onClose }: RegisterDialogProps) {
 	const [passwordConfirm, setPasswordConfirm] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
+	const userTouchedRef = useRef(false);
 
 	// Use individual selectors to prevent unnecessary re-renders
 	const setUser = useAppStore((state) => state.setUser);
@@ -49,15 +50,27 @@ export default function RegisterDialog({ open, onClose }: RegisterDialogProps) {
 	);
 
 	useEffect(() => {
-		if (!open) return;
+		if (!open) {
+			userTouchedRef.current = false;
+			return;
+		}
+		let cancelled = false;
 		fetchSuggestion()
-			.then(setDisplayName)
+			.then((suggested) => {
+				if (cancelled || userTouchedRef.current) return;
+				setDisplayName(suggested);
+			})
 			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
 	}, [open]);
 
 	const regenerate = async () => {
 		try {
-			setDisplayName(await fetchSuggestion());
+			const suggested = await fetchSuggestion();
+			userTouchedRef.current = false;
+			setDisplayName(suggested);
 		} catch {
 			// Silent: keep the user's typed value.
 		}
@@ -151,7 +164,10 @@ export default function RegisterDialog({ open, onClose }: RegisterDialogProps) {
 					<TextField
 						label="Display name"
 						value={displayName}
-						onChange={(e) => setDisplayName(e.target.value)}
+						onChange={(e) => {
+						userTouchedRef.current = true;
+						setDisplayName(e.target.value);
+					}}
 						onKeyDown={handleKeyDown}
 						disabled={loading}
 						fullWidth

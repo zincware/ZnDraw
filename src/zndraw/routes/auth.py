@@ -48,16 +48,34 @@ async def create_guest_session(
     """Create anonymous guest user (is_guest=True) and return JWT token."""
     email = f"{uuid4().hex[:8]}@guest.user"
     password = settings.guest_password.get_secret_value()
-    display_name = await generate_unique_display_name(session)
 
-    user = await user_manager.create(
-        UserCreate(
-            email=email,
-            password=password,
-            is_guest=True,
-            display_name=display_name,
+    # Retry on the narrow race where two guest creations pick the same
+    # slug between generate_unique_display_name() and INSERT.
+    from zndraw.exceptions import ProblemError, UsernameExists
+
+    last_exc: Exception | None = None
+    user = None
+    for _ in range(3):
+        display_name = await generate_unique_display_name(session)
+        try:
+            user = await user_manager.create(
+                UserCreate(
+                    email=email,
+                    password=password,
+                    is_guest=True,
+                    display_name=display_name,
+                )
+            )
+            break
+        except ProblemError as exc:
+            if exc.problem.type == UsernameExists.type_uri():
+                last_exc = exc
+                continue
+            raise
+    if user is None:
+        raise last_exc if last_exc is not None else RuntimeError(
+            "Failed to allocate a unique display_name for guest session"
         )
-    )
 
     strategy = JWTStrategy(
         secret=auth_settings.secret_key.get_secret_value(),

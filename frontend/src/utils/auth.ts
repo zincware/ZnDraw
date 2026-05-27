@@ -116,6 +116,12 @@ export async function registerUser(
 		const errorData = await response
 			.json()
 			.catch(() => ({ detail: response.statusText }));
+		const typeUri: string | undefined = errorData.type;
+		if (response.status === 409 && typeUri?.endsWith("/username-exists")) {
+			throw new Error(
+				"That display name is taken — try another or click regenerate.",
+			);
+		}
 		throw new Error(
 			errorData.detail || `Registration failed: ${response.statusText}`,
 		);
