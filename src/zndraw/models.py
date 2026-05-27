@@ -109,12 +109,15 @@ async def build_public_address(session, room: Room) -> str:
             select(User.display_name).where(User.id == room.owner_user_id).limit(1)
         )
         return f"{label or room.owner_user_id}/{room.room_name}"
-    if room.owner_group_id is not None:
+    elif room.owner_group_id is not None:
         label = await session.scalar(
             select(Group.name).where(Group.id == room.owner_group_id).limit(1)
         )
         return f"{label or room.owner_group_id}/{room.room_name}"
-    return room.room_name
+    raise RuntimeError(
+        f"Room {room.id!r} has no owner_user_id or owner_group_id set; "
+        "the CHECK constraint should have prevented this."
+    )
 
 
 class GroupMembership(SQLModel, table=True):

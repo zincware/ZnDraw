@@ -74,9 +74,15 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         try:
             return await super().create(user_create, safe=safe, request=request)
         except IntegrityError as exc:
-            raise UsernameExists.exception(
-                f"Display name '{user_create.display_name}' is already taken"
-            ) from exc
+            # Distinguish display_name collisions from email/other unique
+            # constraint violations. Don't mask a genuine email collision
+            # with a "username exists" error.
+            err_text = str(getattr(exc, "orig", exc)).lower()
+            if "display_name" in err_text:
+                raise UsernameExists.exception(
+                    f"Display name '{user_create.display_name}' is already taken"
+                ) from exc
+            raise
 
     async def on_after_register(
         self, user: User, _request: Request | None = None

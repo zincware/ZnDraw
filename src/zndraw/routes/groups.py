@@ -413,9 +413,11 @@ async def update_member_role(
     await session.commit()
 
     user = await session.get(User, user_id)
+    if user is None:
+        raise UserNotFound.exception(f"User {user_id} not found")
     return GroupMemberResponse(
         user_id=membership.user_id,
-        display_name=user.display_name if user else None,
+        display_name=user.display_name,
         role=membership.role,
         joined_at=membership.joined_at,
     )

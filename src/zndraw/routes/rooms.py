@@ -287,9 +287,15 @@ async def _resolve_room_owner(
             f"Room {room.id!r} violates owner CHECK constraint: "
             "owner_user_id and owner_group_id are both NULL"
         )
+    owner_kind: Literal["user", "group"] = (
+        "group" if room.owner_group_id is not None else "user"
+    )
     resolved = await resolve_owner(session, owner_uuid)
     if resolved is None:
-        return "", "user", ""
+        # Stale FK (owner row deleted) — preserve owner_kind from the
+        # CHECK-constrained columns so group-owned rooms don't silently
+        # report as user-owned in listings.
+        return "", owner_kind, ""
     kind, label = resolved
     return label, "group" if kind is OwnerKind.GROUP else "user", label
 

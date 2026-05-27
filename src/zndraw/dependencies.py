@@ -81,7 +81,10 @@ async def get_local_token_or_admin(
     local_token: str | None = getattr(request.app.state, "local_token", None)
     if local_token is not None and auth_header == f"Bearer {local_token}":
         return User(
-            email="local-admin@localhost", hashed_password="", is_superuser=True
+            email="local-admin@localhost",
+            hashed_password="",
+            is_superuser=True,
+            display_name="local-admin",
         )
 
     # Path 2: JWT → must resolve to an active superuser

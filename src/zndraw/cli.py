@@ -312,7 +312,14 @@ def _resolve_owner_name(server_url: str, token: str) -> str:
             headers={"Authorization": f"Bearer {token}"},
         )
         resp.raise_for_status()
-        return resp.json()["display_name"]
+        payload = resp.json()
+    display_name = payload.get("display_name")
+    if not display_name:
+        raise typer.BadParameter(
+            "Server did not return a display_name for the authenticated user; "
+            "is the server running an old version?"
+        )
+    return display_name
 
 
 def _validate_room_arg(value: str, owner_name: str) -> None:

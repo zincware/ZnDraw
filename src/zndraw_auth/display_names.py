@@ -49,4 +49,19 @@ async def generate_unique_display_name(
         )
         if exists is None:
             return slug
-    return f"{coolname.generate_slug(3)}-{secrets.token_hex(2)}"
+    # Fallback: append a random hex suffix and validate the same way the
+    # looped slugs were — reserved-set + regex + DB uniqueness.
+    for _ in range(max_attempts):
+        candidate = f"{coolname.generate_slug(3)}-{secrets.token_hex(2)}"
+        if candidate in RESERVED_DISPLAY_NAMES:
+            continue
+        if not DISPLAY_NAME_PATTERN.fullmatch(candidate):
+            continue
+        exists = await session.scalar(
+            select(User.id).where(User.display_name == candidate).limit(1)
+        )
+        if exists is None:
+            return candidate
+    raise RuntimeError(
+        "Could not generate a unique display name after fallback attempts"
+    )
