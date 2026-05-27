@@ -55,7 +55,10 @@ app.state.local_token = None  # CLI populates on server start
 
 logger = logging.getLogger(__name__)
 
-# Override joblib's verify_writable_room to enforce room locks
+# Override joblib's verify_writable_room to enforce room locks. Returns the
+# path room_id unchanged so joblib storage (ProviderRecord.room_id,
+# Job.room_id) keeps the composed display-name address the user sent — the
+# same form used by list filters, emit channels, and client subscriptions.
 app.dependency_overrides[joblib_verify_writable_room] = get_writable_room_id
 # Kiq dispatch needs the display-name composed address so ZnDraw client accepts it
 app.dependency_overrides[joblib_resolve_dispatch_room_address] = (

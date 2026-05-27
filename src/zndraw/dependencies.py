@@ -529,13 +529,19 @@ async def get_writable_room_id(
     room_id: str = Path(),
     x_room_share_token: str | None = Header(default=None, alias="X-Room-Share-Token"),
 ) -> str:
-    """Verify a room is writable and return the surrogate UUID string."""
-    resolved = await _resolve_writable_room(
+    """Verify a room is writable and return the *path* room_id unchanged.
+
+    Returns the composed display-name address (or sigil) — NOT the canonical
+    Room.id UUID — so joblib storage (``ProviderRecord.room_id`` / ``Job.room_id``)
+    matches the user-facing identifier the client sent. The channel name and
+    ``full_name`` then both use this same form, keeping all four ends
+    (registration filter, list filter, emit channel, client subscription) in
+    sync without extra translation.
+    """
+    await _resolve_writable_room(
         request, session, current_user, redis, room_id, x_room_share_token
     )
-    if isinstance(resolved, str):
-        return resolved
-    return resolved.id
+    return room_id
 
 
 async def get_writable_room_address(

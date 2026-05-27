@@ -401,8 +401,8 @@ async def list_jobs(
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """List jobs for a room. Includes @global jobs unless room_id is @global."""
-    validate_room_id(room_id)
 
+    validate_room_id(room_id)
     base_query = select(Job).where(_room_job_filter(room_id), Job.deleted.is_(False))
 
     # Total count
@@ -442,8 +442,8 @@ async def list_workers_for_room(
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """List workers for a room. Includes @global workers unless room_id is @global."""
-    validate_room_id(room_id)
 
+    validate_room_id(room_id)
     result = await session.exec(
         select(Job.id).where(_room_job_filter(room_id), Job.deleted.is_(False))
     )
@@ -500,8 +500,8 @@ async def list_tasks_for_job(
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """List tasks for a specific job. Includes queue position for pending tasks."""
-    validate_room_id(room_id)
 
+    validate_room_id(room_id)
     job = await _resolve_job(session, job_name)
 
     base_query = select(Task).where(Task.job_id == job.id, Task.room_id == room_id)
@@ -541,8 +541,8 @@ async def list_tasks_for_room(
 
     Includes queue position for pending tasks.
     """
-    validate_room_id(room_id)
 
+    validate_room_id(room_id)
     base_query = select(Task).where(Task.room_id == room_id)
     if task_status:
         base_query = base_query.where(Task.status == task_status)
@@ -573,8 +573,8 @@ async def get_job(
     session: SessionDep,
 ):
     """Get job details by full name."""
-    validate_room_id(room_id)
 
+    validate_room_id(room_id)
     job = await _resolve_job(session, job_name)
 
     result = await session.exec(
@@ -1167,8 +1167,8 @@ async def list_providers(
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """List providers visible from a room (room-scoped + @global)."""
-    validate_room_id(room_id)
 
+    validate_room_id(room_id)
     filter_ = _room_provider_filter(room_id)
     # Hide @internal:filesystem:* from non-superusers when the gate is on.
     if settings.filebrowser_require_superuser and not _current_user.is_superuser:
@@ -1229,8 +1229,8 @@ async def read_provider(
     prefer: Annotated[str | None, Header()] = None,
 ):
     """Read data from a provider. Long-polls until result is available."""
-    validate_room_id(room_id)
 
+    validate_room_id(room_id)
     # Short-lived session — closed before long-poll
     async with session_maker() as session:
         provider = await _resolve_provider(session, provider_name, room_id)

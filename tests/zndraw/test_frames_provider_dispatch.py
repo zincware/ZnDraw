@@ -63,7 +63,7 @@ async def test_get_frame_storage_hit_ignores_provider(
     """Frame in storage, provider exists -- returns frame (no provider touch)."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
-    await _create_provider(session, room.public_address, user)
+    await _create_provider(session, room_display_address(user, room), user)
 
     await frame_storage[room.id].extend([make_raw_frame({"a": 1})])
 
@@ -87,7 +87,7 @@ async def test_get_frame_provider_cache_hit(
     """Frame in provider cache, storage slot is None -- returns 200 with frame."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
-    provider = await _create_provider(session, room.public_address, user)
+    provider = await _create_provider(session, room_display_address(user, room), user)
 
     # Reserve slots (provider has 3 frames), slot 0 is None
     await frame_storage[room.id].reserve(3)
@@ -122,7 +122,7 @@ async def test_get_frame_provider_timeout(
     """Frame not cached, provider exists -- long-poll times out → 504."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
-    await _create_provider(session, room.public_address, user)
+    await _create_provider(session, room_display_address(user, room), user)
 
     # Reserve slots, leave them empty
     await frame_storage[room.id].reserve(5)
@@ -170,7 +170,7 @@ async def test_get_frame_dispatch_acquires_inflight(
     """After dispatch, inflight lock is acquired."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
-    provider = await _create_provider(session, room.public_address, user)
+    provider = await _create_provider(session, room_display_address(user, room), user)
 
     await frame_storage[room.id].reserve(3)
 
@@ -197,7 +197,7 @@ async def test_get_frame_notify_wakes_long_poll(
     """Provider uploads result mid-poll — long-poll wakes up and returns 200."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
-    provider = await _create_provider(session, room.public_address, user)
+    provider = await _create_provider(session, room_display_address(user, room), user)
 
     await frame_storage[room.id].reserve(3)
 
@@ -247,7 +247,7 @@ async def test_list_frames_notify_wakes_concurrent_dispatch(
     """Multiple missing frames dispatched concurrently — all wake on notify."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
-    provider = await _create_provider(session, room.public_address, user)
+    provider = await _create_provider(session, room_display_address(user, room), user)
 
     # Reserve 3 slots, fill only index 1
     await frame_storage[room.id].reserve(3)

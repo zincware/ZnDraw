@@ -627,28 +627,21 @@ class JobManager:
         )
         data = resp.json()
         provider_id = UUID(data["id"])
-        # Server canonicalizes room_id (composed display-name → surrogate UUID),
-        # so subscription channels use the server form. The client-constructed
-        # form is kept as an alias so legacy unregister(reconstructed_full_name)
-        # calls still resolve to the same record.
-        canonical_full_name = data["full_name"]
-        canonical_room_id = data["room_id"]
-        input_full_name = f"{room}:{provider_cls.category}:{name}"
+        # Trust the server-canonical full_name (it equals the client-input
+        # form when the host app keeps the path room_id intact, but stays
+        # correct if a future override rewrites it).
+        full_name = data["full_name"]
+        server_room_id = data["room_id"]
 
         if data.get("worker_id"):
             self._worker_id = UUID(data["worker_id"])
 
-        registered = _RegisteredProvider(
+        self._providers[full_name] = _RegisteredProvider(
             id=provider_id,
             cls=provider_cls,
             handler=handler,
-            room_id=canonical_room_id,
+            room_id=server_room_id,
         )
-        self._providers[canonical_full_name] = registered
-        if input_full_name != canonical_full_name:
-            self._providers[input_full_name] = registered
-
-        full_name = canonical_full_name
 
         if self.tsio is not None:
             self.tsio.emit(
@@ -662,20 +655,10 @@ class JobManager:
         return provider_id
 
     def unregister_provider(self, full_name: str) -> None:
-        """Unregister a provider by full_name (room_id:category:name).
-
-        Accepts either the server-canonical full_name or the client-input form
-        (when ``register_provider`` was called with a composed display-name
-        address that the server resolved to a different room_id).
-        """
-        reg = self._providers.get(full_name)
+        """Unregister a provider by full_name (room_id:category:name)."""
+        reg = self._providers.pop(full_name, None)
         if reg is None:
             return
-
-        # Remove every key that aliases the same registration so both the
-        # input and canonical forms drop out together.
-        for key in [k for k, v in self._providers.items() if v is reg]:
-            self._providers.pop(key, None)
 
         resp = self.api.http.delete(
             f"{self.api.base_url}/v1/joblib/providers/{reg.id}",
@@ -684,14 +667,9 @@ class JobManager:
         self.api.raise_for_status(resp)
 
         if self.tsio is not None:
-            # Leave the canonical provider room (matches the JoinProviderRoom
-            # emitted at registration).
-            canonical_full_name = (
-                f"{reg.room_id}:{reg.cls.category}:{full_name.rsplit(':', 1)[-1]}"
-            )
             self.tsio.emit(
                 LeaveProviderRoom(
-                    provider_name=canonical_full_name,
+                    provider_name=full_name,
                     worker_id=str(self._worker_id),
                 )
             )
