@@ -28,7 +28,7 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import FigureInvalidate
 
-router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/figures", tags=["figures"])
+router = APIRouter(prefix="/v1/rooms/{owner}/{room_name}/figures", tags=["figures"])
 
 
 @router.get(

@@ -24,7 +24,7 @@ from zndraw.schemas import ProgressCreate, ProgressPatch, ProgressResponse
 from zndraw.socket_events import ProgressComplete, ProgressStart, ProgressUpdate
 
 router = APIRouter(
-    prefix="/v1/rooms/{owner_id}/{room_name}/progress", tags=["progress"]
+    prefix="/v1/rooms/{owner}/{room_name}/progress", tags=["progress"]
 )
 
 PROGRESS_TTL = 3600  # 1 hour — auto-cleanup for orphaned trackers

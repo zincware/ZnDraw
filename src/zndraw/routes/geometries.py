@@ -85,7 +85,7 @@ async def _get_session_cameras_for_room(
 
 
 router = APIRouter(
-    prefix="/v1/rooms/{owner_id}/{room_name}/geometries", tags=["geometries"]
+    prefix="/v1/rooms/{owner}/{room_name}/geometries", tags=["geometries"]
 )
 
 
@@ -376,7 +376,7 @@ async def delete_geometry(
 # =============================================================================
 
 default_camera_router = APIRouter(
-    prefix="/v1/rooms/{owner_id}/{room_name}", tags=["geometries"]
+    prefix="/v1/rooms/{owner}/{room_name}", tags=["geometries"]
 )
 
 

@@ -37,7 +37,7 @@ from zndraw.schemas import (
 )
 from zndraw.socket_events import GeometryInvalidate
 
-router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/presets", tags=["presets"])
+router = APIRouter(prefix="/v1/rooms/{owner}/{room_name}/presets", tags=["presets"])
 
 
 @lru_cache(maxsize=1)

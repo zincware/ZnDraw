@@ -11,10 +11,9 @@ Frame data format: list[dict[bytes, bytes]] where:
 
 import asyncio
 from typing import Annotated
-from uuid import UUID
 
 import msgpack
-from fastapi import APIRouter, Header, Query, Request, Response, status
+from fastapi import APIRouter, Header, Path, Query, Request, Response, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from zndraw_socketio import AsyncServerWrapper
@@ -32,7 +31,7 @@ from zndraw.dependencies import (
     SioDep,
     WritableRoomDep,
     _load_access_context,
-    _load_room_by_address,
+    _load_room_by_segment,
     resolve_share_token,
 )
 from zndraw.exceptions import (
@@ -63,7 +62,7 @@ from zndraw_joblib.events import Emission, ProviderRequest, emit as joblib_emit
 from zndraw_joblib.exceptions import ProviderTimeout
 from zndraw_joblib.models import ProviderRecord
 
-router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/frames", tags=["frames"])
+router = APIRouter(prefix="/v1/rooms/{owner}/{room_name}/frames", tags=["frames"])
 
 _REQUIRED_FRAME_KEYS = frozenset({b"arrays.colors", b"arrays.radii"})
 
@@ -189,7 +188,7 @@ async def list_frames(
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
-    owner_id: UUID,
+    owner: Annotated[str, Path(pattern=r"^[a-z][a-z0-9-]{2,63}$")],
     room_name: str,
     start: Annotated[int, Query(ge=0, description="Start index (inclusive)")] = 0,
     stop: Annotated[
@@ -219,16 +218,16 @@ async def list_frames(
     - Use keys to filter which keys are included in each frame
     """
     async with session_maker() as session:
-        room = await _load_room_by_address(session, owner_id, room_name)
+        room = await _load_room_by_segment(session, owner, room_name)
         if room is None:
-            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+            raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
         room_id = room.id
         share = await resolve_share_token(session, x_room_share_token, room_id)
         ctx = await _load_access_context(
-            session, owner_id, room_name, current_user, share
+            session, owner, room_name, current_user, share
         )
         if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
-            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+            raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
         total = await storage.get_length(room_id)
 
         requested_indices: list[int]
@@ -322,7 +321,7 @@ async def get_frame(
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
-    owner_id: UUID,
+    owner: Annotated[str, Path(pattern=r"^[a-z][a-z0-9-]{2,63}$")],
     room_name: str,
     index: int,
     keys: Annotated[
@@ -341,16 +340,16 @@ async def get_frame(
     request and returns 504 with Retry-After if the result is not yet cached.
     """
     async with session_maker() as session:
-        room = await _load_room_by_address(session, owner_id, room_name)
+        room = await _load_room_by_segment(session, owner, room_name)
         if room is None:
-            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+            raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
         room_id = room.id
         share = await resolve_share_token(session, x_room_share_token, room_id)
         ctx = await _load_access_context(
-            session, owner_id, room_name, current_user, share
+            session, owner, room_name, current_user, share
         )
         if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
-            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+            raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
         total = await storage.get_length(room_id)
         if index < 0 or index >= total:
             _raise_frame_not_found(index, total)
@@ -429,7 +428,7 @@ async def get_frame_metadata(
     sio: SioDep,
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
-    owner_id: UUID,
+    owner: Annotated[str, Path(pattern=r"^[a-z][a-z0-9-]{2,63}$")],
     room_name: str,
     index: int,
     x_room_share_token: Annotated[
@@ -445,16 +444,16 @@ async def get_frame_metadata(
     request and returns 504 with Retry-After if the result is not yet cached.
     """
     async with session_maker() as session:
-        room = await _load_room_by_address(session, owner_id, room_name)
+        room = await _load_room_by_segment(session, owner, room_name)
         if room is None:
-            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+            raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
         room_id = room.id
         share = await resolve_share_token(session, x_room_share_token, room_id)
         ctx = await _load_access_context(
-            session, owner_id, room_name, current_user, share
+            session, owner, room_name, current_user, share
         )
         if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
-            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+            raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
         total = await storage.get_length(room_id)
         if index < 0 or index >= total:
             _raise_frame_not_found(index, total)

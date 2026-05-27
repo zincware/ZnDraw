@@ -27,7 +27,7 @@ from zndraw.schemas import (
 from zndraw.socket_events import BookmarksInvalidate
 
 router = APIRouter(
-    prefix="/v1/rooms/{owner_id}/{room_name}/bookmarks", tags=["bookmarks"]
+    prefix="/v1/rooms/{owner}/{room_name}/bookmarks", tags=["bookmarks"]
 )
 
 

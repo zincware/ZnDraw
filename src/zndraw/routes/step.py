@@ -20,7 +20,7 @@ from zndraw.exceptions import (
 from zndraw.schemas import StepResponse, StepUpdateRequest, StepUpdateResponse
 from zndraw.socket_events import FrameUpdate
 
-router = APIRouter(prefix="/v1/rooms/{owner_id}/{room_name}/step", tags=["step"])
+router = APIRouter(prefix="/v1/rooms/{owner}/{room_name}/step", tags=["step"])
 
 
 @router.get(

@@ -41,7 +41,7 @@ from zndraw.schemas import (
 from zndraw.socket_events import ScreenshotRequest
 
 router = APIRouter(
-    prefix="/v1/rooms/{owner_id}/{room_name}/screenshots", tags=["screenshots"]
+    prefix="/v1/rooms/{owner}/{room_name}/screenshots", tags=["screenshots"]
 )
 
 _ALLOWED_FORMATS = {"png", "jpeg", "webp"}

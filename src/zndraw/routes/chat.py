@@ -34,7 +34,7 @@ from zndraw.socket_events import MessageEdited, MessageNew
 from zndraw_auth import User
 
 router = APIRouter(
-    prefix="/v1/rooms/{owner_id}/{room_name}/chat/messages", tags=["chat"]
+    prefix="/v1/rooms/{owner}/{room_name}/chat/messages", tags=["chat"]
 )
 
 
