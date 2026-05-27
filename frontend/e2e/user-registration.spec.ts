@@ -32,9 +32,7 @@ test.describe("User registration with display_name suggestion", () => {
 		const regenerateRequest = page.waitForRequest((req) =>
 			req.url().includes("/v1/users/available-display-name"),
 		);
-		await page
-			.getByRole("button", { name: /regenerate suggestion/i })
-			.click();
+		await page.getByRole("button", { name: /regenerate suggestion/i }).click();
 		await regenerateRequest;
 
 		await expect

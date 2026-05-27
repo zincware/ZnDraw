@@ -384,9 +384,7 @@ async def room_leave(
     room_address = await build_public_address(session, room)
     await broadcast_to_room(
         tsio,
-        SessionLeft.for_room(
-            room, room_address=room_address, user_id=user_id, sid=sid
-        ),
+        SessionLeft.for_room(room, room_address=room_address, user_id=user_id, sid=sid),
         room,
     )
     return RoomLeaveResponse(room_id=room_address)

@@ -260,7 +260,9 @@ async def test_list_bookmarks_requires_auth(
     user, _ = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    response = await client.get(f"/v1/rooms/{room_display_address(user, room)}/bookmarks")
+    response = await client.get(
+        f"/v1/rooms/{room_display_address(user, room)}/bookmarks"
+    )
     assert response.status_code == 401
 
 

@@ -116,9 +116,7 @@ async def get_isosurface(
             raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
         room_id = room.id
         share = await resolve_share_token(session, x_room_share_token, room_id)
-        ctx = await _load_access_context(
-            session, owner, room_name, current_user, share
-        )
+        ctx = await _load_access_context(session, owner, room_name, current_user, share)
         if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
             raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
         total = await storage.get_length(room_id)

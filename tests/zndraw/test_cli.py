@@ -445,9 +445,7 @@ def test_validate_room_arg_rejects_unprefixed() -> None:
 
 def test_validate_room_arg_rejects_bad_name_chars() -> None:
     with pytest.raises(typer.BadParameter) as exc:
-        _validate_room_arg(
-            "happy-blue-rabbit/bad name", owner_name="happy-blue-rabbit"
-        )
+        _validate_room_arg("happy-blue-rabbit/bad name", owner_name="happy-blue-rabbit")
     assert "invalid characters" in str(exc.value)
 
 

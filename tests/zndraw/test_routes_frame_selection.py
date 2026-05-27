@@ -27,7 +27,8 @@ async def test_get_returns_null_when_empty(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/frame-selection", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frame-selection",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     assert response.json()["frame_selection"] is None
@@ -47,7 +48,8 @@ async def test_get_returns_stored_indices(
     await session.commit()
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/frame-selection", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frame-selection",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     assert response.json()["frame_selection"] == [2, 5, 10]
@@ -87,7 +89,8 @@ async def test_put_stores_indices(client: AsyncClient, session: AsyncSession) ->
     assert put_resp.json()["success"] is True
 
     get_resp = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/frame-selection", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frame-selection",
+        headers=auth_header(token),
     )
     assert get_resp.json()["frame_selection"] == [1, 3, 7]
 
@@ -139,7 +142,8 @@ async def test_put_empty_list_clears_selection(
     )
 
     get_resp = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/frame-selection", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frame-selection",
+        headers=auth_header(token),
     )
     assert get_resp.json()["frame_selection"] is None
 
@@ -189,7 +193,8 @@ async def test_roundtrip(client: AsyncClient, session: AsyncSession) -> None:
     )
 
     get_resp = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/frame-selection", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frame-selection",
+        headers=auth_header(token),
     )
     assert get_resp.status_code == 200
     assert get_resp.json()["frame_selection"] == indices

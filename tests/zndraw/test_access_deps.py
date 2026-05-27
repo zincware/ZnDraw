@@ -17,7 +17,6 @@ from zndraw.exceptions import ProblemError
 from zndraw.models import Group, GroupMembership, Room
 from zndraw_auth import User
 
-
 _user_counter = 0
 
 

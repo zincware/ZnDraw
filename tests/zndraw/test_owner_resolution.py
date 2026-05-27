@@ -110,9 +110,7 @@ async def test_get_owner_uuid_from_segment_resolves_user(
     await session.commit()
     await session.refresh(user)
 
-    assert (
-        await get_owner_uuid_from_segment(session, "seg-test-user")
-    ) == user.id
+    assert (await get_owner_uuid_from_segment(session, "seg-test-user")) == user.id
 
 
 async def test_get_owner_uuid_from_segment_resolves_group(
@@ -134,9 +132,7 @@ async def test_get_owner_uuid_from_segment_resolves_group(
     await session.commit()
     await session.refresh(group)
 
-    assert (
-        await get_owner_uuid_from_segment(session, "visible-group")
-    ) == group.id
+    assert (await get_owner_uuid_from_segment(session, "visible-group")) == group.id
 
 
 async def test_get_owner_uuid_from_segment_unknown_raises_user_not_found(

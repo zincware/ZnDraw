@@ -252,10 +252,7 @@ async def create_download_token(
 
     base_url = str(request.base_url).rstrip("/")
     room_address = await build_public_address(session, access.room)
-    url = (
-        f"{base_url}/v1/rooms/{room_address}"
-        f"/trajectory?token={token_value}"
-    )
+    url = f"{base_url}/v1/rooms/{room_address}/trajectory?token={token_value}"
 
     return DownloadTokenResponse(token=token_value, url=url, expires_in=ttl)
 

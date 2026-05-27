@@ -226,9 +226,7 @@ class ZnDraw(MutableSequence[ase.Atoms]):
             )
         owner_part, _, name_part = raw_room.partition("/")
         if not re.fullmatch(r"^[a-z][a-z0-9-]{2,63}$", owner_part):
-            raise ValueError(
-                f"Owner '{owner_part}' is not a valid display name."
-            )
+            raise ValueError(f"Owner '{owner_part}' is not a valid display name.")
         if not re.fullmatch(r"[a-zA-Z0-9\-_]+", name_part):
             raise ValueError(f"Room name '{name_part}' contains invalid characters.")
         self.room = raw_room

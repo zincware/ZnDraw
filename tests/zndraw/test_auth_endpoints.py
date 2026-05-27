@@ -218,6 +218,7 @@ async def test_available_display_name_returns_valid_slug(
     assert resp.status_code == 200, resp.text
     body = resp.json()
     from zndraw_auth.display_names import DISPLAY_NAME_PATTERN
+
     assert DISPLAY_NAME_PATTERN.fullmatch(body["display_name"])
 
 

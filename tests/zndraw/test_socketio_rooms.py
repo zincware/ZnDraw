@@ -195,17 +195,20 @@ async def test_socketio_leave_room_after_switch_is_idempotent(
 
     # Join room1
     await tsio_client.call(
-        RoomJoin(owner=display_name, room_name=room1_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room1_name),
+        response_model=RoomJoinResponse,
     )
 
     # Switch to room2 (backend automatically leaves room1)
     await tsio_client.call(
-        RoomJoin(owner=display_name, room_name=room2_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room2_name),
+        response_model=RoomJoinResponse,
     )
 
     # Try to leave room1 again (simulates frontend cleanup race)
     result = await tsio_client.call(
-        RoomLeave(owner=display_name, room_name=room1_name), response_model=RoomLeaveResponse
+        RoomLeave(owner=display_name, room_name=room1_name),
+        response_model=RoomLeaveResponse,
     )
     assert result.room_id == room1_address
 
@@ -226,16 +229,19 @@ async def test_socketio_typing_events(server: str, http_client: AsyncClient) -> 
     await sio_client.connect(server, auth={"token": token})
     tsio_client = wrap(sio_client)
     await tsio_client.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
 
     result = await tsio_client.call(
-        TypingStart(owner=display_name, room_name=room_name), response_model=TypingResponse
+        TypingStart(owner=display_name, room_name=room_name),
+        response_model=TypingResponse,
     )
     assert result.status == "ok"
 
     result = await tsio_client.call(
-        TypingStop(owner=display_name, room_name=room_name), response_model=TypingResponse
+        TypingStop(owner=display_name, room_name=room_name),
+        response_model=TypingResponse,
     )
     assert result.status == "ok"
 
@@ -267,7 +273,8 @@ async def test_socketio_session_joined_broadcast(
     await sio_client1.connect(server, auth={"token": token1})
     tsio_client1 = wrap(sio_client1)
     await tsio_client1.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
 
     # User2 connects and joins Socket.IO room
@@ -279,7 +286,8 @@ async def test_socketio_session_joined_broadcast(
     user2_info = await tsio_client2.call(UserGet(), response_model=UserGetResponse)
 
     await tsio_client2.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
 
     await asyncio.sleep(0.5)
@@ -307,7 +315,8 @@ async def test_socketio_presence(server: str, http_client: AsyncClient) -> None:
     await sio_client.connect(server, auth={"token": token})
     tsio_client = wrap(sio_client)
     await tsio_client.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
 
     # Check presence via REST
@@ -350,7 +359,8 @@ async def test_socketio_session_left_broadcast(
     await sio_client1.connect(server, auth={"token": token1})
     tsio_client1 = wrap(sio_client1)
     await tsio_client1.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
 
     # User2 connects, joins, then leaves Socket.IO room
@@ -361,10 +371,12 @@ async def test_socketio_session_left_broadcast(
     user2_info = await tsio_client2.call(UserGet(), response_model=UserGetResponse)
 
     await tsio_client2.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
     await tsio_client2.call(
-        RoomLeave(owner=display_name, room_name=room_name), response_model=RoomLeaveResponse
+        RoomLeave(owner=display_name, room_name=room_name),
+        response_model=RoomLeaveResponse,
     )
 
     await asyncio.sleep(0.5)
@@ -403,7 +415,8 @@ async def test_socketio_session_left_on_disconnect(
     await sio_client1.connect(server, auth={"token": token1})
     tsio_client1 = wrap(sio_client1)
     await tsio_client1.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
 
     # User2 connects, joins, then disconnects (abruptly)
@@ -414,7 +427,8 @@ async def test_socketio_session_left_on_disconnect(
     user2_info = await tsio_client2.call(UserGet(), response_model=UserGetResponse)
 
     await tsio_client2.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
     await sio_client2.disconnect()
 
@@ -464,7 +478,8 @@ async def test_same_user_two_sessions_same_room(
     user_info = await tsio_client1.call(UserGet(), response_model=UserGetResponse)
 
     await tsio_client1.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
 
     # Connect session 2 (second tab, same user)
@@ -472,7 +487,8 @@ async def test_same_user_two_sessions_same_room(
     await sio_client2.connect(server, auth={"token": token})
     tsio_client2 = wrap(sio_client2)
     await tsio_client2.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
 
     await asyncio.sleep(0.3)
@@ -546,7 +562,8 @@ async def test_same_user_two_sessions_different_rooms(
     user_info = await tsio_client1.call(UserGet(), response_model=UserGetResponse)
 
     await tsio_client1.call(
-        RoomJoin(owner=display_name, room_name=room_a_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_a_name),
+        response_model=RoomJoinResponse,
     )
 
     # Session 2 joins Room B
@@ -554,7 +571,8 @@ async def test_same_user_two_sessions_different_rooms(
     await sio_client2.connect(server, auth={"token": token})
     tsio_client2 = wrap(sio_client2)
     await tsio_client2.call(
-        RoomJoin(owner=display_name, room_name=room_b_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_b_name),
+        response_model=RoomJoinResponse,
     )
 
     await asyncio.sleep(0.3)
@@ -626,7 +644,8 @@ async def test_session_broadcast_includes_sid(
     await sio_client1.connect(server, auth={"token": token1})
     tsio_client1 = wrap(sio_client1)
     await tsio_client1.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
 
     # User2 connects and joins Socket.IO room
@@ -637,7 +656,8 @@ async def test_session_broadcast_includes_sid(
     user2_info = await tsio_client2.call(UserGet(), response_model=UserGetResponse)
 
     await tsio_client2.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
 
     await asyncio.sleep(0.3)
@@ -834,10 +854,12 @@ async def test_same_room_frame_append_updates_sidebar(
     tsio_a = wrap(sio_a)
     tsio_b = wrap(sio_b)
     await tsio_a.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
     await tsio_b.call(
-        RoomJoin(owner=display_name, room_name=room_name), response_model=RoomJoinResponse
+        RoomJoin(owner=display_name, room_name=room_name),
+        response_model=RoomJoinResponse,
     )
 
     # Drain any room_update emissions that predate the frame append.

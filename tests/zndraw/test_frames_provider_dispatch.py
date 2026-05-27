@@ -68,7 +68,8 @@ async def test_get_frame_storage_hit_ignores_provider(
     await frame_storage[room.id].extend([make_raw_frame({"a": 1})])
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/frames/0", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     frames = decode_msgpack_response(response.content)
@@ -103,7 +104,8 @@ async def test_get_frame_provider_cache_hit(
     await result_backend.store(cache_key, packed, 300)
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/frames/0", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     frames = decode_msgpack_response(response.content)
@@ -126,7 +128,8 @@ async def test_get_frame_provider_timeout(
     await frame_storage[room.id].reserve(5)
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/frames/2", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frames/2",
+        headers=auth_header(token),
     )
     assert response.status_code == 504
 
@@ -149,7 +152,8 @@ async def test_get_frame_no_provider_returns_404(
     await frame_storage[room.id].reserve(3)
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/frames/1", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frames/1",
+        headers=auth_header(token),
     )
     assert response.status_code == 404
     problem = ProblemDetail.model_validate(response.json())
@@ -171,7 +175,8 @@ async def test_get_frame_dispatch_acquires_inflight(
     await frame_storage[room.id].reserve(3)
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/frames/0", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0",
+        headers=auth_header(token),
     )
     assert response.status_code == 504  # timeout, but inflight lock was set
 
@@ -218,7 +223,8 @@ async def test_get_frame_notify_wakes_long_poll(
     upload_task = asyncio.create_task(_simulate_provider_upload())
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/frames/1", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frames/1",
+        headers=auth_header(token),
     )
 
     await upload_task

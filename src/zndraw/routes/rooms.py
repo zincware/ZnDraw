@@ -648,9 +648,7 @@ async def list_sessions(
         if display_name is not None and entry_display_name != display_name:
             continue
         items.append(
-            SessionItem(
-                sid=sid, display_name=entry_display_name, camera_key=cam_key
-            )
+            SessionItem(sid=sid, display_name=entry_display_name, camera_key=cam_key)
         )
 
     return SessionsListResponse(items=items)
@@ -698,18 +696,14 @@ async def update_room(
                 )
             new_user_id = new_owner_id
         else:
-            role = await fetch_group_role(
-                session, current_user.id, new_owner_id
-            )
+            role = await fetch_group_role(session, current_user.id, new_owner_id)
             if role is None and not current_user.is_superuser:
                 raise TransferTargetInvalid.exception(
                     "You are not a member of the target group"
                 )
             new_group_id = new_owner_id
 
-        existing = await _load_room_by_address(
-            session, new_owner_id, room.room_name
-        )
+        existing = await _load_room_by_address(session, new_owner_id, room.room_name)
         if existing is not None and existing.id != room.id:
             raise TransferTargetInvalid.exception(
                 "A room with that name already exists in the target namespace"

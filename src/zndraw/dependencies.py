@@ -236,9 +236,7 @@ async def resolve_owner(
     return None
 
 
-async def get_owner_uuid_from_segment(
-    session: AsyncSession, owner: str
-) -> UUID:
+async def get_owner_uuid_from_segment(session: AsyncSession, owner: str) -> UUID:
     """Resolve a path display-name segment to a user UUID, or a group UUID by name.
 
     Tries ``User.display_name`` first, then ``Group.name``. Raises

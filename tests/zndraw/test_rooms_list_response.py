@@ -10,9 +10,7 @@ if TYPE_CHECKING:
     from httpx import AsyncClient
 
 
-async def _register_and_login(
-    client: AsyncClient, email: str
-) -> tuple[str, str]:
+async def _register_and_login(client: AsyncClient, email: str) -> tuple[str, str]:
     """Register a user and return ``(display_name, access_token)``."""
     r = await client.post(
         "/v1/auth/register",

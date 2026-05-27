@@ -112,7 +112,8 @@ async def test_list_messages_empty(client: AsyncClient, session: AsyncSession) -
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/chat/messages", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/chat/messages",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     data = response.json()
@@ -152,7 +153,8 @@ async def test_list_messages_returns_newest_first(
     )
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/chat/messages", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/chat/messages",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     data = response.json()

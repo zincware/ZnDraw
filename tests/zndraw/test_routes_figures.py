@@ -289,7 +289,9 @@ async def test_delete_figure_requires_auth(
     user, _ = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    response = await client.delete(f"/v1/rooms/{room_display_address(user, room)}/figures/chart")
+    response = await client.delete(
+        f"/v1/rooms/{room_display_address(user, room)}/figures/chart"
+    )
     assert response.status_code == 401
 
 

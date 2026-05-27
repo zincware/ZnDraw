@@ -32,7 +32,8 @@ async def test_get_edit_lock_returns_unlocked_when_no_lock(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/edit-lock", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/edit-lock",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     data = response.json()
@@ -62,7 +63,8 @@ async def test_get_edit_lock_returns_locked_when_lock_exists(
     await redis_client.set(RedisKey.edit_lock(room.id), lock_data, ex=10)
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/edit-lock", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/edit-lock",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     data = response.json()
@@ -392,7 +394,8 @@ async def test_release_edit_lock_idempotent_when_no_lock(
     room = await create_test_room(session, user)
 
     response = await client.delete(
-        f"/v1/rooms/{room_display_address(user, room)}/edit-lock", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/edit-lock",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     StatusResponse.model_validate(response.json())
@@ -465,7 +468,8 @@ async def test_admin_can_release_any_lock(
 
     # Admin releases (no Lock-Token needed for admin)
     response = await client.delete(
-        f"/v1/rooms/{room_display_address(user, room)}/edit-lock", headers=auth_header(admin_token)
+        f"/v1/rooms/{room_display_address(user, room)}/edit-lock",
+        headers=auth_header(admin_token),
     )
     assert response.status_code == 200
     StatusResponse.model_validate(response.json())
