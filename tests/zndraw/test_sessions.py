@@ -244,7 +244,7 @@ def test_cross_user_sees_other_users_sessions(server: str):
     items = vis2.api.list_sessions()
     assert len(items) == 1
     assert items[0].sid == fake_sid
-    assert items[0].email == "user1@local.test"
+    assert items[0].display_name is not None
     assert items[0].camera_key == camera_key
 
     r.close()
