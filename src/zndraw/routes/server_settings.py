@@ -14,7 +14,6 @@ from zndraw.dependencies import (
     FrameStorageDep,
     SessionDep,
     SioDep,
-    _load_room_by_address,
 )
 from zndraw.exceptions import Forbidden, RoomNotFound, problem_responses
 from zndraw.models import Room, ServerSettings, build_public_address
@@ -32,13 +31,13 @@ router = APIRouter(prefix="/v1/server-settings", tags=["server-settings"])
 class DefaultRoomResponse(BaseModel):
     """Response for the default room setting."""
 
-    room_id: str | None  # composed address: {owner_id}/{room_name}
+    room_id: str | None  # composed address: {owner}/{room_name}
 
 
 class DefaultRoomSetRequest(BaseModel):
     """Request to set the default room.
 
-    Accepts either the composed address ``{owner_id}/{room_name}`` or the
+    Accepts either the composed address ``{owner}/{room_name}`` or the
     surrogate room UUID (for backwards-compatible CLI usage).
     """
 
@@ -64,20 +63,14 @@ async def _resolve_room_by_id_or_address(
     session: AsyncSession, room_id: str
 ) -> Room | None:
     """Resolve a Room from either a surrogate UUID or a composed address."""
-    # Try direct surrogate lookup first
     room = await session.get(Room, room_id)
     if room is not None:
         return room
-    # Try composed-address lookup (owner_id/room_name)
-    parts = room_id.split("/", 1)
-    if len(parts) == 2:
-        try:
-            from uuid import UUID as _UUID
+    if "/" in room_id:
+        from zndraw.dependencies import _load_room_by_segment
 
-            owner_uuid = _UUID(parts[0])
-        except ValueError:
-            return None
-        return await _load_room_by_address(session, owner_uuid, parts[1])
+        owner_str, _, room_name = room_id.partition("/")
+        return await _load_room_by_segment(session, owner_str, room_name)
     return None
 
 

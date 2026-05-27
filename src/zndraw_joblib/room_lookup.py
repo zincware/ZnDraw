@@ -62,10 +62,12 @@ async def fetch_room(session: AsyncSession, room_id: str) -> Room | None:
 
 
 async def room_address_for(session: AsyncSession, room_id: str) -> str:
-    """Return ``room.public_address`` for a known room, else echo ``room_id``."""
+    """Return display-name composed address for a known room, else echo ``room_id``."""
     if room_id in ("@global", "@internal"):
         return room_id
     room = await fetch_room(session, room_id)
     if room is None:
         return room_id
-    return room.public_address
+    from zndraw.models import build_public_address
+
+    return await build_public_address(session, room)
