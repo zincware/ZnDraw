@@ -24,7 +24,11 @@ async def test_user_is_guest_defaults_false() -> None:
         engine, class_=AsyncSession, expire_on_commit=False
     )
     async with session_maker() as session:
-        user = User(email="u@test", hashed_password="x")
+        user = User(
+            email="u@test",
+            hashed_password="x",
+            display_name="guest-default-test",
+        )
         session.add(user)
         await session.commit()
         await session.refresh(user)
@@ -48,7 +52,12 @@ async def test_user_is_guest_can_be_true() -> None:
         engine, class_=AsyncSession, expire_on_commit=False
     )
     async with session_maker() as session:
-        user = User(email="g@test", hashed_password="x", is_guest=True)
+        user = User(
+            email="g@test",
+            hashed_password="x",
+            is_guest=True,
+            display_name="guest-true-test",
+        )
         session.add(user)
         await session.commit()
         await session.refresh(user)

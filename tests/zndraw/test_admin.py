@@ -175,14 +175,22 @@ async def _get_owner_id(http_client: AsyncClient, token: str) -> str:
     return r.json()["id"]
 
 
+async def _get_owner_display_name(http_client: AsyncClient, token: str) -> str:
+    r = await http_client.get(
+        "/v1/auth/users/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    r.raise_for_status()
+    return r.json()["display_name"]
+
+
 async def _create_room(http_client: AsyncClient, token: str) -> str:
     """Create a room and return its composed room_id."""
-    owner_id = await _get_owner_id(http_client, token)
+    display_name = await _get_owner_display_name(http_client, token)
     name = str(uuid.uuid4()).replace("-", "")[:20]
     response = await http_client.post(
         "/v1/rooms",
         headers={"Authorization": f"Bearer {token}"},
-        json={"owner_id": owner_id, "name": name, "description": "Test room"},
+        json={"owner": display_name, "name": name, "description": "Test room"},
     )
     assert response.status_code == 201
     return response.json()["room_id"]
@@ -284,12 +292,12 @@ async def test_create_room_with_at_empty(server: str, http_client: AsyncClient) 
     )
 
     # Create room with @empty — should NOT copy from default
-    owner_id = await _get_owner_id(http_client, token)
+    display_name = await _get_owner_display_name(http_client, token)
     name = str(uuid.uuid4()).replace("-", "")[:20]
     response = await http_client.post(
         "/v1/rooms",
         headers={"Authorization": f"Bearer {token}"},
-        json={"owner_id": owner_id, "name": name, "copy_from": "@empty"},
+        json={"owner": display_name, "name": name, "copy_from": "@empty"},
     )
     assert response.status_code == 201
     assert response.json()["frame_count"] == 1
@@ -299,12 +307,12 @@ async def test_create_room_with_at_empty(server: str, http_client: AsyncClient) 
 async def test_create_room_with_at_none(server: str, http_client: AsyncClient) -> None:
     """copyFrom=@none creates a room with zero frames."""
     token = await _get_token(http_client)
-    owner_id = await _get_owner_id(http_client, token)
+    display_name = await _get_owner_display_name(http_client, token)
     name = str(uuid.uuid4()).replace("-", "")[:20]
     response = await http_client.post(
         "/v1/rooms",
         headers={"Authorization": f"Bearer {token}"},
-        json={"owner_id": owner_id, "name": name, "copy_from": "@none"},
+        json={"owner": display_name, "name": name, "copy_from": "@none"},
     )
     assert response.status_code == 201
     assert response.json()["frame_count"] == 0
@@ -327,12 +335,12 @@ async def test_create_room_uses_default_when_no_copy_from(
     )
 
     # Create room without copyFrom — should copy from default
-    owner_id = await _get_owner_id(http_client, token)
+    display_name = await _get_owner_display_name(http_client, token)
     name = str(uuid.uuid4()).replace("-", "")[:20]
     response = await http_client.post(
         "/v1/rooms",
         headers={"Authorization": f"Bearer {token}"},
-        json={"owner_id": owner_id, "name": name},
+        json={"owner": display_name, "name": name},
     )
     assert response.status_code == 201
     # Default room has 1 frame, so new room should also have 1 frame
@@ -345,12 +353,12 @@ async def test_create_room_with_invalid_preset(
 ) -> None:
     """copyFrom with unknown @-prefixed preset returns 422."""
     token = await _get_token(http_client)
-    owner_id = await _get_owner_id(http_client, token)
+    display_name = await _get_owner_display_name(http_client, token)
     name = str(uuid.uuid4()).replace("-", "")[:20]
     response = await http_client.post(
         "/v1/rooms",
         headers={"Authorization": f"Bearer {token}"},
-        json={"owner_id": owner_id, "name": name, "copy_from": "@invalid"},
+        json={"owner": display_name, "name": name, "copy_from": "@invalid"},
     )
     assert response.status_code == 422
 

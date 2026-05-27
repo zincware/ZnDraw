@@ -8,7 +8,12 @@ import ase.io
 import numpy as np
 import pytest
 from asebytes import decode, encode
-from helpers import auth_header, create_test_room, create_test_user_in_db
+from helpers import (
+    auth_header,
+    create_test_room,
+    create_test_user_in_db,
+    room_display_address,
+)
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -77,7 +82,7 @@ async def test_download_single_frame(
     await _add_atoms_to_storage(frame_storage, room.id, [atoms])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory?indices=0",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?indices=0",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -105,7 +110,7 @@ async def test_download_all_frames(
     await _add_atoms_to_storage(frame_storage, room.id, atoms_list)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -137,7 +142,7 @@ async def test_download_specific_indices(
     await _add_atoms_to_storage(frame_storage, room.id, atoms_list)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory?indices=0,2,4",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?indices=0,2,4",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -164,7 +169,7 @@ async def test_download_with_atom_selection(
     await _add_atoms_to_storage(frame_storage, room.id, [atoms])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory?selection=0,2",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?selection=0,2",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -190,7 +195,7 @@ async def test_download_preserves_info(
     await _add_atoms_to_storage(frame_storage, room.id, [atoms])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -209,7 +214,7 @@ async def test_download_empty_room(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory",
         headers=auth_header(token),
     )
     assert response.status_code == 400
@@ -232,7 +237,7 @@ async def test_download_invalid_index(
     await _add_atoms_to_storage(frame_storage, room.id, atoms_list)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory?indices=99",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?indices=99",
         headers=auth_header(token),
     )
     assert response.status_code == 400
@@ -255,7 +260,7 @@ async def test_download_custom_filename(
     await _add_atoms_to_storage(frame_storage, room.id, [atoms])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory?filename=my_traj.extxyz",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?filename=my_traj.extxyz",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -278,7 +283,7 @@ async def test_download_formats(
     await _add_atoms_to_storage(frame_storage, room.id, [atoms])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory?format={fmt}",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?format={fmt}",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -297,7 +302,7 @@ async def test_download_requires_auth(
     user, _ = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    response = await client.get(f"/v1/rooms/{room.public_address}/trajectory")
+    response = await client.get(f"/v1/rooms/{room_display_address(user, room)}/trajectory")
     assert response.status_code == 401
 
 
@@ -315,7 +320,7 @@ async def test_download_unsupported_format(
     await _add_atoms_to_storage(frame_storage, room.id, [atoms])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory?format=invalid",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?format=invalid",
         headers=auth_header(token),
     )
     assert response.status_code == 400
@@ -346,7 +351,7 @@ async def test_upload_extxyz(
     content = _atoms_to_file_bytes(atoms_list, "extxyz")
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory",
         files={"file": ("traj.extxyz", content, "application/octet-stream")},
         headers=auth_header(token),
     )
@@ -375,7 +380,7 @@ async def test_upload_xyz(
     content = _atoms_to_file_bytes([atoms], "xyz")
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory?format=xyz",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?format=xyz",
         files={"file": ("traj.xyz", content, "application/octet-stream")},
         headers=auth_header(token),
     )
@@ -401,7 +406,7 @@ async def test_upload_format_from_extension(
 
     # No format query param, but filename ends with .xyz
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory",
         files={"file": ("trajectory.xyz", content, "application/octet-stream")},
         headers=auth_header(token),
     )
@@ -424,7 +429,7 @@ async def test_upload_explicit_format(
 
     # Filename says .xyz but format param says extxyz
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory?format=extxyz",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?format=extxyz",
         files={"file": ("traj.xyz", content, "application/octet-stream")},
         headers=auth_header(token),
     )
@@ -447,7 +452,7 @@ async def test_upload_preserves_positions(
     content = _atoms_to_file_bytes([atoms], "extxyz")
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory",
         files={"file": ("traj.extxyz", content, "application/octet-stream")},
         headers=auth_header(token),
     )
@@ -482,7 +487,7 @@ async def test_upload_appends_to_nonempty(
     content = _atoms_to_file_bytes([new_atoms], "extxyz")
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory",
         files={"file": ("traj.extxyz", content, "application/octet-stream")},
         headers=auth_header(token),
     )
@@ -506,7 +511,7 @@ async def test_upload_empty_file(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory",
         files={"file": ("traj.extxyz", b"", "application/octet-stream")},
         headers=auth_header(token),
     )
@@ -529,7 +534,7 @@ async def test_upload_requires_auth(
     content = _atoms_to_file_bytes([atoms], "extxyz")
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory",
         files={"file": ("traj.extxyz", content, "application/octet-stream")},
     )
     assert response.status_code == 401
@@ -551,7 +556,7 @@ async def test_upload_provider_backed_readonly(
     content = _atoms_to_file_bytes([atoms], "extxyz")
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory",
         files={"file": ("traj.extxyz", content, "application/octet-stream")},
         headers=auth_header(token),
     )
@@ -578,7 +583,7 @@ async def test_create_download_token(
     await _add_atoms_to_storage(frame_storage, room.id, [_make_atoms()])
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory/download-tokens",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory/download-tokens",
         headers=auth_header(token),
     )
     assert response.status_code == 201
@@ -589,7 +594,7 @@ async def test_create_download_token(
     assert "expires_in" in data
     assert data["expires_in"] == 300  # default TTL
     assert data["token"] in data["url"]
-    assert f"/v1/rooms/{room.public_address}/trajectory" in data["url"]
+    assert f"/v1/rooms/{room_display_address(user, room)}/trajectory" in data["url"]
 
 
 @pytest.mark.asyncio
@@ -604,7 +609,7 @@ async def test_create_download_token_custom_ttl(
     await _add_atoms_to_storage(frame_storage, room.id, [_make_atoms()])
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory/download-tokens",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory/download-tokens",
         headers=auth_header(token),
         json={"ttl": 60},
     )
@@ -624,7 +629,7 @@ async def test_create_download_token_ttl_exceeds_max_rejected(
     await _add_atoms_to_storage(frame_storage, room.id, [_make_atoms()])
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory/download-tokens",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory/download-tokens",
         headers=auth_header(token),
         json={"ttl": 999999},
     )
@@ -641,7 +646,7 @@ async def test_create_download_token_requires_auth(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory/download-tokens",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory/download-tokens",
     )
     assert response.status_code == 401
 
@@ -659,14 +664,14 @@ async def test_download_with_token_no_auth_header(
 
     # Create download token
     create_resp = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory/download-tokens",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory/download-tokens",
         headers=auth_header(token),
     )
     download_token = create_resp.json()["token"]
 
     # Download WITHOUT auth header, using token param
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory?token={download_token}",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?token={download_token}",
     )
     assert response.status_code == 200
 
@@ -686,7 +691,7 @@ async def test_download_with_invalid_token(
     await _add_atoms_to_storage(frame_storage, room.id, [_make_atoms()])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory?token=bogus-token",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?token=bogus-token",
     )
     assert response.status_code == 401
 
@@ -710,14 +715,14 @@ async def test_download_token_wrong_room(
 
     # Create token for room A
     create_resp = await client.post(
-        f"/v1/rooms/{room_a.public_address}/trajectory/download-tokens",
+        f"/v1/rooms/{room_display_address(user, room_a)}/trajectory/download-tokens",
         headers=auth_header(token),
     )
     download_token = create_resp.json()["token"]
 
     # Try to use it on room B
     response = await client.get(
-        f"/v1/rooms/{room_b.public_address}/trajectory?token={download_token}",
+        f"/v1/rooms/{room_display_address(user, room_b)}/trajectory?token={download_token}",
     )
     assert response.status_code == 401
 
@@ -734,20 +739,20 @@ async def test_download_token_single_use(
     await _add_atoms_to_storage(frame_storage, room.id, [_make_atoms()])
 
     create_resp = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory/download-tokens",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory/download-tokens",
         headers=auth_header(token),
     )
     download_token = create_resp.json()["token"]
 
     # First use succeeds
     resp1 = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory?token={download_token}",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?token={download_token}",
     )
     assert resp1.status_code == 200
 
     # Second use fails — token was consumed
     resp2 = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory?token={download_token}",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?token={download_token}",
     )
     assert resp2.status_code == 401
 
@@ -767,7 +772,7 @@ async def test_upload_enriches_frames(
     content = _atoms_to_file_bytes([atoms], "extxyz")
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory",
         files={"file": ("traj.extxyz", content, "application/octet-stream")},
         headers=auth_header(token),
     )
@@ -791,7 +796,7 @@ async def test_upload_malformed_file(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/trajectory?format=extxyz",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?format=extxyz",
         headers=auth_header(token),
         files={"file": ("garbage.xyz", b"this is not a trajectory", "text/plain")},
     )
@@ -815,7 +820,7 @@ async def test_download_atom_selection_out_of_range(
     await _add_atoms_to_storage(frame_storage, room.id, [_make_atoms()])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/trajectory?selection=0,99",
+        f"/v1/rooms/{room_display_address(user, room)}/trajectory?selection=0,99",
         headers=auth_header(token),
     )
     assert response.status_code == 400

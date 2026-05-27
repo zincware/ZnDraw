@@ -33,7 +33,8 @@ from zndraw.socket_events import (
 )
 
 ROOM_UUID = UUID("00000000-0000-0000-0000-000000000001")
-ROOM_ADDRESS = "11111111-1111-1111-1111-111111111111/test"
+ROOM_ADDRESS = "alice-the-explorer/test"
+OWNER_DISPLAY_NAME = "happy-blue-rabbit"
 
 # =============================================================================
 # socket_events: Request models
@@ -42,22 +43,23 @@ ROOM_ADDRESS = "11111111-1111-1111-1111-111111111111/test"
 
 def test_room_join_serialization() -> None:
     """RoomJoin serializes with default client_type."""
-    uid = uuid4()
-    event = RoomJoin(owner_id=uid, room_name="room-1")
+    event = RoomJoin(owner=OWNER_DISPLAY_NAME, room_name="room-1")
     data = event.model_dump(mode="json")
-    assert data["owner_id"] == str(uid)
+    assert data["owner"] == OWNER_DISPLAY_NAME
     assert data["room_name"] == "room-1"
     assert data["client_type"] == "frontend"
 
 
 def test_room_join_custom_client_type() -> None:
     """RoomJoin accepts custom client_type."""
-    event = RoomJoin(owner_id=uuid4(), room_name="room-1", client_type="pyclient")
+    event = RoomJoin(
+        owner=OWNER_DISPLAY_NAME, room_name="room-1", client_type="pyclient"
+    )
     assert event.client_type == "pyclient"
 
 
 def test_room_join_missing_required() -> None:
-    """RoomJoin requires owner_id and room_name."""
+    """RoomJoin requires owner and room_name."""
     with pytest.raises(ValidationError):
         RoomJoin()  # type: ignore[call-arg]
 
@@ -68,13 +70,34 @@ def test_room_join_missing_required() -> None:
     ids=["RoomLeave", "TypingStart", "TypingStop"],
 )
 def test_owner_room_request_roundtrip(model_cls: type) -> None:
-    """Request models with owner_id/room_name serialize/deserialize correctly."""
-    uid = uuid4()
-    instance = model_cls(owner_id=uid, room_name="test-room")
+    """Request models with owner/room_name serialize/deserialize correctly."""
+    instance = model_cls(owner=OWNER_DISPLAY_NAME, room_name="test-room")
     data = instance.model_dump(mode="json")
     restored = model_cls.model_validate(data)
-    assert restored.owner_id == uid
+    assert restored.owner == OWNER_DISPLAY_NAME
     assert restored.room_name == "test-room"
+
+
+@pytest.mark.parametrize(
+    "model_cls",
+    [RoomJoin, RoomLeave, TypingStart, TypingStop],
+    ids=["RoomJoin", "RoomLeave", "TypingStart", "TypingStop"],
+)
+@pytest.mark.parametrize(
+    "bad_owner",
+    [
+        "AB",  # too short, uppercase
+        "1abc",  # leading digit
+        "Has-Caps",  # uppercase
+        "-leading-dash",  # leading dash
+        "trailing-dot.",  # invalid char
+        "",  # empty
+    ],
+)
+def test_owner_segment_regex_gate(model_cls: type, bad_owner: str) -> None:
+    """Request models reject malformed display-name owners at construction."""
+    with pytest.raises(ValidationError):
+        model_cls(owner=bad_owner, room_name="test-room")
 
 
 def test_user_get_no_fields() -> None:
@@ -128,12 +151,12 @@ def test_ok_response_default() -> None:
 
 
 def test_user_get_response_serialization() -> None:
-    """UserGetResponse serializes UUID and fields."""
+    """UserGetResponse serializes UUID and display_name."""
     uid = uuid4()
-    resp = UserGetResponse(id=uid, email="user@example.com", is_superuser=False)
+    resp = UserGetResponse(id=uid, display_name="user-display", is_superuser=False)
     data = resp.model_dump(mode="json")
     assert data["id"] == str(uid)
-    assert data["email"] == "user@example.com"
+    assert data["display_name"] == "user-display"
     assert data["is_superuser"] is False
 
 
@@ -141,7 +164,7 @@ def test_user_get_response_deserializes_uuid_string() -> None:
     """UserGetResponse deserializes UUID from string."""
     uid = uuid4()
     resp = UserGetResponse.model_validate(
-        {"id": str(uid), "email": "a@b.com", "is_superuser": True}
+        {"id": str(uid), "display_name": "user-display", "is_superuser": True}
     )
     assert resp.id == uid
 
@@ -218,22 +241,22 @@ def test_session_joined_fields() -> None:
         room_address=ROOM_ADDRESS,
         user_id=uid,
         sid="socket-123",
-        email="user@x.com",
+        display_name="user-display",
     )
     data = event.model_dump(mode="json")
     assert data["room_id"] == str(ROOM_UUID)
     assert data["user_id"] == str(uid)
     assert data["sid"] == "socket-123"
-    assert data["email"] == "user@x.com"
+    assert data["display_name"] == "user-display"
 
 
-def test_session_joined_email_optional() -> None:
-    """SessionJoined defaults email to None."""
+def test_session_joined_display_name_optional() -> None:
+    """SessionJoined defaults display_name to None."""
     uid = uuid4()
     event = SessionJoined(
         room_id=ROOM_UUID, room_address=ROOM_ADDRESS, user_id=uid, sid="s1"
     )
-    assert event.email is None
+    assert event.display_name is None
 
 
 def test_session_left_fields() -> None:
@@ -321,19 +344,18 @@ def test_lock_update_full() -> None:
 
 def test_room_update_snapshot() -> None:
     """RoomUpdate is a full room snapshot with all required fields."""
-    uid = uuid4()
     surrogate_id = str(uuid4())
     event = RoomUpdate(
         id=surrogate_id,
-        room_id=f"{uid}/main",
-        owner_id=uid,
+        room_id=f"{OWNER_DISPLAY_NAME}/main",
+        owner=OWNER_DISPLAY_NAME,
         owner_kind="user",
-        owner_label="alice",
+        owner_label=OWNER_DISPLAY_NAME,
         frame_count=5,
         is_default=False,
     )
-    assert event.room_id == f"{uid}/main"
-    assert event.owner_id == uid
+    assert event.room_id == f"{OWNER_DISPLAY_NAME}/main"
+    assert event.owner == OWNER_DISPLAY_NAME
     assert event.owner_kind == "user"
     assert event.frame_count == 5
     assert event.is_default is False
@@ -356,13 +378,13 @@ def test_message_new_fields() -> None:
         user_id=uid,
         content="hello",
         created_at=now,
-        email="a@b.c",
+        display_name="author-name",
     )
     data = event.model_dump(mode="json")
     assert data["id"] == 1
     assert data["user_id"] == str(uid)
     assert data["content"] == "hello"
-    assert data["email"] == "a@b.c"
+    assert data["display_name"] == "author-name"
     assert data["updated_at"] is None
 
 
@@ -389,11 +411,11 @@ def test_typing_broadcast_fields() -> None:
         room_address=ROOM_ADDRESS,
         user_id=uid,
         is_typing=True,
-        email="a@b.c",
+        display_name="typer-name",
     )
     data = event.model_dump(mode="json")
     assert data["is_typing"] is True
-    assert data["email"] == "a@b.c"
+    assert data["display_name"] == "typer-name"
 
 
 # =============================================================================

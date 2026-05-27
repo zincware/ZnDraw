@@ -15,6 +15,7 @@ from helpers import (
     auth_header,
     create_test_room,
     create_test_user_in_db,
+    room_display_address,
 )
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,7 +36,7 @@ async def test_room_transfer_notifies_previous_owner_user_channel(
     bob, _bob_token = await create_test_user_in_db(session, email="bob@local.test")
     room = await create_test_room(session, alice, room_name="foo")
 
-    group = Group(name="G", created_by_id=alice.id)
+    group = Group(name="grp-transfer-test", created_by_id=alice.id)
     session.add(group)
     await session.flush()
     session.add(
@@ -47,8 +48,8 @@ async def test_room_transfer_notifies_previous_owner_user_channel(
     await session.commit()
 
     response = await client.patch(
-        f"/v1/rooms/{room.public_address}",
-        json={"new_owner_id": str(group.id), "visibility": Visibility.GROUP.value},
+        f"/v1/rooms/{room_display_address(alice, room)}",
+        json={"new_owner": group.name, "visibility": Visibility.GROUP.value},
         headers=auth_header(alice_token),
     )
     assert response.status_code == 200, response.text
@@ -72,7 +73,7 @@ async def test_room_transfer_notifies_previous_owner_user_channel(
     )
 
     payload = renamed[0]["data"]
-    assert payload["old_address"] == f"{alice.id}/foo"
-    assert payload["room_address"] == f"{group.id}/foo"
+    assert payload["old_address"] == f"{alice.display_name}/foo"
+    assert payload["room_address"] == f"{group.name}/foo"
     # MockSioServer captures via model_dump(); UUID fields surface as UUID instances.
     assert str(payload["room_id"]) == room.id

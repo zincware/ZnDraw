@@ -10,30 +10,33 @@ if TYPE_CHECKING:
     from httpx import AsyncClient
 
 
-async def _register_and_login(client: AsyncClient, email: str) -> tuple[str, str]:
+async def _register_and_login(
+    client: AsyncClient, email: str
+) -> tuple[str, str]:
+    """Register a user and return ``(display_name, access_token)``."""
     r = await client.post(
         "/v1/auth/register",
         json={"email": email, "password": "password123"},
     )
-    user_id = r.json()["id"]
+    display_name = r.json()["display_name"]
     r = await client.post(
         "/v1/auth/jwt/login",
         data={"username": email, "password": "password123"},
     )
-    return user_id, r.json()["access_token"]
+    return display_name, r.json()["access_token"]
 
 
 @pytest.mark.asyncio
 async def test_list_returns_composed_room_id(
     http_client_auth: AsyncClient,
 ) -> None:
-    user_id, token = await _register_and_login(
+    display_name, token = await _register_and_login(
         http_client_auth, "list-user@example.com"
     )
     headers = {"Authorization": f"Bearer {token}"}
     create = await http_client_auth.post(
         "/v1/rooms",
-        json={"owner_id": user_id, "name": "r1"},
+        json={"owner": display_name, "name": "r1"},
         headers=headers,
     )
     assert create.status_code == 201, create.text
@@ -41,27 +44,31 @@ async def test_list_returns_composed_room_id(
     resp = await http_client_auth.get("/v1/rooms", headers=headers)
     assert resp.status_code == 200
     items = resp.json()["items"]
-    item = next(it for it in items if it["room_id"] == f"{user_id}/r1")
+    item = next(it for it in items if it["room_id"] == f"{display_name}/r1")
     assert item["owner_kind"] == "user"
-    assert item["owner_label"] == "list-user@example.com"
-    assert item["owner_id"] == user_id
+    assert item["owner_label"] == display_name
+    assert item["owner"] == display_name
 
 
 @pytest.mark.asyncio
 async def test_get_room_returns_composed_address(
     http_client_auth: AsyncClient,
 ) -> None:
-    user_id, token = await _register_and_login(http_client_auth, "get-user@example.com")
+    display_name, token = await _register_and_login(
+        http_client_auth, "get-user@example.com"
+    )
     headers = {"Authorization": f"Bearer {token}"}
     create = await http_client_auth.post(
         "/v1/rooms",
-        json={"owner_id": user_id, "name": "getme"},
+        json={"owner": display_name, "name": "getme"},
         headers=headers,
     )
     assert create.status_code == 201
 
-    resp = await http_client_auth.get(f"/v1/rooms/{user_id}/getme", headers=headers)
+    resp = await http_client_auth.get(
+        f"/v1/rooms/{display_name}/getme", headers=headers
+    )
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["room_id"] == f"{user_id}/getme"
+    assert body["room_id"] == f"{display_name}/getme"
     assert body["owner_kind"] == "user"

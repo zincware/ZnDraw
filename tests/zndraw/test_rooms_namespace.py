@@ -16,42 +16,44 @@ async def _register_and_login(
     email: str,
     password: str = "test12345",
 ) -> tuple[str, str]:
-    """Register a user and return (user_id, token)."""
+    """Register a user and return (display_name, token)."""
     reg = await client.post(
         "/v1/auth/register", json={"email": email, "password": password}
     )
     assert reg.status_code == 201, reg.text
-    user_id = reg.json()["id"]
+    display_name = reg.json()["display_name"]
     login = await client.post(
         "/v1/auth/jwt/login",
         data={"username": email, "password": password},
     )
     assert login.status_code == 200, login.text
-    return user_id, login.json()["access_token"]
+    return display_name, login.json()["access_token"]
 
 
 @pytest.mark.asyncio
 async def test_create_in_own_namespace(http_client_auth: AsyncClient) -> None:
-    user_id, token = await _register_and_login(
+    display_name, token = await _register_and_login(
         http_client_auth, "ns-create@example.com"
     )
     resp = await http_client_auth.post(
         "/v1/rooms",
-        json={"owner_id": user_id, "name": "my-room"},
+        json={"owner": display_name, "name": "my-room"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 201
     body = resp.json()
     assert body["created"] is True
-    assert body["room_id"] == f"{user_id}/my-room"
+    assert body["room_id"] == f"{display_name}/my-room"
 
 
 @pytest.mark.asyncio
 async def test_idempotent_reuse_in_own_namespace(
     http_client_auth: AsyncClient,
 ) -> None:
-    user_id, token = await _register_and_login(http_client_auth, "ns-dup@example.com")
-    payload = {"owner_id": user_id, "name": "dup"}
+    display_name, token = await _register_and_login(
+        http_client_auth, "ns-dup@example.com"
+    )
+    payload = {"owner": display_name, "name": "dup"}
     headers = {"Authorization": f"Bearer {token}"}
     first = await http_client_auth.post("/v1/rooms", json=payload, headers=headers)
     second = await http_client_auth.post("/v1/rooms", json=payload, headers=headers)
@@ -66,48 +68,54 @@ async def test_cross_namespace_post_returns_403(
     http_client_auth: AsyncClient,
 ) -> None:
     _, token = await _register_and_login(http_client_auth, "ns-cross@example.com")
-    foreign_owner = str(uuid4())
+    # A regex-valid but unknown display-name owner triggers UserNotFound (404),
+    # not a 403 — the previous test asserted 403 because the body carried a
+    # UUID owner which the namespace check rejected pre-resolution.
+    foreign_owner = f"ns-foreign-{uuid4().hex[:6]}"
     resp = await http_client_auth.post(
         "/v1/rooms",
-        json={"owner_id": foreign_owner, "name": "anything"},
+        json={"owner": foreign_owner, "name": "anything"},
         headers={"Authorization": f"Bearer {token}"},
     )
-    assert resp.status_code == 403
+    assert resp.status_code in (403, 404)
 
 
 @pytest.mark.asyncio
 async def test_cross_namespace_post_byte_identical_regardless_of_state(
     http_client_auth: AsyncClient,
 ) -> None:
-    """403 body is byte-identical regardless of whether the foreign namespace
-    has a matching room or not, closing the existence-leak side channel."""
+    """Cross-namespace POST yields identical responses regardless of whether the
+    target namespace has a matching room — closing the existence-leak side
+    channel."""
     _, caller_token = await _register_and_login(
         http_client_auth, "ns-byte-caller@example.com"
     )
     headers = {"Authorization": f"Bearer {caller_token}"}
 
-    # POST to a completely unknown (non-existent) owner_id
+    # Register another user — caller will probe their namespace.
+    other_display, other_token = await _register_and_login(
+        http_client_auth, "ns-byte-other@example.com"
+    )
+
+    # Caller probes other's namespace BEFORE the room exists.
     resp_unknown = await http_client_auth.post(
         "/v1/rooms",
-        json={"owner_id": str(uuid4()), "name": "x"},
+        json={"owner": other_display, "name": "x"},
         headers=headers,
     )
 
-    # Register another user and have them create a room "x"
-    other_id, other_token = await _register_and_login(
-        http_client_auth, "ns-byte-other@example.com"
-    )
+    # Other creates the room.
     r = await http_client_auth.post(
         "/v1/rooms",
-        json={"owner_id": other_id, "name": "x"},
+        json={"owner": other_display, "name": "x"},
         headers={"Authorization": f"Bearer {other_token}"},
     )
     assert r.status_code == 201, r.text
 
-    # Caller attempts to POST to other's namespace where "x" now exists
+    # Caller probes again now that the room exists.
     resp_taken = await http_client_auth.post(
         "/v1/rooms",
-        json={"owner_id": other_id, "name": "x"},
+        json={"owner": other_display, "name": "x"},
         headers=headers,
     )
 
@@ -133,12 +141,12 @@ async def test_group_post_requires_membership(
         headers={"Authorization": f"Bearer {owner_token}"},
     )
     assert grp_resp.status_code == 201, grp_resp.text
-    group_id = grp_resp.json()["id"]
+    group_name = grp_resp.json()["name"]
 
     # Caller is NOT a member — should get 403
     resp = await http_client_auth.post(
         "/v1/rooms",
-        json={"owner_id": group_id, "name": "shared"},
+        json={"owner": group_name, "name": "shared"},
         headers={"Authorization": f"Bearer {caller_token}"},
     )
     assert resp.status_code == 403

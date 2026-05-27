@@ -13,7 +13,11 @@ from zndraw_auth import User
 
 @pytest.mark.asyncio
 async def test_fetch_my_group_ids(session: AsyncSession) -> None:
-    u = User(email="a@x", hashed_password="x")
+    u = User(
+        email="a@x",
+        hashed_password="x",
+        display_name="grp-member-a-test",
+    )
     session.add(u)
     await session.commit()
     g1 = Group(name="g1", created_by_id=u.id)
@@ -34,7 +38,11 @@ async def test_fetch_my_group_ids(session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_fetch_group_role(session: AsyncSession) -> None:
-    u = User(email="b@x", hashed_password="x")
+    u = User(
+        email="b@x",
+        hashed_password="x",
+        display_name="grp-role-b-test",
+    )
     session.add(u)
     await session.commit()
     g = Group(name="g3", created_by_id=u.id)

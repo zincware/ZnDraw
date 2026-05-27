@@ -18,7 +18,11 @@ if TYPE_CHECKING:
 
 @pytest_asyncio.fixture
 async def alice(session: AsyncSession) -> User:
-    user = User(email="alice@example.com", hashed_password="x")
+    user = User(
+        email="alice@example.com",
+        hashed_password="x",
+        display_name="alice-display",
+    )
     session.add(user)
     await session.commit()
     await session.refresh(user)
@@ -86,7 +90,11 @@ async def test_unique_per_owner(session: AsyncSession, alice: User) -> None:
 
 
 async def test_same_name_different_owners(session: AsyncSession, alice: User) -> None:
-    bob = User(email="bob@example.com", hashed_password="x")
+    bob = User(
+        email="bob@example.com",
+        hashed_password="x",
+        display_name="bob-display",
+    )
     session.add(bob)
     await session.commit()
     await session.refresh(bob)

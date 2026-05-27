@@ -7,6 +7,7 @@ from helpers import (
     create_test_room,
     create_test_user_in_db,
     make_raw_frame,
+    room_display_address,
 )
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,7 +36,7 @@ async def test_get_step_returns_zero_initially(
     )
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/step",
+        f"/v1/rooms/{room_display_address(user, room)}/step",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -64,7 +65,7 @@ async def test_get_step_returns_current_step(
     )
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/step",
+        f"/v1/rooms/{room_display_address(user, room)}/step",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -96,7 +97,7 @@ async def test_set_step_updates_and_returns(
     )
 
     response = await client.put(
-        f"/v1/rooms/{room.public_address}/step",
+        f"/v1/rooms/{room_display_address(user, room)}/step",
         json={"step": 1},
         headers=auth_header(token),
     )
@@ -133,7 +134,7 @@ async def test_set_step_out_of_bounds_returns_422(
 
     # Request step=100 — should return 422
     response = await client.put(
-        f"/v1/rooms/{room.public_address}/step",
+        f"/v1/rooms/{room_display_address(user, room)}/step",
         json={"step": 100},
         headers=auth_header(token),
     )
@@ -154,7 +155,7 @@ async def test_set_step_empty_room_rejects_nonzero(
 
     # Room has no frames — step=5 should be rejected
     response = await client.put(
-        f"/v1/rooms/{room.public_address}/step",
+        f"/v1/rooms/{room_display_address(user, room)}/step",
         json={"step": 5},
         headers=auth_header(token),
     )
@@ -176,7 +177,7 @@ async def test_set_step_negative_returns_422(
     await frame_storage[room.id].extend([make_raw_frame({"a": 1})])
 
     response = await client.put(
-        f"/v1/rooms/{room.public_address}/step",
+        f"/v1/rooms/{room_display_address(user, room)}/step",
         json={"step": -1},
         headers=auth_header(token),
     )
@@ -199,7 +200,7 @@ async def test_get_step_requires_auth(
     user, _ = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    response = await client.get(f"/v1/rooms/{room.public_address}/step")
+    response = await client.get(f"/v1/rooms/{room_display_address(user, room)}/step")
     assert response.status_code == 401
 
 
@@ -212,7 +213,7 @@ async def test_set_step_requires_auth(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room.public_address}/step",
+        f"/v1/rooms/{room_display_address(user, room)}/step",
         json={"step": 1},
     )
     assert response.status_code == 401
@@ -231,11 +232,14 @@ async def test_get_step_returns_404_for_nonexistent_room(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/step",
+        "/v1/rooms/no-such-owner/nonexistent/step",
         headers=auth_header(token),
     )
     assert response.status_code == 404
-    assert "room-not-found" in response.json()["type"]
+    assert any(
+        marker in response.json()["type"]
+        for marker in ("room-not-found", "user-not-found")
+    )
 
 
 @pytest.mark.asyncio
@@ -246,9 +250,12 @@ async def test_set_step_returns_404_for_nonexistent_room(
     _, token = await create_test_user_in_db(session)
 
     response = await client.put(
-        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/step",
+        "/v1/rooms/no-such-owner/nonexistent/step",
         json={"step": 1},
         headers=auth_header(token),
     )
     assert response.status_code == 404
-    assert "room-not-found" in response.json()["type"]
+    assert any(
+        marker in response.json()["type"]
+        for marker in ("room-not-found", "user-not-found")
+    )

@@ -24,30 +24,39 @@ async def _get_user_token(
     return login_response.json()["access_token"]
 
 
-async def _get_user_id(http_client: AsyncClient, token: str) -> str:
-    """Get the authenticated user's UUID."""
+async def _register_and_login(
+    http_client: AsyncClient,
+    email: str,
+    password: str = "testpassword",
+) -> str:
+    """Alias of ``_get_user_token`` — kept for readability in new tests."""
+    return await _get_user_token(http_client, email, password)
+
+
+async def _get_user_display_name(http_client: AsyncClient, token: str) -> str:
+    """Get the authenticated user's display_name."""
     me_resp = await http_client.get(
         "/v1/auth/users/me",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert me_resp.status_code == 200
-    return me_resp.json()["id"]
+    return me_resp.json()["display_name"]
 
 
 @pytest.mark.asyncio
 async def test_create_room_with_valid_name(http_client: AsyncClient):
-    """Test creating a room with a valid name and owner_id."""
+    """Test creating a room with a valid name and display-name owner."""
     token = await _get_user_token(http_client, "validname@example.com")
-    user_id = await _get_user_id(http_client, token)
+    display_name = await _get_user_display_name(http_client, token)
     room_name = "abc-123-def-456"
     response = await http_client.post(
         "/v1/rooms",
-        json={"owner_id": user_id, "name": room_name},
+        json={"owner": display_name, "name": room_name},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 201
     result = RoomCreateResponse.model_validate(response.json())
-    assert result.room_id == f"{user_id}/{room_name}"
+    assert result.room_id == f"{display_name}/{room_name}"
     assert result.status == "ok"
     assert result.created is True
 
@@ -56,32 +65,32 @@ async def test_create_room_with_valid_name(http_client: AsyncClient):
 async def test_create_room_with_alphanumeric_only(http_client: AsyncClient):
     """Test creating a room with alphanumeric characters only."""
     token = await _get_user_token(http_client, "alphanumeric@example.com")
-    user_id = await _get_user_id(http_client, token)
+    display_name = await _get_user_display_name(http_client, token)
     room_name = "abc123def456"
     response = await http_client.post(
         "/v1/rooms",
-        json={"owner_id": user_id, "name": room_name},
+        json={"owner": display_name, "name": room_name},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 201
     result = RoomCreateResponse.model_validate(response.json())
-    assert result.room_id == f"{user_id}/{room_name}"
+    assert result.room_id == f"{display_name}/{room_name}"
 
 
 @pytest.mark.asyncio
 async def test_create_room_with_underscores(http_client: AsyncClient):
     """Test creating a room with underscores (allowed)."""
     token = await _get_user_token(http_client, "underscores@example.com")
-    user_id = await _get_user_id(http_client, token)
+    display_name = await _get_user_display_name(http_client, token)
     room_name = "test_file_123"
     response = await http_client.post(
         "/v1/rooms",
-        json={"owner_id": user_id, "name": room_name},
+        json={"owner": display_name, "name": room_name},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 201
     result = RoomCreateResponse.model_validate(response.json())
-    assert result.room_id == f"{user_id}/{room_name}"
+    assert result.room_id == f"{display_name}/{room_name}"
 
 
 @pytest.mark.asyncio
@@ -103,10 +112,39 @@ async def test_create_room_with_invalid_characters(
     token = await _get_user_token(
         http_client, f"invalid{abs(hash(invalid_room_name)) % 10**9}@example.com"
     )
-    user_id = await _get_user_id(http_client, token)
+    display_name = await _get_user_display_name(http_client, token)
     response = await http_client.post(
         "/v1/rooms",
-        json={"owner_id": user_id, "name": invalid_room_name},
+        json={"owner": display_name, "name": invalid_room_name},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_owner_segment_uuid_returns_422(
+    http_client: AsyncClient,
+) -> None:
+    """A UUID-shaped owner segment must hit the path regex gate (422)."""
+    email = "rooms-uuid-422@example.com"
+    token = await _register_and_login(http_client, email)
+    fake_uuid = "00000000-0000-0000-0000-000000000000"
+    resp = await http_client.get(
+        f"/v1/rooms/{fake_uuid}/any-room",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_owner_segment_unknown_display_name_returns_404(
+    http_client: AsyncClient,
+) -> None:
+    """Path-regex-valid but unknown owner display_name resolves to 404."""
+    email = "rooms-404@example.com"
+    token = await _register_and_login(http_client, email)
+    resp = await http_client.get(
+        "/v1/rooms/no-such-display-name/any-room",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 404
