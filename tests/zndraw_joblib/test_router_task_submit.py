@@ -86,28 +86,30 @@ def test_submit_internal_task_forwards_dispatch_address_to_kiq(
         return dispatch_addr
 
     app.dependency_overrides[resolve_dispatch_room_address] = _override
+    try:
+        resp = client.put(
+            "/v1/joblib/rooms/@internal/jobs",
+            json={"category": "modifiers", "name": "Rotate", "schema": {}},
+        )
+        assert resp.status_code in (200, 201)
 
-    resp = client.put(
-        "/v1/joblib/rooms/@internal/jobs",
-        json={"category": "modifiers", "name": "Rotate", "schema": {}},
-    )
-    assert resp.status_code in (200, 201)
+        mock_task_handle = MagicMock()
+        mock_task_handle.kiq = AsyncMock()
+        app.state.internal_registry = InternalRegistry(
+            tasks={"@internal:modifiers:Rotate": mock_task_handle},
+            extensions={},
+        )
 
-    mock_task_handle = MagicMock()
-    mock_task_handle.kiq = AsyncMock()
-    app.state.internal_registry = InternalRegistry(
-        tasks={"@internal:modifiers:Rotate": mock_task_handle},
-        extensions={},
-    )
+        resp = client.post(
+            f"/v1/joblib/rooms/{path_addr}/tasks/@internal:modifiers:Rotate",
+            json={"payload": {"angle": 90}},
+        )
+        assert resp.status_code == 202
 
-    resp = client.post(
-        f"/v1/joblib/rooms/{path_addr}/tasks/@internal:modifiers:Rotate",
-        json={"payload": {"angle": 90}},
-    )
-    assert resp.status_code == 202
-
-    mock_task_handle.kiq.assert_called_once()
-    assert mock_task_handle.kiq.call_args.kwargs["room_id"] == dispatch_addr
+        mock_task_handle.kiq.assert_called_once()
+        assert mock_task_handle.kiq.call_args.kwargs["room_id"] == dispatch_addr
+    finally:
+        app.dependency_overrides.pop(resolve_dispatch_room_address, None)
 
 
 def test_submit_internal_task_no_registry_returns_503(app, client, test_user_id):
