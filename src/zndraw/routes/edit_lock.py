@@ -103,15 +103,17 @@ async def acquire_edit_lock(
         holder = json.loads(raw)
         if holder["lock_token"] != lock_token:
             raise RoomLocked.exception("Room is being edited by another session")
-        # Refresh: keep all original fields, reset TTL
-        await redis.set(key, raw, ex=settings.edit_lock_ttl)
+        if request.msg is not None:
+            holder["msg"] = request.msg
+        # Refresh: persist any updated fields, reset TTL
+        await redis.set(key, json.dumps(holder), ex=settings.edit_lock_ttl)
         ttl = await redis.ttl(key)
         return EditLockResponse(
             locked=True,
             lock_token=holder["lock_token"],
             user_id=holder["user_id"],
             sid=holder.get("sid"),
-            msg=request.msg if request.msg is not None else holder.get("msg"),
+            msg=holder.get("msg"),
             acquired_at=holder["acquired_at"],
             ttl=max(ttl, 0),
         )
