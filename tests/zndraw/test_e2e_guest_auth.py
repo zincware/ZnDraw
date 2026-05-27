@@ -58,6 +58,18 @@ async def test_guest_auth_returns_token(http_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_guest_session_includes_display_name(client: AsyncClient) -> None:
+    resp = await client.post("/v1/auth/guest")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    from zndraw_auth.display_names import DISPLAY_NAME_PATTERN
+    assert DISPLAY_NAME_PATTERN.fullmatch(body["display_name"])
+    assert body["email"].endswith("@guest.user")
+    assert body["token_type"] == "bearer"
+    assert isinstance(body["access_token"], str) and body["access_token"]
+
+
+@pytest.mark.asyncio
 async def test_guest_can_create_room(http_client: AsyncClient):
     """A guest can create a room after authenticating."""
     token, user_id = await _get_guest_token_and_user_id(http_client)
