@@ -27,6 +27,7 @@ from zndraw.exceptions import (
     UnprocessableContent,
     problem_responses,
 )
+from zndraw.models import build_public_address
 from zndraw.routes.frames import _dispatch_provider_frame, _find_frames_provider
 
 router = APIRouter(
@@ -129,7 +130,9 @@ async def get_isosurface(
         except IndexError:
             frame = None
         provider = (
-            await _find_frames_provider(session, await build_public_address(session, room))
+            await _find_frames_provider(
+                session, await build_public_address(session, room)
+            )
             if frame is None
             else None
         )

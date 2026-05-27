@@ -165,9 +165,9 @@ export default function RegisterDialog({ open, onClose }: RegisterDialogProps) {
 						label="Display name"
 						value={displayName}
 						onChange={(e) => {
-						userTouchedRef.current = true;
-						setDisplayName(e.target.value);
-					}}
+							userTouchedRef.current = true;
+							setDisplayName(e.target.value);
+						}}
 						onKeyDown={handleKeyDown}
 						disabled={loading}
 						fullWidth

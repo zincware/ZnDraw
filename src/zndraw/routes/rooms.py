@@ -2,7 +2,7 @@
 
 import json
 from typing import Annotated, Any, Literal
-from uuid import UUID
+from uuid import UUID  # noqa: TC003 — used at runtime by local UUID(...) casts
 
 from fastapi import APIRouter, Query, Response, status
 from sqlalchemy import or_

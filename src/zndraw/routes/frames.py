@@ -258,7 +258,9 @@ async def list_frames(
 
         has_missing = any(f is None for f in frames_or_none)
         provider = (
-            await _find_frames_provider(session, await build_public_address(session, room))
+            await _find_frames_provider(
+                session, await build_public_address(session, room)
+            )
             if has_missing
             else None
         )
@@ -357,7 +359,9 @@ async def get_frame(
         except IndexError:
             frame = None
         if frame is None:
-            provider = await _find_frames_provider(session, await build_public_address(session, room))
+            provider = await _find_frames_provider(
+                session, await build_public_address(session, room)
+            )
         else:
             provider = None
     # Session closed, lock released ^
@@ -459,7 +463,9 @@ async def get_frame_metadata(
         except IndexError:
             frame = None
         provider = (
-            await _find_frames_provider(session, await build_public_address(session, room))
+            await _find_frames_provider(
+                session, await build_public_address(session, room)
+            )
             if frame is None
             else None
         )

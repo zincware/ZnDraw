@@ -73,8 +73,12 @@ async def create_guest_session(
                 continue
             raise
     if user is None:
-        raise last_exc if last_exc is not None else RuntimeError(
-            "Failed to allocate a unique display_name for guest session"
+        raise (
+            last_exc
+            if last_exc is not None
+            else RuntimeError(
+                "Failed to allocate a unique display_name for guest session"
+            )
         )
 
     strategy = JWTStrategy(

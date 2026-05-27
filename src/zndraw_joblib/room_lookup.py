@@ -45,14 +45,15 @@ async def fetch_room(session: AsyncSession, room_id: str) -> Room | None:
             try:
                 owner_uuid = UUID(owner_part)
             except ValueError:
-                # Display-name / group-name slug — resolve to UUID.
+                # Display-name / group-name slug — resolve to UUID. The
+                # resolver raises a ProblemError (UserNotFound) on miss;
+                # for fetch_room we just translate that to None.
                 from zndraw.dependencies import get_owner_uuid_from_segment
+                from zndraw_joblib.exceptions import ProblemError
 
                 try:
-                    owner_uuid = await get_owner_uuid_from_segment(
-                        session, owner_part
-                    )
-                except Exception:
+                    owner_uuid = await get_owner_uuid_from_segment(session, owner_part)
+                except ProblemError:
                     return None
             from sqlmodel import col, or_, select as sql_select
 
