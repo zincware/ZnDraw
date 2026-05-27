@@ -18,6 +18,7 @@ async def _seed_internal_provider(async_session_factory):
             id=uuid.uuid4(),
             email="int-dispatch@test",
             hashed_password="x",
+            display_name="slug-int-dispatch-1",
             is_active=True,
             is_superuser=True,
             is_verified=True,
