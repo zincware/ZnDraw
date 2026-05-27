@@ -601,7 +601,9 @@ async def get_room_presence(
             PresenceSessionResponse(
                 sid=entry["sid"],
                 user_id=_UUID(camera.owner),
-                email=entry.get("email"),
+                # transition guard: read-side accepts either key while
+                # Task 11 still writes "email" on the socket cache.
+                display_name=entry.get("display_name") or entry.get("email"),
             )
         )
 
@@ -615,7 +617,9 @@ async def get_room_presence(
 async def list_sessions(
     redis: RedisDep,
     access: AccessReadDep,
-    email: Annotated[str | None, Query(description="Filter by user email")] = None,
+    display_name: Annotated[
+        str | None, Query(description="Filter by user display_name")
+    ] = None,
 ) -> SessionsListResponse:
     """List all active frontend sessions in this room."""
     room_id = access.room.id
@@ -636,10 +640,16 @@ async def list_sessions(
         if raw is None:
             continue
         entry = json.loads(raw)
-        entry_email = entry.get("email", "")
-        if email is not None and entry_email != email:
+        # transition guard: pivot to display_name while Task 11
+        # still writes "email" on the socket cache.
+        entry_display_name = entry.get("display_name", entry.get("email", ""))
+        if display_name is not None and entry_display_name != display_name:
             continue
-        items.append(SessionItem(sid=sid, email=entry_email, camera_key=cam_key))
+        items.append(
+            SessionItem(
+                sid=sid, display_name=entry_display_name, camera_key=cam_key
+            )
+        )
 
     return SessionsListResponse(items=items)
 

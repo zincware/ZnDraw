@@ -288,7 +288,10 @@ async def list_members(
     return CollectionResponse(
         items=[
             GroupMemberResponse(
-                user_id=m.user_id, email=u.email, role=m.role, joined_at=m.joined_at
+                user_id=m.user_id,
+                display_name=u.display_name,
+                role=m.role,
+                joined_at=m.joined_at,
             )
             for m, u in result.all()
         ]
@@ -338,7 +341,10 @@ async def add_member(
         )
         m = result.one()
         return GroupMemberResponse(
-            user_id=m.user_id, email=user.email, role=m.role, joined_at=m.joined_at
+            user_id=m.user_id,
+            display_name=user.display_name,
+            role=m.role,
+            joined_at=m.joined_at,
         )
     membership = GroupMembership(
         group_id=group_id, user_id=payload.user_id, role=payload.role
@@ -348,7 +354,7 @@ async def add_member(
     await session.refresh(membership)
     return GroupMemberResponse(
         user_id=membership.user_id,
-        email=user.email,
+        display_name=user.display_name,
         role=membership.role,
         joined_at=membership.joined_at,
     )
@@ -409,7 +415,7 @@ async def update_member_role(
     user = await session.get(User, user_id)
     return GroupMemberResponse(
         user_id=membership.user_id,
-        email=user.email if user else None,
+        display_name=user.display_name if user else None,
         role=membership.role,
         joined_at=membership.joined_at,
     )

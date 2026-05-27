@@ -120,7 +120,7 @@ class MessageResponse(BaseModel):
     content: str
     created_at: datetime
     updated_at: datetime | None = None
-    email: str | None = None
+    display_name: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -146,7 +146,7 @@ class PresenceSessionResponse(BaseModel):
 
     sid: str
     user_id: UUID
-    email: str | None
+    display_name: str | None
 
 
 class PresenceResponse(BaseModel):
@@ -163,7 +163,7 @@ class SessionItem(BaseModel):
     """A single active frontend session."""
 
     sid: str
-    email: str
+    display_name: str
     camera_key: str
 
 
@@ -211,7 +211,7 @@ class GroupMemberResponse(BaseModel):
     """Response body for a group member."""
 
     user_id: UUID
-    email: str | None
+    display_name: str | None
     role: GroupRole
     joined_at: datetime
 
