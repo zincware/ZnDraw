@@ -198,11 +198,12 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 				const roomName = ctx.roomName;
 				socket.emit(
 					"room_join",
-					{ owner_id: ownerId, room_name: roomName, client_type: "frontend" },
+					{ owner: ownerId, room_name: roomName, client_type: "frontend" },
 					async (response: RoomJoinResponse | RoomJoinError) => {
 						if ("status" in response && response.status === 404) {
-							const currentUserId = useAppStore.getState().user?.id;
-							if (currentUserId !== ownerId) {
+							const currentDisplayName =
+								useAppStore.getState().user?.display_name;
+							if (currentDisplayName !== ownerId) {
 								// Cross-namespace probe — never reveals foreign state.
 								ctx.setInitializationError({
 									message: "Room not found or not accessible",
@@ -216,7 +217,7 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 							).get("copy_from");
 							try {
 								await createRoom({
-									owner_id: ownerId,
+									owner: ownerId,
 									name: roomName,
 									copy_from: urlCopyFrom ?? undefined,
 								});
@@ -236,7 +237,7 @@ export function createConnectionHandlers(ctx: HandlerContext) {
 							socket.emit(
 								"room_join",
 								{
-									owner_id: ownerId,
+									owner: ownerId,
 									room_name: roomName,
 									client_type: "frontend",
 								},

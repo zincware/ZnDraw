@@ -22,7 +22,7 @@ export function RoomsHeaderActions() {
 		}
 		try {
 			const result = await createRoom({
-				owner_id: currentUser.id,
+				owner: currentUser.display_name,
 				name: "untitled-1",
 			});
 			navigate(`/rooms/${result.room_id}`);
@@ -40,7 +40,7 @@ export function RoomsHeaderActions() {
 		}
 		try {
 			const result = await createRoom({
-				owner_id: currentUser.id,
+				owner: currentUser.display_name,
 				name: "untitled-1",
 				copy_from: "@none",
 			});
@@ -62,7 +62,7 @@ export function RoomsHeaderActions() {
 		}
 		try {
 			const result = await createRoom({
-				owner_id: currentUser.id,
+				owner: currentUser.display_name,
 				name: "untitled-1",
 			});
 			for (const f of Array.from(files)) {

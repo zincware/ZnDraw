@@ -65,7 +65,7 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
 			if (!existingRoom) {
 				// Need the owner identity to materialize a room from a broadcast.
 				if (
-					updates.owner_id === undefined ||
+					updates.owner === undefined ||
 					updates.owner_kind === undefined ||
 					updates.owner_label === undefined
 				) {
@@ -77,7 +77,7 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
 					visibility: "public",
 					is_default: false,
 					...updates,
-					owner_id: updates.owner_id,
+					owner: updates.owner,
 					owner_kind: updates.owner_kind,
 					owner_label: updates.owner_label,
 				};

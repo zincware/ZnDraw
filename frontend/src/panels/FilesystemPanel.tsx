@@ -135,7 +135,7 @@ export function FilesystemPanel() {
 					return;
 				}
 				const result = await createRoom({
-					owner_id: currentUser.id,
+					owner: currentUser.display_name,
 					name: room_target.room_id,
 					copy_from: "@none",
 					...(room_target.description && {

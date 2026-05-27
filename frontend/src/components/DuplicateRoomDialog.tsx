@@ -57,7 +57,7 @@ export default function DuplicateRoomDialog({
 
 		try {
 			const result = await createRoom({
-				owner_id: currentUser.id,
+				owner: currentUser.display_name,
 				name,
 				copy_from: sourceRoomId,
 				description,
