@@ -230,14 +230,38 @@ class OwnerKind(StrEnum):
 async def resolve_owner(
     session: AsyncSession, owner_id: UUID
 ) -> tuple[OwnerKind, str] | None:
-    """Look up ``owner_id`` as a user (returns email) or group (returns name)."""
+    """Look up ``owner_id`` as a user (returns display_name) or group (returns name)."""
     user = await session.get(User, owner_id)
     if user is not None:
-        return OwnerKind.USER, user.email
+        return OwnerKind.USER, user.display_name
     group = await session.get(Group, owner_id)
     if group is not None:
         return OwnerKind.GROUP, group.name
     return None
+
+
+async def get_owner_uuid_from_segment(
+    session: AsyncSession, owner: str
+) -> UUID:
+    """Resolve a path display-name segment to a user UUID, or a group UUID by name.
+
+    Tries ``User.display_name`` first, then ``Group.name``. Raises
+    ``UserNotFound`` when neither match — the path regex already gated
+    malformed input.
+    """
+    from zndraw.exceptions import UserNotFound
+
+    user_id = await session.scalar(
+        select(User.id).where(User.display_name == owner).limit(1)
+    )
+    if user_id is not None:
+        return user_id
+    group_id = await session.scalar(
+        select(Group.id).where(Group.name == owner).limit(1)
+    )
+    if group_id is not None:
+        return group_id
+    raise UserNotFound.exception(f"Owner '{owner}' not found")
 
 
 async def get_my_group_ids(
