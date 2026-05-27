@@ -87,6 +87,20 @@ async def verify_writable_room(room_id: str = Path()) -> str:
 WritableRoomDep = Annotated[str, Depends(verify_writable_room)]
 
 
+async def resolve_dispatch_room_address(room_id: str = Path()) -> str:
+    """Return the room identifier forwarded to ``kiq`` dispatch.
+
+    Default: the path ``room_id`` unchanged. Host apps override this to
+    translate surrogate identifiers (e.g. UUID) into a dispatch-friendly
+    form such as ``<display_name>/<room_name>`` that the executor's
+    ZnDraw client accepts.
+    """
+    return room_id
+
+
+DispatchRoomAddressDep = Annotated[str, Depends(resolve_dispatch_room_address)]
+
+
 @runtime_checkable
 class ResultBackend(Protocol):
     """Protocol for storing and retrieving cached provider results."""

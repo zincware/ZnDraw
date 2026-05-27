@@ -37,7 +37,14 @@ from zndraw.exceptions import (
 )
 from zndraw.geometries import geometries as geometry_models
 from zndraw.geometries.camera import Camera
-from zndraw.models import Group, GroupMembership, Room, RoomGeometry, RoomShareLink
+from zndraw.models import (
+    Group,
+    GroupMembership,
+    Room,
+    RoomGeometry,
+    RoomShareLink,
+    build_public_address,
+)
 from zndraw.redis import RedisKey
 from zndraw.storage import FrameStorage
 from zndraw_auth import (
@@ -482,15 +489,15 @@ async def check_geometry_write_access(
     return WritableGeometryInfo(room=room, current_owner=current_owner)
 
 
-async def get_writable_room_id(
+async def _resolve_writable_room(
     request: Request,
-    session: SessionDep,
-    current_user: CurrentUserDep,
-    redis: RedisDep,
-    room_id: str = Path(),
-    x_room_share_token: str | None = Header(default=None, alias="X-Room-Share-Token"),
-) -> str:
-    """Verify a room is writable and return the surrogate UUID string."""
+    session: AsyncSession,
+    current_user: User,
+    redis: AsyncRedis,
+    room_id: str,
+    x_room_share_token: str | None,
+) -> Room | str:
+    """Verify writability; return the loaded ``Room`` or a sigil pass-through."""
     validate_room_id(room_id)
     if room_id in ("@global", "@internal"):
         return room_id
@@ -508,7 +515,45 @@ async def get_writable_room_id(
         raise Forbidden.exception("You may not edit this room")
     lock_token = request.headers.get("Lock-Token")
     await _check_edit_lock(redis, room.id, lock_token)
-    return room.id
+    return room
+
+
+async def get_writable_room_id(
+    request: Request,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    redis: RedisDep,
+    room_id: str = Path(),
+    x_room_share_token: str | None = Header(default=None, alias="X-Room-Share-Token"),
+) -> str:
+    """Verify a room is writable and return the surrogate UUID string."""
+    resolved = await _resolve_writable_room(
+        request, session, current_user, redis, room_id, x_room_share_token
+    )
+    if isinstance(resolved, str):
+        return resolved
+    return resolved.id
+
+
+async def get_writable_room_address(
+    request: Request,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    redis: RedisDep,
+    room_id: str = Path(),
+    x_room_share_token: str | None = Header(default=None, alias="X-Room-Share-Token"),
+) -> str:
+    """Verify writable; return the display-name composed address for dispatch.
+
+    Overrides ``zndraw_joblib.resolve_dispatch_room_address`` so the executor's
+    ZnDraw client receives a form (``<display_name>/<room_name>``) it accepts.
+    """
+    resolved = await _resolve_writable_room(
+        request, session, current_user, redis, room_id, x_room_share_token
+    )
+    if isinstance(resolved, str):
+        return resolved
+    return await build_public_address(session, resolved)
 
 
 # =============================================================================

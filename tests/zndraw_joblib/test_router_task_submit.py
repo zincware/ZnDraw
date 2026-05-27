@@ -68,6 +68,48 @@ def test_submit_internal_task_dispatches_to_taskiq(app, client, test_user_id):
     assert "task_id" in call_kwargs
 
 
+def test_submit_internal_task_forwards_dispatch_address_to_kiq(
+    app, client, test_user_id
+):
+    """submit_task forwards the resolved dispatch address to kiq, not the path room_id.
+
+    Host apps inject a display-name composed address via
+    ``resolve_dispatch_room_address`` so the ZnDraw client in the executor
+    receives a form it accepts.
+    """
+    from zndraw_joblib.dependencies import resolve_dispatch_room_address
+
+    path_addr = make_room_address(test_user_id, "test-room")
+    dispatch_addr = "happy-blue-rabbit/test-room"
+
+    async def _override() -> str:
+        return dispatch_addr
+
+    app.dependency_overrides[resolve_dispatch_room_address] = _override
+
+    resp = client.put(
+        "/v1/joblib/rooms/@internal/jobs",
+        json={"category": "modifiers", "name": "Rotate", "schema": {}},
+    )
+    assert resp.status_code in (200, 201)
+
+    mock_task_handle = MagicMock()
+    mock_task_handle.kiq = AsyncMock()
+    app.state.internal_registry = InternalRegistry(
+        tasks={"@internal:modifiers:Rotate": mock_task_handle},
+        extensions={},
+    )
+
+    resp = client.post(
+        f"/v1/joblib/rooms/{path_addr}/tasks/@internal:modifiers:Rotate",
+        json={"payload": {"angle": 90}},
+    )
+    assert resp.status_code == 202
+
+    mock_task_handle.kiq.assert_called_once()
+    assert mock_task_handle.kiq.call_args.kwargs["room_id"] == dispatch_addr
+
+
 def test_submit_internal_task_no_registry_returns_503(app, client, test_user_id):
     """Submitting to @internal job without registry returns 503."""
     addr = make_room_address(test_user_id, "test-room")

@@ -25,6 +25,7 @@ from zndraw_auth import (
 )
 from zndraw_auth.db import SessionDep, get_session_maker
 from zndraw_joblib.dependencies import (
+    DispatchRoomAddressDep,
     FrameRoomCleanupDep,
     JobLibSettingsDep,
     ResultBackendDep,
@@ -600,6 +601,7 @@ async def get_job(
 )
 async def submit_task(
     room_id: WritableRoomDep,
+    dispatch_address: DispatchRoomAddressDep,
     job_name: str,
     request: TaskSubmitRequest,
     response: Response,
@@ -652,7 +654,7 @@ async def submit_task(
         try:
             await internal_registry.tasks[job.full_name].kiq(
                 task_id=str(task.id),
-                room_id=room_id,
+                room_id=dispatch_address,
                 payload=request.payload,
                 token=worker_token,
             )
