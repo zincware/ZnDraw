@@ -16,6 +16,7 @@ export type UserRole = "user" | "admin";
 export interface UserInfo {
 	id: string;
 	email: string;
+	display_name: string;
 	is_active: boolean;
 	is_superuser: boolean;
 	is_verified: boolean;
