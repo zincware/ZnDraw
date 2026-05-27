@@ -22,9 +22,10 @@ async def broadcast_to_room(
     skip_sid: str | None = None,
 ) -> None:
     """Emit ``event`` on the room channel; optionally fan out to user channels."""
-    assert UUID(room.id) == event.room_id, (
-        f"event.room_id {event.room_id} does not match room.id {room.id}"
-    )
+    if UUID(room.id) != event.room_id:
+        raise RuntimeError(
+            f"event.room_id {event.room_id} does not match room.id {room.id}"
+        )
     if skip_sid is not None:
         await sio.emit(event, room=room_channel(room.id), skip_sid=skip_sid)
     else:

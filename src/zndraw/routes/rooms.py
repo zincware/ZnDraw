@@ -1,7 +1,7 @@
 """Room REST API endpoints."""
 
 import json
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Response, status
@@ -265,6 +265,29 @@ async def _get_default_room_id(session: AsyncSession) -> str | None:
     return settings.default_room_id if settings else None
 
 
+async def _resolve_room_owner(
+    session: AsyncSession, room: Room
+) -> tuple[UUID, Literal["user", "group"], str]:
+    """Return ``(owner_id, owner_kind, owner_label)`` for ``room``.
+
+    Raises ``RuntimeError`` if the Room CHECK constraint
+    ``(owner_user_id IS NOT NULL) <> (owner_group_id IS NOT NULL)`` is violated.
+    Tolerates a stale FK (owner user/group deleted out from under the room) by
+    returning ``("user", "")`` so listings stay usable.
+    """
+    owner_id = room.owner_user_id or room.owner_group_id
+    if owner_id is None:
+        raise RuntimeError(
+            f"Room {room.id!r} violates owner CHECK constraint: "
+            "owner_user_id and owner_group_id are both NULL"
+        )
+    resolved = await resolve_owner(session, owner_id)
+    if resolved is None:
+        return owner_id, "user", ""
+    kind, label = resolved
+    return owner_id, "group" if kind is OwnerKind.GROUP else "user", label
+
+
 async def build_room_update(
     session: AsyncSession,
     storage: FrameStorage,
@@ -273,14 +296,7 @@ async def build_room_update(
     """Build a full RoomUpdate snapshot from DB + storage."""
     default_room_id = await _get_default_room_id(session)
     frame_count = await storage.get_length(room.id)
-    owner_id = room.owner_user_id or room.owner_group_id
-    assert owner_id is not None, "Room must have exactly one owner"
-    resolved = await resolve_owner(session, owner_id)
-    owner_kind: str = "user"
-    owner_label: str = ""
-    if resolved is not None:
-        owner_kind = resolved[0].value
-        owner_label = resolved[1]
+    owner_id, owner_kind, owner_label = await _resolve_room_owner(session, room)
     return RoomUpdate(
         room_id=room.public_address,
         id=room.id,
@@ -288,7 +304,7 @@ async def build_room_update(
         frame_count=frame_count,
         visibility=room.visibility,
         owner_id=owner_id,
-        owner_kind=owner_kind,  # type: ignore[arg-type]
+        owner_kind=owner_kind,
         owner_label=owner_label,
         is_default=(room.id == default_room_id),
     )
@@ -505,11 +521,7 @@ async def list_rooms(
             ):
                 continue
         frame_count = await storage.get_length(room.id)
-        owner_id = room.owner_user_id or room.owner_group_id
-        assert owner_id is not None
-        resolved = await resolve_owner(session, owner_id)
-        assert resolved is not None
-        kind, label = resolved
+        owner_id, owner_kind, owner_label = await _resolve_room_owner(session, room)
         room_responses.append(
             RoomResponse(
                 room_id=room.public_address,
@@ -518,8 +530,8 @@ async def list_rooms(
                 frame_count=frame_count,
                 visibility=room.visibility,
                 owner_id=owner_id,
-                owner_kind=kind.value,
-                owner_label=label,
+                owner_kind=owner_kind,
+                owner_label=owner_label,
                 is_default=(room.id == default_room_id),
             )
         )
@@ -539,20 +551,16 @@ async def get_room(
     room = access.room
     frame_count = await storage.get_length(room.id)
     default_room_id = await _get_default_room_id(session)
-    own_id = room.owner_user_id or room.owner_group_id
-    assert own_id is not None
-    resolved = await resolve_owner(session, own_id)
-    assert resolved is not None
-    kind, label = resolved
+    owner_id, owner_kind, owner_label = await _resolve_room_owner(session, room)
     return RoomResponse(
         room_id=room.public_address,
         id=room.id,
         description=room.description,
         frame_count=frame_count,
         visibility=room.visibility,
-        owner_id=own_id,
-        owner_kind=kind.value,
-        owner_label=label,
+        owner_id=owner_id,
+        owner_kind=owner_kind,
+        owner_label=owner_label,
         is_default=(room.id == default_room_id),
     )
 
