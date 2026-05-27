@@ -129,7 +129,7 @@ async def get_isosurface(
         except IndexError:
             frame = None
         provider = (
-            await _find_frames_provider(session, room.public_address)
+            await _find_frames_provider(session, room.id)
             if frame is None
             else None
         )
