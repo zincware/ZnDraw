@@ -15,7 +15,6 @@ import socket
 import threading
 import uuid
 from collections.abc import AsyncIterator
-from uuid import UUID
 
 import redis.asyncio as redis_client
 import socketio as socketio_lib
@@ -421,21 +420,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # session, then perform the Redis + SIO work without holding the
         # SQLite serialization lock.
         from zndraw.broadcast import broadcast_to_room
-        from zndraw.dependencies import _load_room_by_address
+        from zndraw.dependencies import _load_room_by_segment
         from zndraw.models import Room, build_public_address
 
         async def frame_room_cleanup(room_ids: set[str]) -> None:
+            """Resolve incoming room ids (either surrogate UUIDs from
+            ProviderRecord.room_id or composed display-name addresses) and
+            invalidate provider frame caches + emit FramesInvalidate."""
             rooms: list[tuple[Room, str]] = []
             async with app.state.session_maker() as session:
                 for rid in room_ids:
-                    if "/" not in rid:
-                        continue
-                    owner_part, _, name_part = rid.partition("/")
-                    try:
-                        owner_uuid = UUID(owner_part)
-                    except ValueError:
-                        continue
-                    room = await _load_room_by_address(session, owner_uuid, name_part)
+                    room: Room | None = None
+                    if "/" in rid:
+                        owner_part, _, name_part = rid.partition("/")
+                        room = await _load_room_by_segment(
+                            session, owner_part, name_part
+                        )
+                    else:
+                        room = await session.get(Room, rid)
                     if room is not None:
                         room_address = await build_public_address(session, room)
                         rooms.append((room, room_address))
