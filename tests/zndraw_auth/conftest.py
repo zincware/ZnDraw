@@ -212,6 +212,14 @@ async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
 
 
 @pytest.fixture
+async def session(app: FastAPI) -> AsyncGenerator[AsyncSession, None]:
+    """Yield an AsyncSession bound to the test app's engine."""
+    session_maker = app.state.session_maker
+    async with session_maker() as s:
+        yield s
+
+
+@pytest.fixture
 async def app_dev_mode(
     test_settings_dev_mode: AuthSettings,
 ) -> AsyncGenerator[FastAPI, None]:

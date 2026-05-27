@@ -748,6 +748,15 @@ wheels = [
 ]
 
 [[package]]
+name = "coolname"
+version = "5.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/45/deae12f31934301a488df985880240a200119aca2e4b5ceba71d73bc5e86/coolname-5.0.0.tar.gz", hash = "sha256:594bc6c98ebc75ddd51c0ce10efbb5d2556c14eac60b5b36900dfdd5db20eecf", size = 45800, upload-time = "2026-04-23T06:04:50.824Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/97/35/cf824e535233c432048bd7455b28808776471ab5861375772b2c98ea4cbd/coolname-5.0.0-py3-none-any.whl", hash = "sha256:b86eea9670aa0620965167d1bfadfe654fabec839a5b51e8da611c4a64f86192", size = 47368, upload-time = "2026-04-23T06:04:49.374Z" },
+]
+
+[[package]]
 name = "coverage"
 version = "7.13.4"
 source = { registry = "https://pypi.org/simple" }
@@ -4374,6 +4383,7 @@ dependencies = [
     { name = "argon2-cffi" },
     { name = "ase" },
     { name = "asebytes", extra = ["h5", "lmdb"] },
+    { name = "coolname" },
     { name = "fakeredis" },
     { name = "fastapi" },
     { name = "fastapi-users", extra = ["sqlalchemy"] },
@@ -4450,6 +4460,7 @@ requires-dist = [
     { name = "asebytes", extras = ["h5", "lmdb"], specifier = ">=0.3.1" },
     { name = "asebytes", extras = ["mongodb"], marker = "extra == 'mongodb'", specifier = ">=0.3.1" },
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.31.0" },
+    { name = "coolname", specifier = ">=5.0.0" },
     { name = "fakeredis", specifier = ">=2.33.0" },
     { name = "fastapi", specifier = ">=0.128.0" },
     { name = "fastapi-users", extras = ["sqlalchemy"], specifier = ">=14.0.0" },
