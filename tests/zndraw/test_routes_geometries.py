@@ -479,7 +479,8 @@ async def test_update_selection_returns_404_for_nonexistent(
     room = await create_test_room(session, user)
 
     response = await client.put(
-        f"/v1/rooms/{room_display_address(user, room)}/geometries/nonexistent/selection",
+        f"/v1/rooms/{room_display_address(user, room)}"
+        f"/geometries/nonexistent/selection",
         json={"indices": [0]},
         headers=auth_header(token),
     )
@@ -546,7 +547,8 @@ async def test_get_selection_returns_404_for_nonexistent(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/geometries/nonexistent/selection",
+        f"/v1/rooms/{room_display_address(user, room)}"
+        f"/geometries/nonexistent/selection",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -810,7 +812,8 @@ async def test_selection_update_rejects_non_owner(
     )
 
     response = await client.put(
-        f"/v1/rooms/{room_display_address(owner, room)}/geometries/owned_sphere/selection",
+        f"/v1/rooms/{room_display_address(owner, room)}"
+        f"/geometries/owned_sphere/selection",
         json={"indices": [0, 1]},
         headers=auth_header(other_token),
     )

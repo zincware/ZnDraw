@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import re
 import secrets
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import coolname
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw_auth.db import User
+
+if TYPE_CHECKING:
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 DISPLAY_NAME_PATTERN: Final[re.Pattern[str]] = re.compile(r"^[a-z][a-z0-9-]{2,63}$")
 

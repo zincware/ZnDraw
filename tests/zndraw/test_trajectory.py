@@ -260,7 +260,8 @@ async def test_download_custom_filename(
     await _add_atoms_to_storage(frame_storage, room.id, [atoms])
 
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/trajectory?filename=my_traj.extxyz",
+        f"/v1/rooms/{room_display_address(user, room)}"
+        f"/trajectory?filename=my_traj.extxyz",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -673,7 +674,8 @@ async def test_download_with_token_no_auth_header(
 
     # Download WITHOUT auth header, using token param
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/trajectory?token={download_token}",
+        f"/v1/rooms/{room_display_address(user, room)}"
+        f"/trajectory?token={download_token}",
     )
     assert response.status_code == 200
 
@@ -724,7 +726,8 @@ async def test_download_token_wrong_room(
 
     # Try to use it on room B
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room_b)}/trajectory?token={download_token}",
+        f"/v1/rooms/{room_display_address(user, room_b)}"
+        f"/trajectory?token={download_token}",
     )
     assert response.status_code == 401
 
@@ -748,13 +751,15 @@ async def test_download_token_single_use(
 
     # First use succeeds
     resp1 = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/trajectory?token={download_token}",
+        f"/v1/rooms/{room_display_address(user, room)}"
+        f"/trajectory?token={download_token}",
     )
     assert resp1.status_code == 200
 
     # Second use fails — token was consumed
     resp2 = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/trajectory?token={download_token}",
+        f"/v1/rooms/{room_display_address(user, room)}"
+        f"/trajectory?token={download_token}",
     )
     assert resp2.status_code == 401
 

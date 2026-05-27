@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from zndraw.exceptions import ProblemError
 from zndraw_auth.db import User
@@ -13,6 +14,9 @@ from zndraw_auth.display_names import (
     generate_unique_display_name,
     validate_display_name,
 )
+
+if TYPE_CHECKING:
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 def test_pattern_accepts_valid_names() -> None:

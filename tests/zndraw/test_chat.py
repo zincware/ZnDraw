@@ -190,7 +190,8 @@ async def test_list_messages_pagination(
     # Fetch second page using oldest_timestamp cursor
     cursor = page1["metadata"]["oldest_timestamp"]
     response = await client.get(
-        f"/v1/rooms/{room_display_address(user, room)}/chat/messages?limit=2&before={cursor}",
+        f"/v1/rooms/{room_display_address(user, room)}"
+        f"/chat/messages?limit=2&before={cursor}",
         headers=auth_header(token),
     )
     assert response.status_code == 200

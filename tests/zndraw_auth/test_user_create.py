@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
-from httpx import AsyncClient
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from zndraw_auth.db import User
 from zndraw_auth.display_names import DISPLAY_NAME_PATTERN
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
+    from sqlmodel.ext.asyncio.session import AsyncSession
 
 
 @pytest.mark.asyncio
