@@ -98,18 +98,19 @@ export async function login(
 }
 
 /**
- * Register a new user with email and password.
+ * Register a new user with email, password, and display_name.
  *
  * POST /v1/auth/register returns UserRead (no token), so auto-login after.
  */
 export async function registerUser(
 	email: string,
 	password: string,
+	display_name: string,
 ): Promise<AuthResult> {
 	const response = await fetch("/v1/auth/register", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ email, password }),
+		body: JSON.stringify({ email, password, display_name }),
 	});
 	if (!response.ok) {
 		const errorData = await response
