@@ -237,4 +237,5 @@ async def test_available_display_name_never_collides_with_existing(
     )
     assert reg.status_code == 201, reg.text
     resp = await client.get("/v1/users/available-display-name")
+    assert resp.status_code == 200, resp.text
     assert resp.json()["display_name"] != "eve-the-curious"
