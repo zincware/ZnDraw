@@ -117,12 +117,37 @@ async def client_fixture(
     async def test_session_maker():
         yield session
 
+    # Snapshot existing overrides (e.g. app.py:59 wires
+    # joblib_verify_writable_room → get_writable_room_id at import time).
+    # A bare app.dependency_overrides.clear() in teardown would erase those,
+    # breaking later in-process tests that spin up uvicorn against the same
+    # app singleton (notably test_client_source, where the joblib provider
+    # endpoint then stores ProviderRecord.room_id as the composed
+    # display-name address instead of the canonical Room.id UUID).
+    _override_snapshot = dict(app.dependency_overrides)
+
     app.dependency_overrides[get_session] = get_session_override
     app.dependency_overrides[get_redis] = lambda: redis_client
     app.dependency_overrides[get_tsio] = lambda: mock_sio
     app.dependency_overrides[get_frame_storage] = lambda: frame_storage
     app.dependency_overrides[get_result_backend] = lambda: result_backend
     app.dependency_overrides[get_joblib_settings] = lambda: JobLibSettings()
+
+    # Snapshot app.state keys we are about to mutate so we can restore them
+    # in teardown — same rationale as the override snapshot above.
+    _state_sentinel = object()
+    _state_attrs = (
+        "session_maker",
+        "settings",
+        "auth_settings",
+        "tsio",
+        "joblib_settings",
+        "internal_worker_user",
+    )
+    _state_snapshot = {
+        attr: getattr(app.state, attr, _state_sentinel) for attr in _state_attrs
+    }
+
     app.state.session_maker = test_session_maker
     app.state.settings = Settings()
     app.state.auth_settings = AuthSettings()
@@ -143,13 +168,21 @@ async def client_fixture(
     )
     app.state.internal_worker_user = result.one()
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
-        yield client
-
-    app.dependency_overrides.clear()
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            yield client
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(_override_snapshot)
+        for attr, original in _state_snapshot.items():
+            if original is _state_sentinel:
+                if hasattr(app.state, attr):
+                    delattr(app.state, attr)
+            else:
+                setattr(app.state, attr, original)
 
 
 @pytest_asyncio.fixture(name="test_user")
