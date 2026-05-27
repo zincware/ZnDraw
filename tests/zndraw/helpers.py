@@ -5,6 +5,7 @@ Fixtures live in conftest.py.
 """
 
 import asyncio
+import secrets
 from typing import Any
 
 import msgpack
@@ -40,14 +41,32 @@ def create_test_user_model(
     email: str = "testuser@local.test",
     password: str = "testpassword",
     is_superuser: bool = False,
+    display_name: str | None = None,
 ) -> User:
-    """Create a User model instance with hashed password for tests."""
+    """Create a User model instance with hashed password for tests.
+
+    Parameters
+    ----------
+    email
+        User email — must be unique across the test DB.
+    password
+        Password used to hash into ``hashed_password``.
+    is_superuser
+        Toggle superuser bit.
+    display_name
+        Optional display_name. If not provided a regex-valid random one is
+        generated so the user can be addressed via the two-segment path
+        contract (``{display_name}/{room_name}``).
+    """
+    if display_name is None:
+        display_name = f"test-user-{secrets.token_hex(3)}"
     return User(
         email=email,
         hashed_password=_password_helper.hash(password),
         is_active=True,
         is_superuser=is_superuser,
         is_verified=True,
+        display_name=display_name,
     )
 
 
@@ -74,9 +93,12 @@ async def create_test_user_in_db(
     email: str = "testuser@local.test",
     *,
     is_superuser: bool = False,
+    display_name: str | None = None,
 ) -> tuple[User, str]:
     """Create a user in the DB and return (user, token)."""
-    user = create_test_user_model(email=email, is_superuser=is_superuser)
+    user = create_test_user_model(
+        email=email, is_superuser=is_superuser, display_name=display_name
+    )
     session.add(user)
     await session.commit()
     await session.refresh(user)
@@ -103,6 +125,16 @@ async def create_test_room(
     await session.commit()
     await session.refresh(room)
     return room
+
+
+def room_display_address(user: User, room: Room) -> str:
+    """Return ``{user.display_name}/{room.room_name}`` for tests.
+
+    Use this whenever a test needs to construct a URL path for a
+    user-owned room — the routes no longer accept the legacy UUID
+    composed form returned by ``Room.public_address``.
+    """
+    return f"{user.display_name}/{room.room_name}"
 
 
 def auth_header(token: str) -> dict[str, str]:
@@ -133,22 +165,47 @@ async def get_user_id(client: AsyncClient, token: str) -> str:
     return r.json()["id"]
 
 
+async def get_user_display_name(client: AsyncClient, token: str) -> str:
+    """Return the ``display_name`` of the authenticated user."""
+    r = await client.get(
+        "/v1/auth/users/me", headers={"Authorization": f"Bearer {token}"}
+    )
+    r.raise_for_status()
+    return r.json()["display_name"]
+
+
 async def create_room_via_api(
     client: AsyncClient,
     token: str,
     name: str,
-    owner_id: str | None = None,
+    owner: str | None = None,
     visibility: str = "public",
     copy_from: str | None = None,
     description: str | None = None,
 ) -> str:
     """Create a room via POST /v1/rooms and return its composed room_id.
 
-    If owner_id is omitted, the authenticated user's id is used.
+    Parameters
+    ----------
+    client
+        Async HTTP client.
+    token
+        Bearer token for the authenticated caller.
+    name
+        Room name (second path segment).
+    owner
+        Display-name segment for the owner. Defaults to the authenticated
+        user's ``display_name`` when not provided.
+    visibility
+        Room visibility level (public/private/etc).
+    copy_from
+        Optional room_id to copy state from.
+    description
+        Optional room description.
     """
-    if owner_id is None:
-        owner_id = await get_user_id(client, token)
-    body: dict = {"owner_id": owner_id, "name": name, "visibility": visibility}
+    if owner is None:
+        owner = await get_user_display_name(client, token)
+    body: dict = {"owner": owner, "name": name, "visibility": visibility}
     if copy_from is not None:
         body["copy_from"] = copy_from
     if description is not None:

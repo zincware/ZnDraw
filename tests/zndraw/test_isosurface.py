@@ -8,6 +8,7 @@ from helpers import (
     auth_header,
     create_test_room,
     create_test_user_in_db,
+    room_display_address,
 )
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -313,7 +314,7 @@ async def test_isosurface_basic(
     await frame_storage[room.id].extend([frame])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/0/isosurface",
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0/isosurface",
         params={"cube_key": "info.orbital_homo", "isovalue": "0.0"},
         headers=auth_header(token),
     )
@@ -341,7 +342,7 @@ async def test_isosurface_missing_cube_key(
     await frame_storage[room.id].extend([frame])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/0/isosurface",
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0/isosurface",
         params={"cube_key": "info.nonexistent", "isovalue": "0.0"},
         headers=auth_header(token),
     )
@@ -357,7 +358,7 @@ async def test_isosurface_frame_not_found(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/99/isosurface",
+        f"/v1/rooms/{room_display_address(user, room)}/frames/99/isosurface",
         params={"cube_key": "info.foo", "isovalue": "0.0"},
         headers=auth_header(token),
     )
@@ -376,7 +377,7 @@ async def test_isosurface_empty_surface(
     await frame_storage[room.id].extend([frame])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/0/isosurface",
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0/isosurface",
         params={"cube_key": "info.orbital_homo", "isovalue": "999.0"},
         headers=auth_header(token),
     )
@@ -408,7 +409,7 @@ async def test_isosurface_invalid_grid(
     await frame_storage[room.id].extend([frame])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/0/isosurface",
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0/isosurface",
         params={"cube_key": "info.bad", "isovalue": "0.5"},
         headers=auth_header(token),
     )
@@ -430,7 +431,7 @@ async def test_isosurface_missing_dict_keys(
     await frame_storage[room.id].extend([frame])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/0/isosurface",
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0/isosurface",
         params={"cube_key": "info.bad", "isovalue": "0.5"},
         headers=auth_header(token),
     )
@@ -453,12 +454,12 @@ async def test_isosurface_resolution(
     await frame_storage[room.id].extend([frame])
 
     resp_fine = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/0/isosurface",
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0/isosurface",
         params={"cube_key": "info.orb", "isovalue": "0.0", "resolution": "1.0"},
         headers=auth_header(token),
     )
     resp_coarse = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/0/isosurface",
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0/isosurface",
         params={"cube_key": "info.orb", "isovalue": "0.0", "resolution": "0.0"},
         headers=auth_header(token),
     )
@@ -502,7 +503,7 @@ async def test_isosurface_sigma_smoothing(
 
     # Without smoothing
     resp_raw = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/0/isosurface",
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0/isosurface",
         params={"cube_key": "info.noisy", "isovalue": "0.0"},
         headers=auth_header(token),
     )
@@ -510,7 +511,7 @@ async def test_isosurface_sigma_smoothing(
 
     # With smoothing
     resp_smooth = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/0/isosurface",
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0/isosurface",
         params={"cube_key": "info.noisy", "isovalue": "0.0", "sigma": "1.0"},
         headers=auth_header(token),
     )
@@ -535,7 +536,7 @@ async def test_isosurface_room_not_found(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/frames/0/isosurface",
+        "/v1/rooms/no-such-owner/nonexistent/frames/0/isosurface",
         params={"cube_key": "info.foo", "isovalue": "0.0"},
         headers=auth_header(token),
     )
@@ -583,7 +584,7 @@ async def test_isosurface_pyscf_h2(
     await frame_storage[room.id].extend([frame])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/0/isosurface",
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0/isosurface",
         params={"cube_key": "info.orbital_homo", "isovalue": "0.02"},
         headers=auth_header(token),
     )

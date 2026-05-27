@@ -8,6 +8,7 @@ from helpers import (
     auth_header,
     create_test_room,
     create_test_user_in_db,
+    room_display_address,
 )
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,7 +77,7 @@ async def test_list_presets_includes_bundled(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/presets",
+        f"/v1/rooms/{room_display_address(user, room)}/presets",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -99,7 +100,7 @@ async def test_list_presets_db_overrides_bundled(
     await _add_preset(session, room.id, "matt", "My custom matt")
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/presets",
+        f"/v1/rooms/{room_display_address(user, room)}/presets",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -127,7 +128,7 @@ async def test_list_presets_returns_all(
     await _add_preset(session, room.id, "custom-b", "Custom B")
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/presets",
+        f"/v1/rooms/{room_display_address(user, room)}/presets",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -146,7 +147,7 @@ async def test_list_presets_room_not_found(
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/presets",
+        "/v1/rooms/no-such-owner/nonexistent/presets",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -167,7 +168,7 @@ async def test_get_bundled_preset(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/presets/matt",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/matt",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -189,7 +190,7 @@ async def test_get_preset_returns_data(
     await _add_preset(session, room.id, "test-preset", "Test", rules)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/presets/test-preset",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/test-preset",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -210,7 +211,7 @@ async def test_get_preset_returns_404_for_nonexistent(
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/presets/nonexistent",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/nonexistent",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -240,7 +241,7 @@ async def test_create_preset(
     }
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/presets",
+        f"/v1/rooms/{room_display_address(user, room)}/presets",
         json=body,
         headers=auth_header(token),
     )
@@ -269,7 +270,7 @@ async def test_create_preset_returns_409_if_exists(
     body = {"name": "existing", "rules": []}
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/presets",
+        f"/v1/rooms/{room_display_address(user, room)}/presets",
         json=body,
         headers=auth_header(token),
     )
@@ -298,7 +299,7 @@ async def test_create_preset_validates_geometry_type(
     }
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/presets",
+        f"/v1/rooms/{room_display_address(user, room)}/presets",
         json=body,
         headers=auth_header(token),
     )
@@ -327,7 +328,7 @@ async def test_create_preset_validates_config_keys(
     }
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/presets",
+        f"/v1/rooms/{room_display_address(user, room)}/presets",
         json=body,
         headers=auth_header(token),
     )
@@ -356,7 +357,7 @@ async def test_put_preset_creates_new(
     }
 
     response = await client.put(
-        f"/v1/rooms/{room.public_address}/presets/new-preset",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/new-preset",
         json=body,
         headers=auth_header(token),
     )
@@ -385,7 +386,7 @@ async def test_put_preset_updates_existing(
     }
 
     response = await client.put(
-        f"/v1/rooms/{room.public_address}/presets/existing",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/existing",
         json=body,
         headers=auth_header(token),
     )
@@ -417,7 +418,7 @@ async def test_delete_preset(
     await _add_preset(session, room.id, "to-delete")
 
     response = await client.delete(
-        f"/v1/rooms/{room.public_address}/presets/to-delete",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/to-delete",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -437,7 +438,7 @@ async def test_delete_preset_returns_404_for_nonexistent(
     room = await create_test_room(session, user)
 
     response = await client.delete(
-        f"/v1/rooms/{room.public_address}/presets/nonexistent",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/nonexistent",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -454,7 +455,7 @@ async def test_delete_bundled_preset_returns_404(
     room = await create_test_room(session, user)
 
     response = await client.delete(
-        f"/v1/rooms/{room.public_address}/presets/matt",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/matt",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -484,7 +485,7 @@ async def test_apply_bundled_preset(
     )
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/presets/matt/apply",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/matt/apply",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -526,7 +527,7 @@ async def test_apply_preset_updates_matching_geometries(
     await _add_preset(session, room.id, "test-apply", rules=rules)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/presets/test-apply/apply",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/test-apply/apply",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -567,7 +568,7 @@ async def test_apply_preset_deep_merges_config(
     await _add_preset(session, room.id, "adjust-fog", rules=rules)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/presets/adjust-fog/apply",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/adjust-fog/apply",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -609,7 +610,7 @@ async def test_apply_preset_filters_by_geometry_type(
     await _add_preset(session, room.id, "dim-ambient", rules=rules)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/presets/dim-ambient/apply",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/dim-ambient/apply",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -644,7 +645,7 @@ async def test_apply_preset_emits_geometry_invalidate(
     await _add_preset(session, room.id, "enable-fog", rules=rules)
 
     await client.post(
-        f"/v1/rooms/{room.public_address}/presets/enable-fog/apply",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/enable-fog/apply",
         headers=auth_header(token),
     )
 
@@ -665,7 +666,7 @@ async def test_apply_preset_returns_404_for_nonexistent(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/presets/nonexistent/apply",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/nonexistent/apply",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -687,7 +688,7 @@ async def test_apply_preset_skips_non_matching_geometries(
     await _add_preset(session, room.id, "fog-only", rules=rules)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/presets/fog-only/apply",
+        f"/v1/rooms/{room_display_address(user, room)}/presets/fog-only/apply",
         headers=auth_header(token),
     )
     assert response.status_code == 200

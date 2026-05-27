@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 from typing import Annotated
-from uuid import (
-    UUID,  # noqa: TC003  # runtime: FastAPI builds TypeAdapter for owner_id path param
-)
 
 import msgpack
 import msgpack_numpy
 import numpy as np
-from fastapi import APIRouter, Header, Query, Response
+from fastapi import APIRouter, Header, Path, Query, Response
 
 from zndraw.access import can_read
 from zndraw.dependencies import (
@@ -21,7 +18,7 @@ from zndraw.dependencies import (
     SessionMakerDep,
     SioDep,
     _load_access_context,
-    _load_room_by_address,
+    _load_room_by_segment,
     resolve_share_token,
 )
 from zndraw.exceptions import (
@@ -30,10 +27,11 @@ from zndraw.exceptions import (
     UnprocessableContent,
     problem_responses,
 )
+from zndraw.models import build_public_address
 from zndraw.routes.frames import _dispatch_provider_frame, _find_frames_provider
 
 router = APIRouter(
-    prefix="/v1/rooms/{owner_id}/{room_name}/frames/{index}/isosurface",
+    prefix="/v1/rooms/{owner}/{room_name}/frames/{index}/isosurface",
     tags=["isosurface"],
 )
 
@@ -96,7 +94,7 @@ async def get_isosurface(
     result_backend: ResultBackendDep,
     joblib_settings: JobLibSettingsDep,
     current_user: CurrentUserFactoryDep,
-    owner_id: UUID,
+    owner: Annotated[str, Path(pattern=r"^[a-z][a-z0-9-]{2,63}$")],
     room_name: str,
     index: int,
     cube_key: Annotated[str, Query(description="Frame key for volumetric data dict")],
@@ -114,16 +112,14 @@ async def get_isosurface(
 ) -> Response:
     """Extract an isosurface mesh from volumetric frame data."""
     async with session_maker() as session:
-        room = await _load_room_by_address(session, owner_id, room_name)
+        room = await _load_room_by_segment(session, owner, room_name)
         if room is None:
-            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+            raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
         room_id = room.id
         share = await resolve_share_token(session, x_room_share_token, room_id)
-        ctx = await _load_access_context(
-            session, owner_id, room_name, current_user, share
-        )
+        ctx = await _load_access_context(session, owner, room_name, current_user, share)
         if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
-            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+            raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
         total = await storage.get_length(room_id)
         if index < 0 or index >= total:
             FrameNotFound.raise_out_of_range(index, total)
@@ -134,7 +130,9 @@ async def get_isosurface(
         except IndexError:
             frame = None
         provider = (
-            await _find_frames_provider(session, room.public_address)
+            await _find_frames_provider(
+                session, await build_public_address(session, room)
+            )
             if frame is None
             else None
         )

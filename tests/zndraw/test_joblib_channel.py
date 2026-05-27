@@ -11,6 +11,7 @@ from helpers import (
     auth_header,
     create_test_room,
     create_test_user_in_db,
+    room_display_address,
 )
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,9 +25,10 @@ async def test_register_job_emits_to_surrogate_channel(
 ) -> None:
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
+    address = room_display_address(user, room)
 
     response = await client.put(
-        f"/v1/joblib/rooms/{room.public_address}/jobs",
+        f"/v1/joblib/rooms/{address}/jobs",
         json={
             "category": "analysis",
             "name": "noop",
@@ -53,4 +55,4 @@ async def test_register_job_emits_to_surrogate_channel(
         f"JobsInvalidate payload missing room_address; got keys: {list(data)}"
     )
     assert str(data["room_id"]) == room.id
-    assert data["room_address"] == room.public_address
+    assert data["room_address"] == address

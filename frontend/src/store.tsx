@@ -60,8 +60,8 @@ export const selectIsRoomReadOnly = (state: AppState): boolean => {
 	const isSuperuser = state.user?.is_superuser ?? false;
 	if (isSuperuser) return false;
 	if (state.userLock) {
-		const userEmail = state.user?.email ?? null;
-		return state.userLock !== userEmail;
+		const userDisplayName = state.user?.display_name ?? null;
+		return state.userLock !== userDisplayName;
 	}
 	return false;
 };

@@ -37,7 +37,14 @@ from zndraw.exceptions import (
 )
 from zndraw.geometries import geometries as geometry_models
 from zndraw.geometries.camera import Camera
-from zndraw.models import Group, GroupMembership, Room, RoomGeometry, RoomShareLink
+from zndraw.models import (
+    Group,
+    GroupMembership,
+    Room,
+    RoomGeometry,
+    RoomShareLink,
+    build_public_address,
+)
 from zndraw.redis import RedisKey
 from zndraw.storage import FrameStorage
 from zndraw_auth import (
@@ -74,7 +81,10 @@ async def get_local_token_or_admin(
     local_token: str | None = getattr(request.app.state, "local_token", None)
     if local_token is not None and auth_header == f"Bearer {local_token}":
         return User(
-            email="local-admin@localhost", hashed_password="", is_superuser=True
+            email="local-admin@localhost",
+            hashed_password="",
+            is_superuser=True,
+            display_name="local-admin",
         )
 
     # Path 2: JWT → must resolve to an active superuser
@@ -171,15 +181,11 @@ async def verify_room(session: AsyncSession, room_id: str) -> Room:
     """Verify room exists and return it, or raise RoomNotFound.
 
     Accepts either the surrogate UUID primary key or a composed
-    ``<owner_uuid>/<room_name>`` address.
+    ``<owner_display>/<room_name>`` address.
     """
     if "/" in room_id:
         owner_str, _, name_part = room_id.partition("/")
-        try:
-            owner_uuid = UUID(owner_str)
-        except ValueError as exc:
-            raise RoomNotFound.exception(f"Room with id {room_id} not found") from exc
-        room = await _load_room_by_address(session, owner_uuid, name_part)
+        room = await _load_room_by_segment(session, owner_str, name_part)
     else:
         room = await session.get(Room, room_id)
     if room is None:
@@ -230,14 +236,36 @@ class OwnerKind(StrEnum):
 async def resolve_owner(
     session: AsyncSession, owner_id: UUID
 ) -> tuple[OwnerKind, str] | None:
-    """Look up ``owner_id`` as a user (returns email) or group (returns name)."""
+    """Look up ``owner_id`` as a user (returns display_name) or group (returns name)."""
     user = await session.get(User, owner_id)
     if user is not None:
-        return OwnerKind.USER, user.email
+        return OwnerKind.USER, user.display_name
     group = await session.get(Group, owner_id)
     if group is not None:
         return OwnerKind.GROUP, group.name
     return None
+
+
+async def get_owner_uuid_from_segment(session: AsyncSession, owner: str) -> UUID:
+    """Resolve a path display-name segment to a user UUID, or a group UUID by name.
+
+    Tries ``User.display_name`` first, then ``Group.name``. Raises
+    ``UserNotFound`` when neither match — the path regex already gated
+    malformed input.
+    """
+    from zndraw.exceptions import UserNotFound
+
+    user_id = await session.scalar(
+        select(User.id).where(User.display_name == owner).limit(1)
+    )
+    if user_id is not None:
+        return user_id
+    group_id = await session.scalar(
+        select(Group.id).where(Group.name == owner).limit(1)
+    )
+    if group_id is not None:
+        return group_id
+    raise UserNotFound.exception(f"Owner '{owner}' not found")
 
 
 async def get_my_group_ids(
@@ -330,7 +358,7 @@ async def get_verified_session_id(
     current_user: CurrentUserDep,
     redis: RedisDep,
     session: SessionDep,
-    owner_id: UUID = Path(),
+    owner: Annotated[str, Path(pattern=r"^[a-z][a-z0-9-]{2,63}$")],
     room_name: str = Path(),
     session_id: str = Path(),
 ) -> str:
@@ -341,9 +369,9 @@ async def get_verified_session_id(
     camera (sessions can view through any camera in the room), so we
     cannot use the active_cameras chain for ownership verification.
     """
-    room = await _load_room_by_address(session, owner_id, room_name)
+    room = await _load_room_by_segment(session, owner, room_name)
     if room is None:
-        raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+        raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
     room_id = room.id
     if not await redis.hexists(RedisKey.active_cameras(room_id), session_id):  # type: ignore[misc]
         raise SessionNotFound.exception("Session not found")
@@ -364,7 +392,7 @@ VerifiedSessionDep = Annotated[str, Depends(get_verified_session_id)]
 async def get_active_session_cam_id(
     redis: RedisDep,
     session: SessionDep,
-    owner_id: UUID = Path(),
+    owner: Annotated[str, Path(pattern=r"^[a-z][a-z0-9-]{2,63}$")],
     room_name: str = Path(),
     session_id: str = Path(),
 ) -> str:
@@ -373,9 +401,9 @@ async def get_active_session_cam_id(
     Use for read-only access where any room participant may view
     session state. For mutations, use ``VerifiedSessionDep``.
     """
-    room = await _load_room_by_address(session, owner_id, room_name)
+    room = await _load_room_by_segment(session, owner, room_name)
     if room is None:
-        raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+        raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
     if not await redis.hexists(RedisKey.active_cameras(room.id), session_id):  # type: ignore[misc]
         raise SessionNotFound.exception("Session not found")
     return session_id
@@ -464,20 +492,20 @@ async def check_geometry_write_access(
     return WritableGeometryInfo(room=room, current_owner=current_owner)
 
 
-async def get_writable_room_id(
+async def _resolve_writable_room(
     request: Request,
-    session: SessionDep,
-    current_user: CurrentUserDep,
-    redis: RedisDep,
-    room_id: str = Path(),
-    x_room_share_token: str | None = Header(default=None, alias="X-Room-Share-Token"),
-) -> str:
-    """Verify a room is writable and return the surrogate UUID string."""
+    session: AsyncSession,
+    current_user: User,
+    redis: AsyncRedis,
+    room_id: str,
+    x_room_share_token: str | None,
+) -> Room | str:
+    """Verify writability; return the loaded ``Room`` or a sigil pass-through."""
     validate_room_id(room_id)
     if room_id in ("@global", "@internal"):
         return room_id
     owner_part, _, name_part = room_id.partition("/")
-    room = await _load_room_by_address(session, UUID(owner_part), name_part)
+    room = await _load_room_by_segment(session, owner_part, name_part)
     if room is None:
         raise RoomNotFound.exception(f"Room {room_id} not found")
     share = await resolve_share_token(session, x_room_share_token, room.id)
@@ -490,7 +518,51 @@ async def get_writable_room_id(
         raise Forbidden.exception("You may not edit this room")
     lock_token = request.headers.get("Lock-Token")
     await _check_edit_lock(redis, room.id, lock_token)
-    return room.id
+    return room
+
+
+async def get_writable_room_id(
+    request: Request,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    redis: RedisDep,
+    room_id: str = Path(),
+    x_room_share_token: str | None = Header(default=None, alias="X-Room-Share-Token"),
+) -> str:
+    """Verify a room is writable and return the *path* room_id unchanged.
+
+    Returns the composed display-name address (or sigil) — NOT the canonical
+    Room.id UUID — so joblib storage (``ProviderRecord.room_id`` / ``Job.room_id``)
+    matches the user-facing identifier the client sent. The channel name and
+    ``full_name`` then both use this same form, keeping all four ends
+    (registration filter, list filter, emit channel, client subscription) in
+    sync without extra translation.
+    """
+    await _resolve_writable_room(
+        request, session, current_user, redis, room_id, x_room_share_token
+    )
+    return room_id
+
+
+async def get_writable_room_address(
+    request: Request,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    redis: RedisDep,
+    room_id: str = Path(),
+    x_room_share_token: str | None = Header(default=None, alias="X-Room-Share-Token"),
+) -> str:
+    """Verify writable; return the display-name composed address for dispatch.
+
+    Overrides ``zndraw_joblib.resolve_dispatch_room_address`` so the executor's
+    ZnDraw client receives a form (``<display_name>/<room_name>``) it accepts.
+    """
+    resolved = await _resolve_writable_room(
+        request, session, current_user, redis, room_id, x_room_share_token
+    )
+    if isinstance(resolved, str):
+        return resolved
+    return await build_public_address(session, resolved)
 
 
 # =============================================================================
@@ -522,17 +594,25 @@ async def _load_room_by_address(
     return result.first()
 
 
+async def _load_room_by_segment(
+    session: AsyncSession, owner: str, room_name: str
+) -> Room | None:
+    """Resolve owner display_name → UUID, then look up the room."""
+    owner_id = await get_owner_uuid_from_segment(session, owner)
+    return await _load_room_by_address(session, owner_id, room_name)
+
+
 async def _load_access_context(
     session: AsyncSession,
-    owner_id: UUID,
+    owner: str,
     room_name: str,
     current_user: User,
     share: ShareContext | None,
 ) -> AccessContext:
     """Load room from DB and resolve group role for the current user."""
-    room = await _load_room_by_address(session, owner_id, room_name)
+    room = await _load_room_by_segment(session, owner, room_name)
     if room is None:
-        raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+        raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
     group_role: GroupRole | None = None
     if room.owner_group_id is not None:
         group_role = await fetch_group_role(
@@ -543,14 +623,14 @@ async def _load_access_context(
 
 async def get_share_context_two_segment(
     session: SessionDep,
-    owner_id: UUID = Path(),
+    owner: Annotated[str, Path(pattern=r"^[a-z][a-z0-9-]{2,63}$")],
     room_name: str = Path(),
     x_room_share_token: str | None = Header(default=None, alias="X-Room-Share-Token"),
 ) -> ShareContext | None:
     """Resolve the share-token header for the two-segment path."""
     if x_room_share_token is None:
         return None
-    room = await _load_room_by_address(session, owner_id, room_name)
+    room = await _load_room_by_segment(session, owner, room_name)
     if room is None:
         return None
     return await resolve_share_token(session, x_room_share_token, room.id)
@@ -565,13 +645,13 @@ async def get_readable_room(
     session: SessionDep,
     current_user: CurrentUserDep,
     share: TwoSegmentShareTokenDep,
-    owner_id: UUID = Path(),
+    owner: Annotated[str, Path(pattern=r"^[a-z][a-z0-9-]{2,63}$")],
     room_name: str = Path(),
 ) -> AccessContext:
     """Load room + auth context; raise 404 if caller cannot read."""
-    ctx = await _load_access_context(session, owner_id, room_name, current_user, share)
+    ctx = await _load_access_context(session, owner, room_name, current_user, share)
     if not can_read(current_user, ctx.room, ctx.share, group_role=ctx.group_role):
-        raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+        raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
     return ctx
 
 

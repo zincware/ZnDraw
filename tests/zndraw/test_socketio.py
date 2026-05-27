@@ -52,7 +52,7 @@ async def test_socketio_get_user_authenticated(server_auth: str) -> None:
         # Call user_get via typed wrapper
         tsio_client = wrap(sio_client)
         response = await tsio_client.call(UserGet(), response_model=UserGetResponse)
-        assert response.email == "testuser@example.com"
+        assert response.display_name  # regex-valid coolname-generated value
         assert response.is_superuser is False
 
         await sio_client.disconnect()
@@ -75,7 +75,7 @@ async def test_socketio_get_user_guest(server_auth: str) -> None:
         # Call user_get via typed wrapper
         tsio_client = wrap(sio_client)
         response = await tsio_client.call(UserGet(), response_model=UserGetResponse)
-        assert response.email.endswith("@guest.user")
+        assert response.display_name  # guest gets a generated display_name
         assert response.is_superuser is False
 
         await sio_client.disconnect()

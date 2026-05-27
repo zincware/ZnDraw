@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
 
 from zndraw.database import lifespan
-from zndraw.dependencies import get_writable_room_id
+from zndraw.dependencies import get_writable_room_address, get_writable_room_id
 from zndraw.exceptions import (
     InternalServerError,
     ProblemError,
@@ -36,6 +36,7 @@ from zndraw.routes.share_links import router as share_links_router
 from zndraw.routes.step import router as step_router
 from zndraw.routes.tools import router as tools_router
 from zndraw.routes.trajectory import router as trajectory_router
+from zndraw.routes.users import router as users_router
 from zndraw.routes.utility import router as utility_router
 from zndraw.socketio import tsio
 from zndraw_joblib import (
@@ -44,6 +45,7 @@ from zndraw_joblib import (
     router as joblib_router,
 )
 from zndraw_joblib.dependencies import (
+    resolve_dispatch_room_address as joblib_resolve_dispatch_room_address,
     verify_writable_room as joblib_verify_writable_room,
 )
 
@@ -53,8 +55,15 @@ app.state.local_token = None  # CLI populates on server start
 
 logger = logging.getLogger(__name__)
 
-# Override joblib's verify_writable_room to enforce room locks
+# Override joblib's verify_writable_room to enforce room locks. Returns the
+# path room_id unchanged so joblib storage (ProviderRecord.room_id,
+# Job.room_id) keeps the composed display-name address the user sent — the
+# same form used by list filters, emit channels, and client subscriptions.
 app.dependency_overrides[joblib_verify_writable_room] = get_writable_room_id
+# Kiq dispatch needs the display-name composed address so ZnDraw client accepts it
+app.dependency_overrides[joblib_resolve_dispatch_room_address] = (
+    get_writable_room_address
+)
 
 # Register exception handlers
 app.add_exception_handler(ProblemError, problem_exception_handler)
@@ -115,6 +124,7 @@ app.include_router(step_router)
 app.include_router(tools_router)
 app.include_router(trajectory_router)
 app.include_router(utility_router)
+app.include_router(users_router)
 app.include_router(joblib_router)
 
 # Serve built frontend assets and SPA catch-all.

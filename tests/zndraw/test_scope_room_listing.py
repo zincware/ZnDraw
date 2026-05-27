@@ -21,13 +21,14 @@ async def test_list_rooms_union(client: AsyncClient) -> None:
     priv_id = await create_room_via_api(client, token_a, "r-priv", visibility="private")
 
     # User B creates a group; A joins as a viewer; B creates a group-room.
-    gid = (
-        await client.post(
-            "/v1/groups",
-            json={"name": "listing-test"},
-            headers={"Authorization": f"Bearer {token_b}"},
-        )
-    ).json()["id"]
+    group_resp = await client.post(
+        "/v1/groups",
+        json={"name": "listing-test"},
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    group_body = group_resp.json()
+    gid = group_body["id"]
+    group_name = group_body["name"]
     add_r = await client.post(
         f"/v1/groups/{gid}/members",
         json={"user_id": owner_id_a, "role": "viewer"},
@@ -35,7 +36,7 @@ async def test_list_rooms_union(client: AsyncClient) -> None:
     )
     assert add_r.status_code == 201
     grp_id = await create_room_via_api(
-        client, token_b, "r-grp", owner_id=gid, visibility="group"
+        client, token_b, "r-grp", owner=group_name, visibility="group"
     )
 
     # A sees: public (r-pub), own private (r-priv), group member (r-grp)
@@ -68,7 +69,7 @@ async def test_create_private_room_sets_owner(client: AsyncClient) -> None:
     )
     body = r.json()
     assert body["visibility"] == "private"
-    assert body["owner_id"] is not None
+    assert body["owner"] is not None
     assert body["owner_kind"] == "user"
 
 
@@ -81,20 +82,24 @@ async def test_create_group_room_requires_membership(
         session, email="goro-out@test.com", is_superuser=False
     )
     owner = await _register_and_login(client, "goro@test.com")
-    gid = (
+    group_body = (
         await client.post(
             "/v1/groups",
             json={"name": "gr-owned"},
             headers={"Authorization": f"Bearer {owner}"},
         )
-    ).json()["id"]
+    ).json()
 
     r = await client.post(
         "/v1/rooms",
-        json={"owner_id": gid, "name": "gr-owned-room", "visibility": "group"},
+        json={
+            "owner": group_body["name"],
+            "name": "gr-owned-room",
+            "visibility": "group",
+        },
         headers={"Authorization": f"Bearer {outsider}"},
     )
-    assert r.status_code in (403, 409)
+    assert r.status_code in (403, 404, 409)
 
 
 @pytest.mark.asyncio

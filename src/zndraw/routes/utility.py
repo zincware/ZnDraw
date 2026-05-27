@@ -29,7 +29,7 @@ from zndraw.exceptions import (
     SessionNotFound,
     problem_responses,
 )
-from zndraw.models import RoomGeometry
+from zndraw.models import RoomGeometry, build_public_address
 from zndraw.redis import RedisKey
 from zndraw.schemas import (
     ActiveCameraRequest,
@@ -98,7 +98,7 @@ async def get_global_settings(
 
 
 @router.get(
-    "/rooms/{owner_id}/{room_name}/frame-selection",  # noqa: FAST003 — params consumed by AccessReadDep
+    "/rooms/{owner}/{room_name}/frame-selection",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def get_frame_selection(
@@ -112,7 +112,7 @@ async def get_frame_selection(
 
 
 @router.put(
-    "/rooms/{owner_id}/{room_name}/frame-selection",  # noqa: FAST003 — params consumed by WritableRoomDep
+    "/rooms/{owner}/{room_name}/frame-selection",  # noqa: FAST003 — params consumed by WritableRoomDep
     responses=problem_responses(
         NotAuthenticated, RoomNotFound, RoomLocked, InvalidPayload
     ),
@@ -133,9 +133,12 @@ async def update_frame_selection(
     room.frame_selection = json.dumps(body.indices) if body.indices else None
     await session.commit()
 
+    room_address = await build_public_address(session, room)
     await broadcast_to_room(
         sio,
-        FrameSelectionUpdate.for_room(room, indices=body.indices),
+        FrameSelectionUpdate.for_room(
+            room, room_address=room_address, indices=body.indices
+        ),
         room,
     )
 
@@ -143,7 +146,7 @@ async def update_frame_selection(
 
 
 @router.get(
-    "/rooms/{owner_id}/{room_name}/sessions/{session_id}/active-camera",  # noqa: FAST003 — params consumed by AccessReadDep
+    "/rooms/{owner}/{room_name}/sessions/{session_id}/active-camera",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(NotAuthenticated, SessionNotFound),
 )
 async def get_active_camera(
@@ -157,7 +160,7 @@ async def get_active_camera(
 
 
 @router.put(
-    "/rooms/{owner_id}/{room_name}/sessions/{session_id}/active-camera",  # noqa: FAST003 — params consumed by AccessReadDep
+    "/rooms/{owner}/{room_name}/sessions/{session_id}/active-camera",  # noqa: FAST003 — params consumed by AccessReadDep
     responses=problem_responses(NotAuthenticated, SessionNotFound, GeometryNotFound),
 )
 async def set_active_camera(

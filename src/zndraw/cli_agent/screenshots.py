@@ -67,11 +67,13 @@ def request_screenshot(
         if session is not None:
             target_sid = session
         else:
-            # Get current user's email, then find their session
+            # Get current user's display_name, then find their session
             me = vis.api.get_me()
-            my_email = me.get("email", "")
+            my_display_name = me.get("display_name", "")
             all_sessions = vis.api.list_sessions()
-            own_sessions = [s for s in all_sessions if s.email == my_email]
+            own_sessions = [
+                s for s in all_sessions if s.display_name == my_display_name
+            ]
             if not own_sessions:
                 typer.echo(
                     "No active browser sessions for your user in this room.",

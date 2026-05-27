@@ -16,6 +16,7 @@ export type UserRole = "user" | "admin";
 export interface UserInfo {
 	id: string;
 	email: string;
+	display_name: string;
 	is_active: boolean;
 	is_superuser: boolean;
 	is_verified: boolean;
@@ -97,23 +98,30 @@ export async function login(
 }
 
 /**
- * Register a new user with email and password.
+ * Register a new user with email, password, and display_name.
  *
  * POST /v1/auth/register returns UserRead (no token), so auto-login after.
  */
 export async function registerUser(
 	email: string,
 	password: string,
+	display_name: string,
 ): Promise<AuthResult> {
 	const response = await fetch("/v1/auth/register", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ email, password }),
+		body: JSON.stringify({ email, password, display_name }),
 	});
 	if (!response.ok) {
 		const errorData = await response
 			.json()
 			.catch(() => ({ detail: response.statusText }));
+		const typeUri: string | undefined = errorData.type;
+		if (response.status === 409 && typeUri?.endsWith("/username-exists")) {
+			throw new Error(
+				"That display name is taken — try another or click regenerate.",
+			);
+		}
 		throw new Error(
 			errorData.detail || `Registration failed: ${response.statusText}`,
 		);

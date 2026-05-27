@@ -110,19 +110,20 @@ export default function TemplateSelectionPage() {
 
 				// Step 2: Create new room (from template or empty)
 				const templateRoomId = await determineTemplate();
+				const owner = user.display_name;
 
 				if (templateRoomId) {
 					console.log("[Startup] Creating room from template:", templateRoomId);
 					const result = await createRoom({
-						owner_id: user.id,
+						owner,
 						name: "untitled-1",
 						copy_from: templateRoomId,
 					});
 					navigate(`/rooms/${result.room_id}`);
 				} else {
-					console.log("[Startup] Creating default room for user:", user.id);
+					console.log("[Startup] Creating default room for user:", owner);
 					const result = await createRoom({
-						owner_id: user.id,
+						owner,
 						name: "untitled-1",
 					});
 					navigate(`/rooms/${result.room_id}`);

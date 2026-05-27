@@ -12,6 +12,7 @@ import pytest
 from httpx import AsyncClient
 
 from zndraw.client import atoms_to_json_dict
+from zndraw_auth.display_names import DISPLAY_NAME_PATTERN
 
 
 def _make_atoms(x: float, formula: str = "H") -> ase.Atoms:
@@ -27,7 +28,11 @@ def _decode_msgpack_frames(content: bytes) -> list:
 
 
 async def _get_guest_token_and_user_id(http_client: AsyncClient) -> tuple[str, str]:
-    """Authenticate as guest and return (token, user_id)."""
+    """Authenticate as guest and return (token, display_name).
+
+    Returns the display_name instead of the UUID so the test can construct
+    the new two-segment room paths directly.
+    """
     auth_resp = await http_client.post("/v1/auth/guest")
     assert auth_resp.status_code == 200
     token = auth_resp.json()["access_token"]
@@ -36,7 +41,7 @@ async def _get_guest_token_and_user_id(http_client: AsyncClient) -> tuple[str, s
         headers={"Authorization": f"Bearer {token}"},
     )
     assert me_resp.status_code == 200
-    return token, me_resp.json()["id"]
+    return token, me_resp.json()["display_name"]
 
 
 # =============================================================================
@@ -58,13 +63,24 @@ async def test_guest_auth_returns_token(http_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_guest_session_includes_display_name(http_client: AsyncClient) -> None:
+    resp = await http_client.post("/v1/auth/guest")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert DISPLAY_NAME_PATTERN.fullmatch(body["display_name"])
+    assert body["email"].endswith("@guest.user")
+    assert body["token_type"] == "bearer"
+    assert isinstance(body["access_token"], str) and body["access_token"]
+
+
+@pytest.mark.asyncio
 async def test_guest_can_create_room(http_client: AsyncClient):
     """A guest can create a room after authenticating."""
     token, user_id = await _get_guest_token_and_user_id(http_client)
     room_name = f"guest-{uuid.uuid4().hex[:8]}"
     create_resp = await http_client.post(
         "/v1/rooms",
-        json={"owner_id": user_id, "name": room_name},
+        json={"owner": user_id, "name": room_name},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert create_resp.status_code == 201
@@ -83,7 +99,7 @@ async def test_guest_write_then_read_frame(http_client: AsyncClient):
     room_name = f"write-{uuid.uuid4().hex[:8]}"
     create_resp = await http_client.post(
         "/v1/rooms",
-        json={"owner_id": user_id, "name": room_name, "copy_from": "@none"},
+        json={"owner": user_id, "name": room_name, "copy_from": "@none"},
         headers=headers,
     )
     assert create_resp.status_code == 201
@@ -124,7 +140,7 @@ async def test_guest_write_multiple_frames(http_client: AsyncClient):
     room_name = f"multi-{uuid.uuid4().hex[:8]}"
     await http_client.post(
         "/v1/rooms",
-        json={"owner_id": user_id, "name": room_name, "copy_from": "@none"},
+        json={"owner": user_id, "name": room_name, "copy_from": "@none"},
         headers=headers,
     )
     room_id = f"{user_id}/{room_name}"
@@ -158,7 +174,7 @@ async def test_guest_cannot_access_other_room_without_auth(http_client: AsyncCli
     room_name = f"noauth-{uuid.uuid4().hex[:8]}"
     await http_client.post(
         "/v1/rooms",
-        json={"owner_id": user_id, "name": room_name, "copy_from": "@none"},
+        json={"owner": user_id, "name": room_name, "copy_from": "@none"},
         headers=headers,
     )
     room_id = f"{user_id}/{room_name}"
@@ -178,7 +194,7 @@ async def test_second_guest_cannot_write_to_locked_room(http_client: AsyncClient
     room_name = f"locked-{uuid.uuid4().hex[:8]}"
     await http_client.post(
         "/v1/rooms",
-        json={"owner_id": user_id_a, "name": room_name, "copy_from": "@none"},
+        json={"owner": user_id_a, "name": room_name, "copy_from": "@none"},
         headers=headers_a,
     )
     room_id = f"{user_id_a}/{room_name}"

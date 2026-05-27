@@ -30,6 +30,7 @@ from zndraw_auth.admin import admin_token_router
 from zndraw_auth.cli_login import cli_login_router
 from zndraw_auth.db import Base
 from zndraw_auth.settings import AuthSettings
+from zndraw_joblib.exceptions import ProblemError, problem_exception_handler
 
 # --- Shared Test Models ---
 
@@ -106,6 +107,9 @@ async def _create_test_app(
     )
 
     app = FastAPI()
+
+    # Wire RFC 9457 problem-detail handler used by zndraw_auth/zndraw code.
+    app.add_exception_handler(ProblemError, problem_exception_handler)
 
     # Store state for DI
     app.state.engine = test_engine
@@ -209,6 +213,14 @@ async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
         base_url="http://test",
     ) as client:
         yield client
+
+
+@pytest.fixture
+async def session(app: FastAPI) -> AsyncGenerator[AsyncSession, None]:
+    """Yield an AsyncSession bound to the test app's engine."""
+    session_maker = app.state.session_maker
+    async with session_maker() as s:
+        yield s
 
 
 @pytest.fixture

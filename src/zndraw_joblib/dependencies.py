@@ -1,6 +1,7 @@
 # src/zndraw_joblib/dependencies.py
 import hashlib
 import json
+import re
 from typing import Annotated, Any, Protocol, runtime_checkable
 from uuid import UUID
 
@@ -42,24 +43,32 @@ def get_tsio(request: Request) -> AsyncServerWrapper | None:
     return getattr(request.app.state, "tsio", None)
 
 
+_OWNER_DISPLAY_NAME_RE = re.compile(r"^[a-z][a-z0-9-]{2,63}$")
+
+
 def validate_room_id(room_id: str) -> None:
-    """Validate that ``room_id`` is a sigil OR composed ``<owner_uuid>/<room_name>``."""
+    """Validate that ``room_id`` is a sigil OR composed ``<owner>/<room_name>``.
+
+    The owner segment may be either a UUID (legacy/internal callers) or a
+    display-name slug (the user-facing form).
+    """
     if room_id in ("@global", "@internal"):
         return
     if "/" not in room_id:
         raise InvalidRoomId.exception(
             detail=(
                 f"Room ID '{room_id}' must be in the composed form "
-                "'<owner_uuid>/<room_name>'"
+                "'<owner>/<room_name>'"
             )
         )
     owner_part, _, name_part = room_id.partition("/")
-    try:
-        UUID(owner_part)
-    except ValueError as exc:
-        raise InvalidRoomId.exception(
-            detail=f"Owner '{owner_part}' is not a valid UUID"
-        ) from exc
+    if not _OWNER_DISPLAY_NAME_RE.fullmatch(owner_part):
+        try:
+            UUID(owner_part)
+        except ValueError as exc:
+            raise InvalidRoomId.exception(
+                detail=(f"Owner '{owner_part}' is not a valid display name or UUID")
+            ) from exc
     if not name_part or "/" in name_part:
         raise InvalidRoomId.exception(detail=f"Room name '{name_part}' is invalid")
 
@@ -76,6 +85,20 @@ async def verify_writable_room(room_id: str = Path()) -> str:
 
 
 WritableRoomDep = Annotated[str, Depends(verify_writable_room)]
+
+
+async def resolve_dispatch_room_address(room_id: str = Path()) -> str:
+    """Return the room identifier forwarded to ``kiq`` dispatch.
+
+    Default: the path ``room_id`` unchanged. Host apps override this to
+    translate surrogate identifiers (e.g. UUID) into a dispatch-friendly
+    form such as ``<display_name>/<room_name>`` that the executor's
+    ZnDraw client accepts.
+    """
+    return room_id
+
+
+DispatchRoomAddressDep = Annotated[str, Depends(resolve_dispatch_room_address)]
 
 
 @runtime_checkable

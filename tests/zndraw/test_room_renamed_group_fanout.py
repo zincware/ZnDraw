@@ -25,7 +25,7 @@ async def test_room_renamed_fans_out_to_previous_group_members(
     bob, _ = await create_test_user_in_db(session, email="bob@local.test")
     carol, _ = await create_test_user_in_db(session, email="carol@local.test")
 
-    group = Group(name="G", created_by_id=alice.id)
+    group = Group(name="grp-fanout-test", created_by_id=alice.id)
     session.add(group)
     await session.flush()
     session.add(
@@ -50,8 +50,11 @@ async def test_room_renamed_fans_out_to_previous_group_members(
     await session.refresh(room)
 
     response = await client.patch(
-        f"/v1/rooms/{room.public_address}",
-        json={"new_owner_id": str(alice.id), "visibility": Visibility.PRIVATE.value},
+        f"/v1/rooms/{group.name}/{room.room_name}",
+        json={
+            "new_owner": alice.display_name,
+            "visibility": Visibility.PRIVATE.value,
+        },
         headers=auth_header(alice_token),
     )
     assert response.status_code == 200, response.text

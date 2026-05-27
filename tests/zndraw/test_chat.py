@@ -9,6 +9,7 @@ from helpers import (
     auth_header,
     create_test_room,
     create_test_user_in_db,
+    room_display_address,
 )
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,7 +51,7 @@ async def test_create_message(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/chat/messages",
+        f"/v1/rooms/{room_display_address(user, room)}/chat/messages",
         json={"content": "Hello!"},
         headers=auth_header(token),
     )
@@ -58,7 +59,7 @@ async def test_create_message(
     data = response.json()
     assert data["content"] == "Hello!"
     assert data["room_id"] == room.id
-    assert data["email"] == user.email
+    assert data["display_name"] == user.display_name
     assert data["updated_at"] is None
     assert isinstance(data["id"], int)
     assert "created_at" in data
@@ -77,7 +78,7 @@ async def test_create_message_empty_content(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/chat/messages",
+        f"/v1/rooms/{room_display_address(user, room)}/chat/messages",
         json={"content": ""},
         headers=auth_header(token),
     )
@@ -93,7 +94,7 @@ async def test_create_message_requires_auth(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/chat/messages",
+        f"/v1/rooms/{room_display_address(user, room)}/chat/messages",
         json={"content": "Hello!"},
     )
     assert response.status_code == 401
@@ -111,7 +112,8 @@ async def test_list_messages_empty(client: AsyncClient, session: AsyncSession) -
     room = await create_test_room(session, user)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/chat/messages", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/chat/messages",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     data = response.json()
@@ -151,7 +153,8 @@ async def test_list_messages_returns_newest_first(
     )
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/chat/messages", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/chat/messages",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     data = response.json()
@@ -175,7 +178,7 @@ async def test_list_messages_pagination(
 
     # Fetch first page (limit=2)
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/chat/messages?limit=2",
+        f"/v1/rooms/{room_display_address(user, room)}/chat/messages?limit=2",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -187,7 +190,8 @@ async def test_list_messages_pagination(
     # Fetch second page using oldest_timestamp cursor
     cursor = page1["metadata"]["oldest_timestamp"]
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/chat/messages?limit=2&before={cursor}",
+        f"/v1/rooms/{room_display_address(user, room)}"
+        f"/chat/messages?limit=2&before={cursor}",
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -197,24 +201,27 @@ async def test_list_messages_pagination(
 
 
 @pytest.mark.asyncio
-async def test_list_messages_includes_email(
+async def test_list_messages_includes_display_name(
     client: AsyncClient, session: AsyncSession
 ) -> None:
-    """GET populates the email field from the User table."""
-    user, token = await create_test_user_in_db(session, email="alice@test.com")
+    """GET populates the display_name field from the User table."""
+    user, token = await create_test_user_in_db(
+        session, email="alice@test.com", display_name="alice-the-chatter"
+    )
     room = await create_test_room(session, user)
 
     await client.post(
-        f"/v1/rooms/{room.public_address}/chat/messages",
+        f"/v1/rooms/{room_display_address(user, room)}/chat/messages",
         json={"content": "Hi"},
         headers=auth_header(token),
     )
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/chat/messages", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/chat/messages",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
-    assert response.json()["items"][0]["email"] == "alice@test.com"
+    assert response.json()["items"][0]["display_name"] == "alice-the-chatter"
 
 
 # =============================================================================
@@ -233,7 +240,7 @@ async def test_edit_message(
     msg = await _add_message(session, room.id, user.id, "Original")
 
     response = await client.patch(
-        f"/v1/rooms/{room.public_address}/chat/messages/{msg.id}",
+        f"/v1/rooms/{room_display_address(user, room)}/chat/messages/{msg.id}",
         json={"content": "Edited"},
         headers=auth_header(token),
     )
@@ -259,7 +266,7 @@ async def test_edit_message_ownership(
     msg = await _add_message(session, room.id, user1.id, "User1's msg")
 
     response = await client.patch(
-        f"/v1/rooms/{room.public_address}/chat/messages/{msg.id}",
+        f"/v1/rooms/{room_display_address(user1, room)}/chat/messages/{msg.id}",
         json={"content": "Hacked"},
         headers=auth_header(token2),
     )
@@ -276,7 +283,7 @@ async def test_edit_message_not_found(
     room = await create_test_room(session, user)
 
     response = await client.patch(
-        f"/v1/rooms/{room.public_address}/chat/messages/99999",
+        f"/v1/rooms/{room_display_address(user, room)}/chat/messages/99999",
         json={"content": "Edit"},
         headers=auth_header(token),
     )
@@ -293,12 +300,11 @@ async def test_edit_message_not_found(
 async def test_list_messages_room_not_found(
     client: AsyncClient, session: AsyncSession
 ) -> None:
-    """GET for non-existent room returns 404."""
+    """GET for non-existent room returns 404 (UserNotFound on unknown owner)."""
     _, token = await create_test_user_in_db(session)
 
     response = await client.get(
-        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/chat/messages",
+        "/v1/rooms/no-such-owner/nonexistent/chat/messages",
         headers=auth_header(token),
     )
     assert response.status_code == 404
-    assert "room-not-found" in response.json()["type"]

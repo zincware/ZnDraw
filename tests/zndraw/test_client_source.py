@@ -239,12 +239,12 @@ def test_copy_from_mounted_room_raises(server: str) -> None:
 
         import httpx
 
-        owner_id, _, room_name = vis.room.partition("/")
+        owner, _, room_name = vis.room.partition("/")
         response = httpx.post(
             f"{server}/v1/rooms",
             headers={"Authorization": f"Bearer {vis.api.token}"},
             json={
-                "owner_id": owner_id,
+                "owner": owner,
                 "name": f"copy-{room_name[:20]}",
                 "copy_from": vis.room,
             },
@@ -341,12 +341,12 @@ def test_copy_from_room_copies_bookmarks(server: str) -> None:
         vis.append(_make_atoms())
         vis.bookmarks[0] = "start"
 
-        owner_id, _, _ = vis.room.partition("/")
-        new_name = f"copy-bm-{owner_id[:8]}"
+        owner, _, _ = vis.room.partition("/")
+        new_name = f"copy-bm-{owner[:8]}"
         response = httpx.post(
             f"{server}/v1/rooms",
             headers={"Authorization": f"Bearer {vis.api.token}"},
-            json={"owner_id": owner_id, "name": new_name, "copy_from": vis.room},
+            json={"owner": owner, "name": new_name, "copy_from": vis.room},
         )
         assert response.status_code == 201
         new_room_id = response.json()["room_id"]

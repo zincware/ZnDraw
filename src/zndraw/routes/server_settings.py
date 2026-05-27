@@ -14,10 +14,9 @@ from zndraw.dependencies import (
     FrameStorageDep,
     SessionDep,
     SioDep,
-    _load_room_by_address,
 )
 from zndraw.exceptions import Forbidden, RoomNotFound, problem_responses
-from zndraw.models import Room, ServerSettings
+from zndraw.models import Room, ServerSettings, build_public_address
 from zndraw.routes.rooms import broadcast_room_update
 from zndraw.schemas import StatusResponse
 
@@ -32,13 +31,13 @@ router = APIRouter(prefix="/v1/server-settings", tags=["server-settings"])
 class DefaultRoomResponse(BaseModel):
     """Response for the default room setting."""
 
-    room_id: str | None  # composed address: {owner_id}/{room_name}
+    room_id: str | None  # composed address: {owner}/{room_name}
 
 
 class DefaultRoomSetRequest(BaseModel):
     """Request to set the default room.
 
-    Accepts either the composed address ``{owner_id}/{room_name}`` or the
+    Accepts either the composed address ``{owner}/{room_name}`` or the
     surrogate room UUID (for backwards-compatible CLI usage).
     """
 
@@ -64,20 +63,14 @@ async def _resolve_room_by_id_or_address(
     session: AsyncSession, room_id: str
 ) -> Room | None:
     """Resolve a Room from either a surrogate UUID or a composed address."""
-    # Try direct surrogate lookup first
     room = await session.get(Room, room_id)
     if room is not None:
         return room
-    # Try composed-address lookup (owner_id/room_name)
-    parts = room_id.split("/", 1)
-    if len(parts) == 2:
-        try:
-            from uuid import UUID as _UUID
+    if "/" in room_id:
+        from zndraw.dependencies import _load_room_by_segment
 
-            owner_uuid = _UUID(parts[0])
-        except ValueError:
-            return None
-        return await _load_room_by_address(session, owner_uuid, parts[1])
+        owner_str, _, room_name = room_id.partition("/")
+        return await _load_room_by_segment(session, owner_str, room_name)
     return None
 
 
@@ -98,7 +91,10 @@ async def get_default_room(
     if settings.default_room_id is None:
         return DefaultRoomResponse(room_id=None)
     room = await session.get(Room, settings.default_room_id)
-    return DefaultRoomResponse(room_id=room.public_address if room else None)
+    if room is None:
+        return DefaultRoomResponse(room_id=None)
+    public_address = await build_public_address(session, room)
+    return DefaultRoomResponse(room_id=public_address)
 
 
 @router.put(
@@ -135,7 +131,8 @@ async def set_default_room(
 
     await broadcast_room_update(sio, session, storage, room)
 
-    return DefaultRoomResponse(room_id=room.public_address)
+    public_address = await build_public_address(session, room)
+    return DefaultRoomResponse(room_id=public_address)
 
 
 @router.delete(

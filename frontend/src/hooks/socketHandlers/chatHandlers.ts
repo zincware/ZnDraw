@@ -5,7 +5,7 @@ import type { HandlerContext } from "./types";
 /** Socket event payload for the `typing` event. */
 export interface TypingEvent {
 	user_id: string;
-	email: string;
+	display_name: string | null;
 	is_typing: boolean;
 }
 
@@ -75,25 +75,26 @@ export function createChatHandlers(ctx: HandlerContext): ChatHandlersResult {
 
 	function onTyping(data: TypingEvent) {
 		const { addTypingUser, removeTypingUser } = useAppStore.getState();
-		const email = data.email;
+		const displayName = data.display_name;
+		if (!displayName) return;
 
 		// Clear previous timeout for this user
-		const prev = typingTimeouts.get(email);
+		const prev = typingTimeouts.get(displayName);
 		if (prev) clearTimeout(prev);
 
 		if (data.is_typing) {
-			addTypingUser(email);
+			addTypingUser(displayName);
 			// Auto-remove after 5s in case typing_stop is missed
 			typingTimeouts.set(
-				email,
+				displayName,
 				setTimeout(() => {
-					removeTypingUser(email);
-					typingTimeouts.delete(email);
+					removeTypingUser(displayName);
+					typingTimeouts.delete(displayName);
 				}, 5000),
 			);
 		} else {
-			removeTypingUser(email);
-			typingTimeouts.delete(email);
+			removeTypingUser(displayName);
+			typingTimeouts.delete(displayName);
 		}
 	}
 

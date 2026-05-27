@@ -9,11 +9,10 @@ import io
 import re
 import uuid as _uuid_mod
 from typing import Annotated
-from uuid import UUID
 
 import ase.io
 from asebytes import decode, encode
-from fastapi import APIRouter, Depends, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, Path, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -28,7 +27,7 @@ from zndraw.dependencies import (
     SessionDep,
     SioDep,
     WritableRoomDep,
-    _load_room_by_address,
+    _load_room_by_segment,
     fetch_group_role,
     resolve_share_token,
 )
@@ -41,6 +40,7 @@ from zndraw.exceptions import (
     RoomReadOnly,
     problem_responses,
 )
+from zndraw.models import build_public_address
 from zndraw.redis import RedisKey
 from zndraw.routes.rooms import broadcast_room_update
 from zndraw.schemas import FrameBulkResponse
@@ -51,7 +51,7 @@ from zndraw_auth import User as _User, current_optional_user
 _OptionalUserTokenDep = Annotated[_User | None, Depends(current_optional_user)]
 
 router = APIRouter(
-    prefix="/v1/rooms/{owner_id}/{room_name}/trajectory", tags=["trajectory"]
+    prefix="/v1/rooms/{owner}/{room_name}/trajectory", tags=["trajectory"]
 )
 
 _UPLOAD_BATCH_SIZE = 500
@@ -101,7 +101,7 @@ async def download_trajectory(
     storage: FrameStorageDep,
     redis: RedisDep,
     user: _OptionalUserTokenDep,
-    owner_id: UUID,
+    owner: Annotated[str, Path(pattern=r"^[a-z][a-z0-9-]{2,63}$")],
     room_name: str,
     format: Annotated[str, Query(description="Output format")] = "extxyz",  # noqa: A002
     indices: Annotated[
@@ -122,9 +122,9 @@ async def download_trajectory(
     Authenticate via JWT header or a temporary download token.
     Supported formats: extxyz, xyz, cif, pdb.
     """
-    room = await _load_room_by_address(session, owner_id, room_name)
+    room = await _load_room_by_segment(session, owner, room_name)
     if room is None:
-        raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+        raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
     room_id = room.id
 
     if user is None:
@@ -145,7 +145,7 @@ async def download_trajectory(
         if room.owner_group_id is not None:
             group_role = await fetch_group_role(session, user.id, room.owner_group_id)
         if not can_read(user, room, share, group_role=group_role):
-            raise RoomNotFound.exception(f"Room {owner_id}/{room_name} not found")
+            raise RoomNotFound.exception(f"Room {owner}/{room_name} not found")
 
     if format not in _FORMAT_INFO:
         raise InvalidPayload.exception(
@@ -234,6 +234,7 @@ async def download_trajectory(
     responses=problem_responses(NotAuthenticated, RoomNotFound),
 )
 async def create_download_token(
+    session: SessionDep,
     redis: RedisDep,
     access: AccessReadDep,
     request: Request,
@@ -250,10 +251,8 @@ async def create_download_token(
     await redis.set(RedisKey.download_token(token_value), room_id, ex=ttl)
 
     base_url = str(request.base_url).rstrip("/")
-    url = (
-        f"{base_url}/v1/rooms/{access.room.public_address}"
-        f"/trajectory?token={token_value}"
-    )
+    room_address = await build_public_address(session, access.room)
+    url = f"{base_url}/v1/rooms/{room_address}/trajectory?token={token_value}"
 
     return DownloadTokenResponse(token=token_value, url=url, expires_in=ttl)
 
@@ -343,9 +342,12 @@ async def upload_trajectory(
         new_total = await storage[room_id].extend(frames)
 
     # Broadcast invalidation
+    room_address = await build_public_address(session, room)
     await broadcast_to_room(
         sio,
-        FramesInvalidate.for_room(room, action="add", count=new_total),
+        FramesInvalidate.for_room(
+            room, room_address=room_address, action="add", count=new_total
+        ),
         room,
     )
     await broadcast_room_update(sio, session, storage, room)

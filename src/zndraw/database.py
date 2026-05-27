@@ -15,7 +15,6 @@ import socket
 import threading
 import uuid
 from collections.abc import AsyncIterator
-from uuid import UUID
 
 import redis.asyncio as redis_client
 import socketio as socketio_lib
@@ -129,6 +128,7 @@ async def ensure_internal_worker(
             is_active=True,
             is_superuser=True,
             is_verified=True,
+            display_name="internal-worker",
         )
         session.add(worker)
         await session.commit()
@@ -138,6 +138,8 @@ async def ensure_internal_worker(
         existing.is_active = True
         existing.is_superuser = True
         existing.is_verified = True
+        if not existing.display_name:
+            existing.display_name = "internal-worker"
         await session.commit()
         log.debug("Updated internal worker user: %s", email)
 
@@ -418,24 +420,28 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # session, then perform the Redis + SIO work without holding the
         # SQLite serialization lock.
         from zndraw.broadcast import broadcast_to_room
-        from zndraw.dependencies import _load_room_by_address
-        from zndraw.models import Room  # noqa: TC001
+        from zndraw.dependencies import _load_room_by_segment
+        from zndraw.models import Room, build_public_address
 
         async def frame_room_cleanup(room_ids: set[str]) -> None:
-            rooms: list[Room] = []
+            """Resolve incoming room ids (either surrogate UUIDs from
+            ProviderRecord.room_id or composed display-name addresses) and
+            invalidate provider frame caches + emit FramesInvalidate."""
+            rooms: list[tuple[Room, str]] = []
             async with app.state.session_maker() as session:
                 for rid in room_ids:
-                    if "/" not in rid:
-                        continue
-                    owner_part, _, name_part = rid.partition("/")
-                    try:
-                        owner_uuid = UUID(owner_part)
-                    except ValueError:
-                        continue
-                    room = await _load_room_by_address(session, owner_uuid, name_part)
+                    room: Room | None = None
+                    if "/" in rid:
+                        owner_part, _, name_part = rid.partition("/")
+                        room = await _load_room_by_segment(
+                            session, owner_part, name_part
+                        )
+                    else:
+                        room = await session.get(Room, rid)
                     if room is not None:
-                        rooms.append(room)
-            for room in rooms:
+                        room_address = await build_public_address(session, room)
+                        rooms.append((room, room_address))
+            for room, room_address in rooms:
                 await app.state.redis.delete(  # type: ignore[misc]
                     RedisKey.provider_frame_count(room.id)
                 )
@@ -443,6 +449,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     tsio,
                     FramesInvalidate.for_room(
                         room,
+                        room_address=room_address,
                         action="clear",
                         count=0,
                         reason="provider_disconnected",

@@ -11,6 +11,7 @@ from helpers import (
     create_test_user_in_db,
     decode_msgpack_response,
     make_raw_frame,
+    room_display_address,
 )
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,12 +63,13 @@ async def test_get_frame_storage_hit_ignores_provider(
     """Frame in storage, provider exists -- returns frame (no provider touch)."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
-    await _create_provider(session, room.public_address, user)
+    await _create_provider(session, room_display_address(user, room), user)
 
     await frame_storage[room.id].extend([make_raw_frame({"a": 1})])
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/0", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     frames = decode_msgpack_response(response.content)
@@ -85,7 +87,7 @@ async def test_get_frame_provider_cache_hit(
     """Frame in provider cache, storage slot is None -- returns 200 with frame."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
-    provider = await _create_provider(session, room.public_address, user)
+    provider = await _create_provider(session, room_display_address(user, room), user)
 
     # Reserve slots (provider has 3 frames), slot 0 is None
     await frame_storage[room.id].reserve(3)
@@ -102,7 +104,8 @@ async def test_get_frame_provider_cache_hit(
     await result_backend.store(cache_key, packed, 300)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/0", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0",
+        headers=auth_header(token),
     )
     assert response.status_code == 200
     frames = decode_msgpack_response(response.content)
@@ -119,13 +122,14 @@ async def test_get_frame_provider_timeout(
     """Frame not cached, provider exists -- long-poll times out → 504."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
-    await _create_provider(session, room.public_address, user)
+    await _create_provider(session, room_display_address(user, room), user)
 
     # Reserve slots, leave them empty
     await frame_storage[room.id].reserve(5)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/2", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frames/2",
+        headers=auth_header(token),
     )
     assert response.status_code == 504
 
@@ -148,7 +152,8 @@ async def test_get_frame_no_provider_returns_404(
     await frame_storage[room.id].reserve(3)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/1", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frames/1",
+        headers=auth_header(token),
     )
     assert response.status_code == 404
     problem = ProblemDetail.model_validate(response.json())
@@ -165,12 +170,13 @@ async def test_get_frame_dispatch_acquires_inflight(
     """After dispatch, inflight lock is acquired."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
-    provider = await _create_provider(session, room.public_address, user)
+    provider = await _create_provider(session, room_display_address(user, room), user)
 
     await frame_storage[room.id].reserve(3)
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/0", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frames/0",
+        headers=auth_header(token),
     )
     assert response.status_code == 504  # timeout, but inflight lock was set
 
@@ -191,7 +197,7 @@ async def test_get_frame_notify_wakes_long_poll(
     """Provider uploads result mid-poll — long-poll wakes up and returns 200."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
-    provider = await _create_provider(session, room.public_address, user)
+    provider = await _create_provider(session, room_display_address(user, room), user)
 
     await frame_storage[room.id].reserve(3)
 
@@ -217,7 +223,8 @@ async def test_get_frame_notify_wakes_long_poll(
     upload_task = asyncio.create_task(_simulate_provider_upload())
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames/1", headers=auth_header(token)
+        f"/v1/rooms/{room_display_address(user, room)}/frames/1",
+        headers=auth_header(token),
     )
 
     await upload_task
@@ -240,7 +247,7 @@ async def test_list_frames_notify_wakes_concurrent_dispatch(
     """Multiple missing frames dispatched concurrently — all wake on notify."""
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
-    provider = await _create_provider(session, room.public_address, user)
+    provider = await _create_provider(session, room_display_address(user, room), user)
 
     # Reserve 3 slots, fill only index 1
     await frame_storage[room.id].reserve(3)
@@ -268,7 +275,7 @@ async def test_list_frames_notify_wakes_concurrent_dispatch(
     upload_task = asyncio.create_task(_simulate_provider_upload())
 
     response = await client.get(
-        f"/v1/rooms/{room.public_address}/frames?indices=0,1,2",
+        f"/v1/rooms/{room_display_address(user, room)}/frames?indices=0,1,2",
         headers=auth_header(token),
     )
 

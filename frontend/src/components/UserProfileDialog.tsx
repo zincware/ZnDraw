@@ -32,7 +32,10 @@ export default function UserProfileDialog({
 
 	// Use individual selectors to prevent unnecessary re-renders
 	const showSnackbar = useAppStore((state) => state.showSnackbar);
-	const userName = useAppStore((state) => state.user?.email ?? null);
+	const userDisplayName = useAppStore(
+		(state) => state.user?.display_name ?? null,
+	);
+	const userEmail = useAppStore((state) => state.user?.email ?? null);
 
 	useEffect(() => {
 		if (open) {
@@ -87,8 +90,13 @@ export default function UserProfileDialog({
 			<DialogContent>
 				<Box sx={{ pt: 1, display: "flex", flexDirection: "column", gap: 2 }}>
 					<Typography variant="body2" color="text.secondary">
-						Account: <strong>{userName}</strong>
+						Account: <strong>{userDisplayName}</strong>
 					</Typography>
+					{userEmail && (
+						<Typography variant="caption" color="text.secondary">
+							{userEmail}
+						</Typography>
+					)}
 
 					{error && (
 						<Alert severity="error" onClose={() => setError(null)}>

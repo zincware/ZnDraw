@@ -22,7 +22,7 @@ from zndraw.exceptions import (
     RoomNotFound,
     problem_responses,
 )
-from zndraw.models import Message
+from zndraw.models import Message, build_public_address
 from zndraw.schemas import (
     MessageCreate,
     MessageEditRequest,
@@ -33,9 +33,7 @@ from zndraw.schemas import (
 from zndraw.socket_events import MessageEdited, MessageNew
 from zndraw_auth import User
 
-router = APIRouter(
-    prefix="/v1/rooms/{owner_id}/{room_name}/chat/messages", tags=["chat"]
-)
+router = APIRouter(prefix="/v1/rooms/{owner}/{room_name}/chat/messages", tags=["chat"])
 
 
 def _datetime_to_unix_ms(dt: datetime) -> int:
@@ -43,7 +41,9 @@ def _datetime_to_unix_ms(dt: datetime) -> int:
     return int(dt.timestamp() * 1000)
 
 
-def _message_to_response(msg: Message, email: str | None = None) -> MessageResponse:
+def _message_to_response(
+    msg: Message, display_name: str | None = None
+) -> MessageResponse:
     """Convert a Message model to MessageResponse."""
     return MessageResponse(
         id=msg.id,  # type: ignore[arg-type]
@@ -52,7 +52,7 @@ def _message_to_response(msg: Message, email: str | None = None) -> MessageRespo
         content=msg.content,
         created_at=msg.created_at,
         updated_at=msg.updated_at,
-        email=email,
+        display_name=display_name,
     )
 
 
@@ -89,18 +89,19 @@ async def list_messages(
     )
     total_count = (await session.exec(count_stmt)).one()
 
-    # Look up emails for all user_ids
+    # Look up display names for all user_ids
     user_ids = {row.user_id for row in rows}
-    email_map: dict[str, str | None] = {}
+    display_name_map: dict[str, str | None] = {}
     if user_ids:
         users_result = await session.exec(
             select(User).where(col(User.id).in_(user_ids))
         )
         for user in users_result.all():
-            email_map[str(user.id)] = user.email
+            display_name_map[str(user.id)] = user.display_name
 
     messages = [
-        _message_to_response(row, email_map.get(str(row.user_id))) for row in rows
+        _message_to_response(row, display_name_map.get(str(row.user_id)))
+        for row in rows
     ]
 
     oldest_ts = _datetime_to_unix_ms(rows[-1].created_at) if rows else None
@@ -141,22 +142,24 @@ async def create_message(
     await session.commit()
     await session.refresh(msg)
 
-    email = current_user.email
+    display_name = current_user.display_name
 
+    room_address = await build_public_address(session, access.room)
     await broadcast_to_room(
         sio,
         MessageNew.for_room(
             access.room,
+            room_address=room_address,
             id=msg.id,  # type: ignore[arg-type]
             user_id=current_user.id,  # type: ignore[arg-type]
             content=msg.content,
             created_at=msg.created_at,
-            email=email,
+            display_name=display_name,
         ),
         access.room,
     )
 
-    return _message_to_response(msg, email)
+    return _message_to_response(msg, display_name)
 
 
 @router.patch(
@@ -188,10 +191,12 @@ async def edit_message(
     await session.commit()
     await session.refresh(msg)
 
+    room_address = await build_public_address(session, access.room)
     await broadcast_to_room(
         sio,
         MessageEdited.for_room(
             access.room,
+            room_address=room_address,
             id=msg.id,  # type: ignore[arg-type]
             content=msg.content,
             updated_at=msg.updated_at,
@@ -199,4 +204,4 @@ async def edit_message(
         access.room,
     )
 
-    return _message_to_response(msg, current_user.email)
+    return _message_to_response(msg, current_user.display_name)

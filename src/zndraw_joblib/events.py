@@ -234,7 +234,13 @@ async def build_room_scoped_emission(
 
     room = await fetch_room(session, room_id)
     if room is not None:
-        return Emission(event_cls.for_room(room, **fields), f"room:{room.id}")
+        from zndraw.models import build_public_address
+
+        room_address = await build_public_address(session, room)
+        return Emission(
+            event_cls.for_room(room, room_address=room_address, **fields),
+            f"room:{room.id}",
+        )
     return Emission(
         event_cls(room_id=event_room_uuid(room_id), room_address=room_id, **fields),
         f"room:{room_id}",

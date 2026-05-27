@@ -52,12 +52,12 @@ def test_pyclient_cached_length_updates_on_frame_append(
 
     user_resp = httpx.get(f"{base_url}/v1/auth/users/me", headers=headers, timeout=5.0)
     user_resp.raise_for_status()
-    user_id = user_resp.json()["id"]
+    user_display_name = user_resp.json()["display_name"]
 
     create = httpx.post(
         f"{base_url}/v1/rooms",
         json={
-            "owner_id": user_id,
+            "owner": user_display_name,
             "name": "pytest-room",
             "visibility": "public",
             "copy_from": "@none",

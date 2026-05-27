@@ -43,6 +43,7 @@ dependencies = [
     "rich>=14.3.1",
     "molify>=0.2.2",
     "tqdm>=4.67.3",
+    "coolname>=5.0.0",
 ]
 
 

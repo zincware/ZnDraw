@@ -26,8 +26,9 @@ if TYPE_CHECKING:
 async def fetch_room(session: AsyncSession, room_id: str) -> Room | None:
     """Return the Room for ``room_id``, or None.
 
-    Accepts a UUID string, a composed ``<uuid>/<name>`` address, or a
-    sigil. Returns None for sigils, unknown ids, and missing rooms.
+    Accepts a UUID string, a composed ``<owner>/<name>`` address (where
+    ``<owner>`` is either a UUID or a display-name / group-name slug), or
+    a sigil. Returns None for sigils, unknown ids, and missing rooms.
     """
     if room_id in ("@global", "@internal"):
         return None
@@ -40,10 +41,20 @@ async def fetch_room(session: AsyncSession, room_id: str) -> Room | None:
             if "/" not in room_id:
                 return None
             owner_part, _, name_part = room_id.partition("/")
+            owner_uuid: UUID | None
             try:
                 owner_uuid = UUID(owner_part)
             except ValueError:
-                return None
+                # Display-name / group-name slug — resolve to UUID. The
+                # resolver raises a ProblemError (UserNotFound) on miss;
+                # for fetch_room we just translate that to None.
+                from zndraw.dependencies import get_owner_uuid_from_segment
+                from zndraw_joblib.exceptions import ProblemError
+
+                try:
+                    owner_uuid = await get_owner_uuid_from_segment(session, owner_part)
+                except ProblemError:
+                    return None
             from sqlmodel import col, or_, select as sql_select
 
             result = await session.exec(
@@ -62,10 +73,12 @@ async def fetch_room(session: AsyncSession, room_id: str) -> Room | None:
 
 
 async def room_address_for(session: AsyncSession, room_id: str) -> str:
-    """Return ``room.public_address`` for a known room, else echo ``room_id``."""
+    """Return display-name composed address for a known room, else echo ``room_id``."""
     if room_id in ("@global", "@internal"):
         return room_id
     room = await fetch_room(session, room_id)
     if room is None:
         return room_id
-    return room.public_address
+    from zndraw.models import build_public_address
+
+    return await build_public_address(session, room)

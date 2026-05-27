@@ -10,8 +10,8 @@ import pytest
 from zndraw import ZnDraw
 
 
-def _get_guest_user_id(server: str) -> str:
-    """Mint a guest token and return that user's ID."""
+def _get_guest_display_name(server: str) -> str:
+    """Mint a guest token and return that user's display_name."""
     with httpx.Client(base_url=server) as client:
         token_resp = client.post("/v1/auth/guest")
         token_resp.raise_for_status()
@@ -21,7 +21,7 @@ def _get_guest_user_id(server: str) -> str:
             headers={"Authorization": f"Bearer {token}"},
         )
         me_resp.raise_for_status()
-        return me_resp.json()["id"]
+        return me_resp.json()["display_name"]
 
 
 def test_client_rejects_single_segment(server: str) -> None:
@@ -30,8 +30,8 @@ def test_client_rejects_single_segment(server: str) -> None:
 
 
 def test_client_accepts_composed(server: str) -> None:
-    user_id = _get_guest_user_id(server)
-    room_address = f"{user_id}/my-room"
+    display_name = _get_guest_display_name(server)
+    room_address = f"{display_name}/my-room"
     vis = ZnDraw(url=server, room=room_address)
     assert vis.room == room_address
     with contextlib.suppress(Exception):
@@ -39,11 +39,12 @@ def test_client_accepts_composed(server: str) -> None:
 
 
 def test_client_rejects_bad_owner_uuid(server: str) -> None:
-    with pytest.raises(ValueError, match="UUID"):
-        ZnDraw(url=server, room="not-a-uuid/some-name")
+    # A bare UUID is no longer a valid owner segment — owner must be display_name.
+    with pytest.raises(ValueError, match="not a valid display name"):
+        ZnDraw(url=server, room="00000000-0000-0000-0000-000000000000/some-name")
 
 
 def test_client_rejects_bad_room_name(server: str) -> None:
-    user_id = _get_guest_user_id(server)
+    display_name = _get_guest_display_name(server)
     with pytest.raises(ValueError, match="invalid characters"):
-        ZnDraw(url=server, room=f"{user_id}/has spaces")
+        ZnDraw(url=server, room=f"{display_name}/has spaces")

@@ -13,6 +13,7 @@ from helpers import (
     auth_header,
     create_test_room,
     create_test_user_in_db,
+    room_display_address,
 )
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,8 +40,9 @@ async def test_append_frame_emits_frames_invalidate_with_composed_address(
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
+    address = room_display_address(user, room)
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/frames",
+        f"/v1/rooms/{address}/frames",
         json={"frames": [_make_json_frame("H2")]},
         headers=auth_header(token),
     )
@@ -59,5 +61,5 @@ async def test_append_frame_emits_frames_invalidate_with_composed_address(
         f"FramesInvalidate payload missing room_address; got keys: {list(data)}"
     )
     assert str(data["room_id"]) == room.id
-    assert data["room_address"] == room.public_address
+    assert data["room_address"] == address
     assert captured["room"] == f"room:{room.id}"

@@ -54,13 +54,13 @@ async def test_full_group_workflow(server_auth: str) -> None:
         )
         assert add_r.status_code == 201
 
-        # Group-owned room (owner_id = group id, visibility = group)
+        # Group-owned room (owner = group name, visibility = group)
         create_r = await client.post(
             "/v1/rooms",
-            json={"owner_id": gid, "name": "e2e-grp", "visibility": "group"},
+            json={"owner": "e2e-team", "name": "e2e-grp", "visibility": "group"},
             headers={"Authorization": f"Bearer {admin}"},
         )
-        assert create_r.status_code == 201
+        assert create_r.status_code == 201, create_r.text
         room_id = create_r.json()["room_id"]
 
         # Member can read the room

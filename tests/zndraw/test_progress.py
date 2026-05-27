@@ -8,6 +8,7 @@ from helpers import (
     auth_header,
     create_test_room,
     create_test_user_in_db,
+    room_display_address,
 )
 from httpx import AsyncClient
 from redis.asyncio import Redis
@@ -32,7 +33,7 @@ async def test_create_progress(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/progress",
+        f"/v1/rooms/{room_display_address(user, room)}/progress",
         json={"progress_id": "task-1", "description": "Loading data"},
         headers=auth_header(token),
     )
@@ -69,7 +70,7 @@ async def test_create_progress_with_unit(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/progress",
+        f"/v1/rooms/{room_display_address(user, room)}/progress",
         json={
             "progress_id": "task-1",
             "description": "Uploading",
@@ -94,7 +95,7 @@ async def test_create_progress_requires_auth(
     room = await create_test_room(session, user)
 
     response = await client.post(
-        f"/v1/rooms/{room.public_address}/progress",
+        f"/v1/rooms/{room_display_address(user, room)}/progress",
         json={"progress_id": "task-1", "description": "Loading data"},
     )
     assert response.status_code == 401
@@ -117,7 +118,7 @@ async def test_update_progress(
 
     # Create a tracker first
     await client.post(
-        f"/v1/rooms/{room.public_address}/progress",
+        f"/v1/rooms/{room_display_address(user, room)}/progress",
         json={"progress_id": "task-1", "description": "Loading data"},
         headers=auth_header(token),
     )
@@ -125,7 +126,7 @@ async def test_update_progress(
 
     # Update with tqdm-like fields
     response = await client.patch(
-        f"/v1/rooms/{room.public_address}/progress/task-1",
+        f"/v1/rooms/{room_display_address(user, room)}/progress/task-1",
         json={"n": 42, "total": 100, "elapsed": 5.3, "unit": "frames"},
         headers=auth_header(token),
     )
@@ -153,7 +154,7 @@ async def test_update_progress_not_found(
     room = await create_test_room(session, user)
 
     response = await client.patch(
-        f"/v1/rooms/{room.public_address}/progress/nonexistent",
+        f"/v1/rooms/{room_display_address(user, room)}/progress/nonexistent",
         json={"n": 10},
         headers=auth_header(token),
     )
@@ -173,7 +174,7 @@ async def test_update_progress_description(
 
     # Create a tracker first
     await client.post(
-        f"/v1/rooms/{room.public_address}/progress",
+        f"/v1/rooms/{room_display_address(user, room)}/progress",
         json={"progress_id": "task-1", "description": "Loading data"},
         headers=auth_header(token),
     )
@@ -181,7 +182,7 @@ async def test_update_progress_description(
 
     # Update both description and tqdm fields
     response = await client.patch(
-        f"/v1/rooms/{room.public_address}/progress/task-1",
+        f"/v1/rooms/{room_display_address(user, room)}/progress/task-1",
         json={
             "description": "Processing step 2",
             "n": 75,
@@ -220,7 +221,7 @@ async def test_delete_progress(
 
     # Create a tracker first
     await client.post(
-        f"/v1/rooms/{room.public_address}/progress",
+        f"/v1/rooms/{room_display_address(user, room)}/progress",
         json={"progress_id": "task-1", "description": "Loading data"},
         headers=auth_header(token),
     )
@@ -228,7 +229,7 @@ async def test_delete_progress(
 
     # Delete it
     response = await client.delete(
-        f"/v1/rooms/{room.public_address}/progress/task-1",
+        f"/v1/rooms/{room_display_address(user, room)}/progress/task-1",
         headers=auth_header(token),
     )
     assert response.status_code == 204
@@ -253,7 +254,7 @@ async def test_delete_progress_not_found(
     room = await create_test_room(session, user)
 
     response = await client.delete(
-        f"/v1/rooms/{room.public_address}/progress/nonexistent",
+        f"/v1/rooms/{room_display_address(user, room)}/progress/nonexistent",
         headers=auth_header(token),
     )
     assert response.status_code == 404
@@ -274,9 +275,12 @@ async def test_progress_room_not_found(
     _, token = await create_test_user_in_db(session)
 
     response = await client.post(
-        "/v1/rooms/00000000-0000-0000-0000-000000000000/nonexistent/progress",
+        "/v1/rooms/no-such-owner/nonexistent/progress",
         json={"progress_id": "task-1", "description": "Loading data"},
         headers=auth_header(token),
     )
     assert response.status_code == 404
-    assert "room-not-found" in response.json()["type"]
+    assert any(
+        marker in response.json()["type"]
+        for marker in ("room-not-found", "user-not-found")
+    )

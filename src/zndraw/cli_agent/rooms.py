@@ -3,7 +3,6 @@ from __future__ import annotations
 import uuid
 import webbrowser
 from typing import Annotated
-from uuid import UUID
 
 import typer
 
@@ -72,7 +71,7 @@ def create_room(
         conn = get_connection(url, token, user, password)
         me = conn.get("/v1/auth/users/me").json()
         request = RoomCreate(
-            owner_id=UUID(me["id"]),
+            owner=me["display_name"],
             name=name if name is not None else str(uuid.uuid4()),
         )
         if copy_from is not None:
@@ -111,7 +110,7 @@ def open_room(
         if "/" not in room:
             die(
                 "Invalid room",
-                "Room must be in '<owner_uuid>/<name>' form.",
+                "Room must be in '<display-name>/<name>' form.",
                 400,
                 EXIT_CLIENT_ERROR,
             )

@@ -26,7 +26,7 @@ from zndraw.schemas import (
 )
 
 router = APIRouter(
-    prefix="/v1/rooms/{owner_id}/{room_name}/share-links", tags=["share-links"]
+    prefix="/v1/rooms/{owner}/{room_name}/share-links", tags=["share-links"]
 )
 
 

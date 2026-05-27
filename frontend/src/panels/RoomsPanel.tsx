@@ -54,7 +54,7 @@ export function RoomsPanel() {
 			}
 			try {
 				const result = await createRoom({
-					owner_id: currentUser.id,
+					owner: currentUser.display_name,
 					name: "untitled-1",
 				});
 				// Cascade-close the current room before navigating so plot tabs

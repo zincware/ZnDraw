@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 import socketio
 from zndraw_socketio import SyncClientWrapper, wrap
@@ -73,7 +72,7 @@ class SocketManager:
         try:
             owner_part, _, room_name = self.zndraw.room.partition("/")
             join_request = RoomJoin(
-                owner_id=UUID(owner_part),
+                owner=owner_part,
                 room_name=room_name,
                 client_type="pyclient",
             )

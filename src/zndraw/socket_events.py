@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from zndraw.schemas import ProgressResponse, RoomResponse
 
@@ -34,10 +34,12 @@ class RoomScopedEvent(BaseModel):
     room_address: str
 
     @classmethod
-    def for_room(cls, room: Room, /, **kwargs: Any) -> Self:
+    def for_room(
+        cls, room: Room, /, *, room_address: str | None = None, **kwargs: Any
+    ) -> Self:
         return cls(
             room_id=UUID(room.id),
-            room_address=room.public_address,
+            room_address=room_address or room.public_address,
             **kwargs,
         )
 
@@ -59,7 +61,7 @@ class RoomScopedEvent(BaseModel):
 class RoomJoin(BaseModel):
     """Join a room for real-time updates."""
 
-    owner_id: UUID
+    owner: str = Field(pattern=r"^[a-z][a-z0-9-]{2,63}$")
     room_name: str
     client_type: Literal["frontend", "pyclient"] = "frontend"
 
@@ -67,7 +69,7 @@ class RoomJoin(BaseModel):
 class RoomLeave(BaseModel):
     """Leave current room."""
 
-    owner_id: UUID
+    owner: str = Field(pattern=r"^[a-z][a-z0-9-]{2,63}$")
     room_name: str
 
 
@@ -78,14 +80,14 @@ class UserGet(BaseModel):
 class TypingStart(BaseModel):
     """User started typing."""
 
-    owner_id: UUID
+    owner: str = Field(pattern=r"^[a-z][a-z0-9-]{2,63}$")
     room_name: str
 
 
 class TypingStop(BaseModel):
     """User stopped typing."""
 
-    owner_id: UUID
+    owner: str = Field(pattern=r"^[a-z][a-z0-9-]{2,63}$")
     room_name: str
 
 
@@ -97,7 +99,7 @@ class TypingStop(BaseModel):
 class RoomJoinResponse(BaseModel):
     """Response for room join."""
 
-    room_id: str  # composed: {owner_id}/{room_name}
+    room_id: str  # composed: {owner}/{room_name}
     session_id: str
     step: int
     frame_count: int
@@ -116,7 +118,7 @@ class UserGetResponse(BaseModel):
     """Response for user get."""
 
     id: UUID
-    email: str
+    display_name: str
     is_superuser: bool
 
 
@@ -136,7 +138,7 @@ class SessionJoined(RoomScopedEvent):
 
     user_id: UUID
     sid: str
-    email: str | None = None
+    display_name: str | None = None
 
 
 class SessionLeft(RoomScopedEvent):
@@ -213,6 +215,7 @@ class LockUpdate(RoomScopedEvent):
 
     action: Literal["acquired", "refreshed", "released"]
     user_id: str | None = None
+    display_name: str | None = None
     sid: str | None = None
     msg: str | None = None
     ttl: int | None = None
@@ -230,7 +233,7 @@ class MessageNew(RoomScopedEvent):
     content: str
     created_at: datetime
     updated_at: datetime | None = None
-    email: str | None = None
+    display_name: str | None = None
 
 
 class MessageEdited(RoomScopedEvent):
@@ -252,7 +255,7 @@ class Typing(RoomScopedEvent):
     """Broadcast typing indicator."""
 
     user_id: UUID
-    email: str | None = None
+    display_name: str | None = None
     is_typing: bool
 
 

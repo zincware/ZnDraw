@@ -3,6 +3,7 @@
 
 from zndraw_joblib.client import Category, ClaimedTask, Extension, JobManager
 from zndraw_joblib.dependencies import (
+    DispatchRoomAddressDep,
     FrameRoomCleanup,
     FrameRoomCleanupDep,
     JobLibSettingsDep,
@@ -14,6 +15,7 @@ from zndraw_joblib.dependencies import (
     get_result_backend,
     get_tsio,
     request_hash,
+    resolve_dispatch_room_address,
     validate_room_id,
     verify_writable_room,
 )
@@ -80,6 +82,7 @@ from zndraw_joblib.sweeper import (
 __all__ = [
     "Category",
     "ClaimedTask",
+    "DispatchRoomAddressDep",
     "Emission",
     "Extension",
     "Forbidden",
@@ -140,6 +143,7 @@ __all__ = [
     "register_internal_providers",
     "register_internal_tasks",
     "request_hash",
+    "resolve_dispatch_room_address",
     "router",
     "run_sweeper",
     "validate_room_id",

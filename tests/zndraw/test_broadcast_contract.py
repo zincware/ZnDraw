@@ -67,10 +67,13 @@ async def test_every_route_action_emits_consistent_room_scoped_events(
     session: AsyncSession,
     mock_sio: MockSioServer,
 ) -> None:
+    from zndraw.models import build_public_address
+
     user, token = await create_test_user_in_db(session)
     room = await create_test_room(session, user)
 
-    base = f"/v1/rooms/{room.public_address}"
+    room_address = await build_public_address(session, room)
+    base = f"/v1/rooms/{room_address}"
     headers = auth_header(token)
 
     # frames family
@@ -107,7 +110,7 @@ async def test_every_route_action_emits_consistent_room_scoped_events(
 
     # joblib family
     r = await client.put(
-        f"/v1/joblib/rooms/{room.public_address}/jobs",
+        f"/v1/joblib/rooms/{room_address}/jobs",
         json={
             "category": "analysis",
             "name": "noop",
@@ -162,9 +165,9 @@ async def test_every_route_action_emits_consistent_room_scoped_events(
         assert observed_uuid == room_uuid, (
             f"{emit['event']}: room_id={observed!r} != {room.id!r}"
         )
-        assert data["room_address"] == room.public_address, (
+        assert data["room_address"] == room_address, (
             f"{emit['event']}: room_address={data['room_address']!r} != "
-            f"{room.public_address!r}"
+            f"{room_address!r}"
         )
         assert emit["room"] == f"room:{room.id}", (
             f"{emit['event']}: channel={emit['room']!r} != room:{room.id}"

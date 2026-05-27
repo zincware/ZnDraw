@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 class RoomCreate(BaseModel):
     """Request body for POST /v1/rooms."""
 
-    owner_id: UUID
+    owner: str = Field(pattern=r"^[a-z][a-z0-9-]{2,63}$")
     name: str = Field(pattern=r"^[a-zA-Z0-9\-_]+$", min_length=1, max_length=128)
     description: str | None = None
     copy_from: str | None = None
@@ -60,12 +60,12 @@ class RoomCreate(BaseModel):
 class RoomResponse(BaseModel):
     """Response body for room details — matches frontend Room interface."""
 
-    room_id: str  # composed: {owner_id}/{room_name}
+    room_id: str  # composed: {owner}/{room_name}
     id: str  # surrogate UUID (internal, read-only)
     description: str | None = None
     frame_count: int = 0
     visibility: Visibility = Visibility.PUBLIC
-    owner_id: UUID
+    owner: str  # display_name (user) OR group name
     owner_kind: Literal["user", "group"]
     owner_label: str
     is_default: bool = False
@@ -78,25 +78,25 @@ class RoomCreateResponse(BaseModel):
     """Response for room creation."""
 
     status: Literal["ok"] = "ok"
-    room_id: str  # composed: {owner_id}/{room_name}
+    room_id: str  # composed: {owner}/{room_name}
     frame_count: int
     created: bool
 
 
 class RoomPatchRequest(BaseModel):
-    """Request body for PATCH /v1/rooms/{owner_id}/{room_name}."""
+    """Request body for PATCH /v1/rooms/{owner}/{room_name}."""
 
     description: str | None = None
     frame_count: int | None = Field(None, ge=0)
     visibility: Visibility | None = None
-    new_owner_id: UUID | None = None
+    new_owner: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9-]{2,63}$")
 
 
 class RoomPatchResponse(BaseModel):
-    """Response body for PATCH /v1/rooms/{owner_id}/{room_name}."""
+    """Response body for PATCH /v1/rooms/{owner}/{room_name}."""
 
     status: Literal["ok"] = "ok"
-    room_id: str  # composed: {owner_id}/{room_name}
+    room_id: str  # composed: {owner}/{room_name}
 
 
 class MessageCreate(BaseModel):
@@ -120,7 +120,7 @@ class MessageResponse(BaseModel):
     content: str
     created_at: datetime
     updated_at: datetime | None = None
-    email: str | None = None
+    display_name: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -146,7 +146,7 @@ class PresenceSessionResponse(BaseModel):
 
     sid: str
     user_id: UUID
-    email: str | None
+    display_name: str | None
 
 
 class PresenceResponse(BaseModel):
@@ -163,7 +163,7 @@ class SessionItem(BaseModel):
     """A single active frontend session."""
 
     sid: str
-    email: str
+    display_name: str
     camera_key: str
 
 
@@ -211,7 +211,7 @@ class GroupMemberResponse(BaseModel):
     """Response body for a group member."""
 
     user_id: UUID
-    email: str | None
+    display_name: str | None
     role: GroupRole
     joined_at: datetime
 
@@ -570,6 +570,7 @@ class EditLockResponse(BaseModel):
     locked: bool
     lock_token: str | None = None
     user_id: str | None = None
+    display_name: str | None = None
     sid: str | None = None
     msg: str | None = None
     acquired_at: float | None = None

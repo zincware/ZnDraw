@@ -627,7 +627,11 @@ class JobManager:
         )
         data = resp.json()
         provider_id = UUID(data["id"])
-        full_name = f"{room}:{provider_cls.category}:{name}"
+        # Trust the server-canonical full_name (it equals the client-input
+        # form when the host app keeps the path room_id intact, but stays
+        # correct if a future override rewrites it).
+        full_name = data["full_name"]
+        server_room_id = data["room_id"]
 
         if data.get("worker_id"):
             self._worker_id = UUID(data["worker_id"])
@@ -636,7 +640,7 @@ class JobManager:
             id=provider_id,
             cls=provider_cls,
             handler=handler,
-            room_id=room,
+            room_id=server_room_id,
         )
 
         if self.tsio is not None:
