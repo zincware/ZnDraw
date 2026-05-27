@@ -180,7 +180,9 @@ const MemoizedMarkdown = memo(ReactMarkdown);
 
 const ChatPanel = () => {
 	// Use individual selectors to prevent unnecessary re-renders
-	const userName = useAppStore((state) => state.user?.email ?? null);
+	const userDisplayName = useAppStore(
+		(state) => state.user?.display_name ?? null,
+	);
 	const typingUsers = useAppStore((state) => state.typingUsers);
 	const { ownerId, roomName } = useParams<{
 		ownerId: string;
@@ -262,12 +264,12 @@ const ChatPanel = () => {
 
 	const emitTypingStart = useCallback(() => {
 		if (!ownerId || !roomName) return;
-		socket.emit("typing_start", { owner_id: ownerId, room_name: roomName });
+		socket.emit("typing_start", { owner: ownerId, room_name: roomName });
 		// Clear previous stop timeout
 		if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 		// Auto-stop after 3s of inactivity
 		typingTimeoutRef.current = setTimeout(() => {
-			socket.emit("typing_stop", { owner_id: ownerId, room_name: roomName });
+			socket.emit("typing_stop", { owner: ownerId, room_name: roomName });
 			typingTimeoutRef.current = null;
 		}, 3000);
 	}, [ownerId, roomName]);
@@ -278,7 +280,7 @@ const ChatPanel = () => {
 			clearTimeout(typingTimeoutRef.current);
 			typingTimeoutRef.current = null;
 		}
-		socket.emit("typing_stop", { owner_id: ownerId, room_name: roomName });
+		socket.emit("typing_stop", { owner: ownerId, room_name: roomName });
 	}, [ownerId, roomName]);
 
 	// Clean up typing timeout on unmount
@@ -414,7 +416,7 @@ const ChatPanel = () => {
 				)}
 
 				{allMessages.map((message) => {
-					const isOwnMessage = message.email === userName;
+					const isOwnMessage = message.display_name === userDisplayName;
 					const isEditing = editingMessageId === message.id;
 
 					return (
@@ -446,7 +448,7 @@ const ChatPanel = () => {
 								}}
 							>
 								<Typography variant="caption" color="text.secondary">
-									{message.email} -{" "}
+									{message.display_name} -{" "}
 									{format(new Date(message.created_at), "HH:mm")}
 								</Typography>
 								{isOwnMessage && !isEditing && (

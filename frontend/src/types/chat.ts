@@ -5,7 +5,7 @@ export interface ChatMessage {
 	content: string;
 	created_at: string; // ISO datetime
 	updated_at: string | null;
-	email: string | null;
+	display_name: string | null;
 }
 
 /** Socket event payload for `message_new`. Matches backend `MessageNew`. */
@@ -16,7 +16,7 @@ export interface MessageNewEvent {
 	content: string;
 	created_at: string;
 	updated_at: string | null;
-	email: string | null;
+	display_name: string | null;
 }
 
 /** Socket event payload for `message_edited`. Matches backend `MessageEdited`. */
