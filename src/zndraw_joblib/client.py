@@ -10,7 +10,7 @@ import time
 import traceback
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, ClassVar, Generic, Protocol, TypeVar
 from uuid import UUID
@@ -120,6 +120,48 @@ class _RegisteredProvider:
     room_id: str
 
 
+@dataclass
+class _OutageState:
+    """Tracks server outage for coordinated retry logging across loops."""
+
+    max_unreachable: float
+    clock: Callable[[], float] = field(default=time.monotonic)
+    _outage_start: float | None = field(default=None, init=False)
+    _last_log_time: float = field(default=float("-inf"), init=False)
+    _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
+
+    def record_failure(self) -> None:
+        """Mark a connection failure; starts the outage clock on first call."""
+        with self._lock:
+            if self._outage_start is None:
+                self._outage_start = self.clock()
+
+    def record_success(self) -> None:
+        """Server responded — reset outage state."""
+        with self._lock:
+            self._outage_start = None
+
+    def elapsed(self) -> float:
+        """Seconds since first failure, or 0.0 if not in outage."""
+        with self._lock:
+            if self._outage_start is None:
+                return 0.0
+            return self.clock() - self._outage_start
+
+    def should_shutdown(self) -> bool:
+        """Return True if outage has exceeded max_unreachable."""
+        return self.elapsed() > self.max_unreachable
+
+    def should_log(self, min_interval: float = 5.0) -> bool:
+        """Rate-limit log output; returns True at most once per min_interval."""
+        with self._lock:
+            now = self.clock()
+            if now - self._last_log_time >= min_interval:
+                self._last_log_time = now
+                return True
+            return False
+
+
 class JobManager:
     """Main entry point for workers. Registers jobs and claims tasks.
 
@@ -158,8 +200,7 @@ class JobManager:
         self._threads: list[threading.Thread] = []
 
         # Resilience state
-        self._last_server_contact: float = time.monotonic()
-        self._contact_lock = threading.Lock()
+        self._outage = _OutageState(max_unreachable=max_unreachable_seconds)
         self._disconnect_lock = threading.Lock()
 
         # Register SIO handlers up front
@@ -695,64 +736,70 @@ class JobManager:
             t.start()
             self._threads.append(t)
 
-    def _update_last_contact(self) -> None:
-        """Record that the server responded successfully."""
-        with self._contact_lock:
-            self._last_server_contact = time.monotonic()
-
-    def _is_unreachable(self) -> bool:
-        """Return True if server has been unreachable too long."""
-        with self._contact_lock:
-            return (
-                time.monotonic() - self._last_server_contact
-            ) > self._max_unreachable_seconds
-
     def _heartbeat_loop(self) -> None:
         """Send periodic heartbeats until stopped."""
         while not self._stop.wait(self._heartbeat_interval):
             try:
                 self.heartbeat()
-                self._update_last_contact()
+                self._outage.record_success()
             except (KeyError, PermissionError):
                 logger.exception("Registration lost, shutting down")
                 self._stop.set()
                 return
-            except Exception as e:
-                logger.warning("Heartbeat failed: %s", e)
-                if self._is_unreachable():
-                    logger.exception(
-                        "Server unreachable for >%ss, shutting down",
+            except Exception as e:  # noqa: BLE001
+                self._outage.record_failure()
+                if self._outage.should_shutdown():
+                    logger.error(  # noqa: TRY400 — intentionally no traceback
+                        "Server unreachable for >%ss, shutting down. Last error: %s",
                         self._max_unreachable_seconds,
+                        e,
                     )
                     self._stop.set()
                     return
+                if self._outage.should_log():
+                    logger.warning(
+                        "Server unreachable — retrying (%.0fs/%.0fs elapsed)",
+                        self._outage.elapsed(),
+                        self._max_unreachable_seconds,
+                    )
 
     def _claim_loop(self) -> None:
         """Claim and execute tasks until stopped."""
+        backoff_attempt = 0
         while not self._stop.is_set():
             self._task_ready.clear()
             try:
                 claimed = self.claim()
-                self._update_last_contact()
+                self._outage.record_success()
+                backoff_attempt = 0
             except (KeyError, PermissionError):
                 logger.exception("Registration lost, shutting down")
                 self._stop.set()
                 return
-            except Exception as e:
-                logger.warning("Claim failed: %s", e)
-                if self._is_unreachable():
-                    logger.exception(
-                        "Server unreachable for >%ss, shutting down",
+            except Exception as e:  # noqa: BLE001
+                self._outage.record_failure()
+                if self._outage.should_shutdown():
+                    logger.error(  # noqa: TRY400 — intentionally no traceback
+                        "Server unreachable for >%ss, shutting down. Last error: %s",
                         self._max_unreachable_seconds,
+                        e,
                     )
                     self._stop.set()
                     return
-                self._task_ready.wait(timeout=self._polling_interval)
+                if self._outage.should_log():
+                    logger.warning(
+                        "Server unreachable — retrying (%.0fs/%.0fs elapsed)",
+                        self._outage.elapsed(),
+                        self._max_unreachable_seconds,
+                    )
+                wait = min(self._polling_interval * 2**backoff_attempt, 10.0)
+                backoff_attempt += 1
+                self._task_ready.wait(timeout=wait)
                 continue
             if claimed is not None:
                 try:
                     self.start(claimed)
-                    self._update_last_contact()
+                    self._outage.record_success()
                 except (KeyError, PermissionError):
                     logger.exception(
                         "Registration lost during task start, shutting down"
@@ -767,7 +814,7 @@ class JobManager:
                 except Exception as e:  # noqa: BLE001
                     try:
                         self.fail(claimed, str(e))
-                        self._update_last_contact()
+                        self._outage.record_success()
                     except (KeyError, PermissionError):
                         logger.exception(
                             "Registration lost during task fail, shutting down"
@@ -783,7 +830,7 @@ class JobManager:
                 else:
                     try:
                         self.complete(claimed)
-                        self._update_last_contact()
+                        self._outage.record_success()
                     except (KeyError, PermissionError):
                         logger.exception(
                             "Registration lost during task completion, shutting down"
