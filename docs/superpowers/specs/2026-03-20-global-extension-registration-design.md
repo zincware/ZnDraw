@@ -76,7 +76,9 @@ def register_job(self, cls, *, room=None, public=None):
 ### Deprecated `register_extension` method
 
 ```python
-@deprecated("Use register_job(cls, room='@global') for global, or register_job(cls) for room-scoped")
+@deprecated(
+    "Use register_job(cls, room='@global') for global, or register_job(cls) for room-scoped"
+)
 def register_extension(self, cls: type, *, public: bool = False, **kwargs) -> None:
     room = GLOBAL_ROOM if public else kwargs.get("room")
     self.register_job(cls, room=room)

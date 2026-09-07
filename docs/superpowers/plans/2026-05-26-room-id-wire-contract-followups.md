@@ -150,9 +150,7 @@ async def test_frame_selection_update_carries_room_address(
     assert response.status_code == 200, response.text
 
     emits = [e for e in mock_sio.emitted if e["event"] == "frame_selection_update"]
-    assert len(emits) == 1, (
-        f"expected 1 frame_selection_update, got {len(emits)}"
-    )
+    assert len(emits) == 1, f"expected 1 frame_selection_update, got {len(emits)}"
     captured = emits[0]
     data = captured["data"]
     assert "room_id" in data, (
@@ -422,11 +420,9 @@ There are three callsites to convert. For each, replace the inline `Emission(Job
 In `register_job` (`router.py:421-431`), replace the block:
 
 ```python
-    await session.commit()
-    emission = await build_room_scoped_emission(
-        session, JobsInvalidate, room_id
-    )
-    await emit(tsio, {emission})
+await session.commit()
+emission = await build_room_scoped_emission(session, JobsInvalidate, room_id)
+await emit(tsio, {emission})
 ```
 
 In `register_provider` (`router.py:1205-1217`):
@@ -443,13 +439,11 @@ In `register_provider` (`router.py:1205-1217`):
 In `delete_provider` (`router.py:1432-1444`):
 
 ```python
-    room_id = provider.room_id
-    await session.delete(provider)
-    await session.commit()
-    emission = await build_room_scoped_emission(
-        session, ProvidersInvalidate, room_id
-    )
-    await emit(tsio, {emission})
+room_id = provider.room_id
+await session.delete(provider)
+await session.commit()
+emission = await build_room_scoped_emission(session, ProvidersInvalidate, room_id)
+await emit(tsio, {emission})
 ```
 
 In `upload_provider_result` (`router.py:1505-1520`):
@@ -908,39 +902,37 @@ The existing sweep drives 6 endpoints. Add the missing families. The sweep's fin
 In `tests/zndraw/test_broadcast_contract.py`, between the existing "joblib family" block and the `rs_event_names = ...` line, insert:
 
 ```python
-    # step family — FrameUpdate
-    r = await client.put(f"{base}/step", json={"step": 0}, headers=headers)
-    assert r.status_code == 200, r.text
+# step family — FrameUpdate
+r = await client.put(f"{base}/step", json={"step": 0}, headers=headers)
+assert r.status_code == 200, r.text
 
-    # edit lock family — LockUpdate
-    r = await client.put(
-        f"{base}/edit-lock", json={"action": "acquire"}, headers=headers
-    )
-    assert r.status_code == 200, r.text
+# edit lock family — LockUpdate
+r = await client.put(f"{base}/edit-lock", json={"action": "acquire"}, headers=headers)
+assert r.status_code == 200, r.text
 
-    # geometry family — GeometryInvalidate
-    r = await client.put(
-        f"{base}/geometries/g1",
-        json={"geometry": {"type": "Sphere", "data": {}}},
-        headers=headers,
-    )
-    assert r.status_code in (200, 201), r.text
+# geometry family — GeometryInvalidate
+r = await client.put(
+    f"{base}/geometries/g1",
+    json={"geometry": {"type": "Sphere", "data": {}}},
+    headers=headers,
+)
+assert r.status_code in (200, 201), r.text
 
-    # selection-groups family — SelectionGroupsInvalidate
-    r = await client.put(
-        f"{base}/selection-groups/sg1",
-        json={"selection": {}},
-        headers=headers,
-    )
-    assert r.status_code in (200, 201), r.text
+# selection-groups family — SelectionGroupsInvalidate
+r = await client.put(
+    f"{base}/selection-groups/sg1",
+    json={"selection": {}},
+    headers=headers,
+)
+assert r.status_code in (200, 201), r.text
 
-    # frame-selection family — FrameSelectionUpdate (added in Task 2)
-    r = await client.put(
-        f"{base}/frame-selection",
-        json={"indices": [0]},
-        headers=headers,
-    )
-    assert r.status_code == 200, r.text
+# frame-selection family — FrameSelectionUpdate (added in Task 2)
+r = await client.put(
+    f"{base}/frame-selection",
+    json={"indices": [0]},
+    headers=headers,
+)
+assert r.status_code == 200, r.text
 ```
 
 Note: the exact endpoint shapes must match the routes. Verify by reading each route's request schema before running.

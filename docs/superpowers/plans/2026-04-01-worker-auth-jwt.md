@@ -72,6 +72,7 @@ In `src/zndraw/database.py`, remove the `WORKER_EMAIL` module constant. Update `
 ```python
 import uuid
 
+
 async def ensure_internal_worker(
     session: AsyncSession,
     email: str,
@@ -311,15 +312,13 @@ class InternalExecutor(Protocol):
 In `src/zndraw_joblib/registry.py`, update the closure (lines 63-72):
 
 ```python
-        def _make_task_fn(
-            cls: type[Extension] = ext_cls, ex: InternalExecutor = executor
-        ):
-            async def _execute(
-                task_id: str, room_id: str, payload: dict[str, Any], token: str
-            ) -> None:
-                await ex(cls, payload, room_id, task_id, token)
+def _make_task_fn(cls: type[Extension] = ext_cls, ex: InternalExecutor = executor):
+    async def _execute(
+        task_id: str, room_id: str, payload: dict[str, Any], token: str
+    ) -> None:
+        await ex(cls, payload, room_id, task_id, token)
 
-            return _execute
+    return _execute
 ```
 
 - [ ] **Step 4: Verify import works**
@@ -430,21 +429,21 @@ from zndraw_joblib.dependencies import get_worker_token
 Then in the lifespan, after `await broker.startup()` (around line 307):
 
 ```python
-        # Wire WorkerTokenDep — mints JWTs for the internal worker user
-        from fastapi_users.authentication import JWTStrategy
+# Wire WorkerTokenDep — mints JWTs for the internal worker user
+from fastapi_users.authentication import JWTStrategy
 
-        async def _mint_worker_token() -> str:
-            async with app.state.session_maker() as session:
-                worker = await lookup_worker_user(
-                    session, settings.internal_worker_email
-                )
-            strategy = JWTStrategy(
-                secret=auth_settings.secret_key.get_secret_value(),
-                lifetime_seconds=auth_settings.token_lifetime_seconds,
-            )
-            return await strategy.write_token(worker)
 
-        app.dependency_overrides[get_worker_token] = _mint_worker_token
+async def _mint_worker_token() -> str:
+    async with app.state.session_maker() as session:
+        worker = await lookup_worker_user(session, settings.internal_worker_email)
+    strategy = JWTStrategy(
+        secret=auth_settings.secret_key.get_secret_value(),
+        lifetime_seconds=auth_settings.token_lifetime_seconds,
+    )
+    return await strategy.write_token(worker)
+
+
+app.dependency_overrides[get_worker_token] = _mint_worker_token
 ```
 
 - [ ] **Step 4: Verify imports**
@@ -701,9 +700,7 @@ Add to `tests/zndraw/test_worker_auth.py`:
 
 ```python
 @pytest.mark.anyio
-async def test_worker_token_dep_mints_valid_jwt(
-    client: AsyncClient, settings
-) -> None:
+async def test_worker_token_dep_mints_valid_jwt(client: AsyncClient, settings) -> None:
     """The WorkerTokenDep should mint a JWT for the internal worker user."""
     from zndraw_joblib.dependencies import get_worker_token
 
