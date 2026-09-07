@@ -106,11 +106,11 @@ def test_worker_exits_on_server_restart_fresh_db(server_factory):
     # just disconnect the socket (disconnect will fail on HTTP DELETE, that's ok)
     try:
         worker.jobs.disconnect()
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.debug("Expected: jobs.disconnect() failed (stale token)", exc_info=True)
     try:
         worker.disconnect()
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.debug("Expected: disconnect() failed (stale token)", exc_info=True)
 
 

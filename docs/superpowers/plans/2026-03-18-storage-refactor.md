@@ -189,9 +189,12 @@ class FrameStorage:
 
     async def has_mount(self, room_id: str) -> bool:
         """Check if a room has a provider-backed frame count."""
-        return await self._redis.exists(  # type: ignore[misc]
-            RedisKey.provider_frame_count(room_id)
-        ) > 0
+        return (
+            await self._redis.exists(  # type: ignore[misc]
+                RedisKey.provider_frame_count(room_id)
+            )
+            > 0
+        )
 
     async def set_frame_count(self, room_id: str, count: int) -> None:
         """Store provider frame count in Redis."""
@@ -266,6 +269,7 @@ The new dependency section (replacing lines 32-34 and 56-72):
 from zndraw.storage import FrameStorage
 # ... (remove AsebytesStorage and StorageRouter imports)
 
+
 def get_frame_storage(request: Request) -> FrameStorage:
     """Get frame storage registry from app.state."""
     return request.app.state.frame_storage
@@ -312,6 +316,7 @@ Find the section (around lines 239-248) that creates `AsebytesStorage` and `Stor
 ```python
 # Before:
 from zndraw.storage.router import StorageRouter
+
 default_storage = AsebytesStorage(uri=settings.storage)
 app.state.frame_storage = StorageRouter(
     default=default_storage,
@@ -320,6 +325,7 @@ app.state.frame_storage = StorageRouter(
 
 # After:
 from zndraw.storage import FrameStorage
+
 app.state.frame_storage = FrameStorage(
     uri=settings.storage,
     redis=app.state.redis,
@@ -355,8 +361,10 @@ Change the type annotation and all method bodies:
 # TYPE_CHECKING import changes:
 # Before:
 from zndraw.storage import AsebytesStorage
+
 # After:
 from zndraw.storage import FrameStorage
+
 
 # Class changes:
 class StorageResultBackend:
@@ -545,7 +553,7 @@ Replace `storage: StorageDep` with `storage: FrameStorageDep`. Add `_: RequireWr
 await storage.delete_range(room_id, index, index + 1)
 
 # After:
-await storage[room_id][index:index + 1].delete()
+await storage[room_id][index : index + 1].delete()
 ```
 
 - [ ] **Step 9: Commit**
@@ -586,9 +594,7 @@ try:
 except (IndexError, KeyError):
     cube_raw = None
 if cube_raw is None:
-    raise UnprocessableContent.exception(
-        f"Key '{cube_key}' not found in frame {index}"
-    )
+    raise UnprocessableContent.exception(f"Key '{cube_key}' not found in frame {index}")
 cube_dict = msgpack.unpackb(cube_raw, ...)
 ```
 
@@ -889,6 +895,7 @@ app.dependency_overrides[get_frame_storage] = lambda: storage
 For tests without Redis fixture, create a minimal mock:
 ```python
 from unittest.mock import AsyncMock
+
 mock_redis = AsyncMock()
 mock_redis.get = AsyncMock(return_value=None)
 mock_redis.exists = AsyncMock(return_value=0)

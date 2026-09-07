@@ -196,6 +196,7 @@ class StorageResultBackend:
     async def store(self, key: str, data: bytes, ttl: int) -> None:
         io = self._storage[self._k(key)]
         ...
+
     # apply _k in get/delete too
 ```
 

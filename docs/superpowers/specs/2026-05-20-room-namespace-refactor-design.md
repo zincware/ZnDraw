@@ -235,15 +235,18 @@ class RoomJoin(BaseModel):
     room_name: str
     client_type: Literal["frontend", "pyclient"] = "frontend"
 
-class RoomLeave(BaseModel):           # was lines 28-31
+
+class RoomLeave(BaseModel):  # was lines 28-31
     owner_id: UUID
     room_name: str
 
-class TypingStart(BaseModel):         # was lines 38-41
+
+class TypingStart(BaseModel):  # was lines 38-41
     owner_id: UUID
     room_name: str
 
-class TypingStop(BaseModel):          # was lines 44-47
+
+class TypingStop(BaseModel):  # was lines 44-47
     owner_id: UUID
     room_name: str
 ```

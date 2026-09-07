@@ -55,7 +55,9 @@ UserOpt = Annotated[
 ]
 PasswordOpt = Annotated[
     str | None,
-    typer.Option("--password", envvar="ZNDRAW_PASSWORD", help="Password for authentication"),
+    typer.Option(
+        "--password", envvar="ZNDRAW_PASSWORD", help="Password for authentication"
+    ),
 ]
 ```
 
