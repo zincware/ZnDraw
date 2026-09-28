@@ -53,6 +53,7 @@
 ```python
 # tests/test_state_file.py
 """Tests for unified StateFile (replaces PID files + tokens.json)."""
+
 from __future__ import annotations
 
 import json
@@ -290,6 +291,7 @@ tokens.json with a single ~/.zndraw/state.json (mode 0600).
 
 All writes use tempfile + os.rename for atomicity.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -679,6 +681,7 @@ git commit -m "feat: add StateFile migration from old PID files and tokens.json"
 ```python
 # tests/test_state_file_source.py
 """Tests for StateFileSource (pydantic-settings custom source)."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -772,12 +775,18 @@ def test_url_skips_unresponsive_local(state_file):
 
 def test_url_prefers_localhost_over_remote(state_file):
     """Localhost servers are preferred over remote servers."""
-    state_file.add_server("https://remote.example.com", _remote_entry(
-        last_used=datetime(2026, 3, 25, 15, 0, tzinfo=UTC),  # more recent
-    ))
-    state_file.add_server("http://localhost:8000", _local_entry(
-        last_used=datetime(2026, 3, 25, 10, 0, tzinfo=UTC),  # less recent
-    ))
+    state_file.add_server(
+        "https://remote.example.com",
+        _remote_entry(
+            last_used=datetime(2026, 3, 25, 15, 0, tzinfo=UTC),  # more recent
+        ),
+    )
+    state_file.add_server(
+        "http://localhost:8000",
+        _local_entry(
+            last_used=datetime(2026, 3, 25, 10, 0, tzinfo=UTC),  # less recent
+        ),
+    )
 
     source = _make_source(state_file)
     with (
@@ -806,12 +815,20 @@ def test_url_falls_back_to_remote(state_file):
 
 def test_url_most_recent_local_wins(state_file):
     """Among multiple local servers, most recently used wins."""
-    state_file.add_server("http://localhost:8000", _local_entry(
-        pid=100, last_used=datetime(2026, 3, 25, 10, 0, tzinfo=UTC),
-    ))
-    state_file.add_server("http://localhost:9000", _local_entry(
-        pid=200, last_used=datetime(2026, 3, 25, 14, 0, tzinfo=UTC),
-    ))
+    state_file.add_server(
+        "http://localhost:8000",
+        _local_entry(
+            pid=100,
+            last_used=datetime(2026, 3, 25, 10, 0, tzinfo=UTC),
+        ),
+    )
+    state_file.add_server(
+        "http://localhost:9000",
+        _local_entry(
+            pid=200,
+            last_used=datetime(2026, 3, 25, 14, 0, tzinfo=UTC),
+        ),
+    )
 
     source = _make_source(state_file)
     with (
@@ -939,6 +956,7 @@ Expected: FAIL — `ModuleNotFoundError: No module named 'zndraw.settings_source
 Resolves URL via health-check-based server discovery and token
 via local_token (localhost) or stored access_token (remote).
 """
+
 from __future__ import annotations
 
 import logging
@@ -1108,6 +1126,7 @@ class StateFileSource(PydanticBaseSettingsSource):
 Sources (highest to lowest priority):
     init args > env vars (ZNDRAW_*) > pyproject.toml [tool.zndraw] > StateFileSource
 """
+
 from __future__ import annotations
 
 from pydantic import SecretStr
@@ -1192,6 +1211,7 @@ git commit -m "feat: add StateFileSource for URL discovery and token resolution"
 ```python
 # tests/test_client_settings.py
 """Tests for ClientSettings source chain: init > env > pyproject.toml > state file."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -1202,7 +1222,13 @@ import pytest
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
     """Remove ZNDRAW_* client env vars to isolate tests."""
-    for key in ("ZNDRAW_URL", "ZNDRAW_ROOM", "ZNDRAW_USER", "ZNDRAW_PASSWORD", "ZNDRAW_TOKEN"):
+    for key in (
+        "ZNDRAW_URL",
+        "ZNDRAW_ROOM",
+        "ZNDRAW_USER",
+        "ZNDRAW_PASSWORD",
+        "ZNDRAW_TOKEN",
+    ):
         monkeypatch.delenv(key, raising=False)
 
 
@@ -1337,6 +1363,7 @@ git commit -m "test: add ClientSettings source chain tests"
 ```python
 # tests/test_local_token_auth.py
 """Tests for local admin token authentication."""
+
 from __future__ import annotations
 
 import pytest
@@ -1550,9 +1577,13 @@ for url, entry in data.servers.items():
         state.remove_server(url)
         continue
     if _is_url_healthy(url):
-        typer.echo(f"Found existing server (PID: {entry.pid}, URL: {url}, Version: {entry.version})")
+        typer.echo(
+            f"Found existing server (PID: {entry.pid}, URL: {url}, Version: {entry.version})"
+        )
         if entry.version and entry.version != __version__:
-            typer.echo(f"Warning: Server version ({entry.version}) differs from CLI version ({__version__})")
+            typer.echo(
+                f"Warning: Server version ({entry.version}) differs from CLI version ({__version__})"
+            )
         return url, None, url  # reuse existing — return URL for cleanup
 ```
 
@@ -1701,6 +1732,7 @@ Provides credential validation and auth helper functions.
 Token resolution chain (stored token, local_token) is handled by
 the pydantic-settings source chain (StateFileSource).
 """
+
 from __future__ import annotations
 
 import httpx
@@ -1785,85 +1817,83 @@ def guest_login(base_url: str) -> str:
 In `src/zndraw/client/core.py`, replace `__post_init__` (lines 129-190):
 
 ```python
-    def __post_init__(self) -> None:
-        """Initialize the client (REST-only, socket connects lazily)."""
-        import atexit
+def __post_init__(self) -> None:
+    """Initialize the client (REST-only, socket connects lazily)."""
+    import atexit
 
-        from zndraw.auth_utils import guest_login, login_with_credentials
-        from zndraw.client.settings import ClientSettings
+    from zndraw.auth_utils import guest_login, login_with_credentials
+    from zndraw.client.settings import ClientSettings
 
-        # Normalize password to SecretStr
-        if isinstance(self.password, str):
-            self.password = SecretStr(self.password)
+    # Normalize password to SecretStr
+    if isinstance(self.password, str):
+        self.password = SecretStr(self.password)
 
-        # Resolve via pydantic-settings chain
-        overrides = {
-            k: v
-            for k, v in {
-                "url": self.url,
-                "room": self.room,
-                "user": self.user,
-                "password": self.password,
-                "token": self.token,
-            }.items()
-            if v is not None
-        }
-        resolved = ClientSettings(**overrides)
+    # Resolve via pydantic-settings chain
+    overrides = {
+        k: v
+        for k, v in {
+            "url": self.url,
+            "room": self.room,
+            "user": self.user,
+            "password": self.password,
+            "token": self.token,
+        }.items()
+        if v is not None
+    }
+    resolved = ClientSettings(**overrides)
 
-        # url is required — if still None after full chain, error out
-        if resolved.url is None:
-            raise ConnectionError(
-                "No ZnDraw server found. Pass url=, set ZNDRAW_URL, "
-                "add [tool.zndraw] url to pyproject.toml, or start a local server."
-            )
-        self.url = resolved.url
-        self.room = resolved.room or str(uuid.uuid4())
-
-        # Token resolution: settings chain > user/password login > guest
-        if resolved.token is not None:
-            self.token = resolved.token
-        elif resolved.user and resolved.password:
-            self.token = login_with_credentials(
-                self.url, resolved.user, resolved.password
-            )
-        else:
-            self.token = guest_login(self.url)
-
-        # Create API manager
-        self.api = APIManager(url=self.url, room_id=self.room, token=self.token)
-
-        # Populate self.user for guest/stored-token sessions
-        if self.user is None and self.token is not None:
-            resp = self.api.http.get(
-                "/v1/auth/users/me",
-                headers={"Authorization": f"Bearer {self.token}"},
-            )
-            if resp.status_code == 200:
-                self.user = resp.json().get("email")
-
-        # Create socket manager (no connection yet — connects lazily)
-        self.socket = SocketManager(zndraw=self)
-
-        # Create job manager (zero-cost until first register())
-        self._jobs = JobManager(
-            api=self.api,
-            tsio=self.socket.tsio,
-            execute=self._execute_task if self.auto_pickup else None,
-            heartbeat_interval=self.heartbeat_interval,
-            polling_interval=self.polling_interval,
+    # url is required — if still None after full chain, error out
+    if resolved.url is None:
+        raise ConnectionError(
+            "No ZnDraw server found. Pass url=, set ZNDRAW_URL, "
+            "add [tool.zndraw] url to pyproject.toml, or start a local server."
         )
+    self.url = resolved.url
+    self.room = resolved.room or str(uuid.uuid4())
 
-        # Verify/create room via REST and seed frame count cache
-        try:
-            info = self.api.get_room_info()
-            self.cached_length = info.get("frame_count", 0)
-        except KeyError:
-            if not self.create_if_missing:
-                raise
-            self.api.create_room(copy_from=self.copy_from)
-            self.cached_length = 0
+    # Token resolution: settings chain > user/password login > guest
+    if resolved.token is not None:
+        self.token = resolved.token
+    elif resolved.user and resolved.password:
+        self.token = login_with_credentials(self.url, resolved.user, resolved.password)
+    else:
+        self.token = guest_login(self.url)
 
-        atexit.register(self.disconnect)
+    # Create API manager
+    self.api = APIManager(url=self.url, room_id=self.room, token=self.token)
+
+    # Populate self.user for guest/stored-token sessions
+    if self.user is None and self.token is not None:
+        resp = self.api.http.get(
+            "/v1/auth/users/me",
+            headers={"Authorization": f"Bearer {self.token}"},
+        )
+        if resp.status_code == 200:
+            self.user = resp.json().get("email")
+
+    # Create socket manager (no connection yet — connects lazily)
+    self.socket = SocketManager(zndraw=self)
+
+    # Create job manager (zero-cost until first register())
+    self._jobs = JobManager(
+        api=self.api,
+        tsio=self.socket.tsio,
+        execute=self._execute_task if self.auto_pickup else None,
+        heartbeat_interval=self.heartbeat_interval,
+        polling_interval=self.polling_interval,
+    )
+
+    # Verify/create room via REST and seed frame count cache
+    try:
+        info = self.api.get_room_info()
+        self.cached_length = info.get("frame_count", 0)
+    except KeyError:
+        if not self.create_if_missing:
+            raise
+        self.api.create_room(copy_from=self.copy_from)
+        self.cached_length = 0
+
+    atexit.register(self.disconnect)
 ```
 
 Also **delete** the `_resolve_url` static method (lines ~493-517).
@@ -1873,69 +1903,70 @@ Also **delete** the `_resolve_url` static method (lines ~493-517).
 These class methods (lines ~519-574) also use `_resolve_url` and the old `resolve_token`. Update both:
 
 ```python
-    @classmethod
-    def list_rooms(
-        cls,
-        url: str | None = None,
-        *,
-        token: str | None = None,
-        search: str | None = None,
-    ) -> list[dict[str, Any]]:
-        """List all rooms on the server.
+@classmethod
+def list_rooms(
+    cls,
+    url: str | None = None,
+    *,
+    token: str | None = None,
+    search: str | None = None,
+) -> list[dict[str, Any]]:
+    """List all rooms on the server.
 
-        Parameters
-        ----------
-        url
-            Server URL. If None, auto-discovers via state file.
-        token
-            JWT token. If None, uses stored token or creates guest session.
-        search
-            Optional search filter.
-        """
-        from zndraw.auth_utils import guest_login
-        from zndraw.client.settings import ClientSettings
+    Parameters
+    ----------
+    url
+        Server URL. If None, auto-discovers via state file.
+    token
+        JWT token. If None, uses stored token or creates guest session.
+    search
+        Optional search filter.
+    """
+    from zndraw.auth_utils import guest_login
+    from zndraw.client.settings import ClientSettings
 
-        overrides = {k: v for k, v in {"url": url, "token": token}.items() if v is not None}
-        resolved = ClientSettings(**overrides)
-        if resolved.url is None:
-            raise ConnectionError(
-                "No ZnDraw server found. Pass url= or start a local server."
-            )
-        resolved_token = resolved.token or guest_login(resolved.url)
-        api = APIManager(url=resolved.url, room_id="", token=resolved_token)
-        try:
-            return api.list_rooms(search=search)
-        finally:
-            api.close()
+    overrides = {k: v for k, v in {"url": url, "token": token}.items() if v is not None}
+    resolved = ClientSettings(**overrides)
+    if resolved.url is None:
+        raise ConnectionError(
+            "No ZnDraw server found. Pass url= or start a local server."
+        )
+    resolved_token = resolved.token or guest_login(resolved.url)
+    api = APIManager(url=resolved.url, room_id="", token=resolved_token)
+    try:
+        return api.list_rooms(search=search)
+    finally:
+        api.close()
 
-    @classmethod
-    def login(
-        cls,
-        url: str | None = None,
-        username: str = "",
-        password: str = "",
-    ) -> str:
-        """Authenticate and return a JWT token.
 
-        Parameters
-        ----------
-        url
-            Server URL. If None, auto-discovers via state file.
-        username
-            User email.
-        password
-            User password.
-        """
-        from zndraw.auth_utils import login_with_credentials
-        from zndraw.client.settings import ClientSettings
+@classmethod
+def login(
+    cls,
+    url: str | None = None,
+    username: str = "",
+    password: str = "",
+) -> str:
+    """Authenticate and return a JWT token.
 
-        overrides = {k: v for k, v in {"url": url}.items() if v is not None}
-        resolved = ClientSettings(**overrides)
-        if resolved.url is None:
-            raise ConnectionError(
-                "No ZnDraw server found. Pass url= or start a local server."
-            )
-        return login_with_credentials(resolved.url, username, password)
+    Parameters
+    ----------
+    url
+        Server URL. If None, auto-discovers via state file.
+    username
+        User email.
+    password
+        User password.
+    """
+    from zndraw.auth_utils import login_with_credentials
+    from zndraw.client.settings import ClientSettings
+
+    overrides = {k: v for k, v in {"url": url}.items() if v is not None}
+    resolved = ClientSettings(**overrides)
+    if resolved.url is None:
+        raise ConnectionError(
+            "No ZnDraw server found. Pass url= or start a local server."
+        )
+    return login_with_credentials(resolved.url, username, password)
 ```
 
 - [ ] **Step 3: Update tests**
@@ -1945,6 +1976,7 @@ Update `tests/test_resolve_token.py` to test the simplified auth_utils:
 ```python
 # tests/test_resolve_token.py
 """Tests for auth_utils credential validation and login helpers."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -1993,7 +2025,9 @@ def test_login_with_credentials_success():
     mock_client.post.return_value = mock_resp
 
     with patch("zndraw.auth_utils.httpx.Client", return_value=mock_client):
-        result = login_with_credentials("http://localhost:8000", "user@test.com", "pass")
+        result = login_with_credentials(
+            "http://localhost:8000", "user@test.com", "pass"
+        )
 
     assert result == "login.jwt"
 
@@ -2065,11 +2099,21 @@ Remove `envvar=` from all Typer option type aliases:
 # Before:
 UrlOpt = Annotated[str | None, typer.Option("--url", envvar="ZNDRAW_URL", help="...")]
 # After:
-UrlOpt = Annotated[str | None, typer.Option("--url", help="ZnDraw server URL [env: ZNDRAW_URL].")]
-TokenOpt = Annotated[str | None, typer.Option("--token", help="Auth token [env: ZNDRAW_TOKEN].")]
-RoomOpt = Annotated[str | None, typer.Option("--room", help="Room ID [env: ZNDRAW_ROOM].")]
-UserOpt = Annotated[str | None, typer.Option("--user", help="User email [env: ZNDRAW_USER].")]
-PasswordOpt = Annotated[str | None, typer.Option("--password", help="Password [env: ZNDRAW_PASSWORD].")]
+UrlOpt = Annotated[
+    str | None, typer.Option("--url", help="ZnDraw server URL [env: ZNDRAW_URL].")
+]
+TokenOpt = Annotated[
+    str | None, typer.Option("--token", help="Auth token [env: ZNDRAW_TOKEN].")
+]
+RoomOpt = Annotated[
+    str | None, typer.Option("--room", help="Room ID [env: ZNDRAW_ROOM].")
+]
+UserOpt = Annotated[
+    str | None, typer.Option("--user", help="User email [env: ZNDRAW_USER].")
+]
+PasswordOpt = Annotated[
+    str | None, typer.Option("--password", help="Password [env: ZNDRAW_PASSWORD].")
+]
 ```
 
 - [ ] **Step 2: Replace resolve_url and resolve_token with ClientSettings**
@@ -2089,7 +2133,12 @@ def get_connection(
 
     overrides = {
         k: v
-        for k, v in {"url": url, "token": token, "user": user, "password": password}.items()
+        for k, v in {
+            "url": url,
+            "token": token,
+            "user": user,
+            "password": password,
+        }.items()
         if v is not None
     }
 
@@ -2136,8 +2185,11 @@ def get_zndraw(
     from zndraw import ZnDraw
 
     return ZnDraw(
-        url=url, room=room, token=token,
-        user=user, password=password,
+        url=url,
+        room=room,
+        token=token,
+        user=user,
+        password=password,
         create_if_missing=False,
     )
 ```
@@ -2175,7 +2227,9 @@ Update `login()`:
 @auth_app.command("login")
 def login(
     url: UrlOpt = None,
-    code: bool = typer.Option(False, "--code", help="Print URL only, don't open browser"),
+    code: bool = typer.Option(
+        False, "--code", help="Print URL only, don't open browser"
+    ),
 ) -> None:
     """Login via browser approval (device-code flow)."""
     with cli_error_handler():
@@ -2288,7 +2342,12 @@ def status(
 
         overrides = {
             k: v
-            for k, v in {"url": url, "token": token, "user": user, "password": password}.items()
+            for k, v in {
+                "url": url,
+                "token": token,
+                "user": user,
+                "password": password,
+            }.items()
             if v is not None
         }
         settings = ClientSettings(**overrides)
@@ -2437,6 +2496,7 @@ The retained file should look like:
 Retained utilities: process checking and server readiness polling.
 Server registry and token storage moved to zndraw.state_file.
 """
+
 from __future__ import annotations
 
 import logging
