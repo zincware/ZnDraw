@@ -39,20 +39,20 @@ efficient backend operations.
 
 ```python
 # PREFERRED — subscript/view API (pandas-like)
-frame   = await io[index]                   # single row
-frames  = await io[start:stop].to_list()    # range of rows
-frames  = await io[[0, 5, 9]].to_list()     # sparse rows
-value   = await io[b"cube_key"][index]       # single column value
-values  = await io[b"energy"].to_list()      # full column
-await io[index].set(data)                    # write row
-await io[start:stop].delete()                # delete range
-await io[index].update(partial)              # merge into row
+frame = await io[index]  # single row
+frames = await io[start:stop].to_list()  # range of rows
+frames = await io[[0, 5, 9]].to_list()  # sparse rows
+value = await io[b"cube_key"][index]  # single column value
+values = await io[b"energy"].to_list()  # full column
+await io[index].set(data)  # write row
+await io[start:stop].delete()  # delete range
+await io[index].update(partial)  # merge into row
 
 # ACCEPTABLE — .get() when you need a filtered dict back
-frame = await io.get(index, keys=[...])      # partial row as dict
+frame = await io.get(index, keys=[...])  # partial row as dict
 
 # FORBIDDEN — private backend access
-rows = await io._backend.get_many(indices)   # NEVER
+rows = await io._backend.get_many(indices)  # NEVER
 ```
 
 **When to use `.get(index, keys=[...])`:** Only when the caller needs a
@@ -182,28 +182,20 @@ class FrameStorage:
         length = await io.len()
         if length > 0:
             return length
-        cached = await self._redis.get(
-            RedisKey.provider_frame_count(room_id)
-        )
+        cached = await self._redis.get(RedisKey.provider_frame_count(room_id))
         return int(cached) if cached else 0
 
     async def has_mount(self, room_id: str) -> bool:
         """Check if a room has a provider-backed frame count."""
-        return await self._redis.exists(
-            RedisKey.provider_frame_count(room_id)
-        ) > 0
+        return await self._redis.exists(RedisKey.provider_frame_count(room_id)) > 0
 
     async def set_frame_count(self, room_id: str, count: int) -> None:
         """Store provider frame count in Redis."""
-        await self._redis.set(
-            RedisKey.provider_frame_count(room_id), count
-        )
+        await self._redis.set(RedisKey.provider_frame_count(room_id), count)
 
     async def clear_frame_count(self, room_id: str) -> None:
         """Remove provider frame count from Redis."""
-        await self._redis.delete(
-            RedisKey.provider_frame_count(room_id)
-        )
+        await self._redis.delete(RedisKey.provider_frame_count(room_id))
 
     # -- Lifecycle -------------------------------------------------------------
 
@@ -235,6 +227,7 @@ async def require_writable_room(
     """Raise RoomReadOnly if the room has a provider mount."""
     if await storage.has_mount(room_id):
         raise RoomReadOnly.exception("Room is provider-backed (read-only)")
+
 
 RequireWritableDep = Annotated[None, Depends(require_writable_room)]
 ```

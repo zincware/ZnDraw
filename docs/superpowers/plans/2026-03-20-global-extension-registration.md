@@ -94,45 +94,43 @@ Expected: FAIL — `register_job` passes `"@global"` to `_resolve_room` which tr
 In `src/zndraw/client/core.py`, replace the current `register_job` method (lines 592-603) with:
 
 ```python
-    def register_job(
-        self,
-        cls: type,
-        *,
-        room: Literal["@global"] | str | None = None,
-        public: Annotated[
-            bool | None,
-            typing_extensions.deprecated(
-                "Use room='@global' instead of public=True"
-            ),
-        ] = None,
-    ) -> None:
-        """Register an extension as a job. Connects the socket if needed.
+def register_job(
+    self,
+    cls: type,
+    *,
+    room: Literal["@global"] | str | None = None,
+    public: Annotated[
+        bool | None,
+        typing_extensions.deprecated("Use room='@global' instead of public=True"),
+    ] = None,
+) -> None:
+    """Register an extension as a job. Connects the socket if needed.
 
-        Parameters
-        ----------
-        cls
-            Extension subclass to register.
-        room
-            Room scope. Use ``"@global"`` for global registration (admin-only).
-            Defaults to ``self.room``.
-        public
-            .. deprecated::
-                Use ``room='@global'`` instead.
-        """
-        if public and room is not None:
-            raise ValueError("Cannot specify both 'room' and 'public'")
-        if public:
-            warnings.warn(
-                "public=True is deprecated, use room='@global' instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            room = GLOBAL_ROOM
-        elif room != GLOBAL_ROOM:
-            room = self._resolve_room(room)
+    Parameters
+    ----------
+    cls
+        Extension subclass to register.
+    room
+        Room scope. Use ``"@global"`` for global registration (admin-only).
+        Defaults to ``self.room``.
+    public
+        .. deprecated::
+            Use ``room='@global'`` instead.
+    """
+    if public and room is not None:
+        raise ValueError("Cannot specify both 'room' and 'public'")
+    if public:
+        warnings.warn(
+            "public=True is deprecated, use room='@global' instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        room = GLOBAL_ROOM
+    elif room != GLOBAL_ROOM:
+        room = self._resolve_room(room)
 
-        self._ensure_socket_connected()
-        self.jobs.register(cls, room=room)
+    self._ensure_socket_connected()
+    self.jobs.register(cls, room=room)
 ```
 
 Add necessary imports at the top of the file. `warnings` is already imported. Add:
@@ -201,20 +199,18 @@ Expected: FAIL — `AttributeError: 'ZnDraw' object has no attribute 'register_e
 In `src/zndraw/client/core.py`, add after the `register_job` method:
 
 ```python
-    @typing_extensions.deprecated(
-        "Use register_job(cls, room='@global') for global, "
-        "or register_job(cls) for room-scoped"
-    )
-    def register_extension(
-        self, cls: type, *, public: bool = False, **kwargs: Any
-    ) -> None:
-        """Register an extension.
+@typing_extensions.deprecated(
+    "Use register_job(cls, room='@global') for global, "
+    "or register_job(cls) for room-scoped"
+)
+def register_extension(self, cls: type, *, public: bool = False, **kwargs: Any) -> None:
+    """Register an extension.
 
-        .. deprecated::
-            Use :meth:`register_job` instead.
-        """
-        room = "@global" if public else kwargs.get("room")
-        self.register_job(cls, room=room)
+    .. deprecated::
+        Use :meth:`register_job` instead.
+    """
+    room = "@global" if public else kwargs.get("room")
+    self.register_job(cls, room=room)
 ```
 
 - [ ] **Step 4: Run test to verify it passes**

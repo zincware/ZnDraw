@@ -109,5 +109,5 @@ After testing, provide a structured report:
 ```python
 from zndraw import ZnDraw
 
-vis = ZnDraw(room="<room_id>") # finds local server automatically
+vis = ZnDraw(room="<room_id>")  # finds local server automatically
 ```
