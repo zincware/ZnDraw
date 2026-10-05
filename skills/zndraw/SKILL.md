@@ -200,6 +200,7 @@ Use `<command> --help` for full options. Key patterns:
 ```python
 from zndraw import ZnDraw
 from zndraw.geometries import Isosurface
+
 vis = ZnDraw(room="ROOM")
 vis.geometries["homo"] = Isosurface(cube_key="info.orbital_homo", isovalue=0.02)
 ```
@@ -255,62 +256,63 @@ Use `uv run python -c "..."` with the **`ZnDraw` Python client**. It connects to
 
 ```python
 from zndraw import ZnDraw, Extension, Category
+
 vis = ZnDraw(room="ROOM")
 # After `zndraw-cli auth login`, stored token is auto-discovered — no --token needed
 # Or with explicit url and token: ZnDraw(url=..., room=..., token="JWT_TOKEN")
 
 # Frames — MutableSequence[ase.Atoms]
-len(vis)              # frame count
-vis[0]                # frame as ase.Atoms
-vis[vis.step]         # current frame
-vis.step = 42         # jump to frame
-vis.append(atoms)     # append frame
-del vis[0]            # delete frame
-vis[:]                # all frames as list[ase.Atoms]
+len(vis)  # frame count
+vis[0]  # frame as ase.Atoms
+vis[vis.step]  # current frame
+vis.step = 42  # jump to frame
+vis.append(atoms)  # append frame
+del vis[0]  # delete frame
+vis[:]  # all frames as list[ase.Atoms]
 
 # Selections, bookmarks, figures
-vis.selection = [0, 1, 2]       # set selected atom indices
-vis.bookmarks[42] = "label"     # MutableMapping[int, str]
-vis.figures["energy"] = fig     # MutableMapping[str, plotly.Figure]
+vis.selection = [0, 1, 2]  # set selected atom indices
+vis.bookmarks[42] = "label"  # MutableMapping[int, str]
+vis.figures["energy"] = fig  # MutableMapping[str, plotly.Figure]
 
 # Chat
-vis.chat.send("message")        # send chat message
-vis.chat[0]                      # read message (Sequence)
+vis.chat.send("message")  # send chat message
+vis.chat[0]  # read message (Sequence)
 
 # Room state
-vis.locked = True                # lock/unlock room
+vis.locked = True  # lock/unlock room
 
 # Run extensions — returns TaskHandle
 task = vis.run("@internal:modifiers:Delete")
 task = vis.run("@internal:modifiers:AddFromSMILES", smiles="CCO")
-task.wait(timeout=30)            # block until completed/failed
-task.status                      # "pending" | "running" | "completed" | "failed"
-task.id                          # task ID string
+task.wait(timeout=30)  # block until completed/failed
+task.status  # "pending" | "running" | "completed" | "failed"
+task.id  # task ID string
 
 # Discovery
-list(vis.extensions)                                    # all extension names
-vis.extensions["@internal:modifiers:Delete"]["schema"]   # parameter schema
+list(vis.extensions)  # all extension names
+vis.extensions["@internal:modifiers:Delete"]["schema"]  # parameter schema
 
 # Task handles
-vis.tasks[task_id]               # TaskHandle (with .wait(), .status, .id)
-vis.tasks("running")             # filtered view
+vis.tasks[task_id]  # TaskHandle (with .wait(), .status, .id)
+vis.tasks("running")  # filtered view
 
 # Sessions — room-scoped Mapping of active browser sessions
-vis.sessions                     # Mapping[str, Session] (all users in room)
-list(vis.sessions)               # list of session SIDs
+vis.sessions  # Mapping[str, Session] (all users in room)
+list(vis.sessions)  # list of session SIDs
 
 # Screenshots (requires own browser session — see "Screenshots, GIFs" section)
-sids = list(vis.sessions)           # list active session SIDs
-session = vis.sessions[sids[0]]     # get a session by SID
-img = session.screenshot()          # capture screenshot (own sessions only)
-img.data                            # PNG bytes
-img.save("frame.png")               # save to file
+sids = list(vis.sessions)  # list active session SIDs
+session = vis.sessions[sids[0]]  # get a session by SID
+img = session.screenshot()  # capture screenshot (own sessions only)
+img.data  # PNG bytes
+img.save("frame.png")  # save to file
 
 # Visual Presets — MutableMapping[str, Preset]
-list(vis.presets)                 # list preset names
-vis.presets.apply("matt")        # apply preset to room geometries
-vis.presets.apply("@default")    # reset all geometries to factory defaults
-vis.presets.load(Path("f.json")) # load preset from JSON file
+list(vis.presets)  # list preset names
+vis.presets.apply("matt")  # apply preset to room geometries
+vis.presets.apply("@default")  # reset all geometries to factory defaults
+vis.presets.load(Path("f.json"))  # load preset from JSON file
 vis.presets.export("pub", Path("out.json"))  # export to file
 vis.presets["custom"] = Preset(name="custom", rules=[...])
 del vis.presets["custom"]
@@ -319,8 +321,10 @@ del vis.presets["custom"]
 vis.get(slice(None), keys=["info.energy"])
 
 # Classmethods (no room needed)
-ZnDraw.list_rooms() # or with url="http://localhost:8000"
-token = ZnDraw.login(username="...", password="...") # or with url="http://localhost:8000",
+ZnDraw.list_rooms()  # or with url="http://localhost:8000"
+token = ZnDraw.login(
+    username="...", password="..."
+)  # or with url="http://localhost:8000",
 ```
 
 ### Bookmark frames matching a condition

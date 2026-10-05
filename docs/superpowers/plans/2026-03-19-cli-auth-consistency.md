@@ -444,9 +444,7 @@ Add at `src/zndraw/cli_agent/connection.py:39` after `RoomOpt`:
 ```python
 UserOpt = Annotated[
     str | None,
-    typer.Option(
-        "--user", envvar="ZNDRAW_USER", help="User email for authentication"
-    ),
+    typer.Option("--user", envvar="ZNDRAW_USER", help="User email for authentication"),
 ]
 PasswordOpt = Annotated[
     str | None,
