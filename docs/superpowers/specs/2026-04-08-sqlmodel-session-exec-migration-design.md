@@ -115,13 +115,21 @@ There is exactly one site in the codebase (`src/zndraw_joblib/router.py:733`) th
 
 ```python
 # Before
-stmt = update(Task).where(Task.id == task_id, Task.status == TaskStatus.PENDING).values(...)
+stmt = (
+    update(Task)
+    .where(Task.id == task_id, Task.status == TaskStatus.PENDING)
+    .values(...)
+)
 cursor_result = await session.execute(stmt)
 if cursor_result.rowcount == 1:
     ...
 
 # After
-stmt = update(Task).where(Task.id == task_id, Task.status == TaskStatus.PENDING).values(...)
+stmt = (
+    update(Task)
+    .where(Task.id == task_id, Task.status == TaskStatus.PENDING)
+    .values(...)
+)
 cursor_result = await session.exec(stmt)
 if cursor_result.rowcount == 1:
     ...
