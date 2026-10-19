@@ -246,14 +246,17 @@ Read `tests/test_cli.py` focusing on tests that assert env var writes:
 
 ```python
 # Before:
-port: Annotated[int | None, typer.Option("--port", ..., envvar="ZNDRAW_PORT")] = None,
-host: Annotated[str, typer.Option(help="...", envvar="ZNDRAW_HOST")] = "127.0.0.1",
+port: Annotated[int | None, typer.Option("--port", ..., envvar="ZNDRAW_PORT")] = (None,)
+host: Annotated[str, typer.Option(help="...", envvar="ZNDRAW_HOST")] = ("127.0.0.1",)
 
 # After:
-port: Annotated[int | None, typer.Option("--port",
-    help="Server port [env: ZNDRAW_SERVER_PORT].")] = None,
-host: Annotated[str | None, typer.Option(
-    help="Server hostname or IP address [env: ZNDRAW_SERVER_HOST].")] = None,
+port: Annotated[
+    int | None, typer.Option("--port", help="Server port [env: ZNDRAW_SERVER_PORT].")
+] = (None,)
+host: Annotated[
+    str | None,
+    typer.Option(help="Server hostname or IP address [env: ZNDRAW_SERVER_HOST]."),
+] = (None,)
 ```
 
 **Behavioral change:** `host` default changes from `"127.0.0.1"` to `None`. When `None`, `Settings.host` default `"0.0.0.0"` takes over. This is intentional — Settings is the single source of truth.
@@ -277,9 +280,9 @@ settings = Settings(**overrides)
 
 ```python
 # Before:
-help="Database URL (overrides ZNDRAW_DATABASE_URL)"
+help = "Database URL (overrides ZNDRAW_DATABASE_URL)"
 # After:
-help="Database URL [env: ZNDRAW_SERVER_DATABASE_URL]."
+help = "Database URL [env: ZNDRAW_SERVER_DATABASE_URL]."
 ```
 
 - [ ] **Step 6: Rewrite `test_cli.py` tests that assert `os.environ` writes**
