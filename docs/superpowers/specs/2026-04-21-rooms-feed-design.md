@@ -74,9 +74,7 @@ async def broadcast_room_update(
     else:
         member_ids = (
             await session.exec(
-                select(RoomMembership.user_id).where(
-                    RoomMembership.room_id == room.id
-                )
+                select(RoomMembership.user_id).where(RoomMembership.room_id == room.id)
             )
         ).all()
         for uid in member_ids:
