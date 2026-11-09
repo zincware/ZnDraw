@@ -55,9 +55,7 @@ Append to `tests/zndraw/test_socketio_rooms.py`:
 
 ```python
 @pytest.mark.asyncio
-async def test_rooms_feed_auto_join(
-    server: str, http_client: AsyncClient
-) -> None:
+async def test_rooms_feed_auto_join(server: str, http_client: AsyncClient) -> None:
     """Every authenticated socket must auto-join rooms:feed on connect,
     so room_update events from any public room are delivered without
     an explicit join.
@@ -86,9 +84,9 @@ async def test_rooms_feed_auto_join(
     # Give the event loop a beat to deliver the broadcast.
     await asyncio.sleep(0.5)
 
-    assert any(
-        e.id == new_room_id for e in received
-    ), f"Client B received no room_update for {new_room_id}; got {received}"
+    assert any(e.id == new_room_id for e in received), (
+        f"Client B received no room_update for {new_room_id}; got {received}"
+    )
 
     await sio_b.disconnect()
 ```
@@ -203,9 +201,7 @@ async def test_broadcast_private_room_targets_each_member(
 
     room = Room(id="priv", is_public=False)
     session.add(room)
-    session.add(
-        RoomMembership(room_id="priv", user_id=member_a, role=MemberRole.OWNER)
-    )
+    session.add(RoomMembership(room_id="priv", user_id=member_a, role=MemberRole.OWNER))
     session.add(
         RoomMembership(room_id="priv", user_id=member_b, role=MemberRole.MEMBER)
     )
@@ -215,9 +211,7 @@ async def test_broadcast_private_room_targets_each_member(
     await broadcast_room_update(sio, session, frame_storage, room)
 
     rooms_targeted = sorted(call["room"] for call in sio.emitted)
-    assert rooms_targeted == sorted(
-        [f"user:{member_a}", f"user:{member_b}"]
-    )
+    assert rooms_targeted == sorted([f"user:{member_a}", f"user:{member_b}"])
     assert "rooms:feed" not in rooms_targeted
 
 
@@ -270,9 +264,7 @@ async def broadcast_room_update(
         await sio.emit(event, room="rooms:feed")
         return
     result = await session.exec(
-        select(RoomMembership.user_id).where(
-            RoomMembership.room_id == room.id
-        )
+        select(RoomMembership.user_id).where(RoomMembership.room_id == room.id)
     )
     for uid in result.all():
         await sio.emit(event, room=f"user:{uid}")
@@ -535,12 +527,8 @@ async def test_same_room_frame_append_updates_sidebar(
 
     tsio_a = wrap(sio_a)
     tsio_b = wrap(sio_b)
-    await tsio_a.call(
-        RoomJoin(room_id=room_id), response_model=RoomJoinResponse
-    )
-    await tsio_b.call(
-        RoomJoin(room_id=room_id), response_model=RoomJoinResponse
-    )
+    await tsio_a.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
+    await tsio_b.call(RoomJoin(room_id=room_id), response_model=RoomJoinResponse)
 
     # Drain any room_update emissions that predate the frame append.
     await asyncio.sleep(0.3)

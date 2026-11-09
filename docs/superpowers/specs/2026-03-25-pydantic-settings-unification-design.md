@@ -102,6 +102,7 @@ Each class overrides `settings_customise_sources()`:
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_settings.main import PydanticBaseSettingsSource
 
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="ZNDRAW_SERVER_",
@@ -124,6 +125,7 @@ class Settings(BaseSettings):
             env_settings,
             PyprojectTomlConfigSettingsSource(settings_cls),
         )
+
     # ... fields unchanged ...
 ```
 
@@ -458,12 +460,12 @@ Typer handles **only** CLI inputs and help text. Pydantic-settings is the single
 @app.command()
 def main(
     # CLI overrides — defaults are None, no envvar=
-    host: Annotated[str | None, typer.Option(
-        help="Server host [env: ZNDRAW_SERVER_HOST]."
-    )] = None,
-    port: Annotated[int | None, typer.Option(
-        help="Server port [env: ZNDRAW_SERVER_PORT]."
-    )] = None,
+    host: Annotated[
+        str | None, typer.Option(help="Server host [env: ZNDRAW_SERVER_HOST].")
+    ] = None,
+    port: Annotated[
+        int | None, typer.Option(help="Server port [env: ZNDRAW_SERVER_PORT].")
+    ] = None,
     # Extra CLI args NOT in settings
     detached: bool = typer.Option(False, help="Run in background"),
 ):
@@ -490,15 +492,23 @@ def main(
 ```python
 # Before (cli_agent/connection.py)
 def get_connection(url, token, user, password):
-    base_url = resolve_url(url)          # manual PID file logic
-    resolved_token = resolve_token(...)   # manual 3-tier fallback
+    base_url = resolve_url(url)  # manual PID file logic
+    resolved_token = resolve_token(...)  # manual 3-tier fallback
     return Connection(base_url, resolved_token)
+
 
 # After
 def get_connection(url, token, user, password):
-    overrides = {k: v for k, v in {
-        "url": url, "token": token, "user": user, "password": password,
-    }.items() if v is not None}
+    overrides = {
+        k: v
+        for k, v in {
+            "url": url,
+            "token": token,
+            "user": user,
+            "password": password,
+        }.items()
+        if v is not None
+    }
     settings = ClientSettings(**overrides)
     return Connection(settings.url, settings.token)
 ```
