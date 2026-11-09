@@ -90,7 +90,9 @@ async def _unhandled_exception_handler(
     """Catch-all for unhandled exceptions — log and return RFC 9457."""
     logger.error(
         "Unhandled %s on %s %s",
-        type(exc).__name__, request.method, request.url.path,
+        type(exc).__name__,
+        request.method,
+        request.url.path,
         exc_info=True,
     )
     return await problem_exception_handler(

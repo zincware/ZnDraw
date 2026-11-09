@@ -23,8 +23,8 @@ Remove `user=` from the snippet entirely. Without explicit credentials, the Pyth
 from zndraw import ZnDraw
 
 vis = ZnDraw(
-  url="{window.location.origin}/",
-  room="{roomId}",
+    url="{window.location.origin}/",
+    room="{roomId}",
 )
 ```
 

@@ -272,7 +272,7 @@ Add to `geometries` dict (after the `"PropertyInspector": PropertyInspector,` li
 Add `"Isosurface"` to the `__all__` list (alphabetically, after `"InteractionSettings"`):
 
 ```python
-    "Isosurface",
+("Isosurface",)
 ```
 
 - [ ] **Step 5: Run tests to verify they pass**
@@ -824,9 +824,7 @@ async def test_isosurface_pyscf_h2(
         "cell": cc.box * bohr_to_ang,
     }
     frame = {
-        b"info.orbital_homo": msgpack.packb(
-            cube_data, default=msgpack_numpy.encode
-        ),
+        b"info.orbital_homo": msgpack.packb(cube_data, default=msgpack_numpy.encode),
     }
 
     user, token = await create_test_user_in_db(iso_session)
@@ -979,9 +977,7 @@ async def get_isosurface(
 
     _REQUIRED_KEYS = {"grid", "origin", "cell"}
     if not isinstance(cube_dict, dict):
-        raise UnprocessableContent.exception(
-            f"Key '{cube_key}' is not a dict"
-        )
+        raise UnprocessableContent.exception(f"Key '{cube_key}' is not a dict")
     missing = _REQUIRED_KEYS - cube_dict.keys()
     if missing:
         raise UnprocessableContent.exception(
@@ -990,9 +986,7 @@ async def get_isosurface(
 
     grid = np.asarray(cube_dict["grid"])
     if grid.ndim != 3:
-        raise UnprocessableContent.exception(
-            f"Grid must be 3D, got {grid.ndim}D"
-        )
+        raise UnprocessableContent.exception(f"Grid must be 3D, got {grid.ndim}D")
 
     origin = np.asarray(cube_dict["origin"], dtype=np.float64)
     cell = np.asarray(cube_dict["cell"], dtype=np.float64)
