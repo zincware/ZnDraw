@@ -65,6 +65,7 @@ async def get_worker_token(request: Request, session: SessionDep) -> str:
     )
     return await strategy.write_token(user)
 
+
 WorkerTokenDep = Annotated[str, Depends(get_worker_token)]
 ```
 

@@ -54,15 +54,15 @@ ownership semantics, and eliminates the anonymous code path.
 
 ```python
 class Visibility(str, Enum):
-    PRIVATE = "private"   # only the owning user (user-owned rooms)
-    GROUP   = "group"     # only members of the owning group (group-owned rooms)
-    PUBLIC  = "public"    # anyone (including guests) can view
+    PRIVATE = "private"  # only the owning user (user-owned rooms)
+    GROUP = "group"  # only members of the owning group (group-owned rooms)
+    PUBLIC = "public"  # anyone (including guests) can view
 
 
 class GroupRole(str, Enum):
-    VIEWER = "viewer"   # read-only for group rooms
-    MEMBER = "member"   # read + edit for group rooms
-    ADMIN  = "admin"    # member + manage membership + manage group rooms
+    VIEWER = "viewer"  # read-only for group rooms
+    MEMBER = "member"  # read + edit for group rooms
+    ADMIN = "admin"  # member + manage membership + manage group rooms
 
 
 class ShareAccess(str, Enum):
@@ -85,10 +85,14 @@ class Room(SQLModel, table=True):
     )
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     description: str | None = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime())
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+    )
     created_by_id: UUID | None = Field(default=None, index=True)  # audit, immutable
-    owner_user_id:  UUID | None = Field(default=None, foreign_key="user.id",  index=True)
-    owner_group_id: UUID | None = Field(default=None, foreign_key="group.id", index=True)
+    owner_user_id: UUID | None = Field(default=None, foreign_key="user.id", index=True)
+    owner_group_id: UUID | None = Field(
+        default=None, foreign_key="group.id", index=True
+    )
     visibility: Visibility = Field(default=Visibility.PUBLIC)
     step: int = Field(default=0)
     frame_selection: str | None = Field(default=None)
@@ -99,7 +103,9 @@ class Group(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     name: str = Field(unique=True, index=True)
     description: str | None = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime())
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+    )
     created_by_id: UUID = Field(foreign_key="user.id", index=True)
 
 
@@ -107,9 +113,11 @@ class GroupMembership(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("group_id", "user_id"),)
     id: int | None = Field(default=None, primary_key=True)
     group_id: UUID = Field(foreign_key="group.id", index=True)
-    user_id:  UUID = Field(foreign_key="user.id",  index=True)
+    user_id: UUID = Field(foreign_key="user.id", index=True)
     role: GroupRole = Field(default=GroupRole.VIEWER)
-    joined_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime())
+    joined_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+    )
 
 
 class RoomShareLink(SQLModel, table=True):
@@ -118,7 +126,9 @@ class RoomShareLink(SQLModel, table=True):
     token: str = Field(unique=True, index=True)  # url-safe, ~32 bytes
     access: ShareAccess = Field(default=ShareAccess.VIEW)
     created_by_id: UUID = Field(foreign_key="user.id")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime())
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), sa_type=UTCDateTime()
+    )
     expires_at: datetime | None = Field(default=None, sa_type=UTCDateTime())
     revoked_at: datetime | None = Field(default=None, sa_type=UTCDateTime())
 ```

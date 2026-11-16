@@ -53,10 +53,14 @@ Each `Isosurface` instance represents ONE surface at ONE isovalue. The isovalue 
 
 ```python
 vis.geometries["homo+"] = Isosurface(
-    cube_key="info.orbital_homo", isovalue=0.02, color="#2244CC",
+    cube_key="info.orbital_homo",
+    isovalue=0.02,
+    color="#2244CC",
 )
 vis.geometries["homo-"] = Isosurface(
-    cube_key="info.orbital_homo", isovalue=-0.02, color="#CC4422",
+    cube_key="info.orbital_homo",
+    isovalue=-0.02,
+    color="#CC4422",
 )
 ```
 
@@ -346,9 +350,9 @@ cc = cubegen.Cube(mol)
 # Build atoms with volumetric data
 atoms = ase.Atoms(...)
 atoms.info["orbital_homo"] = {
-    "grid": orb_on_grid,           # (nx, ny, nz) float
+    "grid": orb_on_grid,  # (nx, ny, nz) float
     "origin": cc.boxorig * 0.529,  # Bohr → Angstrom
-    "cell": cc.box * 0.529,        # Bohr → Angstrom
+    "cell": cc.box * 0.529,  # Bohr → Angstrom
 }
 
 # Visualize
