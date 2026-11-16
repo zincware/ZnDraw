@@ -57,7 +57,9 @@ ZnDraw supports multiple clients connecting to the same visualization. Each visu
 ```python
 from zndraw import ZnDraw
 
-vis = ZnDraw(url="http://localhost:1234", room="123e4567-e89b-12d3-a456-426614174000/my-room")
+vis = ZnDraw(
+    url="http://localhost:1234", room="123e4567-e89b-12d3-a456-426614174000/my-room"
+)
 ```
 
 > `room=` accepts the composed form `<owner_uuid>/<name>` returned by the server. Single-segment names are no longer supported.
@@ -71,7 +73,7 @@ vis = ZnDraw(
     url="http://localhost:1234",
     room="123e4567-e89b-12d3-a456-426614174000/my-room",
     user="username",
-    password="password"
+    password="password",
 )
 ```
 
@@ -106,12 +108,12 @@ subset = vis[10:20]
 Control various aspects of the visualization:
 
 ```python
-vis.selection   # Currently selected atoms
-vis.step        # Current frame index
-vis.figures     # Plotly figures
-vis.bookmarks   # Saved frame annotations
+vis.selection  # Currently selected atoms
+vis.step  # Current frame index
+vis.figures  # Plotly figures
+vis.bookmarks  # Saved frame annotations
 vis.geometries  # 3D geometry overlays (dict-like)
-vis.sessions    # Session configuration
+vis.sessions  # Session configuration
 ```
 
 ## Geometries
@@ -162,6 +164,7 @@ Create custom tools accessible via the ZnDraw UI:
 from molify import smiles2atoms
 from zndraw import ZnDraw, Extension, Category
 
+
 class AddMolecule(Extension):
     category = Category.MODIFIER
     smiles: str
@@ -169,6 +172,7 @@ class AddMolecule(Extension):
     def run(self, vis, **kwargs) -> None:
         vis.append(smiles2atoms(self.smiles))
         vis.step = len(vis) - 1
+
 
 vis = ZnDraw()
 vis.register_job(AddMolecule)  # room-scoped (default)
@@ -188,6 +192,7 @@ Register filesystem providers so users can load files from the UI:
 
 ```python
 import fsspec
+
 vis.register_fs(fsspec.filesystem("file"), name="local")
 ```
 

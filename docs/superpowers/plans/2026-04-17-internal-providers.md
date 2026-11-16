@@ -650,9 +650,7 @@ def test_list_providers_includes_internal(client, async_session_factory):
     resp = client.get("/v1/joblib/rooms/room-42/providers")
     assert resp.status_code == 200
     items = resp.json()["items"]
-    assert any(
-        p["full_name"] == "@internal:filesystem:FilesystemRead" for p in items
-    )
+    assert any(p["full_name"] == "@internal:filesystem:FilesystemRead" for p in items)
 
     # @global also sees only its own scope (not @internal)
     resp = client.get("/v1/joblib/rooms/@global/providers")
@@ -699,8 +697,7 @@ def test_get_provider_info_internal_visible_from_room(client, async_session_fact
     asyncio.run(seed())
 
     resp = client.get(
-        "/v1/joblib/rooms/room-42/providers/"
-        "@internal:filesystem:FilesystemRead/info"
+        "/v1/joblib/rooms/room-42/providers/@internal:filesystem:FilesystemRead/info"
     )
     assert resp.status_code == 200
     assert resp.json()["schema"] == {"path": {"type": "string"}}
@@ -843,10 +840,8 @@ Expected: FAIL — status is 204 (superuser can currently delete anything).
 In `/Users/fzills/tools/zndraw-fastapi/src/zndraw_joblib/router.py`, modify `delete_provider` (around line 1218). After the `ProviderNotFound` check and before the user-ownership check, add:
 
 ```python
-    if provider.room_id == "@internal":
-        raise Forbidden.exception(
-            detail="@internal providers cannot be deleted"
-        )
+if provider.room_id == "@internal":
+    raise Forbidden.exception(detail="@internal providers cannot be deleted")
 ```
 
 - [ ] **Step 5.4: Run the test — must pass.**
@@ -1446,9 +1441,7 @@ def test_default_internal_filesystem_listed(server):
     try:
         providers = _list_providers(vis)
         internal = [
-            p
-            for p in providers
-            if p.full_name == "@internal:filesystem:FilesystemRead"
+            p for p in providers if p.full_name == "@internal:filesystem:FilesystemRead"
         ]
         assert len(internal) == 1
     finally:
