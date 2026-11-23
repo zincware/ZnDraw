@@ -807,7 +807,7 @@ class JobManager:
                 json={"content": message},
                 headers=self.api.get_headers(),
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.debug("Failed to log message to room %s", room_id, exc_info=True)
 
     # -- SIO event handlers ---------------------------------------------------
