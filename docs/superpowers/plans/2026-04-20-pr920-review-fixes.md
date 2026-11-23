@@ -194,9 +194,7 @@ def test_global_scope_cannot_resolve_room_provider(client_factory):
     assert resp.status_code == 201
 
     # admin, calling with @global scope, must not resolve a room-42 provider.
-    resp = admin.get(
-        "/v1/joblib/rooms/@global/providers/room-42:filesystem:local"
-    )
+    resp = admin.get("/v1/joblib/rooms/@global/providers/room-42:filesystem:local")
     assert resp.status_code == 404, resp.text
 
 
@@ -291,11 +289,7 @@ async def _resolve_provider(
     provider_room_id, category, name = parts
 
     # Visibility check — mirror _room_provider_filter.
-    allowed = (
-        {"@global"}
-        if room_id == "@global"
-        else {"@global", "@internal", room_id}
-    )
+    allowed = {"@global"} if room_id == "@global" else {"@global", "@internal", room_id}
     if provider_room_id not in allowed:
         raise ProviderNotFound.exception(
             detail=f"Provider '{provider_name}' not accessible from room '{room_id}'"
@@ -533,8 +527,10 @@ You will likely need to add a `monkeypatch_app_state` fixture to the relevant `c
 @pytest.fixture
 def monkeypatch_app_state(app, monkeypatch):
     """Temporarily override a key on app.state."""
+
     def _set(key: str, value):
         monkeypatch.setattr(app.state, key, value, raising=False)
+
     return _set
 ```
 
@@ -696,11 +692,10 @@ def test_legitimate_json_with_error_type_keys_is_not_mis_flagged(
 
     async def _seed() -> None:
         await result_backend.store(cache_key, payload, 60)
+
     asyncio.run(_seed())
 
-    resp = alice.get(
-        f"/v1/joblib/rooms/room-42/providers/{provider_full_name}?path=/"
-    )
+    resp = alice.get(f"/v1/joblib/rooms/room-42/providers/{provider_full_name}?path=/")
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"type": "object", "error": None, "ok": True}
 ```
@@ -738,6 +733,7 @@ def _run() -> None:
             provider_cls.__name__,
         )
         from zndraw_joblib.exceptions import ProviderExecutionFailed
+
         problem = ProviderExecutionFailed.create(
             detail=f"{type(err).__name__}: {err}",
         )
@@ -881,9 +877,7 @@ if result is not None:
             status_code=status_code,
             headers=headers,
         )
-    return Response(
-        content=result, media_type=provider.content_type, headers=headers
-    )
+    return Response(content=result, media_type=provider.content_type, headers=headers)
 ```
 
 Remove the existing content-sniffing blocks entirely.
@@ -892,9 +886,7 @@ Remove the existing content-sniffing blocks entirely.
 
 Add to `tests/zndraw_joblib/test_providers.py`:
 ```python
-def test_provider_error_path_returns_problem_detail(
-    client_factory, result_backend
-):
+def test_provider_error_path_returns_problem_detail(client_factory, result_backend):
     """When an executor posts an error, read_provider returns RFC 9457
     problem+json with the status from the payload (not a hard-coded 400)."""
     import asyncio
@@ -917,6 +909,7 @@ def test_provider_error_path_returns_problem_detail(
     async def _seed() -> None:
         await result_backend.store(cache_key, payload, 60)
         await result_backend.store(f"{cache_key}:status", b"error", 60)
+
     asyncio.run(_seed())
 
     resp = alice.get(
@@ -1041,17 +1034,13 @@ def test_internal_filesystem_requires_superuser_by_default(
     resp = alice.get("/v1/joblib/rooms/room-42/providers")
     assert resp.status_code == 200
     items = resp.json()["items"]
-    assert not any(
-        p["full_name"].startswith("@internal:filesystem:") for p in items
-    )
+    assert not any(p["full_name"].startswith("@internal:filesystem:") for p in items)
 
     # Info endpoint gate — add an assertion here only after Step 6 below
     # lands and you have confirmed the info endpoint's path via grep.
 
 
-def test_internal_filesystem_superuser_can_read(
-    client_factory, async_session_factory
-):
+def test_internal_filesystem_superuser_can_read(client_factory, async_session_factory):
     """Superusers bypass the gate."""
     import asyncio
     import uuid
@@ -1088,9 +1077,7 @@ def test_internal_filesystem_superuser_can_read(
     admin = client_factory("admin-su", is_superuser=True)
     resp = admin.get("/v1/joblib/rooms/room-42/providers")
     items = resp.json()["items"]
-    assert any(
-        p["full_name"] == "@internal:filesystem:FilesystemRead" for p in items
-    )
+    assert any(p["full_name"] == "@internal:filesystem:FilesystemRead" for p in items)
 ```
 
 - [ ] **Step 3: Run the failing tests**
@@ -1145,7 +1132,8 @@ In the `_list_providers` endpoint (grep for `@router.get("/rooms/{room_id}/provi
 ```python
 if settings.filebrowser_require_superuser and not _current_user.is_superuser:
     items = [
-        p for p in items
+        p
+        for p in items
         if not (p.room_id == "@internal" and p.category == "filesystem")
     ]
 ```
@@ -1161,9 +1149,7 @@ Expected: both PASS.
 
 Add to `tests/zndraw_joblib/test_providers.py`:
 ```python
-def test_internal_filesystem_gate_disabled(
-    client_factory, async_session_factory, app
-):
+def test_internal_filesystem_gate_disabled(client_factory, async_session_factory, app):
     """With filebrowser_require_superuser=False, non-superusers can access."""
     import asyncio
     import uuid
@@ -1202,9 +1188,7 @@ def test_internal_filesystem_gate_disabled(
     alice = client_factory("alice-gated-off", is_superuser=False)
     resp = alice.get("/v1/joblib/rooms/room-42/providers")
     items = resp.json()["items"]
-    assert any(
-        p["full_name"] == "@internal:filesystem:FilesystemRead" for p in items
-    )
+    assert any(p["full_name"] == "@internal:filesystem:FilesystemRead" for p in items)
 
     # Reset for other tests
     app.state.settings.filebrowser_require_superuser = True
@@ -1325,16 +1309,20 @@ def test_filebrowser_disabled_hides_default_provider(server_factory):
 Rename `test_filebrowser_path_none_removes_stale_rows` → `test_filebrowser_disabled_removes_stale_rows`. Update the env-var payload in each of its two boots:
 ```python
 # first boot — enabled
-server_factory({
-    "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "true",
-    "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
-    "ZNDRAW_SERVER_DATABASE_URL": db_url,
-})
+server_factory(
+    {
+        "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "true",
+        "ZNDRAW_SERVER_FILEBROWSER_PATH": ".",
+        "ZNDRAW_SERVER_DATABASE_URL": db_url,
+    }
+)
 # second boot — disabled
-server_factory({
-    "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "false",
-    "ZNDRAW_SERVER_DATABASE_URL": db_url,
-})
+server_factory(
+    {
+        "ZNDRAW_SERVER_FILEBROWSER_ENABLED": "false",
+        "ZNDRAW_SERVER_DATABASE_URL": db_url,
+    }
+)
 ```
 
 - [ ] **Step 5: Write a regression test — `guest_password="none"` stays literal**
